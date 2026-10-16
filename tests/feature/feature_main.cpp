@@ -17,7 +17,9 @@
 #include "engine/engine.cpp"
 
 #include "test_framework.h"
+#include "test_files.h"
 #include "engine_tests.cpp"
+#include "load_save_tests.cpp"
 #include "fixture_tests.cpp"
 
 int
@@ -29,6 +31,10 @@ main(int argc, char **argv)
     test_counts engine_counts = {};
     feature_engine_tests(&engine_counts);
     failed |= test_report("feature/engine", &engine_counts);
+
+    test_counts load_counts = {};
+    feature_load_save_tests(&load_counts);
+    failed |= test_report("feature/load_save", &load_counts);
 
     char fixtures_dir[MAX_PATH];
     if (argc > 1)

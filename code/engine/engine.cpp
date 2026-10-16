@@ -15,6 +15,7 @@ struct engine
     sim_event    *ledger;          /* every event the sim has emitted this session */
     u32           ledger_count;
     u32           ledger_capacity;
+    platform_read_entire_file *read_entire_file;
 };
 
 internal engine_config
@@ -26,6 +27,7 @@ engine_default_config(void)
     c.map_width        = 40;    /* placeholder map until spec/formats/scenario-file.md */
     c.map_height       = 30;
     c.map_default_cost = 1;
+    c.read_entire_file = 0;
     return c;
 }
 
@@ -42,6 +44,7 @@ engine_create(memory_arena *permanent, memory_arena *transient, engine_config co
     e->ledger_capacity = config.ledger_capacity;
     e->ledger_count    = 0;
     e->ledger          = PushArray(permanent, config.ledger_capacity, sim_event);
+    e->read_entire_file = config.read_entire_file;
     return e;
 }
 
@@ -142,6 +145,115 @@ engine_api_path_cost(void *opaque, s32 q0, s32 r0, s32 q1, s32 r1)
 }
 
 internal u32
+engine_api_officer_count(void *opaque)
+{
+    return ((engine *)opaque)->sim->officers.count;
+}
+
+internal engine_officer
+engine_api_officer_at(void *opaque, u32 index)
+{
+    engine *e = (engine *)opaque;
+    engine_officer result = {};
+    result.officer_id = ENGINE_NO_OFFICER;
+    if (index >= e->sim->officers.count) return result;
+    officer_component *officer = e->sim->officers.data + index;
+    result.officer_id = officer->officer_id;
+    memcpy(result.family_name,   officer->family_name,   sizeof(result.family_name));
+    memcpy(result.given_name,    officer->given_name,    sizeof(result.given_name));
+    memcpy(result.courtesy_name, officer->courtesy_name, sizeof(result.courtesy_name));
+    result.appearance_year          = officer->appearance_year;
+    result.birth_year               = officer->birth_year;
+    result.death_year               = officer->death_year;
+    result.leadership               = officer->leadership;
+    result.war                      = officer->war;
+    result.intelligence             = officer->intelligence;
+    result.politics                 = officer->politics;
+    result.charm                    = officer->charm;
+    result.force_id                 = officer->force_id;
+    result.base_location            = officer->base_location;
+    result.current_position         = officer->current_position;
+    result.status                   = officer->status;
+    result.merit                    = officer->merit;
+    result.skill_number             = officer->skill_number;
+    result.compatibility            = officer->compatibility;
+    result.father                   = officer->father;
+    result.spouse                   = officer->spouse;
+    result.sworn_brother_group_head = officer->sworn_brother_group_head;
+    return result;
+}
+
+internal u32
+engine_api_city_count(void *opaque)
+{
+    return ((engine *)opaque)->sim->cities.count;
+}
+
+internal engine_city
+engine_api_city_at(void *opaque, u32 index)
+{
+    engine *e = (engine *)opaque;
+    engine_city result = {};
+    result.city_id = ENGINE_NO_CITY;
+    if (index >= e->sim->cities.count) return result;
+    city_component *city = e->sim->cities.data + index;
+    result.city_id               = city->city_id;
+    result.owner_force_id        = city->owner_force_id;
+    result.commanding_officer_id = city->commanding_officer_id;
+    result.capacity_constant     = city->capacity_constant;
+    result.gold                  = city->gold;
+    result.troops                = city->troops;
+    result.food                  = city->food;
+    memcpy(result.equipment_stocks, city->equipment_stocks, sizeof(result.equipment_stocks));
+    result.durability_maximum    = city->durability_maximum;
+    result.public_order          = city->public_order;
+    return result;
+}
+
+/* Reads the file into the scratch arena, decodes it there, then hands the
+   decoded save to the sim as one command. A file that does not load leaves
+   the game and the ledger as they were. */
+internal engine_load_result
+engine_api_load_save(void *opaque, const char *path)
+{
+    engine *e = (engine *)opaque;
+    engine_load_result result = {};
+    result.detail = "ok";
+    if (!e->read_entire_file)
+    {
+        result.status = ENGINE_LOAD_NO_FILE_READER;
+        result.detail = "no file reader";
+        return result;
+    }
+
+    arena_reset(&e->scratch);
+    read_file_result file = e->read_entire_file(path, &e->scratch);
+    if (!file.contents)
+    {
+        result.status = ENGINE_LOAD_FILE_NOT_FOUND;
+        result.detail = "file not found";
+        return result;
+    }
+    save_file save;
+    save_load_result loaded = save_load(&e->scratch, (const u8 *)file.contents, file.size, &save);
+    if (loaded.status != SAVE_LOAD_OK)
+    {
+        result.status = ENGINE_LOAD_BAD_SAVE;
+        result.detail = loaded.status == SAVE_LOAD_INFLATE_FAILED ? inflate_status_name(loaded.inflate.status)
+                                                                  : save_load_status_name(loaded.status);
+        return result;
+    }
+
+    sim_event_sink sink = sim_sink_from_arena(&e->scratch, ENGINE_SINK_CAPACITY);
+    sim_command command = sim_make_command(e->sim, SIM_COMMAND_LOAD_SAVE);
+    sim_load_save(e->sim, &save, command, &sink);
+    engine_ledger_append(e, &sink);
+    result.status     = ENGINE_LOAD_OK;
+    result.command_id = command.id;
+    return result;
+}
+
+internal u32
 engine_api_end_turn(void *opaque)
 {
     sim_command command = engine_run_command((engine *)opaque, SIM_COMMAND_END_TURN, 0);
@@ -185,9 +297,14 @@ engine_make_api(engine *e)
     api.map_size        = engine_api_map_size;
     api.cell_cost       = engine_api_cell_cost;
     api.path_cost       = engine_api_path_cost;
+    api.officer_count   = engine_api_officer_count;
+    api.officer_at      = engine_api_officer_at;
+    api.city_count      = engine_api_city_count;
+    api.city_at         = engine_api_city_at;
     api.end_turn        = engine_api_end_turn;
     api.advance_turns   = engine_api_advance_turns;
     api.ledger_clear    = engine_api_ledger_clear;
     api.set_cell_cost   = engine_api_set_cell_cost;
+    api.load_save       = engine_api_load_save;
     return api;
 }

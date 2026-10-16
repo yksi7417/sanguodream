@@ -21,6 +21,7 @@ engine_fixture_init(engine_fixture *f, u64 seed, u32 ledger_capacity)
     config.ledger_capacity = ledger_capacity;
     config.map_width       = 16;
     config.map_height      = 12;
+    config.read_entire_file = test_platform_read_entire_file;
     f->backend = engine_create(&f->permanent, &f->transient, config);
     f->api     = engine_make_api(f->backend);
 }
@@ -42,7 +43,8 @@ feature_engine_tests(test_counts *counts)
 
     TEST_CHECK(counts, api->turn && api->entities_alive && api->entity_capacity && api->ledger_count &&
                api->ledger_at && api->memory && api->map_size && api->cell_cost && api->path_cost &&
-               api->end_turn && api->advance_turns && api->ledger_clear && api->set_cell_cost,
+               api->end_turn && api->advance_turns && api->ledger_clear && api->set_cell_cost &&
+               api->officer_count && api->officer_at && api->city_count && api->city_at && api->load_save,
                "api table is complete");
 
     /* The map through the api. */

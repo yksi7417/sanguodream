@@ -72,10 +72,16 @@ internal PLATFORM_LOG(win32_platform_log)
     win32_log(message);
 }
 
+/* A relative path is relative to the folder of the executable, not to the
+   current directory, so the game finds its data however it was started. */
 internal PLATFORM_READ_ENTIRE_FILE(win32_read_entire_file)
 {
     read_file_result result = {};
-    HANDLE file = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+    char resolved[MAX_PATH];
+    b32 is_absolute = path[0] == '\\' || path[0] == '/' || (path[0] && path[1] == ':');
+    if (is_absolute) snprintf(resolved, MAX_PATH, "%s", path);
+    else             snprintf(resolved, MAX_PATH, "%s\\%s", g_win32.exe_dir, path);
+    HANDLE file = CreateFileA(resolved, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
     if (file == INVALID_HANDLE_VALUE) return result;
 
     LARGE_INTEGER size;

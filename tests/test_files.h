@@ -9,6 +9,7 @@
 #define NOMINMAX
 #include <windows.h>
 #include "base.h"
+#include "hexdom.h"
 
 struct test_file
 {
@@ -57,6 +58,29 @@ test_fixture_path(char *out, u32 out_size, const char *relative)
     char exe_dir[MAX_PATH];
     test_exe_dir(exe_dir, MAX_PATH);
     snprintf(out, out_size, "%s\\..\\spec-src\\spec\\fixtures\\%s", exe_dir, relative);
+}
+
+/* The platform's file reader for engines in the tests: a relative path is
+   relative to the folder of the executable, as in win32_hexdom.cpp. */
+internal PLATFORM_READ_ENTIRE_FILE(test_platform_read_entire_file)
+{
+    char resolved[MAX_PATH];
+    b32 is_absolute = path[0] == '\\' || path[0] == '/' || (path[0] && path[1] == ':');
+    if (is_absolute)
+    {
+        snprintf(resolved, MAX_PATH, "%s", path);
+    }
+    else
+    {
+        char exe_dir[MAX_PATH];
+        test_exe_dir(exe_dir, MAX_PATH);
+        snprintf(resolved, MAX_PATH, "%s\\%s", exe_dir, path);
+    }
+    test_file file = test_read_file(resolved, arena);
+    read_file_result result;
+    result.size     = file.size;
+    result.contents = file.contents;
+    return result;
 }
 
 #endif /* TEST_FILES_H */

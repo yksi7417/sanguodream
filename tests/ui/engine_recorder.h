@@ -19,16 +19,22 @@ enum recorder_call_kind
     RECORDER_MAP_SIZE,
     RECORDER_CELL_COST,
     RECORDER_PATH_COST,
+    RECORDER_OFFICER_COUNT,
+    RECORDER_OFFICER_AT,
+    RECORDER_CITY_COUNT,
+    RECORDER_CITY_AT,
     RECORDER_END_TURN,        /* commands start here */
     RECORDER_ADVANCE_TURNS,
     RECORDER_LEDGER_CLEAR,
     RECORDER_SET_CELL_COST,
+    RECORDER_LOAD_SAVE,
     RECORDER_CALL_KIND_COUNT
 };
 
 #define RECORDER_FIRST_COMMAND RECORDER_END_TURN
 #define RECORDER_MAX_CALLS     65536
 #define RECORDER_MAX_EVENTS    64
+#define RECORDER_MAX_PATH      260
 
 struct recorder_call
 {
@@ -46,6 +52,9 @@ struct engine_recorder
     u32           next_command_id;
     sim_event     events[RECORDER_MAX_EVENTS];
     u32           event_count;
+    u32           officer_count;      /* scripted rows for the Officers and Cities panels */
+    u32           city_count;
+    char          last_load_path[RECORDER_MAX_PATH];
 };
 
 internal void
@@ -173,6 +182,57 @@ internal void recorder_set_cell_cost(void *o, s32 q, s32 r, u8 cost)
     recorder_record((engine_recorder *)o, RECORDER_SET_CELL_COST, cost);
 }
 
+internal u32 recorder_officer_count(void *o)  { engine_recorder *r = (engine_recorder *)o; recorder_record(r, RECORDER_OFFICER_COUNT, 0); return r->officer_count; }
+internal u32 recorder_city_count(void *o)     { engine_recorder *r = (engine_recorder *)o; recorder_record(r, RECORDER_CITY_COUNT, 0); return r->city_count; }
+
+/* Officer i of the script: id 100 + i, with a two-byte name that no
+   character mapping is needed to check. */
+internal engine_officer recorder_officer_at(void *o, u32 i)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_OFFICER_AT, i);
+    engine_officer officer = {};
+    officer.officer_id = ENGINE_NO_OFFICER;
+    if (i >= r->officer_count) return officer;
+    officer.officer_id     = (u16)(100 + i);
+    officer.family_name[0] = 0xB1;
+    officer.family_name[1] = (u8)(0x40 + i);
+    officer.leadership     = 50;
+    officer.force_id       = 1;
+    officer.status         = 3;
+    officer.base_location  = 0xFFFF;
+    return officer;
+}
+
+internal engine_city recorder_city_at(void *o, u32 i)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_CITY_AT, i);
+    engine_city city = {};
+    city.city_id = ENGINE_NO_CITY;
+    if (i >= r->city_count) return city;
+    city.city_id               = (u8)i;
+    city.owner_force_id        = 255;
+    city.commanding_officer_id = 0xFFFF;
+    city.gold                  = 1000 * (i + 1);
+    return city;
+}
+
+/* Records the path; the script gains three officers and two cities. */
+internal engine_load_result recorder_load_save(void *o, const char *path)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_LOAD_SAVE, 0);
+    snprintf(r->last_load_path, RECORDER_MAX_PATH, "%s", path);
+    r->officer_count = 3;
+    r->city_count    = 2;
+    engine_load_result result = {};
+    result.status     = ENGINE_LOAD_OK;
+    result.command_id = r->next_command_id++;
+    result.detail     = "ok";
+    return result;
+}
+
 internal engine_api
 recorder_make_api(engine_recorder *r)
 {
@@ -188,10 +248,15 @@ recorder_make_api(engine_recorder *r)
     api.map_size        = recorder_map_size;
     api.cell_cost       = recorder_cell_cost;
     api.path_cost       = recorder_path_cost;
+    api.officer_count   = recorder_officer_count;
+    api.officer_at      = recorder_officer_at;
+    api.city_count      = recorder_city_count;
+    api.city_at         = recorder_city_at;
     api.end_turn        = recorder_end_turn;
     api.advance_turns   = recorder_advance_turns;
     api.ledger_clear    = recorder_ledger_clear;
     api.set_cell_cost   = recorder_set_cell_cost;
+    api.load_save       = recorder_load_save;
     return api;
 }
 
