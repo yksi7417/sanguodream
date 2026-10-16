@@ -114,6 +114,11 @@ build\save_dump.exe prints the sample as JSON for comparison with the dump
 of the analysis side (tutorial 09). The TSV table loader and the `develop`
 command wait for mechanics/farm-development.md and its fixtures. Open spec
 questions from the loader: Q-012 to Q-016.
+Cross-wall comparison (2026-10-16): on sample.s11 the clean-room dump and
+the dump of the analysis side agree on every field of all 42 cities and of
+the 659 officers that both list. The clean room lists 194 more officers
+(empty-status slots with names, and dead officers); spec Q-012 decides
+which rule is correct. This is item 3 of the playbook's Milestone 1.
 
 Spec input: spec/formats/save-file.md, scenario-file.md; mechanics/farm-development.md with fixtures.
 - Engine:
