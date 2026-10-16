@@ -106,6 +106,8 @@ struct text_catalog_stats
     u64 missing_strings;   /* text_get calls that returned the id */
     u64 name_lookups;      /* text_name calls */
     u64 decoded_names;     /* text_name calls that decoded the bytes (no names row) */
+    u64 label_lookups;     /* text_label calls */
+    u64 unknown_labels;    /* text_label calls that gave "?" and the number */
 };
 
 struct text_catalog
@@ -147,6 +149,12 @@ internal const char *text_get(text_catalog *catalog, const char *id);
    names/<locale>.tsv with the key of the bytes, else the decoded bytes
    (zh-TW). Returns out. An empty name gives "". */
 internal const char *text_name(text_catalog *catalog, const u8 *bytes, u32 size, char *out, u32 out_size);
+
+/* The label of an enum code, in out: the text of "<prefix>.<code>" in the
+   active locale, else in the fallback locale. A code that no locale has
+   gives "?" and the number, for example "?4". An unknown code is not a
+   missing string. Returns out. */
+internal const char *text_label(text_catalog *catalog, const char *prefix, u32 code, char *out, u32 out_size);
 
 /* The key of a name: the bytes up to the first NUL as upper-case hex,
    "B1E4BEDE". Returns the length of the key. */

@@ -9,6 +9,7 @@
 #define TEST_UTF8_CAO2   "\xE6\x93\x8D"   /* U+64CD, Big5 BEDE */
 #define TEST_UTF8_FFFD   "\xEF\xBF\xBD"   /* U+FFFD */
 #define TEST_UTF8_WINDOW "\xE8\xA6\x96\xE7\xAA\x97"   /* U+8996 U+7A97 */
+#define TEST_UTF8_RULER  "\xE5\x90\x9B\xE4\xB8\xBB"   /* U+541B U+4E3B */
 
 /* ---- the in-memory reader --------------------------------------------- */
 
@@ -29,11 +30,14 @@ global_variable const test_text_file test_text_files[] =
     { "root\\pack\\text\\en.tsv",
       "id\ttext\tnote\n"
       "menu.windows\tWindows\tthe main menu\n"
-      "only.en\tOnly English\n" },
+      "only.en\tOnly English\n"
+      "status.0\tRuler\n"
+      "status.8\tDead\n" },
     { "root\\pack\\text\\zh-TW.tsv",
       "\xEF\xBB\xBFid\ttext\r\n"
       "# a comment\r\n"
-      "menu.windows\t" TEST_UTF8_WINDOW "\r\n" },
+      "menu.windows\t" TEST_UTF8_WINDOW "\r\n"
+      "status.0\t" TEST_UTF8_RULER "\r\n" },
     { "root\\pack\\names\\en.tsv",
       "key\ttext\n"
       "B1E4\tCao\n" },
@@ -339,6 +343,45 @@ unit_text_name_tests(test_counts *counts, memory_arena *arena)
 }
 
 internal void
+unit_text_label_tests(test_counts *counts, memory_arena *arena)
+{
+    text_catalog catalog;
+    text_catalog_init(&catalog, arena_sub(arena, Kilobytes(64)), test_text_read_file, "root", "pack", "en");
+    char out[32];
+
+    text_catalog_set_locale(&catalog, "zh-TW");
+    TEST_CHECK(counts, strcmp(text_label(&catalog, "status", 0, out, sizeof(out)), TEST_UTF8_RULER) == 0,
+               "zh-TW: a known code gives the label of the locale");
+    TEST_CHECK(counts, strcmp(text_label(&catalog, "status", 8, out, sizeof(out)), "Dead") == 0,
+               "zh-TW: a code without a zh-TW row gives the label of the fallback locale");
+    TEST_CHECK(counts, strcmp(text_label(&catalog, "status", 4, out, sizeof(out)), "?4") == 0,
+               "zh-TW: an unknown code gives ? and the number");
+
+    text_catalog_set_locale(&catalog, "en");
+    TEST_CHECK(counts, strcmp(text_label(&catalog, "status", 0, out, sizeof(out)), "Ruler") == 0,
+               "en: a known code gives the label of the locale");
+    TEST_CHECK(counts, strcmp(text_label(&catalog, "status", 255, out, sizeof(out)), "?255") == 0,
+               "en: an unknown code gives ? and the number");
+    TEST_CHECK(counts, strcmp(text_label(&catalog, "specialty", 0, out, sizeof(out)), "?0") == 0,
+               "en: a prefix without rows gives ? and the number");
+    TEST_CHECK(counts, catalog.stats.label_lookups == 6 && catalog.stats.unknown_labels == 3,
+               "the catalog counts the label lookups and the unknown codes, over both locales");
+    u64 missing = catalog.stats.missing_strings;
+
+    text_catalog_set_locale(&catalog, "ko");
+    TEST_CHECK(counts, strcmp(text_label(&catalog, "status", 0, out, sizeof(out)), "Ruler") == 0,
+               "ko: a locale without a file gives the label of the fallback locale");
+    TEST_CHECK(counts, strcmp(text_label(&catalog, "status", 4294967295u, out, sizeof(out)), "?4294967295") == 0,
+               "the largest code prints in full");
+    TEST_CHECK(counts, catalog.stats.missing_strings == missing, "an unknown code is not a missing string");
+
+    char small[3];
+    TEST_CHECK(counts, strcmp(text_label(&catalog, "status", 1234, small, sizeof(small)), "?1") == 0,
+               "a small buffer cuts the label");
+    TEST_CHECK(counts, strcmp(text_label(0, "status", 7, out, sizeof(out)), "?7") == 0, "no catalog gives ? and the number");
+}
+
+internal void
 unit_text_tests(test_counts *counts)
 {
     memory_arena arena = test_arena_create(Megabytes(1));
@@ -349,5 +392,6 @@ unit_text_tests(test_counts *counts)
     unit_text_table_tests(counts, &arena);
     unit_text_catalog_tests(counts, &arena);
     unit_text_name_tests(counts, &arena);
+    unit_text_label_tests(counts, &arena);
     test_arena_destroy(&arena);
 }

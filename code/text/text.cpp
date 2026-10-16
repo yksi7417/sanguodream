@@ -469,6 +469,52 @@ text_get(text_catalog *catalog, const char *id)
     return id;
 }
 
+/* Writes the decimal digits of value at out; returns their count. */
+internal u32
+text_write_decimal(u32 value, char *out)
+{
+    char reversed[10];
+    u32 count = 0;
+    do
+    {
+        reversed[count++] = (char)('0' + value % 10);
+        value /= 10;
+    } while (value);
+    for (u32 index = 0; index < count; ++index) out[index] = reversed[count - 1 - index];
+    return count;
+}
+
+internal const char *
+text_label(text_catalog *catalog, const char *prefix, u32 code, char *out, u32 out_size)
+{
+    if (!out_size) return out;
+    char id[64];
+    u32 used = 0;
+    for (; prefix[used] && used < sizeof(id) - 12; ++used) id[used] = prefix[used];
+    id[used++] = '.';
+    u32 digits = text_write_decimal(code, id + used);
+    id[used + digits] = 0;
+
+    const char *found = 0;
+    if (catalog)
+    {
+        catalog->stats.label_lookups++;
+        found = text_table_find(&catalog->strings, id);
+        if (!found) found = text_table_find(&catalog->fallback_strings, id);
+        if (!found) catalog->stats.unknown_labels++;
+    }
+    if (found)
+    {
+        text_copy_utf8(found, out, out_size);
+        return out;
+    }
+    char unknown[12];
+    unknown[0] = '?';
+    unknown[1 + text_write_decimal(code, unknown + 1)] = 0;
+    text_copy_utf8(unknown, out, out_size);
+    return out;
+}
+
 internal u32
 text_name_key(const u8 *bytes, u32 size, char *out, u32 out_size)
 {
