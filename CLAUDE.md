@@ -24,6 +24,8 @@ decompilation.
 ## Build and run
 - build.bat        builds build\hexdom.dll, build\win32_hexdom.exe and
                    build\sim_tests.exe (calls vcvars64 itself)
+- build.bat dll    rebuilds only the DLL, for hot reload while the window
+                   is open (the running exe cannot be relinked)
 - build\sim_tests.exe [fixtures-dir]   headless acceptance tests; exit code
                    is pass/fail; default dir is spec-src\spec\fixtures
 - build\win32_hexdom.exe [--frames N]  the game window; --frames exits after

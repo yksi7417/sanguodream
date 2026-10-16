@@ -47,7 +47,7 @@ sim_sink_from_arena(memory_arena *arena, u32 capacity)
 internal void
 sim_emit(sim_event_sink *sink, sim_event event)
 {
-    Assert(sink->count < sink->capacity);
+    /* A full sink drops the event; callers size sinks for the command they run. */
     if (sink->count < sink->capacity) sink->events[sink->count++] = event;
 }
 

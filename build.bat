@@ -14,7 +14,8 @@ if errorlevel 1 (
 set ROOT=%~dp0
 set WARN=/W4 /WX /wd4100 /wd4127 /wd4189 /wd4201 /wd4505
 set COMMON=/nologo /Zi /Od %WARN% /EHsc- /GR- /MT /FC /DHEXDOM_INTERNAL=1 /DHEXDOM_SLOW=1 /I%ROOT%code /I%ROOT%third_party\imgui /I%ROOT%third_party\imgui\backends
-set LINK=/link /INCREMENTAL:NO /opt:ref
+REM Not named LINK: the linker reads an environment variable of that name.
+set LINKFLAGS=/link /INCREMENTAL:NO /opt:ref
 if not exist "%ROOT%build" mkdir "%ROOT%build"
 pushd "%ROOT%build"
 set ERR=0
@@ -33,16 +34,22 @@ if not exist imgui.lib (
 
 REM Game DLL. Hot reloadable; unique PDB name so a debugger lets go of the old one.
 del hexdom_*.pdb >nul 2>&1
-cl %COMMON% /LD ..\code\hexdom.cpp /Fe:hexdom.dll %LINK% /PDB:hexdom_%random%.pdb /EXPORT:GameUpdateAndRender imgui.lib
+cl %COMMON% /LD ..\code\hexdom.cpp /Fe:hexdom.dll %LINKFLAGS% /PDB:hexdom_%random%.pdb /EXPORT:GameUpdateAndRender imgui.lib
 if errorlevel 1 set ERR=1
 
+REM "build.bat dll" rebuilds only the DLL: the hot-reload loop while the window is open
+REM (the exe cannot be relinked while it is running).
+if /i "%~1"=="dll" goto :done
+
 REM Platform layer.
-cl %COMMON% ..\code\win32_hexdom.cpp /Fe:win32_hexdom.exe %LINK% /SUBSYSTEM:WINDOWS imgui.lib user32.lib gdi32.lib d3d11.lib dxgi.lib
+cl %COMMON% ..\code\win32_hexdom.cpp /Fe:win32_hexdom.exe %LINKFLAGS% /SUBSYSTEM:WINDOWS imgui.lib user32.lib gdi32.lib d3d11.lib dxgi.lib
 if errorlevel 1 set ERR=1
 
 REM Headless tests: sim and ecs only.
-cl %COMMON% ..\tests\sim_tests.cpp /Fe:sim_tests.exe %LINK%
+cl %COMMON% ..\tests\sim_tests.cpp /Fe:sim_tests.exe %LINKFLAGS%
 if errorlevel 1 set ERR=1
+
+:done
 
 del lock.tmp
 popd

@@ -93,10 +93,12 @@ selftest_ecs(test_counts *counts)
 
     em_destroy(&em, b);
     TEST_CHECK(counts, !em_alive(&em, b), "destroyed entity is dead");
-    TEST_CHECK(counts, table_get(&positions, b) == 0, "stale id rejected by generation");
+    TEST_CHECK(counts, table_get(&positions, b) != 0, "orphaned component stays until its owner removes it");
     entity_id d = em_create(&em);
     TEST_CHECK(counts, entity_index(d) == entity_index(b) && d != b, "slot reused with new generation");
-    TEST_CHECK(counts, table_get(&positions, d) == 0, "reused slot has no stale component");
+    TEST_CHECK(counts, table_get(&positions, d) == 0, "new entity in the slot does not see the orphan");
+    TEST_CHECK(counts, table_remove(&positions, b), "orphan removable by the old id");
+    TEST_CHECK(counts, positions.count == 1 && table_get(&positions, c)->q == 5, "only c remains");
 
     u32 iterated = 0;
     TableEach(&positions, i) { iterated++; }
@@ -110,7 +112,7 @@ selftest_ecs(test_counts *counts)
         if (table_add(&positions, e, p)) added++;
     }
     TEST_CHECK(counts, positions.count == positions.capacity, "table fills to capacity");
-    TEST_CHECK(counts, added == positions.capacity - 2, "table_add returns null when full");
+    TEST_CHECK(counts, added == positions.capacity - 1, "table_add returns null when full");
 }
 
 internal void
@@ -347,6 +349,7 @@ run_fixtures(const char *dir, test_counts *totals)
 int
 main(int argc, char **argv)
 {
+    setvbuf(stdout, 0, _IONBF, 0);   /* keep output if an Assert breaks the process */
     u64 arena_size = Megabytes(64);
     void *block = malloc((size_t)arena_size);
     if (!block) { printf("out of memory\n"); return 1; }

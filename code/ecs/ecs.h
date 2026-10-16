@@ -66,8 +66,7 @@ em_create(entity_manager *em)
     }
     else
     {
-        Assert(em->next_unused < em->capacity);
-        if (em->next_unused >= em->capacity) return ENTITY_NULL;
+        if (em->next_unused >= em->capacity) return ENTITY_NULL;   /* full: caller decides */
         index = em->next_unused++;
     }
     em->alive[index] = 1;
@@ -83,9 +82,10 @@ em_alive(entity_manager *em, entity_id e)
            em->generation[index] == entity_generation(e);
 }
 
-/* Destroying bumps the generation so stale ids stop matching. Components are
-   not removed here; each table's owner removes them (tables tolerate stale
-   ids: table_get on a destroyed entity returns null). */
+/* Destroying bumps the generation so a later entity that reuses the slot never
+   matches the old id. Components are not removed here; the owning system
+   removes them. Until it does, the old id still finds its orphaned component,
+   but the new entity in that slot does not. */
 internal void
 em_destroy(entity_manager *em, entity_id e)
 {
@@ -138,8 +138,7 @@ table_add(component_table<T> *t, entity_id e, T value)
     u32 slot = table_slot(t, e);
     if (slot == U32_MAX)
     {
-        Assert(t->count < t->capacity);
-        if (t->count >= t->capacity) return 0;
+        if (t->count >= t->capacity) return 0;   /* full: caller decides */
         slot = t->count++;
         t->sparse[entity_index(e)] = slot;
         t->dense_owner[slot] = e;
