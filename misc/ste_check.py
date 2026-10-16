@@ -104,8 +104,9 @@ ING_ALLOWED = {
 INLINE_CODE_RE = re.compile(r"`[^`]*`")
 QUOTED_RE = re.compile(r'"[^"\n]*"')
 LINK_RE = re.compile(r"\[([^\]]*)\]\([^)]*\)")
-# A token with a path separator, an extension or an underscore is a name.
-PATH_TOKEN_RE = re.compile(r"(?:[/\\_]|\.[A-Za-z]{1,4}\b)")
+# A token with a path separator, an extension, an underscore or an inner
+# capital letter (CamelCase) is a name.
+PATH_TOKEN_RE = re.compile(r"(?:[/\\_]|\.[A-Za-z]{1,4}\b|[a-z][A-Z]|[A-Z]{2}[a-z])")
 TOKEN_RE = re.compile(r"(\S+?)([.,;:)\]]*)(?=\s|$)")
 LIST_ITEM_RE = re.compile(r"^\s*(?:[-*+]|\d+\.)\s+")
 HEADING_RE = re.compile(r"^\s*#+\s*(.*?)\s*#*\s*$")
