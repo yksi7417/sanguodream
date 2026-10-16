@@ -51,6 +51,6 @@ so that it costs no more.
 ## Exercises
 - Add `api->seed()` as a query and a feature test that two engines built
   from `engine_default_config` report the same seed.
-- Add a command that fails (for example `set_cell_cost` off the map) and
-  decide whether failures should be events in the ledger. Write the test
-  that pins your decision.
+- Add a command that fails (for example `set_cell_cost` off the map). Decide
+  whether a failure is an event in the ledger. Write the test that pins
+  your decision.

@@ -49,7 +49,7 @@ human to close the window. `run_tests.bat --e2e` greps the log for
 "clean exit".
 
 ## Exercises
-- Add a `--screenshot file.png` option using the swap chain's back buffer
-  (keep the encoder out of the DLL).
+- Add a `--screenshot file.png` option that reads the back buffer of the
+  swap chain (keep the encoder out of the DLL).
 - Record `dt_seconds` into a ring buffer in `game_state` and draw a frame
   time graph in the Memory panel.
