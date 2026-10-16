@@ -24,8 +24,8 @@ test (see .claude/rules/testing-pyramid.md).
 | L5 Conflict | code/sim/ | movement rules, zones of control, combat, siege | later |
 | L6 Politics | code/sim/ | diplomacy, loyalty, factions, scripted events | later |
 | L7 AI | code/sim/ai_*.cpp | planning over the same commands a player uses | later |
-| L8 Front end | code/engine/, code/ui/, code/render/, code/d3d11_renderer.h | engine_api, ImGui panels, and the 2.5D scene: a terrain mesh from per-cell kind and level, an orbit camera, instanced models and billboards, a pick from pixel to hex (tutorial 11) | done for L1-L3; placeholder art |
-| L9 Content | data/<pack>/ | tables that make it a particular game | not started |
+| L8 Front end | code/engine/, code/ui/, code/text/, code/render/, code/d3d11_renderer.h | engine_api, ImGui panels, locales and fonts (tutorial 12), and the 2.5D scene: a terrain mesh from per-cell kind and level, an orbit camera, instanced models and billboards, a pick from pixel to hex (tutorial 11) | done for L1-L3; placeholder art; text module done |
+| L9 Content | data/<pack>/ | tables that make it a particular game | text and names of the placeholder pack |
 
 The rule for every layer from L4 up: a mechanic is a pure function of
 sim_state and a command. Tables from the content pack parameterise the
@@ -52,7 +52,8 @@ so the same loader and the same fixture format serve both tests and content.
 | factions.tsv | sides: ruler, colour, relations, AI personality | warlords | Union, Confederacy | nations |
 | tech.tsv | researchable improvements and what they unlock | PK tech tree | rifled muskets, ironclads | radar, doctrine |
 | events.tsv | triggers (turn, condition) and effects | historical events | emancipation, elections | lend-lease, winter |
-| text.tsv | every player-facing string by id | zh/en | en | en |
+| text/<locale>.tsv | every player-facing string by id (done: tutorial 12) | zh-TW, en | en | en |
+| names/<locale>.tsv | names of people and places by their Big5 bytes (done: tutorial 12) | en; zh-TW decodes the bytes | - | - |
 
 ### 2.2 Rule hooks (the few things data cannot express)
 Some formulas differ in shape between settings, not only in constants.
@@ -124,6 +125,15 @@ the analysis side agree on sample.s11. They agree on every field of all 42
 cities and of the 659 officers that both list. The clean room lists 194
 more officers (empty-status slots with names, and dead officers). Spec
 Q-012 decides the correct rule. This is item 3 of the playbook's Milestone 1.
+Text and locales (2026-10-16): the Officers and Cities panels show the
+names as characters. The text module decodes the Big5 bytes with the
+Unicode BIG5.TXT table and maps the user-defined area to the Private Use
+Area. Each name of sample.s11 and Scenario.s11 decodes without U+FFFD.
+The UI strings come from data/placeholder/text/<locale>.tsv, with zh-TW
+first and en as the fallback. A Settings panel selects the locale. The
+game window loads Noto Sans CJK TC and Noto Sans Thai from data/fonts
+(docs/ASSETS.md, tutorial 12). Q-013 stays open: the spec must name the
+Big5 variant and the characters of FA40 and FA45.
 
 Spec input: spec/formats/save-file.md, scenario-file.md; mechanics/farm-development.md with fixtures.
 - Engine:
@@ -179,7 +189,7 @@ Spec input: mechanics/{tech-tree,events,ai-phase-order}.md.
 
 ### M9 Playable
 This milestone has three parts:
-- a game UI on top of the debug panels (text.tsv, with portraits and music from the player's own install at runtime, never in the repo)
+- a game UI on top of the debug panels. The text module and text/<locale>.tsv exist (tutorial 12). Portraits and music come from the player's own install at runtime, never from the repo.
 - save and load of the engine's own format
 - a second content pack (Civil War) as the proof that the mechanics are generic
 

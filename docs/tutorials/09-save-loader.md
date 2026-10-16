@@ -77,9 +77,10 @@ reads the name of each row through `city_name_at(city_id)`.
 ## Names
 Every name in the save and in the name index is Big5 bytes. The spec does
 not name the Big5 table that maps the bytes to characters (QUESTIONS.md,
-Q-013). The game therefore keeps the bytes as they are. The panels show
-them as hex, for example `B1E4 B77C`. The Cities panel shows "-" in the
-name column until a name index loads. save_dump.exe has a `--utf8-names`
+Q-013). The engine therefore keeps the bytes as they are. The panels
+decode them with the text module and the Unicode BIG5.TXT table (tutorial
+12). A tooltip on a name shows the bytes as hex, for example `B1E4 B77C`.
+The Cities panel shows "-" in the name column until a name index loads. save_dump.exe has a `--utf8-names`
 option that reads the bytes through the Windows code page 950. That option
 is for people who read the output. The game never uses it.
 

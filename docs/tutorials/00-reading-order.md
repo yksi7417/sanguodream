@@ -25,6 +25,7 @@ run_tests.bat --e2e
 | 09 | Save loader: from a .s11 file to officers and cities | code/sim/inflate.h, save_format, scenario_format | tests/unit/inflate_tests.cpp, save_format_tests.cpp, tests/feature/load_save_tests.cpp |
 | 10 | Demo recorder: one recorded walkthrough for each milestone | tests/demo/demo_player.cpp, code/win32_window.h, misc/gif_encode.cpp | tests/demo/demo_tests.cpp, run_tests.bat --demo |
 | 11 | Scene: the 2.5D map, the orbit camera and the pick | code/render/, code/d3d11_renderer.h, code/ui/ui_scene.cpp | tests/unit/render_tests.cpp, terrain_mesh_tests.cpp, png_tests.cpp |
+| 12 | Text and locales: Big5 names, UI strings and fonts | code/text/, code/ui/ui_fonts.h, code/ui/ui_settings.cpp, data/placeholder/ | tests/unit/text_tests.cpp, tests/ui/ui_tests.cpp |
 
 You will see these conventions everywhere:
 - `internal` means `static`: the function is private to its translation

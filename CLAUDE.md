@@ -32,6 +32,7 @@ decompilation of it.
 - docs/ROADMAP.md            layers, content packs, rule hooks, milestones
 - docs/tutorials/            one tutorial per module, each tied to its tests;
                              start at 00-reading-order.md
+- docs/ASSETS.md             fonts and other assets, with their licences
 
 ## Build and run
 - build.bat         builds build\hexdom.dll, build\win32_hexdom.exe, the
@@ -63,19 +64,27 @@ decompilation of it.
 - code/hexdom.h          the DLL contract (game_memory, platform_api, input)
 - code/hexdom.cpp        game DLL, unity build of ecs/ sim/ engine/ ui/
 - code/win32_hexdom.cpp  platform layer: window, D3D11, ImGui backends,
-                         memory block, hot reload
+                         fonts, memory block, hot reload
 - code/win32_window.h    the window and the D3D11 swap chain, for
                          win32_hexdom.exe and demo_player.exe
 - code/ecs/              sparse-set component tables
 - code/sim/              headless simulation core (rules)
 - code/engine/           the backend: owns the sim and the event ledger,
                          exposes engine_api
-- code/ui/               ImGui panels; call engine_api only
+- code/text/             front end text: Big5 to UTF-8 (a script writes
+                         big5_table.h), UI strings and names for each locale
+- code/ui/               ImGui panels; call engine_api only; ui_fonts.h
+                         loads the fonts for the executables
 - tests/test_framework.h one check macro, counters, heap arenas
 - tests/test_files.h     file reads and fixture paths for the test exes
                          and save_dump
 - misc/save_dump.cpp     the save_dump tool; misc/ste_check.py checks STE
+- misc/make_big5_table.py  writes code/text/big5_table.h from
+                         data/unicode/BIG5.TXT
 - misc/gif_encode.cpp    the GIF encoder of demo_player.exe without ffmpeg
+- data/placeholder/      the content pack: text/<locale>.tsv (UI strings),
+                         names/<locale>.tsv (names by Big5 hex)
+- data/fonts/, data/unicode/   open-licence assets; see docs/ASSETS.md
 - tests/unit/            per-module unit tests
 - tests/feature/         engine_api behaviour tests and the fixture runner
 - tests/ui/              imgui_test_engine tests, engine_recorder.h double,

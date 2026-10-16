@@ -8,15 +8,18 @@ the layers from the bottom to the top and stops at the first failure.
 ## The line between UI and engine
 - code/engine/engine.h defines engine_api: a table of function pointers over
   an opaque engine. It is the ONLY way a front end touches the game.
-- code/ui/ can include engine.h and imgui.h, and nothing from code/sim/ or
-  code/ecs/ directly. A reviewer flags UI code that reaches past the api.
+- code/ui/ can include engine.h, imgui.h and code/text/text.h, and nothing
+  from code/sim/ or code/ecs/ directly. A reviewer flags UI code that
+  reaches past the api. The text module is a part of the front end: it
+  gives strings and names, and it never touches the engine.
 - A new mechanic grows the api (queries and commands) and nothing else in
   the UI contract. Add to engine_api, implement in engine.cpp, then build
   the UI.
 
 ## Layers (where a test goes)
 1. tests/unit/ (unit_tests.exe): functions and structs of one module in
-   isolation: base.h, ecs/, sim/. Fast, no files, no engine, no ImGui.
+   isolation: base.h, ecs/, sim/, text/. Fast, no files, no engine, no
+   ImGui.
    One file per module, one function per module: unit_<module>_tests.
 2. tests/feature/ (feature_tests.exe): behaviour of the backend through
    engine_api with the real engine.
