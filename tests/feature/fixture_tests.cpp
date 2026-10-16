@@ -40,23 +40,59 @@ typedef void fixture_handler_fn(tsv_table *table, engine_api *api, test_counts *
 
 struct fixture_handler
 {
-    const char         *mechanic;    /* fixture file name without .tsv */
+    const char         *mechanic;   /* fixture file name without .tsv */
     fixture_handler_fn *run;
-    const char         *blocked_by;  /* not zero: the spec cannot give the rule yet; the rows are not run */
 };
 
 /* One entry per mechanic in spec-src/spec/mechanics/. Add the handler in the
-   RED step, before implementing the mechanic in code/sim/ and code/engine/.
+   RED step, before implementing the mechanic in code/sim/ and code/engine/. */
+/* The movement of each unit class before techniques
+   (military-units-and-tactics.md): 22 for the three foot classes, 28 for
+   cavalry, 18 for the siege weapons. */
+struct fixture_class_movement
+{
+    const char *unit_class;
+    u32         movement;
+};
 
-   A blocked entry names the open question that stops the handler. Its rows
-   count as neither a pass nor a failure, and the runner prints the reason
-   on each run. Remove the entry when the question closes. */
+global_variable fixture_class_movement g_class_movement[] = {
+    { "pike", 22 }, { "halberd", 22 }, { "crossbow", 22 },
+    { "cavalry", 28 },
+    { "ram", 18 }, { "tower", 18 },
+};
+
+/* unit-values-guidebook.tsv: the unit values of 18 screenshots of the
+   guide book. This handler checks only the movement column against the
+   class rule. The full check of the attack, defence, intellect and build
+   columns belongs to M3 (F-081). It needs the formula from the officer
+   abilities to the unit values, and the officer data of each scenario
+   (Q-030). Until then the handler prints those columns as pending. They
+   are not failures. The engine has no unit classes yet, so the class rule
+   comes from the table above. */
+internal void
+fixture_unit_values_guidebook(tsv_table *table, engine_api *api, test_counts *counts)
+{
+    (void)api;
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        const char *unit_class = tsv_cell(table, row, "class");
+        u32 movement = 0, expected = 0;
+        for (u32 index = 0; index < ArrayCount(g_class_movement); ++index)
+        {
+            if (strcmp(g_class_movement[index].unit_class, unit_class) == 0) expected = g_class_movement[index].movement;
+        }
+        b32 parsed = tsv_cell_u32(table, row, "move", &movement);
+        char name[128];
+        snprintf(name, sizeof(name), "unit-values-guidebook row %u (%s): movement of the class", row, unit_class);
+        TEST_CHECK(counts, parsed && expected != 0 && movement == expected, name);
+    }
+    printf("  PENDING %u rows x attack, defence, intellect, build: Q-030 and the unit-value formula (F-081, M3)\n",
+           table->row_count);
+}
+
 global_variable fixture_handler g_fixture_handlers[] = {
-    /* military-units-and-tactics.md: "The formula from abilities to unit
-       values is unknown", and Q-030 must map the scenario numbers of the
-       guide book to the scenario files. F-081, milestone M3. */
-    { "unit-values-guidebook", 0, "Q-030 and the unknown unit-value formula (F-081, M3)" },
-    { 0, 0, 0 }   /* sentinel */
+    { "unit-values-guidebook", fixture_unit_values_guidebook },
+    { 0, 0 }   /* sentinel */
 };
 
 internal fixture_handler *
@@ -109,12 +145,6 @@ feature_fixture_tests(const char *dir, memory_arena *arena, test_counts *totals)
         {
             printf("FAIL 0/%u fixture/%s (no handler in tests/feature/fixture_tests.cpp)\n", table.row_count, mechanic);
             totals->failed += table.row_count ? table.row_count : 1;
-            continue;
-        }
-
-        if (handler->blocked_by)
-        {
-            printf("BLOCKED %u rows fixture/%s (%s)\n", table.row_count, mechanic, handler->blocked_by);
             continue;
         }
 
