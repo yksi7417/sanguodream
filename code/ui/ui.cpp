@@ -5,8 +5,19 @@
 #include "imgui.h"
 #include "ui/ui.h"
 
+/* A label for a window, a menu item or a column: the text of the id in the
+   active locale, then "###" and a stable id. ImGui and the tests find the
+   item by the stable id, so the locale does not change its ImGui id. */
+internal const char *
+ui_label(char *out, u32 out_size, ui_state *ui, const char *text_id, const char *stable_id)
+{
+    snprintf(out, out_size, "%s###%s", text_get(ui->text, text_id), stable_id);
+    return out;
+}
+
 #include "ui/ui_map.cpp"
 #include "ui/ui_world.cpp"
+#include "ui/ui_settings.cpp"
 
 /* Writes an overlay colour for one cell of the terrain view, if it is on the map. */
 internal void
@@ -20,7 +31,7 @@ ui_scene_mark(u32 *overlay, engine_terrain_view view, hex_coord h, u32 rgba)
 #include "ui/ui_scene.cpp"
 
 internal void
-ui_init(ui_state *ui)
+ui_init(ui_state *ui, text_catalog *text)
 {
     ui->show_demo   = true;
     ui->show_sim    = true;
@@ -30,6 +41,9 @@ ui_init(ui_state *ui)
     ui->show_officers = true;
     ui->show_cities   = true;
     ui->show_scene    = true;
+    ui->show_settings = false;
+    ui->text          = text;
+    ui->pending_locale[0] = 0;
     ui->load_message[0] = 0;
     ui->names_message[0] = 0;
     ui_map_init(ui);
@@ -52,16 +66,19 @@ ui_draw_menu_bar(ui_state *ui, engine_api *api, ui_frame_info *frame)
 {
     if (ImGui::BeginMainMenuBar())
     {
-        if (ImGui::BeginMenu("Windows"))
+        /* The debug panels keep English names; the game panels use the locale. */
+        char label[128];
+        if (ImGui::BeginMenu(ui_label(label, sizeof(label), ui, "menu.windows", "Windows")))
         {
             ImGui::MenuItem("Simulation", 0, &ui->show_sim);
             ImGui::MenuItem("Scene", 0, &ui->show_scene);
             ImGui::MenuItem("Hex map", 0, &ui->show_map);
-            ImGui::MenuItem("Officers", 0, &ui->show_officers);
-            ImGui::MenuItem("Cities", 0, &ui->show_cities);
+            ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.officers", "Officers"), 0, &ui->show_officers);
+            ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.cities", "Cities"), 0, &ui->show_cities);
             ImGui::MenuItem("Event ledger", 0, &ui->show_ledger);
             ImGui::MenuItem("Memory", 0, &ui->show_memory);
             ImGui::Separator();
+            ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.settings", "Settings"), 0, &ui->show_settings);
             ImGui::MenuItem("ImGui demo", 0, &ui->show_demo);
             ImGui::EndMenu();
         }
@@ -167,6 +184,7 @@ ui_draw_memory(ui_state *ui, engine_api *api, ui_frame_info *frame)
 internal void
 ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
 {
+    ui_apply_pending_locale(ui);
     ui_draw_menu_bar(ui, api, frame);
     if (ui->show_demo)   ImGui::ShowDemoWindow(&ui->show_demo);
     if (ui->show_sim)    ui_draw_simulation(ui, api);
@@ -176,6 +194,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->show_cities) ui_draw_cities(ui, api);
     if (ui->show_ledger) ui_draw_ledger(ui, api);
     if (ui->show_memory) ui_draw_memory(ui, api, frame);
+    if (ui->show_settings) ui_draw_settings(ui);
 
     /* The scene goes last: by now ImGui knows which windows want the mouse,
        and the panels above may have changed the camera or the selection. */

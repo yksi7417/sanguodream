@@ -1,0 +1,36 @@
+id	text	note
+# UI strings of the placeholder pack, English. Columns: id, text, note for translators.
+# The text column accepts \n (new line), \t (tab) and \\ (backslash).
+menu.windows	Windows	the main menu that opens and closes panels
+menu.officers	Officers	menu item and panel
+menu.cities	Cities	menu item and panel
+menu.settings	Settings	menu item and panel
+officers.title	Officers	panel title
+officers.count	officers	after a number: "853 officers"
+officers.help	Status: 0 ruler, 1 viceroy, 2 governor, 3 regular, 6 free, 8 dead. Point at a name to see its Big5 bytes.
+cities.title	Cities	panel title
+cities.count	cities	after a number: "42 cities"
+cities.help	Names come from the name index ("Load city names"). Public order and durability maximum are hypotheses in the spec.
+column.id	id
+column.family_name	family name
+column.given_name	given name
+column.force	force
+column.status	status
+column.location	location
+column.stats	L/W/I/P/C	leadership, war, intelligence, politics, charm
+column.years	years	birth and death years
+column.merit	merit
+column.name	name
+column.owner	owner	the force that owns the city
+column.commander	commander	officer id
+column.gold	gold
+column.troops	troops
+column.food	food
+column.order	order	public order
+column.durability	durability	durability maximum
+settings.title	Settings	panel title
+settings.language	Language	combo label
+settings.font	Font	the font that the front end loaded
+settings.missing	Missing strings	ids that no locale file has
+settings.no_strings	This locale has no strings file. The panels use the fallback locale.
+name.bytes	Big5 bytes	tooltip on a name

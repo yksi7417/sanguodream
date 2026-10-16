@@ -20,6 +20,7 @@ global_variable memory_arena    *g_demo_frame_arena;
 struct demo_vars
 {
     engine_api    api;
+    text_catalog  text;
     ui_state      ui;
     ui_frame_info frame;
     memory_arena  permanent;
@@ -41,7 +42,10 @@ demo_gui(ImGuiTestContext *ctx)
         config.read_entire_file = test_platform_read_entire_file;
         v.backend = engine_create(&v.permanent, &v.transient, config);
         v.api     = engine_make_api(v.backend);
-        ui_init(&v.ui);
+        text_catalog_init(&v.text, arena_sub(&v.permanent, Megabytes(4)), test_platform_read_entire_file,
+                          HEXDOM_DATA_ROOT, HEXDOM_CONTENT_PACK, "en");
+        text_catalog_set_locale(&v.text, "zh-TW");
+        ui_init(&v.ui, &v.text);
         v.ui.show_demo     = false;
         v.ui.show_sim      = false;
         v.ui.show_ledger   = false;
@@ -106,13 +110,14 @@ demo_screenshot_panel(ImGuiTestContext *ctx, const char *milestone, const char *
     return true;
 }
 
-/* Opens a panel through the Windows menu, then checks that its window is drawn. */
+/* Opens a panel through the Windows menu, then checks that its window is drawn.
+   A panel with a localized title has a stable id: pass "###Officers". */
 internal bool
 demo_open_panel(ImGuiTestContext *ctx, const char *window, bool *shown)
 {
     char menu_path[64];
     char window_ref[64];
-    snprintf(menu_path, sizeof(menu_path), "Windows/%s", window);
+    snprintf(menu_path, sizeof(menu_path), "###Windows/%s", window);
     snprintf(window_ref, sizeof(window_ref), "//%s", window);
     ctx->SetRef("##MainMenuBar");
     ctx->MenuCheck(menu_path);
@@ -247,8 +252,8 @@ demo_m1_loader(ImGuiTestContext *ctx)
     IM_CHECK(demo_begin_video(ctx, milestone));
 
     IM_CHECK(demo_open_panel(ctx, "Simulation", &v.ui.show_sim));
-    IM_CHECK(demo_open_panel(ctx, "Officers", &v.ui.show_officers));
-    IM_CHECK(demo_open_panel(ctx, "Cities", &v.ui.show_cities));
+    IM_CHECK(demo_open_panel(ctx, "###Officers", &v.ui.show_officers));
+    IM_CHECK(demo_open_panel(ctx, "###Cities", &v.ui.show_cities));
     IM_CHECK_EQ(v.api.officer_count(v.api.engine), 0u);
 
     ctx->SetRef("Simulation");
@@ -263,15 +268,15 @@ demo_m1_loader(ImGuiTestContext *ctx)
     IM_CHECK_EQ(v.api.city_name_at(v.api.engine, 36).city_id, 36u);
     ctx->SleepStandard();
 
-    IM_CHECK(demo_scroll_table(ctx, "Officers", "officers"));
-    IM_CHECK(demo_scroll_table(ctx, "Cities", "cities"));
+    IM_CHECK(demo_scroll_table(ctx, "###Officers", "officers"));
+    IM_CHECK(demo_scroll_table(ctx, "###Cities", "cities"));
     ctx->SleepStandard();
 
     IM_CHECK(demo_end_video(ctx));
 
     IM_CHECK(demo_screenshot_panel(ctx, milestone, "Simulation", "simulation"));
-    IM_CHECK(demo_screenshot_panel(ctx, milestone, "Officers", "officers"));
-    IM_CHECK(demo_screenshot_panel(ctx, milestone, "Cities", "cities"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Officers", "officers"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Cities", "cities"));
 }
 
 internal void

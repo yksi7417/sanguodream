@@ -12,8 +12,17 @@
 #include "sim/sim.cpp"
 #include "engine/engine.h"
 #include "engine/engine.cpp"
+#include "text/text.h"
+#include "text/text.cpp"
 #include "ui/ui.h"
 #include "ui/ui.cpp"
+
+/* The locales of the front end. HEXDOM_DATA_ROOT and HEXDOM_CONTENT_PACK
+   are in hexdom.h, because the platform layer loads the fonts from the
+   same folder. */
+#define HEXDOM_DEFAULT_LOCALE   "zh-TW"
+#define HEXDOM_FALLBACK_LOCALE  "en"
+#define HEXDOM_TEXT_ARENA_SIZE  Megabytes(4)
 
 struct game_state
 {
@@ -22,6 +31,7 @@ struct game_state
     engine      *backend;
     engine_api   api;            /* function pointers into THIS DLL image: rebuilt on reload */
     u32          reload_count;
+    text_catalog text;           /* the UI strings and the names of the active locale */
     ui_state     ui;
 };
 
@@ -50,7 +60,13 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         game->backend = engine_create(&game->permanent, &game->transient, config);
         game->api     = engine_make_api(game->backend);
         game->reload_count = 0;
-        ui_init(&game->ui);
+        text_catalog_init(&game->text, arena_sub(&game->permanent, HEXDOM_TEXT_ARENA_SIZE),
+                          memory->platform.read_entire_file, HEXDOM_DATA_ROOT, HEXDOM_CONTENT_PACK,
+                          HEXDOM_FALLBACK_LOCALE);
+        text_catalog_set_locale(&game->text, HEXDOM_DEFAULT_LOCALE);
+        memory->platform.log(text_catalog_has_strings(&game->text) ? "hexdom: locale zh-TW loaded"
+                                                                   : "hexdom: no strings file for zh-TW; the UI shows ids");
+        ui_init(&game->ui, &game->text);
 
         memory->platform.log("hexdom: game state initialized");
         memory->is_initialized = true;

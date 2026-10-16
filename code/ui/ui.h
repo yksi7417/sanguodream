@@ -2,13 +2,15 @@
 #define UI_H
 /* Debug UI. It drives the backend only through engine_api
    (code/engine/engine.h); it never sees sim_state, the ECS or the ledger.
-   ui_state lives in the permanent block so it survives DLL reloads. bool
-   rather than b32 because ImGui writes these. */
+   It gets its strings and names from the text module (code/text/text.h),
+   a part of the front end. ui_state lives in the permanent block so it
+   survives DLL reloads. bool rather than b32 because ImGui writes these. */
 
 #include "base.h"
 #include "engine/engine.h"
 #include "render/render.h"
 #include "render/terrain_mesh.h"   /* terrain_level_y: the scene places models on the cell tops */
+#include "text/text.h"
 
 struct ui_state
 {
@@ -29,6 +31,9 @@ struct ui_state
         hex_coord hover;
         camera    cam;
     } scene;
+    bool show_settings;
+    text_catalog *text;      /* the UI strings and the names; owned by the caller */
+    char pending_locale[TEXT_LOCALE_SIZE];   /* set by the Language combo; ui_draw loads it at the start of the next frame */
     char load_message[96];   /* result of the last "Load sample save" click */
     char names_message[96];  /* result of the last "Load city names" click */
     struct
@@ -54,7 +59,8 @@ struct ui_frame_info
     memory_arena    *frame_arena;   /* for per-frame arrays such as the overlay colours */
 };
 
-internal void ui_init(ui_state *ui);
+/* The caller loads a locale into the catalog before the first frame. */
+internal void ui_init(ui_state *ui, text_catalog *text);
 internal void ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame);
 
 #endif /* UI_H */

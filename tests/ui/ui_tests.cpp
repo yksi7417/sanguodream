@@ -23,17 +23,25 @@
 #include "sim/sim.cpp"
 #include "engine/engine.h"
 #include "engine/engine.cpp"
+#include "text/text.h"
+#include "text/text.cpp"
 #include "ui/ui.h"
 #include "ui/ui.cpp"
 #include "test_framework.h"
 #include "test_files.h"
 #include "engine_recorder.h"
 
+/* The memory of the text catalog. Each test loads its locale again, and
+   the load resets the arena, so the tests share it. */
+#define UI_TEST_TEXT_ARENA_SIZE Megabytes(4)
+global_variable memory_arena g_ui_test_text_arena;
+
 /* Per-test state. Zeroed by the test engine before each test. */
 struct ui_test_vars
 {
     engine_recorder recorder;
     engine_api      api;
+    text_catalog    text;     /* the real data\placeholder files, zh-TW */
     ui_state        ui;
     ui_frame_info   frame;
     /* e2e only */
@@ -63,7 +71,10 @@ ui_test_gui(ImGuiTestContext *ctx)
         {
             v.api = recorder_make_api(&v.recorder);
         }
-        ui_init(&v.ui);
+        text_catalog_init(&v.text, g_ui_test_text_arena, test_platform_read_entire_file,
+                          HEXDOM_DATA_ROOT, HEXDOM_CONTENT_PACK, "en");
+        text_catalog_set_locale(&v.text, "zh-TW");
+        ui_init(&v.ui, &v.text);
         v.ui.show_demo = false;   /* the demo window is not under test */
         v.ui.show_map  = true;    /* the 2D map panel is closed by default now; its tests need it open */
     }
@@ -146,15 +157,15 @@ register_ui_tests(ImGuiTestEngine *e)
         ui_test_vars &v = ctx->GetVars<ui_test_vars>();
         recorder_reset(&v.recorder);
         ctx->SetRef("##MainMenuBar");
-        ctx->MenuUncheck("Windows/Simulation");
+        ctx->MenuUncheck("###Windows/Simulation");
         ctx->Yield();
         IM_CHECK(!v.ui.show_sim);
         IM_CHECK(!ctx->WindowInfo("//Simulation", ImGuiTestOpFlags_NoError).Window ||
                  !ctx->WindowInfo("//Simulation", ImGuiTestOpFlags_NoError).Window->WasActive);
-        ctx->MenuCheck("Windows/Simulation");
+        ctx->MenuCheck("###Windows/Simulation");
         ctx->Yield();
         IM_CHECK(v.ui.show_sim);
-        ctx->MenuCheck("Windows/Memory");
+        ctx->MenuCheck("###Windows/Memory");
         ctx->Yield();
         IM_CHECK(v.ui.show_memory);
         IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_MEMORY), 1u);    /* memory panel asks the api (every frame) */
@@ -188,7 +199,7 @@ register_ui_tests(ImGuiTestEngine *e)
     {
         ui_test_vars &v = ctx->GetVars<ui_test_vars>();
         v.recorder.officer_count = 5;
-        ctx->SetRef("Officers");
+        ctx->SetRef("###Officers");
         ctx->Yield(2);
         IM_CHECK(ctx->ItemExists("officers"));                                 /* the table is drawn */
         recorder_reset(&v.recorder);
@@ -206,7 +217,7 @@ register_ui_tests(ImGuiTestEngine *e)
     {
         ui_test_vars &v = ctx->GetVars<ui_test_vars>();
         v.recorder.city_count = 4;
-        ctx->SetRef("Cities");
+        ctx->SetRef("###Cities");
         ctx->Yield(2);
         IM_CHECK(ctx->ItemExists("cities"));
         recorder_reset(&v.recorder);
@@ -225,7 +236,7 @@ register_ui_tests(ImGuiTestEngine *e)
         ui_test_vars &v = ctx->GetVars<ui_test_vars>();
         v.recorder.city_count = 3;
         v.recorder.has_names  = true;
-        ctx->SetRef("Cities");
+        ctx->SetRef("###Cities");
         ctx->Yield(2);
         recorder_reset(&v.recorder);
         ctx->Yield();
@@ -241,6 +252,88 @@ register_ui_tests(ImGuiTestEngine *e)
             name_calls++;
         }
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "officers_panel_shows_names_through_the_text_module_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 4;
+        ctx->SetRef("###Officers");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        text_catalog_stats before = v.text.stats;
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_OFFICER_AT), 4u);              /* the names come from engine_api */
+        IM_CHECK_EQ(v.text.stats.name_lookups - before.name_lookups, 8ull);            /* family and given name of each row */
+        IM_CHECK_EQ(v.text.stats.decoded_names - before.decoded_names, 4ull);          /* zh-TW has no names file: Big5 decode; the given names are empty */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "cities_panel_shows_names_through_the_text_module_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.city_count = 3;
+        v.recorder.has_names  = true;
+        v.ui.show_officers    = false;     /* count only the names of the Cities panel */
+        ctx->SetRef("###Cities");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        text_catalog_stats before = v.text.stats;
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_CITY_NAME_AT), 3u);
+        IM_CHECK_EQ(v.text.stats.name_lookups - before.name_lookups, 3ull);            /* one name for each row */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "language_combo_changes_the_locale_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ctx->SetRef("##MainMenuBar");
+        ctx->MenuCheck("###Windows/###Settings");
+        ctx->Yield();
+        IM_CHECK(v.ui.show_settings);
+        IM_CHECK_STR_EQ(v.text.locale, "zh-TW");
+        u32 loads = v.text.load_count;
+        recorder_reset(&v.recorder);
+        ctx->SetRef("###Settings");
+        ctx->ComboClick("###Language/###en");
+        ctx->Yield(2);
+        IM_CHECK_STR_EQ(v.text.locale, "en");
+        IM_CHECK_EQ(v.text.load_count, loads + 1);                                     /* one load for one click */
+        IM_CHECK(ctx->WindowInfo("//###Officers").Window != 0);                        /* the panels keep their ids */
+        ctx->ComboClick("###Language/###zh-TW");
+        ctx->Yield(2);
+        IM_CHECK_STR_EQ(v.text.locale, "zh-TW");
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);                         /* the locale is a front end setting */
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "each_locale_has_each_ui_string");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 2;
+        v.recorder.city_count    = 2;
+        v.ui.show_settings       = true;
+        IM_CHECK_GE(v.text.locale_count, 2u);
+        for (u32 index = 0; index < v.text.locale_count; ++index)
+        {
+            IM_CHECK(text_catalog_set_locale(&v.text, v.text.locales[index].code));
+            IM_CHECK(text_catalog_has_strings(&v.text));
+            u64 missing = v.text.stats.missing_strings;
+            ctx->Yield(2);
+            IM_CHECK_EQ(v.text.stats.missing_strings, missing);                       /* the file has each id that the panels ask for */
+        }
     };
 
     t = IM_REGISTER_TEST(e, "ui", "load_city_names_calls_load_name_index_once");
@@ -351,6 +444,28 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(v.api.city_name_at(v.api.engine, 36).city_id, 36u);
         IM_CHECK_EQ(v.api.ledger_at(v.api.engine, 1).kind, SIM_EVENT_NAME_INDEX_LOADED);
         IM_CHECK(strncmp(v.ui.names_message, "names loaded", 12) == 0);
+
+        /* The text module decodes each name of the real files: no U+FFFD. */
+        text_utf8 replacement = text_utf8_encode(TEXT_REPLACEMENT_CHARACTER);
+        char needle[TEXT_UTF8_MAX_BYTES + 1] = {};
+        memcpy(needle, replacement.bytes, replacement.length);
+        char name[64];
+        u32 bad_names = 0;
+        for (u32 index = 0; index < v.api.city_count(v.api.engine); ++index)
+        {
+            engine_city_name city = v.api.city_name_at(v.api.engine, index);
+            text_name(&v.text, city.name, sizeof(city.name), name, sizeof(name));
+            if (!name[0] || strstr(name, needle)) bad_names++;
+        }
+        for (u32 index = 0; index < v.api.officer_count(v.api.engine); ++index)
+        {
+            engine_officer officer = v.api.officer_at(v.api.engine, index);
+            text_name(&v.text, officer.family_name, sizeof(officer.family_name), name, sizeof(name));
+            if (strstr(name, needle)) bad_names++;
+            text_name(&v.text, officer.given_name, sizeof(officer.given_name), name, sizeof(name));
+            if (strstr(name, needle)) bad_names++;
+        }
+        IM_CHECK_EQ(bad_names, 0u);
     };
 }
 
@@ -359,6 +474,8 @@ main(int argc, char **argv)
 {
     setvbuf(stdout, 0, _IONBF, 0);
     const char *filter = argc > 1 ? argv[1] : 0;
+
+    g_ui_test_text_arena = test_arena_create(UI_TEST_TEXT_ARENA_SIZE);
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();

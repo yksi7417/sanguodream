@@ -1,0 +1,35 @@
+id	text	note
+# UI strings of the placeholder pack, Traditional Chinese (Taiwan). Columns: id, text, note.
+menu.windows	視窗
+menu.officers	武將
+menu.cities	都市
+menu.settings	設定
+officers.title	武將
+officers.count	名武將	after a number: "853 名武將"
+officers.help	狀態：0 君主，1 都督，2 太守，3 一般，6 在野，8 死亡。將滑鼠移到名字上可看到 Big5 位元組。
+cities.title	都市
+cities.count	座都市	after a number: "42 座都市"
+cities.help	名稱來自名稱索引（「Load city names」）。治安與耐久上限是規格中的假設。
+column.id	編號
+column.family_name	姓
+column.given_name	名
+column.force	勢力
+column.status	狀態
+column.location	所在
+column.stats	統/武/智/政/魅
+column.years	生卒年
+column.merit	功績
+column.name	名稱
+column.owner	勢力
+column.commander	指揮官
+column.gold	金
+column.troops	兵力
+column.food	兵糧
+column.order	治安
+column.durability	耐久
+settings.title	設定
+settings.language	語言
+settings.font	字型
+settings.missing	缺少的字串
+settings.no_strings	此語言沒有字串檔，面板使用後備語言。
+name.bytes	Big5 位元組

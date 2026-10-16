@@ -1,10 +1,12 @@
 /* The Officers and Cities panels: tables of the loaded game, read row by row
    through engine_api. They command nothing. Included by ui.cpp.
 
-   Names are Big5 bytes. The spec gives no character mapping
-   (QUESTIONS.md, Q-013), so the panels show the bytes as hex. City names
-   come from the name index (Scenario.s11) through city_name_at. Until a
-   name index loads, the Cities panel shows "-" in the name column. */
+   Names are Big5 bytes in the engine. The panels show them through the
+   text module: text_name gives the row of names/<locale>.tsv, or else the
+   decoded bytes (zh-TW). A tooltip on a name shows its bytes as hex, for
+   spec question Q-013. City names come from the name index (Scenario.s11)
+   through city_name_at. Until a name index loads, the Cities panel shows
+   "-" in the name column. */
 
 #define UI_SAMPLE_SAVE_PATH "..\\spec-src\\spec\\fixtures\\saves\\sample.s11"
 #define UI_NAME_INDEX_PATH  "..\\spec-src\\spec\\fixtures\\scenarios\\Scenario.s11"
@@ -34,16 +36,38 @@ ui_text_id(u32 value, u32 none)
     else               ImGui::Text("%u", value);
 }
 
+#define UI_NAME_SIZE 64   /* UTF-8 of one name: a Big5 name field decodes to at most 3 bytes for each byte */
+
+/* One name cell: the display name, and its bytes as hex in a tooltip. */
 internal void
-ui_draw_officer_row(engine_officer *officer)
+ui_name_cell(ui_state *ui, const u8 *bytes, u32 size)
 {
-    char name[32];
+    char name[UI_NAME_SIZE];
+    text_name(ui->text, bytes, size, name, sizeof(name));
+    ImGui::TextUnformatted(name);
+    if (ImGui::IsItemHovered())
+    {
+        char hex[3 * UI_NAME_SIZE];
+        ui_format_name_hex(hex, sizeof(hex), bytes, size);
+        ImGui::SetTooltip("%s: %s", text_get(ui->text, "name.bytes"), hex);
+    }
+}
+
+/* A table column with the text of the locale and a stable id. */
+internal void
+ui_table_column(ui_state *ui, const char *text_id, const char *stable_id, ImGuiTableColumnFlags flags = 0, f32 width = 0.0f)
+{
+    char label[96];
+    ImGui::TableSetupColumn(ui_label(label, sizeof(label), ui, text_id, stable_id), flags, width);
+}
+
+internal void
+ui_draw_officer_row(ui_state *ui, engine_officer *officer)
+{
     ImGui::TableNextRow();
     ImGui::TableNextColumn(); ImGui::Text("%u", officer->officer_id);
-    ImGui::TableNextColumn(); ui_format_name_hex(name, sizeof(name), officer->family_name, sizeof(officer->family_name));
-                              ImGui::TextUnformatted(name);
-    ImGui::TableNextColumn(); ui_format_name_hex(name, sizeof(name), officer->given_name, sizeof(officer->given_name));
-                              ImGui::TextUnformatted(name);
+    ImGui::TableNextColumn(); ui_name_cell(ui, officer->family_name, sizeof(officer->family_name));
+    ImGui::TableNextColumn(); ui_name_cell(ui, officer->given_name, sizeof(officer->given_name));
     ImGui::TableNextColumn(); ui_text_id(officer->force_id, UI_NO_ID_8);
     ImGui::TableNextColumn(); ImGui::Text("%u", officer->status);
     ImGui::TableNextColumn(); ui_text_id(officer->base_location, UI_NO_ID_16);
@@ -56,27 +80,27 @@ ui_draw_officer_row(engine_officer *officer)
 internal void
 ui_draw_officers(ui_state *ui, engine_api *api)
 {
+    char title[128];
     ImGui::SetNextWindowSize(ImVec2(640, 360), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin("Officers", &ui->show_officers))
+    if (ImGui::Begin(ui_label(title, sizeof(title), ui, "officers.title", "Officers"), &ui->show_officers))
     {
         u32 count = api->officer_count(api->engine);
-        ImGui::Text("%u officers", count);
-        ImGui::TextDisabled("Names: Big5 bytes as hex (the spec gives no character mapping). "
-                            "Status: 0 ruler, 1 viceroy, 2 governor, 3 regular, 6 free, 8 dead.");
+        ImGui::Text("%u %s", count, text_get(ui->text, "officers.count"));
+        ImGui::TextDisabled("%s", text_get(ui->text, "officers.help"));
         ImGuiTableFlags flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
                                 ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable;
         if (ImGui::BeginTable("officers", 9, flags))
         {
             ImGui::TableSetupScrollFreeze(0, 1);
-            ImGui::TableSetupColumn("id", ImGuiTableColumnFlags_WidthFixed, 40.0f);
-            ImGui::TableSetupColumn("family name");
-            ImGui::TableSetupColumn("given name");
-            ImGui::TableSetupColumn("force", ImGuiTableColumnFlags_WidthFixed, 40.0f);
-            ImGui::TableSetupColumn("status", ImGuiTableColumnFlags_WidthFixed, 45.0f);
-            ImGui::TableSetupColumn("location", ImGuiTableColumnFlags_WidthFixed, 55.0f);
-            ImGui::TableSetupColumn("L/W/I/P/C");
-            ImGui::TableSetupColumn("years");
-            ImGui::TableSetupColumn("merit", ImGuiTableColumnFlags_WidthFixed, 50.0f);
+            ui_table_column(ui, "column.id", "id", ImGuiTableColumnFlags_WidthFixed, 40.0f);
+            ui_table_column(ui, "column.family_name", "family");
+            ui_table_column(ui, "column.given_name", "given");
+            ui_table_column(ui, "column.force", "force", ImGuiTableColumnFlags_WidthFixed, 40.0f);
+            ui_table_column(ui, "column.status", "status", ImGuiTableColumnFlags_WidthFixed, 45.0f);
+            ui_table_column(ui, "column.location", "location", ImGuiTableColumnFlags_WidthFixed, 55.0f);
+            ui_table_column(ui, "column.stats", "stats");
+            ui_table_column(ui, "column.years", "years");
+            ui_table_column(ui, "column.merit", "merit", ImGuiTableColumnFlags_WidthFixed, 50.0f);
             ImGui::TableHeadersRow();
             ImGuiListClipper clipper;
             clipper.Begin((int)count);
@@ -85,7 +109,7 @@ ui_draw_officers(ui_state *ui, engine_api *api)
                 for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; ++row)
                 {
                     engine_officer officer = api->officer_at(api->engine, (u32)row);
-                    ui_draw_officer_row(&officer);
+                    ui_draw_officer_row(ui, &officer);
                 }
             }
             ImGui::EndTable();
@@ -95,21 +119,13 @@ ui_draw_officers(ui_state *ui, engine_api *api)
 }
 
 internal void
-ui_draw_city_row(engine_city *city, engine_city_name *name)
+ui_draw_city_row(ui_state *ui, engine_city *city, engine_city_name *name)
 {
-    char name_hex[2 * NAME_INDEX_CITY_NAME_SIZE + NAME_INDEX_CITY_NAME_SIZE];
     ImGui::TableNextRow();
     ImGui::TableNextColumn(); ImGui::Text("%u", city->city_id);
     ImGui::TableNextColumn();
-    if (name->city_id == ENGINE_NO_CITY)
-    {
-        ImGui::TextUnformatted("-");
-    }
-    else
-    {
-        ui_format_name_hex(name_hex, sizeof(name_hex), name->name, sizeof(name->name));
-        ImGui::TextUnformatted(name_hex);
-    }
+    if (name->city_id == ENGINE_NO_CITY) ImGui::TextUnformatted("-");
+    else                                 ui_name_cell(ui, name->name, sizeof(name->name));
     ImGui::TableNextColumn(); ui_text_id(city->owner_force_id, UI_NO_ID_8);
     ImGui::TableNextColumn(); ui_text_id(city->commanding_officer_id, UI_NO_ID_16);
     ImGui::TableNextColumn(); ImGui::Text("%u", city->gold);
@@ -122,27 +138,27 @@ ui_draw_city_row(engine_city *city, engine_city_name *name)
 internal void
 ui_draw_cities(ui_state *ui, engine_api *api)
 {
+    char title[128];
     ImGui::SetNextWindowSize(ImVec2(560, 360), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin("Cities", &ui->show_cities))
+    if (ImGui::Begin(ui_label(title, sizeof(title), ui, "cities.title", "Cities"), &ui->show_cities))
     {
         u32 count = api->city_count(api->engine);
-        ImGui::Text("%u cities", count);
-        ImGui::TextDisabled("Names: Big5 bytes as hex from the name index (\"Load city names\"). "
-                            "Public order and durability maximum are hypotheses in the spec.");
+        ImGui::Text("%u %s", count, text_get(ui->text, "cities.count"));
+        ImGui::TextDisabled("%s", text_get(ui->text, "cities.help"));
         ImGuiTableFlags flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
                                 ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable;
         if (ImGui::BeginTable("cities", 9, flags))
         {
             ImGui::TableSetupScrollFreeze(0, 1);
-            ImGui::TableSetupColumn("id", ImGuiTableColumnFlags_WidthFixed, 30.0f);
-            ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthFixed, 80.0f);
-            ImGui::TableSetupColumn("owner", ImGuiTableColumnFlags_WidthFixed, 45.0f);
-            ImGui::TableSetupColumn("commander", ImGuiTableColumnFlags_WidthFixed, 70.0f);
-            ImGui::TableSetupColumn("gold");
-            ImGui::TableSetupColumn("troops");
-            ImGui::TableSetupColumn("food");
-            ImGui::TableSetupColumn("order", ImGuiTableColumnFlags_WidthFixed, 45.0f);
-            ImGui::TableSetupColumn("durability");
+            ui_table_column(ui, "column.id", "id", ImGuiTableColumnFlags_WidthFixed, 30.0f);
+            ui_table_column(ui, "column.name", "name", ImGuiTableColumnFlags_WidthFixed, 90.0f);
+            ui_table_column(ui, "column.owner", "owner", ImGuiTableColumnFlags_WidthFixed, 45.0f);
+            ui_table_column(ui, "column.commander", "commander", ImGuiTableColumnFlags_WidthFixed, 70.0f);
+            ui_table_column(ui, "column.gold", "gold");
+            ui_table_column(ui, "column.troops", "troops");
+            ui_table_column(ui, "column.food", "food");
+            ui_table_column(ui, "column.order", "order", ImGuiTableColumnFlags_WidthFixed, 45.0f);
+            ui_table_column(ui, "column.durability", "durability");
             ImGui::TableHeadersRow();
             ImGuiListClipper clipper;
             clipper.Begin((int)count);
@@ -152,7 +168,7 @@ ui_draw_cities(ui_state *ui, engine_api *api)
                 {
                     engine_city city = api->city_at(api->engine, (u32)row);
                     engine_city_name name = api->city_name_at(api->engine, city.city_id);
-                    ui_draw_city_row(&city, &name);
+                    ui_draw_city_row(ui, &city, &name);
                 }
             }
             ImGui::EndTable();

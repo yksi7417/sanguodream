@@ -32,8 +32,11 @@
 #include "sim/sim.cpp"
 #include "engine/engine.h"
 #include "engine/engine.cpp"
+#include "text/text.h"
+#include "text/text.cpp"
 #include "ui/ui.h"
 #include "ui/ui.cpp"
+#include "ui/ui_fonts.h"
 #include "test_framework.h"
 #include "test_files.h"          /* after win32_window.h: it removes the Yield macro of windows.h */
 #include "demo_tests.cpp"
@@ -53,8 +56,8 @@ static const char demo_layout_ini[] =
     "[Window][Event ledger]\nPos=10,260\nSize=490,450\nCollapsed=0\n\n"
     "[Window][Hex map]\nPos=510,30\nSize=760,510\nCollapsed=0\n\n"
     "[Window][Memory]\nPos=510,550\nSize=420,160\nCollapsed=0\n\n"
-    "[Window][Officers]\nPos=510,30\nSize=760,400\nCollapsed=0\n\n"
-    "[Window][Cities]\nPos=510,440\nSize=760,270\nCollapsed=0\n\n";
+    "[Window][###Officers]\nPos=510,30\nSize=760,400\nCollapsed=0\n\n"
+    "[Window][###Cities]\nPos=510,440\nSize=760,270\nCollapsed=0\n\n";
 
 struct demo_options
 {
@@ -232,6 +235,12 @@ main(int argc, char **argv)
     b32 renderer_ready = d3d11_renderer_init(&renderer, window.device, window.context, data_dir, &frame_arena);
     if (!renderer_ready) printf("demo_player: scene renderer failed: %s\n", renderer.last_error);
     arena_reset(&frame_arena);
+
+    /* The same fonts as the game window, so the video shows the decoded names. */
+    char font_data_dir[MAX_PATH];
+    snprintf(font_data_dir, MAX_PATH, "%s\\%s", exe_dir, HEXDOM_DATA_ROOT);
+    ui_font_result fonts = ui_fonts_load(font_data_dir, HEXDOM_CONTENT_PACK);
+    printf("%s\n", fonts.message);
 
     test_io.ConfigRunSpeed            = ImGuiTestRunSpeed_Cinematic;
     test_io.ConfigVerboseLevel        = ImGuiTestVerboseLevel_Info;

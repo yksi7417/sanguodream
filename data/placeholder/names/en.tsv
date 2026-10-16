@@ -1,0 +1,19 @@
+key	text	note
+# Names in English, keyed by the Big5 bytes of one name field as upper-case hex.
+# A family name, a given name and a city name each have their own row.
+# These rows are historical names in pinyin, written for the placeholder pack.
+# A name without a row shows its decoded Big5 bytes (zh-TW).
+B1E4	Cao	family name
+BC42	Liu	family name
+AE5D	Sun	family name
+C3F6	Guan	family name
+B169	Zhang	family name
+BDD1B8AF	Zhuge	family name
+A571B0A8	Sima	family name
+B04B	Yuan	family name
+ACA5B6A7	Luoyang	city
+AAF8A677	Chang'an	city
+A6A8B3A3	Chengdu	city
+ABD8B77E	Jianye	city
+B35CA9F7	Xuchang	city
+C1B8B6A7	Xiangyang	city

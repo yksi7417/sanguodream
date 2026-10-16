@@ -30,8 +30,9 @@ struct engine_map_size
 };
 
 /* An officer of the loaded game, as a front end sees it. Names are the
-   Big5 bytes of the save, verbatim and NUL padded: the spec gives no
-   character mapping, so a front end shows them as bytes. */
+   Big5 bytes of the save, verbatim and NUL padded: the spec does not name
+   the Big5 variant (Q-013), so the engine keeps the bytes. A front end
+   decodes them with code/text (text_name). */
 struct engine_officer
 {
     u16 officer_id;                 /* the save slot; ENGINE_NO_OFFICER for an index out of range */
