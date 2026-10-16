@@ -8,6 +8,13 @@
 
 struct ImGuiContext;
 
+/* The data folder and the content pack. A relative path is relative to the
+   folder of the executable (build\), so "..\data" is data\ in the repository.
+   The DLL reads its text files there, and the platform layer reads the
+   fonts in data\fonts. */
+#define HEXDOM_DATA_ROOT    "..\\data"
+#define HEXDOM_CONTENT_PACK "placeholder"
+
 struct read_file_result
 {
     u64   size;

@@ -1,6 +1,7 @@
 /* win32_hexdom.exe: the platform layer. Creates the window and the D3D11
-   device (win32_window.h), owns the ImGui context and backends, allocates
-   the single game memory block, and hot-reloads hexdom.dll. Nothing about
+   device (win32_window.h), owns the ImGui context, backends and fonts
+   (ui/ui_fonts.h), allocates the single game memory block, and
+   hot-reloads hexdom.dll. Nothing about
    the game lives here; it only calls GameUpdateAndRender once per frame. */
 
 #define _CRT_SECURE_NO_WARNINGS
@@ -10,6 +11,9 @@
 #include "base.h"
 #include "hexdom.h"
 #include "win32_window.h"
+#include "text/text.h"
+#include "text/text.cpp"
+#include "ui/ui_fonts.h"
 
 struct win32_game_code
 {
@@ -223,6 +227,13 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
         win32_log("platform: scene renderer failed to start, drawing panels only");
         win32_log(renderer.last_error);
     }
+
+    /* The fonts go into the atlas before the first frame; the DX11 backend
+       builds the atlas texture in its first NewFrame. */
+    char font_data_dir[MAX_PATH];
+    snprintf(font_data_dir, MAX_PATH, "%s\\%s", g_win32.exe_dir, HEXDOM_DATA_ROOT);
+    ui_font_result fonts = ui_fonts_load(font_data_dir, HEXDOM_CONTENT_PACK);
+    win32_log(fonts.message);
 
     /* One memory block for the whole game, carved into permanent, transient
        and frame regions. A fixed base address in internal builds keeps
