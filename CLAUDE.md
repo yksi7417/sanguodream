@@ -1,28 +1,32 @@
 # hexdom
 
-A from-scratch grand-strategy engine in C++ implemented from the behavioral
-spec in spec-src/spec/. This repo has never seen the original binary or any
-decompilation.
+This document says how to work in the hexdom repository. The engine is a
+grand-strategy engine in C++, written from scratch from the behavioral spec
+in spec-src/spec/. This repository has never seen the original binary or a
+decompilation of it.
 
 ## Rules
 - Implement from spec-src/spec/ only. Never read spec-src/raw/,
-  spec-src/tools/, C:\src\san11-analysis directly, any game folder, any save
-  folder under Documents\KOEI, or any Ghidra material. A hook enforces this
-  (.claude/hooks/wall.js).
-- Spec ambiguous or missing: append a question to spec-src/spec/QUESTIONS.md
-  and stop. Never guess "how Koei probably did it."
-- spec-src/spec/fixtures/*.tsv are the acceptance tests. Every mechanic lands
-  with failing tests from those vectors first (tdd-workflow). A fixture file
-  with no handler in tests/feature/fixture_tests.cpp is a failing test.
-- The sim core (code/sim/) is headless and deterministic: no Windows headers,
-  no I/O, no ImGui, seeded PRNG in state. Commands in, events out.
+  spec-src/tools/, C:\src\san11-analysis directly, a game folder, a save
+  folder under Documents\KOEI, or Ghidra material. A hook enforces this
+  rule (.claude/hooks/wall.js).
+- If the spec is ambiguous or has no answer, append a question to
+  spec-src/spec/QUESTIONS.md and stop. Never guess "how Koei probably did
+  it."
+- spec-src/spec/fixtures/*.tsv are the acceptance tests. Each mechanic
+  starts with tests from those vectors, and those tests fail first
+  (tdd-workflow). A fixture file with no handler in
+  tests/feature/fixture_tests.cpp is a test that fails.
+- The sim core (code/sim/) is headless and deterministic: no Windows
+  headers, no I/O, no ImGui, and a seeded PRNG in the state. Commands go in,
+  events come out.
 - The UI drives the backend only through engine_api (code/engine/engine.h).
-  See .claude/rules/testing-pyramid.md for the test layers and where a new
-  test goes.
-- Reviewers flag anything transliterated: single-letter locals, magic
-  offsets, structs mirroring a binary layout, decompiler-style names.
-- Style: see .claude/rules/handmade.md. It overrides any generic C++ guidance
-  from the ECC rules under .claude/rules/ecc/.
+  See .claude/rules/testing-pyramid.md for the test layers and for the
+  place where a new test goes.
+- Reviewers flag each sign of a transliteration: single-letter locals, magic
+  offsets, structs that mirror a binary layout, decompiler-style names.
+- Style: see .claude/rules/handmade.md. It overrides the generic C++
+  guidance from the ECC rules under .claude/rules/ecc/.
 
 ## Documents
 - docs/ROADMAP.md            layers, content packs, rule hooks, milestones
@@ -33,15 +37,16 @@ decompilation.
 - build.bat         builds build\hexdom.dll, build\win32_hexdom.exe and the
                     three test exes (calls vcvars64 itself)
 - build.bat dll     rebuilds only the DLL, for hot reload while the window
-                    is open (the running exe cannot be relinked)
+                    is open (you cannot relink the exe while it runs)
 - run_tests.bat     unit_tests.exe -> feature_tests.exe -> ui_tests.exe,
-                    stops at the first failing layer; --e2e adds the window
-                    smoke run
+                    stops at the first layer that fails; --e2e adds the
+                    window smoke run
 - build\feature_tests.exe [fixtures-dir]   default spec-src\spec\fixtures
-- build\ui_tests.exe [filter]              e.g. "ui", "e2e", "ui/advance"
+- build\ui_tests.exe [filter]              for example "ui", "e2e",
+                                           "ui/advance"
 - build\win32_hexdom.exe [--frames N]      the game window; --frames exits
                     after N frames with exit code 0; log in build\hexdom.log
-- Hot reload: keep win32_hexdom.exe running, edit, run build.bat dll.
+- Hot reload: leave win32_hexdom.exe open, edit, then run build.bat dll.
 
 ## Layout
 - code/base.h            types, macros, memory arenas
@@ -63,4 +68,5 @@ decompilation.
 - third_party/imgui_test_engine   Dear ImGui Test Engine (submodule, pinned;
                          free license for individuals, check before any
                          commercial use)
-- spec-src/              submodule: the analysis repo (only spec/ is used)
+- spec-src/              submodule: the analysis repo (this repository uses
+                         only spec/)
