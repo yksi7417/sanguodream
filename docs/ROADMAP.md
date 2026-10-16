@@ -112,13 +112,18 @@ city tables. engine_api has `load_save`, `officer_count`, `officer_at`,
 `city_count` and `city_at`. The Officers and Cities panels show the tables.
 build\save_dump.exe prints the sample as JSON for comparison with the dump
 of the analysis side (tutorial 09). The TSV table loader and the `develop`
-command wait for mechanics/farm-development.md and its fixtures. Open spec
-questions from the loader: Q-012 to Q-016.
-Cross-wall comparison (2026-10-16): on sample.s11 the clean-room dump and
-the dump of the analysis side agree on every field of all 42 cities and of
-the 659 officers that both list. The clean room lists 194 more officers
-(empty-status slots with names, and dead officers); spec Q-012 decides
-which rule is correct. This is item 3 of the playbook's Milestone 1.
+command wait for mechanics/farm-development.md and its fixtures.
+Scenario fixtures (spec f788503): feature tests load the real SCEN002.s11
+and Scenario.s11 through the loaders. They compare SCEN002 with sample.s11
+where the spec gives one layout. engine_api has `load_name_index` and
+`city_name_at`. The Cities panel shows the Big5 bytes of each city name.
+save_dump.exe prints the names with `--name-index`. Open spec questions
+from the loader: Q-012, Q-013 and Q-015 to Q-018. The spec closed Q-014.
+Cross-wall comparison (2026-10-16): the clean-room dump and the dump of
+the analysis side agree on sample.s11. They agree on every field of all 42
+cities and of the 659 officers that both list. The clean room lists 194
+more officers (empty-status slots with names, and dead officers). Spec
+Q-012 decides the correct rule. This is item 3 of the playbook's Milestone 1.
 
 Spec input: spec/formats/save-file.md, scenario-file.md; mechanics/farm-development.md with fixtures.
 - Engine:
