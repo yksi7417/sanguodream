@@ -24,6 +24,11 @@ decompilation.
 - Style: see .claude/rules/handmade.md. It overrides any generic C++ guidance
   from the ECC rules under .claude/rules/ecc/.
 
+## Documents
+- docs/ROADMAP.md            layers, content packs, rule hooks, milestones
+- docs/tutorials/            one tutorial per module, each tied to its tests;
+                             start at 00-reading-order.md
+
 ## Build and run
 - build.bat         builds build\hexdom.dll, build\win32_hexdom.exe and the
                     three test exes (calls vcvars64 itself)
