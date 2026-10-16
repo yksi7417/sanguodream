@@ -1,0 +1,6 @@
+[submodule "third_party/imgui"]
+	path = third_party/imgui
+	url = https://github.com/ocornut/imgui
+[submodule "spec-src"]
+	path = spec-src
+	url = C:/src/san11-analysis
