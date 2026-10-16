@@ -1,31 +1,15 @@
 /* win32_hexdom.exe: the platform layer. Creates the window and the D3D11
-   device, owns the ImGui context and backends, allocates the single game
-   memory block, and hot-reloads hexdom.dll. Nothing about the game lives
-   here; it only calls GameUpdateAndRender once per frame. */
+   device (win32_window.h), owns the ImGui context and backends, allocates
+   the single game memory block, and hot-reloads hexdom.dll. Nothing about
+   the game lives here; it only calls GameUpdateAndRender once per frame. */
 
 #define _CRT_SECURE_NO_WARNINGS
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
-#include <d3d11.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "base.h"
 #include "hexdom.h"
-#include "imgui.h"
-#include "imgui_impl_win32.h"
-#include "imgui_impl_dx11.h"
-
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
-struct win32_d3d
-{
-    ID3D11Device           *device;
-    ID3D11DeviceContext    *context;
-    IDXGISwapChain         *swap_chain;
-    ID3D11RenderTargetView *render_target;
-};
+#include "win32_window.h"
 
 struct win32_game_code
 {
@@ -37,10 +21,6 @@ struct win32_game_code
 
 struct win32_state
 {
-    b32   running;
-    b32   resize_pending;
-    u32   resize_width;
-    u32   resize_height;
     char  exe_dir[MAX_PATH];
     char  dll_path[MAX_PATH];
     char  temp_dll_path[MAX_PATH];
@@ -51,7 +31,6 @@ struct win32_state
 };
 
 global_variable win32_state g_win32;
-global_variable win32_d3d   g_d3d;
 
 /* ---- logging and files -------------------------------------------------- */
 
@@ -171,106 +150,7 @@ win32_unload_game_code(win32_game_code *code)
     code->is_valid = false;
 }
 
-/* ---- D3D11 -------------------------------------------------------------- */
-
-internal void
-win32_create_render_target(void)
-{
-    ID3D11Texture2D *back_buffer = 0;
-    if (SUCCEEDED(g_d3d.swap_chain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void **)&back_buffer)) && back_buffer)
-    {
-        g_d3d.device->CreateRenderTargetView(back_buffer, 0, &g_d3d.render_target);
-        back_buffer->Release();
-    }
-}
-
-internal void
-win32_destroy_render_target(void)
-{
-    if (g_d3d.render_target)
-    {
-        g_d3d.render_target->Release();
-        g_d3d.render_target = 0;
-    }
-}
-
-internal b32
-win32_create_d3d(HWND window)
-{
-    DXGI_SWAP_CHAIN_DESC sd = {};
-    sd.BufferCount                        = 2;
-    sd.BufferDesc.Format                  = DXGI_FORMAT_R8G8B8A8_UNORM;
-    sd.BufferDesc.RefreshRate.Numerator   = 60;
-    sd.BufferDesc.RefreshRate.Denominator = 1;
-    sd.Flags                              = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-    sd.BufferUsage                        = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    sd.OutputWindow                       = window;
-    sd.SampleDesc.Count                   = 1;
-    sd.Windowed                           = TRUE;
-    sd.SwapEffect                         = DXGI_SWAP_EFFECT_DISCARD;
-
-    UINT flags = 0;
-    D3D_FEATURE_LEVEL level;
-    const D3D_FEATURE_LEVEL levels[] = { D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_0 };
-    HRESULT hr = D3D11CreateDeviceAndSwapChain(0, D3D_DRIVER_TYPE_HARDWARE, 0, flags, levels, 2,
-                                               D3D11_SDK_VERSION, &sd, &g_d3d.swap_chain,
-                                               &g_d3d.device, &level, &g_d3d.context);
-    if (hr == DXGI_ERROR_UNSUPPORTED)
-    {
-        win32_log("platform: hardware D3D11 unavailable, using WARP");
-        hr = D3D11CreateDeviceAndSwapChain(0, D3D_DRIVER_TYPE_WARP, 0, flags, levels, 2,
-                                           D3D11_SDK_VERSION, &sd, &g_d3d.swap_chain,
-                                           &g_d3d.device, &level, &g_d3d.context);
-    }
-    if (FAILED(hr)) return false;
-
-    win32_create_render_target();
-    return true;
-}
-
-internal void
-win32_destroy_d3d(void)
-{
-    win32_destroy_render_target();
-    if (g_d3d.swap_chain) { g_d3d.swap_chain->Release(); g_d3d.swap_chain = 0; }
-    if (g_d3d.context)    { g_d3d.context->Release();    g_d3d.context = 0; }
-    if (g_d3d.device)     { g_d3d.device->Release();     g_d3d.device = 0; }
-}
-
-/* ---- window ------------------------------------------------------------- */
-
-internal LRESULT CALLBACK
-win32_window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
-{
-    if (ImGui_ImplWin32_WndProcHandler(window, message, wparam, lparam)) return 1;
-
-    switch (message)
-    {
-        case WM_SIZE:
-        {
-            if (wparam != SIZE_MINIMIZED)
-            {
-                g_win32.resize_pending = true;
-                g_win32.resize_width   = LOWORD(lparam);
-                g_win32.resize_height  = HIWORD(lparam);
-            }
-            return 0;
-        }
-        case WM_SYSCOMMAND:
-        {
-            if ((wparam & 0xFFF0) == SC_KEYMENU) return 0;   /* no menu on Alt */
-            break;
-        }
-        case WM_CLOSE:
-        case WM_DESTROY:
-        {
-            g_win32.running = false;
-            PostQuitMessage(0);
-            return 0;
-        }
-    }
-    return DefWindowProcA(window, message, wparam, lparam);
-}
+/* ---- paths and arguments ---------------------------------------------- */
 
 internal void
 win32_build_paths(win32_state *state)
@@ -314,25 +194,6 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
     win32_log("platform: starting");
     u32 max_frames = win32_parse_frames_arg();
 
-    WNDCLASSEXA window_class = {};
-    window_class.cbSize        = sizeof(window_class);
-    window_class.style         = CS_CLASSDC;
-    window_class.lpfnWndProc   = win32_window_proc;
-    window_class.hInstance     = instance;
-    window_class.hCursor       = LoadCursorA(0, IDC_ARROW);
-    window_class.lpszClassName = "HexdomWindowClass";
-    RegisterClassExA(&window_class);
-
-    HWND window = CreateWindowExA(0, window_class.lpszClassName, "hexdom", WS_OVERLAPPEDWINDOW,
-                                  CW_USEDEFAULT, CW_USEDEFAULT, 1280, 800, 0, 0, instance, 0);
-    if (!window || !win32_create_d3d(window))
-    {
-        win32_log("platform: failed to create window or D3D11 device");
-        return 1;
-    }
-    ShowWindow(window, SW_SHOWDEFAULT);
-    UpdateWindow(window);
-
     /* ImGui: the exe owns the context and the allocators; the DLL binds to both. */
     IMGUI_CHECKVERSION();
     ImGui::SetAllocatorFunctions(win32_imgui_alloc, win32_imgui_free, 0);
@@ -341,8 +202,14 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.IniFilename = g_win32.ini_path;
     ImGui::StyleColorsDark();
-    ImGui_ImplWin32_Init(window);
-    ImGui_ImplDX11_Init(g_d3d.device, g_d3d.context);
+
+    win32_window window = {};
+    if (!win32_open_window(&window, instance, "hexdom", 1280, 800, WS_OVERLAPPEDWINDOW))
+    {
+        win32_log("platform: failed to create window or D3D11 device");
+        return 1;
+    }
+    if (window.used_warp) win32_log("platform: hardware D3D11 unavailable, using WARP");
 
     /* One memory block for the whole game, carved into permanent, transient
        and frame regions. A fixed base address in internal builds keeps
@@ -383,19 +250,9 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
     QueryPerformanceFrequency(&counter_frequency);
     QueryPerformanceCounter(&last_counter);
 
-    g_win32.running = true;
     u32 frame_index = 0;
-    while (g_win32.running)
+    while (win32_pump_messages(&window))
     {
-        MSG message;
-        while (PeekMessageA(&message, 0, 0, 0, PM_REMOVE))
-        {
-            TranslateMessage(&message);
-            DispatchMessageA(&message);
-            if (message.message == WM_QUIT) g_win32.running = false;
-        }
-        if (!g_win32.running) break;
-
         /* Hot reload: when build.bat has written a new DLL (and finished), swap it in. */
         input.dll_reloaded = false;
         if (!win32_file_exists(g_win32.lock_path))
@@ -418,23 +275,13 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
             }
         }
 
-        if (g_win32.resize_pending && g_d3d.swap_chain)
-        {
-            win32_destroy_render_target();
-            g_d3d.swap_chain->ResizeBuffers(0, g_win32.resize_width, g_win32.resize_height, DXGI_FORMAT_UNKNOWN, 0);
-            win32_create_render_target();
-            g_win32.resize_pending = false;
-        }
-
         LARGE_INTEGER now;
         QueryPerformanceCounter(&now);
         input.dt_seconds  = (f32)(now.QuadPart - last_counter.QuadPart) / (f32)counter_frequency.QuadPart;
         input.frame_index = frame_index;
         last_counter = now;
 
-        ImGui_ImplDX11_NewFrame();
-        ImGui_ImplWin32_NewFrame();
-        ImGui::NewFrame();
+        win32_begin_frame(&window);
 
         arena_reset(&frame);
         if (game.is_valid)
@@ -448,27 +295,19 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
             ImGui::End();
         }
 
-        ImGui::Render();
-        const f32 clear_color[4] = { 0.09f, 0.10f, 0.12f, 1.0f };
-        g_d3d.context->OMSetRenderTargets(1, &g_d3d.render_target, 0);
-        g_d3d.context->ClearRenderTargetView(g_d3d.render_target, clear_color);
-        ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-        g_d3d.swap_chain->Present(1, 0);
+        win32_render_frame(&window);
+        win32_present_frame(&window);
 
         frame_index++;
         if (max_frames && frame_index >= max_frames)
         {
             win32_log("platform: --frames reached, exiting");
-            g_win32.running = false;
+            window.running = false;
         }
     }
 
-    ImGui_ImplDX11_Shutdown();
-    ImGui_ImplWin32_Shutdown();
+    win32_close_window(&window);
     ImGui::DestroyContext();
-    win32_destroy_d3d();
-    DestroyWindow(window);
-    UnregisterClassA(window_class.lpszClassName, instance);
     win32_unload_game_code(&game);
     win32_log("platform: clean exit");
     if (g_win32.log_file) fclose(g_win32.log_file);
