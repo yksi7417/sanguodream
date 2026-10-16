@@ -34,3 +34,70 @@ settings.font	Font	the font that the front end loaded
 settings.missing	Missing strings	ids that no locale file has
 settings.no_strings	This locale has no strings file. The panels use the fallback locale.
 name.bytes	Big5 bytes	tooltip on a name
+menu.city	City	menu item and panel: the slots of one city
+menu.develop	Develop	menu item and dialog: the develop command
+city.title	City	panel title
+city.select	City	combo label
+city.none	No city is loaded. Load the sample save in the Simulation panel.
+city.slots	Slots	built or under construction / slots of the city
+city.gold_income	Gold income	expected gold next month
+city.grain_income	Grain income	expected grain next season
+city.governor	Governor	officer id
+city.develop	Develop...	button that opens the develop dialog
+column.slot	slot
+column.facility	facility
+column.state	state
+column.turns_left	turns left
+column.yield	yield	gold each month or grain each season
+slot.empty	empty
+slot.building	building
+slot.built	built
+develop.title	Develop	dialog title
+develop.facility	Facility	combo label
+develop.slot	Slot	combo label
+develop.any_slot	first free slot
+develop.officer	Officer	combo label, then the number 1, 2 or 3
+develop.no_officer	-	no officer in this place
+develop.cost	Gold	the cost
+develop.period	Period
+develop.days	days
+develop.action_points	Action points
+develop.execute	Execute	button
+develop.refused	Refused	then the reason
+develop.started	Started, command	then the command id
+refusal.none	none
+refusal.no_content	the content pack did not load
+refusal.no_city	no city
+refusal.not_your_turn	this faction does not act now
+refusal.no_facility	the city cannot have this facility
+refusal.enemy_near	an enemy unit is within 2 hexes
+refusal.value_at_maximum	the city has the maximum of this facility
+refusal.no_slot	no free slot
+refusal.slot_taken	the slot is not free
+refusal.no_officer	no officer
+refusal.officer_not_in_city	an officer is not in this city
+refusal.duplicate_officer	the same officer two times
+refusal.officer_already_acted	an officer acted in this turn
+refusal.officer_busy	an officer is busy with a job
+refusal.no_action_points	not sufficient action points
+refusal.no_gold	not sufficient gold
+facility.market	Market
+facility.farm	Farm
+facility.barracks	Barracks
+facility.smithy	Smithy
+facility.stable	Stable
+facility.workshop	Workshop
+facility.shipyard	Shipyard
+facility.mint	Mint
+facility.granary	Granary
+facility.bronze_sparrow_tower	Bronze Sparrow Tower
+facility.tally_office	Tally office
+facility.personnel_office	Personnel office
+facility.plot_office	Plot office
+facility.great_market	Great market
+facility.black_market	Black market
+facility.diplomacy_office	Diplomacy office
+facility.military_office	Military office
+facility.drill_ground	Drill ground
+facility.fish_market	Fish market
+facility.military_farm	Military farm

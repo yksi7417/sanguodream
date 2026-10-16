@@ -25,6 +25,17 @@ enum recorder_call_kind
     RECORDER_CITY_AT,
     RECORDER_CITY_NAME_AT,
     RECORDER_TERRAIN_VIEW,
+    RECORDER_DATE,
+    RECORDER_WHOSE_TURN,
+    RECORDER_ACTIONS_LEFT,
+    RECORDER_FACTION_COUNT,
+    RECORDER_FACTION_AT,
+    RECORDER_CAN_ISSUE,
+    RECORDER_CITY_SLOTS,
+    RECORDER_FACILITY_AT,
+    RECORDER_FACILITY_KIND_COUNT,
+    RECORDER_FACILITY_KIND_AT,
+    RECORDER_CONTENT_STATUS,
     RECORDER_END_TURN,        /* commands start here */
     RECORDER_ADVANCE_TURNS,
     RECORDER_LEDGER_CLEAR,
@@ -32,6 +43,12 @@ enum recorder_call_kind
     RECORDER_SET_CELL_TERRAIN,
     RECORDER_LOAD_SAVE,
     RECORDER_LOAD_NAME_INDEX,
+    RECORDER_COMMAND_DEVELOP,
+    RECORDER_SET_FACTION_HUMAN,
+    RECORDER_SET_CITY_OWNER,
+    RECORDER_SET_CITY_GOLD,
+    RECORDER_SET_ACTIONS,
+    RECORDER_PLACE_UNIT,
     RECORDER_CALL_KIND_COUNT
 };
 
@@ -62,6 +79,8 @@ struct engine_recorder
     b32           load_fails;         /* script a refused load */
     b32           has_names;          /* city_name_at answers only after a name index load */
     char          last_name_index_path[RECORDER_MAX_PATH];
+    sim_refusal   can_issue_refusal;  /* script the answer of can_issue and command_develop */
+    engine_command last_develop;      /* the arguments of the last command_develop */
 };
 
 internal void
@@ -208,6 +227,9 @@ internal engine_officer recorder_officer_at(void *o, u32 i)
     officer.force_id       = 1;
     officer.status         = 3;
     officer.base_location  = 0xFFFF;
+    officer.current_position = 0;        /* every scripted officer stands in city 0 */
+    officer.politics       = 60;
+    officer.job_city       = ENGINE_NO_CITY;
     return officer;
 }
 
@@ -219,7 +241,7 @@ internal engine_city recorder_city_at(void *o, u32 i)
     city.city_id = ENGINE_NO_CITY;
     if (i >= r->city_count) return city;
     city.city_id               = (u8)i;
-    city.owner_force_id        = 255;
+    city.owner_force_id        = 1;        /* the force of the scripted officers */
     city.commanding_officer_id = 0xFFFF;
     city.gold                  = 1000 * (i + 1);
     return city;
@@ -297,6 +319,101 @@ recorder_set_cell_terrain(void *o, s32 q, s32 r, u8 kind, u8 level)
     recorder_record((engine_recorder *)o, RECORDER_SET_CELL_TERRAIN, kind);
 }
 
+/* ---- M1 develop and M2 turns: one faction (force 1) acts; 10 empty slots
+   in each city; 3 facility kinds; can_issue answers can_issue_refusal. */
+#define RECORDER_SLOTS 10
+global_variable const char *recorder_facility_keys[] = { "market", "farm", "mint" };
+
+internal engine_date recorder_date(void *o)
+{
+    recorder_record((engine_recorder *)o, RECORDER_DATE, 0);
+    engine_date date = {};
+    date.year = 194; date.month = 6; date.day = 1; date.season = CALENDAR_SUMMER;
+    return date;
+}
+internal u8  recorder_whose_turn(void *o)             { recorder_record((engine_recorder *)o, RECORDER_WHOSE_TURN, 0); return 1; }
+internal u32 recorder_actions_left(void *o, u8 force) { recorder_record((engine_recorder *)o, RECORDER_ACTIONS_LEFT, force); return 100; }
+internal u32 recorder_faction_count(void *o)          { recorder_record((engine_recorder *)o, RECORDER_FACTION_COUNT, 0); return 1; }
+internal engine_faction recorder_faction_at(void *o, u32 index)
+{
+    recorder_record((engine_recorder *)o, RECORDER_FACTION_AT, index);
+    engine_faction faction = {};
+    faction.force_id = index == 0 ? 1 : ENGINE_NO_FACTION;
+    faction.city_count = 2; faction.action_points = 100; faction.human = true;
+    return faction;
+}
+internal engine_check recorder_can_issue(void *o, const engine_command *command)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_CAN_ISSUE, command->facility);
+    engine_check check = {};
+    check.refusal = r->can_issue_refusal;
+    if (check.refusal == SIM_REFUSAL_NONE) { check.gold = 200; check.action_points = 20; check.turns = 3; check.days = 30; check.slot = 0; }
+    return check;
+}
+internal engine_city_slots recorder_city_slots(void *o, u8 city_id)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_CITY_SLOTS, city_id);
+    engine_city_slots slots = {};
+    slots.city_id = city_id < r->city_count ? city_id : ENGINE_NO_CITY;
+    slots.slot_count = slots.city_id == ENGINE_NO_CITY ? 0 : RECORDER_SLOTS;
+    slots.gold_income = 100; slots.grain_income = 500; slots.governor_id = 100;
+    return slots;
+}
+internal engine_facility recorder_facility_at(void *o, u8 city_id, u8 slot)
+{
+    recorder_record((engine_recorder *)o, RECORDER_FACILITY_AT, slot);
+    engine_facility facility = {};
+    facility.city_id  = slot < RECORDER_SLOTS ? city_id : ENGINE_NO_CITY;
+    facility.slot     = slot;
+    facility.state    = SIM_SLOT_EMPTY;
+    facility.facility = ENGINE_NO_FACILITY;
+    return facility;
+}
+internal u32 recorder_facility_kind_count(void *o)
+{
+    recorder_record((engine_recorder *)o, RECORDER_FACILITY_KIND_COUNT, 0);
+    return ArrayCount(recorder_facility_keys);
+}
+internal engine_facility_kind recorder_facility_kind_at(void *o, u32 index)
+{
+    recorder_record((engine_recorder *)o, RECORDER_FACILITY_KIND_AT, index);
+    engine_facility_kind kind = {};
+    kind.id = ENGINE_NO_FACILITY;
+    if (index >= ArrayCount(recorder_facility_keys)) return kind;
+    kind.id = (u8)index;
+    snprintf(kind.key, sizeof(kind.key), "%s", recorder_facility_keys[index]);
+    kind.cost = 200 + 100 * index;
+    return kind;
+}
+internal engine_content_status recorder_content_status(void *o)
+{
+    recorder_record((engine_recorder *)o, RECORDER_CONTENT_STATUS, 0);
+    engine_content_status status = {};
+    status.loaded = true; status.facility_count = ArrayCount(recorder_facility_keys); status.detail = "ok";
+    return status;
+}
+internal engine_command_result recorder_command_develop(void *o, u8 city_id, u8 facility, const u16 officers[SIM_DEVELOP_OFFICERS], u8 slot)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_COMMAND_DEVELOP, facility);
+    r->last_develop.kind     = ENGINE_COMMAND_DEVELOP;
+    r->last_develop.city_id  = city_id;
+    r->last_develop.facility = facility;
+    r->last_develop.slot     = slot;
+    for (u32 place = 0; place < SIM_DEVELOP_OFFICERS; ++place) r->last_develop.officers[place] = officers[place];
+    engine_command_result result = {};
+    result.refusal = r->can_issue_refusal;
+    if (result.refusal == SIM_REFUSAL_NONE) result.command_id = r->next_command_id++;
+    return result;
+}
+internal void recorder_set_faction_human(void *o, u8 force, b32 human) { (void)human; recorder_record((engine_recorder *)o, RECORDER_SET_FACTION_HUMAN, force); }
+internal void recorder_set_city_owner(void *o, u8 city, u8 force)      { (void)force; recorder_record((engine_recorder *)o, RECORDER_SET_CITY_OWNER, city); }
+internal void recorder_set_city_gold(void *o, u8 city, u32 gold)       { (void)gold; recorder_record((engine_recorder *)o, RECORDER_SET_CITY_GOLD, city); }
+internal void recorder_set_actions(void *o, u8 force, u32 points)      { (void)points; recorder_record((engine_recorder *)o, RECORDER_SET_ACTIONS, force); }
+internal u32  recorder_place_unit(void *o, u8 force, s32 q, s32 r)     { (void)q; (void)r; recorder_record((engine_recorder *)o, RECORDER_PLACE_UNIT, force); return 0; }
+
 internal engine_api
 recorder_make_api(engine_recorder *r)
 {
@@ -325,6 +442,23 @@ recorder_make_api(engine_recorder *r)
     api.set_cell_terrain = recorder_set_cell_terrain;
     api.load_save       = recorder_load_save;
     api.load_name_index = recorder_load_name_index;
+    api.date            = recorder_date;
+    api.whose_turn      = recorder_whose_turn;
+    api.actions_left    = recorder_actions_left;
+    api.faction_count   = recorder_faction_count;
+    api.faction_at      = recorder_faction_at;
+    api.can_issue       = recorder_can_issue;
+    api.city_slots      = recorder_city_slots;
+    api.facility_at     = recorder_facility_at;
+    api.facility_kind_count = recorder_facility_kind_count;
+    api.facility_kind_at    = recorder_facility_kind_at;
+    api.content_status  = recorder_content_status;
+    api.command_develop = recorder_command_develop;
+    api.set_faction_human = recorder_set_faction_human;
+    api.set_city_owner  = recorder_set_city_owner;
+    api.set_city_gold   = recorder_set_city_gold;
+    api.set_actions     = recorder_set_actions;
+    api.place_unit      = recorder_place_unit;
     return api;
 }
 

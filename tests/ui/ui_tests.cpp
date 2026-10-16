@@ -77,6 +77,7 @@ ui_test_gui(ImGuiTestContext *ctx)
         ui_init(&v.ui, &v.text);
         v.ui.show_demo = false;   /* the demo window is not under test */
         v.ui.show_map  = true;    /* the 2D map panel is closed by default now; its tests need it open */
+        v.ui.show_city = false;   /* the City panel asks for city names too; its tests open it */
     }
     v.frame.dt_seconds = ImGui::GetIO().DeltaTime;
     ui_draw(&v.ui, &v.api, &v.frame);
@@ -325,6 +326,8 @@ register_ui_tests(ImGuiTestEngine *e)
         v.recorder.officer_count = 2;
         v.recorder.city_count    = 2;
         v.ui.show_settings       = true;
+        v.ui.show_city           = true;
+        v.ui.show_develop        = true;
         IM_CHECK_GE(v.text.locale_count, 2u);
         for (u32 index = 0; index < v.text.locale_count; ++index)
         {
@@ -388,6 +391,82 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_STR_EQ(v.ui.load_message, "not loaded: not a save");
     };
 
+    t = IM_REGISTER_TEST(e, "ui", "city_panel_reads_every_slot_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.city_count = 2;
+        v.ui.show_city = true;
+        ctx->SetRef("###City");
+        ctx->Yield(2);
+        IM_CHECK(ctx->ItemExists("slots"));                                       /* the slot table is drawn */
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_CITY_SLOTS), 1u);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_FACILITY_AT), (u32)RECORDER_SLOTS);   /* one call per slot */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        ctx->ComboClick("###city_select/###c1");
+        ctx->Yield();
+        IM_CHECK_EQ(v.ui.city.selected, 1u);
+        ctx->ItemClick("###open_develop");
+        ctx->Yield();
+        IM_CHECK(v.ui.show_develop && v.ui.develop.city == 1);                    /* the button opens the dialog for this city */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);                    /* opening a dialog commands nothing */
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "develop_dialog_issues_one_command_develop");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_develop        = true;
+        ctx->SetRef("###Develop");
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.develop.officers[0], 100u);                              /* the first free officer by default */
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_CAN_ISSUE), 1u);          /* the dialog asks can_issue each frame */
+        ctx->ComboClick("###facility/###f2");
+        ctx->ComboClick("###slot/###s4");
+        ctx->ComboClick("###officer2/###o101");
+        ctx->Yield();
+        IM_CHECK(v.ui.develop.facility == 2 && v.ui.develop.slot == 4 && v.ui.develop.officers[1] == 101);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);                    /* choices command nothing */
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###execute");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_DEVELOP), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        engine_command sent = v.recorder.last_develop;
+        IM_CHECK(sent.city_id == 0 && sent.facility == 2 && sent.slot == 4);
+        IM_CHECK(sent.officers[0] == 100 && sent.officers[1] == 101 && sent.officers[2] == ENGINE_NO_OFFICER);
+        IM_CHECK(v.ui.develop.message[0] != 0);                                   /* the dialog shows the result */
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "refused_develop_is_disabled_and_issues_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count     = 3;
+        v.recorder.city_count        = 2;
+        v.recorder.can_issue_refusal = SIM_REFUSAL_NO_GOLD;
+        v.ui.show_develop            = true;
+        ctx->SetRef("###Develop");
+        ctx->Yield(2);
+        ImGuiTestItemInfo execute = ctx->ItemInfo("###execute");
+        IM_CHECK(execute.ID != 0 && (execute.ItemFlags & ImGuiItemFlags_Disabled) != 0);   /* the refusal disables the button */
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###execute", 0, ImGuiTestOpFlags_NoAutoOpenFullPath);
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_DEVELOP), 0u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
     t = IM_REGISTER_TEST(e, "ui", "idle_frames_command_nothing");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;
@@ -442,7 +521,8 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->ItemClick("Load city names");
         ctx->Yield();
         IM_CHECK_EQ(v.api.city_name_at(v.api.engine, 36).city_id, 36u);
-        IM_CHECK_EQ(v.api.ledger_at(v.api.engine, 1).kind, SIM_EVENT_NAME_INDEX_LOADED);
+        u32 last = v.api.ledger_count(v.api.engine) - 1;                  /* after the turn start of the load */
+        IM_CHECK_EQ(v.api.ledger_at(v.api.engine, last).kind, SIM_EVENT_NAME_INDEX_LOADED);
         IM_CHECK(strncmp(v.ui.names_message, "names loaded", 12) == 0);
 
         /* The text module decodes each name of the real files: no U+FFFD. */

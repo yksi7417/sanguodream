@@ -32,6 +32,21 @@ struct ui_state
         camera    cam;
     } scene;
     bool show_settings;
+    bool show_city;
+    bool show_develop;
+    struct
+    {
+        u8 selected;             /* the city id that the City panel shows */
+    } city;
+    struct
+    {
+        u8   city;               /* the city of the dialog */
+        u8   prepared_city;      /* the city of the default choices; ENGINE_NO_CITY: choose again */
+        u8   facility;
+        u8   slot;               /* ENGINE_ANY_SLOT: the first free slot */
+        u16  officers[SIM_DEVELOP_OFFICERS];
+        char message[96];        /* result of the last Execute click */
+    } develop;
     text_catalog *text;      /* the UI strings and the names; owned by the caller */
     char pending_locale[TEXT_LOCALE_SIZE];   /* set by the Language combo; ui_draw loads it at the start of the next frame */
     char load_message[96];   /* result of the last "Load sample save" click */

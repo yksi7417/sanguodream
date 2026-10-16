@@ -1,0 +1,324 @@
+/* The City panel and the Develop dialog (city-commands.md, 開發;
+   ui/city-commands.md). The City panel shows the slots of one city. The
+   Develop dialog picks a facility, a slot and up to three officers, shows
+   the answer of can_issue, and sends one command_develop for one click of
+   Execute. Both read the game only through engine_api. Included by ui.cpp. */
+
+#define UI_DEVELOP_OFFICER_LIST 64   /* the free officers that the dialog lists */
+
+internal const char *
+ui_text_with_key(ui_state *ui, const char *prefix, const char *key)
+{
+    char id[64];
+    snprintf(id, sizeof(id), "%s.%s", prefix, key);
+    return text_get(ui->text, id);
+}
+
+internal const char *
+ui_facility_name(ui_state *ui, engine_api *api, u8 facility)
+{
+    engine_facility_kind kind = api->facility_kind_at(api->engine, facility);
+    if (kind.id == ENGINE_NO_FACILITY) return "-";
+    return ui_text_with_key(ui, "facility", kind.key);
+}
+
+internal const char *
+ui_refusal_text(ui_state *ui, sim_refusal refusal)
+{
+    return ui_text_with_key(ui, "refusal", sim_refusal_name(refusal));
+}
+
+internal const char *
+ui_slot_state_text(ui_state *ui, u8 state)
+{
+    switch (state)
+    {
+        case SIM_SLOT_EMPTY:    return text_get(ui->text, "slot.empty");
+        case SIM_SLOT_BUILDING: return text_get(ui->text, "slot.building");
+        case SIM_SLOT_BUILT:    return text_get(ui->text, "slot.built");
+        default:                return "?";
+    }
+}
+
+/* The name of a city for a combo: the decoded name, or its id. */
+internal void
+ui_city_label(ui_state *ui, engine_api *api, u8 city_id, char *out, u32 out_size)
+{
+    engine_city_name name = api->city_name_at(api->engine, city_id);
+    char decoded[UI_NAME_SIZE] = "";
+    if (name.city_id != ENGINE_NO_CITY) text_name(ui->text, name.name, sizeof(name.name), decoded, sizeof(decoded));
+    if (decoded[0]) snprintf(out, out_size, "%u %s", city_id, decoded);
+    else            snprintf(out, out_size, "%u", city_id);
+}
+
+internal void
+ui_draw_city_combo(ui_state *ui, engine_api *api)
+{
+    char label[128], preview[96];
+    ui_city_label(ui, api, ui->city.selected, preview, sizeof(preview));
+    if (ImGui::BeginCombo(ui_label(label, sizeof(label), ui, "city.select", "city_select"), preview))
+    {
+        u32 count = api->city_count(api->engine);
+        for (u32 index = 0; index < count; ++index)
+        {
+            engine_city city = api->city_at(api->engine, index);
+            char name[96];
+            ui_city_label(ui, api, city.city_id, name, sizeof(name));
+            snprintf(label, sizeof(label), "%s###c%u", name, city.city_id);
+            bool selected = city.city_id == ui->city.selected;
+            if (ImGui::Selectable(label, selected)) ui->city.selected = city.city_id;
+        }
+        ImGui::EndCombo();
+    }
+}
+
+internal void
+ui_draw_slot_row(ui_state *ui, engine_api *api, engine_facility *slot)
+{
+    ImGui::TableNextRow();
+    ImGui::TableNextColumn(); ImGui::Text("%u", slot->slot);
+    ImGui::TableNextColumn(); ImGui::TextUnformatted(slot->facility == ENGINE_NO_FACILITY ? "-" : ui_facility_name(ui, api, slot->facility));
+    ImGui::TableNextColumn(); ImGui::TextUnformatted(ui_slot_state_text(ui, slot->state));
+    ImGui::TableNextColumn();
+    if (slot->state == SIM_SLOT_BUILDING) ImGui::Text("%u", slot->turns_left);
+    else                                  ImGui::TextUnformatted("-");
+    ImGui::TableNextColumn();
+    if (slot->yield) ImGui::Text("%u", slot->yield);
+    else             ImGui::TextUnformatted("-");
+}
+
+internal void
+ui_draw_city(ui_state *ui, engine_api *api)
+{
+    char title[128];
+    ImGui::SetNextWindowSize(ImVec2(440, 420), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin(ui_label(title, sizeof(title), ui, "city.title", "City"), &ui->show_city))
+    {
+        if (api->city_count(api->engine) == 0)
+        {
+            ImGui::TextWrapped("%s", text_get(ui->text, "city.none"));
+            ImGui::End();
+            return;
+        }
+        ui_draw_city_combo(ui, api);
+        engine_city city = api->city_at(api->engine, ui->city.selected);
+        engine_city_slots slots = api->city_slots(api->engine, ui->city.selected);
+        ImGui::Text("%s: %u   %s: %u   %s: %u", text_get(ui->text, "column.owner"), city.owner_force_id,
+                    text_get(ui->text, "column.gold"), city.gold, text_get(ui->text, "column.food"), city.food);
+        ImGui::Text("%s: %u / %u", text_get(ui->text, "city.slots"), slots.used, slots.slot_count);
+        ImGui::Text("%s: %u   %s: %u", text_get(ui->text, "city.gold_income"), slots.gold_income,
+                    text_get(ui->text, "city.grain_income"), slots.grain_income);
+        ImGui::Text("%s: ", text_get(ui->text, "city.governor"));
+        ImGui::SameLine();
+        if (slots.governor_id == ENGINE_NO_OFFICER) ImGui::TextUnformatted("-");
+        else                                        ImGui::Text("%u", slots.governor_id);
+        char label[96];
+        if (ImGui::Button(ui_label(label, sizeof(label), ui, "city.develop", "open_develop")))
+        {
+            ui->show_develop = true;
+            ui->develop.city = ui->city.selected;
+            ui->develop.message[0] = 0;
+        }
+
+        ImGuiTableFlags flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY;
+        if (ImGui::BeginTable("slots", 5, flags))
+        {
+            ImGui::TableSetupScrollFreeze(0, 1);
+            ui_table_column(ui, "column.slot", "slot", ImGuiTableColumnFlags_WidthFixed, 40.0f);
+            ui_table_column(ui, "column.facility", "facility");
+            ui_table_column(ui, "column.state", "state");
+            ui_table_column(ui, "column.turns_left", "turns_left", ImGuiTableColumnFlags_WidthFixed, 60.0f);
+            ui_table_column(ui, "column.yield", "yield", ImGuiTableColumnFlags_WidthFixed, 60.0f);
+            ImGui::TableHeadersRow();
+            for (u32 index = 0; index < slots.slot_count; ++index)
+            {
+                engine_facility slot = api->facility_at(api->engine, ui->city.selected, (u8)index);
+                ui_draw_slot_row(ui, api, &slot);
+            }
+            ImGui::EndTable();
+        }
+    }
+    ImGui::End();
+}
+
+/* The officers that can develop in the city now: active officers of the
+   owner in the city without a job that did not act in this turn. */
+internal u32
+ui_free_officers(engine_api *api, u8 city_id, u16 *ids, u32 capacity)
+{
+    engine_city city = api->city_at(api->engine, city_id);
+    u32 found = 0;
+    u32 count = api->officer_count(api->engine);
+    for (u32 index = 0; index < count && found < capacity; ++index)
+    {
+        engine_officer officer = api->officer_at(api->engine, index);
+        if (officer.status <= 3 && officer.force_id == city.owner_force_id && officer.current_position == city_id &&
+            officer.job_city == ENGINE_NO_CITY && !officer.acted)
+        {
+            ids[found++] = officer.officer_id;
+        }
+    }
+    return found;
+}
+
+internal void
+ui_officer_label(ui_state *ui, engine_api *api, u16 officer_id, char *out, u32 out_size)
+{
+    if (officer_id == ENGINE_NO_OFFICER)
+    {
+        snprintf(out, out_size, "%s", text_get(ui->text, "develop.no_officer"));
+        return;
+    }
+    u32 count = api->officer_count(api->engine);
+    for (u32 index = 0; index < count; ++index)
+    {
+        engine_officer officer = api->officer_at(api->engine, index);
+        if (officer.officer_id != officer_id) continue;
+        char family[UI_NAME_SIZE], given[UI_NAME_SIZE];
+        text_name(ui->text, officer.family_name, sizeof(officer.family_name), family, sizeof(family));
+        text_name(ui->text, officer.given_name, sizeof(officer.given_name), given, sizeof(given));
+        snprintf(out, out_size, "%s%s (%u)", family, given, officer.politics);
+        return;
+    }
+    snprintf(out, out_size, "%u", officer_id);
+}
+
+internal void
+ui_draw_facility_combo(ui_state *ui, engine_api *api)
+{
+    char label[128];
+    if (ImGui::BeginCombo(ui_label(label, sizeof(label), ui, "develop.facility", "facility"),
+                          ui_facility_name(ui, api, ui->develop.facility)))
+    {
+        u32 count = api->facility_kind_count(api->engine);
+        for (u32 index = 0; index < count; ++index)
+        {
+            engine_facility_kind kind = api->facility_kind_at(api->engine, index);
+            snprintf(label, sizeof(label), "%s  %u###f%u", ui_text_with_key(ui, "facility", kind.key), kind.cost, kind.id);
+            if (ImGui::Selectable(label, kind.id == ui->develop.facility)) ui->develop.facility = kind.id;
+        }
+        ImGui::EndCombo();
+    }
+}
+
+internal void
+ui_draw_slot_combo(ui_state *ui, engine_api *api)
+{
+    char label[128], preview[64];
+    if (ui->develop.slot == ENGINE_ANY_SLOT) snprintf(preview, sizeof(preview), "%s", text_get(ui->text, "develop.any_slot"));
+    else                                     snprintf(preview, sizeof(preview), "%u", ui->develop.slot);
+    if (ImGui::BeginCombo(ui_label(label, sizeof(label), ui, "develop.slot", "slot"), preview))
+    {
+        snprintf(label, sizeof(label), "%s###s_any", text_get(ui->text, "develop.any_slot"));
+        if (ImGui::Selectable(label, ui->develop.slot == ENGINE_ANY_SLOT)) ui->develop.slot = ENGINE_ANY_SLOT;
+        engine_city_slots slots = api->city_slots(api->engine, ui->develop.city);
+        for (u32 index = 0; index < slots.slot_count; ++index)
+        {
+            engine_facility slot = api->facility_at(api->engine, ui->develop.city, (u8)index);
+            if (slot.state != SIM_SLOT_EMPTY) continue;
+            snprintf(label, sizeof(label), "%u###s%u", index, index);
+            if (ImGui::Selectable(label, ui->develop.slot == index)) ui->develop.slot = (u8)index;
+        }
+        ImGui::EndCombo();
+    }
+}
+
+internal void
+ui_draw_officer_combo(ui_state *ui, engine_api *api, u32 place, const u16 *free_ids, u32 free_count)
+{
+    char label[128], preview[96], combo[128];
+    ui_officer_label(ui, api, ui->develop.officers[place], preview, sizeof(preview));
+    snprintf(combo, sizeof(combo), "%s %u###officer%u", text_get(ui->text, "develop.officer"), place + 1, place + 1);
+    if (ImGui::BeginCombo(combo, preview))
+    {
+        snprintf(label, sizeof(label), "%s###o_none", text_get(ui->text, "develop.no_officer"));
+        if (ImGui::Selectable(label, ui->develop.officers[place] == ENGINE_NO_OFFICER)) ui->develop.officers[place] = ENGINE_NO_OFFICER;
+        for (u32 index = 0; index < free_count; ++index)
+        {
+            char name[96];
+            ui_officer_label(ui, api, free_ids[index], name, sizeof(name));
+            snprintf(label, sizeof(label), "%s###o%u", name, free_ids[index]);
+            if (ImGui::Selectable(label, ui->develop.officers[place] == free_ids[index])) ui->develop.officers[place] = free_ids[index];
+        }
+        ImGui::EndCombo();
+    }
+}
+
+/* The dialog keeps its choices while it shows one city. For a new city,
+   or after a command, it takes the first free officer and any free slot. */
+internal void
+ui_develop_reset_for_city(ui_state *ui, engine_api *api)
+{
+    u16 first = ENGINE_NO_OFFICER;
+    ui_free_officers(api, ui->develop.city, &first, 1);
+    ui->develop.slot        = ENGINE_ANY_SLOT;
+    ui->develop.officers[0] = first;
+    ui->develop.officers[1] = ENGINE_NO_OFFICER;
+    ui->develop.officers[2] = ENGINE_NO_OFFICER;
+    ui->develop.prepared_city = ui->develop.city;
+}
+
+internal void
+ui_draw_develop(ui_state *ui, engine_api *api)
+{
+    char title[128];
+    ImGui::SetNextWindowSize(ImVec2(420, 300), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin(ui_label(title, sizeof(title), ui, "develop.title", "Develop"), &ui->show_develop))
+    {
+        if (ui->develop.prepared_city != ui->develop.city) ui_develop_reset_for_city(ui, api);
+        char city_name[96];
+        ui_city_label(ui, api, ui->develop.city, city_name, sizeof(city_name));
+        ImGui::Text("%s: %s", text_get(ui->text, "city.select"), city_name);
+        ui_draw_facility_combo(ui, api);
+        ui_draw_slot_combo(ui, api);
+        u16 free_ids[UI_DEVELOP_OFFICER_LIST];
+        u32 free_count = ui_free_officers(api, ui->develop.city, free_ids, ArrayCount(free_ids));
+        for (u32 place = 0; place < SIM_DEVELOP_OFFICERS; ++place) ui_draw_officer_combo(ui, api, place, free_ids, free_count);
+
+        engine_command command = {};
+        command.kind     = ENGINE_COMMAND_DEVELOP;
+        command.city_id  = ui->develop.city;
+        command.facility = ui->develop.facility;
+        command.slot     = ui->develop.slot;
+        for (u32 place = 0; place < SIM_DEVELOP_OFFICERS; ++place) command.officers[place] = ui->develop.officers[place];
+        engine_check check = api->can_issue(api->engine, &command);
+        ImGui::Separator();
+        if (check.refusal == SIM_REFUSAL_NONE)
+        {
+            ImGui::Text("%s: %u   %s: %u %s   %s: %u", text_get(ui->text, "develop.cost"), check.gold,
+                        text_get(ui->text, "develop.period"), check.days, text_get(ui->text, "develop.days"),
+                        text_get(ui->text, "develop.action_points"), check.action_points);
+        }
+        else
+        {
+            ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f), "%s: %s", text_get(ui->text, "develop.refused"),
+                               ui_refusal_text(ui, check.refusal));
+        }
+
+        /* A refused command is a disabled button: the click sends nothing. */
+        char label[96];
+        ImGui::BeginDisabled(check.refusal != SIM_REFUSAL_NONE);
+        if (ImGui::Button(ui_label(label, sizeof(label), ui, "develop.execute", "execute")))
+        {
+            engine_command_result result = api->command_develop(api->engine, command.city_id, command.facility,
+                                                                command.officers, command.slot);
+            if (result.refusal == SIM_REFUSAL_NONE)
+            {
+                snprintf(ui->develop.message, sizeof(ui->develop.message), "%s %u", text_get(ui->text, "develop.started"), result.command_id);
+                ui->develop.prepared_city = ENGINE_NO_CITY;   /* take the next free officer */
+            }
+            else
+            {
+                snprintf(ui->develop.message, sizeof(ui->develop.message), "%s: %s", text_get(ui->text, "develop.refused"),
+                         ui_refusal_text(ui, result.refusal));
+            }
+        }
+        ImGui::EndDisabled();
+        if (ui->develop.message[0])
+        {
+            ImGui::SameLine();
+            ImGui::TextUnformatted(ui->develop.message);
+        }
+    }
+    ImGui::End();
+}

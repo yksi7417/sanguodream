@@ -18,6 +18,7 @@ ui_label(char *out, u32 out_size, ui_state *ui, const char *text_id, const char 
 #include "ui/ui_map.cpp"
 #include "ui/ui_world.cpp"
 #include "ui/ui_settings.cpp"
+#include "ui/ui_city.cpp"
 
 /* Writes an overlay colour for one cell of the terrain view, if it is on the map. */
 internal void
@@ -42,6 +43,12 @@ ui_init(ui_state *ui, text_catalog *text)
     ui->show_cities   = true;
     ui->show_scene    = true;
     ui->show_settings = false;
+    ui->show_city     = true;
+    ui->show_develop  = false;
+    ui->city.selected = 0;
+    ui->develop = {};
+    ui->develop.prepared_city = ENGINE_NO_CITY;
+    ui->develop.slot          = ENGINE_ANY_SLOT;
     ui->text          = text;
     ui->pending_locale[0] = 0;
     ui->load_message[0] = 0;
@@ -75,6 +82,8 @@ ui_draw_menu_bar(ui_state *ui, engine_api *api, ui_frame_info *frame)
             ImGui::MenuItem("Hex map", 0, &ui->show_map);
             ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.officers", "Officers"), 0, &ui->show_officers);
             ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.cities", "Cities"), 0, &ui->show_cities);
+            ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.city", "City"), 0, &ui->show_city);
+            ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.develop", "Develop"), 0, &ui->show_develop);
             ImGui::MenuItem("Event ledger", 0, &ui->show_ledger);
             ImGui::MenuItem("Memory", 0, &ui->show_memory);
             ImGui::Separator();
@@ -83,7 +92,8 @@ ui_draw_menu_bar(ui_state *ui, engine_api *api, ui_frame_info *frame)
             ImGui::EndMenu();
         }
         ImGui::Separator();
-        ImGui::Text("turn %u", api->turn(api->engine));
+        engine_date date = api->date(api->engine);
+        ImGui::Text("turn %u  %u-%02u-%02u", api->turn(api->engine), date.year, date.month, date.day);
         ImGui::Separator();
         ImGui::Text("dll reloads %u", frame->dll_reload_count);
         ImGui::Separator();
@@ -92,15 +102,55 @@ ui_draw_menu_bar(ui_state *ui, engine_api *api, ui_frame_info *frame)
     }
 }
 
+/* The date, the faction that acts, and the order of this turn. */
+internal void
+ui_draw_turn_status(engine_api *api)
+{
+    engine_date date = api->date(api->engine);
+    ImGui::Text("Date: %u-%02u-%02u (%s), day %lld", date.year, date.month, date.day,
+                calendar_season_name((calendar_season)date.season), (long long)date.days_since_start);
+    u8 acting = api->whose_turn(api->engine);
+    if (acting == ENGINE_NO_FACTION) ImGui::TextUnformatted("Acting: none (Advance turn moves the date)");
+    else ImGui::Text("Acting: force %u, %u action points", acting, api->actions_left(api->engine, acting));
+    u32 factions = api->faction_count(api->engine);
+    if (factions && ImGui::CollapsingHeader("Turn order"))
+    {
+        if (ImGui::BeginTable("turn_order", 6, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+        {
+            ImGui::TableSetupColumn("#");
+            ImGui::TableSetupColumn("force");
+            ImGui::TableSetupColumn("cities");
+            ImGui::TableSetupColumn("officers");
+            ImGui::TableSetupColumn("AP");
+            ImGui::TableSetupColumn("player");
+            ImGui::TableHeadersRow();
+            for (u32 index = 0; index < factions; ++index)
+            {
+                engine_faction faction = api->faction_at(api->engine, index);
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn(); ImGui::Text("%u%s", index, faction.acted ? " done" : "");
+                ImGui::TableNextColumn(); ImGui::Text("%u", faction.force_id);
+                ImGui::TableNextColumn(); ImGui::Text("%u", faction.city_count);
+                ImGui::TableNextColumn(); ImGui::Text("%u", faction.officer_count);
+                ImGui::TableNextColumn(); ImGui::Text("%u", faction.action_points);
+                ImGui::TableNextColumn(); ImGui::TextUnformatted(faction.human ? "human" : "AI");
+            }
+            ImGui::EndTable();
+        }
+    }
+}
+
 internal void
 ui_draw_simulation(ui_state *ui, engine_api *api)
 {
-    ImGui::SetNextWindowSize(ImVec2(360, 220), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(380, 260), ImGuiCond_FirstUseEver);
     if (ImGui::Begin("Simulation", &ui->show_sim))
     {
         ImGui::Text("Turn: %u", api->turn(api->engine));
         ImGui::Text("Entities alive: %u / %u", api->entities_alive(api->engine), api->entity_capacity(api->engine));
+        ui_draw_turn_status(api);
         ImGui::Separator();
+        /* "Advance turn" is the proceed button: the faction that acts ends its turn. */
         if (ImGui::Button("Advance turn"))
         {
             api->end_turn(api->engine);
@@ -113,8 +163,11 @@ ui_draw_simulation(ui_state *ui, engine_api *api)
         ui_draw_load_sample_save(ui, api);
         ui_draw_load_city_names(ui, api);
         ImGui::Spacing();
-        ImGui::TextWrapped("Mechanics implemented: none yet. Each lands from "
-                           "spec-src/spec/mechanics/ with its fixture rows passing in feature_tests.exe.");
+        engine_content_status content = api->content_status(api->engine);
+        ImGui::Text("Content pack: %s (%u facilities, %u cities, %u rules)", content.loaded ? "loaded" : content.detail,
+                    content.facility_count, content.city_count, content.rule_count);
+        ImGui::TextWrapped("Mechanics: calendar, turn order, action points, develop (M1, M2). "
+                           "Amounts marked 'assumed' in the ledger are not from the spec.");
     }
     ImGui::End();
 }
@@ -135,7 +188,7 @@ ui_draw_ledger(ui_state *ui, engine_api *api)
         }
         ImGuiTableFlags flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
                                 ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable;
-        if (ImGui::BeginTable("ledger", 6, flags))
+        if (ImGui::BeginTable("ledger", 8, flags))
         {
             ImGui::TableSetupScrollFreeze(0, 1);
             ImGui::TableSetupColumn("#", ImGuiTableColumnFlags_WidthFixed, 50.0f);
@@ -144,6 +197,8 @@ ui_draw_ledger(ui_state *ui, engine_api *api)
             ImGui::TableSetupColumn("subject", ImGuiTableColumnFlags_WidthFixed, 80.0f);
             ImGui::TableSetupColumn("delta", ImGuiTableColumnFlags_WidthFixed, 60.0f);
             ImGui::TableSetupColumn("cause", ImGuiTableColumnFlags_WidthFixed, 60.0f);
+            ImGui::TableSetupColumn("faction", ImGuiTableColumnFlags_WidthFixed, 50.0f);
+            ImGui::TableSetupColumn("assumed", ImGuiTableColumnFlags_WidthFixed, 60.0f);
             ImGui::TableHeadersRow();
             ImGuiListClipper clipper;
             clipper.Begin((int)count);
@@ -159,6 +214,10 @@ ui_draw_ledger(ui_state *ui, engine_api *api)
                     ImGui::TableNextColumn(); ImGui::Text("%u", ev.subject);
                     ImGui::TableNextColumn(); ImGui::Text("%d", ev.delta);
                     ImGui::TableNextColumn(); ImGui::Text("%u", ev.cause);
+                    ImGui::TableNextColumn();
+                    if (ev.faction == ENGINE_NO_FACTION) ImGui::TextUnformatted("-");
+                    else                                 ImGui::Text("%u", ev.faction);
+                    ImGui::TableNextColumn(); ImGui::TextUnformatted(ev.assumed ? "assumed" : "");
                 }
             }
             ImGui::EndTable();
@@ -195,6 +254,8 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->show_ledger) ui_draw_ledger(ui, api);
     if (ui->show_memory) ui_draw_memory(ui, api, frame);
     if (ui->show_settings) ui_draw_settings(ui);
+    if (ui->show_city)    ui_draw_city(ui, api);
+    if (ui->show_develop) ui_draw_develop(ui, api);
 
     /* The scene goes last: by now ImGui knows which windows want the mouse,
        and the panels above may have changed the camera or the selection. */
