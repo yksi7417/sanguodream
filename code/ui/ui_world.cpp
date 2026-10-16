@@ -3,10 +3,11 @@
 
    Names are Big5 bytes. The spec gives no character mapping
    (QUESTIONS.md, Q-013), so the panels show the bytes as hex. City names
-   live in Scenario.s11, which is not a fixture yet (Q-014), so the Cities
-   panel shows ids. */
+   come from the name index (Scenario.s11) through city_name_at. Until a
+   name index loads, the Cities panel shows "-" in the name column. */
 
 #define UI_SAMPLE_SAVE_PATH "..\\spec-src\\spec\\fixtures\\saves\\sample.s11"
+#define UI_NAME_INDEX_PATH  "..\\spec-src\\spec\\fixtures\\scenarios\\Scenario.s11"
 #define UI_NO_ID_16         0xFFFF
 #define UI_NO_ID_8          0xFF
 
@@ -94,10 +95,21 @@ ui_draw_officers(ui_state *ui, engine_api *api)
 }
 
 internal void
-ui_draw_city_row(engine_city *city)
+ui_draw_city_row(engine_city *city, engine_city_name *name)
 {
+    char name_hex[2 * NAME_INDEX_CITY_NAME_SIZE + NAME_INDEX_CITY_NAME_SIZE];
     ImGui::TableNextRow();
     ImGui::TableNextColumn(); ImGui::Text("%u", city->city_id);
+    ImGui::TableNextColumn();
+    if (name->city_id == ENGINE_NO_CITY)
+    {
+        ImGui::TextUnformatted("-");
+    }
+    else
+    {
+        ui_format_name_hex(name_hex, sizeof(name_hex), name->name, sizeof(name->name));
+        ImGui::TextUnformatted(name_hex);
+    }
     ImGui::TableNextColumn(); ui_text_id(city->owner_force_id, UI_NO_ID_8);
     ImGui::TableNextColumn(); ui_text_id(city->commanding_officer_id, UI_NO_ID_16);
     ImGui::TableNextColumn(); ImGui::Text("%u", city->gold);
@@ -115,14 +127,15 @@ ui_draw_cities(ui_state *ui, engine_api *api)
     {
         u32 count = api->city_count(api->engine);
         ImGui::Text("%u cities", count);
-        ImGui::TextDisabled("City names are in Scenario.s11, which is not a fixture yet. "
+        ImGui::TextDisabled("Names: Big5 bytes as hex from the name index (\"Load city names\"). "
                             "Public order and durability maximum are hypotheses in the spec.");
         ImGuiTableFlags flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
                                 ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable;
-        if (ImGui::BeginTable("cities", 8, flags))
+        if (ImGui::BeginTable("cities", 9, flags))
         {
             ImGui::TableSetupScrollFreeze(0, 1);
             ImGui::TableSetupColumn("id", ImGuiTableColumnFlags_WidthFixed, 30.0f);
+            ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthFixed, 80.0f);
             ImGui::TableSetupColumn("owner", ImGuiTableColumnFlags_WidthFixed, 45.0f);
             ImGui::TableSetupColumn("commander", ImGuiTableColumnFlags_WidthFixed, 70.0f);
             ImGui::TableSetupColumn("gold");
@@ -138,7 +151,8 @@ ui_draw_cities(ui_state *ui, engine_api *api)
                 for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; ++row)
                 {
                     engine_city city = api->city_at(api->engine, (u32)row);
-                    ui_draw_city_row(&city);
+                    engine_city_name name = api->city_name_at(api->engine, city.city_id);
+                    ui_draw_city_row(&city, &name);
                 }
             }
             ImGui::EndTable();
@@ -168,5 +182,28 @@ ui_draw_load_sample_save(ui_state *ui, engine_api *api)
     {
         ImGui::SameLine();
         ImGui::TextUnformatted(ui->load_message);
+    }
+}
+
+/* The button sends one load_name_index command, as the sample save button. */
+internal void
+ui_draw_load_city_names(ui_state *ui, engine_api *api)
+{
+    if (ImGui::Button("Load city names"))
+    {
+        engine_load_result result = api->load_name_index(api->engine, UI_NAME_INDEX_PATH);
+        if (result.status == ENGINE_LOAD_OK)
+        {
+            snprintf(ui->names_message, sizeof(ui->names_message), "names loaded (command %u)", result.command_id);
+        }
+        else
+        {
+            snprintf(ui->names_message, sizeof(ui->names_message), "names not loaded: %s", result.detail ? result.detail : "?");
+        }
+    }
+    if (ui->names_message[0])
+    {
+        ImGui::SameLine();
+        ImGui::TextUnformatted(ui->names_message);
     }
 }

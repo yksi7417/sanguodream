@@ -18,6 +18,7 @@ struct ui_state
     bool show_officers;
     bool show_cities;
     char load_message[96];   /* result of the last "Load sample save" click */
+    char names_message[96];  /* result of the last "Load city names" click */
     struct
     {
         bool      has_from;

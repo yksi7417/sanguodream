@@ -19,6 +19,7 @@ ui_init(ui_state *ui)
     ui->show_officers = true;
     ui->show_cities   = true;
     ui->load_message[0] = 0;
+    ui->names_message[0] = 0;
     ui_map_init(ui);
 }
 
@@ -79,6 +80,7 @@ ui_draw_simulation(ui_state *ui, engine_api *api)
             api->advance_turns(api->engine, 12);
         }
         ui_draw_load_sample_save(ui, api);
+        ui_draw_load_city_names(ui, api);
         ImGui::Spacing();
         ImGui::TextWrapped("Mechanics implemented: none yet. Each lands from "
                            "spec-src/spec/mechanics/ with its fixture rows passing in feature_tests.exe.");

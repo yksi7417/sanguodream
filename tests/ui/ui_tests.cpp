@@ -212,7 +212,50 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->Yield();
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_CITY_COUNT), 1u);
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_CITY_AT), 4u);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_CITY_NAME_AT), 4u);   /* asked even before names load */
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "cities_panel_reads_each_name_through_the_api_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.city_count = 3;
+        v.recorder.has_names  = true;
+        ctx->SetRef("Cities");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_CITY_NAME_AT), 3u);   /* one call per row */
+        u32 name_calls = 0;
+        for (u32 index = 0; index < v.recorder.call_count; ++index)
+        {
+            recorder_call *call = v.recorder.calls + index;
+            if (call->kind != RECORDER_CITY_NAME_AT) continue;
+            IM_CHECK_EQ(call->arg, name_calls);                                 /* the id that city_at returned for the row */
+            IM_CHECK(index > 0 && v.recorder.calls[index - 1].kind == RECORDER_CITY_AT &&
+                     v.recorder.calls[index - 1].arg == name_calls);            /* asked right after its row */
+            name_calls++;
+        }
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "load_city_names_calls_load_name_index_once");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ctx->SetRef("Simulation");
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("Load city names");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOAD_NAME_INDEX), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK_STR_EQ(v.recorder.last_name_index_path, UI_NAME_INDEX_PATH);
+        IM_CHECK(strncmp(v.ui.names_message, "names loaded", 12) == 0);
     };
 
     t = IM_REGISTER_TEST(e, "ui", "load_sample_save_calls_load_save_once");
@@ -287,7 +330,7 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(v.api.ledger_count(v.api.engine), 0u);
     };
 
-    t = IM_REGISTER_TEST(e, "e2e", "load_sample_save_fills_the_panels");
+    t = IM_REGISTER_TEST(e, "e2e", "load_sample_save_and_city_names_fill_the_panels");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;
     t->VarsConstructor = [](void *vars) { ((ui_test_vars *)vars)->use_real_engine = true; };
@@ -302,6 +345,11 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(v.api.city_count(v.api.engine), 42u);
         IM_CHECK_EQ(v.api.ledger_at(v.api.engine, 0).kind, SIM_EVENT_SAVE_LOADED);
         IM_CHECK(strncmp(v.ui.load_message, "loaded", 6) == 0);
+        ctx->ItemClick("Load city names");
+        ctx->Yield();
+        IM_CHECK_EQ(v.api.city_name_at(v.api.engine, 36).city_id, 36u);
+        IM_CHECK_EQ(v.api.ledger_at(v.api.engine, 1).kind, SIM_EVENT_NAME_INDEX_LOADED);
+        IM_CHECK(strncmp(v.ui.names_message, "names loaded", 12) == 0);
     };
 }
 
