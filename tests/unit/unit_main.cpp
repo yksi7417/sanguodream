@@ -18,6 +18,7 @@
 #include "hex_tests.cpp"
 #include "sim_tests.cpp"
 #include "inflate_tests.cpp"
+#include "save_format_tests.cpp"
 
 int
 main(void)
@@ -44,6 +45,10 @@ main(void)
     test_counts inflate = {};
     unit_inflate_tests(&inflate);
     failed |= test_report("unit/inflate", &inflate);
+
+    test_counts save_format = {};
+    unit_save_format_tests(&save_format);
+    failed |= test_report("unit/save_format", &save_format);
 
     printf(failed ? "RESULT FAIL\n" : "RESULT PASS\n");
     return failed;

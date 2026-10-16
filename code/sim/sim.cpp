@@ -1,4 +1,5 @@
 #include "sim/sim.h"
+#include "sim/save_format.cpp"
 
 internal void
 sim_init(sim_state *sim, memory_arena *arena, u64 seed)
