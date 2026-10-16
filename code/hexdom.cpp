@@ -1,8 +1,6 @@
-/* hexdom.dll: the game. Unity build of sim/, ecs/ and ui/. Owns no state
-   outside the memory block handed in by the platform layer, so the platform
-   can unload and reload this DLL while the game keeps running. */
-
-#include <stdio.h>   /* snprintf for UI labels only */
+/* hexdom.dll: the game. Unity build of ecs/, sim/, engine/ and ui/. Owns no
+   state outside the memory block handed in by the platform layer, so the
+   platform can unload and reload this DLL while the game keeps running. */
 
 #include "base.h"
 #include "hexdom.h"
@@ -12,33 +10,20 @@
 #include "ecs/ecs.cpp"
 #include "sim/sim.h"
 #include "sim/sim.cpp"
+#include "engine/engine.h"
+#include "engine/engine.cpp"
 #include "ui/ui.h"
+#include "ui/ui.cpp"
 
 struct game_state
 {
     memory_arena permanent;      /* everything below game_state in the permanent block */
     memory_arena transient;
-    sim_state   *sim;
-    sim_event   *ledger;         /* every event the sim has emitted this session */
-    u32          ledger_count;
-    u32          ledger_capacity;
+    engine      *backend;
+    engine_api   api;            /* function pointers into THIS DLL image: rebuilt on reload */
     u32          reload_count;
     ui_state     ui;
 };
-
-internal void
-ledger_append(game_state *game, sim_event_sink *sink)
-{
-    for (u32 i = 0; i < sink->count; ++i)
-    {
-        if (game->ledger_count < game->ledger_capacity)
-        {
-            game->ledger[game->ledger_count++] = sink->events[i];
-        }
-    }
-}
-
-#include "ui/ui.cpp"
 
 extern "C" __declspec(dllexport)
 GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
@@ -60,13 +45,8 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                    memory->permanent_size - sizeof(game_state));
         arena_init(&game->transient, memory->transient, memory->transient_size);
 
-        game->sim = PushStruct(&game->permanent, sim_state);
-        sim_init(game->sim, &game->permanent, 0x5EEDull);
-
-        game->ledger_capacity = 65536;
-        game->ledger_count    = 0;
-        game->ledger          = PushArray(&game->permanent, game->ledger_capacity, sim_event);
-
+        game->backend = engine_create(&game->permanent, &game->transient, 0x5EEDull, 65536);
+        game->api     = engine_make_api(game->backend);
         game->reload_count = 0;
         ui_init(&game->ui);
 
@@ -76,9 +56,16 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     if (input->dll_reloaded)
     {
+        /* The old DLL image is gone; the api table pointed into it. */
+        game->api = engine_make_api(game->backend);
         game->reload_count++;
         memory->platform.log("hexdom: dll reloaded");
     }
 
-    ui_draw(game, input, frame);
+    ui_frame_info frame_info;
+    frame_info.dt_seconds       = input->dt_seconds;
+    frame_info.dll_reload_count = game->reload_count;
+    frame_info.frame_arena_used = frame->used;
+    frame_info.frame_arena_size = frame->size;
+    ui_draw(&game->ui, &game->api, &frame_info);
 }

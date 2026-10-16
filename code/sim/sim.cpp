@@ -83,8 +83,12 @@ sim_apply(sim_state *sim, sim_command command, sim_event_sink *events)
         case SIM_COMMAND_NONE:
             break;
         case SIM_COMMAND_END_TURN:
+        {
+            u32 first = events->count;
             sim_advance_turn(sim, events);
+            for (u32 i = first; i < events->count; ++i) events->events[i].cause = command.id;
             break;
+        }
         default:
             InvalidCodePath;
             break;
