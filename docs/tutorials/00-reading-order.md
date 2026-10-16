@@ -26,6 +26,8 @@ run_tests.bat --e2e
 | 10 | Demo recorder: one recorded walkthrough for each milestone | tests/demo/demo_player.cpp, code/win32_window.h, misc/gif_encode.cpp | tests/demo/demo_tests.cpp, run_tests.bat --demo |
 | 11 | Scene: the 2.5D map, the orbit camera and the pick | code/render/, code/d3d11_renderer.h, code/ui/ui_scene.cpp | tests/unit/render_tests.cpp, terrain_mesh_tests.cpp, png_tests.cpp |
 | 12 | Text and locales: Big5 names, UI strings and fonts | code/text/, code/ui/ui_fonts.h, code/ui/ui_settings.cpp, data/placeholder/ | tests/unit/text_tests.cpp, tests/ui/ui_tests.cpp |
+| 13 | Calendar and turn: dates, the turn order and action points | code/sim/calendar.h, code/sim/turn.cpp, data/placeholder/rules.tsv | tests/unit/calendar_tests.cpp, turn_tests.cpp, tests/feature/turn_tests.cpp |
+| 14 | The develop command: facilities, slots, periods and refusals | code/sim/tables.h, content.h, develop.cpp, code/ui/ui_city.cpp, data/placeholder/facilities.tsv, cities.tsv | tests/unit/content_tests.cpp, develop_tests.cpp, tests/feature/develop_tests.cpp, tests/ui/ui_tests.cpp |
 
 You will see these conventions everywhere:
 - `internal` means `static`: the function is private to its translation

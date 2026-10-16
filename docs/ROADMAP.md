@@ -19,13 +19,13 @@ test (see .claude/rules/testing-pyramid.md).
 | L0 Platform | code/win32_hexdom.cpp | window, GPU, input, memory block, hot reload | done |
 | L1 Base | code/base.h, code/ecs/ | types, arenas, entity ids, component tables | done |
 | L2 Space | code/sim/hex.h | hex coordinates, the cost map, shortest paths | done |
-| L3 Time | code/sim/sim.h, sim.cpp | turns, commands in, events out, seeded PRNG | skeleton |
-| L4 Domain | code/sim/ (one file per subsystem) | territory, settlements, resources, facilities, units, characters | next |
+| L3 Time | code/sim/sim.h, sim.cpp, calendar.h, turn.cpp | turns, commands in, events out, seeded PRNG; the calendar, the turn order and the action points (tutorial 13) | done for M2 |
+| L4 Domain | code/sim/ (one file per subsystem) | territory, settlements, resources, facilities, units, characters | facilities, slots and the develop command (tutorial 14); the rest next |
 | L5 Conflict | code/sim/ | movement rules, zones of control, combat, siege | later |
 | L6 Politics | code/sim/ | diplomacy, loyalty, factions, scripted events | later |
 | L7 AI | code/sim/ai_*.cpp | planning over the same commands a player uses | later |
 | L8 Front end | code/engine/, code/ui/, code/text/, code/render/, code/d3d11_renderer.h | engine_api, ImGui panels, locales and fonts (tutorial 12), and the 2.5D scene: a terrain mesh from per-cell kind and level, an orbit camera, instanced models and billboards, a pick from pixel to hex (tutorial 11) | done for L1-L3; placeholder art; text module done |
-| L9 Content | data/<pack>/ | tables that make it a particular game | text and names of the placeholder pack |
+| L9 Content | data/<pack>/ | tables that make it a particular game | text, names, facilities.tsv, cities.tsv and rules.tsv of the placeholder pack |
 
 The rule for every layer from L4 up: a mechanic is a pure function of
 sim_state and a command. Tables from the content pack parameterise the
@@ -107,13 +107,25 @@ Window, hot-reloaded DLL, deterministic sim core with ledger, ECS, hex map
 with A*, engine_api, test pyramid with imgui_test_engine. Tutorials 01-08.
 
 ### M1 Formats and the first mechanic (deck Milestone 1)
-Status (2026-10-16): the loader half works, and the mechanic half waits
-for the spec. The save and scenario loader reads sample.s11 into officer and
+Status (2026-10-16): done. The loader half and the mechanic half work. The
+save and scenario loader reads sample.s11 into officer and
 city tables. engine_api has `load_save`, `officer_count`, `officer_at`,
 `city_count` and `city_at`. The Officers and Cities panels show the tables.
 build\save_dump.exe prints the sample as JSON for comparison with the dump
-of the analysis side (tutorial 09). The TSV table loader and the `develop`
-command wait for mechanics/farm-development.md and its fixtures.
+of the analysis side (tutorial 09).
+Develop (2026-10-16, tutorial 14): the spec gave
+mechanics/cities-and-facilities.md and city-commands.md instead of
+farm-development.md. code/sim/tables.h is the TSV parser of the content
+pack and of the fixture runner. data/placeholder/facilities.tsv has the 10
+base and the 10 PK facilities, and cities.tsv has the slots of the 42
+cities. The `develop` command builds a facility in a slot. The sum of
+politics sets the period (an assumed line through the three points of the
+manual, Q-142). A mint or a granary gives 1.5 times to the next market or
+farm. The governor follows the selection rule without the post (Q-147).
+The City panel and the Develop dialog issue one `command_develop` for each
+click. No fixture exists yet: the feature tests check the documented
+numbers. The slot layout is a placeholder (Q-145). FEATURES.md marks F-020,
+F-021, F-022 and F-057 as built.
 Scenario fixtures (spec f788503): feature tests load the real SCEN002.s11
 and Scenario.s11 through the loaders. They compare SCEN002 with sample.s11
 where the spec gives one layout. engine_api has `load_name_index` and
@@ -150,6 +162,20 @@ Spec input: spec/formats/save-file.md, scenario-file.md; mechanics/farm-developm
 - Exit: Milestone 1 items 3, 5 and 7 of the playbook.
 
 ### M2 Turn structure and the command budget
+Status (2026-10-16): done (tutorial 13). The spec input was
+mechanics/calendar-and-turn.md. A turn is 10 days, a month 3 turns. The
+ledger names the month, season and year events, the hooks of the
+disasters, and the gold and grain income and consumption. The engine
+assumes each amount, and the ledger marks it "assumed". The factions act in order:
+fewer cities, then fewer officers, then fewer troops. A human faction
+ends its turn with `end_turn` ("proceed"). Each AI faction passes. Each
+faction has one pool of action points with a cap of 255. The engine assumes
+the recovery rule (Q-019, Q-141). `can_issue` gives each refusal reason as
+an enum. The demo is "demo/m2_turns". FEATURES.md marks F-002, F-003 and
+F-004 as built.
+`end_phase` of the plan is `end_turn`, because the spec has no phases
+inside a faction turn.
+
 Spec input: mechanics/turn-structure.md (phases, action points, who acts when).
 - Engine: phase order as data (TurnScheduler), a per-faction action budget, command validation (who can issue what, and when), and an AI phase placeholder that passes.
 - API: `whose_turn`, `actions_left`, `can_issue(command)`, `end_phase`.
