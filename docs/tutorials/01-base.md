@@ -46,7 +46,7 @@ Open tests/unit/base_tests.cpp beside base.h:
 - "explicit alignment honored": the optional alignment argument.
 
 ## Exercises
-- Add a check that pushing more than the arena holds asserts in a slow build
-  (hint: you cannot catch an Assert in a test, so decide what the right
-  contract is first; today it is "caller's bug").
+- Add a check that an arena asserts in a slow build when a push is larger
+  than the arena. Hint: you cannot catch an Assert in a test. Decide what
+  the right contract is first; today it is "caller's bug".
 - Add `arena_push_copy` for a string and a test for it. Keep it in base.h.

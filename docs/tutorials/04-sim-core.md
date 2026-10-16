@@ -47,7 +47,7 @@ a subset.
 - "a full sink drops events instead of overflowing".
 
 ## Exercises
-- Add a `SIM_COMMAND_SET_SEED` for tests and the event it should emit (or
-  argue why it should emit none).
+- Add a `SIM_COMMAND_SET_SEED` for tests and the event that it emits (or
+  argue why it emits none).
 - Make the system order an array of function pointers and a test that runs
   only the first two systems.
