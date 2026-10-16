@@ -10,6 +10,7 @@
 #include "base.h"
 #include "ecs/ecs.h"
 #include "sim/hex.h"
+#include "sim/inflate.h"
 
 enum sim_event_kind
 {

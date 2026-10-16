@@ -1,5 +1,6 @@
 /* unit_tests.exe: the base of the pyramid. Exercises functions and structs of
-   each module in isolation: base.h, ecs/, sim/. No engine, no UI, no files. */
+   each module in isolation: base.h, ecs/, sim/. No engine, no UI. The one file read is
+   the sample save in inflate_tests.cpp. */
 
 #define _CRT_SECURE_NO_WARNINGS
 #include <string.h>
@@ -11,10 +12,12 @@
 #include "sim/sim.cpp"
 
 #include "test_framework.h"
+#include "test_files.h"
 #include "base_tests.cpp"
 #include "ecs_tests.cpp"
 #include "hex_tests.cpp"
 #include "sim_tests.cpp"
+#include "inflate_tests.cpp"
 
 int
 main(void)
@@ -37,6 +40,10 @@ main(void)
     test_counts sim = {};
     unit_sim_tests(&sim);
     failed |= test_report("unit/sim", &sim);
+
+    test_counts inflate = {};
+    unit_inflate_tests(&inflate);
+    failed |= test_report("unit/inflate", &inflate);
 
     printf(failed ? "RESULT FAIL\n" : "RESULT PASS\n");
     return failed;
