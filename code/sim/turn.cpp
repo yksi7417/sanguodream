@@ -99,6 +99,24 @@ sim_city_governor(sim_state *sim, u8 city_id)
     return best ? best->officer_id : SIM_NO_OFFICER;
 }
 
+/* The ruler (君主) of a force: the officer with status 0 and that force id
+   (save-file.md, officer +95 and +100). The per-force table of the save
+   also has the ruler id, but its base is not decoded (Q-149). If two
+   officers match, the smaller officer id wins (assumed). */
+internal u16
+sim_force_ruler(sim_state *sim, u8 force_id)
+{
+    u16 ruler = SIM_NO_OFFICER;
+    if (force_id == SIM_NO_FORCE) return ruler;
+    for (u32 index = 0; index < sim->officers.count; ++index)
+    {
+        officer_component *officer = sim->officers.data + index;
+        if (officer->status != OFFICER_STATUS_RULER || officer->force_id != force_id) continue;
+        if (officer->officer_id < ruler) ruler = officer->officer_id;
+    }
+    return ruler;
+}
+
 /* ---- the turn order ----------------------------------------------------- */
 
 /* Fewer cities act first (calendar-and-turn.md, unverified). A tie goes to

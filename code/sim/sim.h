@@ -317,6 +317,7 @@ internal b32                sim_faction_before(sim_faction *a, sim_faction *b);
 internal b32                sim_officer_leads_before(officer_component *a, officer_component *b);
 internal u16                sim_select_leader(sim_state *sim, const u16 *officer_ids, u32 count);
 internal u16                sim_city_governor(sim_state *sim, u8 city_id);
+internal u16                sim_force_ruler(sim_state *sim, u8 force_id);   /* SIM_NO_OFFICER if none */
 
 /* develop.cpp: facility slots and the develop command */
 internal hex_coord sim_city_slot_hex(u32 slot);

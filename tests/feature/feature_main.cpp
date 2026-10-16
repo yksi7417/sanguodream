@@ -22,6 +22,7 @@
 #include "load_save_tests.cpp"
 #include "scenario_fixture_tests.cpp"
 #include "name_index_tests.cpp"
+#include "display_name_tests.cpp"
 #include "turn_tests.cpp"
 #include "develop_tests.cpp"
 #include "fixture_tests.cpp"
@@ -47,6 +48,10 @@ main(int argc, char **argv)
     test_counts name_counts = {};
     feature_name_index_tests(&name_counts);
     failed |= test_report("feature/name_index", &name_counts);
+
+    test_counts display_counts = {};
+    feature_display_name_tests(&display_counts);
+    failed |= test_report("feature/display_names", &display_counts);
 
     test_counts turn_counts = {};
     feature_turn_tests(&turn_counts);

@@ -84,6 +84,15 @@ struct engine_city_name
     u8 name[NAME_INDEX_CITY_NAME_SIZE];
 };
 
+/* The name of a location from the name index (Scenario.s11): a city 0..41,
+   or a gate or a port 42..86. The Big5 bytes of the entry, NUL padded. */
+struct engine_location_name
+{
+    u16 location;                         /* ENGINE_NO_LOCATION if no name index is loaded or the id is out of range */
+    u8  name[NAME_INDEX_GATE_ENTRY_SIZE];
+};
+
+#define ENGINE_NO_LOCATION 0xFFFF
 #define ENGINE_NO_OFFICER  0xFFFF
 #define ENGINE_NO_CITY     0xFF
 #define ENGINE_NO_FACTION  0xFF
@@ -241,6 +250,9 @@ typedef engine_officer      engine_officer_at_fn(void *engine, u32 index);   /* 
 typedef u32                 engine_city_count_fn(void *engine);
 typedef engine_city         engine_city_at_fn(void *engine, u32 index);      /* index < city_count */
 typedef engine_city_name    engine_city_name_at_fn(void *engine, u32 index); /* index = city id 0..41 */
+typedef engine_officer      engine_officer_by_id_fn(void *engine, u16 officer_id);   /* officer_id ENGINE_NO_OFFICER if not loaded */
+typedef u16                 engine_force_ruler_fn(void *engine, u8 force_id);         /* ENGINE_NO_OFFICER if the force has no ruler */
+typedef engine_location_name engine_location_name_at_fn(void *engine, u16 location);  /* location 0..86 */
 typedef engine_terrain_view engine_terrain_view_fn(void *engine);
 typedef engine_date         engine_date_fn(void *engine);
 typedef u8                  engine_whose_turn_fn(void *engine);                /* ENGINE_NO_FACTION if every faction acted */
@@ -322,6 +334,10 @@ struct engine_api
     engine_set_city_gold_fn   *set_city_gold;
     engine_set_actions_fn     *set_actions;
     engine_place_unit_fn      *place_unit;
+    /* Names for the id and code columns of the panels */
+    engine_officer_by_id_fn   *officer_by_id;
+    engine_force_ruler_fn     *force_ruler;
+    engine_location_name_at_fn *location_name_at;
 };
 
 /* The real engine lives in code/engine/engine.cpp. */

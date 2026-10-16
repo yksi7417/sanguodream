@@ -253,13 +253,11 @@ engine_api_officer_count(void *opaque)
 }
 
 internal engine_officer
-engine_api_officer_at(void *opaque, u32 index)
+engine_officer_view(engine *e, officer_component *officer)
 {
-    engine *e = (engine *)opaque;
     engine_officer result = {};
     result.officer_id = ENGINE_NO_OFFICER;
-    if (index >= e->sim->officers.count) return result;
-    officer_component *officer = e->sim->officers.data + index;
+    if (!officer) return result;
     result.officer_id = officer->officer_id;
     memcpy(result.family_name,   officer->family_name,   sizeof(result.family_name));
     memcpy(result.given_name,    officer->given_name,    sizeof(result.given_name));
@@ -285,6 +283,27 @@ engine_api_officer_at(void *opaque, u32 index)
     result.job_city                 = officer->job_city;
     result.acted                    = officer->acted_turn == e->sim->turn + 1;
     return result;
+}
+
+internal engine_officer
+engine_api_officer_at(void *opaque, u32 index)
+{
+    engine *e = (engine *)opaque;
+    officer_component *officer = index < e->sim->officers.count ? e->sim->officers.data + index : 0;
+    return engine_officer_view(e, officer);
+}
+
+internal engine_officer
+engine_api_officer_by_id(void *opaque, u16 officer_id)
+{
+    engine *e = (engine *)opaque;
+    return engine_officer_view(e, sim_find_officer(e->sim, officer_id));
+}
+
+internal u16
+engine_api_force_ruler(void *opaque, u8 force_id)
+{
+    return sim_force_ruler(((engine *)opaque)->sim, force_id);
 }
 
 internal u32
@@ -324,6 +343,29 @@ engine_api_city_name_at(void *opaque, u32 index)
     name_index_city *city = e->sim->names.cities + index;
     result.city_id = city->id;
     memcpy(result.name, city->name, sizeof(result.name));
+    return result;
+}
+
+/* A city id gives the city entry; 42..86 give the gate and port entries. */
+internal engine_location_name
+engine_api_location_name_at(void *opaque, u16 location)
+{
+    engine *e = (engine *)opaque;
+    engine_location_name result = {};
+    result.location = ENGINE_NO_LOCATION;
+    if (!e->sim->has_names) return result;
+    if (location < ArrayCount(e->sim->names.cities))
+    {
+        name_index_city *city = e->sim->names.cities + location;
+        result.location = location;
+        memcpy(result.name, city->name, sizeof(city->name));
+    }
+    else if (location >= NAME_INDEX_FIRST_GATE_ID && location < NAME_INDEX_FIRST_GATE_ID + NAME_INDEX_GATE_COUNT)
+    {
+        name_index_gate *gate = e->sim->names.gates_and_ports + (location - NAME_INDEX_FIRST_GATE_ID);
+        result.location = location;
+        memcpy(result.name, gate->name, sizeof(result.name));
+    }
     return result;
 }
 
@@ -711,5 +753,8 @@ engine_make_api(engine *e)
     api.set_city_gold   = engine_api_set_city_gold;
     api.set_actions     = engine_api_set_actions;
     api.place_unit      = engine_api_place_unit;
+    api.officer_by_id   = engine_api_officer_by_id;
+    api.force_ruler     = engine_api_force_ruler;
+    api.location_name_at = engine_api_location_name_at;
     return api;
 }
