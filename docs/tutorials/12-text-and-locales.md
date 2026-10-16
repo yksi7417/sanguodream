@@ -104,6 +104,73 @@ places:
 Each name field has its own key: the family name, the given name and the
 city name. One row thus serves each officer with that family name.
 
+## Labels of enum codes
+The save keeps an enum as a number, for example the officer status.
+`text_label(catalog, prefix, code, out, out_size)` gives its label. It
+looks for the id "<prefix>.<code>", for example "status.2":
+1. text/<locale>.tsv of the active locale.
+2. text/<fallback locale>.tsv.
+3. If neither file has the id, it writes "?" and the number, for example
+   "?4". The catalog counts these codes in `stats.unknown_labels`, not
+   in `stats.missing_strings`.
+
+The zh-TW file has the game terms as the spec prints them. The en file
+has a gloss, and its note column gives the source.
+
+Officer status (save-file.md, officer +100; QUESTIONS.md, Q-012 and Q-150):
+
+| Code | zh-TW | en | Source |
+|---|---|---|---|
+| 0 | 君主 | ruler | save-file.md |
+| 1 | 都督 | viceroy | save-file.md |
+| 2 | 太守 | governor | save-file.md |
+| 3 | 一般 | regular | save-file.md; the term from ui/city-commands.md |
+| 6 | 在野 | free | save-file.md; the term from factions-corps-and-posts.md |
+| 8 | 死亡 | dead | save-file.md; the spec gives no term, so 死亡 is an assumption (Q-150) |
+| 4, 5, 7, 255 | ?4, ?5, ?7, ?255 | the same | no label in the spec (Q-012, Q-150) |
+
+City specialty (`city_specialty`; cities-and-facilities.md, Specialty
+特色; the weapon terms from factions-corps-and-posts.md):
+
+| Code | zh-TW | en |
+|---|---|---|
+| 0 | 無 | none |
+| 1 | 大都市 | big city |
+| 2 | 槍 | pike |
+| 3 | 戟 | halberd |
+| 4 | 弩 | crossbow |
+| 5 | 軍馬 | horse |
+| 6 | 兵器 | siege |
+| 7 | 艦船 | navy |
+
+The panels show a code cell through `ui_code_cell` in
+code/ui/ui_world.cpp. An id cell gives a name from an engine_api query
+(tutorial 09). A code cell gives a label from `text_label`. A tooltip on
+the cell shows the raw number. The "raw" check box of the Officers, Cities
+and City panels shows the raw numbers in place of the names. The three
+panels share the one setting, `ui_state.show_raw`.
+
+| Panel | Column | Shows | Source |
+|---|---|---|---|
+| Officers | force | the name of the ruler, or "force N" | `force_ruler`, `officer_by_id` |
+| Officers | status | the status label | `text_label("status")` |
+| Officers | location | the city, gate or port name | `location_name_at` |
+| Cities | owner | the name of the ruler, or "force N" | `force_ruler`, `officer_by_id` |
+| Cities | commander | the name of the officer | `officer_by_id` |
+| City | owner | the name of the ruler, or "force N" | `force_ruler`, `officer_by_id` |
+| City | specialty | the specialty label | `text_label("specialty")` |
+| City | governor | the name of the officer | `officer_by_id` |
+| Simulation | acting force, turn order | the name of the ruler | `force_ruler`, `officer_by_id` |
+
+## Add a label
+1. Write the row "<prefix>.<code>" in data/placeholder/text/en.tsv. Give
+   the source in the note column.
+2. Write the same id in each other text file. Use the game term of the
+   spec for zh-TW.
+3. In the panel, call `ui_code_cell` with a new `ui_code_kind`, or call
+   `text_label(ui->text, "<prefix>", code, out, size)`.
+4. Add the code to the ui test `each_locale_has_each_status_and_specialty_label`.
+
 ## Where the catalog lives
 - code/hexdom.cpp makes the catalog in the permanent block, with an arena
   of 4 MB. It loads zh-TW before the first frame.
@@ -176,6 +243,16 @@ The test fails if a locale file does not have the id.
 - text_tests.cpp, the catalog: an absent id, the fallback locale, a locale
   without a file, refused codes and the name lookups. An in-memory reader
   gives the files.
+- text_tests.cpp, labels: a known code in zh-TW and in en, and a code
+  that only the fallback locale has. Then an unknown code ("?4"), the
+  largest code, a small buffer and no catalog.
+- ui_tests.cpp, labels: each locale has a label for each status of
+  save-file.md and each specialty. The Officers panel asks
+  `force_ruler`, `officer_by_id` and `location_name_at` one time for each row
+  and looks up one status label for each row. The Cities and City panels
+  name the owner, the commander, the governor and the specialty. The
+  "raw" check box stops the name queries and the label lookups. No panel
+  commands anything.
 - ui_tests.cpp: the Officers and Cities panels read each name through
   engine_api and show it through `text_name`. They command nothing. The
   Language combo changes the locale and commands nothing. Each locale file
@@ -190,6 +267,8 @@ The test fails if a locale file does not have the id.
 - The Private Use Area has no glyphs. A row in names/zh-TW.tsv can give a
   name its correct characters after the spec answers Q-013.
 - save_dump.exe `--utf8-names` still uses the Windows code page 950.
+- The status values 4, 5 and 7 have no label until the spec answers
+  Q-150. The ledger panel still shows force ids as numbers.
 
 ## Exercises
 - Add ja.tsv with the strings in Japanese. Then select it in Settings.

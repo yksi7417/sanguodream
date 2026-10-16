@@ -2,8 +2,11 @@
 
 Files: code/sim/inflate.h, code/sim/save_format.h and .cpp,
 code/sim/scenario_format.h and .cpp, code/sim/sim.cpp (`sim_load_save`,
-`sim_load_name_index`), code/engine/engine.cpp (`engine_api_load_save`,
-`engine_api_load_name_index`), code/ui/ui_world.cpp, misc/save_dump.cpp.
+`sim_load_name_index`), code/sim/turn.cpp (`sim_force_ruler`),
+code/engine/engine.cpp (`engine_api_load_save`,
+`engine_api_load_name_index`, `engine_api_officer_by_id`,
+`engine_api_force_ruler`, `engine_api_location_name_at`),
+code/ui/ui_world.cpp, misc/save_dump.cpp.
 Tests:
 - tests/unit/inflate_tests.cpp (35 checks)
 - tests/unit/save_format_tests.cpp (64)
@@ -12,6 +15,7 @@ Tests:
 - tests/feature/load_save_tests.cpp (43)
 - tests/feature/scenario_fixture_tests.cpp (53)
 - tests/feature/name_index_tests.cpp (23)
+- tests/feature/display_name_tests.cpp (26)
 - seven tests in tests/ui/ui_tests.cpp
 
 ## What it is for
@@ -84,6 +88,28 @@ The Cities panel shows "-" in the name column until a name index loads. save_dum
 option that reads the bytes through the Windows code page 950. That option
 is for people who read the output. The game never uses it.
 
+## Names for the id columns
+The save keeps a force, an officer and a location as a number. The panels
+show a name in place of each number. Three queries of engine_api give the
+records that the names come from:
+
+| Query | Answer | Source in the spec |
+|---|---|---|
+| `officer_by_id(officer_id)` | the officer with that id, as `officer_at` gives it; `officer_id` is `ENGINE_NO_OFFICER` if no officer has the id | save-file.md, officer array |
+| `force_ruler(force_id)` | the id of the officer with status 0 (君主) and that force id; `ENGINE_NO_OFFICER` if there is none | save-file.md, officer +95 and +100 |
+| `location_name_at(location)` | the name bytes of a city (0..41), a gate or a port (42..86) from the name index; `location` is `ENGINE_NO_LOCATION` if no name index is loaded or the number is out of range | scenario-file.md, Scenario.s11 at 0x05A and 0x474 |
+
+The rule of `force_ruler` is `sim_force_ruler` in code/sim/turn.cpp. The
+save also has a per-force table with a ruler id. The spec does not give
+its base, so the sim reads the officer table. In sample.s11, forces 0 and 12 own
+cities but have no officer with status 0. Each has a leader with status
+1. The panels show "force 0" and "force 12" for them (Q-149).
+
+The force column shows the name of the ruler. The commander and governor
+columns show the name of the officer. The location column shows the name
+from the name index, or the number until a name index loads. Tutorial 12
+gives the labels of the status and the specialty codes.
+
 ## The tests, line by line
 - inflate_tests.cpp: a stored block of "hello", a fixed block with a back
   reference that overlaps its own output, and a dynamic block. Each error
@@ -116,6 +142,16 @@ is for people who read the output. The game never uses it.
   96/72/91/94/96. Officer 442 rules force 9 from city 36. Officer 98 has
   sworn-brother head 635. It also checks the counts, the observed ranges
   and the cross-checks between officers and cities.
+- display_name_tests.cpp: the three name queries on the real files. A new
+  game has no ruler, no officer and no location name. `officer_by_id(id)`
+  gives the same record as `officer_at` for each officer of sample.s11.
+  Officer 442 rules force 9. Force 255 and the tribal force 42 have no
+  ruler. Each ruler has status 0 and its own force id, and no officer
+  rules two forces. The leader of each faction with a ruler is its ruler.
+  The two factions without a ruler have a leader with status 1. After
+  Scenario.s11 loads, locations 0..41 have the city names. Locations
+  42..86 have the bytes of the gate and port entries. Location 87 has no
+  name.
 - ui_tests.cpp: each panel reads one row for each call and commands
   nothing. The Cities panel calls `city_name_at` one time for each row, with
   the id that `city_at` gave for that row. Each button sends exactly one
@@ -157,6 +193,11 @@ spec-src/spec/QUESTIONS.md:
 - Q-018: between SCEN002 and sample.s11, the aptitudes, the liked and
   disliked lists and one portrait change. The spec calls these bytes
   static. The force relations also have the values 0, 10 and 80.
+
+Two questions come from the names of the id columns:
+- Q-149: forces 0 and 12 of sample.s11 have no officer with status 0.
+  The spec does not give the base of the per-force table of the save.
+- Q-150: the game terms of the status values 4, 5, 7 and 8.
 
 ## Exercises
 - Add `force_count` and `force_at(index)` to engine_api from the force
