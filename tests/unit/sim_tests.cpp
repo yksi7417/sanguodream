@@ -77,6 +77,36 @@ unit_sim_load_save_tests(test_counts *counts)
 }
 
 internal void
+unit_sim_load_name_index_tests(test_counts *counts)
+{
+    memory_arena arena = test_arena_create(Megabytes(2));
+    sim_state *sim = PushStruct(&arena, sim_state);
+    sim_init(sim, &arena, 1);
+    TEST_CHECK(counts, !sim->has_names, "a fresh sim has no names");
+
+    name_index *names = PushStruct(&arena, name_index);
+    *names = {};
+    names->cities[36].id      = 36;
+    names->cities[36].name[0] = 0xBA;
+    names->cities[36].name[1] = 0x7E;
+    sim_event_sink sink = sim_sink_from_arena(&arena, 4);
+    sim_command load = sim_make_command(sim, SIM_COMMAND_LOAD_NAME_INDEX);
+    sim_load_name_index(sim, names, load, &sink);
+    TEST_CHECK(counts, sim->has_names && sim->names.cities[36].id == 36 && sim->names.cities[36].name[1] == 0x7E,
+               "a name index load copies the names");
+    TEST_CHECK(counts, sink.count == 1 && sink.events[0].kind == SIM_EVENT_NAME_INDEX_LOADED &&
+                       sink.events[0].delta == SCENARIO_CITY_COUNT && sink.events[0].cause == load.id,
+               "a name index load emits name_index_loaded with the city count");
+    names->cities[36].name[1] = 0;
+    TEST_CHECK(counts, sim->names.cities[36].name[1] == 0x7E, "the sim keeps its own copy of the names");
+    TEST_CHECK(counts, sim->officers.count == 0 && sim->cities.count == 0 && sim->turn == 0,
+               "a name index load does not change the world or the turn");
+    TEST_CHECK(counts, strcmp(sim_event_name(SIM_EVENT_NAME_INDEX_LOADED), "name_index_loaded") == 0 &&
+                       strcmp(sim_command_name(SIM_COMMAND_LOAD_NAME_INDEX), "load_name_index") == 0, "name index names");
+    test_arena_destroy(&arena);
+}
+
+internal void
 unit_sim_tests(test_counts *counts)
 {
     memory_arena arena = test_arena_create(Megabytes(2));
@@ -139,4 +169,5 @@ unit_sim_tests(test_counts *counts)
 
     test_arena_destroy(&arena);
     unit_sim_load_save_tests(counts);
+    unit_sim_load_name_index_tests(counts);
 }

@@ -19,6 +19,7 @@ enum sim_event_kind
     SIM_EVENT_NONE,
     SIM_EVENT_TURN_ADVANCED,
     SIM_EVENT_SAVE_LOADED,     /* delta = officers loaded; the old officers and cities are gone */
+    SIM_EVENT_NAME_INDEX_LOADED, /* delta = city names loaded; the old names are gone */
     SIM_EVENT_COUNT
 };
 
@@ -45,6 +46,7 @@ enum sim_command_kind
     SIM_COMMAND_NONE,
     SIM_COMMAND_END_TURN,
     SIM_COMMAND_LOAD_SAVE,     /* carries a decoded save: run it with sim_load_save, not sim_apply */
+    SIM_COMMAND_LOAD_NAME_INDEX, /* carries a decoded name index: run it with sim_load_name_index */
     SIM_COMMAND_COUNT
 };
 
@@ -107,6 +109,8 @@ struct sim_state
     hex_map        map;             /* dimensions and costs come from the scenario; see sim_init_map */
     component_table<officer_component> officers;   /* one entity per officer of the loaded save */
     component_table<city_component>    cities;     /* one entity per city */
+    name_index     names;           /* the names of Scenario.s11; the entry number is the city id */
+    b32            has_names;       /* false until a name index loads */
     /* more component tables are added mechanic by mechanic */
 };
 
@@ -123,6 +127,7 @@ internal void        sim_apply(sim_state *sim, sim_command command, sim_event_si
 internal void        sim_advance_turn(sim_state *sim, sim_event_sink *events);
 internal b32         sim_load_save(sim_state *sim, save_file *save, sim_command command, sim_event_sink *events);
 internal void        sim_unload_world(sim_state *sim);
+internal void        sim_load_name_index(sim_state *sim, name_index *names, sim_command command, sim_event_sink *events);
 internal const char *sim_event_name(sim_event_kind kind);
 internal const char *sim_command_name(sim_command_kind kind);
 

@@ -44,7 +44,8 @@ feature_engine_tests(test_counts *counts)
     TEST_CHECK(counts, api->turn && api->entities_alive && api->entity_capacity && api->ledger_count &&
                api->ledger_at && api->memory && api->map_size && api->cell_cost && api->path_cost &&
                api->end_turn && api->advance_turns && api->ledger_clear && api->set_cell_cost &&
-               api->officer_count && api->officer_at && api->city_count && api->city_at && api->load_save,
+               api->officer_count && api->officer_at && api->city_count && api->city_at && api->load_save &&
+               api->city_name_at && api->load_name_index,
                "api table is complete");
 
     /* The map through the api. */

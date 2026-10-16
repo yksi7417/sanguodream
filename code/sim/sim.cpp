@@ -13,6 +13,7 @@ sim_init(sim_state *sim, memory_arena *arena, u64 seed)
     table_init(&sim->cities,   arena, SIM_ENTITY_CAPACITY, SIM_CITY_CAPACITY);
     sim->map.width = sim->map.height = 0;
     sim->map.cost = 0;
+    sim->has_names = false;
 }
 
 /* The real map's size and terrain come from spec-src/spec/formats/ once the
@@ -105,6 +106,9 @@ sim_apply(sim_state *sim, sim_command command, sim_event_sink *events)
         }
         case SIM_COMMAND_LOAD_SAVE:
             InvalidCodePath;   /* needs its save: see sim_load_save */
+            break;
+        case SIM_COMMAND_LOAD_NAME_INDEX:
+            InvalidCodePath;   /* needs its name index: see sim_load_name_index */
             break;
         default:
             InvalidCodePath;
@@ -222,6 +226,23 @@ sim_load_save(sim_state *sim, save_file *save, sim_command command, sim_event_si
     return true;
 }
 
+/* Replaces the city, gate and port names with those of a decoded name
+   index. The officers, the cities and the turn do not change. Emits one
+   SIM_EVENT_NAME_INDEX_LOADED. */
+internal void
+sim_load_name_index(sim_state *sim, name_index *names, sim_command command, sim_event_sink *events)
+{
+    sim->names     = *names;
+    sim->has_names = true;
+
+    sim_event event = {};
+    event.kind  = SIM_EVENT_NAME_INDEX_LOADED;
+    event.turn  = sim->turn;
+    event.delta = (s32)ArrayCount(sim->names.cities);
+    event.cause = command.id;
+    sim_emit(events, event);
+}
+
 internal const char *
 sim_event_name(sim_event_kind kind)
 {
@@ -230,6 +251,7 @@ sim_event_name(sim_event_kind kind)
         case SIM_EVENT_NONE:          return "none";
         case SIM_EVENT_TURN_ADVANCED: return "turn_advanced";
         case SIM_EVENT_SAVE_LOADED:   return "save_loaded";
+        case SIM_EVENT_NAME_INDEX_LOADED: return "name_index_loaded";
         default:                      return "?";
     }
 }
@@ -242,6 +264,7 @@ sim_command_name(sim_command_kind kind)
         case SIM_COMMAND_NONE:      return "none";
         case SIM_COMMAND_END_TURN:  return "end_turn";
         case SIM_COMMAND_LOAD_SAVE: return "load_save";
+        case SIM_COMMAND_LOAD_NAME_INDEX: return "load_name_index";
         default:                   return "?";
     }
 }

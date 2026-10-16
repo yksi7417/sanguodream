@@ -73,6 +73,14 @@ struct engine_city
     u8  public_order;               /* hypothesis in the spec */
 };
 
+/* The name of a city from the name index (Scenario.s11), as a front end
+   sees it: the Big5 bytes of the entry, verbatim and NUL padded. */
+struct engine_city_name
+{
+    u8 city_id;                           /* ENGINE_NO_CITY if no name index is loaded or the id is out of range */
+    u8 name[NAME_INDEX_CITY_NAME_SIZE];
+};
+
 #define ENGINE_NO_OFFICER 0xFFFF
 #define ENGINE_NO_CITY    0xFF
 
@@ -82,6 +90,7 @@ enum engine_load_status
     ENGINE_LOAD_NO_FILE_READER,     /* the engine was created without read_entire_file */
     ENGINE_LOAD_FILE_NOT_FOUND,     /* the reader returned nothing */
     ENGINE_LOAD_BAD_SAVE,           /* the file is not a save the loader can read; see detail */
+    ENGINE_LOAD_BAD_NAME_INDEX,     /* the file is not a name index the loader can read; see detail */
     ENGINE_LOAD_STATUS_COUNT
 };
 
@@ -106,6 +115,7 @@ typedef u32                 engine_officer_count_fn(void *engine);
 typedef engine_officer      engine_officer_at_fn(void *engine, u32 index);   /* index < officer_count */
 typedef u32                 engine_city_count_fn(void *engine);
 typedef engine_city         engine_city_at_fn(void *engine, u32 index);      /* index < city_count */
+typedef engine_city_name    engine_city_name_at_fn(void *engine, u32 index); /* index = city id 0..41 */
 /* Commands */
 typedef u32                 engine_end_turn_fn(void *engine);                 /* returns the command id */
 typedef u32                 engine_advance_turns_fn(void *engine, u32 count); /* returns events emitted */
@@ -114,6 +124,10 @@ typedef void                engine_set_cell_cost_fn(void *engine, s32 q, s32 r, 
 /* Replaces the officers and cities with those of a .s11 save. A relative
    path is relative to the folder of the executable. */
 typedef engine_load_result  engine_load_save_fn(void *engine, const char *path);
+/* Replaces the city names with those of a name index (Scenario.s11). The
+   officers and cities do not change. A relative path is relative to the
+   folder of the executable. */
+typedef engine_load_result  engine_load_name_index_fn(void *engine, const char *path);
 
 struct engine_api
 {
@@ -131,11 +145,13 @@ struct engine_api
     engine_officer_at_fn      *officer_at;
     engine_city_count_fn      *city_count;
     engine_city_at_fn         *city_at;
+    engine_city_name_at_fn    *city_name_at;
     engine_end_turn_fn        *end_turn;
     engine_advance_turns_fn   *advance_turns;
     engine_ledger_clear_fn    *ledger_clear;
     engine_set_cell_cost_fn   *set_cell_cost;
     engine_load_save_fn       *load_save;
+    engine_load_name_index_fn *load_name_index;
 };
 
 /* The real engine lives in code/engine/engine.cpp. */
@@ -147,7 +163,7 @@ struct engine_config
     u32 map_width;        /* placeholder until the scenario format is in the spec */
     u32 map_height;
     u8  map_default_cost;
-    platform_read_entire_file *read_entire_file;   /* zero: load_save refuses with ENGINE_LOAD_NO_FILE_READER */
+    platform_read_entire_file *read_entire_file;   /* zero: the load commands refuse with ENGINE_LOAD_NO_FILE_READER */
 };
 internal engine_config engine_default_config(void);
 internal engine    *engine_create(memory_arena *permanent, memory_arena *transient, engine_config config);

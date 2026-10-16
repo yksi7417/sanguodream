@@ -23,11 +23,13 @@ enum recorder_call_kind
     RECORDER_OFFICER_AT,
     RECORDER_CITY_COUNT,
     RECORDER_CITY_AT,
+    RECORDER_CITY_NAME_AT,
     RECORDER_END_TURN,        /* commands start here */
     RECORDER_ADVANCE_TURNS,
     RECORDER_LEDGER_CLEAR,
     RECORDER_SET_CELL_COST,
     RECORDER_LOAD_SAVE,
+    RECORDER_LOAD_NAME_INDEX,
     RECORDER_CALL_KIND_COUNT
 };
 
@@ -56,6 +58,8 @@ struct engine_recorder
     u32           city_count;
     char          last_load_path[RECORDER_MAX_PATH];
     b32           load_fails;         /* script a refused load */
+    b32           has_names;          /* city_name_at answers only after a name index load */
+    char          last_name_index_path[RECORDER_MAX_PATH];
 };
 
 internal void
@@ -219,6 +223,35 @@ internal engine_city recorder_city_at(void *o, u32 i)
     return city;
 }
 
+/* City i of the script is named with the two bytes A4 (40 + i) after a name
+   index load, and is no city before it. */
+internal engine_city_name recorder_city_name_at(void *o, u32 i)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_CITY_NAME_AT, i);
+    engine_city_name name = {};
+    name.city_id = ENGINE_NO_CITY;
+    if (!r->has_names || i >= SCENARIO_CITY_COUNT) return name;
+    name.city_id = (u8)i;
+    name.name[0] = 0xA4;
+    name.name[1] = (u8)(0x40 + i);
+    return name;
+}
+
+/* Records the path; the script then has city names. */
+internal engine_load_result recorder_load_name_index(void *o, const char *path)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_LOAD_NAME_INDEX, 0);
+    snprintf(r->last_name_index_path, RECORDER_MAX_PATH, "%s", path);
+    r->has_names = true;
+    engine_load_result result = {};
+    result.status     = ENGINE_LOAD_OK;
+    result.command_id = r->next_command_id++;
+    result.detail     = "ok";
+    return result;
+}
+
 /* Records the path; the script gains three officers and two cities. */
 internal engine_load_result recorder_load_save(void *o, const char *path)
 {
@@ -260,11 +293,13 @@ recorder_make_api(engine_recorder *r)
     api.officer_at      = recorder_officer_at;
     api.city_count      = recorder_city_count;
     api.city_at         = recorder_city_at;
+    api.city_name_at    = recorder_city_name_at;
     api.end_turn        = recorder_end_turn;
     api.advance_turns   = recorder_advance_turns;
     api.ledger_clear    = recorder_ledger_clear;
     api.set_cell_cost   = recorder_set_cell_cost;
     api.load_save       = recorder_load_save;
+    api.load_name_index = recorder_load_name_index;
     return api;
 }
 

@@ -210,6 +210,43 @@ engine_api_city_at(void *opaque, u32 index)
     return result;
 }
 
+internal engine_city_name
+engine_api_city_name_at(void *opaque, u32 index)
+{
+    engine *e = (engine *)opaque;
+    engine_city_name result = {};
+    result.city_id = ENGINE_NO_CITY;
+    if (!e->sim->has_names || index >= ArrayCount(e->sim->names.cities)) return result;
+    name_index_city *city = e->sim->names.cities + index;
+    result.city_id = city->id;
+    memcpy(result.name, city->name, sizeof(result.name));
+    return result;
+}
+
+/* Resets the scratch arena and reads the whole file into it. If there is
+   no file to decode, returns false with the status and detail in result. */
+internal b32
+engine_read_file_to_scratch(engine *e, const char *path, read_file_result *file, engine_load_result *result)
+{
+    *result = {};
+    result->detail = "ok";
+    if (!e->read_entire_file)
+    {
+        result->status = ENGINE_LOAD_NO_FILE_READER;
+        result->detail = "no file reader";
+        return false;
+    }
+    arena_reset(&e->scratch);
+    *file = e->read_entire_file(path, &e->scratch);
+    if (!file->contents)
+    {
+        result->status = ENGINE_LOAD_FILE_NOT_FOUND;
+        result->detail = "file not found or larger than the scratch arena";
+        return false;
+    }
+    return true;
+}
+
 /* Reads the file into the scratch arena, decodes it there, then hands the
    decoded save to the sim as one command. A file that does not load leaves
    the game and the ledger as they were. */
@@ -217,23 +254,10 @@ internal engine_load_result
 engine_api_load_save(void *opaque, const char *path)
 {
     engine *e = (engine *)opaque;
-    engine_load_result result = {};
-    result.detail = "ok";
-    if (!e->read_entire_file)
-    {
-        result.status = ENGINE_LOAD_NO_FILE_READER;
-        result.detail = "no file reader";
-        return result;
-    }
+    engine_load_result result;
+    read_file_result file;
+    if (!engine_read_file_to_scratch(e, path, &file, &result)) return result;
 
-    arena_reset(&e->scratch);
-    read_file_result file = e->read_entire_file(path, &e->scratch);
-    if (!file.contents)
-    {
-        result.status = ENGINE_LOAD_FILE_NOT_FOUND;
-        result.detail = "file not found or larger than the scratch arena";
-        return result;
-    }
     save_file save;
     save_load_result loaded = save_load(&e->scratch, (const u8 *)file.contents, file.size, &save);
     if (loaded.status != SAVE_LOAD_OK)
@@ -252,6 +276,34 @@ engine_api_load_save(void *opaque, const char *path)
         result.detail = "the save has more officers or cities than the game can hold";
         return result;
     }
+    engine_ledger_append(e, &sink);
+    result.status     = ENGINE_LOAD_OK;
+    result.command_id = command.id;
+    return result;
+}
+
+/* As load_save: decode in the scratch arena, then one command. A file that
+   does not load leaves the names and the ledger as they were. */
+internal engine_load_result
+engine_api_load_name_index(void *opaque, const char *path)
+{
+    engine *e = (engine *)opaque;
+    engine_load_result result;
+    read_file_result file;
+    if (!engine_read_file_to_scratch(e, path, &file, &result)) return result;
+
+    name_index *names = PushStruct(&e->scratch, name_index);
+    scenario_load_status loaded = name_index_load((const u8 *)file.contents, file.size, names);
+    if (loaded != SCENARIO_LOAD_OK)
+    {
+        result.status = ENGINE_LOAD_BAD_NAME_INDEX;
+        result.detail = scenario_load_status_name(loaded);
+        return result;
+    }
+
+    sim_event_sink sink = sim_sink_from_arena(&e->scratch, ENGINE_SINK_CAPACITY);
+    sim_command command = sim_make_command(e->sim, SIM_COMMAND_LOAD_NAME_INDEX);
+    sim_load_name_index(e->sim, names, command, &sink);
     engine_ledger_append(e, &sink);
     result.status     = ENGINE_LOAD_OK;
     result.command_id = command.id;
@@ -306,10 +358,12 @@ engine_make_api(engine *e)
     api.officer_at      = engine_api_officer_at;
     api.city_count      = engine_api_city_count;
     api.city_at         = engine_api_city_at;
+    api.city_name_at    = engine_api_city_name_at;
     api.end_turn        = engine_api_end_turn;
     api.advance_turns   = engine_api_advance_turns;
     api.ledger_clear    = engine_api_ledger_clear;
     api.set_cell_cost   = engine_api_set_cell_cost;
     api.load_save       = engine_api_load_save;
+    api.load_name_index = engine_api_load_name_index;
     return api;
 }
