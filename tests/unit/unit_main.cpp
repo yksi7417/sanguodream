@@ -1,5 +1,5 @@
 /* unit_tests.exe: the base of the pyramid. Exercises functions and structs of
-   each module in isolation: base.h, ecs/, sim/. No engine, no UI. The one file read is
+   each module in isolation: base.h, ecs/, sim/, text/. No engine, no UI. The one file read is
    the sample save in inflate_tests.cpp. */
 
 #define _CRT_SECURE_NO_WARNINGS
@@ -13,6 +13,8 @@
 #include "render/render.h"
 #include "render/terrain_mesh.h"
 #include "render/png.h"
+#include "text/text.h"
+#include "text/text.cpp"
 
 #include "test_framework.h"
 #include "test_files.h"
@@ -26,6 +28,7 @@
 #include "render_tests.cpp"
 #include "terrain_mesh_tests.cpp"
 #include "png_tests.cpp"
+#include "text_tests.cpp"
 
 int
 main(void)
@@ -72,6 +75,10 @@ main(void)
     test_counts png = {};
     unit_png_tests(&png);
     failed |= test_report("unit/png", &png);
+
+    test_counts text = {};
+    unit_text_tests(&text);
+    failed |= test_report("unit/text", &text);
 
     printf(failed ? "RESULT FAIL\n" : "RESULT PASS\n");
     return failed;
