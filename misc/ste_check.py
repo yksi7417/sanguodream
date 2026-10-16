@@ -97,7 +97,7 @@ ING_ALLOWED = {
     "thing", "things", "nothing", "something", "anything", "everything",
     "during", "string", "strings", "ring", "spring", "king", "kingdoms",
     "bring", "wing", "sing", "swing", "being", "evening", "morning",
-    "pathfinding", "setting", "settings", "building", "buildings",
+    "pathfinding", "setting", "settings", "building", "buildings", "training",
     "ping", "sling", "fling", "cling", "sting", "sibling", "ceiling",
 }
 
