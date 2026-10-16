@@ -12,6 +12,7 @@
 #include "sim/hex.h"
 #include "sim/inflate.h"
 #include "sim/save_format.h"
+#include "sim/scenario_format.h"
 
 enum sim_event_kind
 {

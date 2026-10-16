@@ -19,6 +19,7 @@
 #include "sim_tests.cpp"
 #include "inflate_tests.cpp"
 #include "save_format_tests.cpp"
+#include "scenario_format_tests.cpp"
 
 int
 main(void)
@@ -49,6 +50,10 @@ main(void)
     test_counts save_format = {};
     unit_save_format_tests(&save_format);
     failed |= test_report("unit/save_format", &save_format);
+
+    test_counts scenario_format = {};
+    unit_scenario_format_tests(&scenario_format);
+    failed |= test_report("unit/scenario_format", &scenario_format);
 
     printf(failed ? "RESULT FAIL\n" : "RESULT PASS\n");
     return failed;
