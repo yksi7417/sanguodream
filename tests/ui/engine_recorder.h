@@ -16,9 +16,13 @@ enum recorder_call_kind
     RECORDER_LEDGER_COUNT,
     RECORDER_LEDGER_AT,
     RECORDER_MEMORY,
+    RECORDER_MAP_SIZE,
+    RECORDER_CELL_COST,
+    RECORDER_PATH_COST,
     RECORDER_END_TURN,        /* commands start here */
     RECORDER_ADVANCE_TURNS,
     RECORDER_LEDGER_CLEAR,
+    RECORDER_SET_CELL_COST,
     RECORDER_CALL_KIND_COUNT
 };
 
@@ -145,6 +149,29 @@ internal void recorder_ledger_clear(void *o)
     recorder_record(r, RECORDER_LEDGER_CLEAR, 0);
     r->event_count = 0;
 }
+internal engine_map_size recorder_map_size(void *o)
+{
+    recorder_record((engine_recorder *)o, RECORDER_MAP_SIZE, 0);
+    engine_map_size s = { 8, 6 };
+    return s;
+}
+internal u8  recorder_cell_cost(void *o, s32 q, s32 r)
+{
+    (void)q; (void)r;
+    recorder_record((engine_recorder *)o, RECORDER_CELL_COST, 0);
+    return 1;
+}
+internal u32 recorder_path_cost(void *o, s32 q0, s32 r0, s32 q1, s32 r1)
+{
+    (void)q0; (void)r0; (void)q1; (void)r1;
+    recorder_record((engine_recorder *)o, RECORDER_PATH_COST, 0);
+    return 3;
+}
+internal void recorder_set_cell_cost(void *o, s32 q, s32 r, u8 cost)
+{
+    (void)q; (void)r;
+    recorder_record((engine_recorder *)o, RECORDER_SET_CELL_COST, cost);
+}
 
 internal engine_api
 recorder_make_api(engine_recorder *r)
@@ -158,9 +185,13 @@ recorder_make_api(engine_recorder *r)
     api.ledger_count    = recorder_ledger_count;
     api.ledger_at       = recorder_ledger_at;
     api.memory          = recorder_memory;
+    api.map_size        = recorder_map_size;
+    api.cell_cost       = recorder_cell_cost;
+    api.path_cost       = recorder_path_cost;
     api.end_turn        = recorder_end_turn;
     api.advance_turns   = recorder_advance_turns;
     api.ledger_clear    = recorder_ledger_clear;
+    api.set_cell_cost   = recorder_set_cell_cost;
     return api;
 }
 

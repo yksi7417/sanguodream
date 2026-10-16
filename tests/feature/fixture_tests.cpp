@@ -180,7 +180,8 @@ feature_fixture_tests(const char *dir, memory_arena *arena, test_counts *totals)
         }
 
         /* Each mechanic gets a fresh engine so rows cannot leak into each other. */
-        engine_fixture f = engine_fixture_create(1, 4096);
+        engine_fixture f;
+        engine_fixture_init(&f, 1, 4096);
         test_counts counts = {};
         handler->run(&table, &f.api, &counts);
         printf("%s %u/%u fixture/%s\n", counts.failed ? "FAIL" : "PASS",

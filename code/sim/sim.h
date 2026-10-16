@@ -9,6 +9,7 @@
 
 #include "base.h"
 #include "ecs/ecs.h"
+#include "sim/hex.h"
 
 enum sim_event_kind
 {
@@ -54,12 +55,14 @@ struct sim_state
     u32            turn;
     u32            next_command_id;
     entity_manager entities;
+    hex_map        map;             /* dimensions and costs come from the scenario; see sim_init_map */
     /* component tables are added mechanic by mechanic */
 };
 
 #define SIM_ENTITY_CAPACITY 4096
 
 internal void        sim_init(sim_state *sim, memory_arena *arena, u64 seed);
+internal void        sim_init_map(sim_state *sim, memory_arena *arena, u32 width, u32 height, u8 default_cost);
 internal u32         sim_random_u32(sim_state *sim);
 internal u32         sim_random_below(sim_state *sim, u32 bound);
 internal sim_command sim_make_command(sim_state *sim, sim_command_kind kind);

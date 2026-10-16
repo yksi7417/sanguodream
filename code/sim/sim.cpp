@@ -7,6 +7,16 @@ sim_init(sim_state *sim, memory_arena *arena, u64 seed)
     sim->turn = 0;
     sim->next_command_id = 1;
     em_init(&sim->entities, arena, SIM_ENTITY_CAPACITY);
+    sim->map.width = sim->map.height = 0;
+    sim->map.cost = 0;
+}
+
+/* The real map's size and terrain come from spec-src/spec/formats/ once the
+   scenario format is documented; until then callers pass a placeholder. */
+internal void
+sim_init_map(sim_state *sim, memory_arena *arena, u32 width, u32 height, u8 default_cost)
+{
+    hex_map_init(&sim->map, arena, width, height, default_cost);
 }
 
 /* xorshift64*: small, fast, deterministic across compilers. */

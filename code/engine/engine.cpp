@@ -3,32 +3,45 @@
 
 #include "engine/engine.h"
 
-#define ENGINE_SCRATCH_SIZE Megabytes(1)
+#define ENGINE_SCRATCH_SIZE Megabytes(4)
 #define ENGINE_SINK_CAPACITY 4096
 
 struct engine
 {
     memory_arena *permanent;
     memory_arena *transient;
-    memory_arena  scratch;         /* per-command event sinks; reset before every command */
+    memory_arena  scratch;         /* per-call working memory; reset before every command or search */
     sim_state    *sim;
     sim_event    *ledger;          /* every event the sim has emitted this session */
     u32           ledger_count;
     u32           ledger_capacity;
 };
 
+internal engine_config
+engine_default_config(void)
+{
+    engine_config c;
+    c.seed             = 0x5EEDull;
+    c.ledger_capacity  = 65536;
+    c.map_width        = 40;    /* placeholder map until spec/formats/scenario-file.md */
+    c.map_height       = 30;
+    c.map_default_cost = 1;
+    return c;
+}
+
 internal engine *
-engine_create(memory_arena *permanent, memory_arena *transient, u64 seed, u32 ledger_capacity)
+engine_create(memory_arena *permanent, memory_arena *transient, engine_config config)
 {
     engine *e = PushStruct(permanent, engine);
     e->permanent = permanent;
     e->transient = transient;
     e->scratch   = arena_sub(transient, ENGINE_SCRATCH_SIZE);
     e->sim       = PushStruct(permanent, sim_state);
-    sim_init(e->sim, permanent, seed);
-    e->ledger_capacity = ledger_capacity;
+    sim_init(e->sim, permanent, config.seed);
+    sim_init_map(e->sim, permanent, config.map_width, config.map_height, config.map_default_cost);
+    e->ledger_capacity = config.ledger_capacity;
     e->ledger_count    = 0;
-    e->ledger          = PushArray(permanent, ledger_capacity, sim_event);
+    e->ledger          = PushArray(permanent, config.ledger_capacity, sim_event);
     return e;
 }
 
@@ -103,6 +116,31 @@ engine_api_memory(void *opaque)
     return stats;
 }
 
+internal engine_map_size
+engine_api_map_size(void *opaque)
+{
+    engine *e = (engine *)opaque;
+    engine_map_size size;
+    size.width  = e->sim->map.width;
+    size.height = e->sim->map.height;
+    return size;
+}
+
+internal u8
+engine_api_cell_cost(void *opaque, s32 q, s32 r)
+{
+    return hex_map_cost(&((engine *)opaque)->sim->map, hex_make(q, r));
+}
+
+internal u32
+engine_api_path_cost(void *opaque, s32 q0, s32 r0, s32 q1, s32 r1)
+{
+    engine *e = (engine *)opaque;
+    arena_reset(&e->scratch);
+    hex_path path = hex_find_path(&e->sim->map, hex_make(q0, r0), hex_make(q1, r1), &e->scratch);
+    return path.total_cost;
+}
+
 internal u32
 engine_api_end_turn(void *opaque)
 {
@@ -127,6 +165,12 @@ engine_api_ledger_clear(void *opaque)
     ((engine *)opaque)->ledger_count = 0;
 }
 
+internal void
+engine_api_set_cell_cost(void *opaque, s32 q, s32 r, u8 cost)
+{
+    hex_map_set_cost(&((engine *)opaque)->sim->map, hex_make(q, r), cost);
+}
+
 internal engine_api
 engine_make_api(engine *e)
 {
@@ -138,8 +182,12 @@ engine_make_api(engine *e)
     api.ledger_count    = engine_api_ledger_count;
     api.ledger_at       = engine_api_ledger_at;
     api.memory          = engine_api_memory;
+    api.map_size        = engine_api_map_size;
+    api.cell_cost       = engine_api_cell_cost;
+    api.path_cost       = engine_api_path_cost;
     api.end_turn        = engine_api_end_turn;
     api.advance_turns   = engine_api_advance_turns;
     api.ledger_clear    = engine_api_ledger_clear;
+    api.set_cell_cost   = engine_api_set_cell_cost;
     return api;
 }

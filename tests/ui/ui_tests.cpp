@@ -51,9 +51,11 @@ ui_test_gui(ImGuiTestContext *ctx)
         if (v.use_real_engine)
         {
             v.permanent = test_arena_create(Megabytes(8));
-            v.transient = test_arena_create(Megabytes(2));
-            v.backend   = engine_create(&v.permanent, &v.transient, 0x5EEDull, 1024);
-            v.api       = engine_make_api(v.backend);
+            v.transient = test_arena_create(Megabytes(8));
+            engine_config config = engine_default_config();
+            config.ledger_capacity = 1024;
+            v.backend = engine_create(&v.permanent, &v.transient, config);
+            v.api     = engine_make_api(v.backend);
         }
         else
         {
@@ -153,6 +155,26 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->Yield();
         IM_CHECK(v.ui.show_memory);
         IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_MEMORY), 1u);    /* memory panel asks the api (every frame) */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "map_panel_reads_every_cell_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ctx->SetRef("Hex map");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_MAP_SIZE), 1u);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_CELL_COST), 8u * 6u);   /* one per cell of the 8x6 fake map */
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_PATH_COST), 0u);        /* nothing selected yet */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        ctx->ItemClick("Clear selection");
+        ctx->Yield();
+        IM_CHECK(!v.ui.map.has_from && !v.ui.map.has_to);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 

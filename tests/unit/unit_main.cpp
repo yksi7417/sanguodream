@@ -13,6 +13,7 @@
 #include "test_framework.h"
 #include "base_tests.cpp"
 #include "ecs_tests.cpp"
+#include "hex_tests.cpp"
 #include "sim_tests.cpp"
 
 int
@@ -28,6 +29,10 @@ main(void)
     test_counts ecs = {};
     unit_ecs_tests(&ecs);
     failed |= test_report("unit/ecs", &ecs);
+
+    test_counts hex = {};
+    unit_hex_tests(&hex);
+    failed |= test_report("unit/hex", &hex);
 
     test_counts sim = {};
     unit_sim_tests(&sim);

@@ -5,6 +5,8 @@
 #include "imgui.h"
 #include "ui/ui.h"
 
+#include "ui/ui_map.cpp"
+
 internal void
 ui_init(ui_state *ui)
 {
@@ -12,6 +14,8 @@ ui_init(ui_state *ui)
     ui->show_sim    = true;
     ui->show_ledger = true;
     ui->show_memory = false;
+    ui->show_map    = true;
+    ui_map_init(ui);
 }
 
 internal void
@@ -33,6 +37,7 @@ ui_draw_menu_bar(ui_state *ui, engine_api *api, ui_frame_info *frame)
         if (ImGui::BeginMenu("Windows"))
         {
             ImGui::MenuItem("Simulation", 0, &ui->show_sim);
+            ImGui::MenuItem("Hex map", 0, &ui->show_map);
             ImGui::MenuItem("Event ledger", 0, &ui->show_ledger);
             ImGui::MenuItem("Memory", 0, &ui->show_memory);
             ImGui::Separator();
@@ -142,6 +147,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     ui_draw_menu_bar(ui, api, frame);
     if (ui->show_demo)   ImGui::ShowDemoWindow(&ui->show_demo);
     if (ui->show_sim)    ui_draw_simulation(ui, api);
+    if (ui->show_map)    ui_draw_map(ui, api);
     if (ui->show_ledger) ui_draw_ledger(ui, api);
     if (ui->show_memory) ui_draw_memory(ui, api, frame);
 }

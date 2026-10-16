@@ -9,15 +9,20 @@ struct engine_fixture
     engine_api   api;
 };
 
-internal engine_fixture
-engine_fixture_create(u64 seed, u32 ledger_capacity)
+/* Initialises in place: the engine keeps pointers to the fixture's arenas,
+   so the fixture must live where the caller put it, never in a temporary. */
+internal void
+engine_fixture_init(engine_fixture *f, u64 seed, u32 ledger_capacity)
 {
-    engine_fixture f;
-    f.permanent = test_arena_create(Megabytes(8));
-    f.transient = test_arena_create(Megabytes(2));
-    f.backend   = engine_create(&f.permanent, &f.transient, seed, ledger_capacity);
-    f.api       = engine_make_api(f.backend);
-    return f;
+    f->permanent = test_arena_create(Megabytes(8));
+    f->transient = test_arena_create(Megabytes(8));
+    engine_config config = engine_default_config();
+    config.seed            = seed;
+    config.ledger_capacity = ledger_capacity;
+    config.map_width       = 16;
+    config.map_height      = 12;
+    f->backend = engine_create(&f->permanent, &f->transient, config);
+    f->api     = engine_make_api(f->backend);
 }
 
 internal void
@@ -30,13 +35,37 @@ engine_fixture_destroy(engine_fixture *f)
 internal void
 feature_engine_tests(test_counts *counts)
 {
-    engine_fixture f = engine_fixture_create(1, 16);
+    engine_fixture f;
+    engine_fixture_init(&f, 1, 16);
     engine_api *api = &f.api;
     void *e = api->engine;
 
     TEST_CHECK(counts, api->turn && api->entities_alive && api->entity_capacity && api->ledger_count &&
-               api->ledger_at && api->memory && api->end_turn && api->advance_turns && api->ledger_clear,
+               api->ledger_at && api->memory && api->map_size && api->cell_cost && api->path_cost &&
+               api->end_turn && api->advance_turns && api->ledger_clear && api->set_cell_cost,
                "api table is complete");
+
+    /* The map through the api. */
+    engine_map_size size = api->map_size(e);
+    TEST_CHECK(counts, size.width == 16 && size.height == 12, "map size comes from the config");
+    TEST_CHECK(counts, api->cell_cost(e, 3, 3) == 1, "cells start at the default cost");
+    TEST_CHECK(counts, api->cell_cost(e, -1, 0) == HEX_IMPASSABLE, "off-map cells are impassable");
+    s32 far_q = 12, far_r = 4;
+    u32 straight = api->path_cost(e, 2, 4, far_q, far_r);
+    TEST_CHECK(counts, straight == (u32)hex_distance(hex_make(2, 4), hex_make(far_q, far_r)), "open-map path cost is the distance");
+    for (s32 r = 0; r < 12; ++r)
+    {
+        hex_offset w; w.col = 7; w.row = r;
+        hex_coord c = hex_from_offset(w);
+        api->set_cell_cost(e, c.q, c.r, HEX_IMPASSABLE);
+    }
+    TEST_CHECK(counts, api->cell_cost(e, hex_from_offset(hex_offset{ 7, 4 }).q, 4) == HEX_IMPASSABLE, "set_cell_cost is visible to cell_cost");
+    TEST_CHECK(counts, api->path_cost(e, 2, 4, far_q, far_r) == HEX_NO_PATH, "a full wall leaves no path");
+    hex_coord gate = hex_from_offset(hex_offset{ 7, 6 });
+    api->set_cell_cost(e, gate.q, gate.r, 2);
+    u32 through = api->path_cost(e, 2, 4, far_q, far_r);
+    TEST_CHECK(counts, through != HEX_NO_PATH && through > straight, "a gate in the wall makes a longer path");
+    TEST_CHECK(counts, api->turn(e) == 0 && api->ledger_count(e) == 0, "map edits do not touch turn or ledger");
 
     TEST_CHECK(counts, api->turn(e) == 0, "new game starts at turn 0");
     TEST_CHECK(counts, api->ledger_count(e) == 0, "new game has an empty ledger");
@@ -71,8 +100,9 @@ feature_engine_tests(test_counts *counts)
     TEST_CHECK(counts, second_id > command_id, "command ids keep increasing");
 
     /* Determinism: two engines fed the same commands agree on everything observable. */
-    engine_fixture g = engine_fixture_create(7, 64);
-    engine_fixture h = engine_fixture_create(7, 64);
+    engine_fixture g, h;
+    engine_fixture_init(&g, 7, 64);
+    engine_fixture_init(&h, 7, 64);
     g.api.advance_turns(g.api.engine, 5);
     h.api.advance_turns(h.api.engine, 5);
     b32 agree = g.api.turn(g.api.engine) == h.api.turn(h.api.engine) &&

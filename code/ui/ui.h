@@ -14,6 +14,15 @@ struct ui_state
     bool show_sim;
     bool show_ledger;
     bool show_memory;
+    bool show_map;
+    struct
+    {
+        bool      has_from;
+        bool      has_to;
+        hex_coord from;
+        hex_coord to;
+        f32       zoom;
+    } map;
 };
 
 /* Per-frame facts that belong to the front end, not the engine. */

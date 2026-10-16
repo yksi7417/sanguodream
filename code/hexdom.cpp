@@ -45,7 +45,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                    memory->permanent_size - sizeof(game_state));
         arena_init(&game->transient, memory->transient, memory->transient_size);
 
-        game->backend = engine_create(&game->permanent, &game->transient, 0x5EEDull, 65536);
+        game->backend = engine_create(&game->permanent, &game->transient, engine_default_config());
         game->api     = engine_make_api(game->backend);
         game->reload_count = 0;
         ui_init(&game->ui);
