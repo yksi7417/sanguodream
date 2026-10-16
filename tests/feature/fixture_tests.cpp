@@ -7,15 +7,8 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>   /* directory listing only */
 
-#define TSV_MAX_COLUMNS 64
-
-struct tsv_table
-{
-    u32    column_count;
-    char  *columns[TSV_MAX_COLUMNS];
-    u32    row_count;
-    char **cells;   /* row * column_count + column */
-};
+/* The table parser is code/sim/tables.h, the same one that reads the
+   content pack. This file only reads the file. */
 
 internal char *
 read_text_file(const char *path, memory_arena *arena, u64 *size_out)
@@ -33,80 +26,11 @@ read_text_file(const char *path, memory_arena *arena, u64 *size_out)
     return text;
 }
 
-internal u32
-split_tabs(char *line, char **out, u32 max)
-{
-    u32 count = 0;
-    char *start = line;
-    for (char *p = line;; ++p)
-    {
-        if (*p == '\t' || *p == 0)
-        {
-            b32 end = (*p == 0);
-            *p = 0;
-            if (count < max) out[count++] = start;
-            if (end) break;
-            start = p + 1;
-        }
-    }
-    return count;
-}
-
 internal b32
 tsv_load(const char *path, memory_arena *arena, tsv_table *table)
 {
-    u64 size = 0;
-    char *text = read_text_file(path, arena, &size);
-    if (!text) return false;
-
-    u32 line_count = 1;
-    for (char *p = text; *p; ++p) if (*p == '\n') line_count++;
-
-    char **lines = PushArray(arena, line_count, char *);
-    u32 used = 0;
-    char *cursor = text;
-    while (*cursor)
-    {
-        char *line = cursor;
-        char *newline = strchr(cursor, '\n');
-        if (newline) { *newline = 0; cursor = newline + 1; }
-        else cursor += strlen(cursor);
-        size_t len = strlen(line);
-        if (len && line[len - 1] == '\r') line[len - 1] = 0;
-        if (line[0]) lines[used++] = line;
-    }
-    if (used == 0) return false;
-
-    table->column_count = split_tabs(lines[0], table->columns, TSV_MAX_COLUMNS);
-    table->row_count    = used - 1;
-    table->cells        = PushArray(arena, (u64)table->row_count * table->column_count, char *);
-    for (u32 row = 0; row < table->row_count; ++row)
-    {
-        char *fields[TSV_MAX_COLUMNS];
-        u32 n = split_tabs(lines[row + 1], fields, TSV_MAX_COLUMNS);
-        for (u32 col = 0; col < table->column_count; ++col)
-        {
-            table->cells[row * table->column_count + col] = col < n ? fields[col] : (char *)"";
-        }
-    }
-    return true;
-}
-
-internal s32
-tsv_column(tsv_table *table, const char *name)
-{
-    for (u32 i = 0; i < table->column_count; ++i)
-    {
-        if (strcmp(table->columns[i], name) == 0) return (s32)i;
-    }
-    return -1;
-}
-
-internal const char *
-tsv_cell(tsv_table *table, u32 row, const char *column)
-{
-    s32 col = tsv_column(table, column);
-    return col < 0 ? "" : table->cells[row * table->column_count + (u32)col];
+    char *text = read_text_file(path, arena, 0);
+    return text && tsv_parse(text, arena, table);
 }
 
 /* A handler builds the state each row describes through engine_api, runs the
@@ -116,14 +40,23 @@ typedef void fixture_handler_fn(tsv_table *table, engine_api *api, test_counts *
 
 struct fixture_handler
 {
-    const char         *mechanic;   /* fixture file name without .tsv */
+    const char         *mechanic;    /* fixture file name without .tsv */
     fixture_handler_fn *run;
+    const char         *blocked_by;  /* not zero: the spec cannot give the rule yet; the rows are not run */
 };
 
 /* One entry per mechanic in spec-src/spec/mechanics/. Add the handler in the
-   RED step, before implementing the mechanic in code/sim/ and code/engine/. */
+   RED step, before implementing the mechanic in code/sim/ and code/engine/.
+
+   A blocked entry names the open question that stops the handler. Its rows
+   count as neither a pass nor a failure, and the runner prints the reason
+   on each run. Remove the entry when the question closes. */
 global_variable fixture_handler g_fixture_handlers[] = {
-    { 0, 0 }   /* sentinel */
+    /* military-units-and-tactics.md: "The formula from abilities to unit
+       values is unknown", and Q-030 must map the scenario numbers of the
+       guide book to the scenario files. F-081, milestone M3. */
+    { "unit-values-guidebook", 0, "Q-030 and the unknown unit-value formula (F-081, M3)" },
+    { 0, 0, 0 }   /* sentinel */
 };
 
 internal fixture_handler *
@@ -176,6 +109,12 @@ feature_fixture_tests(const char *dir, memory_arena *arena, test_counts *totals)
         {
             printf("FAIL 0/%u fixture/%s (no handler in tests/feature/fixture_tests.cpp)\n", table.row_count, mechanic);
             totals->failed += table.row_count ? table.row_count : 1;
+            continue;
+        }
+
+        if (handler->blocked_by)
+        {
+            printf("BLOCKED %u rows fixture/%s (%s)\n", table.row_count, mechanic, handler->blocked_by);
             continue;
         }
 

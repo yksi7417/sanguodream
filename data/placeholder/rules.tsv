@@ -1,0 +1,15 @@
+key	value	status	source
+# The numbers of the turn rules. status: documented (a source gives the number) or assumed (DECISIONS.md, "Unknown numbers").
+ap.cap	255	documented	calendar-and-turn.md, manual p.7
+ap.develop	20	documented	city-commands.md, manual p.11
+develop.officers	3	documented	city-commands.md
+develop.max_days	100	documented	cities-and-facilities.md, guide book p.9 (periods 20 to 100 days)
+develop.full_politics	100	assumed	Q-142: a politics sum of 100 or more gives the shortest period
+enemy.block_hexes	2	documented	calendar-and-turn.md, manual p.9
+adjacency.percent	150	documented	cities-and-facilities.md (1.5 times)
+city.gold_cap	100000	documented	manual p.25
+city.grain_cap	1000000	documented	manual p.25
+city.gold_income	100	assumed	Q-021: the initial gold income of a city
+city.grain_income	500	assumed	Q-021: the initial grain income of a city
+officer.salary	10	assumed	Q-027: the gold of one officer each month
+grain.soldiers	100	assumed	Q-119: one grain each turn for this number of soldiers
