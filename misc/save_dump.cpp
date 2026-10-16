@@ -5,18 +5,23 @@
    analysis side.
 
    Usage: save_dump.exe <file.s11> [--all-slots] [--utf8-names]
+                        [--name-index <Scenario.s11>]
      --all-slots   also print the empty officer slots (all name bytes zero)
      --utf8-names  also print each name as UTF-8 through Windows code page
                    950. That code page is the operating system's Big5 table,
                    not a mapping from the spec; use it only to read the
                    output. The game never converts names.
+     --name-index  read the city names from this name index
+                   (scenario-file.md, Scenario.s11) and print each city's
+                   name under "name_big5_hex". The entry number is the
+                   city id.
 
    Names are always printed as the hex of their Big5 bytes up to the first
    NUL, under "<field>_big5_hex". Unknown bytes are left out.
 
    Exit code: 0 when the file loads and the cross-checks of save-file.md
-   (City record) pass, 1 when a cross-check fails, 2 when the file does not
-   load. */
+   (City record) pass, 1 when a cross-check fails, 2 when the save or the
+   name index does not load. */
 
 #define _CRT_SECURE_NO_WARNINGS
 #include <stdio.h>
@@ -26,6 +31,8 @@
 #include "sim/inflate.h"
 #include "sim/save_format.h"
 #include "sim/save_format.cpp"
+#include "sim/scenario_format.h"
+#include "sim/scenario_format.cpp"
 #include "test_framework.h"
 #include "test_files.h"
 
@@ -215,11 +222,16 @@ dump_officer(json_writer *json, officer_record *officer)
     json_close(json, '}');
 }
 
+/* names is zero when no name index was given. */
 internal void
-dump_city(json_writer *json, city_record *city)
+dump_city(json_writer *json, city_record *city, name_index *names)
 {
     json_open(json, 0, '{');
     json_uint(json, "id", city->id);
+    if (names && city->id < ArrayCount(names->cities))
+    {
+        json_big5(json, "name", names->cities[city->id].name, NAME_INDEX_CITY_NAME_SIZE);
+    }
     json_uint(json, "flags", city->flags);
     json_uint(json, "commanding_officer_id", city->commanding_officer_id);
     json_uint(json, "owner_force_id", city->owner_force_id);
@@ -299,20 +311,45 @@ int
 main(int argc, char **argv)
 {
     const char *path = 0;
+    const char *name_index_path = 0;
     b32 all_slots = false;
+    b32 usage_error = false;
     for (int index = 1; index < argc; ++index)
     {
         if (strcmp(argv[index], "--all-slots") == 0)       all_slots = true;
         else if (strcmp(argv[index], "--utf8-names") == 0) g_utf8_names = true;
+        else if (strcmp(argv[index], "--name-index") == 0)
+        {
+            if (index + 1 < argc) name_index_path = argv[++index];
+            else                  usage_error = true;
+        }
         else                                               path = argv[index];
     }
-    if (!path)
+    if (!path || usage_error)
     {
-        fprintf(stderr, "usage: save_dump <file.s11> [--all-slots] [--utf8-names]\n");
+        fprintf(stderr, "usage: save_dump <file.s11> [--all-slots] [--utf8-names] [--name-index <Scenario.s11>]\n");
         return 2;
     }
 
     memory_arena arena = test_arena_create(Megabytes(16));
+    name_index *names = 0;
+    if (name_index_path)
+    {
+        test_file index_file = test_read_file(name_index_path, &arena);
+        if (!index_file.contents)
+        {
+            fprintf(stderr, "save_dump: cannot read %s\n", name_index_path);
+            return 2;
+        }
+        names = PushStruct(&arena, name_index);
+        scenario_load_status status = name_index_load(index_file.contents, index_file.size, names);
+        if (status != SCENARIO_LOAD_OK)
+        {
+            fprintf(stderr, "save_dump: %s: %s\n", name_index_path, scenario_load_status_name(status));
+            return 2;
+        }
+    }
+
     test_file file = test_read_file(path, &arena);
     if (!file.contents)
     {
@@ -341,7 +378,7 @@ main(int argc, char **argv)
     }
     json_close(&json, ']');
     json_open(&json, "cities", '[');
-    for (u32 city = 0; city < save.city_count; ++city) dump_city(&json, save.cities + city);
+    for (u32 city = 0; city < save.city_count; ++city) dump_city(&json, save.cities + city, names);
     json_close(&json, ']');
     json_open(&json, "items", '[');
     for (u32 item = 0; item < save.item_count; ++item) dump_item(&json, save.items + item);

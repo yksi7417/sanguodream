@@ -45,8 +45,10 @@ decompilation of it.
 - build\feature_tests.exe [fixtures-dir]   default spec-src\spec\fixtures
 - build\ui_tests.exe [filter]              for example "ui", "e2e",
                                            "ui/advance"
-- build\save_dump.exe <file.s11> [--all-slots] [--utf8-names]   prints a
-                    save as JSON with the clean-room loader
+- build\save_dump.exe <file.s11> [--all-slots] [--utf8-names]
+                    [--name-index <Scenario.s11>]   prints a save as JSON
+                    with the clean-room loader; with --name-index, each
+                    city also has its name bytes
 - build\win32_hexdom.exe [--frames N]      the game window; --frames exits
                     after N frames with exit code 0; log in build\hexdom.log
 - Hot reload: leave win32_hexdom.exe open, edit, then run build.bat dll.
