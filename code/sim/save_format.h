@@ -294,6 +294,7 @@ enum save_load_status
     SAVE_LOAD_UNEXPECTED_PAYLOAD_LENGTH,  /* the header declares a length the payload map does not describe */
     SAVE_LOAD_INFLATE_FAILED,             /* see save_load_result.inflate */
     SAVE_LOAD_LENGTH_MISMATCH,            /* inflated length is not the declared length */
+    SAVE_LOAD_OUT_OF_MEMORY,              /* the arena cannot hold the records, the payload and the decoder */
     SAVE_LOAD_STATUS_COUNT
 };
 

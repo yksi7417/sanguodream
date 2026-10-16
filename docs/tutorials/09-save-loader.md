@@ -3,10 +3,10 @@
 Files: code/sim/inflate.h, code/sim/save_format.h and .cpp,
 code/sim/scenario_format.h and .cpp, code/sim/sim.cpp (`sim_load_save`),
 code/engine/engine.cpp (`engine_api_load_save`), code/ui/ui_world.cpp,
-misc/save_dump.cpp. Tests: tests/unit/inflate_tests.cpp (34 checks),
-tests/unit/save_format_tests.cpp (63), tests/unit/scenario_format_tests.cpp
-(31), tests/unit/sim_tests.cpp (10 of 24), tests/feature/load_save_tests.cpp
-(40), and four tests in tests/ui/ui_tests.cpp.
+misc/save_dump.cpp. Tests: tests/unit/inflate_tests.cpp (35 checks),
+tests/unit/save_format_tests.cpp (64), tests/unit/scenario_format_tests.cpp
+(31), tests/unit/sim_tests.cpp (12 of 26), tests/feature/load_save_tests.cpp
+(43), and five tests in tests/ui/ui_tests.cpp.
 
 ## What it is for
 This tutorial covers the loader half of milestone M1. The loader reads a

@@ -45,6 +45,14 @@ global_variable const u8 inflate_vector_dynamic[] = {
     0x15, 0xAE, 0x88, 0x7F, 0xC0, 0x58, 0x0D, 0xDB, 0xDD, 0xFE, 0x70, 0x9C, 0x4F, 0xE7, 0xCB, 0xF5,
     0x03, 0x05, 0xAD, 0x4F, 0xB4 };
 
+/* A hand-built dynamic block with no distance codes (HDIST field 0 and
+   that one distance length 0): literal 'a' and end of block have 1-bit
+   codes, and the data is "aa". RFC 1951 allows this for a block of
+   literals only, and a reference decoder accepts it. */
+global_variable const u8 inflate_vector_no_distance_codes[] = {
+    0x78, 0x01, 0x05, 0xC0, 0x01, 0x05, 0x00, 0x00, 0x00, 0x00, 0xA0, 0xAD, 0xFD, 0x3F, 0x11, 0x02,
+    0x01, 0x25, 0x00, 0xC3 };
+
 global_variable const char inflate_vector_dynamic_text[] =
     "the officer table holds names, years and stats; the city table holds gold, troops and food. "
     "the officer table holds names, years and stats; the city table holds gold, troops and food. "
@@ -83,6 +91,11 @@ unit_inflate_vector_tests(test_counts *counts, memory_arena *arena)
     TEST_CHECK(counts, dynamic.status == INFLATE_OK, "dynamic block inflates");
     TEST_CHECK(counts, dynamic.bytes_written == text_length && memcmp(out, inflate_vector_dynamic_text, text_length) == 0,
                "dynamic block gives the original text");
+
+    inflate_result literals_only = inflate_test_run(arena, inflate_vector_no_distance_codes,
+                                                    sizeof(inflate_vector_no_distance_codes), out, sizeof(out));
+    TEST_CHECK(counts, literals_only.status == INFLATE_OK && literals_only.bytes_written == 2 && memcmp(out, "aa", 2) == 0,
+               "a dynamic block with no distance codes inflates");
 }
 
 internal void

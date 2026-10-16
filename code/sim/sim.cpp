@@ -180,24 +180,37 @@ sim_city_from_record(city_record *record)
 /* Replaces the officers and cities with those of a decoded save: one entity
    per slot that holds an officer, in slot order, then one per city in id
    order. Emits one SIM_EVENT_SAVE_LOADED. The turn counter does not change,
-   because the spec has not found the game date (QUESTIONS.md, Q-004). */
-internal void
+   because the spec has not found the game date (QUESTIONS.md, Q-004).
+
+   Returns false, and changes nothing, when the entities or the tables
+   cannot hold the new world. */
+internal b32
 sim_load_save(sim_state *sim, save_file *save, sim_command command, sim_event_sink *events)
 {
+    u32 officers_needed = 0;
+    for (u32 slot = 0; slot < save->officer_slot_count; ++slot)
+    {
+        if (!officer_slot_is_empty(save->officers + slot)) officers_needed++;
+    }
+    entity_manager *entities = &sim->entities;
+    u32 entities_free_after_unload = (entities->capacity - entities->next_unused) + entities->free_count +
+                                     sim->officers.count + sim->cities.count;
+    if (officers_needed > sim->officers.capacity || save->city_count > sim->cities.capacity ||
+        officers_needed + save->city_count > entities_free_after_unload)
+    {
+        return false;
+    }
+
     sim_unload_world(sim);
     for (u32 slot = 0; slot < save->officer_slot_count; ++slot)
     {
         officer_record *record = save->officers + slot;
         if (officer_slot_is_empty(record)) continue;
-        entity_id officer = em_create(&sim->entities);
-        if (officer == ENTITY_NULL) break;   /* SIM_ENTITY_CAPACITY holds every slot */
-        table_add(&sim->officers, officer, sim_officer_from_record(record));
+        table_add(&sim->officers, em_create(entities), sim_officer_from_record(record));
     }
     for (u32 index = 0; index < save->city_count; ++index)
     {
-        entity_id city = em_create(&sim->entities);
-        if (city == ENTITY_NULL) break;
-        table_add(&sim->cities, city, sim_city_from_record(save->cities + index));
+        table_add(&sim->cities, em_create(entities), sim_city_from_record(save->cities + index));
     }
 
     sim_event event = {};
@@ -206,6 +219,7 @@ sim_load_save(sim_state *sim, save_file *save, sim_command command, sim_event_si
     event.delta = (s32)sim->officers.count;
     event.cause = command.id;
     sim_emit(events, event);
+    return true;
 }
 
 internal const char *

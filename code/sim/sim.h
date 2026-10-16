@@ -121,7 +121,7 @@ internal u32         sim_random_below(sim_state *sim, u32 bound);
 internal sim_command sim_make_command(sim_state *sim, sim_command_kind kind);
 internal void        sim_apply(sim_state *sim, sim_command command, sim_event_sink *events);
 internal void        sim_advance_turn(sim_state *sim, sim_event_sink *events);
-internal void        sim_load_save(sim_state *sim, save_file *save, sim_command command, sim_event_sink *events);
+internal b32         sim_load_save(sim_state *sim, save_file *save, sim_command command, sim_event_sink *events);
 internal void        sim_unload_world(sim_state *sim);
 internal const char *sim_event_name(sim_event_kind kind);
 internal const char *sim_command_name(sim_command_kind kind);

@@ -235,6 +235,22 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
+    t = IM_REGISTER_TEST(e, "ui", "refused_load_shows_the_reason");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.load_fails = true;
+        ctx->SetRef("Simulation");
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("Load sample save");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOAD_SAVE), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK_STR_EQ(v.ui.load_message, "not loaded: not a save");
+    };
+
     t = IM_REGISTER_TEST(e, "ui", "idle_frames_command_nothing");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;

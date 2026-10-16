@@ -168,6 +168,11 @@ save_decode_payload(const u8 *payload, save_file *out)
     }
 }
 
+/* The most arena memory save_load uses at one time: the records, the
+   payload and the decoder state, each with 16 bytes for its alignment. */
+#define SAVE_LOAD_ARENA_NEED (sizeof(officer_record) * SAVE_OFFICER_SLOTS + sizeof(city_record) * SAVE_CITY_COUNT + \
+                              sizeof(item_record) * SAVE_ITEM_COUNT + SAVE_PAYLOAD_LENGTH + sizeof(inflate_state) + 5 * 16)
+
 /* The loader rule of save-file.md: read the two lengths at 0x1B7, inflate
    the bytes from 0x1BF to the end of the file, check the inflated length
    against the first length. The magic text and the tag are the same in all
@@ -200,6 +205,11 @@ save_load(memory_arena *arena, const u8 *file, u64 file_size, save_file *out)
     }
 
     u64 entry_mark = arena->used;
+    if (arena->size - arena->used < SAVE_LOAD_ARENA_NEED)
+    {
+        result.status = SAVE_LOAD_OUT_OF_MEMORY;
+        return result;
+    }
     out->officer_slot_count = SAVE_OFFICER_SLOTS;
     out->city_count         = SAVE_CITY_COUNT;
     out->item_count         = SAVE_ITEM_COUNT;
@@ -250,6 +260,7 @@ save_load_status_name(save_load_status status)
         case SAVE_LOAD_UNEXPECTED_PAYLOAD_LENGTH: return "unexpected payload length";
         case SAVE_LOAD_INFLATE_FAILED:            return "inflate failed";
         case SAVE_LOAD_LENGTH_MISMATCH:           return "length mismatch";
+        case SAVE_LOAD_OUT_OF_MEMORY:             return "out of memory";
         default:                                  return "?";
     }
 }

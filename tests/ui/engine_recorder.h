@@ -55,6 +55,7 @@ struct engine_recorder
     u32           officer_count;      /* scripted rows for the Officers and Cities panels */
     u32           city_count;
     char          last_load_path[RECORDER_MAX_PATH];
+    b32           load_fails;         /* script a refused load */
 };
 
 internal void
@@ -224,6 +225,13 @@ internal engine_load_result recorder_load_save(void *o, const char *path)
     engine_recorder *r = (engine_recorder *)o;
     recorder_record(r, RECORDER_LOAD_SAVE, 0);
     snprintf(r->last_load_path, RECORDER_MAX_PATH, "%s", path);
+    if (r->load_fails)
+    {
+        engine_load_result refused = {};
+        refused.status = ENGINE_LOAD_BAD_SAVE;
+        refused.detail = "not a save";
+        return refused;
+    }
     r->officer_count = 3;
     r->city_count    = 2;
     engine_load_result result = {};

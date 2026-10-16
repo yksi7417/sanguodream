@@ -85,7 +85,10 @@ internal PLATFORM_READ_ENTIRE_FILE(win32_read_entire_file)
     if (file == INVALID_HANDLE_VALUE) return result;
 
     LARGE_INTEGER size;
-    if (GetFileSizeEx(file, &size) && size.QuadPart >= 0 && size.QuadPart < 0xFFFFFFFF)
+    /* A file that does not fit in the arena is not read: the caller sees no contents. */
+    u64 room = arena->size - arena->used;
+    if (GetFileSizeEx(file, &size) && size.QuadPart >= 0 && size.QuadPart < 0xFFFFFFFF &&
+        (u64)size.QuadPart + 16 <= room)
     {
         u64   bytes  = (u64)size.QuadPart;
         void *buffer = arena_push_size(arena, bytes ? bytes : 1);

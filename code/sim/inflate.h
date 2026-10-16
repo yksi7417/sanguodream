@@ -376,8 +376,11 @@ inflate_dynamic_block(inflate_state *state)
 
     huffman_build_result built = inflate_build_huffman(&state->litlen, lengths, litlen_total);
     if (!inflate_huffman_is_usable(&state->litlen, built, litlen_used)) return INFLATE_BAD_CODE_LENGTHS;
+    /* RFC 1951, 3.2.7: a block of literals only can have no distance codes.
+       The empty table then matches no code, so a length symbol in that
+       block fails with INFLATE_BAD_SYMBOL. */
     built = inflate_build_huffman(&state->distance, lengths + litlen_total, distance_total);
-    if (!inflate_huffman_is_usable(&state->distance, built, distance_used)) return INFLATE_BAD_CODE_LENGTHS;
+    if (distance_used > 0 && !inflate_huffman_is_usable(&state->distance, built, distance_used)) return INFLATE_BAD_CODE_LENGTHS;
 
     return inflate_huffman_block_data(state);
 }

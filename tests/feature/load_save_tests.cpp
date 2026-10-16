@@ -54,6 +54,39 @@ feature_load_failure_tests(test_counts *counts)
     engine_load_result not_a_save = api->load_save(e, SAMPLE_README_RELATIVE_PATH);
     TEST_CHECK(counts, not_a_save.status == ENGINE_LOAD_BAD_SAVE && not_a_save.command_id == 0 && not_a_save.detail != 0,
                "a file that is not a save is refused with a reason");
+    TEST_CHECK(counts, strcmp(not_a_save.detail, "not a save") == 0, "a text file longer than the header is not a save");
+
+    /* Files written next to the executable for this test, then deleted. */
+    char exe_dir[MAX_PATH], path[MAX_PATH];
+    test_exe_dir(exe_dir, MAX_PATH);
+    snprintf(path, MAX_PATH, "%s\\load_save_test_oversized.tmp", exe_dir);
+    FILE *file = fopen(path, "wb");
+    u8 zeros[4096] = {};
+    for (u32 block = 0; file && block < (u32)(Megabytes(5) / sizeof(zeros)); ++block) fwrite(zeros, 1, sizeof(zeros), file);
+    if (file) fclose(file);
+    engine_load_result oversized = api->load_save(e, "load_save_test_oversized.tmp");
+    TEST_CHECK(counts, oversized.status == ENGINE_LOAD_FILE_NOT_FOUND && oversized.command_id == 0,
+               "a file larger than the scratch arena is not read");
+    remove(path);
+
+    memory_arena copy_arena = test_arena_create(Megabytes(1));
+    char sample_path[MAX_PATH];
+    test_fixture_path(sample_path, MAX_PATH, "saves\\sample.s11");
+    test_file sample = test_read_file(sample_path, &copy_arena);
+    snprintf(path, MAX_PATH, "%s\\load_save_test_bad_magic.tmp", exe_dir);
+    file = fopen(path, "wb");
+    if (file && sample.contents)
+    {
+        sample.contents[0x008] = 'X';   /* save-file.md: magic text at 0x008 */
+        fwrite(sample.contents, 1, (size_t)sample.size, file);
+    }
+    if (file) fclose(file);
+    engine_load_result bad_magic = api->load_save(e, "load_save_test_bad_magic.tmp");
+    TEST_CHECK(counts, bad_magic.status == ENGINE_LOAD_BAD_SAVE && strcmp(bad_magic.detail, "not a save") == 0,
+               "a file of save size with a wrong magic text is not a save");
+    remove(path);
+    test_arena_destroy(&copy_arena);
+
     TEST_CHECK(counts, api->officer_count(e) == 0 && api->ledger_count(e) == 0 && api->entities_alive(e) == 0,
                "a refused load changes nothing");
 

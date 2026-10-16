@@ -231,7 +231,7 @@ engine_api_load_save(void *opaque, const char *path)
     if (!file.contents)
     {
         result.status = ENGINE_LOAD_FILE_NOT_FOUND;
-        result.detail = "file not found";
+        result.detail = "file not found or larger than the scratch arena";
         return result;
     }
     save_file save;
@@ -246,7 +246,12 @@ engine_api_load_save(void *opaque, const char *path)
 
     sim_event_sink sink = sim_sink_from_arena(&e->scratch, ENGINE_SINK_CAPACITY);
     sim_command command = sim_make_command(e->sim, SIM_COMMAND_LOAD_SAVE);
-    sim_load_save(e->sim, &save, command, &sink);
+    if (!sim_load_save(e->sim, &save, command, &sink))
+    {
+        result.status = ENGINE_LOAD_BAD_SAVE;
+        result.detail = "the save has more officers or cities than the game can hold";
+        return result;
+    }
     engine_ledger_append(e, &sink);
     result.status     = ENGINE_LOAD_OK;
     result.command_id = command.id;

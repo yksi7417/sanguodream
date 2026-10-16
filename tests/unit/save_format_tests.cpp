@@ -336,6 +336,10 @@ unit_save_load_tests(test_counts *counts)
     u64 record_bytes = 1100 * sizeof(officer_record) + 42 * sizeof(city_record) + 50 * sizeof(item_record);
     TEST_CHECK(counts, arena.used - before_second_load < record_bytes + 64, "a load keeps the records, not the payload");
 
+    memory_arena small = arena_sub(&arena, Megabytes(1));
+    TEST_CHECK(counts, save_load(&small, file, file_size, &save).status == SAVE_LOAD_OUT_OF_MEMORY && small.used == 0,
+               "an arena without room for the payload is refused before any push");
+
     TEST_CHECK(counts, strcmp(save_load_status_name(SAVE_LOAD_NOT_A_SAVE), "not a save") == 0, "load status name");
     test_arena_destroy(&arena);
 }

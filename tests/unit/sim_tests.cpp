@@ -59,8 +59,17 @@ unit_sim_load_save_tests(test_counts *counts)
     sim_load_save(sim, &save, sim_make_command(sim, SIM_COMMAND_LOAD_SAVE), &sink);
     TEST_CHECK(counts, sim->officers.count == 2 && sim->entities.alive_count == 4, "a second load replaces the first");
 
+    u32 other_entities = 0;
+    while (em_create(&sim->entities) != ENTITY_NULL) other_entities++;   /* other systems hold every free entity */
+    u32 events_before = sink.count;
+    officers[2].family_name[0] = 0xB1;
+    TEST_CHECK(counts, !sim_load_save(sim, &save, sim_make_command(sim, SIM_COMMAND_LOAD_SAVE), &sink),
+               "a load that needs more entities than are free is refused");
+    TEST_CHECK(counts, sim->officers.count == 2 && sim->cities.count == 2 && sink.count == events_before,
+               "a refused load keeps the old world and emits nothing");
+
     sim_unload_world(sim);
-    TEST_CHECK(counts, sim->officers.count == 0 && sim->cities.count == 0 && sim->entities.alive_count == 0,
+    TEST_CHECK(counts, sim->officers.count == 0 && sim->cities.count == 0 && sim->entities.alive_count == other_entities,
                "unload destroys every officer and city entity");
     TEST_CHECK(counts, strcmp(sim_event_name(SIM_EVENT_SAVE_LOADED), "save_loaded") == 0 &&
                        strcmp(sim_command_name(SIM_COMMAND_LOAD_SAVE), "load_save") == 0, "load names");

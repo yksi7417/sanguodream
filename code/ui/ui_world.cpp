@@ -49,7 +49,7 @@ ui_draw_officer_row(engine_officer *officer)
     ImGui::TableNextColumn(); ImGui::Text("%u/%u/%u/%u/%u", officer->leadership, officer->war, officer->intelligence,
                                           officer->politics, officer->charm);
     ImGui::TableNextColumn(); ImGui::Text("%u-%u", officer->birth_year, officer->death_year);
-    ImGui::TableNextColumn(); ui_text_id(officer->merit, UI_NO_ID_16);
+    ImGui::TableNextColumn(); ImGui::Text("%u", officer->merit);   /* 0xFFFF for templates */
 }
 
 internal void
