@@ -1,17 +1,18 @@
 # hexdom roadmap
 
-A layered, data-driven grand-strategy engine. The first content pack is the
-Three Kingdoms setting specified by the analysis repo; the mechanics are
-written so that a Civil War, Second World War or modern-conflict pack is a
-different set of tables and a few plug-in rule functions, not a rewrite.
+This document says what the project builds, in what order, and why. The
+hexdom engine is a layered, data-driven grand-strategy engine. The first
+content pack is the Three Kingdoms setting that the analysis repo specifies.
+The mechanics are generic. A Civil War, Second World War or modern-conflict
+pack is a different set of tables and a few plug-in rule functions. It is
+not a rewrite.
 
-Read docs/tutorials/00-reading-order.md to follow the code; this file says
-what gets built, in what order, and why.
+Read docs/tutorials/00-reading-order.md to follow the code.
 
 ## 1. The layers
 
-Each layer only knows the layers below it. Tests live at the layer they test
-(see .claude/rules/testing-pyramid.md).
+Each layer knows only the layers below it. Tests live at the layer that they
+test (see .claude/rules/testing-pyramid.md).
 
 | Layer | Module | What it is | Status |
 |---|---|---|---|
@@ -27,16 +28,17 @@ Each layer only knows the layers below it. Tests live at the layer they test
 | L9 Content | data/<pack>/ | tables that make it a particular game | not started |
 
 The rule for every layer from L4 up: a mechanic is a pure function of
-sim_state and a command, parameterised by tables from the content pack, that
-emits events. No mechanic reads a hard-coded number; numbers live in tables.
+sim_state and a command. Tables from the content pack parameterise the
+mechanic, and the mechanic emits events. No mechanic reads a hard-coded
+number. Numbers live in tables.
 
 ## 2. What makes it pluggable
 
 ### 2.1 Content packs (data, not code)
-A pack is a folder of tables the engine loads at start. The San11 pack is
-generated from spec-src/spec (field tables and formulas); other packs are
-hand-written. Every table is a flat TSV with a header row, so the same
-loader and the same fixture format serve both tests and content.
+A pack is a folder of tables that the engine loads at start. A generator
+writes the San11 pack from spec-src/spec (field tables and formulas). People
+write the other packs by hand. Every table is a flat TSV with a header row,
+so the same loader and the same fixture format serve both tests and content.
 
 | Table | Rows describe | Three Kingdoms | Civil War (1861) | WW2 (1939) |
 |---|---|---|---|---|
@@ -53,9 +55,9 @@ loader and the same fixture format serve both tests and content.
 | text.tsv | every player-facing string by id | zh/en | en | en |
 
 ### 2.2 Rule hooks (the few things data cannot express)
-Some formulas differ in shape between settings, not just in constants. Those
-are function pointers in a `ruleset` struct, one per pack, defaulting to the
-generic rule:
+Some formulas differ in shape between settings, not only in constants.
+Those formulas are function pointers in a `ruleset` struct, one struct per
+pack. Each pointer defaults to the generic rule:
 
 - development_gain(facility, builder character, gold, season)
 - harvest(settlement, season)
@@ -66,27 +68,38 @@ generic rule:
 - ai_priority(faction, candidate command)
 
 A pack ships its ruleset in C++ (code/sim/rules_<pack>.cpp) and nowhere
-else; everything else about the pack is tables. The San11 ruleset is written
-from spec-src/spec/mechanics with the fixtures as its acceptance tests.
+else. Everything else in the pack is tables. The clean room writes the San11
+ruleset from spec-src/spec/mechanics, with the fixtures as its acceptance
+tests.
 
 ### 2.3 What stays generic
-Turn order, the command and event pipeline, the ledger, hex geometry,
-pathfinding, zones of control, the ECS, saves, the AI planner skeleton and
-every panel of the UI. A new pack never touches these.
+These parts stay generic, and a new pack never touches them:
+- turn order
+- the command and event pipeline
+- the ledger
+- hex geometry
+- pathfinding
+- zones of control
+- the ECS
+- saves
+- the AI planner skeleton
+- every panel of the UI
 
 ### 2.4 What a very different setting still needs
-A modern asymmetric conflict (insurgency, population support, air power,
-logistics over roads) needs mechanics the Three Kingdoms pack does not:
-population attitude per region, non-territorial units, air and sea layers.
-The layer model allows adding them as new L4-L6 modules with their own
-tables; the point of the ruleset and table split is that adding them does
-not disturb the existing packs.
+A modern asymmetric conflict has insurgency, population support, air power
+and logistics over roads. It needs mechanics that the Three Kingdoms pack
+does not have: population attitude per region, non-territorial units, and
+air and sea layers. The layer model lets you add them as new L4-L6 modules
+with their own tables. The split between the ruleset and the tables has one
+purpose: the new modules do not disturb the packs that exist.
 
 ## 3. Milestones
 
-Each milestone names the spec input it needs from the analysis side, the
-engine_api additions, the tests at each layer, and what you can see in the
-UI when it is done.
+Each milestone names four things:
+- the spec input it needs from the analysis side
+- the engine_api additions
+- the tests at each layer
+- what you can see in the UI at the end of the milestone
 
 ### M0 Skeleton (done)
 Window, hot-reloaded DLL, deterministic sim core with ledger, ECS, hex map
@@ -94,64 +107,71 @@ with A*, engine_api, test pyramid with imgui_test_engine. Tutorials 01-08.
 
 ### M1 Formats and the first mechanic (deck Milestone 1)
 Spec input: spec/formats/save-file.md, scenario-file.md; mechanics/farm-development.md with fixtures.
-- Engine: TSV table loader (code/sim/tables.h) used by both content packs and fixtures; save/scenario loader written from the field tables; settlements and characters as components; `develop` command.
+- Engine:
+  - a TSV table loader (code/sim/tables.h) that both content packs and fixtures use
+  - a save/scenario loader written from the field tables
+  - settlements and characters as components
+  - the `develop` command
 - API: settlement queries (name, owner, resources, facility levels), character queries, `command_develop(settlement, facility, character, gold)`.
-- Tests: unit (table parser), feature (fixture rows for farm development pass through the api; loader dumps the sample save to the same JSON the analysis dump script produces), ui (settlement panel issues exactly one develop command per click).
+- Tests:
+  - unit: the table parser
+  - feature: fixture rows for farm development pass through the api. The loader dumps the sample save to the same JSON that the analysis dump script produces.
+  - ui: the settlement panel issues exactly one develop command per click
 - UI: settlement inspector, character list, develop dialog.
 - Exit: Milestone 1 items 3, 5 and 7 of the playbook.
 
 ### M2 Turn structure and the command budget
 Spec input: mechanics/turn-structure.md (phases, action points, who acts when).
-- Engine: phase order as data (TurnScheduler), per-faction action budget, command validation (who may issue what, when), AI phase placeholder that passes.
+- Engine: phase order as data (TurnScheduler), a per-faction action budget, command validation (who can issue what, and when), and an AI phase placeholder that passes.
 - API: `whose_turn`, `actions_left`, `can_issue(command)`, `end_phase`.
-- Tests: feature tests for every refusal reason; ui test that disabled buttons issue nothing.
+- Tests: feature tests for every refusal reason; a ui test that disabled buttons issue nothing.
 
 ### M3 Economy
 Spec input: mechanics/{market,upkeep,tax,harvest}.md with a 12-month trace.
-- Engine: Production system over facilities.tsv yields and resources.tsv decay; the ledger explains every number.
-- Tests: fixture trace of one untouched city for 12 months matches within tolerance; ui ledger filter test.
-- UI: ledger filters by settlement and resource; economy summary panel.
+- Engine: a Production system over the facilities.tsv yields and the resources.tsv decay; the ledger explains every number.
+- Tests: the fixture trace of one untouched city for 12 months matches within tolerance; a ui ledger filter test.
+- UI: ledger filters by settlement and resource; an economy summary panel.
 
 ### M4 Recruitment and training
 Spec input: mechanics/{recruit,train,conscript}.md.
 - Engine: unit_types.tsv, troops as a resource with quality; training as a facility yield.
-- Tests: fixtures; feature test that recruitment respects facility capacity.
+- Tests: fixtures; a feature test that recruitment respects facility capacity.
 
 ### M5 Movement and the map proper
-Spec input: formats/map.md (terrain per cell, roads, rivers), mechanics/movement.md (costs per movement class, ZOC, stacking).
-- Engine: terrain.tsv drives hex_map costs per movement class; units as entities with position; `move` command with path validation; zones of control.
+Spec input: formats/map.md (terrain per cell, roads, rivers), mechanics/movement.md (costs per movement class, ZOC, stack rules).
+- Engine: terrain.tsv drives the hex_map costs per movement class; units as entities with a position; the `move` command with path validation; zones of control.
 - API: `unit_at`, `reachable_cells(unit)`, `command_move(unit, to)`.
-- Tests: unit (ZOC geometry), feature (fixtures for move costs), ui (map click sends one move command with the picked path).
-- UI: units on the map, movement range overlay.
+- Tests: unit (ZOC geometry), feature (fixtures for move costs), ui (a map click sends one move command with the picked path).
+- UI: units on the map, a movement range overlay.
 
 ### M6 Combat and siege
 Spec input: mechanics/{combat,tactics,morale,siege}.md with many fixture rows.
-- Engine: combat_damage rule hook, morale, siege as facility damage; the San11 ruleset.
-- Tests: fixtures dominate here; property tests (damage never negative, dead units leave the map).
+- Engine: the combat_damage rule hook, morale, siege as facility damage; the San11 ruleset.
+- Tests: fixtures dominate here; property tests (damage is never negative, dead units leave the map).
 
 ### M7 Characters and politics
 Spec input: mechanics/{loyalty,recruit-officer,diplomacy,debate,duel}.md.
-- Engine: loyalty_drift hook, diplomacy as proposals with acceptance rules, debate and duel as mini-games over character stats.
+- Engine: the loyalty_drift hook, diplomacy as proposals with acceptance rules, debate and duel as mini-games over character stats.
 
 ### M8 Technology, events, AI
 Spec input: mechanics/{tech-tree,events,ai-phase-order}.md.
-- Engine: tech.tsv unlocks; events.tsv triggers; AI planner using ai_priority over the same commands the player has.
-- Tests: AI feature tests are "given this state, the AI issues a command of kind X"; never pixel or timing based.
+- Engine: tech.tsv unlocks; events.tsv triggers; an AI planner that uses ai_priority over the same commands that the player has.
+- Tests: AI feature tests are "given this state, the AI issues a command of kind X"; never pixel-based or time-based.
 
 ### M9 Playable
-Game UI on top of the debug panels (text.tsv, portraits and music from the
-player's own install at runtime, never in the repo), save/load of the
-engine's own format, a second content pack (Civil War) as the proof that
-the mechanics are generic.
+This milestone has three parts:
+- a game UI on top of the debug panels (text.tsv, with portraits and music from the player's own install at runtime, never in the repo)
+- save and load of the engine's own format
+- a second content pack (Civil War) as the proof that the mechanics are generic
 
 ## 4. Playability
 The analysis repo's spec/knowledge/playability.md (mined from the video
-series) feeds this list; it is what the UI and the AI are measured against,
-not a rule set:
+series) feeds this list. This list is the measure of the UI and the AI, not
+a rule set:
 - The map is the game: everything a player decides is visible on the hex map
-  (unit ranges, supply, threats) without opening a menu.
+  (unit ranges, supply, threats) without a menu.
 - Every number has a cause: the ledger is the player's accountant.
-- Officers are the hook: assigning the right person to the right job must be
-  the dominant decision, so the character panel is first-class.
+- Officers are the hook: the dominant decision must be to put the right
+  person in the right job, so the character panel is first-class.
 - The AI must play by the same commands, so a "why did the AI do that" view
   shows its ai_priority scores.
