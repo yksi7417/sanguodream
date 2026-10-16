@@ -35,16 +35,21 @@ decompilation of it.
 
 ## Build and run
 - build.bat         builds build\hexdom.dll, build\win32_hexdom.exe, the
-                    three test exes and build\save_dump.exe (calls vcvars64
-                    itself)
+                    three test exes, build\demo_player.exe,
+                    build\gif_encode.exe and build\save_dump.exe (calls
+                    vcvars64 itself)
 - build.bat dll     rebuilds only the DLL, for hot reload while the window
                     is open (you cannot relink the exe while it runs)
 - run_tests.bat     unit_tests.exe -> feature_tests.exe -> ui_tests.exe,
                     stops at the first layer that fails; --e2e adds the
-                    window smoke run
+                    window smoke run. With --demo, it runs only the
+                    demo walkthroughs and records them to build\demos
 - build\feature_tests.exe [fixtures-dir]   default spec-src\spec\fixtures
 - build\ui_tests.exe [filter]              for example "ui", "e2e",
                                            "ui/advance"
+- build\demo_player.exe [test-name] [--list] [--no-ffmpeg]   plays the
+                    "demo" tests at cinematic speed and records an MP4
+                    (ffmpeg) or a GIF and a PNG of each panel
 - build\save_dump.exe <file.s11> [--all-slots] [--utf8-names]
                     [--name-index <Scenario.s11>]   prints a save as JSON
                     with the clean-room loader; with --name-index, each
@@ -59,6 +64,8 @@ decompilation of it.
 - code/hexdom.cpp        game DLL, unity build of ecs/ sim/ engine/ ui/
 - code/win32_hexdom.cpp  platform layer: window, D3D11, ImGui backends,
                          memory block, hot reload
+- code/win32_window.h    the window and the D3D11 swap chain, for
+                         win32_hexdom.exe and demo_player.exe
 - code/ecs/              sparse-set component tables
 - code/sim/              headless simulation core (rules)
 - code/engine/           the backend: owns the sim and the event ledger,
@@ -68,10 +75,13 @@ decompilation of it.
 - tests/test_files.h     file reads and fixture paths for the test exes
                          and save_dump
 - misc/save_dump.cpp     the save_dump tool; misc/ste_check.py checks STE
+- misc/gif_encode.cpp    the GIF encoder of demo_player.exe without ffmpeg
 - tests/unit/            per-module unit tests
 - tests/feature/         engine_api behaviour tests and the fixture runner
 - tests/ui/              imgui_test_engine tests, engine_recorder.h double,
                          hexdom_te_imconfig.h (test-only ImGui config)
+- tests/demo/            demo_player.cpp and demo_tests.cpp: one recorded
+                         walkthrough for each milestone
 - third_party/imgui      Dear ImGui (submodule, pinned)
 - third_party/imgui_test_engine   Dear ImGui Test Engine (submodule, pinned;
                          free license for individuals, check before any

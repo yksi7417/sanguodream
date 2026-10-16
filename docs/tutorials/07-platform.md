@@ -1,6 +1,7 @@
 # 07 Platform: window, memory block, hot reload
 
-Files: code/win32_hexdom.cpp, code/hexdom.h, code/hexdom.cpp. Test:
+Files: code/win32_hexdom.cpp, code/win32_window.h, code/hexdom.h,
+code/hexdom.cpp. Test:
 `run_tests.bat --e2e` (window smoke run) and the hot-reload loop by hand.
 
 ## What it is for
@@ -9,6 +10,10 @@ code that talks to Windows and the GPU. It creates the window and a D3D11
 device, owns the ImGui context and backends, allocates one memory block,
 and loads the game DLL. Every frame it calls one exported function,
 `GameUpdateAndRender`, and renders what ImGui produced.
+
+The window, the D3D11 device and the swap chain are in code/win32_window.h.
+demo_player.exe includes the same file (tutorial 10), so the demo window
+and the game window use the same code.
 
 ## The DLL contract (hexdom.h)
 - `game_memory`: permanent and transient blocks plus `platform_api`, a
@@ -49,7 +54,9 @@ human to close the window. `run_tests.bat --e2e` greps the log for
 "clean exit".
 
 ## Exercises
-- Add a `--screenshot file.png` option that reads the back buffer of the
-  swap chain (keep the encoder out of the DLL).
+- Add a `--screenshot file.png` option. `win32_read_back_buffer` in
+  code/win32_window.h reads the back buffer of the swap chain. Keep the PNG
+  encoder out of the DLL. Tutorial 10 shows how demo_player.exe uses the
+  same function.
 - Record `dt_seconds` into a ring buffer in `game_state` and draw a frame
   time graph in the Memory panel.

@@ -20,9 +20,10 @@ run_tests.bat --e2e
 | 04 | Sim core: turns, commands, events, PRNG | code/sim/sim.h, sim.cpp | tests/unit/sim_tests.cpp |
 | 05 | Engine and engine_api: the line | code/engine/ | tests/feature/engine_tests.cpp |
 | 06 | UI: panels that only call the api | code/ui/ | tests/ui/ui_tests.cpp |
-| 07 | Platform: window, memory block, hot reload | code/win32_hexdom.cpp, code/hexdom.cpp | run_tests.bat --e2e |
+| 07 | Platform: window, memory block, hot reload | code/win32_hexdom.cpp, code/win32_window.h, code/hexdom.cpp | run_tests.bat --e2e |
 | 08 | Adding a mechanic: the TDD loop end to end | tests/feature/fixture_tests.cpp | spec fixtures |
 | 09 | Save loader: from a .s11 file to officers and cities | code/sim/inflate.h, save_format, scenario_format | tests/unit/inflate_tests.cpp, save_format_tests.cpp, tests/feature/load_save_tests.cpp |
+| 10 | Demo recorder: one recorded walkthrough for each milestone | tests/demo/demo_player.cpp, code/win32_window.h, misc/gif_encode.cpp | tests/demo/demo_tests.cpp, run_tests.bat --demo |
 
 You will see these conventions everywhere:
 - `internal` means `static`: the function is private to its translation
