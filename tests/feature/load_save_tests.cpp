@@ -216,7 +216,7 @@ feature_load_save_tests(test_counts *counts)
 
     engine_load_result loaded = api->load_save(e, SAMPLE_SAVE_RELATIVE_PATH);
     TEST_CHECK(counts, loaded.status == ENGINE_LOAD_OK && loaded.command_id != 0, "sample.s11 loads through the api");
-    TEST_CHECK(counts, api->ledger_count(e) == 1, "a load ledgers one event");
+    TEST_CHECK(counts, api->ledger_count(e) >= 1, "a load ledgers its event, then the start of the turn");
     sim_event event = api->ledger_at(e, 0);
     TEST_CHECK(counts, event.kind == SIM_EVENT_SAVE_LOADED && event.cause == loaded.command_id &&
                        event.delta == (s32)api->officer_count(e), "the event names its load and the officer count");

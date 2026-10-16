@@ -45,7 +45,10 @@ feature_engine_tests(test_counts *counts)
                api->ledger_at && api->memory && api->map_size && api->cell_cost && api->path_cost &&
                api->end_turn && api->advance_turns && api->ledger_clear && api->set_cell_cost &&
                api->officer_count && api->officer_at && api->city_count && api->city_at && api->load_save &&
-               api->city_name_at && api->load_name_index,
+               api->city_name_at && api->load_name_index && api->date && api->whose_turn && api->actions_left &&
+               api->faction_count && api->faction_at && api->can_issue && api->city_slots && api->facility_at &&
+               api->facility_kind_count && api->facility_kind_at && api->content_status && api->command_develop &&
+               api->set_faction_human && api->set_city_owner && api->set_city_gold && api->set_actions && api->place_unit,
                "api table is complete");
 
     /* The map through the api. */
@@ -96,14 +99,19 @@ feature_engine_tests(test_counts *counts)
     TEST_CHECK(counts, ev.kind == SIM_EVENT_TURN_ADVANCED && ev.turn == 1 && ev.cause == command_id,
                "ledgered event names its cause");
 
-    u32 emitted = api->advance_turns(e, 12);
-    TEST_CHECK(counts, api->turn(e) == 13, "advance_turns(12) reaches turn 13");
-    TEST_CHECK(counts, emitted == 12 && api->ledger_count(e) == 13, "advance_turns reports and ledgers every event");
+    /* Turns 2 to 4 cross the start of February: the month start and its
+       bandit hook are two more events (calendar-and-turn.md). */
+    u32 emitted = api->advance_turns(e, 3);
+    TEST_CHECK(counts, api->turn(e) == 4, "advance_turns(3) reaches turn 4");
+    TEST_CHECK(counts, emitted == 5 && api->ledger_count(e) == 6, "advance_turns reports and ledgers every event");
+    u32 turn_events = 0;
+    for (u32 i = 0; i < api->ledger_count(e); ++i) if (api->ledger_at(e, i).kind == SIM_EVENT_TURN_ADVANCED) turn_events++;
+    TEST_CHECK(counts, turn_events == 4, "one turn_advanced event for each turn");
 
     sim_event out_of_range = api->ledger_at(e, 999);
     TEST_CHECK(counts, out_of_range.kind == SIM_EVENT_NONE, "ledger_at out of range is the none event");
 
-    api->advance_turns(e, 10);
+    api->advance_turns(e, 19);
     TEST_CHECK(counts, api->ledger_count(e) == 16, "ledger stops at its capacity");
     TEST_CHECK(counts, api->turn(e) == 23, "turns keep advancing when the ledger is full");
 

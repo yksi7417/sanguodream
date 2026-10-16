@@ -57,6 +57,8 @@ struct engine_officer
     u16 father;
     u16 spouse;
     u16 sworn_brother_group_head;   /* 0xFFFF = none */
+    u8  job_city;                   /* the city of a develop job; ENGINE_NO_CITY if free */
+    b32 acted;                      /* the officer gave a command in this turn */
 };
 
 /* A city of the loaded game, as a front end sees it. */
@@ -82,8 +84,117 @@ struct engine_city_name
     u8 name[NAME_INDEX_CITY_NAME_SIZE];
 };
 
-#define ENGINE_NO_OFFICER 0xFFFF
-#define ENGINE_NO_CITY    0xFF
+#define ENGINE_NO_OFFICER  0xFFFF
+#define ENGINE_NO_CITY     0xFF
+#define ENGINE_NO_FACTION  0xFF
+#define ENGINE_NO_FACILITY 0xFF
+#define ENGINE_ANY_SLOT    0xFF
+#define ENGINE_NO_UNIT     U32_MAX
+
+/* The date of the game (calendar-and-turn.md). */
+struct engine_date
+{
+    u16 year;
+    u8  month;              /* 1..12 */
+    u8  day;                /* 1, 11 or 21: the first day of the turn */
+    u8  season;             /* calendar_season: 0 spring, 1 summer, 2 autumn, 3 winter */
+    s64 days_since_start;   /* from the start date of the game or of the loaded save */
+};
+
+/* A faction in the order of this turn. */
+struct engine_faction
+{
+    u8  force_id;           /* ENGINE_NO_FACTION for an index out of range */
+    u16 city_count;
+    u16 officer_count;      /* active officers */
+    u32 troops;
+    u16 leader_officer_id;  /* the leader of corps 1: the ruler */
+    u32 action_points;
+    b32 human;              /* a player gives its commands; else the AI placeholder passes */
+    b32 acted;              /* it pressed "proceed" (or passed) in this turn */
+};
+
+/* A command that a front end can check before it issues it. */
+enum engine_command_kind
+{
+    ENGINE_COMMAND_DEVELOP,
+    ENGINE_COMMAND_KIND_COUNT
+};
+
+struct engine_command
+{
+    engine_command_kind kind;
+    u8  city_id;
+    u8  facility;                           /* ENGINE_COMMAND_DEVELOP */
+    u8  slot;                               /* ENGINE_ANY_SLOT: the first free slot */
+    u16 officers[SIM_DEVELOP_OFFICERS];     /* ENGINE_NO_OFFICER for an empty place */
+};
+
+/* The answer of can_issue: the refusal reason, or SIM_REFUSAL_NONE with
+   the cost and the period. */
+typedef sim_check engine_check;
+
+struct engine_command_result
+{
+    sim_refusal refusal;
+    u32         command_id;    /* 0 when the command was refused; the game is then unchanged */
+};
+
+/* The development area of a city. */
+struct engine_city_slots
+{
+    u8  city_id;            /* ENGINE_NO_CITY if the city is not loaded */
+    u8  slot_count;
+    u8  used;               /* slots with a facility, built or under construction */
+    u8  specialty;          /* city_specialty */
+    b32 has_port;
+    s32 q, r;               /* the city on the placeholder map */
+    u32 gold_income;        /* expected gold next month */
+    u32 grain_income;       /* expected grain next season */
+    u16 governor_id;        /* the governor by the selection rule; ENGINE_NO_OFFICER if none */
+};
+
+/* One slot of a city. */
+struct engine_facility
+{
+    u8  city_id;            /* ENGINE_NO_CITY for a slot out of range */
+    u8  slot;
+    u8  state;              /* sim_slot_state */
+    u8  facility;           /* ENGINE_NO_FACILITY for an empty slot */
+    u8  level;
+    u16 turns_left;         /* while building */
+    s32 q, r;               /* the slot on the placeholder map */
+    u32 yield;              /* gold each month or grain each season, with the adjacency bonus */
+    u8  yield_effect;       /* facility_effect of the yield */
+    u16 officers[SIM_DEVELOP_OFFICERS];
+};
+
+/* One row of the facility table of the content pack. */
+struct engine_facility_kind
+{
+    u8   id;                /* ENGINE_NO_FACILITY for an index out of range */
+    char key[CONTENT_KEY_SIZE];   /* the text id is "facility.<key>" */
+    u32  cost;
+    u32  durability;
+    u32  min_days;
+    u8   effect;            /* facility_effect */
+    u32  value;
+    u8   limit;             /* facility_limit */
+    b32  pk;
+    b32  needs_item;
+    b32  value_assumed;
+    b32  period_assumed;
+};
+
+/* The tables of the content pack that the engine loaded at start. */
+struct engine_content_status
+{
+    b32         loaded;           /* all three tables loaded */
+    u32         facility_count;
+    u32         city_count;
+    u32         rule_count;
+    const char *detail;           /* a static string: the file that did not load, or "ok" */
+};
 
 enum engine_load_status
 {
@@ -131,6 +242,17 @@ typedef u32                 engine_city_count_fn(void *engine);
 typedef engine_city         engine_city_at_fn(void *engine, u32 index);      /* index < city_count */
 typedef engine_city_name    engine_city_name_at_fn(void *engine, u32 index); /* index = city id 0..41 */
 typedef engine_terrain_view engine_terrain_view_fn(void *engine);
+typedef engine_date         engine_date_fn(void *engine);
+typedef u8                  engine_whose_turn_fn(void *engine);                /* ENGINE_NO_FACTION if every faction acted */
+typedef u32                 engine_actions_left_fn(void *engine, u8 force_id); /* the action points of the corps */
+typedef u32                 engine_faction_count_fn(void *engine);             /* factions in the order of this turn */
+typedef engine_faction      engine_faction_at_fn(void *engine, u32 index);     /* index 0 acts first */
+typedef engine_check        engine_can_issue_fn(void *engine, const engine_command *command);
+typedef engine_city_slots   engine_city_slots_fn(void *engine, u8 city_id);
+typedef engine_facility     engine_facility_at_fn(void *engine, u8 city_id, u8 slot);
+typedef u32                 engine_facility_kind_count_fn(void *engine);
+typedef engine_facility_kind engine_facility_kind_at_fn(void *engine, u32 index);
+typedef engine_content_status engine_content_status_fn(void *engine);
 /* Commands */
 typedef u32                 engine_end_turn_fn(void *engine);                 /* returns the command id */
 typedef u32                 engine_advance_turns_fn(void *engine, u32 count); /* returns events emitted */
@@ -144,6 +266,18 @@ typedef engine_load_result  engine_load_save_fn(void *engine, const char *path);
    officers and cities do not change. A relative path is relative to the
    folder of the executable. */
 typedef engine_load_result  engine_load_name_index_fn(void *engine, const char *path);
+/* 開發: officers develop a facility in a slot of the city. A refused
+   command changes nothing and ledgers nothing. */
+typedef engine_command_result engine_command_develop_fn(void *engine, u8 city_id, u8 facility,
+                                                        const u16 officers[SIM_DEVELOP_OFFICERS], u8 slot);
+/* Setup and editor commands (F-134). They ledger nothing. */
+typedef void                engine_set_faction_human_fn(void *engine, u8 force_id, b32 human);
+typedef void                engine_set_city_owner_fn(void *engine, u8 city_id, u8 force_id);   /* the order changes at the next turn */
+typedef void                engine_set_city_gold_fn(void *engine, u8 city_id, u32 gold);
+typedef void                engine_set_actions_fn(void *engine, u8 force_id, u32 action_points);
+/* A placeholder unit until M5: it only blocks the commands of enemy
+   cities within 2 hexes. Returns ENGINE_NO_UNIT if there is no room. */
+typedef u32                 engine_place_unit_fn(void *engine, u8 force_id, s32 q, s32 r);
 
 struct engine_api
 {
@@ -170,6 +304,24 @@ struct engine_api
     engine_set_cell_terrain_fn *set_cell_terrain;
     engine_load_save_fn       *load_save;
     engine_load_name_index_fn *load_name_index;
+    /* M1 develop and M2 turns */
+    engine_date_fn            *date;
+    engine_whose_turn_fn      *whose_turn;
+    engine_actions_left_fn    *actions_left;
+    engine_faction_count_fn   *faction_count;
+    engine_faction_at_fn      *faction_at;
+    engine_can_issue_fn       *can_issue;
+    engine_city_slots_fn      *city_slots;
+    engine_facility_at_fn     *facility_at;
+    engine_facility_kind_count_fn *facility_kind_count;
+    engine_facility_kind_at_fn    *facility_kind_at;
+    engine_content_status_fn  *content_status;
+    engine_command_develop_fn *command_develop;
+    engine_set_faction_human_fn *set_faction_human;
+    engine_set_city_owner_fn  *set_city_owner;
+    engine_set_city_gold_fn   *set_city_gold;
+    engine_set_actions_fn     *set_actions;
+    engine_place_unit_fn      *place_unit;
 };
 
 /* The real engine lives in code/engine/engine.cpp. */
@@ -182,6 +334,7 @@ struct engine_config
     u32 map_height;
     u8  map_default_cost;
     platform_read_entire_file *read_entire_file;   /* zero: the load commands refuse with ENGINE_LOAD_NO_FILE_READER */
+    const char *content_folder;   /* the folder of facilities.tsv, cities.tsv and rules.tsv; relative to the executable */
 };
 internal engine_config engine_default_config(void);
 internal engine    *engine_create(memory_arena *permanent, memory_arena *transient, engine_config config);
