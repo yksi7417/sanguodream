@@ -11,7 +11,12 @@
    A scenario officer record is the save's officer record cut at +152, so it
    uses officer_decode_shared. A scenario city record is save bytes +3..+83
    with its own offsets below. The province table of the name index is not
-   decoded: its layout is not in the spec yet (QUESTIONS.md, Q-015). */
+   decoded: its layout is not in the spec yet (QUESTIONS.md, Q-015).
+
+   The province index and the adjacency list of a name-index city are
+   unknown. The decoder reads them at the offsets of the spec table, but
+   the examples of the spec do not agree with those offsets on the real
+   Scenario.s11 (Q-017). Nothing in the game uses these two fields. */
 
 #include "base.h"
 #include "sim/save_format.h"
@@ -110,8 +115,8 @@ struct name_index_city
 {
     u8  id;
     u8  name[NAME_INDEX_CITY_NAME_SIZE];   /* Big5 up to the NUL; the bytes after it are zero */
-    u8  province_index;
-    u8  adjacent_city_ids[NAME_INDEX_ADJACENT_MAX];
+    u8  province_index;                              /* unknown (Q-017) */
+    u8  adjacent_city_ids[NAME_INDEX_ADJACENT_MAX];  /* unknown (Q-017) */
     u32 adjacent_count;
 };
 
