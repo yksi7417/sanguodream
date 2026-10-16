@@ -8,6 +8,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+#undef Yield    /* winbase.h defines an empty Yield() macro; the ImGui test context has a Yield method */
 #include "base.h"
 #include "hexdom.h"
 

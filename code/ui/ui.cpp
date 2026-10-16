@@ -6,6 +6,7 @@
 #include "ui/ui.h"
 
 #include "ui/ui_map.cpp"
+#include "ui/ui_world.cpp"
 
 internal void
 ui_init(ui_state *ui)
@@ -15,6 +16,9 @@ ui_init(ui_state *ui)
     ui->show_ledger = true;
     ui->show_memory = false;
     ui->show_map    = true;
+    ui->show_officers = true;
+    ui->show_cities   = true;
+    ui->load_message[0] = 0;
     ui_map_init(ui);
 }
 
@@ -38,6 +42,8 @@ ui_draw_menu_bar(ui_state *ui, engine_api *api, ui_frame_info *frame)
         {
             ImGui::MenuItem("Simulation", 0, &ui->show_sim);
             ImGui::MenuItem("Hex map", 0, &ui->show_map);
+            ImGui::MenuItem("Officers", 0, &ui->show_officers);
+            ImGui::MenuItem("Cities", 0, &ui->show_cities);
             ImGui::MenuItem("Event ledger", 0, &ui->show_ledger);
             ImGui::MenuItem("Memory", 0, &ui->show_memory);
             ImGui::Separator();
@@ -72,6 +78,7 @@ ui_draw_simulation(ui_state *ui, engine_api *api)
         {
             api->advance_turns(api->engine, 12);
         }
+        ui_draw_load_sample_save(ui, api);
         ImGui::Spacing();
         ImGui::TextWrapped("Mechanics implemented: none yet. Each lands from "
                            "spec-src/spec/mechanics/ with its fixture rows passing in feature_tests.exe.");
@@ -148,6 +155,8 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->show_demo)   ImGui::ShowDemoWindow(&ui->show_demo);
     if (ui->show_sim)    ui_draw_simulation(ui, api);
     if (ui->show_map)    ui_draw_map(ui, api);
+    if (ui->show_officers) ui_draw_officers(ui, api);
+    if (ui->show_cities) ui_draw_cities(ui, api);
     if (ui->show_ledger) ui_draw_ledger(ui, api);
     if (ui->show_memory) ui_draw_memory(ui, api, frame);
 }

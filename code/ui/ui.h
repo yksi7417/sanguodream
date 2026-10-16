@@ -15,6 +15,9 @@ struct ui_state
     bool show_ledger;
     bool show_memory;
     bool show_map;
+    bool show_officers;
+    bool show_cities;
+    char load_message[96];   /* result of the last "Load sample save" click */
     struct
     {
         bool      has_from;

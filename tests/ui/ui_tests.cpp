@@ -26,6 +26,7 @@
 #include "ui/ui.h"
 #include "ui/ui.cpp"
 #include "test_framework.h"
+#include "test_files.h"
 #include "engine_recorder.h"
 
 /* Per-test state. Zeroed by the test engine before each test. */
@@ -54,6 +55,7 @@ ui_test_gui(ImGuiTestContext *ctx)
             v.transient = test_arena_create(Megabytes(8));
             engine_config config = engine_default_config();
             config.ledger_capacity = 1024;
+            config.read_entire_file = test_platform_read_entire_file;
             v.backend = engine_create(&v.permanent, &v.transient, config);
             v.api     = engine_make_api(v.backend);
         }
@@ -178,6 +180,61 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
+    t = IM_REGISTER_TEST(e, "ui", "officers_panel_reads_every_row_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 5;
+        ctx->SetRef("Officers");
+        ctx->Yield(2);
+        IM_CHECK(ctx->ItemExists("officers"));                                 /* the table is drawn */
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_OFFICER_COUNT), 1u);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_OFFICER_AT), 5u);      /* one call per row */
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_OFFICER_AT), 0u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "cities_panel_reads_every_row_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.city_count = 4;
+        ctx->SetRef("Cities");
+        ctx->Yield(2);
+        IM_CHECK(ctx->ItemExists("cities"));
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_CITY_COUNT), 1u);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_CITY_AT), 4u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "load_sample_save_calls_load_save_once");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ctx->SetRef("Simulation");
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("Load sample save");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOAD_SAVE), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK_STR_EQ(v.recorder.last_load_path, UI_SAMPLE_SAVE_PATH);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_OFFICER_AT), 3u);     /* the panels show the loaded rows */
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_CITY_AT), 2u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
     t = IM_REGISTER_TEST(e, "ui", "idle_frames_command_nothing");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;
@@ -212,6 +269,23 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->ItemClick("Clear");
         ctx->Yield();
         IM_CHECK_EQ(v.api.ledger_count(v.api.engine), 0u);
+    };
+
+    t = IM_REGISTER_TEST(e, "e2e", "load_sample_save_fills_the_panels");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->VarsConstructor = [](void *vars) { ((ui_test_vars *)vars)->use_real_engine = true; };
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ctx->SetRef("Simulation");
+        IM_CHECK_EQ(v.api.officer_count(v.api.engine), 0u);
+        ctx->ItemClick("Load sample save");
+        ctx->Yield();
+        IM_CHECK_GE(v.api.officer_count(v.api.engine), 852u);
+        IM_CHECK_EQ(v.api.city_count(v.api.engine), 42u);
+        IM_CHECK_EQ(v.api.ledger_at(v.api.engine, 0).kind, SIM_EVENT_SAVE_LOADED);
+        IM_CHECK(strncmp(v.ui.load_message, "loaded", 6) == 0);
     };
 }
 
