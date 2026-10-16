@@ -57,7 +57,9 @@ static const char demo_layout_ini[] =
     "[Window][Hex map]\nPos=510,30\nSize=760,510\nCollapsed=0\n\n"
     "[Window][Memory]\nPos=510,550\nSize=420,160\nCollapsed=0\n\n"
     "[Window][###Officers]\nPos=510,30\nSize=760,400\nCollapsed=0\n\n"
-    "[Window][###Cities]\nPos=510,440\nSize=760,270\nCollapsed=0\n\n";
+    "[Window][###Cities]\nPos=510,440\nSize=760,270\nCollapsed=0\n\n"
+    "[Window][###City]\nPos=510,30\nSize=380,680\nCollapsed=0\n\n"
+    "[Window][###Develop]\nPos=900,30\nSize=370,330\nCollapsed=0\n\n";
 
 struct demo_options
 {

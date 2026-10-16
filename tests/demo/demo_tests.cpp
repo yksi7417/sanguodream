@@ -54,6 +54,8 @@ demo_gui(ImGuiTestContext *ctx)
         v.ui.show_officers = false;
         v.ui.show_cities   = false;
         v.ui.show_scene    = false;
+        v.ui.show_city     = false;
+        v.ui.show_develop  = false;
     }
     v.frame.dt_seconds  = ImGui::GetIO().DeltaTime;
     v.frame.render      = g_demo_render;
@@ -229,7 +231,12 @@ demo_m0_skeleton(ImGuiTestContext *ctx)
 
     ctx->SetRef("Event ledger");
     IM_CHECK(ctx->ItemExists("ledger"));
-    IM_CHECK_EQ(v.api.ledger_count(v.api.engine), 25u);       /* one event for each turn */
+    u32 turn_events = 0;
+    for (u32 index = 0; index < v.api.ledger_count(v.api.engine); ++index)
+    {
+        if (v.api.ledger_at(v.api.engine, index).kind == SIM_EVENT_TURN_ADVANCED) turn_events++;
+    }
+    IM_CHECK_EQ(turn_events, 25u);                            /* one turn event for each turn; the calendar adds month events */
     IM_CHECK(demo_scroll_table(ctx, "Event ledger", "ledger"));
     ctx->SleepStandard();
 
@@ -279,6 +286,97 @@ demo_m1_loader(ImGuiTestContext *ctx)
     IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Cities", "cities"));
 }
 
+/* The first city of the faction that acts with a free officer, or ENGINE_NO_CITY. */
+internal u8
+demo_city_of_player(engine_api *api)
+{
+    u8 player = api->whose_turn(api->engine);
+    for (u32 city = 0; city < api->city_count(api->engine); ++city)
+    {
+        if (api->city_at(api->engine, city).owner_force_id != player) continue;
+        u16 officer = ENGINE_NO_OFFICER;
+        if (ui_free_officers(api, (u8)city, &officer, 1)) return (u8)city;
+    }
+    return ENGINE_NO_CITY;
+}
+
+/* M2, turns and the develop command: load the sample save, open a city of
+   the player, develop a market, then advance turns until the market is
+   complete, and show the ledger. */
+internal void
+demo_m2_turns(ImGuiTestContext *ctx)
+{
+    const char *milestone = "m2_turns";
+    demo_vars &v = ctx->GetVars<demo_vars>();
+    engine_api *api = &v.api;
+    IM_CHECK(demo_begin_video(ctx, milestone));
+
+    IM_CHECK(demo_open_panel(ctx, "Simulation", &v.ui.show_sim));
+    IM_CHECK(demo_open_panel(ctx, "Event ledger", &v.ui.show_ledger));
+    ctx->SetRef("Simulation");
+    ctx->ItemClick("Load sample save");
+    ctx->ItemClick("Load city names");
+    ctx->Yield();
+    IM_CHECK_EQ(api->city_count(api->engine), 42u);
+    IM_CHECK(api->whose_turn(api->engine) != ENGINE_NO_FACTION);              /* the player's faction acts */
+    ctx->SleepStandard();
+
+    u8 city = demo_city_of_player(api);
+    IM_CHECK(city != ENGINE_NO_CITY);
+    IM_CHECK(demo_open_panel(ctx, "###City", &v.ui.show_city));
+    ctx->SetRef("###City");
+    char item[32];
+    snprintf(item, sizeof(item), "###city_select/###c%u", city);
+    ctx->ComboClick(item);
+    IM_CHECK_EQ(v.ui.city.selected, city);
+    ctx->ItemClick("###open_develop");
+    ctx->Yield();
+    IM_CHECK(v.ui.show_develop);
+
+    ctx->SetRef("###Develop");
+    ctx->ComboClick("###facility/###f0");                                    /* market */
+    ctx->Yield();
+    IM_CHECK(v.ui.develop.officers[0] != ENGINE_NO_OFFICER);
+    engine_command command = {};
+    command.kind = ENGINE_COMMAND_DEVELOP;
+    command.city_id = city; command.facility = 0; command.slot = v.ui.develop.slot;
+    for (u32 place = 0; place < SIM_DEVELOP_OFFICERS; ++place) command.officers[place] = v.ui.develop.officers[place];
+    engine_check check = api->can_issue(api->engine, &command);
+    IM_CHECK_EQ(check.refusal, SIM_REFUSAL_NONE);
+    ctx->SleepStandard();
+    ctx->ItemClick("###execute");
+    ctx->Yield();
+    engine_facility market = api->facility_at(api->engine, city, check.slot);
+    IM_CHECK(market.state == SIM_SLOT_BUILDING && market.turns_left == check.turns);
+
+    ctx->SetRef("Simulation");
+    for (u32 turn = 0; turn < check.turns; ++turn)
+    {
+        ctx->ItemClick("Advance turn");
+        ctx->Yield();
+    }
+    market = api->facility_at(api->engine, city, check.slot);
+    IM_CHECK_EQ(market.state, (u8)SIM_SLOT_BUILT);                           /* complete after the period */
+    b32 completed = false;
+    for (u32 index = 0; index < api->ledger_count(api->engine); ++index)
+    {
+        if (api->ledger_at(api->engine, index).kind == SIM_EVENT_FACILITY_COMPLETED) completed = true;
+    }
+    IM_CHECK(completed);
+    ctx->SleepStandard();
+
+    ctx->SetRef("Event ledger");
+    IM_CHECK(demo_scroll_table(ctx, "Event ledger", "ledger"));
+    ctx->SleepStandard();
+
+    IM_CHECK(demo_end_video(ctx));
+
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "Simulation", "simulation"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###City", "city"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Develop", "develop"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "Event ledger", "event_ledger"));
+}
+
 internal void
 register_demo_tests(ImGuiTestEngine *e)
 {
@@ -293,4 +391,9 @@ register_demo_tests(ImGuiTestEngine *e)
     t->SetVarsDataType<demo_vars>();
     t->GuiFunc  = demo_gui;
     t->TestFunc = demo_m1_loader;
+
+    t = IM_REGISTER_TEST(e, "demo", "m2_turns");
+    t->SetVarsDataType<demo_vars>();
+    t->GuiFunc  = demo_gui;
+    t->TestFunc = demo_m2_turns;
 }
