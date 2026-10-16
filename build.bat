@@ -91,6 +91,13 @@ if errorlevel 1 set ERR=1
 cl %COMMON_TE% ..\tests\ui\ui_tests.cpp /Fe:ui_tests.exe %LINKFLAGS% imgui_te.lib
 if errorlevel 1 set ERR=1
 
+REM The demo recorder and end-to-end smoke test: a real window, the engine and the UI compiled in,
+REM the "demo" tests at cinematic speed. gif_encode.exe is its video encoder if ffmpeg is missing.
+cl %COMMON_TE% ..\tests\demo\demo_player.cpp /Fe:demo_player.exe %LINKFLAGS% imgui_te.lib user32.lib gdi32.lib d3d11.lib dxgi.lib
+if errorlevel 1 set ERR=1
+cl %COMMON% ..\misc\gif_encode.cpp /Fe:gif_encode.exe %LINKFLAGS%
+if errorlevel 1 set ERR=1
+
 REM Tools: save_dump.exe prints a save as JSON with the clean-room loader.
 cl %COMMON% ..\misc\save_dump.cpp /Fe:save_dump.exe %LINKFLAGS%
 if errorlevel 1 set ERR=1
