@@ -37,10 +37,18 @@ if not exist imgui.lib (
   if errorlevel 1 set ERR=1
 )
 
-REM Dear ImGui + Test Engine lib for ui_tests.exe, built once. "build.bat te" rebuilds it.
+REM Dear ImGui + Test Engine + the Win32 and DX11 backends, for ui_tests.exe and demo_player.exe.
+REM Built once. "build.bat te" rebuilds it, and so does a change to tests\ui\hexdom_te_imconfig.h.
 if /i "%~1"=="te" (
   del imgui_te.lib >nul 2>&1
   del te\*.obj >nul 2>&1
+)
+if exist imgui_te.lib (
+  fc /b ..\tests\ui\hexdom_te_imconfig.h te\hexdom_te_imconfig.h >nul 2>&1
+  if errorlevel 1 (
+    del imgui_te.lib >nul 2>&1
+    del te\*.obj >nul 2>&1
+  )
 )
 if not exist imgui_te.lib (
   if not exist te mkdir te
@@ -54,10 +62,12 @@ if not exist imgui_te.lib (
     ..\third_party\imgui_test_engine\imgui_test_engine\imgui_te_perftool.cpp ^
     ..\third_party\imgui_test_engine\imgui_test_engine\imgui_te_ui.cpp ^
     ..\third_party\imgui_test_engine\imgui_test_engine\imgui_te_utils.cpp ^
-    ..\third_party\imgui_test_engine\imgui_test_engine\imgui_capture_tool.cpp
+    ..\third_party\imgui_test_engine\imgui_test_engine\imgui_capture_tool.cpp ^
+    ..\third_party\imgui\backends\imgui_impl_win32.cpp ..\third_party\imgui\backends\imgui_impl_dx11.cpp
   if errorlevel 1 set ERR=1
   lib /nologo /out:imgui_te.lib te\*.obj
   if errorlevel 1 set ERR=1
+  copy /y ..\tests\ui\hexdom_te_imconfig.h te\hexdom_te_imconfig.h >nul
 )
 
 REM Game DLL. Hot reloadable; unique PDB name so a debugger lets go of the old one.
