@@ -119,6 +119,17 @@ unit_save_officer_tests(test_counts *counts)
     save_decode_officer(record, 343, &officer);
     TEST_CHECK(counts, !officer.has_acted_this_turn, "flags without bit 0: has not acted");
 
+    TEST_CHECK(counts, !officer_slot_is_empty(&officer), "a slot with a name is not empty");
+    u8 empty_record[203];
+    memset(empty_record, 0, sizeof(empty_record));
+    empty_record[100] = 3;   /* status alone does not make a slot hold an officer */
+    officer_record empty;
+    save_decode_officer(empty_record, 900, &empty);
+    TEST_CHECK(counts, officer_slot_is_empty(&empty), "a slot with all name bytes zero is empty");
+    empty_record[10 + 6] = 0x41;   /* last byte of the courtesy name */
+    save_decode_officer(empty_record, 900, &empty);
+    TEST_CHECK(counts, !officer_slot_is_empty(&empty), "any name byte makes the slot hold an officer");
+
     TEST_CHECK(counts, strcmp(officer_status_name(OFFICER_STATUS_RULER), "ruler") == 0 &&
                        strcmp(officer_status_name(5), "?") == 0, "status labels; unlabelled values are ?");
 }
@@ -293,8 +304,8 @@ unit_save_load_tests(test_counts *counts)
     TEST_CHECK(counts, save.officers[343].id == 343 && save.officers[343].birth_year == 155 &&
                        save.officers[343].leadership == 96 && save.officers[343].force_id == 10,
                "officer 343 is read from its slot");
-    TEST_CHECK(counts, save.officers[342].status == OFFICER_STATUS_EMPTY_SLOT && save.officers[1099].status == OFFICER_STATUS_EMPTY_SLOT,
-               "other slots are empty");
+    TEST_CHECK(counts, officer_slot_is_empty(save.officers + 342) && officer_slot_is_empty(save.officers + 1099) &&
+                       save.officers[342].status == OFFICER_STATUS_EMPTY_SLOT, "other slots are empty");
     TEST_CHECK(counts, save.cities[36].id == 36 && save.cities[36].commanding_officer_id == 343 &&
                        save.cities[36].owner_force_id == 10 && save.cities[36].gold == 5000, "city 36 is read from its slot");
     TEST_CHECK(counts, save.items[0].owner_officer_id == 343, "item 0 is read from its slot");

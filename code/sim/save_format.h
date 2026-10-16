@@ -142,7 +142,9 @@ enum officer_record_offset
 #define OFFICER_LOCATION_NONE         0xFFFF
 #define OFFICER_FIRST_UNIT_POSITION   87       /* current position 87 + unit index: in a troop unit */
 
-/* Officer +100. Values 4, 5 and 7 are observed but have no label yet. */
+/* Officer +100. Values 4, 5 and 7 are observed but have no label yet. The
+   spec labels 255 "empty slot", but named built-in officers also carry 255
+   (QUESTIONS.md, Q-012). To find empty slots, use officer_slot_is_empty. */
 enum officer_status
 {
     OFFICER_STATUS_RULER                = 0,
@@ -321,6 +323,7 @@ internal u16 format_read_u16(const u8 *bytes);
 internal u32 format_read_u32(const u8 *bytes);
 
 internal save_header      save_decode_header(const u8 *file);
+internal b32              officer_slot_is_empty(officer_record *officer);
 internal void             officer_decode_shared(const u8 *record, u16 id, officer_record *out);
 internal void             save_decode_officer(const u8 *record, u16 id, officer_record *out);
 internal void             save_decode_city(const u8 *record, u8 id, city_record *out);

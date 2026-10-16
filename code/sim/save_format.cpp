@@ -48,6 +48,18 @@ save_decode_header(const u8 *file)
     return header;
 }
 
+/* save-file.md, Officer array slots: an empty slot has all name bytes zero.
+   The status byte does not decide it (QUESTIONS.md, Q-012). */
+internal b32
+officer_slot_is_empty(officer_record *officer)
+{
+    u8 any = 0;
+    for (u32 index = 0; index < OFFICER_FAMILY_NAME_SIZE; ++index)   any |= officer->family_name[index];
+    for (u32 index = 0; index < OFFICER_GIVEN_NAME_SIZE; ++index)    any |= officer->given_name[index];
+    for (u32 index = 0; index < OFFICER_COURTESY_NAME_SIZE; ++index) any |= officer->courtesy_name[index];
+    return any == 0;
+}
+
 /* Officer bytes +0..+151: the part that scenario records share. */
 internal void
 officer_decode_shared(const u8 *record, u16 id, officer_record *out)

@@ -81,6 +81,10 @@ if errorlevel 1 set ERR=1
 cl %COMMON_TE% ..\tests\ui\ui_tests.cpp /Fe:ui_tests.exe %LINKFLAGS% imgui_te.lib
 if errorlevel 1 set ERR=1
 
+REM Tools: save_dump.exe prints a save as JSON with the clean-room loader.
+cl %COMMON% ..\misc\save_dump.cpp /Fe:save_dump.exe %LINKFLAGS%
+if errorlevel 1 set ERR=1
+
 :done
 del lock.tmp
 popd
