@@ -1,6 +1,7 @@
 #include "sim/sim.h"
 #include "sim/save_format.cpp"
 #include "sim/scenario_format.cpp"
+#include "sim/content.cpp"
 
 internal void
 sim_init(sim_state *sim, memory_arena *arena, u64 seed)
@@ -14,6 +15,25 @@ sim_init(sim_state *sim, memory_arena *arena, u64 seed)
     sim->map.width = sim->map.height = 0;
     sim->map.cost = 0;
     sim->has_names = false;
+    sim->has_content = false;
+    sim->content = {};
+    sim->turns = {};
+    sim->turns.start_date = calendar_make(SIM_DEFAULT_START_YEAR, SIM_DEFAULT_START_MONTH, 1);
+    sim->turns.date       = sim->turns.start_date;
+    sim->unit_count = 0;
+    for (u32 index = 0; index < ArrayCount(sim->officer_index); ++index) sim->officer_index[index] = SIM_NO_OFFICER;
+    for (u32 index = 0; index < ArrayCount(sim->city_index); ++index)    sim->city_index[index]    = SIM_NO_CITY;
+    sim_init_sites(sim);
+}
+
+/* Copies the tables of the content pack into the sim. The slots of the
+   cities are laid out again, so call it before a save loads. */
+internal void
+sim_set_content(sim_state *sim, sim_content *content)
+{
+    sim->content     = *content;
+    sim->has_content = true;
+    sim_init_sites(sim);
 }
 
 /* The real map's size and terrain come from spec-src/spec/formats/ once the
@@ -66,78 +86,11 @@ sim_emit(sim_event_sink *sink, sim_event event)
     if (sink->count < sink->capacity) sink->events[sink->count++] = event;
 }
 
-internal sim_command
-sim_make_command(sim_state *sim, sim_command_kind kind)
-{
-    sim_command command;
-    command.kind = kind;
-    command.id   = sim->next_command_id++;
-    return command;
-}
-
-internal void
-sim_advance_turn(sim_state *sim, sim_event_sink *events)
-{
-    /* Per-turn systems run here in fixed order once they exist:
-       TurnScheduler -> CommandResolution -> Production -> Movement -> Combat
-       -> Diplomacy -> AIPlanning -> EventTriggers -> LedgerApply.
-       Each is a free function taking sim_state* and an event sink. */
-    sim->turn++;
-    sim_event event = {};
-    event.kind  = SIM_EVENT_TURN_ADVANCED;
-    event.turn  = sim->turn;
-    event.delta = 1;
-    sim_emit(events, event);
-}
-
-internal void
-sim_apply(sim_state *sim, sim_command command, sim_event_sink *events)
-{
-    switch (command.kind)
-    {
-        case SIM_COMMAND_NONE:
-            break;
-        case SIM_COMMAND_END_TURN:
-        {
-            u32 first = events->count;
-            sim_advance_turn(sim, events);
-            for (u32 i = first; i < events->count; ++i) events->events[i].cause = command.id;
-            break;
-        }
-        case SIM_COMMAND_LOAD_SAVE:
-            InvalidCodePath;   /* needs its save: see sim_load_save */
-            break;
-        case SIM_COMMAND_LOAD_NAME_INDEX:
-            InvalidCodePath;   /* needs its name index: see sim_load_name_index */
-            break;
-        default:
-            InvalidCodePath;
-            break;
-    }
-}
-
-/* Destroys every officer and city entity and empties their tables. */
-internal void
-sim_unload_world(sim_state *sim)
-{
-    while (sim->officers.count)
-    {
-        entity_id owner = sim->officers.dense_owner[sim->officers.count - 1];
-        table_remove(&sim->officers, owner);
-        em_destroy(&sim->entities, owner);
-    }
-    while (sim->cities.count)
-    {
-        entity_id owner = sim->cities.dense_owner[sim->cities.count - 1];
-        table_remove(&sim->cities, owner);
-        em_destroy(&sim->entities, owner);
-    }
-}
-
 internal officer_component
 sim_officer_from_record(officer_record *record)
 {
     officer_component officer = {};
+    officer.job_city = SIM_NO_CITY;
     officer.officer_id = record->id;
     memcpy(officer.family_name,   record->family_name,   OFFICER_FAMILY_NAME_SIZE);
     memcpy(officer.given_name,    record->given_name,    OFFICER_GIVEN_NAME_SIZE);
@@ -188,6 +141,165 @@ sim_city_from_record(city_record *record)
 
    Returns false, and changes nothing, when the entities or the tables
    cannot hold the new world. */
+
+/* An event of this turn without a subject, a faction or an amount. */
+internal sim_event
+sim_event_make(sim_state *sim, sim_event_kind kind, u32 cause)
+{
+    sim_event event = {};
+    event.kind    = kind;
+    event.turn    = sim->turn;
+    event.cause   = cause;
+    event.faction = SIM_NO_FORCE;
+    return event;
+}
+
+internal sim_command
+sim_make_command(sim_state *sim, sim_command_kind kind)
+{
+    sim_command command = {};
+    command.kind = kind;
+    command.id   = sim->next_command_id++;
+    return command;
+}
+
+/* Moves the date one turn and starts the new turn: the calendar events,
+   the turn order, the action points and the jobs (turn.cpp). */
+internal void
+sim_advance_turn(sim_state *sim, u32 cause, sim_event_sink *events)
+{
+    sim->turn++;
+    sim->turns.date = calendar_next_turn(sim->turns.date);
+    sim_event event = sim_event_make(sim, SIM_EVENT_TURN_ADVANCED, cause);
+    event.delta = 1;
+    sim_emit(events, event);
+    sim_run_calendar(sim, cause, events);
+    sim_start_turn(sim, cause, events);
+}
+
+internal void
+sim_apply(sim_state *sim, sim_command command, sim_event_sink *events)
+{
+    switch (command.kind)
+    {
+        case SIM_COMMAND_NONE:
+            break;
+        case SIM_COMMAND_END_TURN:
+            sim_end_faction_turn(sim, command.id, events);
+            break;
+        case SIM_COMMAND_DEVELOP:
+            sim_develop(sim, command, events);
+            break;
+        case SIM_COMMAND_LOAD_SAVE:
+            InvalidCodePath;   /* needs its save: see sim_load_save */
+            break;
+        case SIM_COMMAND_LOAD_NAME_INDEX:
+            InvalidCodePath;   /* needs its name index: see sim_load_name_index */
+            break;
+        default:
+            InvalidCodePath;
+            break;
+    }
+}
+
+/* Destroys every officer and city entity and empties their tables, the
+   slots and the units. The calendar and the content stay. */
+internal void
+sim_unload_world(sim_state *sim)
+{
+    while (sim->officers.count)
+    {
+        entity_id owner = sim->officers.dense_owner[sim->officers.count - 1];
+        table_remove(&sim->officers, owner);
+        em_destroy(&sim->entities, owner);
+    }
+    while (sim->cities.count)
+    {
+        entity_id owner = sim->cities.dense_owner[sim->cities.count - 1];
+        table_remove(&sim->cities, owner);
+        em_destroy(&sim->entities, owner);
+    }
+    for (u32 index = 0; index < ArrayCount(sim->officer_index); ++index) sim->officer_index[index] = SIM_NO_OFFICER;
+    for (u32 index = 0; index < ArrayCount(sim->city_index); ++index)    sim->city_index[index]    = SIM_NO_CITY;
+    sim->unit_count = 0;
+    sim->turns.order_count = 0;
+    sim->turns.acting      = 0;
+    for (u32 force = 0; force < SIM_FORCE_CAPACITY; ++force)
+    {
+        sim->turns.action_points[force] = 0;
+        sim->turns.human[force]         = false;
+    }
+    sim_init_sites(sim);
+}
+
+internal b32
+sim_add_officer(sim_state *sim, officer_component officer)
+{
+    if (officer.officer_id >= ArrayCount(sim->officer_index) || sim->officer_index[officer.officer_id] != SIM_NO_OFFICER ||
+        sim->officers.count >= sim->officers.capacity || sim->entities.alive_count >= sim->entities.capacity)
+    {
+        return false;
+    }
+    sim->officer_index[officer.officer_id] = (u16)sim->officers.count;
+    table_add(&sim->officers, em_create(&sim->entities), officer);
+    return true;
+}
+
+internal b32
+sim_add_city(sim_state *sim, city_component city)
+{
+    if (city.city_id >= ArrayCount(sim->city_index) || sim->city_index[city.city_id] != SIM_NO_CITY ||
+        sim->cities.count >= sim->cities.capacity || sim->entities.alive_count >= sim->entities.capacity)
+    {
+        return false;
+    }
+    sim->city_index[city.city_id] = (u8)sim->cities.count;
+    table_add(&sim->cities, em_create(&sim->entities), city);
+    return true;
+}
+
+/* True if the NUL-padded name of the header is the family name and then
+   the given name of the officer (save-file.md, header 0x05A). */
+internal b32
+sim_officer_has_header_name(officer_component *officer, const u8 *header_name, u32 header_size)
+{
+    u8 joined[OFFICER_FAMILY_NAME_SIZE + OFFICER_GIVEN_NAME_SIZE] = {};
+    u32 length = 0;
+    for (u32 index = 0; index < OFFICER_FAMILY_NAME_SIZE && officer->family_name[index]; ++index) joined[length++] = officer->family_name[index];
+    for (u32 index = 0; index < OFFICER_GIVEN_NAME_SIZE && officer->given_name[index]; ++index)   joined[length++] = officer->given_name[index];
+    u32 header_length = 0;
+    while (header_length < header_size && header_name[header_length]) header_length++;
+    return length > 0 && length == header_length && memcmp(joined, header_name, length) == 0;
+}
+
+/* The force of the player: the force of the ruler that the header names.
+   SIM_NO_FORCE if no ruler has that name. */
+internal u8
+sim_player_force(sim_state *sim, save_header *header)
+{
+    for (u32 index = 0; index < sim->officers.count; ++index)
+    {
+        officer_component *officer = sim->officers.data + index;
+        if (officer->status == 0 && sim_officer_has_header_name(officer, header->player_ruler_name, SAVE_HEADER_NAME_SIZE))
+        {
+            return officer->force_id;
+        }
+    }
+    return SIM_NO_FORCE;
+}
+
+/* Replaces the officers and cities with those of a decoded save: one entity
+   per slot that holds an officer, in slot order, then one per city in id
+   order. Emits one SIM_EVENT_SAVE_LOADED, then starts the turn (the order,
+   the action points, the AI factions before the player).
+
+   The calendar starts at the scenario start of the header, because the
+   spec has not found the game date (Q-004). The ten-day period of the
+   header is 1 for the first turn of the month (assumed: every scenario
+   has 1). The turn counter does not change.
+
+   Returns false, and changes nothing, when the entities or the tables
+   cannot hold the new world. */
 internal b32
 sim_load_save(sim_state *sim, save_file *save, sim_command command, sim_event_sink *events)
 {
@@ -210,19 +322,24 @@ sim_load_save(sim_state *sim, save_file *save, sim_command command, sim_event_si
     {
         officer_record *record = save->officers + slot;
         if (officer_slot_is_empty(record)) continue;
-        table_add(&sim->officers, em_create(entities), sim_officer_from_record(record));
+        sim_add_officer(sim, sim_officer_from_record(record));
     }
     for (u32 index = 0; index < save->city_count; ++index)
     {
-        table_add(&sim->cities, em_create(entities), sim_city_from_record(save->cities + index));
+        sim_add_city(sim, sim_city_from_record(save->cities + index));
     }
 
-    sim_event event = {};
-    event.kind  = SIM_EVENT_SAVE_LOADED;
-    event.turn  = sim->turn;
+    u8 day = (u8)(1 + (save->header.scenario_start_ten_day_period > 0 ? save->header.scenario_start_ten_day_period - 1 : 0) *
+                      CALENDAR_DAYS_PER_TURN);
+    sim->turns.start_date = calendar_make(save->header.scenario_start_year, save->header.scenario_start_month, day);
+    sim->turns.date       = sim->turns.start_date;
+    u8 player = sim_player_force(sim, &save->header);
+    if (player != SIM_NO_FORCE) sim->turns.human[player] = true;
+
+    sim_event event = sim_event_make(sim, SIM_EVENT_SAVE_LOADED, command.id);
     event.delta = (s32)sim->officers.count;
-    event.cause = command.id;
     sim_emit(events, event);
+    sim_start_turn(sim, command.id, events);
     return true;
 }
 
@@ -235,11 +352,8 @@ sim_load_name_index(sim_state *sim, name_index *names, sim_command command, sim_
     sim->names     = *names;
     sim->has_names = true;
 
-    sim_event event = {};
-    event.kind  = SIM_EVENT_NAME_INDEX_LOADED;
-    event.turn  = sim->turn;
+    sim_event event = sim_event_make(sim, SIM_EVENT_NAME_INDEX_LOADED, command.id);
     event.delta = (s32)ArrayCount(sim->names.cities);
-    event.cause = command.id;
     sim_emit(events, event);
 }
 
@@ -248,11 +362,34 @@ sim_event_name(sim_event_kind kind)
 {
     switch (kind)
     {
-        case SIM_EVENT_NONE:          return "none";
-        case SIM_EVENT_TURN_ADVANCED: return "turn_advanced";
-        case SIM_EVENT_SAVE_LOADED:   return "save_loaded";
-        case SIM_EVENT_NAME_INDEX_LOADED: return "name_index_loaded";
-        default:                      return "?";
+        case SIM_EVENT_NONE:                    return "none";
+        case SIM_EVENT_TURN_ADVANCED:           return "turn_advanced";
+        case SIM_EVENT_SAVE_LOADED:             return "save_loaded";
+        case SIM_EVENT_NAME_INDEX_LOADED:       return "name_index_loaded";
+        case SIM_EVENT_YEAR_STARTED:            return "year_started";
+        case SIM_EVENT_MONTH_STARTED:           return "month_started";
+        case SIM_EVENT_SEASON_STARTED:          return "season_started";
+        case SIM_EVENT_GOLD_INCOME:             return "gold_income";
+        case SIM_EVENT_SALARIES_PAID:           return "salaries_paid";
+        case SIM_EVENT_GRAIN_INCOME:            return "grain_income";
+        case SIM_EVENT_GRAIN_CONSUMED:          return "grain_consumed";
+        case SIM_EVENT_HOOK_BANDITS:            return "hook_bandits";
+        case SIM_EVENT_HOOK_LOCUSTS:            return "hook_locusts";
+        case SIM_EVENT_HOOK_PLAGUE:             return "hook_plague";
+        case SIM_EVENT_HOOK_GOOD_HARVEST:       return "hook_good_harvest";
+        case SIM_EVENT_HOOK_OFFICERS_AGE:       return "hook_officers_age";
+        case SIM_EVENT_HOOK_NEW_OFFICERS:       return "hook_new_officers";
+        case SIM_EVENT_BLACK_MARKET_REMOVED:    return "black_market_removed";
+        case SIM_EVENT_FACTION_TURN_STARTED:    return "faction_turn_started";
+        case SIM_EVENT_FACTION_TURN_ENDED:      return "faction_turn_ended";
+        case SIM_EVENT_AI_PASSED:               return "ai_passed";
+        case SIM_EVENT_ACTION_POINTS_RECOVERED: return "action_points_recovered";
+        case SIM_EVENT_ACTION_POINTS_SPENT:     return "action_points_spent";
+        case SIM_EVENT_DEVELOP_STARTED:         return "develop_started";
+        case SIM_EVENT_GOLD_SPENT:              return "gold_spent";
+        case SIM_EVENT_FACILITY_COMPLETED:      return "facility_completed";
+        case SIM_EVENT_OFFICER_RELEASED:        return "officer_released";
+        default:                                return "?";
     }
 }
 
@@ -261,10 +398,39 @@ sim_command_name(sim_command_kind kind)
 {
     switch (kind)
     {
-        case SIM_COMMAND_NONE:      return "none";
-        case SIM_COMMAND_END_TURN:  return "end_turn";
-        case SIM_COMMAND_LOAD_SAVE: return "load_save";
+        case SIM_COMMAND_NONE:            return "none";
+        case SIM_COMMAND_END_TURN:        return "end_turn";
+        case SIM_COMMAND_LOAD_SAVE:       return "load_save";
         case SIM_COMMAND_LOAD_NAME_INDEX: return "load_name_index";
-        default:                   return "?";
+        case SIM_COMMAND_DEVELOP:         return "develop";
+        default:                          return "?";
     }
 }
+
+internal const char *
+sim_refusal_name(sim_refusal refusal)
+{
+    switch (refusal)
+    {
+        case SIM_REFUSAL_NONE:                  return "none";
+        case SIM_REFUSAL_NO_CONTENT:            return "no_content";
+        case SIM_REFUSAL_NO_CITY:               return "no_city";
+        case SIM_REFUSAL_NOT_YOUR_TURN:         return "not_your_turn";
+        case SIM_REFUSAL_NO_FACILITY:           return "no_facility";
+        case SIM_REFUSAL_ENEMY_NEAR:            return "enemy_near";
+        case SIM_REFUSAL_VALUE_AT_MAXIMUM:      return "value_at_maximum";
+        case SIM_REFUSAL_NO_SLOT:               return "no_slot";
+        case SIM_REFUSAL_SLOT_TAKEN:            return "slot_taken";
+        case SIM_REFUSAL_NO_OFFICER:            return "no_officer";
+        case SIM_REFUSAL_OFFICER_NOT_IN_CITY:   return "officer_not_in_city";
+        case SIM_REFUSAL_DUPLICATE_OFFICER:     return "duplicate_officer";
+        case SIM_REFUSAL_OFFICER_ALREADY_ACTED: return "officer_already_acted";
+        case SIM_REFUSAL_OFFICER_BUSY:          return "officer_busy";
+        case SIM_REFUSAL_NO_ACTION_POINTS:      return "no_action_points";
+        case SIM_REFUSAL_NO_GOLD:               return "no_gold";
+        default:                                return "?";
+    }
+}
+
+#include "sim/turn.cpp"
+#include "sim/develop.cpp"

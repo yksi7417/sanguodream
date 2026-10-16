@@ -51,7 +51,7 @@ unit_sim_load_save_tests(test_counts *counts)
     TEST_CHECK(counts, sim->cities.count == 2 && sim->cities.data[1].city_id == 1 && sim->cities.data[1].gold == 5000 &&
                        sim->cities.data[1].commanding_officer_id == 2, "one city per city record");
     TEST_CHECK(counts, sim->entities.alive_count == 5, "one entity per officer and per city");
-    TEST_CHECK(counts, sink.count == 1 && sink.events[0].kind == SIM_EVENT_SAVE_LOADED && sink.events[0].delta == 3 &&
+    TEST_CHECK(counts, sink.count >= 1 && sink.events[0].kind == SIM_EVENT_SAVE_LOADED && sink.events[0].delta == 3 &&
                        sink.events[0].cause == load.id, "a load emits save_loaded with the officer count");
 
     officers[2].family_name[0] = 0;

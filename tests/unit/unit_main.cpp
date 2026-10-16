@@ -29,6 +29,10 @@
 #include "terrain_mesh_tests.cpp"
 #include "png_tests.cpp"
 #include "text_tests.cpp"
+#include "calendar_tests.cpp"
+#include "content_tests.cpp"
+#include "turn_tests.cpp"
+#include "develop_tests.cpp"
 
 int
 main(void)
@@ -79,6 +83,30 @@ main(void)
     test_counts text = {};
     unit_text_tests(&text);
     failed |= test_report("unit/text", &text);
+
+    test_counts calendar = {};
+    unit_calendar_tests(&calendar);
+    failed |= test_report("unit/calendar", &calendar);
+
+    memory_arena arena = test_arena_create(Megabytes(16));
+    test_counts tables = {};
+    unit_tables_tests(&tables, &arena);
+    failed |= test_report("unit/tables", &tables);
+
+    test_counts content = {};
+    unit_content_tests(&content, &arena);
+    failed |= test_report("unit/content", &content);
+
+    arena_reset(&arena);
+    test_counts turn = {};
+    unit_turn_tests(&turn, &arena);
+    failed |= test_report("unit/turn", &turn);
+
+    arena_reset(&arena);
+    test_counts develop = {};
+    unit_develop_tests(&develop, &arena);
+    failed |= test_report("unit/develop", &develop);
+    test_arena_destroy(&arena);
 
     printf(failed ? "RESULT FAIL\n" : "RESULT PASS\n");
     return failed;
