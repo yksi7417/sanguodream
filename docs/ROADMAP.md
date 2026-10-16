@@ -106,6 +106,15 @@ Window, hot-reloaded DLL, deterministic sim core with ledger, ECS, hex map
 with A*, engine_api, test pyramid with imgui_test_engine. Tutorials 01-08.
 
 ### M1 Formats and the first mechanic (deck Milestone 1)
+Status (2026-10-16): the loader half works, and the mechanic half waits
+for the spec. The save and scenario loader reads sample.s11 into officer and
+city tables. engine_api has `load_save`, `officer_count`, `officer_at`,
+`city_count` and `city_at`. The Officers and Cities panels show the tables.
+build\save_dump.exe prints the sample as JSON for comparison with the dump
+of the analysis side (tutorial 09). The TSV table loader and the `develop`
+command wait for mechanics/farm-development.md and its fixtures. Open spec
+questions from the loader: Q-012 to Q-016.
+
 Spec input: spec/formats/save-file.md, scenario-file.md; mechanics/farm-development.md with fixtures.
 - Engine:
   - a TSV table loader (code/sim/tables.h) that both content packs and fixtures use

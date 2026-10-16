@@ -34,8 +34,9 @@ decompilation of it.
                              start at 00-reading-order.md
 
 ## Build and run
-- build.bat         builds build\hexdom.dll, build\win32_hexdom.exe and the
-                    three test exes (calls vcvars64 itself)
+- build.bat         builds build\hexdom.dll, build\win32_hexdom.exe, the
+                    three test exes and build\save_dump.exe (calls vcvars64
+                    itself)
 - build.bat dll     rebuilds only the DLL, for hot reload while the window
                     is open (you cannot relink the exe while it runs)
 - run_tests.bat     unit_tests.exe -> feature_tests.exe -> ui_tests.exe,
@@ -44,6 +45,8 @@ decompilation of it.
 - build\feature_tests.exe [fixtures-dir]   default spec-src\spec\fixtures
 - build\ui_tests.exe [filter]              for example "ui", "e2e",
                                            "ui/advance"
+- build\save_dump.exe <file.s11> [--all-slots] [--utf8-names]   prints a
+                    save as JSON with the clean-room loader
 - build\win32_hexdom.exe [--frames N]      the game window; --frames exits
                     after N frames with exit code 0; log in build\hexdom.log
 - Hot reload: leave win32_hexdom.exe open, edit, then run build.bat dll.
@@ -60,6 +63,9 @@ decompilation of it.
                          exposes engine_api
 - code/ui/               ImGui panels; call engine_api only
 - tests/test_framework.h one check macro, counters, heap arenas
+- tests/test_files.h     file reads and fixture paths for the test exes
+                         and save_dump
+- misc/save_dump.cpp     the save_dump tool; misc/ste_check.py checks STE
 - tests/unit/            per-module unit tests
 - tests/feature/         engine_api behaviour tests and the fixture runner
 - tests/ui/              imgui_test_engine tests, engine_recorder.h double,

@@ -22,6 +22,7 @@ run_tests.bat --e2e
 | 06 | UI: panels that only call the api | code/ui/ | tests/ui/ui_tests.cpp |
 | 07 | Platform: window, memory block, hot reload | code/win32_hexdom.cpp, code/hexdom.cpp | run_tests.bat --e2e |
 | 08 | Adding a mechanic: the TDD loop end to end | tests/feature/fixture_tests.cpp | spec fixtures |
+| 09 | Save loader: from a .s11 file to officers and cities | code/sim/inflate.h, save_format, scenario_format | tests/unit/inflate_tests.cpp, save_format_tests.cpp, tests/feature/load_save_tests.cpp |
 
 You will see these conventions everywhere:
 - `internal` means `static`: the function is private to its translation
