@@ -53,6 +53,21 @@ feature_engine_tests(test_counts *counts)
     TEST_CHECK(counts, size.width == 16 && size.height == 12, "map size comes from the config");
     TEST_CHECK(counts, api->cell_cost(e, 3, 3) == 1, "cells start at the default cost");
     TEST_CHECK(counts, api->cell_cost(e, -1, 0) == HEX_IMPASSABLE, "off-map cells are impassable");
+    /* The placeholder landscape has water and hills; flatten it through the api first. */
+    for (u32 row = 0; row < size.height; ++row)
+    {
+        for (u32 col = 0; col < size.width; ++col)
+        {
+            hex_offset o; o.col = (s32)col; o.row = (s32)row;
+            hex_coord c = hex_from_offset(o);
+            api->set_cell_cost(e, c.q, c.r, 1);
+            api->set_cell_terrain(e, c.q, c.r, 1, 1);
+        }
+    }
+    engine_terrain_view terrain = api->terrain_view(e);
+    TEST_CHECK(counts, terrain.width == 16 && terrain.height == 12 && terrain.kind && terrain.level && terrain.version > 1,
+               "terrain_view exposes the cells and a version that moved");
+    TEST_CHECK(counts, api->cell_cost(e, 3, 3) == 1 && terrain.kind[0] == 1 && terrain.level[0] == 1, "set_cell_terrain and set_cell_cost are visible through the view");
     s32 far_q = 12, far_r = 4;
     u32 straight = api->path_cost(e, 2, 4, far_q, far_r);
     TEST_CHECK(counts, straight == (u32)hex_distance(hex_make(2, 4), hex_make(far_q, far_r)), "open-map path cost is the distance");

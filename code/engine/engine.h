@@ -101,6 +101,19 @@ struct engine_load_result
     const char        *detail;      /* a static string: why the save was refused, or "ok" */
 };
 
+/* The terrain as the renderer needs it: one kind and one level per cell,
+   row-major by offset. The pointers stay valid for the life of the engine;
+   version changes whenever a cell changes. Placeholder data until the
+   spec's map format exists. */
+struct engine_terrain_view
+{
+    u32       width;
+    u32       height;
+    const u8 *kind;
+    const u8 *level;
+    u32       version;
+};
+
 /* Queries */
 typedef u32                 engine_turn_fn(void *engine);
 typedef u32                 engine_entities_alive_fn(void *engine);
@@ -116,11 +129,13 @@ typedef engine_officer      engine_officer_at_fn(void *engine, u32 index);   /* 
 typedef u32                 engine_city_count_fn(void *engine);
 typedef engine_city         engine_city_at_fn(void *engine, u32 index);      /* index < city_count */
 typedef engine_city_name    engine_city_name_at_fn(void *engine, u32 index); /* index = city id 0..41 */
+typedef engine_terrain_view engine_terrain_view_fn(void *engine);
 /* Commands */
 typedef u32                 engine_end_turn_fn(void *engine);                 /* returns the command id */
 typedef u32                 engine_advance_turns_fn(void *engine, u32 count); /* returns events emitted */
 typedef void                engine_ledger_clear_fn(void *engine);
 typedef void                engine_set_cell_cost_fn(void *engine, s32 q, s32 r, u8 cost); /* editor/debug */
+typedef void                engine_set_cell_terrain_fn(void *engine, s32 q, s32 r, u8 kind, u8 level); /* editor/debug */
 /* Replaces the officers and cities with those of a .s11 save. A relative
    path is relative to the folder of the executable. */
 typedef engine_load_result  engine_load_save_fn(void *engine, const char *path);
@@ -150,6 +165,8 @@ struct engine_api
     engine_advance_turns_fn   *advance_turns;
     engine_ledger_clear_fn    *ledger_clear;
     engine_set_cell_cost_fn   *set_cell_cost;
+    engine_terrain_view_fn    *terrain_view;
+    engine_set_cell_terrain_fn *set_cell_terrain;
     engine_load_save_fn       *load_save;
     engine_load_name_index_fn *load_name_index;
 };

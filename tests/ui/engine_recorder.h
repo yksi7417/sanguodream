@@ -24,10 +24,12 @@ enum recorder_call_kind
     RECORDER_CITY_COUNT,
     RECORDER_CITY_AT,
     RECORDER_CITY_NAME_AT,
+    RECORDER_TERRAIN_VIEW,
     RECORDER_END_TURN,        /* commands start here */
     RECORDER_ADVANCE_TURNS,
     RECORDER_LEDGER_CLEAR,
     RECORDER_SET_CELL_COST,
+    RECORDER_SET_CELL_TERRAIN,
     RECORDER_LOAD_SAVE,
     RECORDER_LOAD_NAME_INDEX,
     RECORDER_CALL_KIND_COUNT
@@ -274,6 +276,27 @@ internal engine_load_result recorder_load_save(void *o, const char *path)
     return result;
 }
 
+/* The fake 8x6 map has flat plains with one hill column. */
+global_variable u8 recorder_terrain_kind[8 * 6];
+global_variable u8 recorder_terrain_level[8 * 6];
+
+internal engine_terrain_view
+recorder_terrain_view(void *o)
+{
+    recorder_record((engine_recorder *)o, RECORDER_TERRAIN_VIEW, 0);
+    for (u32 i = 0; i < 48; ++i) { recorder_terrain_kind[i] = (i % 8 == 3) ? 3 : 1; recorder_terrain_level[i] = (i % 8 == 3) ? 2 : 1; }
+    engine_terrain_view v;
+    v.width = 8; v.height = 6; v.kind = recorder_terrain_kind; v.level = recorder_terrain_level; v.version = 1;
+    return v;
+}
+
+internal void
+recorder_set_cell_terrain(void *o, s32 q, s32 r, u8 kind, u8 level)
+{
+    (void)q; (void)r; (void)level;
+    recorder_record((engine_recorder *)o, RECORDER_SET_CELL_TERRAIN, kind);
+}
+
 internal engine_api
 recorder_make_api(engine_recorder *r)
 {
@@ -298,6 +321,8 @@ recorder_make_api(engine_recorder *r)
     api.advance_turns   = recorder_advance_turns;
     api.ledger_clear    = recorder_ledger_clear;
     api.set_cell_cost   = recorder_set_cell_cost;
+    api.terrain_view    = recorder_terrain_view;
+    api.set_cell_terrain = recorder_set_cell_terrain;
     api.load_save       = recorder_load_save;
     api.load_name_index = recorder_load_name_index;
     return api;

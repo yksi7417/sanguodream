@@ -7,6 +7,8 @@
 
 #include "base.h"
 #include "engine/engine.h"
+#include "render/render.h"
+#include "render/terrain_mesh.h"   /* terrain_level_y: the scene places models on the cell tops */
 
 struct ui_state
 {
@@ -17,6 +19,16 @@ struct ui_state
     bool show_map;
     bool show_officers;
     bool show_cities;
+    bool show_scene;
+    struct
+    {
+        bool      enabled;       /* the 2.5D map draws as the window background */
+        bool      grid;
+        bool      initialized;   /* the camera was centred on the map once */
+        bool      has_hover;
+        hex_coord hover;
+        camera    cam;
+    } scene;
     char load_message[96];   /* result of the last "Load sample save" click */
     char names_message[96];  /* result of the last "Load city names" click */
     struct
@@ -29,13 +41,17 @@ struct ui_state
     } map;
 };
 
-/* Per-frame facts that belong to the front end, not the engine. */
+/* Per-frame facts that belong to the front end, not the engine. render and
+   frame_arena are zero in the headless ui tests: the scene then pushes
+   nothing and the panels still draw. */
 struct ui_frame_info
 {
     f32 dt_seconds;
     u32 dll_reload_count;
     u64 frame_arena_used;
     u64 frame_arena_size;
+    render_commands *render;        /* this frame's command buffer, from the platform */
+    memory_arena    *frame_arena;   /* for per-frame arrays such as the overlay colours */
 };
 
 internal void ui_init(ui_state *ui);

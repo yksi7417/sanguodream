@@ -8,6 +8,17 @@
 #include "ui/ui_map.cpp"
 #include "ui/ui_world.cpp"
 
+/* Writes an overlay colour for one cell of the terrain view, if it is on the map. */
+internal void
+ui_scene_mark(u32 *overlay, engine_terrain_view view, hex_coord h, u32 rgba)
+{
+    hex_offset o = hex_to_offset(h);
+    if (o.col < 0 || o.row < 0 || (u32)o.col >= view.width || (u32)o.row >= view.height) return;
+    overlay[(u32)o.row * view.width + (u32)o.col] = rgba;
+}
+
+#include "ui/ui_scene.cpp"
+
 internal void
 ui_init(ui_state *ui)
 {
@@ -15,12 +26,14 @@ ui_init(ui_state *ui)
     ui->show_sim    = true;
     ui->show_ledger = true;
     ui->show_memory = false;
-    ui->show_map    = true;
+    ui->show_map    = false;     /* the 2D panel stays available from the Windows menu */
     ui->show_officers = true;
     ui->show_cities   = true;
+    ui->show_scene    = true;
     ui->load_message[0] = 0;
     ui->names_message[0] = 0;
     ui_map_init(ui);
+    ui_scene_init(ui);
 }
 
 internal void
@@ -42,6 +55,7 @@ ui_draw_menu_bar(ui_state *ui, engine_api *api, ui_frame_info *frame)
         if (ImGui::BeginMenu("Windows"))
         {
             ImGui::MenuItem("Simulation", 0, &ui->show_sim);
+            ImGui::MenuItem("Scene", 0, &ui->show_scene);
             ImGui::MenuItem("Hex map", 0, &ui->show_map);
             ImGui::MenuItem("Officers", 0, &ui->show_officers);
             ImGui::MenuItem("Cities", 0, &ui->show_cities);
@@ -156,9 +170,19 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     ui_draw_menu_bar(ui, api, frame);
     if (ui->show_demo)   ImGui::ShowDemoWindow(&ui->show_demo);
     if (ui->show_sim)    ui_draw_simulation(ui, api);
+    if (ui->show_scene)  ui_draw_scene_panel(ui, api);
     if (ui->show_map)    ui_draw_map(ui, api);
     if (ui->show_officers) ui_draw_officers(ui, api);
     if (ui->show_cities) ui_draw_cities(ui, api);
     if (ui->show_ledger) ui_draw_ledger(ui, api);
     if (ui->show_memory) ui_draw_memory(ui, api, frame);
+
+    /* The scene goes last: by now ImGui knows which windows want the mouse,
+       and the panels above may have changed the camera or the selection. */
+    if (ui->scene.enabled && frame->render)
+    {
+        if (!ui->scene.initialized) ui_scene_reset_camera(ui, api);
+        ui_scene_handle_mouse(ui, api, frame->render->viewport_width, frame->render->viewport_height);
+    }
+    ui_scene_push(ui, api, frame);
 }

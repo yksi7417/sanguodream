@@ -24,7 +24,7 @@ test (see .claude/rules/testing-pyramid.md).
 | L5 Conflict | code/sim/ | movement rules, zones of control, combat, siege | later |
 | L6 Politics | code/sim/ | diplomacy, loyalty, factions, scripted events | later |
 | L7 AI | code/sim/ai_*.cpp | planning over the same commands a player uses | later |
-| L8 Front end | code/engine/, code/ui/ | engine_api and ImGui panels (debug now, game UI later) | done for L1-L3 |
+| L8 Front end | code/engine/, code/ui/, code/render/, code/d3d11_renderer.h | engine_api, ImGui panels, and the 2.5D scene: a terrain mesh from per-cell kind and level, an orbit camera, instanced models and billboards, a pick from pixel to hex (tutorial 11) | done for L1-L3; placeholder art |
 | L9 Content | data/<pack>/ | tables that make it a particular game | not started |
 
 The rule for every layer from L4 up: a mechanic is a pure function of

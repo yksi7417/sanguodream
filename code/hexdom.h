@@ -32,11 +32,14 @@ struct platform_api
     void                      *imgui_alloc_user; /* memory the exe still owns          */
 };
 
+struct render_commands;
+
 struct game_input
 {
     f32 dt_seconds;
     u32 frame_index;
     b32 dll_reloaded;   /* true for exactly one frame after a hot reload */
+    struct render_commands *render;   /* this frame's scene commands, made by the platform in the frame arena; the DLL fills it */
 };
 
 struct game_memory

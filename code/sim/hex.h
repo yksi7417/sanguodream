@@ -117,14 +117,20 @@ struct hex_map
     u32 width;      /* columns */
     u32 height;     /* rows */
     u8 *cost;       /* move cost to enter each cell, row-major by offset; 0 = impassable */
+    u8 *kind;       /* terrain kind per cell: an index into the pack's terrain table (placeholder until the spec's map format) */
+    u8 *level;      /* height per cell in steps; the renderer scales it (placeholder) */
+    u32 version;    /* bumped by every change to kind or level; the renderer rebuilds its mesh when it changes */
 };
 
 internal void
 hex_map_init(hex_map *map, memory_arena *arena, u32 width, u32 height, u8 default_cost)
 {
-    map->width  = width;
-    map->height = height;
-    map->cost   = PushArray(arena, (u64)width * height, u8);
+    map->width   = width;
+    map->height  = height;
+    map->cost    = PushArray(arena, (u64)width * height, u8);
+    map->kind    = PushArray(arena, (u64)width * height, u8);
+    map->level   = PushArray(arena, (u64)width * height, u8);
+    map->version = 1;
     for (u32 i = 0; i < width * height; ++i) map->cost[i] = default_cost;
 }
 
@@ -162,6 +168,16 @@ internal void
 hex_map_set_cost(hex_map *map, hex_coord h, u8 cost)
 {
     if (hex_map_contains(map, h)) map->cost[hex_map_index(map, h)] = cost;
+}
+
+internal void
+hex_map_set_terrain(hex_map *map, hex_coord h, u8 kind, u8 level)
+{
+    if (!hex_map_contains(map, h)) return;
+    u32 index = hex_map_index(map, h);
+    map->kind[index]  = kind;
+    map->level[index] = level;
+    map->version++;
 }
 
 /* ---- shortest path ------------------------------------------------------ */

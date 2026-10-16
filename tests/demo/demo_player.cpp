@@ -224,6 +224,15 @@ main(int argc, char **argv)
     }
     CreateDirectoryA(g_demo_output_dir, 0);
 
+    /* the scene renderer and the frame arena for its command buffers */
+    char data_dir[MAX_PATH];
+    snprintf(data_dir, MAX_PATH, "%s\\..\\data\\placeholder", exe_dir);
+    memory_arena frame_arena = test_arena_create(Megabytes(64));
+    d3d11_renderer renderer;
+    b32 renderer_ready = d3d11_renderer_init(&renderer, window.device, window.context, data_dir, &frame_arena);
+    if (!renderer_ready) printf("demo_player: scene renderer failed: %s\n", renderer.last_error);
+    arena_reset(&frame_arena);
+
     test_io.ConfigRunSpeed            = ImGuiTestRunSpeed_Cinematic;
     test_io.ConfigVerboseLevel        = ImGuiTestVerboseLevel_Info;
     test_io.ConfigVerboseLevelOnError = ImGuiTestVerboseLevel_Debug;
@@ -251,7 +260,12 @@ main(int argc, char **argv)
             ImGuiTestEngine_AbortCurrentTest(engine);
         }
         win32_begin_frame(&window);
-        win32_render_frame(&window);
+        arena_reset(&frame_arena);
+        ImVec2 display = ImGui::GetIO().DisplaySize;
+        g_demo_render = render_commands_begin(&frame_arena, display.x, display.y);
+        g_demo_frame_arena = &frame_arena;
+        /* the test engine runs the GuiFunc inside NewFrame; the commands it pushed are drawn here */
+        win32_render_frame(&window, renderer_ready ? &renderer : 0, g_demo_render, &frame_arena);
         ImGuiTestEngine_PostSwap(engine);
         win32_present_frame(&window);
         frames++;

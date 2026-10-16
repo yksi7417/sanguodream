@@ -211,6 +211,19 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
     }
     if (window.used_warp) win32_log("platform: hardware D3D11 unavailable, using WARP");
 
+    /* The scene renderer: shaders, placeholder materials and models. Data
+       comes from <exe dir>\..\data\placeholder when the files exist. */
+    char data_dir[MAX_PATH];
+    snprintf(data_dir, MAX_PATH, "%s\\..\\data\\placeholder", g_win32.exe_dir);
+    memory_arena renderer_scratch;
+    arena_init(&renderer_scratch, malloc((size_t)Megabytes(64)), Megabytes(64));
+    d3d11_renderer renderer;
+    if (!d3d11_renderer_init(&renderer, window.device, window.context, data_dir, &renderer_scratch))
+    {
+        win32_log("platform: scene renderer failed to start, drawing panels only");
+        win32_log(renderer.last_error);
+    }
+
     /* One memory block for the whole game, carved into permanent, transient
        and frame regions. A fixed base address in internal builds keeps
        pointers stable across runs for debugging. */
@@ -284,6 +297,9 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
         win32_begin_frame(&window);
 
         arena_reset(&frame);
+        ImVec2 display = ImGui::GetIO().DisplaySize;
+        render_commands *commands = render_commands_begin(&frame, display.x, display.y);
+        input.render = commands;
         if (game.is_valid)
         {
             game.update_and_render(&memory, &input, imgui, &frame);
@@ -295,7 +311,7 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
             ImGui::End();
         }
 
-        win32_render_frame(&window);
+        win32_render_frame(&window, renderer.ready ? &renderer : 0, commands, &frame);
         win32_present_frame(&window);
 
         frame_index++;
@@ -306,6 +322,7 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
         }
     }
 
+    d3d11_renderer_destroy(&renderer);
     win32_close_window(&window);
     ImGui::DestroyContext();
     win32_unload_game_code(&game);

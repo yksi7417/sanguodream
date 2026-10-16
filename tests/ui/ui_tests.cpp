@@ -65,6 +65,7 @@ ui_test_gui(ImGuiTestContext *ctx)
         }
         ui_init(&v.ui);
         v.ui.show_demo = false;   /* the demo window is not under test */
+        v.ui.show_map  = true;    /* the 2D map panel is closed by default now; its tests need it open */
     }
     v.frame.dt_seconds = ImGui::GetIO().DeltaTime;
     ui_draw(&v.ui, &v.api, &v.frame);

@@ -18,6 +18,7 @@
 #include "imgui.h"
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx11.h"
+#include "d3d11_renderer.h"
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -233,14 +234,16 @@ win32_begin_frame(win32_window *window)
     ImGui::NewFrame();
 }
 
-/* Renders the ImGui draw data into the back buffer. It does not present. */
+/* Renders the scene (when renderer and commands are given) and then the
+   ImGui draw data into the back buffer. It does not present. */
 internal void
-win32_render_frame(win32_window *window)
+win32_render_frame(win32_window *window, d3d11_renderer *renderer, render_commands *commands, memory_arena *scratch)
 {
     ImGui::Render();
     const f32 clear_color[4] = { 0.09f, 0.10f, 0.12f, 1.0f };
     window->context->OMSetRenderTargets(1, &window->render_target, 0);
     window->context->ClearRenderTargetView(window->render_target, clear_color);
+    if (renderer && commands) d3d11_renderer_draw(renderer, commands, window->render_target, scratch);
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 }
 

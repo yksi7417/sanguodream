@@ -10,6 +10,9 @@
 #include "ecs/ecs.cpp"
 #include "sim/sim.h"
 #include "sim/sim.cpp"
+#include "render/render.h"
+#include "render/terrain_mesh.h"
+#include "render/png.h"
 
 #include "test_framework.h"
 #include "test_files.h"
@@ -20,6 +23,9 @@
 #include "inflate_tests.cpp"
 #include "save_format_tests.cpp"
 #include "scenario_format_tests.cpp"
+#include "render_tests.cpp"
+#include "terrain_mesh_tests.cpp"
+#include "png_tests.cpp"
 
 int
 main(void)
@@ -54,6 +60,18 @@ main(void)
     test_counts scenario_format = {};
     unit_scenario_format_tests(&scenario_format);
     failed |= test_report("unit/scenario_format", &scenario_format);
+
+    test_counts render = {};
+    unit_render_tests(&render);
+    failed |= test_report("unit/render", &render);
+
+    test_counts terrain = {};
+    unit_terrain_mesh_tests(&terrain);
+    failed |= test_report("unit/terrain_mesh", &terrain);
+
+    test_counts png = {};
+    unit_png_tests(&png);
+    failed |= test_report("unit/png", &png);
 
     printf(failed ? "RESULT FAIL\n" : "RESULT PASS\n");
     return failed;

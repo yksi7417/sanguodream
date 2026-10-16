@@ -69,5 +69,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     frame_info.dll_reload_count = game->reload_count;
     frame_info.frame_arena_used = frame->used;
     frame_info.frame_arena_size = frame->size;
+    frame_info.render           = input->render;
+    frame_info.frame_arena      = frame;
     ui_draw(&game->ui, &game->api, &frame_info);
 }

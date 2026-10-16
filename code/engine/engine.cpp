@@ -31,6 +31,32 @@ engine_default_config(void)
     return c;
 }
 
+/* A deterministic placeholder landscape until spec-src/spec/formats gives
+   the real map: a hash of the cell position picks a kind and a level. It
+   does not touch the sim's PRNG, so it changes no game outcome. Water (kind
+   0) is impassable; hills and mountains (kinds 3 and 4) cost more. */
+internal void
+engine_placeholder_terrain(hex_map *map)
+{
+    for (u32 index = 0; index < map->width * map->height; ++index)
+    {
+        u32 col = index % map->width, row = index / map->width;
+        u32 h = col * 0x9E3779B1u ^ (row + 1) * 0x85EBCA77u;
+        h ^= h >> 15; h *= 0x2C1B3C6Du; h ^= h >> 12;
+        u32 roll = h % 100;
+        u8 kind, level;
+        if      (roll < 8)  { kind = 0; level = 0; }   /* water */
+        else if (roll < 48) { kind = 1; level = 1; }   /* plain */
+        else if (roll < 70) { kind = 2; level = 1; }   /* forest */
+        else if (roll < 88) { kind = 3; level = 2; }   /* hill */
+        else                { kind = 4; level = 3; }   /* mountain */
+        map->kind[index]  = kind;
+        map->level[index] = level;
+        map->cost[index]  = kind == 0 ? HEX_IMPASSABLE : (kind == 3 ? 2 : (kind == 4 ? 3 : 1));
+    }
+    map->version++;
+}
+
 internal engine *
 engine_create(memory_arena *permanent, memory_arena *transient, engine_config config)
 {
@@ -41,6 +67,7 @@ engine_create(memory_arena *permanent, memory_arena *transient, engine_config co
     e->sim       = PushStruct(permanent, sim_state);
     sim_init(e->sim, permanent, config.seed);
     sim_init_map(e->sim, permanent, config.map_width, config.map_height, config.map_default_cost);
+    engine_placeholder_terrain(&e->sim->map);
     e->ledger_capacity = config.ledger_capacity;
     e->ledger_count    = 0;
     e->ledger          = PushArray(permanent, config.ledger_capacity, sim_event);
@@ -142,6 +169,25 @@ engine_api_path_cost(void *opaque, s32 q0, s32 r0, s32 q1, s32 r1)
     arena_reset(&e->scratch);
     hex_path path = hex_find_path(&e->sim->map, hex_make(q0, r0), hex_make(q1, r1), &e->scratch);
     return path.total_cost;
+}
+
+internal engine_terrain_view
+engine_api_terrain_view(void *opaque)
+{
+    hex_map *map = &((engine *)opaque)->sim->map;
+    engine_terrain_view view;
+    view.width   = map->width;
+    view.height  = map->height;
+    view.kind    = map->kind;
+    view.level   = map->level;
+    view.version = map->version;
+    return view;
+}
+
+internal void
+engine_api_set_cell_terrain(void *opaque, s32 q, s32 r, u8 kind, u8 level)
+{
+    hex_map_set_terrain(&((engine *)opaque)->sim->map, hex_make(q, r), kind, level);
 }
 
 internal u32
@@ -363,6 +409,8 @@ engine_make_api(engine *e)
     api.advance_turns   = engine_api_advance_turns;
     api.ledger_clear    = engine_api_ledger_clear;
     api.set_cell_cost   = engine_api_set_cell_cost;
+    api.terrain_view    = engine_api_terrain_view;
+    api.set_cell_terrain = engine_api_set_cell_terrain;
     api.load_save       = engine_api_load_save;
     api.load_name_index = engine_api_load_name_index;
     return api;

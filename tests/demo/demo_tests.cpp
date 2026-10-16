@@ -13,6 +13,9 @@
 
 /* build\demos, with no last backslash. demo_player.cpp sets it. */
 global_variable char g_demo_output_dir[MAX_PATH];
+/* This frame's render commands and arena; demo_player.cpp sets them each frame. */
+global_variable render_commands *g_demo_render;
+global_variable memory_arena    *g_demo_frame_arena;
 
 struct demo_vars
 {
@@ -46,8 +49,11 @@ demo_gui(ImGuiTestContext *ctx)
         v.ui.show_map      = false;
         v.ui.show_officers = false;
         v.ui.show_cities   = false;
+        v.ui.show_scene    = false;
     }
-    v.frame.dt_seconds = ImGui::GetIO().DeltaTime;
+    v.frame.dt_seconds  = ImGui::GetIO().DeltaTime;
+    v.frame.render      = g_demo_render;
+    v.frame.frame_arena = g_demo_frame_arena;
     ui_draw(&v.ui, &v.api, &v.frame);
 }
 
@@ -174,6 +180,25 @@ demo_m0_skeleton(ImGuiTestContext *ctx)
     demo_vars &v = ctx->GetVars<demo_vars>();
     IM_CHECK(demo_begin_video(ctx, milestone));
 
+    /* the 2.5D scene: orbit, tilt and zoom with the Scene panel's buttons */
+    IM_CHECK(demo_open_panel(ctx, "Scene", &v.ui.show_scene));
+    ctx->SetRef("Scene");
+    f32 yaw_before = v.ui.scene.cam.yaw;
+    f32 distance_before = v.ui.scene.cam.distance;
+    ctx->ItemClick("Orbit right");
+    ctx->ItemClick("Orbit right");
+    ctx->ItemClick("Orbit right");
+    IM_CHECK(v.ui.scene.cam.yaw != yaw_before);
+    ctx->ItemClick("Zoom in");
+    ctx->ItemClick("Zoom in");
+    IM_CHECK(v.ui.scene.cam.distance < distance_before);
+    ctx->ItemClick("Tilt up");
+    ctx->ItemClick("Orbit left");
+    ctx->SleepStandard();
+    ctx->ItemClick("Reset view");
+    IM_CHECK(v.ui.scene.cam.distance == distance_before);
+    ctx->SleepStandard();
+
     IM_CHECK(demo_open_panel(ctx, "Simulation", &v.ui.show_sim));
     IM_CHECK(demo_open_panel(ctx, "Hex map", &v.ui.show_map));
     IM_CHECK(demo_open_panel(ctx, "Event ledger", &v.ui.show_ledger));
@@ -205,6 +230,7 @@ demo_m0_skeleton(ImGuiTestContext *ctx)
 
     IM_CHECK(demo_end_video(ctx));
 
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "Scene", "scene"));
     IM_CHECK(demo_screenshot_panel(ctx, milestone, "Simulation", "simulation"));
     IM_CHECK(demo_screenshot_panel(ctx, milestone, "Hex map", "hex_map"));
     IM_CHECK(demo_screenshot_panel(ctx, milestone, "Event ledger", "event_ledger"));
