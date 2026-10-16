@@ -53,6 +53,111 @@ ui_name_cell(ui_state *ui, const u8 *bytes, u32 size)
     }
 }
 
+/* ---- id and code cells --------------------------------------------------
+
+   An id column names its record and a code column shows its label. The
+   raw number is in a tooltip on hover, and the "raw" check box of the
+   panel (ui->show_raw) shows the raw numbers in place of the names. The
+   names come from engine_api queries; the labels come from the locale TSV
+   through text_label. */
+
+/* The raw number of the last item, in a tooltip on hover. */
+internal void
+ui_raw_tooltip(ui_state *ui, u32 value)
+{
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s: %u", text_get(ui->text, "label.raw"), value);
+}
+
+/* The family name and the given name of an officer, in out. */
+internal void
+ui_officer_name(ui_state *ui, engine_officer *officer, char *out, u32 out_size)
+{
+    char family[UI_NAME_SIZE], given[UI_NAME_SIZE];
+    text_name(ui->text, officer->family_name, sizeof(officer->family_name), family, sizeof(family));
+    text_name(ui->text, officer->given_name, sizeof(officer->given_name), given, sizeof(given));
+    snprintf(out, out_size, "%s%s", family, given);
+}
+
+/* An officer id as the name of the officer; "-" for none; "?" and the id
+   if no officer has the id. */
+internal void
+ui_officer_text(ui_state *ui, engine_api *api, u16 officer_id, char *out, u32 out_size)
+{
+    if (officer_id == ENGINE_NO_OFFICER) { snprintf(out, out_size, "-"); return; }
+    engine_officer officer = api->officer_by_id(api->engine, officer_id);
+    if (officer.officer_id == ENGINE_NO_OFFICER) snprintf(out, out_size, "?%u", officer_id);
+    else                                        ui_officer_name(ui, &officer, out, out_size);
+}
+
+/* A force id as the name of its ruler (force_ruler); "-" for none; "force N"
+   if the force has no ruler. */
+internal void
+ui_force_text(ui_state *ui, engine_api *api, u8 force_id, char *out, u32 out_size)
+{
+    if (force_id == ENGINE_NO_FACTION) { snprintf(out, out_size, "-"); return; }
+    u16 ruler = api->force_ruler(api->engine, force_id);
+    if (ruler == ENGINE_NO_OFFICER) snprintf(out, out_size, "%s %u", text_get(ui->text, "label.force"), force_id);
+    else                            ui_officer_text(ui, api, ruler, out, out_size);
+}
+
+/* A location as its name from the name index; "-" for none; the number
+   until a name index loads. */
+internal void
+ui_location_text(ui_state *ui, engine_api *api, u16 location, char *out, u32 out_size)
+{
+    if (location == ENGINE_NO_LOCATION) { snprintf(out, out_size, "-"); return; }
+    engine_location_name name = api->location_name_at(api->engine, location);
+    if (name.location == ENGINE_NO_LOCATION) snprintf(out, out_size, "%u", location);
+    else                                     text_name(ui->text, name.name, sizeof(name.name), out, out_size);
+}
+
+enum ui_code_kind
+{
+    UI_CODE_FORCE,
+    UI_CODE_OFFICER,
+    UI_CODE_LOCATION,
+    UI_CODE_STATUS,      /* text id "status.<code>" */
+    UI_CODE_SPECIALTY,   /* text id "specialty.<code>" */
+};
+
+/* The text of one id or code, as a name or a label. */
+internal void
+ui_code_text(ui_state *ui, engine_api *api, ui_code_kind kind, u32 value, char *out, u32 out_size)
+{
+    switch (kind)
+    {
+        case UI_CODE_FORCE:     ui_force_text(ui, api, (u8)value, out, out_size);     break;
+        case UI_CODE_OFFICER:   ui_officer_text(ui, api, (u16)value, out, out_size);  break;
+        case UI_CODE_LOCATION:  ui_location_text(ui, api, (u16)value, out, out_size); break;
+        case UI_CODE_STATUS:    text_label(ui->text, "status", value, out, out_size);    break;
+        case UI_CODE_SPECIALTY: text_label(ui->text, "specialty", value, out, out_size); break;
+    }
+}
+
+/* One id or code cell: the name or the label, or the raw number when the
+   panel shows raw numbers. The raw number is also in a tooltip. */
+internal void
+ui_code_cell(ui_state *ui, engine_api *api, ui_code_kind kind, u32 value, u32 none)
+{
+    if (ui->show_raw)
+    {
+        ui_text_id(value, none);
+        return;
+    }
+    char text[UI_NAME_SIZE * 2];
+    ui_code_text(ui, api, kind, value, text, sizeof(text));
+    ImGui::TextUnformatted(text);
+    ui_raw_tooltip(ui, value);
+}
+
+/* The "raw" check box of a panel. All panels share the one setting. */
+internal void
+ui_raw_toggle(ui_state *ui)
+{
+    char label[96];
+    ImGui::Checkbox(ui_label(label, sizeof(label), ui, "label.raw_toggle", "raw"), &ui->show_raw);
+}
+
 /* A table column with the text of the locale and a stable id. */
 internal void
 ui_table_column(ui_state *ui, const char *text_id, const char *stable_id, ImGuiTableColumnFlags flags = 0, f32 width = 0.0f)
@@ -62,15 +167,15 @@ ui_table_column(ui_state *ui, const char *text_id, const char *stable_id, ImGuiT
 }
 
 internal void
-ui_draw_officer_row(ui_state *ui, engine_officer *officer)
+ui_draw_officer_row(ui_state *ui, engine_api *api, engine_officer *officer)
 {
     ImGui::TableNextRow();
     ImGui::TableNextColumn(); ImGui::Text("%u", officer->officer_id);
     ImGui::TableNextColumn(); ui_name_cell(ui, officer->family_name, sizeof(officer->family_name));
     ImGui::TableNextColumn(); ui_name_cell(ui, officer->given_name, sizeof(officer->given_name));
-    ImGui::TableNextColumn(); ui_text_id(officer->force_id, UI_NO_ID_8);
-    ImGui::TableNextColumn(); ImGui::Text("%u", officer->status);
-    ImGui::TableNextColumn(); ui_text_id(officer->base_location, UI_NO_ID_16);
+    ImGui::TableNextColumn(); ui_code_cell(ui, api, UI_CODE_FORCE, officer->force_id, UI_NO_ID_8);
+    ImGui::TableNextColumn(); ui_code_cell(ui, api, UI_CODE_STATUS, officer->status, U32_MAX);
+    ImGui::TableNextColumn(); ui_code_cell(ui, api, UI_CODE_LOCATION, officer->base_location, UI_NO_ID_16);
     ImGui::TableNextColumn(); ImGui::Text("%u/%u/%u/%u/%u", officer->leadership, officer->war, officer->intelligence,
                                           officer->politics, officer->charm);
     ImGui::TableNextColumn(); ImGui::Text("%u-%u", officer->birth_year, officer->death_year);
@@ -86,6 +191,8 @@ ui_draw_officers(ui_state *ui, engine_api *api)
     {
         u32 count = api->officer_count(api->engine);
         ImGui::Text("%u %s", count, text_get(ui->text, "officers.count"));
+        ImGui::SameLine();
+        ui_raw_toggle(ui);
         ImGui::TextDisabled("%s", text_get(ui->text, "officers.help"));
         ImGuiTableFlags flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
                                 ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable;
@@ -95,9 +202,9 @@ ui_draw_officers(ui_state *ui, engine_api *api)
             ui_table_column(ui, "column.id", "id", ImGuiTableColumnFlags_WidthFixed, 40.0f);
             ui_table_column(ui, "column.family_name", "family");
             ui_table_column(ui, "column.given_name", "given");
-            ui_table_column(ui, "column.force", "force", ImGuiTableColumnFlags_WidthFixed, 40.0f);
-            ui_table_column(ui, "column.status", "status", ImGuiTableColumnFlags_WidthFixed, 45.0f);
-            ui_table_column(ui, "column.location", "location", ImGuiTableColumnFlags_WidthFixed, 55.0f);
+            ui_table_column(ui, "column.force", "force", ImGuiTableColumnFlags_WidthFixed, 60.0f);
+            ui_table_column(ui, "column.status", "status", ImGuiTableColumnFlags_WidthFixed, 60.0f);
+            ui_table_column(ui, "column.location", "location", ImGuiTableColumnFlags_WidthFixed, 70.0f);
             ui_table_column(ui, "column.stats", "stats");
             ui_table_column(ui, "column.years", "years");
             ui_table_column(ui, "column.merit", "merit", ImGuiTableColumnFlags_WidthFixed, 50.0f);
@@ -109,7 +216,7 @@ ui_draw_officers(ui_state *ui, engine_api *api)
                 for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; ++row)
                 {
                     engine_officer officer = api->officer_at(api->engine, (u32)row);
-                    ui_draw_officer_row(ui, &officer);
+                    ui_draw_officer_row(ui, api, &officer);
                 }
             }
             ImGui::EndTable();
@@ -119,15 +226,15 @@ ui_draw_officers(ui_state *ui, engine_api *api)
 }
 
 internal void
-ui_draw_city_row(ui_state *ui, engine_city *city, engine_city_name *name)
+ui_draw_city_row(ui_state *ui, engine_api *api, engine_city *city, engine_city_name *name)
 {
     ImGui::TableNextRow();
     ImGui::TableNextColumn(); ImGui::Text("%u", city->city_id);
     ImGui::TableNextColumn();
     if (name->city_id == ENGINE_NO_CITY) ImGui::TextUnformatted("-");
     else                                 ui_name_cell(ui, name->name, sizeof(name->name));
-    ImGui::TableNextColumn(); ui_text_id(city->owner_force_id, UI_NO_ID_8);
-    ImGui::TableNextColumn(); ui_text_id(city->commanding_officer_id, UI_NO_ID_16);
+    ImGui::TableNextColumn(); ui_code_cell(ui, api, UI_CODE_FORCE, city->owner_force_id, UI_NO_ID_8);
+    ImGui::TableNextColumn(); ui_code_cell(ui, api, UI_CODE_OFFICER, city->commanding_officer_id, UI_NO_ID_16);
     ImGui::TableNextColumn(); ImGui::Text("%u", city->gold);
     ImGui::TableNextColumn(); ImGui::Text("%u", city->troops);
     ImGui::TableNextColumn(); ImGui::Text("%u", city->food);
@@ -144,6 +251,8 @@ ui_draw_cities(ui_state *ui, engine_api *api)
     {
         u32 count = api->city_count(api->engine);
         ImGui::Text("%u %s", count, text_get(ui->text, "cities.count"));
+        ImGui::SameLine();
+        ui_raw_toggle(ui);
         ImGui::TextDisabled("%s", text_get(ui->text, "cities.help"));
         ImGuiTableFlags flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
                                 ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable;
@@ -152,7 +261,7 @@ ui_draw_cities(ui_state *ui, engine_api *api)
             ImGui::TableSetupScrollFreeze(0, 1);
             ui_table_column(ui, "column.id", "id", ImGuiTableColumnFlags_WidthFixed, 30.0f);
             ui_table_column(ui, "column.name", "name", ImGuiTableColumnFlags_WidthFixed, 90.0f);
-            ui_table_column(ui, "column.owner", "owner", ImGuiTableColumnFlags_WidthFixed, 45.0f);
+            ui_table_column(ui, "column.owner", "owner", ImGuiTableColumnFlags_WidthFixed, 60.0f);
             ui_table_column(ui, "column.commander", "commander", ImGuiTableColumnFlags_WidthFixed, 70.0f);
             ui_table_column(ui, "column.gold", "gold");
             ui_table_column(ui, "column.troops", "troops");
@@ -168,7 +277,7 @@ ui_draw_cities(ui_state *ui, engine_api *api)
                 {
                     engine_city city = api->city_at(api->engine, (u32)row);
                     engine_city_name name = api->city_name_at(api->engine, city.city_id);
-                    ui_draw_city_row(ui, &city, &name);
+                    ui_draw_city_row(ui, api, &city, &name);
                 }
             }
             ImGui::EndTable();

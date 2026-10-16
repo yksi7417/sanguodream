@@ -7,7 +7,7 @@ menu.cities	Cities	menu item and panel
 menu.settings	Settings	menu item and panel
 officers.title	Officers	panel title
 officers.count	officers	after a number: "853 officers"
-officers.help	Status: 0 ruler, 1 viceroy, 2 governor, 3 regular, 6 free, 8 dead. Point at a name to see its Big5 bytes.
+officers.help	Force is the name of its ruler. Point at a name or a label to see its number or its Big5 bytes. A status without a label shows "?" and the number.
 cities.title	Cities	panel title
 cities.count	cities	after a number: "42 cities"
 cities.help	Names come from the name index ("Load city names"). Public order and durability maximum are hypotheses in the spec.
@@ -101,3 +101,22 @@ facility.military_office	Military office
 facility.drill_ground	Drill ground
 facility.fish_market	Fish market
 facility.military_farm	Military farm
+# Names and labels of the id and code columns (tutorial 12). The zh-TW file has the game terms.
+label.raw	raw value	tooltip on a name or a label: the number in the save
+label.raw_toggle	raw numbers	check box: show the numbers in place of the names
+label.force	force	before a force id, for a force without a ruler: "force 42"
+city.specialty	Specialty	特色, cities-and-facilities.md
+status.0	ruler	officer status 0, 君主; save-file.md officer +100
+status.1	viceroy	officer status 1, 都督
+status.2	governor	officer status 2, 太守
+status.3	regular	officer status 3, 一般
+status.6	free	officer status 6, 在野; also "not yet appeared" (Q-150)
+status.8	dead	officer status 8; save-file.md gives no game term (Q-150)
+specialty.0	none	city_specialty 0: no specialty in cities.tsv
+specialty.1	big city	cities-and-facilities.md, Specialty (特色)
+specialty.2	pike	槍
+specialty.3	halberd	戟
+specialty.4	crossbow	弩
+specialty.5	horse	軍馬
+specialty.6	siege	兵器
+specialty.7	navy	艦船

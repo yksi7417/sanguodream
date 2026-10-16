@@ -6,7 +6,7 @@ menu.cities	都市
 menu.settings	設定
 officers.title	武將
 officers.count	名武將	after a number: "853 名武將"
-officers.help	狀態：0 君主，1 都督，2 太守，3 一般，6 在野，8 死亡。將滑鼠移到名字上可看到 Big5 位元組。
+officers.help	勢力欄顯示君主的名字。將滑鼠移到名字或標籤上可看到數值或 Big5 位元組。沒有標籤的狀態顯示「?」與數值。
 cities.title	都市
 cities.count	座都市	after a number: "42 座都市"
 cities.help	名稱來自名稱索引（「Load city names」）。治安與耐久上限是規格中的假設。
@@ -100,3 +100,21 @@ facility.military_office	軍事府
 facility.drill_ground	鍊兵所
 facility.fish_market	魚市
 facility.military_farm	軍屯農
+label.raw	原始值
+label.raw_toggle	原始數值
+label.force	勢力
+city.specialty	特色
+status.0	君主
+status.1	都督
+status.2	太守
+status.3	一般
+status.6	在野
+status.8	死亡
+specialty.0	無
+specialty.1	大都市
+specialty.2	槍
+specialty.3	戟
+specialty.4	弩
+specialty.5	軍馬
+specialty.6	兵器
+specialty.7	艦船

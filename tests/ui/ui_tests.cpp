@@ -262,14 +262,15 @@ register_ui_tests(ImGuiTestEngine *e)
     {
         ui_test_vars &v = ctx->GetVars<ui_test_vars>();
         v.recorder.officer_count = 4;
+        v.ui.show_sim            = false;  /* count only the names of the Officers panel */
         ctx->SetRef("###Officers");
         ctx->Yield(2);
         recorder_reset(&v.recorder);
         text_catalog_stats before = v.text.stats;
         ctx->Yield();
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_OFFICER_AT), 4u);              /* the names come from engine_api */
-        IM_CHECK_EQ(v.text.stats.name_lookups - before.name_lookups, 8ull);            /* family and given name of each row */
-        IM_CHECK_EQ(v.text.stats.decoded_names - before.decoded_names, 4ull);          /* zh-TW has no names file: Big5 decode; the given names are empty */
+        IM_CHECK_EQ(v.text.stats.name_lookups - before.name_lookups, 16ull);           /* family and given name of each row and of its ruler */
+        IM_CHECK_EQ(v.text.stats.decoded_names - before.decoded_names, 8ull);          /* zh-TW has no names file: Big5 decode; the given names are empty */
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
@@ -282,14 +283,153 @@ register_ui_tests(ImGuiTestEngine *e)
         v.recorder.city_count = 3;
         v.recorder.has_names  = true;
         v.ui.show_officers    = false;     /* count only the names of the Cities panel */
+        v.ui.show_sim         = false;
         ctx->SetRef("###Cities");
         ctx->Yield(2);
         recorder_reset(&v.recorder);
         text_catalog_stats before = v.text.stats;
         ctx->Yield();
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_CITY_NAME_AT), 3u);
-        IM_CHECK_EQ(v.text.stats.name_lookups - before.name_lookups, 3ull);            /* one name for each row */
+        IM_CHECK_EQ(v.text.stats.name_lookups - before.name_lookups, 3ull);            /* one name for each row; no officers, so no ruler names */
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "officers_panel_names_force_status_and_location_through_queries_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 4;
+        v.recorder.has_names     = true;
+        v.ui.show_sim            = false;
+        v.ui.show_cities         = false;
+        ctx->SetRef("###Officers");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        text_catalog_stats before = v.text.stats;
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_FORCE_RULER), 4u);               /* the force column of each row */
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_FORCE_RULER), 1u);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_OFFICER_BY_ID), 4u);             /* the name of the ruler */
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_OFFICER_BY_ID), 100u);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOCATION_NAME_AT), 4u);          /* the location column of each row */
+        u32 location_calls = 0;
+        for (u32 index = 0; index < v.recorder.call_count; ++index)
+        {
+            if (v.recorder.calls[index].kind != RECORDER_LOCATION_NAME_AT) continue;
+            IM_CHECK_EQ(v.recorder.calls[index].arg, location_calls);                     /* officer i has its base in city i */
+            location_calls++;
+        }
+        IM_CHECK_EQ(v.text.stats.label_lookups - before.label_lookups, 4ull);              /* the status label of each row */
+        IM_CHECK_EQ(v.text.stats.unknown_labels - before.unknown_labels, 0ull);            /* status 3 has a label */
+        IM_CHECK_EQ(v.text.stats.missing_strings - before.missing_strings, 0ull);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "cities_panel_names_owner_and_commander_through_queries_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 1;      /* officer 100 rules force 1 and commands city 0 */
+        v.recorder.city_count    = 3;
+        v.ui.show_sim            = false;
+        v.ui.show_officers       = false;
+        ctx->SetRef("###Cities");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_FORCE_RULER), 3u);               /* the owner column of each row */
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_OFFICER_BY_ID), 3u + 1u);        /* the ruler of each owner, and the one commander */
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_OFFICER_AT), 0u);                /* no scan of the officer table */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "raw_check_box_shows_numbers_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.recorder.has_names     = true;
+        v.ui.show_sim            = false;
+        v.ui.show_city           = true;
+        ctx->SetRef("###Officers");
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.show_raw);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###raw");
+        ctx->Yield(2);
+        IM_CHECK(v.ui.show_raw);                                                          /* one setting for all panels */
+        recorder_reset(&v.recorder);
+        text_catalog_stats before = v.text.stats;
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_FORCE_RULER), 0u);               /* raw numbers need no names */
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_OFFICER_BY_ID), 0u);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOCATION_NAME_AT), 0u);
+        IM_CHECK_EQ(v.text.stats.label_lookups - before.label_lookups, 0ull);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_OFFICER_AT), 3u);                /* the rows are still read */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        ctx->SetRef("###City");
+        ctx->ItemClick("###raw");
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.show_raw);                                                         /* the City panel clears it again */
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_FORCE_RULER), 3u + 2u);          /* the names are back: officers, cities, city */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "city_panel_names_owner_governor_and_specialty_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 1;
+        v.recorder.city_count    = 2;
+        v.ui.show_sim            = false;
+        v.ui.show_officers       = false;
+        v.ui.show_cities         = false;
+        v.ui.show_city           = true;
+        ctx->SetRef("###City");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        text_catalog_stats before = v.text.stats;
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_FORCE_RULER), 1u);               /* the owner */
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_FORCE_RULER), 1u);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_OFFICER_BY_ID), 2u);             /* the ruler and the governor */
+        IM_CHECK_EQ(v.text.stats.label_lookups - before.label_lookups, 1ull);              /* the specialty */
+        IM_CHECK_EQ(v.text.stats.unknown_labels - before.unknown_labels, 0ull);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "each_locale_has_each_status_and_specialty_label");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        const u32 statuses[] = { 0, 1, 2, 3, 6, 8 };       /* the labelled values of save-file.md, officer +100 */
+        char label[64];
+        for (u32 index = 0; index < v.text.locale_count; ++index)
+        {
+            IM_CHECK(text_catalog_set_locale(&v.text, v.text.locales[index].code));
+            u64 unknown = v.text.stats.unknown_labels;
+            for (u32 status = 0; status < ArrayCount(statuses); ++status) text_label(&v.text, "status", statuses[status], label, sizeof(label));
+            for (u32 specialty = 0; specialty < CITY_SPECIALTY_COUNT; ++specialty) text_label(&v.text, "specialty", specialty, label, sizeof(label));
+            IM_CHECK_EQ(v.text.stats.unknown_labels, unknown);                            /* each code has a label in this locale */
+            IM_CHECK_STR_EQ(text_label(&v.text, "status", 4, label, sizeof(label)), "?4"); /* status 4 has no label in the spec */
+        }
+        IM_CHECK(text_catalog_set_locale(&v.text, "zh-TW"));
+        IM_CHECK_STR_EQ(text_label(&v.text, "status", 0, label, sizeof(label)), "\xE5\x90\x9B\xE4\xB8\xBB");   /* zh-TW: the game term */
+        IM_CHECK(text_catalog_set_locale(&v.text, "en"));
+        IM_CHECK_STR_EQ(text_label(&v.text, "status", 0, label, sizeof(label)), "ruler");                      /* en: the gloss */
     };
 
     t = IM_REGISTER_TEST(e, "ui", "language_combo_changes_the_locale_and_commands_nothing");

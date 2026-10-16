@@ -45,6 +45,7 @@ ui_init(ui_state *ui, text_catalog *text)
     ui->show_settings = false;
     ui->show_city     = true;
     ui->show_develop  = false;
+    ui->show_raw      = false;
     ui->city.selected = 0;
     ui->develop = {};
     ui->develop.prepared_city = ENGINE_NO_CITY;
@@ -104,14 +105,21 @@ ui_draw_menu_bar(ui_state *ui, engine_api *api, ui_frame_info *frame)
 
 /* The date, the faction that acts, and the order of this turn. */
 internal void
-ui_draw_turn_status(engine_api *api)
+ui_draw_turn_status(ui_state *ui, engine_api *api)
 {
     engine_date date = api->date(api->engine);
     ImGui::Text("Date: %u-%02u-%02u (%s), day %lld", date.year, date.month, date.day,
                 calendar_season_name((calendar_season)date.season), (long long)date.days_since_start);
     u8 acting = api->whose_turn(api->engine);
     if (acting == ENGINE_NO_FACTION) ImGui::TextUnformatted("Acting: none (Advance turn moves the date)");
-    else ImGui::Text("Acting: force %u, %u action points", acting, api->actions_left(api->engine, acting));
+    else
+    {
+        ImGui::TextUnformatted("Acting:");
+        ImGui::SameLine();
+        ui_code_cell(ui, api, UI_CODE_FORCE, acting, ENGINE_NO_FACTION);
+        ImGui::SameLine();
+        ImGui::Text("(force %u), %u action points", acting, api->actions_left(api->engine, acting));
+    }
     u32 factions = api->faction_count(api->engine);
     if (factions && ImGui::CollapsingHeader("Turn order"))
     {
@@ -129,7 +137,7 @@ ui_draw_turn_status(engine_api *api)
                 engine_faction faction = api->faction_at(api->engine, index);
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn(); ImGui::Text("%u%s", index, faction.acted ? " done" : "");
-                ImGui::TableNextColumn(); ImGui::Text("%u", faction.force_id);
+                ImGui::TableNextColumn(); ui_code_cell(ui, api, UI_CODE_FORCE, faction.force_id, ENGINE_NO_FACTION);
                 ImGui::TableNextColumn(); ImGui::Text("%u", faction.city_count);
                 ImGui::TableNextColumn(); ImGui::Text("%u", faction.officer_count);
                 ImGui::TableNextColumn(); ImGui::Text("%u", faction.action_points);
@@ -148,7 +156,7 @@ ui_draw_simulation(ui_state *ui, engine_api *api)
     {
         ImGui::Text("Turn: %u", api->turn(api->engine));
         ImGui::Text("Entities alive: %u / %u", api->entities_alive(api->engine), api->entity_capacity(api->engine));
-        ui_draw_turn_status(api);
+        ui_draw_turn_status(ui, api);
         ImGui::Separator();
         /* "Advance turn" is the proceed button: the faction that acts ends its turn. */
         if (ImGui::Button("Advance turn"))

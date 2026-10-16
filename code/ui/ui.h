@@ -34,6 +34,7 @@ struct ui_state
     bool show_settings;
     bool show_city;
     bool show_develop;
+    bool show_raw;               /* the id and code columns show the raw numbers, not the names */
     struct
     {
         u8 selected;             /* the city id that the City panel shows */

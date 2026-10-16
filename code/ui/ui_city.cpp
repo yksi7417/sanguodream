@@ -101,17 +101,25 @@ ui_draw_city(ui_state *ui, engine_api *api)
             return;
         }
         ui_draw_city_combo(ui, api);
+        ImGui::SameLine();
+        ui_raw_toggle(ui);
         engine_city city = api->city_at(api->engine, ui->city.selected);
         engine_city_slots slots = api->city_slots(api->engine, ui->city.selected);
-        ImGui::Text("%s: %u   %s: %u   %s: %u", text_get(ui->text, "column.owner"), city.owner_force_id,
-                    text_get(ui->text, "column.gold"), city.gold, text_get(ui->text, "column.food"), city.food);
-        ImGui::Text("%s: %u / %u", text_get(ui->text, "city.slots"), slots.used, slots.slot_count);
+        ImGui::Text("%s:", text_get(ui->text, "column.owner"));
+        ImGui::SameLine();
+        ui_code_cell(ui, api, UI_CODE_FORCE, city.owner_force_id, UI_NO_ID_8);
+        ImGui::SameLine();
+        ImGui::Text("  %s: %u   %s: %u", text_get(ui->text, "column.gold"), city.gold, text_get(ui->text, "column.food"), city.food);
+        ImGui::Text("%s:", text_get(ui->text, "city.specialty"));
+        ImGui::SameLine();
+        ui_code_cell(ui, api, UI_CODE_SPECIALTY, slots.specialty, U32_MAX);
+        ImGui::SameLine();
+        ImGui::Text("  %s: %u / %u", text_get(ui->text, "city.slots"), slots.used, slots.slot_count);
         ImGui::Text("%s: %u   %s: %u", text_get(ui->text, "city.gold_income"), slots.gold_income,
                     text_get(ui->text, "city.grain_income"), slots.grain_income);
-        ImGui::Text("%s: ", text_get(ui->text, "city.governor"));
+        ImGui::Text("%s:", text_get(ui->text, "city.governor"));
         ImGui::SameLine();
-        if (slots.governor_id == ENGINE_NO_OFFICER) ImGui::TextUnformatted("-");
-        else                                        ImGui::Text("%u", slots.governor_id);
+        ui_code_cell(ui, api, UI_CODE_OFFICER, slots.governor_id, UI_NO_ID_16);
         char label[96];
         if (ImGui::Button(ui_label(label, sizeof(label), ui, "city.develop", "open_develop")))
         {
@@ -174,10 +182,9 @@ ui_officer_label(ui_state *ui, engine_api *api, u16 officer_id, char *out, u32 o
     {
         engine_officer officer = api->officer_at(api->engine, index);
         if (officer.officer_id != officer_id) continue;
-        char family[UI_NAME_SIZE], given[UI_NAME_SIZE];
-        text_name(ui->text, officer.family_name, sizeof(officer.family_name), family, sizeof(family));
-        text_name(ui->text, officer.given_name, sizeof(officer.given_name), given, sizeof(given));
-        snprintf(out, out_size, "%s%s (%u)", family, given, officer.politics);
+        char name[UI_NAME_SIZE * 2];
+        ui_officer_name(ui, &officer, name, sizeof(name));
+        snprintf(out, out_size, "%s (%u)", name, officer.politics);
         return;
     }
     snprintf(out, out_size, "%u", officer_id);

@@ -36,6 +36,9 @@ enum recorder_call_kind
     RECORDER_FACILITY_KIND_COUNT,
     RECORDER_FACILITY_KIND_AT,
     RECORDER_CONTENT_STATUS,
+    RECORDER_OFFICER_BY_ID,
+    RECORDER_FORCE_RULER,
+    RECORDER_LOCATION_NAME_AT,
     RECORDER_END_TURN,        /* commands start here */
     RECORDER_ADVANCE_TURNS,
     RECORDER_LEDGER_CLEAR,
@@ -213,10 +216,8 @@ internal u32 recorder_city_count(void *o)     { engine_recorder *r = (engine_rec
 
 /* Officer i of the script: id 100 + i, with a two-byte name that no
    character mapping is needed to check. */
-internal engine_officer recorder_officer_at(void *o, u32 i)
+internal engine_officer recorder_scripted_officer(engine_recorder *r, u32 i)
 {
-    engine_recorder *r = (engine_recorder *)o;
-    recorder_record(r, RECORDER_OFFICER_AT, i);
     engine_officer officer = {};
     officer.officer_id = ENGINE_NO_OFFICER;
     if (i >= r->officer_count) return officer;
@@ -226,11 +227,48 @@ internal engine_officer recorder_officer_at(void *o, u32 i)
     officer.leadership     = 50;
     officer.force_id       = 1;
     officer.status         = 3;
-    officer.base_location  = 0xFFFF;
+    officer.base_location  = (u16)i;        /* officer i has its base in city i */
     officer.current_position = 0;        /* every scripted officer stands in city 0 */
     officer.politics       = 60;
     officer.job_city       = ENGINE_NO_CITY;
     return officer;
+}
+
+internal engine_officer recorder_officer_at(void *o, u32 i)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_OFFICER_AT, i);
+    return recorder_scripted_officer(r, i);
+}
+
+internal engine_officer recorder_officer_by_id(void *o, u16 officer_id)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_OFFICER_BY_ID, officer_id);
+    return recorder_scripted_officer(r, officer_id >= 100 ? officer_id - 100u : U32_MAX);
+}
+
+/* The first scripted officer (id 100) rules force 1; no other force has a ruler. */
+internal u16 recorder_force_ruler(void *o, u8 force_id)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_FORCE_RULER, force_id);
+    return force_id == 1 && r->officer_count > 0 ? 100 : ENGINE_NO_OFFICER;
+}
+
+/* After a name index load, location i is named A5 (40 + i) for a city and
+   A6 (i) for a gate or a port. */
+internal engine_location_name recorder_location_name_at(void *o, u16 location)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_LOCATION_NAME_AT, location);
+    engine_location_name name = {};
+    name.location = ENGINE_NO_LOCATION;
+    if (!r->has_names || location >= NAME_INDEX_FIRST_GATE_ID + NAME_INDEX_GATE_COUNT) return name;
+    name.location = location;
+    name.name[0]  = location < SCENARIO_CITY_COUNT ? 0xA5 : 0xA6;
+    name.name[1]  = (u8)(location < SCENARIO_CITY_COUNT ? 0x40 + location : location);
+    return name;
 }
 
 internal engine_city recorder_city_at(void *o, u32 i)
@@ -242,7 +280,7 @@ internal engine_city recorder_city_at(void *o, u32 i)
     if (i >= r->city_count) return city;
     city.city_id               = (u8)i;
     city.owner_force_id        = 1;        /* the force of the scripted officers */
-    city.commanding_officer_id = 0xFFFF;
+    city.commanding_officer_id = i == 0 ? 100 : 0xFFFF;   /* officer 100 commands city 0 */
     city.gold                  = 1000 * (i + 1);
     return city;
 }
@@ -459,6 +497,9 @@ recorder_make_api(engine_recorder *r)
     api.set_city_gold   = recorder_set_city_gold;
     api.set_actions     = recorder_set_actions;
     api.place_unit      = recorder_place_unit;
+    api.officer_by_id   = recorder_officer_by_id;
+    api.force_ruler     = recorder_force_ruler;
+    api.location_name_at = recorder_location_name_at;
     return api;
 }
 
