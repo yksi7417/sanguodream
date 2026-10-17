@@ -74,6 +74,7 @@ struct engine_city
     u32 equipment_stocks[CITY_EQUIPMENT_STOCK_COUNT];   /* spears, halberds, crossbows, war horses, rams, towers, catapults, 3 ships */
     u16 durability_maximum;         /* hypothesis in the spec */
     u8  public_order;               /* hypothesis in the spec */
+    u8  morale;                     /* 氣力; the start value is assumed (the save field is not decoded) */
 };
 
 /* The name of a city from the name index (Scenario.s11), as a front end
@@ -99,6 +100,9 @@ struct engine_location_name
 #define ENGINE_NO_FACILITY 0xFF
 #define ENGINE_ANY_SLOT    0xFF
 #define ENGINE_NO_UNIT     U32_MAX
+#define ENGINE_NO_WEAPON   0xFF
+#define ENGINE_ANY_CITY     ENGINE_NO_CITY   /* ledger_filter: no city filter */
+#define ENGINE_ANY_RESOURCE 0xFF             /* ledger_filter: no resource filter */
 
 /* The date of the game (calendar-and-turn.md). */
 struct engine_date
@@ -127,6 +131,11 @@ struct engine_faction
 enum engine_command_kind
 {
     ENGINE_COMMAND_DEVELOP,
+    ENGINE_COMMAND_PATROL,
+    ENGINE_COMMAND_CONSCRIPT,
+    ENGINE_COMMAND_TRAIN,
+    ENGINE_COMMAND_MERCHANT,
+    ENGINE_COMMAND_PRODUCE,
     ENGINE_COMMAND_KIND_COUNT
 };
 
@@ -137,6 +146,9 @@ struct engine_command
     u8  facility;                           /* ENGINE_COMMAND_DEVELOP */
     u8  slot;                               /* ENGINE_ANY_SLOT: the first free slot */
     u16 officers[SIM_DEVELOP_OFFICERS];     /* ENGINE_NO_OFFICER for an empty place */
+    u8  weapon;                             /* ENGINE_COMMAND_PRODUCE: the row of weapon_kind_at */
+    u8  merchant_mode;                      /* ENGINE_COMMAND_MERCHANT: sim_merchant_mode */
+    u32 amount;                             /* ENGINE_COMMAND_MERCHANT: the gold to spend or the grain to sell */
 };
 
 /* The answer of can_issue: the refusal reason, or SIM_REFUSAL_NONE with
@@ -173,9 +185,64 @@ struct engine_facility
     u8  level;
     u16 turns_left;         /* while building */
     s32 q, r;               /* the slot on the placeholder map */
-    u32 yield;              /* gold each month or grain each season, with the adjacency bonus */
+    u32 yield;              /* gold each month or grain each season, with the level and the adjacency bonus */
     u8  yield_effect;       /* facility_effect of the yield */
     u16 officers[SIM_DEVELOP_OFFICERS];
+    u32 durability;         /* current */
+    u32 durability_max;     /* the durability of the facility table */
+    u8  job_weapon;         /* a production job of a workshop or a shipyard; ENGINE_NO_WEAPON if none */
+    b32 used;               /* a conscription or a production used it in this turn */
+};
+
+/* The state of a city that the city commands change (cities-and-facilities.md,
+   "Data of a city"). */
+struct engine_city_economy
+{
+    u8  city_id;            /* ENGINE_NO_CITY if the city is not loaded */
+    u32 gold, gold_cap;
+    u32 grain, grain_cap;
+    u32 public_order, order_max;
+    b32 bandits_blocked;    /* public order at the threshold (80) or more: no bandits; a flag only until F-007 */
+    u32 morale, morale_max;
+    u32 soldiers, soldier_cap;
+    u32 weapon_cap;
+    u32 stocks[CITY_EQUIPMENT_STOCK_COUNT];
+    u32 grain_per_gold;     /* the merchant price before the politics bonus (assumed) */
+    b32 patrolled;          /* a patrol ran in this turn */
+    b32 trained;            /* a train ran in this turn */
+    u32 barracks;           /* built barracks */
+    u32 barracks_free;      /* built barracks that no conscription used in this turn */
+    u32 technique_points;   /* of the owner */
+};
+
+/* The income of a city at the next calendar events, with each part. */
+struct engine_income_forecast
+{
+    u8                  city_id;      /* ENGINE_NO_CITY if the city is not loaded */
+    b32                 assumed;      /* the amounts come from assumed numbers (Q-021, Q-027, Q-119) */
+    sim_income_forecast amounts;
+};
+
+/* One row of the weapon table of the content pack. */
+struct engine_weapon_kind
+{
+    u8   id;                /* ENGINE_NO_WEAPON for an index out of range */
+    char key[CONTENT_KEY_SIZE];   /* the text id is "weapon.<key>" */
+    u32  cost;
+    u8   facility;          /* facility_effect of the facility that produces it */
+    u8   specialty;         /* city_specialty */
+    u32  stock;             /* the index into engine_city_economy.stocks */
+    u32  min_days;          /* 0: the weapons arrive at once */
+    u32  max_days;
+    b32  needs_technique;
+};
+
+/* The indices of the ledger events that a filter keeps, in ledger order.
+   The engine owns the array; the next ledger_filter call replaces it. */
+struct engine_ledger_view
+{
+    u32        count;
+    const u32 *indices;
 };
 
 /* One row of the facility table of the content pack. */
@@ -198,9 +265,10 @@ struct engine_facility_kind
 /* The tables of the content pack that the engine loaded at start. */
 struct engine_content_status
 {
-    b32         loaded;           /* all three tables loaded */
+    b32         loaded;           /* all four tables loaded */
     u32         facility_count;
     u32         city_count;
+    u32         weapon_count;
     u32         rule_count;
     const char *detail;           /* a static string: the file that did not load, or "ok" */
 };
@@ -265,6 +333,15 @@ typedef engine_facility     engine_facility_at_fn(void *engine, u8 city_id, u8 s
 typedef u32                 engine_facility_kind_count_fn(void *engine);
 typedef engine_facility_kind engine_facility_kind_at_fn(void *engine, u32 index);
 typedef engine_content_status engine_content_status_fn(void *engine);
+/* M3 economy queries */
+typedef engine_city_economy    engine_city_economy_fn(void *engine, u8 city_id);
+typedef engine_income_forecast engine_city_income_forecast_fn(void *engine, u8 city_id);
+typedef u32                    engine_technique_points_fn(void *engine, u8 force_id);
+typedef u32                    engine_weapon_kind_count_fn(void *engine);
+typedef engine_weapon_kind     engine_weapon_kind_at_fn(void *engine, u32 index);
+/* The ledger events of a city (or ENGINE_ANY_CITY) that change a resource
+   (sim_resource, or ENGINE_ANY_RESOURCE). A query: it changes nothing. */
+typedef engine_ledger_view     engine_ledger_filter_fn(void *engine, u8 city_id, u8 resource);
 /* Commands */
 typedef u32                 engine_end_turn_fn(void *engine);                 /* returns the command id */
 typedef u32                 engine_advance_turns_fn(void *engine, u32 count); /* returns events emitted */
@@ -282,7 +359,18 @@ typedef engine_load_result  engine_load_name_index_fn(void *engine, const char *
    command changes nothing and ledgers nothing. */
 typedef engine_command_result engine_command_develop_fn(void *engine, u8 city_id, u8 facility,
                                                         const u16 officers[SIM_DEVELOP_OFFICERS], u8 slot);
+/* 巡察, 徵兵, 訓練, 商人 and 生產兵裝 (city-commands.md). A refused command
+   changes nothing and ledgers nothing. The merchant takes one officer. */
+typedef engine_command_result engine_command_city_fn(void *engine, u8 city_id, const u16 officers[SIM_DEVELOP_OFFICERS]);
+typedef engine_command_result engine_command_merchant_fn(void *engine, u8 city_id, u16 officer, u8 mode, u32 amount);
+typedef engine_command_result engine_command_produce_fn(void *engine, u8 city_id, u8 weapon,
+                                                        const u16 officers[SIM_DEVELOP_OFFICERS]);
+/* A test command until an attacker exists (M6): it takes durability from a
+   facility and ledgers the damage. At 0 the facility is destroyed. */
+typedef engine_command_result engine_damage_facility_fn(void *engine, u8 city_id, u8 slot, u32 amount);
 /* Setup and editor commands (F-134). They ledger nothing. */
+typedef b32                 engine_set_facility_level_fn(void *engine, u8 city_id, u8 slot, u8 level);  /* a built market, farm, barracks, smithy or stable; level 1 to 3 */
+typedef void                engine_set_city_resource_fn(void *engine, u8 city_id, u8 resource, u32 index, u32 value); /* index: the weapon stock */
 typedef void                engine_set_faction_human_fn(void *engine, u8 force_id, b32 human);
 typedef void                engine_set_city_owner_fn(void *engine, u8 city_id, u8 force_id);   /* the order changes at the next turn */
 typedef void                engine_set_city_gold_fn(void *engine, u8 city_id, u32 gold);
@@ -338,6 +426,21 @@ struct engine_api
     engine_officer_by_id_fn   *officer_by_id;
     engine_force_ruler_fn     *force_ruler;
     engine_location_name_at_fn *location_name_at;
+    /* M3 economy */
+    engine_city_economy_fn          *city_economy;
+    engine_city_income_forecast_fn  *city_income_forecast;
+    engine_technique_points_fn      *technique_points;
+    engine_weapon_kind_count_fn     *weapon_kind_count;
+    engine_weapon_kind_at_fn        *weapon_kind_at;
+    engine_ledger_filter_fn         *ledger_filter;
+    engine_command_city_fn          *command_patrol;
+    engine_command_city_fn          *command_conscript;
+    engine_command_city_fn          *command_train;
+    engine_command_merchant_fn      *command_merchant;
+    engine_command_produce_fn       *command_produce;
+    engine_damage_facility_fn       *damage_facility;
+    engine_set_facility_level_fn    *set_facility_level;
+    engine_set_city_resource_fn     *set_city_resource;
 };
 
 /* The real engine lives in code/engine/engine.cpp. */

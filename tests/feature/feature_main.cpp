@@ -25,6 +25,8 @@
 #include "display_name_tests.cpp"
 #include "turn_tests.cpp"
 #include "develop_tests.cpp"
+#include "economy_tests.cpp"
+#include "city_command_tests.cpp"
 #include "fixture_tests.cpp"
 
 int
@@ -60,6 +62,14 @@ main(int argc, char **argv)
     test_counts develop_counts = {};
     feature_develop_tests(&develop_counts);
     failed |= test_report("feature/develop", &develop_counts);
+
+    test_counts economy_counts = {};
+    feature_economy_tests(&economy_counts);
+    failed |= test_report("feature/economy", &economy_counts);
+
+    test_counts command_counts = {};
+    feature_city_command_tests(&command_counts);
+    failed |= test_report("feature/city_commands", &command_counts);
 
     char fixtures_dir[MAX_PATH];
     if (argc > 1)

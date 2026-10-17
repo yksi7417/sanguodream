@@ -16,6 +16,7 @@ struct engine
     sim_event    *ledger;          /* every event the sim has emitted this session */
     u32           ledger_count;
     u32           ledger_capacity;
+    u32          *filter_indices;  /* the answer of ledger_filter; ledger_capacity entries */
     platform_read_entire_file *read_entire_file;
     engine_content_status      content;   /* what engine_create loaded from the content pack */
 };
@@ -76,9 +77,9 @@ engine_read_table(engine *e, const char *folder, const char *file_name, tsv_tabl
     return tsv_parse(text, &e->scratch, table);
 }
 
-/* Loads facilities.tsv, cities.tsv and rules.tsv. If one of them does not
-   load, the sim has no content and the commands that need it refuse with
-   SIM_REFUSAL_NO_CONTENT. */
+/* Loads facilities.tsv, cities.tsv, rules.tsv and weapons.tsv. If one of
+   them does not load, the sim has no content and the commands that need it
+   refuse with SIM_REFUSAL_NO_CONTENT. */
 internal void
 engine_load_content(engine *e, const char *folder)
 {
@@ -87,20 +88,23 @@ engine_load_content(engine *e, const char *folder)
     engine_content_status *status = &e->content;
     *status = {};
     status->detail = "ok";
-    tsv_table facilities = {}, cities = {}, rules = {};
+    tsv_table facilities = {}, cities = {}, rules = {}, weapons = {};
     u32 bad_row = 0;
     if (!engine_read_table(e, folder, "facilities.tsv", &facilities))      status->detail = "facilities.tsv not found";
     else if (!engine_read_table(e, folder, "cities.tsv", &cities))         status->detail = "cities.tsv not found";
     else if (!engine_read_table(e, folder, "rules.tsv", &rules))           status->detail = "rules.tsv not found";
+    else if (!engine_read_table(e, folder, "weapons.tsv", &weapons))       status->detail = "weapons.tsv not found";
     else if (!content_load_facilities(content, &facilities, &bad_row))    status->detail = "facilities.tsv has a bad row";
     else if (!content_load_cities(content, &cities, &bad_row))            status->detail = "cities.tsv has a bad row";
     else if (!content_load_rules(content, &rules, &bad_row))              status->detail = "rules.tsv has a bad row";
+    else if (!content_load_weapons(content, &weapons, &bad_row))          status->detail = "weapons.tsv has a bad row";
     else
     {
         status->loaded         = true;
         status->facility_count = content->facility_count;
         status->city_count     = content->city_count;
         status->rule_count     = content->rules.loaded_count;
+        status->weapon_count   = content->weapon_count;
         sim_set_content(e->sim, content);
     }
     arena_reset(&e->scratch);
@@ -120,6 +124,7 @@ engine_create(memory_arena *permanent, memory_arena *transient, engine_config co
     e->ledger_capacity = config.ledger_capacity;
     e->ledger_count    = 0;
     e->ledger          = PushArray(permanent, config.ledger_capacity, sim_event);
+    e->filter_indices  = PushArray(permanent, config.ledger_capacity, u32);
     e->read_entire_file = config.read_entire_file;
     engine_load_content(e, config.content_folder);
     return e;
@@ -330,6 +335,7 @@ engine_api_city_at(void *opaque, u32 index)
     memcpy(result.equipment_stocks, city->equipment_stocks, sizeof(result.equipment_stocks));
     result.durability_maximum    = city->durability_maximum;
     result.public_order          = city->public_order;
+    result.morale                = city->morale;
     return result;
 }
 
@@ -549,6 +555,33 @@ engine_develop_order(u8 city_id, u8 facility, const u16 *officers, u8 slot)
     return order;
 }
 
+/* The sim command of an engine command of M3, or SIM_COMMAND_NONE. */
+internal sim_command_kind
+engine_city_command_kind(engine_command_kind kind)
+{
+    switch (kind)
+    {
+        case ENGINE_COMMAND_PATROL:    return SIM_COMMAND_PATROL;
+        case ENGINE_COMMAND_CONSCRIPT: return SIM_COMMAND_CONSCRIPT;
+        case ENGINE_COMMAND_TRAIN:     return SIM_COMMAND_TRAIN;
+        case ENGINE_COMMAND_MERCHANT:  return SIM_COMMAND_MERCHANT;
+        case ENGINE_COMMAND_PRODUCE:   return SIM_COMMAND_PRODUCE;
+        default:                       return SIM_COMMAND_NONE;
+    }
+}
+
+internal sim_city_order
+engine_city_order(u8 city_id, const u16 *officers, u8 weapon, u8 mode, u32 amount)
+{
+    sim_city_order order = {};
+    order.city_id = city_id;
+    order.weapon  = weapon;
+    order.mode    = mode;
+    order.amount  = amount;
+    for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place) order.officers[place] = officers ? officers[place] : SIM_NO_OFFICER;
+    return order;
+}
+
 internal engine_check
 engine_api_can_issue(void *opaque, const engine_command *command)
 {
@@ -559,6 +592,16 @@ engine_api_can_issue(void *opaque, const engine_command *command)
         {
             sim_develop_order order = engine_develop_order(command->city_id, command->facility, command->officers, command->slot);
             return sim_check_develop(e->sim, &order);
+        }
+        case ENGINE_COMMAND_PATROL:
+        case ENGINE_COMMAND_CONSCRIPT:
+        case ENGINE_COMMAND_TRAIN:
+        case ENGINE_COMMAND_MERCHANT:
+        case ENGINE_COMMAND_PRODUCE:
+        {
+            sim_city_order order = engine_city_order(command->city_id, command->officers, command->weapon,
+                                                     command->merchant_mode, command->amount);
+            return sim_check_city_command(e->sim, engine_city_command_kind(command->kind), &order);
         }
         default:
         {
@@ -583,8 +626,9 @@ engine_api_city_slots(void *opaque, u8 city_id)
     result.used         = (u8)sim_city_used_slots(sim, city_id);
     result.q            = site->hex.q;
     result.r            = site->hex.r;
-    result.gold_income  = sim_city_gold_income(sim, city_id);
-    result.grain_income = sim_city_grain_income(sim, city_id);
+    sim_income_forecast forecast = sim_city_forecast(sim, city_id);
+    result.gold_income  = forecast.gold_month;
+    result.grain_income = forecast.grain_season;
     result.governor_id  = sim_city_governor(sim, city_id);
     if (city_id < sim->content.city_count)
     {
@@ -615,6 +659,10 @@ engine_api_facility_at(void *opaque, u8 city_id, u8 slot_index)
     result.yield        = sim_slot_yield(sim, city_id, slot_index, &effect);
     result.yield_effect = (u8)effect;
     for (u32 place = 0; place < SIM_DEVELOP_OFFICERS; ++place) result.officers[place] = slot->officers[place];
+    result.durability     = slot->durability;
+    result.durability_max = slot->facility < sim->content.facility_count ? sim->content.facilities[slot->facility].durability : 0;
+    result.job_weapon     = slot->job_weapon;
+    result.used           = slot->used_turn == sim->turn + 1;
     return result;
 }
 
@@ -709,6 +757,211 @@ engine_api_place_unit(void *opaque, u8 force_id, s32 q, s32 r)
     return sim->unit_count++;
 }
 
+/* ---- M3 economy --------------------------------------------------------- */
+
+internal engine_city_economy
+engine_api_city_economy(void *opaque, u8 city_id)
+{
+    sim_state *sim = ((engine *)opaque)->sim;
+    engine_city_economy result = {};
+    result.city_id = ENGINE_NO_CITY;
+    city_component *city = sim_find_city(sim, city_id);
+    if (!city) return result;
+    sim_rules *rules = &sim->content.rules;
+    result.city_id         = city_id;
+    result.gold            = city->gold;
+    result.gold_cap        = rules->city_gold_cap;
+    result.grain           = city->food;
+    result.grain_cap       = rules->city_grain_cap;
+    result.public_order    = city->public_order;
+    result.order_max       = rules->order_max;
+    result.bandits_blocked = rules->order_bandit_threshold && city->public_order >= rules->order_bandit_threshold;
+    result.morale          = city->morale;
+    result.morale_max      = rules->morale_max;
+    result.soldiers        = city->troops;
+    result.soldier_cap     = sim_city_soldier_cap(sim, city_id);
+    result.weapon_cap      = rules->city_weapon_cap;
+    for (u32 index = 0; index < CITY_EQUIPMENT_STOCK_COUNT; ++index) result.stocks[index] = city->equipment_stocks[index];
+    result.grain_per_gold  = rules->merchant_grain_per_gold;
+    result.patrolled       = city->patrolled_turn == sim->turn + 1;
+    result.trained         = city->trained_turn == sim->turn + 1;
+    sim_city_site *site = sim->sites + city_id;
+    for (u32 slot = 0; slot < site->slot_count; ++slot)
+    {
+        sim_slot *candidate = site->slots + slot;
+        if (candidate->state != SIM_SLOT_BUILT || candidate->facility >= sim->content.facility_count ||
+            sim->content.facilities[candidate->facility].effect != FACILITY_EFFECT_CONSCRIPTION) continue;
+        result.barracks++;
+        if (candidate->used_turn != sim->turn + 1) result.barracks_free++;
+    }
+    result.technique_points = city->owner_force_id != SIM_NO_FORCE ? sim->technique_points[city->owner_force_id] : 0;
+    return result;
+}
+
+internal engine_income_forecast
+engine_api_city_income_forecast(void *opaque, u8 city_id)
+{
+    sim_state *sim = ((engine *)opaque)->sim;
+    engine_income_forecast result = {};
+    result.city_id = ENGINE_NO_CITY;
+    if (!sim_find_city(sim, city_id)) return result;
+    result.city_id = city_id;
+    result.assumed = true;    /* Q-021, Q-027, Q-119, Q-151 */
+    result.amounts = sim_city_forecast(sim, city_id);
+    return result;
+}
+
+internal u32
+engine_api_technique_points(void *opaque, u8 force_id)
+{
+    return ((engine *)opaque)->sim->technique_points[force_id];
+}
+
+internal u32
+engine_api_weapon_kind_count(void *opaque)
+{
+    return ((engine *)opaque)->sim->content.weapon_count;
+}
+
+internal engine_weapon_kind
+engine_api_weapon_kind_at(void *opaque, u32 index)
+{
+    sim_content *content = &((engine *)opaque)->sim->content;
+    engine_weapon_kind result = {};
+    result.id = ENGINE_NO_WEAPON;
+    if (index >= content->weapon_count) return result;
+    weapon_kind *kind = content->weapons + index;
+    result.id              = kind->id;
+    memcpy(result.key, kind->key, sizeof(result.key));
+    result.cost            = kind->cost;
+    result.facility        = (u8)kind->facility;
+    result.specialty       = (u8)kind->specialty;
+    result.stock           = kind->stock;
+    result.min_days        = kind->min_days;
+    result.max_days        = kind->max_days;
+    result.needs_technique = kind->needs_technique;
+    return result;
+}
+
+/* A query: the events of a city that change a resource. A city event has
+   the entity of the city as its subject (economy.cpp, sim_emit_city). */
+internal engine_ledger_view
+engine_api_ledger_filter(void *opaque, u8 city_id, u8 resource)
+{
+    engine *e = (engine *)opaque;
+    engine_ledger_view view = {};
+    view.indices = e->filter_indices;
+    entity_id subject = 0;
+    if (city_id != ENGINE_ANY_CITY)
+    {
+        subject = sim_city_entity(e->sim, city_id);
+        if (!subject) return view;
+    }
+    for (u32 index = 0; index < e->ledger_count; ++index)
+    {
+        sim_event *event = e->ledger + index;
+        if (city_id != ENGINE_ANY_CITY && event->subject != subject) continue;
+        if (resource != ENGINE_ANY_RESOURCE && sim_event_resource(event->kind) != resource) continue;
+        e->filter_indices[view.count++] = index;
+    }
+    return view;
+}
+
+/* Checks first: a refused command is not a command, so it gets no id and
+   ledgers nothing. */
+internal engine_command_result
+engine_run_city_command(engine *e, sim_command_kind kind, sim_city_order order)
+{
+    engine_command_result result = {};
+    result.refusal = sim_check_city_command(e->sim, kind, &order).refusal;
+    if (result.refusal != SIM_REFUSAL_NONE) return result;
+    sim_command command = sim_make_command(e->sim, kind);
+    command.city = order;
+    engine_run(e, command, 0);
+    result.command_id = command.id;
+    return result;
+}
+
+internal engine_command_result
+engine_api_command_patrol(void *opaque, u8 city_id, const u16 officers[SIM_DEVELOP_OFFICERS])
+{
+    return engine_run_city_command((engine *)opaque, SIM_COMMAND_PATROL, engine_city_order(city_id, officers, CONTENT_NO_WEAPON, 0, 0));
+}
+
+internal engine_command_result
+engine_api_command_conscript(void *opaque, u8 city_id, const u16 officers[SIM_DEVELOP_OFFICERS])
+{
+    return engine_run_city_command((engine *)opaque, SIM_COMMAND_CONSCRIPT, engine_city_order(city_id, officers, CONTENT_NO_WEAPON, 0, 0));
+}
+
+internal engine_command_result
+engine_api_command_train(void *opaque, u8 city_id, const u16 officers[SIM_DEVELOP_OFFICERS])
+{
+    return engine_run_city_command((engine *)opaque, SIM_COMMAND_TRAIN, engine_city_order(city_id, officers, CONTENT_NO_WEAPON, 0, 0));
+}
+
+internal engine_command_result
+engine_api_command_merchant(void *opaque, u8 city_id, u16 officer, u8 mode, u32 amount)
+{
+    u16 officers[SIM_COMMAND_OFFICERS] = { officer, SIM_NO_OFFICER, SIM_NO_OFFICER };
+    return engine_run_city_command((engine *)opaque, SIM_COMMAND_MERCHANT, engine_city_order(city_id, officers, CONTENT_NO_WEAPON, mode, amount));
+}
+
+internal engine_command_result
+engine_api_command_produce(void *opaque, u8 city_id, u8 weapon, const u16 officers[SIM_DEVELOP_OFFICERS])
+{
+    return engine_run_city_command((engine *)opaque, SIM_COMMAND_PRODUCE, engine_city_order(city_id, officers, weapon, 0, 0));
+}
+
+internal engine_command_result
+engine_api_damage_facility(void *opaque, u8 city_id, u8 slot, u32 amount)
+{
+    engine *e = (engine *)opaque;
+    engine_command_result result = {};
+    sim_damage_order order = {};
+    order.city_id = city_id;
+    order.slot    = slot;
+    order.amount  = amount;
+    result.refusal = sim_check_damage(e->sim, &order);
+    if (result.refusal != SIM_REFUSAL_NONE) return result;
+    sim_command command = sim_make_command(e->sim, SIM_COMMAND_DAMAGE_FACILITY);
+    command.damage = order;
+    engine_run(e, command, 0);
+    result.command_id = command.id;
+    return result;
+}
+
+/* The editor sets the level that the PK merge (F-024, M4) gives. */
+internal b32
+engine_api_set_facility_level(void *opaque, u8 city_id, u8 slot_index, u8 level)
+{
+    sim_state *sim = ((engine *)opaque)->sim;
+    if (!sim_find_city(sim, city_id) || slot_index >= sim->sites[city_id].slot_count || level < 1 || level > 3) return false;
+    sim_slot *slot = sim->sites[city_id].slots + slot_index;
+    if (slot->state != SIM_SLOT_BUILT || slot->facility >= sim->content.facility_count ||
+        !sim->content.facilities[slot->facility].mergeable) return false;
+    slot->level = level;
+    return true;
+}
+
+internal void
+engine_api_set_city_resource(void *opaque, u8 city_id, u8 resource, u32 index, u32 value)
+{
+    city_component *city = sim_find_city(((engine *)opaque)->sim, city_id);
+    if (!city) return;
+    u8 byte_value = (u8)Minimum(value, 255u);
+    switch (resource)
+    {
+        case SIM_RESOURCE_GOLD:         city->gold   = value; break;
+        case SIM_RESOURCE_GRAIN:        city->food   = value; break;
+        case SIM_RESOURCE_SOLDIERS:     city->troops = value; break;
+        case SIM_RESOURCE_MORALE:       city->morale = byte_value; break;
+        case SIM_RESOURCE_PUBLIC_ORDER: city->public_order = byte_value; break;
+        case SIM_RESOURCE_WEAPONS:      if (index < CITY_EQUIPMENT_STOCK_COUNT) city->equipment_stocks[index] = value; break;
+        default: break;
+    }
+}
+
 internal engine_api
 engine_make_api(engine *e)
 {
@@ -756,5 +1009,19 @@ engine_make_api(engine *e)
     api.officer_by_id   = engine_api_officer_by_id;
     api.force_ruler     = engine_api_force_ruler;
     api.location_name_at = engine_api_location_name_at;
+    api.city_economy         = engine_api_city_economy;
+    api.city_income_forecast = engine_api_city_income_forecast;
+    api.technique_points     = engine_api_technique_points;
+    api.weapon_kind_count    = engine_api_weapon_kind_count;
+    api.weapon_kind_at       = engine_api_weapon_kind_at;
+    api.ledger_filter        = engine_api_ledger_filter;
+    api.command_patrol       = engine_api_command_patrol;
+    api.command_conscript    = engine_api_command_conscript;
+    api.command_train        = engine_api_command_train;
+    api.command_merchant     = engine_api_command_merchant;
+    api.command_produce      = engine_api_command_produce;
+    api.damage_facility      = engine_api_damage_facility;
+    api.set_facility_level   = engine_api_set_facility_level;
+    api.set_city_resource    = engine_api_set_city_resource;
     return api;
 }
