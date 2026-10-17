@@ -77,9 +77,10 @@ engine_read_table(engine *e, const char *folder, const char *file_name, tsv_tabl
     return tsv_parse(text, &e->scratch, table);
 }
 
-/* Loads facilities.tsv, cities.tsv, rules.tsv and weapons.tsv. If one of
-   them does not load, the sim has no content and the commands that need it
-   refuse with SIM_REFUSAL_NO_CONTENT. */
+/* Loads facilities.tsv, cities.tsv, rules.tsv, techniques.tsv,
+   weapons.tsv and disasters.tsv. The weapons name the techniques, so the
+   techniques load first. If one table does not load, the sim has no
+   content and the commands that need it refuse with SIM_REFUSAL_NO_CONTENT. */
 internal void
 engine_load_content(engine *e, const char *folder)
 {
@@ -88,23 +89,29 @@ engine_load_content(engine *e, const char *folder)
     engine_content_status *status = &e->content;
     *status = {};
     status->detail = "ok";
-    tsv_table facilities = {}, cities = {}, rules = {}, weapons = {};
+    tsv_table facilities = {}, cities = {}, rules = {}, weapons = {}, techniques = {}, disasters = {};
     u32 bad_row = 0;
     if (!engine_read_table(e, folder, "facilities.tsv", &facilities))      status->detail = "facilities.tsv not found";
     else if (!engine_read_table(e, folder, "cities.tsv", &cities))         status->detail = "cities.tsv not found";
     else if (!engine_read_table(e, folder, "rules.tsv", &rules))           status->detail = "rules.tsv not found";
     else if (!engine_read_table(e, folder, "weapons.tsv", &weapons))       status->detail = "weapons.tsv not found";
+    else if (!engine_read_table(e, folder, "techniques.tsv", &techniques)) status->detail = "techniques.tsv not found";
+    else if (!engine_read_table(e, folder, "disasters.tsv", &disasters))   status->detail = "disasters.tsv not found";
     else if (!content_load_facilities(content, &facilities, &bad_row))    status->detail = "facilities.tsv has a bad row";
     else if (!content_load_cities(content, &cities, &bad_row))            status->detail = "cities.tsv has a bad row";
     else if (!content_load_rules(content, &rules, &bad_row))              status->detail = "rules.tsv has a bad row";
+    else if (!content_load_techniques(content, &techniques, &bad_row))    status->detail = "techniques.tsv has a bad row";
     else if (!content_load_weapons(content, &weapons, &bad_row))          status->detail = "weapons.tsv has a bad row";
+    else if (!content_load_disasters(content, &disasters, &bad_row))      status->detail = "disasters.tsv has a bad row";
     else
     {
-        status->loaded         = true;
-        status->facility_count = content->facility_count;
-        status->city_count     = content->city_count;
-        status->rule_count     = content->rules.loaded_count;
-        status->weapon_count   = content->weapon_count;
+        status->loaded          = true;
+        status->facility_count  = content->facility_count;
+        status->city_count      = content->city_count;
+        status->rule_count      = content->rules.loaded_count;
+        status->weapon_count    = content->weapon_count;
+        status->technique_count = content->technique_count;
+        status->disaster_count  = content->disaster_count;
         sim_set_content(e->sim, content);
     }
     arena_reset(&e->scratch);
@@ -582,6 +589,27 @@ engine_city_order(u8 city_id, const u16 *officers, u8 weapon, u8 mode, u32 amoun
     return order;
 }
 
+internal sim_research_order
+engine_research_order(u8 city_id, u8 technique, const u16 *officers)
+{
+    sim_research_order order = {};
+    order.city_id   = city_id;
+    order.technique = technique;
+    for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place) order.officers[place] = officers ? officers[place] : SIM_NO_OFFICER;
+    return order;
+}
+
+internal sim_merge_order
+engine_merge_order(u8 city_id, u8 absorber, u8 absorbed, u16 officer)
+{
+    sim_merge_order order = {};
+    order.city_id  = city_id;
+    order.absorber = absorber;
+    order.absorbed = absorbed;
+    order.officer  = officer;
+    return order;
+}
+
 internal engine_check
 engine_api_can_issue(void *opaque, const engine_command *command)
 {
@@ -602,6 +630,16 @@ engine_api_can_issue(void *opaque, const engine_command *command)
             sim_city_order order = engine_city_order(command->city_id, command->officers, command->weapon,
                                                      command->merchant_mode, command->amount);
             return sim_check_city_command(e->sim, engine_city_command_kind(command->kind), &order);
+        }
+        case ENGINE_COMMAND_RESEARCH:
+        {
+            sim_research_order order = engine_research_order(command->city_id, command->technique, command->officers);
+            return sim_check_research(e->sim, &order);
+        }
+        case ENGINE_COMMAND_MERGE:
+        {
+            sim_merge_order order = engine_merge_order(command->city_id, command->slot, command->absorbed, command->officers[0]);
+            return sim_check_merge(e->sim, &order);
         }
         default:
         {
@@ -777,7 +815,7 @@ engine_api_city_economy(void *opaque, u8 city_id)
     result.order_max       = rules->order_max;
     result.bandits_blocked = rules->order_bandit_threshold && city->public_order >= rules->order_bandit_threshold;
     result.morale          = city->morale;
-    result.morale_max      = rules->morale_max;
+    result.morale_max      = sim_city_morale_max(sim, city);
     result.soldiers        = city->troops;
     result.soldier_cap     = sim_city_soldier_cap(sim, city_id);
     result.weapon_cap      = rules->city_weapon_cap;
@@ -839,7 +877,8 @@ engine_api_weapon_kind_at(void *opaque, u32 index)
     result.stock           = kind->stock;
     result.min_days        = kind->min_days;
     result.max_days        = kind->max_days;
-    result.needs_technique = kind->needs_technique;
+    result.technique       = kind->technique;
+    result.replaces        = kind->replaces;
     return result;
 }
 
@@ -962,6 +1001,8 @@ engine_api_set_city_resource(void *opaque, u8 city_id, u8 resource, u32 index, u
     }
 }
 
+#include "engine/engine_growth.cpp"
+
 internal engine_api
 engine_make_api(engine *e)
 {
@@ -1023,5 +1064,6 @@ engine_make_api(engine *e)
     api.damage_facility      = engine_api_damage_facility;
     api.set_facility_level   = engine_api_set_facility_level;
     api.set_city_resource    = engine_api_set_city_resource;
+    engine_bind_growth_api(&api);
     return api;
 }

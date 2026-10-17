@@ -207,7 +207,17 @@ sim_action_point_recovery(sim_state *sim, sim_faction *faction)
 {
     officer_component *leader = sim_find_officer(sim, faction->leader_officer_id);
     if (!leader) return 0;
-    return leader->leadership > leader->charm ? leader->leadership : leader->charm;
+    u32 recovery = leader->leadership > leader->charm ? leader->leadership : leader->charm;
+    /* The tally office (符節台, PK) raises the recovery of the corps of its
+       city (manual p.29): tally.action_points for each built office in the
+       cities of the faction (assumed, Q-164). */
+    u32 offices = 0;
+    for (u32 index = 0; index < sim->cities.count; ++index)
+    {
+        city_component *city = sim->cities.data + index;
+        if (city->owner_force_id == faction->force_id) offices += sim_count_built(sim, city->city_id, FACILITY_EFFECT_ACTION_POINTS);
+    }
+    return recovery + offices * sim->content.rules.tally_action_points;
 }
 
 internal void
@@ -256,19 +266,25 @@ sim_run_factions_until_human(sim_state *sim, u32 cause, sim_event_sink *events)
     }
 }
 
+/* The order, then victory and defeat (outcome.cpp). After the end of the
+   game no faction acts. */
 internal void
 sim_start_turn(sim_state *sim, u32 cause, sim_event_sink *events)
 {
     sim_compute_turn_order(sim);
+    sim_check_outcome(sim, cause, events);
+    if (sim_game_over(sim)) return;
     sim_recover_all_action_points(sim, cause, events);
     sim_run_factions_until_human(sim, cause, events);
 }
 
 /* "Proceed": the faction that acts ends its turn. When every faction has
-   acted, the date advances and the next turn starts. */
+   acted, the date advances and the next turn starts. After the end of the
+   game it does nothing. */
 internal void
 sim_end_faction_turn(sim_state *sim, u32 cause, sim_event_sink *events)
 {
+    if (sim_game_over(sim)) return;
     sim_turn_state *turns = &sim->turns;
     if (turns->acting < turns->order_count)
     {
@@ -325,13 +341,16 @@ sim_remove_new_year_facilities(sim_state *sim, u32 cause, sim_event_sink *events
 
 /* The calendar events of the new date (calendar-and-turn.md, "Calendar
    events"). The production system (economy.cpp) gives the gold, the grain,
-   the salaries and the consumption. The disasters and the officer changes
-   are hooks: named events without logic until F-007 and F-051. */
+   the salaries and the consumption. The hook events mark the dates when the
+   calendar rolls the disasters; disasters.cpp rolls them after the income
+   of the day, so that a new disaster changes the next payment. The officer
+   changes stay hooks until F-051. */
 internal void
 sim_run_calendar(sim_state *sim, u32 cause, sim_event_sink *events)
 {
     calendar_date date = sim->turns.date;
     sim_progress_jobs(sim, cause, events);
+    sim_progress_research(sim, cause, events);
     if (calendar_starts_year(date))
     {
         sim_event year = sim_event_make(sim, SIM_EVENT_YEAR_STARTED, cause);
@@ -359,6 +378,8 @@ sim_run_calendar(sim_state *sim, u32 cause, sim_event_sink *events)
         if (date.month != 10) sim_emit_hook(sim, SIM_EVENT_HOOK_LOCUSTS, cause, events);
         sim_emit_hook(sim, SIM_EVENT_HOOK_PLAGUE, cause, events);
     }
+    if (calendar_starts_month(date)) sim_roll_disasters(sim, date.month, cause, events);
     sim_run_production_turn(sim, cause, events);
     sim_run_durability(sim, cause, events);
+    sim_run_disasters_turn(sim, cause, events);
 }

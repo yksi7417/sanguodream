@@ -400,8 +400,8 @@ feature_produce_tests(test_counts *counts)
                "refused: one production per smithy per turn, for each smithy weapon");
     TEST_CHECK(counts, api->command_produce(e, city, FEATURE_WEAPON_HORSE, more).refusal == SIM_REFUSAL_NO_FACILITY,
                "refused: war horses need a stable");
-    TEST_CHECK(counts, api->command_produce(e, city, FEATURE_WEAPON_WOOD_BEAST, more).refusal == SIM_REFUSAL_NO_FACILITY,
-               "refused: the wood beast needs the technique 開發木獸 (not modelled yet)");
+    TEST_CHECK(counts, api->command_produce(e, city, FEATURE_WEAPON_WOOD_BEAST, more).refusal == SIM_REFUSAL_NEEDS_TECHNIQUE,
+               "refused: the wood beast needs the technique 開發木獸");
 
     feature_next_own_turn(api, force);
     api->set_city_gold(e, city, 50000);

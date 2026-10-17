@@ -255,6 +255,22 @@ sim_city_has_built(sim_state *sim, u8 city_id, facility_effect effect)
     return false;
 }
 
+/* The number of built facilities with this effect in the city. */
+internal u32
+sim_count_built(sim_state *sim, u8 city_id, facility_effect effect)
+{
+    if (city_id >= SAVE_CITY_COUNT) return 0;
+    sim_city_site *site = sim->sites + city_id;
+    u32 count = 0;
+    for (u32 slot = 0; slot < site->slot_count; ++slot)
+    {
+        sim_slot *candidate = site->slots + slot;
+        if (candidate->state == SIM_SLOT_BUILT && candidate->facility < sim->content.facility_count &&
+            sim->content.facilities[candidate->facility].effect == effect) count++;
+    }
+    return count;
+}
+
 /* ASSUMED AMOUNT (Q-022). A specialty city with the matching production
    facility gains some of its weapon every month, but not siege weapons or
    ships (manual p.8, p.33). */
@@ -267,7 +283,8 @@ sim_give_free_weapons(sim_state *sim, city_component *city, u32 cause, sim_event
     for (u32 index = 0; index < sim->content.weapon_count; ++index)
     {
         weapon_kind *weapon = sim->content.weapons + index;
-        if (weapon->max_days || weapon->needs_technique || weapon->specialty != specialty) continue;
+        if (weapon->max_days || weapon->specialty != specialty) continue;
+        if (sim_check_weapon_technique(sim, city->owner_force_id, weapon) != SIM_REFUSAL_NONE) continue;
         if (!sim_city_has_built(sim, city->city_id, weapon->facility)) continue;
         u32 *stock = city->equipment_stocks + weapon->stock;
         u32 room = *stock < rules->city_weapon_cap ? rules->city_weapon_cap - *stock : 0;
@@ -307,6 +324,7 @@ sim_run_production_month(sim_state *sim, u32 cause, sim_event_sink *events)
         {
             sim_city_receive(sim, city, &city->food, rules->city_grain_cap, forecast.grain_payment, SIM_EVENT_GRAIN_INCOME,
                              SIM_EVENT_GRAIN_OVER_CAP, true, cause, events);
+            sim_disaster_grain(sim, city, forecast.grain_payment, cause, events);
         }
         sim_give_free_weapons(sim, city, cause, events);
     }
@@ -325,6 +343,8 @@ sim_run_production_season(sim_state *sim, u32 cause, sim_event_sink *events)
         if (forecast.grain_every_month) continue;
         sim_city_receive(sim, city, &city->food, rules->city_grain_cap, forecast.grain_payment, SIM_EVENT_GRAIN_INCOME,
                          SIM_EVENT_GRAIN_OVER_CAP, true, cause, events);
+        /* Locusts take a part of the payment (disasters.cpp). */
+        sim_disaster_grain(sim, city, forecast.grain_payment, cause, events);
     }
 }
 
@@ -370,17 +390,20 @@ sim_slot_durability_max(sim_state *sim, sim_slot *slot)
 }
 
 /* Each turn a facility recovers durability when the city has a governor
-   and no enemy is near (manual p.11). The amount is assumed (Q-157). */
+   and no enemy is near (manual p.11). The amount is assumed (Q-157). The
+   technique 培訓工兵 gives more: its value in percent (assumed, Q-161). */
 internal void
 sim_run_durability(sim_state *sim, u32 cause, sim_event_sink *events)
 {
-    u32 recovery = sim->content.rules.facility_recovery;
-    if (!recovery) return;
+    if (!sim->content.rules.facility_recovery) return;
     for (u32 index = 0; index < sim->cities.count; ++index)
     {
         city_component *city = sim->cities.data + index;
         if (city->owner_force_id == SIM_NO_FORCE || sim_city_governor(sim, city->city_id) == SIM_NO_OFFICER ||
             sim_enemy_near(sim, city)) continue;
+        u32 recovery = sim->content.rules.facility_recovery;
+        u32 engineers = sim_technique_effect_value(sim, city->owner_force_id, TECHNIQUE_EFFECT_FACILITY_RECOVERY);
+        if (engineers) recovery = sim_percent_of(recovery, engineers);
         sim_city_site *site = sim->sites + city->city_id;
         for (u32 slot_index = 0; slot_index < site->slot_count; ++slot_index)
         {
@@ -405,29 +428,41 @@ sim_check_damage(sim_state *sim, sim_damage_order *order)
     return SIM_REFUSAL_NONE;
 }
 
-/* The test command until an attacker exists (M6): it takes durability from
-   a facility. At 0 the facility is destroyed and must be built again
-   (manual p.11); its officers are free. The loot of the attacker and the
-   soldiers of a barracks come with the attacker (F-031, M6). */
+/* Takes durability from a facility. At 0 the facility is destroyed and must
+   be built again (manual p.11); its officers are free. An absorber that
+   falls ends its merge, and the absorbed side works again. The loot of the
+   attacker and the soldiers of a barracks come with the attacker (F-031, M6). */
 internal void
-sim_damage_facility(sim_state *sim, sim_command command, sim_event_sink *events)
+sim_damage_slot(sim_state *sim, city_component *city, u32 slot_index, u32 amount, u32 cause, sim_event_sink *events)
 {
-    sim_damage_order *order = &command.damage;
-    if (sim_check_damage(sim, order) != SIM_REFUSAL_NONE) return;
-    city_component *city = sim_find_city(sim, order->city_id);
-    sim_slot *slot = sim->sites[order->city_id].slots + order->slot;
-    u32 damage = order->amount < slot->durability ? order->amount : slot->durability;
+    sim_city_site *site = sim->sites + city->city_id;
+    sim_slot *slot = site->slots + slot_index;
+    u32 damage = amount < slot->durability ? amount : slot->durability;
     slot->durability -= damage;
-    sim_emit_city(sim, SIM_EVENT_FACILITY_DAMAGED, city, -(s32)damage, order->slot, false, command.id, events);
+    sim_emit_city(sim, SIM_EVENT_FACILITY_DAMAGED, city, -(s32)damage, slot_index, false, cause, events);
     if (slot->durability > 0) return;
 
     u8 facility = slot->facility;
-    sim_release_slot_officers(sim, slot, command.id, events);
+    if (slot->merge_slot < site->slot_count && site->slots[slot->merge_slot].state == SIM_SLOT_MERGING)
+    {
+        site->slots[slot->merge_slot].state = SIM_SLOT_BUILT;
+    }
+    sim_release_slot_officers(sim, slot, cause, events);
     slot->state      = SIM_SLOT_EMPTY;
     slot->facility   = CONTENT_NO_FACILITY;
     slot->level      = 0;
     slot->turns_left = 0;
     slot->job_weapon = CONTENT_NO_WEAPON;
+    slot->merge_slot = SIM_ANY_SLOT;
     slot->used_turn  = 0;
-    sim_emit_city(sim, SIM_EVENT_FACILITY_DESTROYED, city, facility, order->slot, false, command.id, events);
+    sim_emit_city(sim, SIM_EVENT_FACILITY_DESTROYED, city, facility, slot_index, false, cause, events);
+}
+
+/* The test command until an attacker exists (M6). */
+internal void
+sim_damage_facility(sim_state *sim, sim_command command, sim_event_sink *events)
+{
+    sim_damage_order *order = &command.damage;
+    if (sim_check_damage(sim, order) != SIM_REFUSAL_NONE) return;
+    sim_damage_slot(sim, sim_find_city(sim, order->city_id), order->slot, order->amount, command.id, events);
 }

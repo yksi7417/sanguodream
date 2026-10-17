@@ -248,20 +248,32 @@ sim_check_conscript(sim_state *sim, city_component *city, sim_city_order *order,
     return check;
 }
 
+/* The action points of a military command (軍事: 訓練, 出征, 輸送). A
+   military office (軍事府, PK) in the city halves them (manual p.29). */
+internal u32
+sim_military_ap(sim_state *sim, city_component *city, u32 action_points)
+{
+    sim_rules *rules = &sim->content.rules;
+    if (!rules->military_office_ap_percent || !sim_city_has_built(sim, city->city_id, FACILITY_EFFECT_MILITARY)) return action_points;
+    return sim_percent_of(action_points, rules->military_office_ap_percent);
+}
+
 internal sim_check
 sim_check_train(sim_state *sim, city_component *city, sim_city_order *order, sim_check check)
 {
     sim_rules *rules = &sim->content.rules;
+    u32 morale_max = sim_city_morale_max(sim, city);   /* 120 with 熟練兵 */
     if (city->trained_turn == sim->turn + 1)      return sim_refuse(check, SIM_REFUSAL_LIMIT_REACHED);
-    if (city->morale >= rules->morale_max)        return sim_refuse(check, SIM_REFUSAL_VALUE_AT_MAXIMUM);
+    if (city->morale >= morale_max)               return sim_refuse(check, SIM_REFUSAL_VALUE_AT_MAXIMUM);
     u32 force = 0;
     sim_refusal refusal = sim_check_city_officers(sim, city, order->officers, SIM_COMMAND_OFFICERS, SIM_ABILITY_FORCE, &force);
     if (refusal != SIM_REFUSAL_NONE)              return sim_refuse(check, refusal);
-    if (sim->turns.action_points[city->owner_force_id] < rules->ap_train) return sim_refuse(check, SIM_REFUSAL_NO_ACTION_POINTS);
+    u32 action_points = sim_military_ap(sim, city, rules->ap_train);
+    if (sim->turns.action_points[city->owner_force_id] < action_points) return sim_refuse(check, SIM_REFUSAL_NO_ACTION_POINTS);
     b32 drill = sim_city_has_built(sim, city->city_id, FACILITY_EFFECT_DRILL);
-    check.action_points = rules->ap_train;
+    check.action_points = action_points;
     check.value_before  = city->morale;
-    check.value_after   = sim_add_within(city->morale, sim_train_rise(force, drill, rules), rules->morale_max);
+    check.value_after   = sim_add_within(city->morale, sim_train_rise(force, drill, rules), morale_max);
     check.quantity      = check.value_after - check.value_before;
     return check;
 }
@@ -304,12 +316,10 @@ internal sim_check
 sim_check_produce(sim_state *sim, city_component *city, sim_city_order *order, sim_check check)
 {
     sim_rules *rules = &sim->content.rules;
-    /* The techniques are not modelled yet (M4): no faction has the strong weapons. */
-    if (order->weapon >= sim->content.weapon_count || sim->content.weapons[order->weapon].needs_technique)
-    {
-        return sim_refuse(check, SIM_REFUSAL_NO_FACILITY);
-    }
+    if (order->weapon >= sim->content.weapon_count) return sim_refuse(check, SIM_REFUSAL_NO_FACILITY);
     weapon_kind *weapon = sim->content.weapons + order->weapon;
+    sim_refusal technique = sim_check_weapon_technique(sim, city->owner_force_id, weapon);
+    if (technique != SIM_REFUSAL_NONE)            return sim_refuse(check, technique);
     b32 any_built = false;
     u32 slot = sim_free_facility_slot(sim, city->city_id, weapon->facility, &any_built);
     if (!any_built)                               return sim_refuse(check, SIM_REFUSAL_NO_FACILITY);
@@ -338,6 +348,12 @@ sim_check_produce(sim_state *sim, city_component *city, sim_city_order *order, s
     {
         u32 skill = weapon->facility == FACILITY_EFFECT_SHIPS ? rules->skill_shipbuilding : rules->skill_invention;
         check.days     = sim_produce_days(intellect, weapon->min_days, weapon->max_days, sim_order_has_skill(sim, order->officers, skill), rules);
+        /* A drill ground (鍊兵所, PK) shortens ships (manual p.29; assumed amount, Q-164). */
+        if (weapon->facility == FACILITY_EFFECT_SHIPS && rules->drill_ship_period_percent &&
+            sim_city_has_built(sim, city->city_id, FACILITY_EFFECT_DRILL))
+        {
+            check.days = sim_round_to_turns(sim_percent_of(check.days, rules->drill_ship_period_percent));
+        }
         check.turns    = check.days / CALENDAR_DAYS_PER_TURN;
         check.quantity = 1;
     }
@@ -356,6 +372,7 @@ sim_check_city_command(sim_state *sim, sim_command_kind kind, sim_city_order *or
     check.slot    = SIM_ANY_SLOT;
     check.assumed = true;
     if (!sim->has_content) return sim_refuse(check, SIM_REFUSAL_NO_CONTENT);
+    if (sim_game_over(sim)) return sim_refuse(check, SIM_REFUSAL_GAME_OVER);
     city_component *city = sim_find_city(sim, order->city_id);
     if (!city || city->owner_force_id == SIM_NO_FORCE) return sim_refuse(check, SIM_REFUSAL_NO_CITY);
     if (sim_whose_turn(sim) != city->owner_force_id)    return sim_refuse(check, SIM_REFUSAL_NOT_YOUR_TURN);
@@ -417,7 +434,8 @@ sim_apply_city_effect(sim_state *sim, sim_command_kind kind, city_component *cit
             city->troops = check->value_after;
             sim->sites[city->city_id].slots[check->slot].used_turn = sim->turn + 1;
             sim_emit_city(sim, SIM_EVENT_CONSCRIPTED, city, (s32)check->quantity, check->slot, true, cause, events);
-            sim_city_lose(sim, city, &city->public_order, rules->conscript_order_loss, SIM_EVENT_ORDER_LOST, cause, events);
+            sim_city_lose(sim, city, &city->public_order, sim_order_loss(sim, city->owner_force_id, rules->conscript_order_loss),
+                          SIM_EVENT_ORDER_LOST, cause, events);
             sim_city_lose(sim, city, &city->morale, rules->conscript_morale_loss, SIM_EVENT_MORALE_LOST, cause, events);
             break;
         case SIM_COMMAND_TRAIN:

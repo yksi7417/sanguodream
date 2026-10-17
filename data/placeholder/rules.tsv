@@ -59,3 +59,18 @@ skill.shipbuilding	83	assumed	Q-159: the save number of 造船 (#84 minus 1)
 technique.per_command	10	assumed	Q-158: technique points for each command that raises them
 merit.per_command	50	documented	save-file.md, officer +105: +50 for each officer that does an order
 facility.recovery	100	assumed	Q-157: the durability that a facility recovers each turn
+# M4: research, merge, the PK facilities and the end of the game.
+ap.research	50	documented	city-commands.md, 研究技巧
+ap.merge	10	documented	city-commands.md, 吸收合併 (manual p.28)
+merge.gold	100	documented	cities-and-facilities.md, merge costs 100 gold
+merge.max_days	60	assumed	Q-163: the merge period at a politics of 0
+merge.min_days	20	assumed	Q-163: the merge period at merge.full_politics
+merge.full_politics	100	assumed	Q-163: the politics that gives the shortest merge period
+research.full_ability	200	assumed	Q-161: the ability sum that gives the shortest research period
+research.personnel_percent	75	assumed	Q-164: the research period in a city with a personnel office (manual p.29: less time)
+research.teaching_percent	50	documented	research-techniques.md, 指導 halves the gold
+skill.teaching	84	assumed	Q-159: the save number of 指導 (skills.md #85 minus 1)
+tally.action_points	10	assumed	Q-164: the action points that each tally office adds at the start of a turn
+military_office.ap_percent	50	documented	cities-and-facilities.md, military office: military commands cost half the action points
+drill.ship_period_percent	75	assumed	Q-164: the ship period in a city with a drill ground (manual p.29: less time)
+game.end_year	351	documented	calendar-and-turn.md, defeat when the year becomes 351

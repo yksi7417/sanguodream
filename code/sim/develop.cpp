@@ -56,6 +56,7 @@ sim_init_sites(sim_state *sim)
             slot->state      = SIM_SLOT_EMPTY;
             slot->facility   = CONTENT_NO_FACILITY;
             slot->job_weapon = CONTENT_NO_WEAPON;
+            slot->merge_slot = SIM_ANY_SLOT;
             for (u32 place = 0; place < SIM_DEVELOP_OFFICERS; ++place) slot->officers[place] = SIM_NO_OFFICER;
         }
     }
@@ -158,6 +159,7 @@ sim_check_develop(sim_state *sim, sim_develop_order *order)
     sim_check check = {};
     check.slot = SIM_ANY_SLOT;
     if (!sim->has_content) return sim_refuse(check, SIM_REFUSAL_NO_CONTENT);
+    if (sim_game_over(sim)) return sim_refuse(check, SIM_REFUSAL_GAME_OVER);
     city_component *city = sim_find_city(sim, order->city_id);
     if (!city || city->owner_force_id == SIM_NO_FORCE) return sim_refuse(check, SIM_REFUSAL_NO_CITY);
     if (sim_whose_turn(sim) != city->owner_force_id)    return sim_refuse(check, SIM_REFUSAL_NOT_YOUR_TURN);
@@ -235,6 +237,7 @@ sim_develop(sim_state *sim, sim_command command, sim_event_sink *events)
     slot->durability = sim->content.facilities[order->facility].durability;   /* full from the start (assumed, Q-157) */
     slot->used_turn  = 0;
     slot->job_weapon = CONTENT_NO_WEAPON;
+    slot->merge_slot = SIM_ANY_SLOT;
     for (u32 place = 0; place < SIM_DEVELOP_OFFICERS; ++place)
     {
         slot->officers[place] = order->officers[place];
@@ -300,8 +303,8 @@ sim_complete_production(sim_state *sim, city_component *city, sim_slot *slot, u3
 }
 
 /* At the start of each turn each job advances one turn. A job at 0 turns is
-   complete: the facility works, or the weapon arrives, and its officers are
-   free. */
+   complete: the facility works, the weapon arrives, or the merge gives its
+   level; then its officers are free. */
 internal void
 sim_progress_jobs(sim_state *sim, u32 cause, sim_event_sink *events)
 {
@@ -313,12 +316,18 @@ sim_progress_jobs(sim_state *sim, u32 cause, sim_event_sink *events)
         {
             sim_slot *slot = site->slots + slot_index;
             b32 producing = slot->state == SIM_SLOT_BUILT && slot->job_weapon < sim->content.weapon_count;
-            if (slot->state != SIM_SLOT_BUILDING && !producing) continue;
+            b32 merging   = slot->state == SIM_SLOT_BUILT && slot->merge_slot != SIM_ANY_SLOT;
+            if (slot->state != SIM_SLOT_BUILDING && !producing && !merging) continue;
             if (slot->turns_left > 0) slot->turns_left--;
             if (slot->turns_left > 0) continue;
             if (producing)
             {
                 sim_complete_production(sim, city, slot, slot_index, cause, events);
+                continue;
+            }
+            if (merging)
+            {
+                sim_complete_merge(sim, city, slot, slot_index, cause, events);
                 continue;
             }
             slot->state = SIM_SLOT_BUILT;

@@ -136,6 +136,8 @@ enum engine_command_kind
     ENGINE_COMMAND_TRAIN,
     ENGINE_COMMAND_MERCHANT,
     ENGINE_COMMAND_PRODUCE,
+    ENGINE_COMMAND_RESEARCH,
+    ENGINE_COMMAND_MERGE,
     ENGINE_COMMAND_KIND_COUNT
 };
 
@@ -144,11 +146,13 @@ struct engine_command
     engine_command_kind kind;
     u8  city_id;
     u8  facility;                           /* ENGINE_COMMAND_DEVELOP */
-    u8  slot;                               /* ENGINE_ANY_SLOT: the first free slot */
-    u16 officers[SIM_DEVELOP_OFFICERS];     /* ENGINE_NO_OFFICER for an empty place */
+    u8  slot;                               /* develop: ENGINE_ANY_SLOT is the first free slot; merge: the absorber */
+    u16 officers[SIM_DEVELOP_OFFICERS];     /* ENGINE_NO_OFFICER for an empty place; merge: officers[0] */
     u8  weapon;                             /* ENGINE_COMMAND_PRODUCE: the row of weapon_kind_at */
     u8  merchant_mode;                      /* ENGINE_COMMAND_MERCHANT: sim_merchant_mode */
     u32 amount;                             /* ENGINE_COMMAND_MERCHANT: the gold to spend or the grain to sell */
+    u8  technique;                          /* ENGINE_COMMAND_RESEARCH: the row of technique_kind_at */
+    u8  absorbed;                           /* ENGINE_COMMAND_MERGE: the slot that becomes free */
 };
 
 /* The answer of can_issue: the refusal reason, or SIM_REFUSAL_NONE with
@@ -234,7 +238,76 @@ struct engine_weapon_kind
     u32  stock;             /* the index into engine_city_economy.stocks */
     u32  min_days;          /* 0: the weapons arrive at once */
     u32  max_days;
-    b32  needs_technique;
+    u8   technique;         /* the technique that the faction needs; ENGINE_NO_TECHNIQUE if none */
+    u8   replaces;          /* the weak weapon that this one replaces; ENGINE_NO_WEAPON if none */
+};
+
+#define ENGINE_NO_TECHNIQUE 0xFF
+#define ENGINE_NO_DISASTER  0xFF
+
+/* One row of the technique table (research-techniques.md). */
+struct engine_technique_kind
+{
+    u8   id;                /* ENGINE_NO_TECHNIQUE for an index out of range */
+    char key[CONTENT_KEY_SIZE];   /* the text id is "technique.<key>" */
+    u8   line;              /* technique_line */
+    u32  level;             /* 1 to 4 */
+    u32  points;            /* technique points */
+    u32  gold;
+    u8   ability;           /* content_ability that shortens the period */
+    u32  min_days;
+    u32  max_days;
+    b32  period_assumed;
+    u8   effect;            /* technique_effect */
+    u8   unit_class;        /* content_unit_class */
+    u32  value;
+    u8   previous;          /* the technique that this one needs; ENGINE_NO_TECHNIQUE for level 1 */
+};
+
+/* The techniques of a faction and its research. */
+struct engine_faction_techniques
+{
+    u8  force_id;           /* ENGINE_NO_FACTION for a bad id */
+    u64 owned;              /* bit t: the faction has technique t */
+    u32 technique_points;
+    u8  researching;        /* ENGINE_NO_TECHNIQUE if no research runs */
+    u8  research_city;
+    u16 turns_left;
+    u16 officers[SIM_COMMAND_OFFICERS];
+};
+
+/* One row of the disaster table (calendar-and-turn.md, "Disasters"). */
+struct engine_disaster_kind
+{
+    u8   id;                /* ENGINE_NO_DISASTER for an index out of range */
+    char key[CONTENT_KEY_SIZE];   /* the text id is "disaster.<key>" */
+    u32  month_mask;        /* bit m: it can start on day 1 of month m */
+    u32  chance_percent;
+    u32  turns;
+};
+
+/* The disasters that run in a city: the turns left of each row of the
+   table, 0 = not running, ENGINE_DISASTER_OPEN = until a rule ends it. */
+#define ENGINE_DISASTER_OPEN 0xFFFF
+struct engine_city_disasters
+{
+    u8  city_id;            /* ENGINE_NO_CITY if the city is not loaded */
+    u32 running;            /* the number of running disasters */
+    u16 turns[CONTENT_DISASTER_CAPACITY];
+};
+
+/* The end of the game (calendar-and-turn.md, "Victory and defeat"). */
+struct engine_outcome
+{
+    u8  kind;               /* sim_outcome_kind; SIM_OUTCOME_NONE while the game runs */
+    u8  force_id;           /* the faction of the outcome */
+    u32 end_year;           /* the year of the defeat by time (351) */
+};
+
+/* The game settings (game-setup-and-modes.md; F-132 adds the rest in M9). */
+struct engine_settings
+{
+    b32 disasters;          /* the calendar starts disasters */
 };
 
 /* The indices of the ledger events that a filter keeps, in ledger order.
@@ -270,6 +343,8 @@ struct engine_content_status
     u32         city_count;
     u32         weapon_count;
     u32         rule_count;
+    u32         technique_count;
+    u32         disaster_count;
     const char *detail;           /* a static string: the file that did not load, or "ok" */
 };
 
@@ -369,6 +444,27 @@ typedef engine_command_result engine_command_produce_fn(void *engine, u8 city_id
    facility and ledgers the damage. At 0 the facility is destroyed. */
 typedef engine_command_result engine_damage_facility_fn(void *engine, u8 city_id, u8 slot, u32 amount);
 /* Setup and editor commands (F-134). They ledger nothing. */
+/* M4 queries */
+typedef u32                       engine_technique_kind_count_fn(void *engine);
+typedef engine_technique_kind     engine_technique_kind_at_fn(void *engine, u32 index);
+typedef engine_faction_techniques engine_faction_techniques_fn(void *engine, u8 force_id);
+typedef u32                       engine_disaster_kind_count_fn(void *engine);
+typedef engine_disaster_kind      engine_disaster_kind_at_fn(void *engine, u32 index);
+typedef engine_city_disasters     engine_city_disasters_fn(void *engine, u8 city_id);
+typedef engine_outcome            engine_outcome_fn(void *engine);
+typedef engine_settings           engine_settings_fn(void *engine);
+/* M4 commands. 研究技巧: up to three officers research a technique. 吸收合併:
+   one officer merges the absorbed slot into the absorber. A refused command
+   changes nothing and ledgers nothing. */
+typedef engine_command_result engine_command_research_fn(void *engine, u8 city_id, u8 technique, const u16 officers[SIM_DEVELOP_OFFICERS]);
+typedef engine_command_result engine_command_merge_fn(void *engine, u8 city_id, u8 absorber, u8 absorbed, u16 officer);
+/* A test and editor command: starts a disaster in a city with its start
+   events. The calendar starts disasters at random. */
+typedef engine_command_result engine_start_disaster_fn(void *engine, u8 city_id, u8 disaster);
+/* Setup and editor commands. They ledger nothing. */
+typedef void                engine_set_settings_fn(void *engine, engine_settings settings);
+typedef void                engine_grant_technique_fn(void *engine, u8 force_id, u8 technique);   /* a scenario can start with techniques */
+typedef void                engine_set_technique_points_fn(void *engine, u8 force_id, u32 points);
 typedef b32                 engine_set_facility_level_fn(void *engine, u8 city_id, u8 slot, u8 level);  /* a built market, farm, barracks, smithy or stable; level 1 to 3 */
 typedef void                engine_set_city_resource_fn(void *engine, u8 city_id, u8 resource, u32 index, u32 value); /* index: the weapon stock */
 typedef void                engine_set_faction_human_fn(void *engine, u8 force_id, b32 human);
@@ -441,6 +537,21 @@ struct engine_api
     engine_damage_facility_fn       *damage_facility;
     engine_set_facility_level_fn    *set_facility_level;
     engine_set_city_resource_fn     *set_city_resource;
+    /* M4 growth: research, merge, disasters, the end of the game */
+    engine_technique_kind_count_fn  *technique_kind_count;
+    engine_technique_kind_at_fn     *technique_kind_at;
+    engine_faction_techniques_fn    *faction_techniques;
+    engine_disaster_kind_count_fn   *disaster_kind_count;
+    engine_disaster_kind_at_fn      *disaster_kind_at;
+    engine_city_disasters_fn        *city_disasters;
+    engine_outcome_fn               *outcome;
+    engine_settings_fn              *settings;
+    engine_command_research_fn      *command_research;
+    engine_command_merge_fn         *command_merge;
+    engine_start_disaster_fn        *start_disaster;
+    engine_set_settings_fn          *set_settings;
+    engine_grant_technique_fn       *grant_technique;
+    engine_set_technique_points_fn  *set_technique_points;
 };
 
 /* The real engine lives in code/engine/engine.cpp. */

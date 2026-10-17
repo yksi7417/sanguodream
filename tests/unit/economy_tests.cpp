@@ -207,11 +207,13 @@ internal void
 unit_weapon_table_tests(test_counts *counts, memory_arena *arena)
 {
     sim_content content = {};
+    content.technique_count = 1;   /* the weapon table names the techniques by key: load them first */
+    memcpy(content.techniques[0].key, "wood_beasts", sizeof("wood_beasts"));
     tsv_table table = {};
-    char *text = content_test_text(arena, "id\tkey\tcost\tfacility\tspecialty\tstock\tmin_days\tmax_days\tneeds_technique\n"
-                                          "0\tpike\t700\tweapons\tpike\t0\t0\t0\tno\n"
-                                          "1\tram\t1500\tsiege\tsiege\t4\t30\t90\tno\n"
-                                          "2\twood_beast\t1700\tsiege\tsiege\t4\t30\t90\tyes\n");
+    char *text = content_test_text(arena, "id\tkey\tcost\tfacility\tspecialty\tstock\tmin_days\tmax_days\ttechnique\treplaces\n"
+                                          "0\tpike\t700\tweapons\tpike\t0\t0\t0\t-\t-\n"
+                                          "1\tram\t1500\tsiege\tsiege\t4\t30\t90\t-\t-\n"
+                                          "2\twood_beast\t1700\tsiege\tsiege\t4\t30\t90\twood_beasts\tram\n");
     u32 bad_row = 0;
     TEST_CHECK(counts, tsv_parse(text, arena, &table) && content_load_weapons(&content, &table, &bad_row) && content.weapon_count == 3,
                "the weapon table parses");
@@ -219,18 +221,29 @@ unit_weapon_table_tests(test_counts *counts, memory_arena *arena)
                        content.weapons[0].specialty == CITY_SPECIALTY_PIKE && content.weapons[0].max_days == 0,
                "a smithy weapon arrives at once");
     TEST_CHECK(counts, content.weapons[1].facility == FACILITY_EFFECT_SIEGE && content.weapons[1].min_days == 30 &&
-                       content.weapons[1].max_days == 90 && !content.weapons[1].needs_technique && content.weapons[2].needs_technique,
-               "a siege weapon has a period and can need a technique");
+                       content.weapons[1].max_days == 90 && content.weapons[1].technique == CONTENT_NO_TECHNIQUE &&
+                       content.weapons[2].technique == 0 && content.weapons[2].replaces == 1 && content.weapons[1].replaces == CONTENT_NO_WEAPON,
+               "a siege weapon has a period; a strong weapon names its technique and the weapon that it replaces");
     tsv_table bad = {};
-    char *bad_text = content_test_text(arena, "id\tkey\tcost\tfacility\tspecialty\tstock\tmin_days\tmax_days\tneeds_technique\n"
-                                              "0\tpike\t700\tsword\tpike\t0\t0\t0\tno\n");
+    char *bad_text = content_test_text(arena, "id\tkey\tcost\tfacility\tspecialty\tstock\tmin_days\tmax_days\ttechnique\treplaces\n"
+                                              "0\tpike\t700\tsword\tpike\t0\t0\t0\t-\t-\n");
     TEST_CHECK(counts, tsv_parse(bad_text, arena, &bad) && !content_load_weapons(&content, &bad, &bad_row) && bad_row == 0 &&
                        content.weapon_count == 0, "a facility name that is not an effect is a bad row");
     tsv_table outside = {};
-    char *outside_text = content_test_text(arena, "id\tkey\tcost\tfacility\tspecialty\tstock\tmin_days\tmax_days\tneeds_technique\n"
-                                                  "0\tpike\t700\tweapons\tpike\t10\t0\t0\tno\n");
+    char *outside_text = content_test_text(arena, "id\tkey\tcost\tfacility\tspecialty\tstock\tmin_days\tmax_days\ttechnique\treplaces\n"
+                                                  "0\tpike\t700\tweapons\tpike\t10\t0\t0\t-\t-\n");
     TEST_CHECK(counts, tsv_parse(outside_text, arena, &outside) && !content_load_weapons(&content, &outside, &bad_row),
                "a stock index out of the weapon stocks is a bad row");
+    tsv_table unknown = {};
+    char *unknown_text = content_test_text(arena, "id\tkey\tcost\tfacility\tspecialty\tstock\tmin_days\tmax_days\ttechnique\treplaces\n"
+                                                  "0\tram\t1500\tsiege\tsiege\t4\t30\t90\tmagic\t-\n");
+    TEST_CHECK(counts, tsv_parse(unknown_text, arena, &unknown) && !content_load_weapons(&content, &unknown, &bad_row),
+               "a technique key that is not in the technique table is a bad row");
+    tsv_table no_weak = {};
+    char *no_weak_text = content_test_text(arena, "id\tkey\tcost\tfacility\tspecialty\tstock\tmin_days\tmax_days\ttechnique\treplaces\n"
+                                                  "0\tram\t1500\tsiege\tsiege\t4\t30\t90\t-\ttower\n");
+    TEST_CHECK(counts, tsv_parse(no_weak_text, arena, &no_weak) && !content_load_weapons(&content, &no_weak, &bad_row) &&
+                       content.weapon_count == 0, "a replaced weapon that is not a row is a bad row");
 }
 
 internal void

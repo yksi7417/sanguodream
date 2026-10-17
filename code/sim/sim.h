@@ -71,6 +71,19 @@ enum sim_event_kind
     SIM_EVENT_GOLD_EARNED,          /* subject = city; delta = gold in from a sale; assumed price */
     SIM_EVENT_PRODUCTION_STARTED,   /* subject = city; detail = weapon; delta = the period in turns */
     SIM_EVENT_WEAPONS_PRODUCED,     /* subject = city; detail = weapon; delta = weapons in; assumed quantity */
+    /* M4: research, merge, disasters, the end of the game */
+    SIM_EVENT_TECHNIQUE_SPENT,      /* faction; detail = technique; delta = technique points out (negative) */
+    SIM_EVENT_RESEARCH_STARTED,     /* subject = city; faction; detail = technique; delta = the period in turns; assumed period */
+    SIM_EVENT_TECHNIQUE_RESEARCHED, /* subject = city; faction; detail = technique; the faction has the technique */
+    SIM_EVENT_MERGE_STARTED,        /* subject = city; detail = the absorber slot; delta = the period in turns; assumed period */
+    SIM_EVENT_FACILITY_MERGED,      /* subject = city; detail = the absorber slot; delta = the new level; the absorbed slot is free */
+    SIM_EVENT_DISASTER_STARTED,     /* subject = city; detail = disaster; delta = turns (0: no length); assumed chance */
+    SIM_EVENT_DISASTER_ENDED,       /* subject = city; detail = disaster */
+    SIM_EVENT_GRAIN_LOST,           /* subject = city; detail = disaster; delta = grain out (negative); assumed */
+    SIM_EVENT_GRAIN_HARVEST,        /* subject = city; detail = disaster; delta = grain in from a good harvest; assumed */
+    SIM_EVENT_SOLDIERS_LOST,        /* subject = city; detail = disaster; delta = soldiers out (negative); assumed */
+    SIM_EVENT_GAME_WON,             /* faction; detail = sim_outcome_kind */
+    SIM_EVENT_GAME_LOST,            /* faction; detail = sim_outcome_kind */
     SIM_EVENT_COUNT
 };
 
@@ -131,6 +144,9 @@ enum sim_command_kind
     SIM_COMMAND_MERCHANT,        /* 商人 */
     SIM_COMMAND_PRODUCE,         /* 生產兵裝 */
     SIM_COMMAND_DAMAGE_FACILITY, /* a test and editor command until an attacker exists (M6) */
+    SIM_COMMAND_RESEARCH,        /* 研究技巧 */
+    SIM_COMMAND_MERGE,           /* 吸收合併 (PK) */
+    SIM_COMMAND_START_DISASTER,  /* a test and editor command: the calendar starts disasters at random */
     SIM_COMMAND_COUNT
 };
 
@@ -169,13 +185,39 @@ struct sim_develop_order
     u16 officers[SIM_DEVELOP_OFFICERS];     /* SIM_NO_OFFICER for an empty place */
 };
 
+/* 研究技巧: up to three officers research a technique for the faction. */
+struct sim_research_order
+{
+    u8  city_id;
+    u8  technique;                          /* the row of techniques.tsv */
+    u16 officers[SIM_COMMAND_OFFICERS];
+};
+
+/* 吸收合併: one officer merges the absorbed facility into the absorber. */
+struct sim_merge_order
+{
+    u8  city_id;
+    u8  absorber;                           /* the slot that keeps the facility and gains the level */
+    u8  absorbed;                           /* the slot that becomes free; level 1 */
+    u16 officer;
+};
+
+struct sim_disaster_order
+{
+    u8 city_id;
+    u8 disaster;                            /* the row of disasters.tsv */
+};
+
 struct sim_command
 {
-    sim_command_kind  kind;
-    u32               id;        /* assigned by sim_make_command */
-    sim_develop_order develop;   /* SIM_COMMAND_DEVELOP */
-    sim_city_order    city;      /* SIM_COMMAND_PATROL .. SIM_COMMAND_PRODUCE */
-    sim_damage_order  damage;    /* SIM_COMMAND_DAMAGE_FACILITY */
+    sim_command_kind   kind;
+    u32                id;        /* assigned by sim_make_command */
+    sim_develop_order  develop;   /* SIM_COMMAND_DEVELOP */
+    sim_city_order     city;      /* SIM_COMMAND_PATROL .. SIM_COMMAND_PRODUCE */
+    sim_damage_order   damage;    /* SIM_COMMAND_DAMAGE_FACILITY */
+    sim_research_order research;  /* SIM_COMMAND_RESEARCH */
+    sim_merge_order    merge;     /* SIM_COMMAND_MERGE */
+    sim_disaster_order disaster;  /* SIM_COMMAND_START_DISASTER */
 };
 
 /* Why the sim refuses a command (calendar-and-turn.md, "Reasons that block
@@ -202,6 +244,13 @@ enum sim_refusal
     SIM_REFUSAL_TOO_MANY_OFFICERS,     /* the command takes fewer officers (merchant: 1) */
     SIM_REFUSAL_NO_AMOUNT,             /* the merchant order has no amount */
     SIM_REFUSAL_NO_GRAIN,              /* the city has less grain than the order sells */
+    SIM_REFUSAL_NEEDS_TECHNIQUE,       /* the faction lacks the earlier level, or the technique of the weapon */
+    SIM_REFUSAL_NO_TECHNIQUE_POINTS,   /* the faction has fewer technique points than the research costs */
+    SIM_REFUSAL_WEAPON_REPLACED,       /* the faction has the strong weapon: the weak one cannot be produced */
+    SIM_REFUSAL_NOT_MERGEABLE,         /* the two slots are not two adjacent facilities of one kind that can merge */
+    SIM_REFUSAL_GAME_OVER,             /* the game ended (victory or defeat) */
+    SIM_REFUSAL_NO_DISASTER,           /* no such disaster, or it runs in the city */
+    SIM_REFUSAL_NO_TECHNIQUE,          /* no such technique */
     SIM_REFUSAL_COUNT
 };
 
@@ -271,7 +320,12 @@ struct city_component
     u8  morale;                          /* 氣力; the save field is not decoded: city.start_morale (assumed) */
     u32 patrolled_turn;                  /* sim turn + 1 of the last patrol; 0 = never */
     u32 trained_turn;                    /* sim turn + 1 of the last train */
+    /* M4: the disasters that run in the city: turns left, 0 = none */
+    u16 disaster_turns[CONTENT_DISASTER_CAPACITY];
 };
+
+#define SIM_DISASTER_OPEN 0xFFFF         /* a disaster without a length: it ends by a rule (bandits) */
+#define SIM_JOB_RESEARCH  0xFE           /* officer_component.job_slot of an officer that researches */
 
 /* ---- facility slots (cities-and-facilities.md) -------------------------- */
 
@@ -282,6 +336,7 @@ enum sim_slot_state
     SIM_SLOT_EMPTY,
     SIM_SLOT_BUILDING,
     SIM_SLOT_BUILT,
+    SIM_SLOT_MERGING,       /* the absorbed side of a merge: it gives nothing; the slot is free when the merge completes */
     SIM_SLOT_STATE_COUNT
 };
 
@@ -296,6 +351,7 @@ struct sim_slot
     u32       durability;                         /* full when the develop starts (assumed) */
     u32       used_turn;                          /* sim turn + 1 of the last conscription or production */
     u8        job_weapon;                         /* the weapon of a production job; CONTENT_NO_WEAPON if none */
+    u8        merge_slot;                         /* the absorber of a merge: the absorbed slot; SIM_ANY_SLOT if none */
 };
 
 struct sim_city_site
@@ -339,6 +395,44 @@ struct sim_turn_state
     b32           human[SIM_FORCE_CAPACITY];
 };
 
+/* ---- M4: research, settings and the end of the game --------------------- */
+
+/* The research of a faction (one at a time; assumed, Q-024). */
+struct sim_research_job
+{
+    u8  technique;                          /* CONTENT_NO_TECHNIQUE when no research runs */
+    u8  city_id;
+    u16 turns_left;
+    u16 officers[SIM_COMMAND_OFFICERS];
+};
+
+/* The game settings at the start (game-setup-and-modes.md; F-132 adds the rest in M9). */
+struct sim_settings
+{
+    b32 disasters;          /* the calendar starts disasters; a new game has them */
+};
+
+enum sim_outcome_kind
+{
+    SIM_OUTCOME_NONE,
+    SIM_OUTCOME_VICTORY,            /* the faction owns every city that has an owner */
+    SIM_OUTCOME_DEFEAT_TIME,        /* the year became game.end_year (351) */
+    SIM_OUTCOME_DEFEAT_NO_CITY,
+    SIM_OUTCOME_DEFEAT_NO_OFFICER,
+    SIM_OUTCOME_DEFEAT_SURRENDER,   /* the ruler accepted a surrender demand (M7 diplomacy) */
+    SIM_OUTCOME_COUNT
+};
+
+/* The end of the game for the human factions (calendar-and-turn.md,
+   "Victory and defeat"). The game is over when a human faction wins or
+   when every human faction lost. */
+struct sim_outcome
+{
+    sim_outcome_kind kind;          /* SIM_OUTCOME_NONE while the game runs */
+    u8               force_id;      /* the faction of the outcome */
+    b32              lost[SIM_FORCE_CAPACITY];
+};
+
 struct sim_state
 {
     u64            rng;             /* seeded PRNG state; the only randomness source */
@@ -357,6 +451,10 @@ struct sim_state
     sim_unit       units[SIM_UNIT_CAPACITY];
     u32            unit_count;
     u32            technique_points[SIM_FORCE_CAPACITY];   /* 技巧P of each faction; the save field is not decoded */
+    u64            techniques[SIM_FORCE_CAPACITY];         /* bit t: the faction has technique t (CONTENT_TECHNIQUE_CAPACITY = 64) */
+    sim_research_job research[SIM_FORCE_CAPACITY];
+    sim_settings   settings;
+    sim_outcome    outcome;
     u16            officer_index[SAVE_OFFICER_SLOTS];   /* officer id -> dense index, SIM_NO_OFFICER if none */
     u8             city_index[SAVE_CITY_COUNT];         /* city id -> dense index, SIM_NO_CITY if none */
 };
@@ -480,5 +578,50 @@ internal u32       sim_produce_days(u32 intellect_sum, u32 min_days, u32 max_day
 internal u32       sim_weapon_cost(u32 cost, b32 specialty, sim_rules *rules);
 internal sim_check sim_check_city_command(sim_state *sim, sim_command_kind kind, sim_city_order *order);
 internal void      sim_city_command(sim_state *sim, sim_command command, sim_event_sink *events);
+
+/* research.cpp: techniques, the research command and the effects of the
+   techniques (research-techniques.md) */
+internal b32       sim_has_technique(sim_state *sim, u8 force, u8 technique);
+internal b32       sim_has_technique_effect(sim_state *sim, u8 force, technique_effect effect, content_unit_class unit_class);
+internal u32       sim_technique_effect_value(sim_state *sim, u8 force, technique_effect effect);   /* 0 if the faction lacks it */
+internal u8        sim_previous_technique(sim_content *content, u8 technique);   /* CONTENT_NO_TECHNIQUE for level 1 */
+internal u32       sim_research_days(u32 ability_sum, u32 min_days, u32 max_days, b32 personnel_office, sim_rules *rules);
+internal u32       sim_research_gold(u32 gold, b32 teaching, sim_rules *rules);
+internal sim_check sim_check_research(sim_state *sim, sim_research_order *order);
+internal void      sim_research(sim_state *sim, sim_command command, sim_event_sink *events);
+internal void      sim_progress_research(sim_state *sim, u32 cause, sim_event_sink *events);
+internal void      sim_grant_technique(sim_state *sim, u8 force, u8 technique);   /* setup: a scenario can start with techniques */
+internal u32       sim_round_to_turns(u32 days);                                  /* up to whole turns, at least one */
+internal u32       sim_city_morale_max(sim_state *sim, city_component *city);     /* morale.max, plus 熟練兵 */
+internal u32       sim_order_loss(sim_state *sim, u8 force, u32 loss);            /* 整備政令 lowers the loss */
+internal sim_refusal sim_check_weapon_technique(sim_state *sim, u8 force, weapon_kind *weapon);
+internal b32       sim_city_has_built(sim_state *sim, u8 city_id, facility_effect effect);
+internal u32       sim_count_built(sim_state *sim, u8 city_id, facility_effect effect);
+
+/* merge.cpp: 吸收合併 (cities-and-facilities.md, "Merge") */
+internal u32       sim_merge_days(u32 politics, sim_rules *rules);
+internal sim_check sim_check_merge(sim_state *sim, sim_merge_order *order);
+internal void      sim_merge(sim_state *sim, sim_command command, sim_event_sink *events);
+internal void      sim_complete_merge(sim_state *sim, city_component *city, sim_slot *slot, u32 slot_index, u32 cause,
+                                      sim_event_sink *events);
+
+/* disasters.cpp: locusts, plague, bandits and the good harvest
+   (calendar-and-turn.md, "Disasters") */
+internal b32         sim_disaster_month(disaster_kind *kind, u32 month);
+internal u32         sim_disaster_chance(disaster_kind *kind, b32 has_chance_skill);   /* percent */
+internal void        sim_damage_slot(sim_state *sim, city_component *city, u32 slot_index, u32 amount, u32 cause,
+                                     sim_event_sink *events);   /* economy.cpp: damage, and destroy at 0 */
+internal b32         sim_disaster_active(city_component *city, u32 disaster);
+internal sim_refusal sim_check_start_disaster(sim_state *sim, sim_disaster_order *order);
+internal void        sim_start_disaster(sim_state *sim, city_component *city, u32 disaster, u32 cause, sim_event_sink *events);
+internal void        sim_start_disaster_command(sim_state *sim, sim_command command, sim_event_sink *events);
+internal void        sim_roll_disasters(sim_state *sim, u32 month, u32 cause, sim_event_sink *events);
+internal void        sim_disaster_grain(sim_state *sim, city_component *city, u32 payment, u32 cause, sim_event_sink *events);
+internal void        sim_run_disasters_turn(sim_state *sim, u32 cause, sim_event_sink *events);
+
+/* outcome.cpp: victory and defeat (calendar-and-turn.md) */
+internal void sim_check_outcome(sim_state *sim, u32 cause, sim_event_sink *events);
+internal b32  sim_game_over(sim_state *sim);
+internal const char *sim_outcome_name(sim_outcome_kind kind);
 
 #endif /* SIM_H */

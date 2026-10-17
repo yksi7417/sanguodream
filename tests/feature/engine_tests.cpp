@@ -24,6 +24,11 @@ engine_fixture_init(engine_fixture *f, u64 seed, u32 ledger_capacity)
     config.read_entire_file = test_platform_read_entire_file;
     f->backend = engine_create(&f->permanent, &f->transient, config);
     f->api     = engine_make_api(f->backend);
+    /* The random disasters change the numbers of the other tests: they are
+       off unless a test turns them on (disaster_tests.cpp). */
+    engine_settings settings = f->api.settings(f->api.engine);
+    settings.disasters = false;
+    f->api.set_settings(f->api.engine, settings);
 }
 
 internal void

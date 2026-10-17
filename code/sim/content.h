@@ -99,8 +99,138 @@ struct weapon_kind
     u32             stock;                   /* the index into the weapon stocks of a city */
     u32             min_days;                /* 0 for a weapon that arrives at once */
     u32             max_days;
-    b32             needs_technique;         /* the techniques are not modelled yet (M4) */
+    u8              technique;               /* the technique that the faction needs; CONTENT_NO_TECHNIQUE if none */
+    u8              replaces;                /* the weak weapon that this one replaces; CONTENT_NO_WEAPON if none */
 };
+
+/* ---- techniques (research-techniques.md) -------------------------------- */
+
+#define CONTENT_TECHNIQUE_CAPACITY 64
+#define CONTENT_NO_TECHNIQUE       0xFF
+
+enum technique_line
+{
+    TECHNIQUE_LINE_PIKE,
+    TECHNIQUE_LINE_HALBERD,
+    TECHNIQUE_LINE_CROSSBOW,
+    TECHNIQUE_LINE_CAVALRY,
+    TECHNIQUE_LINE_DRILL,
+    TECHNIQUE_LINE_INVENTION,
+    TECHNIQUE_LINE_DEFENCE,
+    TECHNIQUE_LINE_FIRE,
+    TECHNIQUE_LINE_PK,
+    TECHNIQUE_LINE_COUNT
+};
+
+/* The ability that shortens a research (and the other commands). */
+enum content_ability
+{
+    CONTENT_ABILITY_LEADERSHIP,
+    CONTENT_ABILITY_FORCE,
+    CONTENT_ABILITY_INTELLECT,
+    CONTENT_ABILITY_POLITICS,
+    CONTENT_ABILITY_CHARM,
+    CONTENT_ABILITY_COUNT
+};
+
+/* The flag that a technique sets. The rules of later milestones read the
+   flags (M5 movement, M6 combat); M4 applies the effects that have a rule
+   now: the morale cap, the facility recovery, the weapons and the order. */
+enum technique_effect
+{
+    TECHNIQUE_EFFECT_NONE,
+    TECHNIQUE_EFFECT_TACTIC_DAMAGE,
+    TECHNIQUE_EFFECT_RAID_GRAIN,
+    TECHNIQUE_EFFECT_FOREST_NO_COUNTER,
+    TECHNIQUE_EFFECT_ELITE,
+    TECHNIQUE_EFFECT_ARROW_BLOCK,
+    TECHNIQUE_EFFECT_ATTACK_BLOCK,
+    TECHNIQUE_EFFECT_COUNTER_ARROW,
+    TECHNIQUE_EFFECT_RANGE,
+    TECHNIQUE_EFFECT_MOVEMENT,
+    TECHNIQUE_EFFECT_MOUNTED_ARCHERY,
+    TECHNIQUE_EFFECT_MORALE_CAP,
+    TECHNIQUE_EFFECT_ROUGH_MARCH,
+    TECHNIQUE_EFFECT_SOLDIER_CAP,
+    TECHNIQUE_EFFECT_BASE_ATTACK,
+    TECHNIQUE_EFFECT_SIEGE_SPEED,
+    TECHNIQUE_EFFECT_STONE_BUILD,
+    TECHNIQUE_EFFECT_CATAPULT,
+    TECHNIQUE_EFFECT_THUNDER,
+    TECHNIQUE_EFFECT_FACILITY_RECOVERY,
+    TECHNIQUE_EFFECT_FORT_BUILD,
+    TECHNIQUE_EFFECT_CITADEL,
+    TECHNIQUE_EFFECT_BASE_COUNTER,
+    TECHNIQUE_EFFECT_WOOD_BEAST,
+    TECHNIQUE_EFFECT_FIRE_RANGE,
+    TECHNIQUE_EFFECT_FIRE_SEED_2,
+    TECHNIQUE_EFFECT_FIRE_SEED_3,
+    TECHNIQUE_EFFECT_TRANSPORT_SPEED,
+    TECHNIQUE_EFFECT_PORT_CAPS,
+    TECHNIQUE_EFFECT_ORDER_KEEP,
+    TECHNIQUE_EFFECT_LOYALTY_KEEP,
+    TECHNIQUE_EFFECT_COUNT
+};
+
+/* The unit class that an effect changes. The classes of M5 use the same
+   order (military-units-and-tactics.md). */
+enum content_unit_class
+{
+    CONTENT_CLASS_NONE,
+    CONTENT_CLASS_PIKE,
+    CONTENT_CLASS_HALBERD,
+    CONTENT_CLASS_CROSSBOW,
+    CONTENT_CLASS_CAVALRY,
+    CONTENT_CLASS_SIEGE,
+    CONTENT_CLASS_COUNT
+};
+
+struct technique_kind
+{
+    u8                 id;
+    char               key[CONTENT_KEY_SIZE];   /* the text id is "technique.<key>" */
+    technique_line     line;
+    u32                level;                   /* 1 to 4; level n needs level n - 1 of the line */
+    u32                points;
+    u32                gold;
+    content_ability    ability;
+    u32                min_days;
+    u32                max_days;
+    b32                period_assumed;
+    technique_effect   effect;
+    content_unit_class unit_class;
+    u32                value;
+    b32                value_assumed;
+};
+
+/* ---- disasters (calendar-and-turn.md, "Disasters") ---------------------- */
+
+#define CONTENT_DISASTER_CAPACITY 8
+#define CONTENT_NO_DISASTER       0xFF
+#define CONTENT_TARGET_ANY        FACILITY_EFFECT_COUNT   /* facility_target "any" */
+
+struct disaster_kind
+{
+    u8              id;
+    char            key[CONTENT_KEY_SIZE];   /* the text id is "disaster.<key>" */
+    u32             month_mask;              /* bit m set: the disaster can start on day 1 of month m (1..12) */
+    u32             chance_percent;
+    u32             turns;                   /* 0: no length (harvest, or bandits that end by public order) */
+    u32             start_order_loss;
+    u32             turn_order_loss;
+    u32             grain_percent;
+    u32             soldier_percent;
+    u32             facility_damage;
+    u32             facility_target;         /* a facility_effect, CONTENT_TARGET_ANY, or FACILITY_EFFECT_NONE */
+    b32             low_order_only;
+    b32             ends_at_order;
+    u32             skill_block;             /* the skill that stops it in the city; 0 = none */
+    u32             skill_chance;            /* the skill that changes the chance; 0 = none */
+    u32             skill_chance_percent;    /* the chance with that skill, in percent of chance_percent */
+};
+/* A disaster with turns = 0 and ends_at_order = no acts at once (the good
+   harvest): grain_percent adds grain. A disaster with turns > 0 runs for
+   that many turns: grain_percent takes grain from each grain payment. */
 
 /* The numbers of rules.tsv. A missing row leaves 0. */
 struct sim_rules
@@ -163,18 +293,37 @@ struct sim_rules
     u32 city_grain_income;
     u32 officer_salary;
     u32 grain_soldiers;
+    /* M4: research, merge, the PK facilities, the end of the game */
+    u32 ap_research;
+    u32 ap_merge;
+    u32 merge_gold;
+    u32 merge_max_days;
+    u32 merge_min_days;
+    u32 merge_full_politics;
+    u32 research_full_ability;
+    u32 research_personnel_percent;
+    u32 research_teaching_percent;
+    u32 skill_teaching;
+    u32 tally_action_points;
+    u32 military_office_ap_percent;
+    u32 drill_ship_period_percent;
+    u32 game_end_year;
     u32 loaded_count;           /* rows that set a field */
 };
 
 struct sim_content
 {
-    facility_kind facilities[CONTENT_FACILITY_CAPACITY];
-    u32           facility_count;
-    city_kind     cities[SAVE_CITY_COUNT];
-    u32           city_count;
-    weapon_kind   weapons[CONTENT_WEAPON_CAPACITY];
-    u32           weapon_count;
-    sim_rules     rules;
+    facility_kind  facilities[CONTENT_FACILITY_CAPACITY];
+    u32            facility_count;
+    city_kind      cities[SAVE_CITY_COUNT];
+    u32            city_count;
+    weapon_kind    weapons[CONTENT_WEAPON_CAPACITY];
+    u32            weapon_count;
+    technique_kind techniques[CONTENT_TECHNIQUE_CAPACITY];
+    u32            technique_count;
+    disaster_kind  disasters[CONTENT_DISASTER_CAPACITY];
+    u32            disaster_count;
+    sim_rules      rules;
 };
 
 /* Each parser returns false and leaves its part of the content empty if a
@@ -183,11 +332,21 @@ struct sim_content
 internal b32 content_load_facilities(sim_content *content, tsv_table *table, u32 *bad_row);
 internal b32 content_load_cities(sim_content *content, tsv_table *table, u32 *bad_row);
 internal b32 content_load_rules(sim_content *content, tsv_table *table, u32 *bad_row);
-internal b32 content_load_weapons(sim_content *content, tsv_table *table, u32 *bad_row);
+internal b32 content_load_weapons(sim_content *content, tsv_table *table, u32 *bad_row);     /* after the techniques */
+internal b32 content_load_techniques(sim_content *content, tsv_table *table, u32 *bad_row);
+internal b32 content_load_disasters(sim_content *content, tsv_table *table, u32 *bad_row);
 
-internal facility_effect content_effect_from_name(const char *name);
-internal facility_limit  content_limit_from_name(const char *name);
-internal city_specialty  content_specialty_from_name(const char *name);
-internal const char     *content_effect_name(facility_effect effect);
+internal facility_effect    content_effect_from_name(const char *name);
+internal facility_limit     content_limit_from_name(const char *name);
+internal city_specialty     content_specialty_from_name(const char *name);
+internal const char        *content_effect_name(facility_effect effect);
+internal technique_line     content_line_from_name(const char *name);
+internal const char        *content_line_name(technique_line line);
+internal content_ability    content_ability_from_name(const char *name);
+internal technique_effect   content_technique_effect_from_name(const char *name);
+internal const char        *content_technique_effect_name(technique_effect effect);
+internal content_unit_class content_class_from_name(const char *name);
+internal u32                content_month_mask_from_text(const char *text);   /* "1|4|7"; 0 if a part is bad */
+internal u8                 content_find_technique(sim_content *content, const char *key);   /* CONTENT_NO_TECHNIQUE if none */
 
 #endif /* CONTENT_H */

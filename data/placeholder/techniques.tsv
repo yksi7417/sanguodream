@@ -1,0 +1,42 @@
+id	key	name_zh	line	level	points	gold	ability	min_days	max_days	period_status	effect	unit_class	value	value_status
+# The technique tree of research-techniques.md: eight lines of four levels, and the four techniques of the Power Up Kit. One row for each technique that 研究技巧 researches.
+# points, gold: documented (manual p.13, p.34; guide book p.10). The skill 指導 halves the gold.
+# ability: the ability of the officers that shortens the period (documented for the eight lines; assumed politics for the pk line, Q-161).
+# min_days, max_days: the period range of the guide book p.10 (documented); assumed for the pk line (Q-161). The sum of the ability sets the period in the range (assumed line, Q-161).
+# effect: the flag that the technique sets for the later rules. unit_class: the class that the effect changes, or none. value: the number of the effect (0 for a flag).
+0	pike_drill	鍛鍊槍兵	pike	1	1000	1000	leadership	40	60	documented	tactic_damage	pike	0	none
+1	grain_raid	襲擊兵糧	pike	2	2000	2000	leadership	50	70	documented	raid_grain	pike	0	none
+2	ambush	奇襲	pike	3	3000	5000	leadership	70	90	documented	forest_no_counter	pike	0	none
+3	elite_pike	精銳槍兵	pike	4	5000	10000	leadership	100	120	documented	elite	pike	0	none
+4	halberd_drill	鍛鍊戟兵	halberd	1	1000	1000	leadership	40	60	documented	tactic_damage	halberd	0	none
+5	arrow_shield	箭盾	halberd	2	2000	2000	leadership	50	70	documented	arrow_block	halberd	30	documented
+6	great_shield	大盾	halberd	3	3000	5000	leadership	70	90	documented	attack_block	halberd	30	documented
+7	elite_halberd	精銳戟兵	halberd	4	5000	10000	leadership	100	120	documented	elite	halberd	0	none
+8	crossbow_drill	鍛鍊弩兵	crossbow	1	1000	1000	leadership	40	60	documented	tactic_damage	crossbow	0	none
+9	return_fire	還射	crossbow	2	2000	2000	leadership	50	70	documented	counter_arrow	crossbow	0	none
+10	strong_crossbow	強弩	crossbow	3	3000	5000	leadership	70	90	documented	range	crossbow	1	documented
+11	elite_crossbow	精銳弩兵	crossbow	4	5000	10000	leadership	100	120	documented	elite	crossbow	0	none
+12	cavalry_drill	鍛鍊騎兵	cavalry	1	1000	1000	leadership	40	60	documented	tactic_damage	cavalry	0	none
+13	fine_horses	出產良馬	cavalry	2	2000	2000	leadership	50	70	documented	movement	cavalry	0	none
+14	mounted_archery	騎射	cavalry	3	3000	5000	leadership	70	90	documented	mounted_archery	cavalry	0	none
+15	elite_cavalry	精銳騎兵	cavalry	4	5000	10000	leadership	100	120	documented	elite	cavalry	0	none
+16	veterans	熟練兵	drill	1	1000	1000	force	40	60	documented	morale_cap	none	20	documented
+17	rough_march	難所行軍	drill	2	2000	2000	force	50	70	documented	rough_march	none	0	none
+18	army_reform	改革軍制	drill	3	3000	5000	force	70	90	documented	soldier_cap	none	3000	documented
+19	ladders	雲梯	drill	4	5000	10000	force	100	120	documented	base_attack	none	0	none
+20	axles	強化車軸	invention	1	1000	1000	intellect	30	50	documented	siege_speed	siege	0	none
+21	stonework	石造建築	invention	2	2000	2000	intellect	40	60	documented	stone_build	none	0	none
+22	catapults	開發投石	invention	3	3000	5000	intellect	60	80	documented	catapult	siege	0	none
+23	thunderbolt	霹靂	invention	4	5000	10000	intellect	90	110	documented	thunder	siege	0	none
+24	engineers	培訓工兵	defence	1	1000	1000	politics	40	60	documented	facility_recovery	none	200	assumed
+25	strong_facilities	強化設施	defence	2	2000	2000	politics	50	70	documented	fort_build	none	0	none
+26	strong_walls	強化城牆	defence	3	3000	5000	politics	70	90	documented	citadel	none	0	none
+27	strong_defence	強化防衛	defence	4	5000	10000	politics	100	120	documented	base_counter	none	0	none
+28	wood_beasts	開發木獸	fire	1	1000	1000	intellect	30	50	documented	wood_beast	siege	0	none
+29	divine_fire	神火計	fire	2	2000	2000	intellect	40	60	documented	fire_range	none	3	documented
+30	gunpowder	鍊成火藥	fire	3	3000	5000	intellect	60	80	documented	fire_seed_2	none	0	none
+31	explosives	鍊成炸藥	fire	4	5000	10000	intellect	90	110	documented	fire_seed_3	none	0	none
+32	wooden_ox	木牛流馬	pk	1	1000	1000	politics	40	60	assumed	transport_speed	none	0	none
+33	port_expansion	擴展港關	pk	2	2000	2000	politics	50	70	assumed	port_caps	none	0	none
+34	order_decrees	整備政令	pk	3	3000	5000	politics	70	90	assumed	order_keep	none	50	assumed
+35	hearts_and_minds	掌握人心	pk	4	5000	10000	politics	100	120	assumed	loyalty_keep	none	0	none

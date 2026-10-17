@@ -21,7 +21,16 @@ sim_init(sim_state *sim, memory_arena *arena, u64 seed)
     sim->turns.start_date = calendar_make(SIM_DEFAULT_START_YEAR, SIM_DEFAULT_START_MONTH, 1);
     sim->turns.date       = sim->turns.start_date;
     sim->unit_count = 0;
-    for (u32 force = 0; force < SIM_FORCE_CAPACITY; ++force) sim->technique_points[force] = 0;
+    for (u32 force = 0; force < SIM_FORCE_CAPACITY; ++force)
+    {
+        sim->technique_points[force]     = 0;
+        sim->techniques[force]           = 0;
+        sim->research[force]             = {};
+        sim->research[force].technique   = CONTENT_NO_TECHNIQUE;
+    }
+    sim->settings           = {};
+    sim->settings.disasters = true;   /* a new game has disasters (game-setup-and-modes.md) */
+    sim->outcome            = {};
     for (u32 index = 0; index < ArrayCount(sim->officer_index); ++index) sim->officer_index[index] = SIM_NO_OFFICER;
     for (u32 index = 0; index < ArrayCount(sim->city_index); ++index)    sim->city_index[index]    = SIM_NO_CITY;
     sim_init_sites(sim);
@@ -201,6 +210,15 @@ sim_apply(sim_state *sim, sim_command command, sim_event_sink *events)
         case SIM_COMMAND_DAMAGE_FACILITY:
             sim_damage_facility(sim, command, events);
             break;
+        case SIM_COMMAND_RESEARCH:
+            sim_research(sim, command, events);
+            break;
+        case SIM_COMMAND_MERGE:
+            sim_merge(sim, command, events);
+            break;
+        case SIM_COMMAND_START_DISASTER:
+            sim_start_disaster_command(sim, command, events);
+            break;
         case SIM_COMMAND_LOAD_SAVE:
             InvalidCodePath;   /* needs its save: see sim_load_save */
             break;
@@ -240,7 +258,11 @@ sim_unload_world(sim_state *sim)
         sim->turns.action_points[force] = 0;
         sim->turns.human[force]         = false;
         sim->technique_points[force]    = 0;
+        sim->techniques[force]          = 0;
+        sim->research[force]            = {};
+        sim->research[force].technique  = CONTENT_NO_TECHNIQUE;
     }
+    sim->outcome = {};
     sim_init_sites(sim);
 }
 
@@ -423,6 +445,18 @@ sim_event_name(sim_event_kind kind)
         case SIM_EVENT_GOLD_EARNED:             return "gold_earned";
         case SIM_EVENT_PRODUCTION_STARTED:      return "production_started";
         case SIM_EVENT_WEAPONS_PRODUCED:        return "weapons_produced";
+        case SIM_EVENT_TECHNIQUE_SPENT:         return "technique_spent";
+        case SIM_EVENT_RESEARCH_STARTED:        return "research_started";
+        case SIM_EVENT_TECHNIQUE_RESEARCHED:    return "technique_researched";
+        case SIM_EVENT_MERGE_STARTED:           return "merge_started";
+        case SIM_EVENT_FACILITY_MERGED:         return "facility_merged";
+        case SIM_EVENT_DISASTER_STARTED:        return "disaster_started";
+        case SIM_EVENT_DISASTER_ENDED:          return "disaster_ended";
+        case SIM_EVENT_GRAIN_LOST:              return "grain_lost";
+        case SIM_EVENT_GRAIN_HARVEST:           return "grain_harvest";
+        case SIM_EVENT_SOLDIERS_LOST:           return "soldiers_lost";
+        case SIM_EVENT_GAME_WON:                return "game_won";
+        case SIM_EVENT_GAME_LOST:               return "game_lost";
         default:                                return "?";
     }
 }
@@ -443,6 +477,9 @@ sim_command_name(sim_command_kind kind)
         case SIM_COMMAND_MERCHANT:        return "merchant";
         case SIM_COMMAND_PRODUCE:         return "produce";
         case SIM_COMMAND_DAMAGE_FACILITY: return "damage_facility";
+        case SIM_COMMAND_RESEARCH:        return "research";
+        case SIM_COMMAND_MERGE:           return "merge";
+        case SIM_COMMAND_START_DISASTER:  return "start_disaster";
         default:                          return "?";
     }
 }
@@ -472,6 +509,13 @@ sim_refusal_name(sim_refusal refusal)
         case SIM_REFUSAL_TOO_MANY_OFFICERS:     return "too_many_officers";
         case SIM_REFUSAL_NO_AMOUNT:             return "no_amount";
         case SIM_REFUSAL_NO_GRAIN:              return "no_grain";
+        case SIM_REFUSAL_NEEDS_TECHNIQUE:       return "needs_technique";
+        case SIM_REFUSAL_NO_TECHNIQUE_POINTS:   return "no_technique_points";
+        case SIM_REFUSAL_WEAPON_REPLACED:       return "weapon_replaced";
+        case SIM_REFUSAL_NOT_MERGEABLE:         return "not_mergeable";
+        case SIM_REFUSAL_GAME_OVER:             return "game_over";
+        case SIM_REFUSAL_NO_DISASTER:           return "no_disaster";
+        case SIM_REFUSAL_NO_TECHNIQUE:          return "no_technique";
         default:                                return "?";
     }
 }
@@ -480,3 +524,7 @@ sim_refusal_name(sim_refusal refusal)
 #include "sim/develop.cpp"
 #include "sim/economy.cpp"
 #include "sim/city_commands.cpp"
+#include "sim/research.cpp"
+#include "sim/merge.cpp"
+#include "sim/disasters.cpp"
+#include "sim/outcome.cpp"
