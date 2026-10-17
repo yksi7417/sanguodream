@@ -458,7 +458,8 @@ sim_run_officers_month(sim_state *sim, u32 cause, sim_event_sink *events)
         officer_component *officer = sim->officers.data + index;
         if (!sim_officer_is_active(officer) || officer->status == OFFICER_STATUS_RULER || officer->force_id == SIM_NO_FORCE) continue;
         officer_component *ruler = sim_find_officer(sim, sim_force_ruler(sim, officer->force_id));
-        u32 loss = sim_monthly_loyalty_loss(sim, officer, ruler);
+        sim_loyalty_drift_fn *drift = sim->ruleset.loyalty_drift ? sim->ruleset.loyalty_drift : sim_monthly_loyalty_loss;   /* the rule hook */
+        u32 loss = drift(sim, officer, ruler);
         if (loss) sim_change_loyalty(sim, officer, -(s32)loss, cause, events);
         b32 bonded = ruler && sim_officers_bonded(officer, ruler);
         if (officer->loyalty < rules->loyalty_leave && officer->justice < 4 && !bonded &&

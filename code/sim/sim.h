@@ -763,13 +763,17 @@ struct sim_combat_input
 };
 
 struct sim_state;
+struct officer_component;
 typedef u32 sim_combat_damage_fn(sim_state *sim, sim_combat_input *input);
+/* The loyalty that an officer loses in one month (M7). */
+typedef u32 sim_loyalty_drift_fn(sim_state *sim, officer_component *officer, officer_component *ruler);
 
 /* The rule hooks of a content pack. Each pointer defaults to the generic
    rule; a pack can set its own in code/sim/rules_<pack>.cpp. */
 struct sim_ruleset
 {
     sim_combat_damage_fn *combat_damage;
+    sim_loyalty_drift_fn *loyalty_drift;
 };
 
 /* The five values of a unit (military-units-and-tactics.md, "Unit values"). */
@@ -1101,6 +1105,7 @@ internal b32       sim_can_place(sim_state *sim, building_kind *kind, hex_coord 
 
 /* officers.cpp, diplomacy.cpp, duel.cpp, debate.cpp (M7) */
 internal void      sim_init_officer_state(sim_state *sim, officer_component *officer, officer_record *record);
+internal u32       sim_monthly_loyalty_loss(sim_state *sim, officer_component *officer, officer_component *ruler);
 internal void      sim_load_items(sim_state *sim, save_file *save);
 internal u32       sim_compatibility_distance(u8 a, u8 b);
 internal b32       sim_officer_likes(officer_component *officer, u16 other);

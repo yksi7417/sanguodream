@@ -36,6 +36,7 @@ sim_init(sim_state *sim, memory_arena *arena, u64 seed)
     sim->debate = {};
     for (u32 index = 0; index < SAVE_ITEM_COUNT; ++index) sim->items[index] = {};
     sim->ruleset.combat_damage = sim_rule_combat_damage;   /* the generic rule; a pack can set its own */
+    sim->ruleset.loyalty_drift = sim_monthly_loyalty_loss;
     sim->building_count = 0;
     sim->fire           = 0;
     sim->outcome            = {};
