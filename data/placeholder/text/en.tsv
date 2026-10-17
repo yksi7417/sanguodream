@@ -120,3 +120,65 @@ specialty.4	crossbow	弩
 specialty.5	horse	軍馬
 specialty.6	siege	兵器
 specialty.7	navy	艦船
+menu.economy	Economy	menu item of the Economy panel
+city.patrol	Patrol...	巡察; button that opens the dialog
+city.conscript	Conscript...	徵兵
+city.train	Train...	訓練
+city.merchant	Merchant...	商人
+city.produce	Produce weapons...	生產兵裝
+patrol.title	Patrol	巡察 dialog title
+conscript.title	Conscript	徵兵 dialog title
+train.title	Train	訓練 dialog title
+merchant.title	Merchant	商人 dialog title
+produce.title	Produce weapons	生產兵裝 dialog title
+command.executor	Officers	執行武將
+command.decide	Decide	決定
+command.back	Back	返回
+command.gold	Gold	資金: cost / stock
+command.action_points	Action points	行動力: cost / available
+command.order	Public order	治安
+command.soldiers	Soldiers	士兵
+command.morale	Morale	氣力
+command.grain	Grain	兵糧
+command.stock	Stock	庫存
+command.period	Period	期間
+command.days	 days	after a number of days
+command.weapons	Weapons	兵裝
+command.price	Price	市價
+command.buy	Buy grain	the merchant spends gold
+command.sell	Sell grain	the merchant sells grain
+command.amount	Amount	gold to spend or grain to sell
+command.done	done, command	then the command id
+weapon.pike	Pike	槍
+weapon.halberd	Halberd	戟
+weapon.crossbow	Crossbow	弩
+weapon.horse	War horse	軍馬
+weapon.ram	Ram	衝車
+weapon.wood_beast	Wood beast	木獸
+weapon.tower	Tower	井闌
+weapon.catapult	Catapult	投石
+weapon.tower_ship	Tower ship	樓船
+weapon.battle_ship	Battle ship	鬥艦
+economy.title	Economy	panel title
+economy.technique	Technique points	技巧P of the faction
+economy.salaries	Salaries	gold each month
+economy.grain_per_turn	Grain each turn	the soldiers eat it
+economy.help	The amounts are assumed (Q-021, Q-027, Q-119, Q-151). A star: the skill 徵稅 or 徵收 pays more often. An exclamation mark: public order below 80, bandits can appear.
+ledger.city	City	ledger filter
+ledger.resource	Resource	ledger filter
+ledger.any	all	no filter
+resource.none	none
+resource.gold	gold
+resource.grain	grain
+resource.soldiers	soldiers
+resource.morale	morale
+resource.public_order	public order
+resource.weapons	weapons
+resource.durability	durability
+resource.technique	technique points
+resource.action_points	action points
+resource.merit	merit
+refusal.limit_reached	the command ran its limit of this turn
+refusal.too_many_officers	the command takes fewer officers
+refusal.no_amount	no amount
+refusal.no_grain	not sufficient grain

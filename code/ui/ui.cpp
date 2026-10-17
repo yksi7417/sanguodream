@@ -19,6 +19,8 @@ ui_label(char *out, u32 out_size, ui_state *ui, const char *text_id, const char 
 #include "ui/ui_world.cpp"
 #include "ui/ui_settings.cpp"
 #include "ui/ui_city.cpp"
+#include "ui/ui_city_commands.cpp"
+#include "ui/ui_economy.cpp"
 
 /* Writes an overlay colour for one cell of the terrain view, if it is on the map. */
 internal void
@@ -50,6 +52,17 @@ ui_init(ui_state *ui, text_catalog *text)
     ui->develop = {};
     ui->develop.prepared_city = ENGINE_NO_CITY;
     ui->develop.slot          = ENGINE_ANY_SLOT;
+    ui->show_economy          = false;
+    for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind)
+    {
+        ui->show_command[kind] = false;
+        ui->commands[kind] = {};
+        ui->commands[kind].prepared_city = ENGINE_NO_CITY;
+        ui->commands[kind].amount        = UI_MERCHANT_DEFAULT_AMOUNT;
+    }
+    ui->command_message[0]    = 0;
+    ui->ledger_city           = ENGINE_ANY_CITY;
+    ui->ledger_resource       = ENGINE_ANY_RESOURCE;
     ui->text          = text;
     ui->pending_locale[0] = 0;
     ui->load_message[0] = 0;
@@ -85,6 +98,7 @@ ui_draw_menu_bar(ui_state *ui, engine_api *api, ui_frame_info *frame)
             ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.cities", "Cities"), 0, &ui->show_cities);
             ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.city", "City"), 0, &ui->show_city);
             ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.develop", "Develop"), 0, &ui->show_develop);
+            ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.economy", "Economy"), 0, &ui->show_economy);
             ImGui::MenuItem("Event ledger", 0, &ui->show_ledger);
             ImGui::MenuItem("Memory", 0, &ui->show_memory);
             ImGui::Separator();
@@ -180,10 +194,51 @@ ui_draw_simulation(ui_state *ui, engine_api *api)
     ImGui::End();
 }
 
+/* The filters of the ledger: a city and a resource. A choice changes only
+   the front end; the panel then asks the query ledger_filter. */
+internal void
+ui_draw_ledger_filters(ui_state *ui, engine_api *api)
+{
+    char label[128], preview[96];
+    if (ui->ledger_city == ENGINE_ANY_CITY) snprintf(preview, sizeof(preview), "%s", text_get(ui->text, "ledger.any"));
+    else                                    ui_city_label(ui, api, ui->ledger_city, preview, sizeof(preview));
+    ImGui::SetNextItemWidth(160.0f);
+    if (ImGui::BeginCombo(ui_label(label, sizeof(label), ui, "ledger.city", "ledger_city"), preview))
+    {
+        snprintf(label, sizeof(label), "%s###lc_any", text_get(ui->text, "ledger.any"));
+        if (ImGui::Selectable(label, ui->ledger_city == ENGINE_ANY_CITY)) ui->ledger_city = ENGINE_ANY_CITY;
+        u32 count = api->city_count(api->engine);
+        for (u32 index = 0; index < count; ++index)
+        {
+            engine_city city = api->city_at(api->engine, index);
+            char name[96];
+            ui_city_label(ui, api, city.city_id, name, sizeof(name));
+            snprintf(label, sizeof(label), "%s###lc%u", name, city.city_id);
+            if (ImGui::Selectable(label, ui->ledger_city == city.city_id)) ui->ledger_city = city.city_id;
+        }
+        ImGui::EndCombo();
+    }
+    ImGui::SameLine();
+    if (ui->ledger_resource == ENGINE_ANY_RESOURCE) snprintf(preview, sizeof(preview), "%s", text_get(ui->text, "ledger.any"));
+    else snprintf(preview, sizeof(preview), "%s", ui_text_with_key(ui, "resource", sim_resource_name((sim_resource)ui->ledger_resource)));
+    ImGui::SetNextItemWidth(160.0f);
+    if (ImGui::BeginCombo(ui_label(label, sizeof(label), ui, "ledger.resource", "ledger_resource"), preview))
+    {
+        snprintf(label, sizeof(label), "%s###lr_any", text_get(ui->text, "ledger.any"));
+        if (ImGui::Selectable(label, ui->ledger_resource == ENGINE_ANY_RESOURCE)) ui->ledger_resource = ENGINE_ANY_RESOURCE;
+        for (u32 resource = SIM_RESOURCE_GOLD; resource < SIM_RESOURCE_COUNT; ++resource)
+        {
+            snprintf(label, sizeof(label), "%s###lr%u", ui_text_with_key(ui, "resource", sim_resource_name((sim_resource)resource)), resource);
+            if (ImGui::Selectable(label, ui->ledger_resource == resource)) ui->ledger_resource = (u8)resource;
+        }
+        ImGui::EndCombo();
+    }
+}
+
 internal void
 ui_draw_ledger(ui_state *ui, engine_api *api)
 {
-    ImGui::SetNextWindowSize(ImVec2(560, 300), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(640, 300), ImGuiCond_FirstUseEver);
     if (ImGui::Begin("Event ledger", &ui->show_ledger))
     {
         u32 count = api->ledger_count(api->engine);
@@ -194,9 +249,18 @@ ui_draw_ledger(ui_state *ui, engine_api *api)
             api->ledger_clear(api->engine);
             count = 0;
         }
+        ImGui::SameLine();
+        ui_draw_ledger_filters(ui, api);
+        b32 filtered = ui->ledger_city != ENGINE_ANY_CITY || ui->ledger_resource != ENGINE_ANY_RESOURCE;
+        engine_ledger_view view = {};
+        if (filtered)
+        {
+            view  = api->ledger_filter(api->engine, ui->ledger_city, ui->ledger_resource);
+            count = view.count;
+        }
         ImGuiTableFlags flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
                                 ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable;
-        if (ImGui::BeginTable("ledger", 8, flags))
+        if (ImGui::BeginTable("ledger", 9, flags))
         {
             ImGui::TableSetupScrollFreeze(0, 1);
             ImGui::TableSetupColumn("#", ImGuiTableColumnFlags_WidthFixed, 50.0f);
@@ -207,6 +271,7 @@ ui_draw_ledger(ui_state *ui, engine_api *api)
             ImGui::TableSetupColumn("cause", ImGuiTableColumnFlags_WidthFixed, 60.0f);
             ImGui::TableSetupColumn("faction", ImGuiTableColumnFlags_WidthFixed, 50.0f);
             ImGui::TableSetupColumn("assumed", ImGuiTableColumnFlags_WidthFixed, 60.0f);
+            ImGui::TableSetupColumn("detail", ImGuiTableColumnFlags_WidthFixed, 50.0f);
             ImGui::TableHeadersRow();
             ImGuiListClipper clipper;
             clipper.Begin((int)count);
@@ -214,9 +279,10 @@ ui_draw_ledger(ui_state *ui, engine_api *api)
             {
                 for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; ++row)
                 {
-                    sim_event ev = api->ledger_at(api->engine, (u32)row);
+                    u32 index = filtered ? view.indices[row] : (u32)row;
+                    sim_event ev = api->ledger_at(api->engine, index);
                     ImGui::TableNextRow();
-                    ImGui::TableNextColumn(); ImGui::Text("%d", row);
+                    ImGui::TableNextColumn(); ImGui::Text("%u", index);
                     ImGui::TableNextColumn(); ImGui::Text("%u", ev.turn);
                     ImGui::TableNextColumn(); ImGui::TextUnformatted(sim_event_name(ev.kind));
                     ImGui::TableNextColumn(); ImGui::Text("%u", ev.subject);
@@ -226,6 +292,7 @@ ui_draw_ledger(ui_state *ui, engine_api *api)
                     if (ev.faction == ENGINE_NO_FACTION) ImGui::TextUnformatted("-");
                     else                                 ImGui::Text("%u", ev.faction);
                     ImGui::TableNextColumn(); ImGui::TextUnformatted(ev.assumed ? "assumed" : "");
+                    ImGui::TableNextColumn(); ImGui::Text("%u", ev.detail);
                 }
             }
             ImGui::EndTable();
@@ -264,6 +331,11 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->show_settings) ui_draw_settings(ui);
     if (ui->show_city)    ui_draw_city(ui, api);
     if (ui->show_develop) ui_draw_develop(ui, api);
+    if (ui->show_economy) ui_draw_economy(ui, api);
+    for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind)
+    {
+        if (ui->show_command[kind]) ui_draw_city_command(ui, api, kind);
+    }
 
     /* The scene goes last: by now ImGui knows which windows want the mouse,
        and the panels above may have changed the camera or the selection. */

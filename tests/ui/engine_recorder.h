@@ -39,6 +39,12 @@ enum recorder_call_kind
     RECORDER_OFFICER_BY_ID,
     RECORDER_FORCE_RULER,
     RECORDER_LOCATION_NAME_AT,
+    RECORDER_CITY_ECONOMY,
+    RECORDER_CITY_INCOME_FORECAST,
+    RECORDER_TECHNIQUE_POINTS,
+    RECORDER_WEAPON_KIND_COUNT,
+    RECORDER_WEAPON_KIND_AT,
+    RECORDER_LEDGER_FILTER,   /* arg = city | resource << 8 */
     RECORDER_END_TURN,        /* commands start here */
     RECORDER_ADVANCE_TURNS,
     RECORDER_LEDGER_CLEAR,
@@ -52,6 +58,14 @@ enum recorder_call_kind
     RECORDER_SET_CITY_GOLD,
     RECORDER_SET_ACTIONS,
     RECORDER_PLACE_UNIT,
+    RECORDER_COMMAND_PATROL,
+    RECORDER_COMMAND_CONSCRIPT,
+    RECORDER_COMMAND_TRAIN,
+    RECORDER_COMMAND_MERCHANT,
+    RECORDER_COMMAND_PRODUCE,
+    RECORDER_DAMAGE_FACILITY,
+    RECORDER_SET_FACILITY_LEVEL,
+    RECORDER_SET_CITY_RESOURCE,
     RECORDER_CALL_KIND_COUNT
 };
 
@@ -84,6 +98,8 @@ struct engine_recorder
     char          last_name_index_path[RECORDER_MAX_PATH];
     sim_refusal   can_issue_refusal;  /* script the answer of can_issue and command_develop */
     engine_command last_develop;      /* the arguments of the last command_develop */
+    engine_command last_city_command; /* the arguments of the last patrol, conscript, train, merchant or produce */
+    u32           filter_indices[RECORDER_MAX_EVENTS];   /* the answer of ledger_filter: every scripted event */
 };
 
 internal void
@@ -452,6 +468,132 @@ internal void recorder_set_city_gold(void *o, u8 city, u32 gold)       { (void)g
 internal void recorder_set_actions(void *o, u8 force, u32 points)      { (void)points; recorder_record((engine_recorder *)o, RECORDER_SET_ACTIONS, force); }
 internal u32  recorder_place_unit(void *o, u8 force, s32 q, s32 r)     { (void)q; (void)r; recorder_record((engine_recorder *)o, RECORDER_PLACE_UNIT, force); return 0; }
 
+/* ---- M3 economy: each city has public order 60, morale 50, 8000
+   soldiers, one barracks; the weapon table has 10 weapons. */
+global_variable const char *recorder_weapon_keys[] = {
+    "pike", "halberd", "crossbow", "horse", "ram", "wood_beast", "tower", "catapult", "tower_ship", "battle_ship",
+};
+
+internal engine_city_economy recorder_city_economy(void *o, u8 city_id)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_CITY_ECONOMY, city_id);
+    engine_city_economy economy = {};
+    economy.city_id = city_id < r->city_count ? city_id : ENGINE_NO_CITY;
+    economy.gold = 1000 * (city_id + 1); economy.gold_cap = 100000;
+    economy.grain = 20000; economy.grain_cap = 1000000;
+    economy.public_order = 60; economy.order_max = 100;
+    economy.morale = 50; economy.morale_max = 100;
+    economy.soldiers = 8000; economy.soldier_cap = 100000; economy.weapon_cap = 100000;
+    economy.grain_per_gold = 6; economy.barracks = 1; economy.barracks_free = 1;
+    return economy;
+}
+internal engine_income_forecast recorder_city_income_forecast(void *o, u8 city_id)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_CITY_INCOME_FORECAST, city_id);
+    engine_income_forecast forecast = {};
+    forecast.city_id = city_id < r->city_count ? city_id : ENGINE_NO_CITY;
+    forecast.assumed = true;
+    forecast.amounts.gold_base = 100; forecast.amounts.gold_month = 120; forecast.amounts.gold_payment = 120;
+    forecast.amounts.order_percent = 80; forecast.amounts.gold_skill_percent = 100; forecast.amounts.grain_skill_percent = 100;
+    forecast.amounts.grain_base = 500; forecast.amounts.grain_season = 400; forecast.amounts.grain_payment = 400;
+    forecast.amounts.salaries = 30; forecast.amounts.grain_per_turn = 80;
+    return forecast;
+}
+internal u32 recorder_technique_points(void *o, u8 force) { recorder_record((engine_recorder *)o, RECORDER_TECHNIQUE_POINTS, force); return 40; }
+internal u32 recorder_weapon_kind_count(void *o)
+{
+    recorder_record((engine_recorder *)o, RECORDER_WEAPON_KIND_COUNT, 0);
+    return ArrayCount(recorder_weapon_keys);
+}
+internal engine_weapon_kind recorder_weapon_kind_at(void *o, u32 index)
+{
+    recorder_record((engine_recorder *)o, RECORDER_WEAPON_KIND_AT, index);
+    engine_weapon_kind kind = {};
+    kind.id = ENGINE_NO_WEAPON;
+    if (index >= ArrayCount(recorder_weapon_keys)) return kind;
+    kind.id = (u8)index;
+    snprintf(kind.key, sizeof(kind.key), "%s", recorder_weapon_keys[index]);
+    kind.cost  = index < 4 ? 700 : 1500 + 100 * index;
+    kind.stock = index < 4 ? index : 4;
+    kind.min_days = index < 4 ? 0 : 30;
+    kind.max_days = index < 4 ? 0 : 90;
+    return kind;
+}
+internal engine_ledger_view recorder_ledger_filter(void *o, u8 city_id, u8 resource)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_LEDGER_FILTER, (u32)city_id | ((u32)resource << 8));
+    for (u32 index = 0; index < r->event_count; ++index) r->filter_indices[index] = index;
+    engine_ledger_view view = {};
+    view.count   = r->event_count;
+    view.indices = r->filter_indices;
+    return view;
+}
+
+internal engine_command_result
+recorder_city_command(engine_recorder *r, recorder_call_kind call, engine_command_kind kind, u8 city_id,
+                      const u16 *officers, u8 weapon, u8 mode, u32 amount)
+{
+    recorder_record(r, call, city_id);
+    r->last_city_command = {};
+    r->last_city_command.kind          = kind;
+    r->last_city_command.city_id       = city_id;
+    r->last_city_command.weapon        = weapon;
+    r->last_city_command.merchant_mode = mode;
+    r->last_city_command.amount        = amount;
+    for (u32 place = 0; place < SIM_DEVELOP_OFFICERS; ++place) r->last_city_command.officers[place] = officers ? officers[place] : ENGINE_NO_OFFICER;
+    engine_command_result result = {};
+    result.refusal = r->can_issue_refusal;
+    if (result.refusal == SIM_REFUSAL_NONE) result.command_id = r->next_command_id++;
+    return result;
+}
+internal engine_command_result recorder_command_patrol(void *o, u8 city, const u16 officers[SIM_DEVELOP_OFFICERS])
+{
+    return recorder_city_command((engine_recorder *)o, RECORDER_COMMAND_PATROL, ENGINE_COMMAND_PATROL, city, officers, ENGINE_NO_WEAPON, 0, 0);
+}
+internal engine_command_result recorder_command_conscript(void *o, u8 city, const u16 officers[SIM_DEVELOP_OFFICERS])
+{
+    return recorder_city_command((engine_recorder *)o, RECORDER_COMMAND_CONSCRIPT, ENGINE_COMMAND_CONSCRIPT, city, officers, ENGINE_NO_WEAPON, 0, 0);
+}
+internal engine_command_result recorder_command_train(void *o, u8 city, const u16 officers[SIM_DEVELOP_OFFICERS])
+{
+    return recorder_city_command((engine_recorder *)o, RECORDER_COMMAND_TRAIN, ENGINE_COMMAND_TRAIN, city, officers, ENGINE_NO_WEAPON, 0, 0);
+}
+internal engine_command_result recorder_command_merchant(void *o, u8 city, u16 officer, u8 mode, u32 amount)
+{
+    u16 officers[SIM_DEVELOP_OFFICERS] = { officer, ENGINE_NO_OFFICER, ENGINE_NO_OFFICER };
+    return recorder_city_command((engine_recorder *)o, RECORDER_COMMAND_MERCHANT, ENGINE_COMMAND_MERCHANT, city, officers, ENGINE_NO_WEAPON, mode, amount);
+}
+internal engine_command_result recorder_command_produce(void *o, u8 city, u8 weapon, const u16 officers[SIM_DEVELOP_OFFICERS])
+{
+    return recorder_city_command((engine_recorder *)o, RECORDER_COMMAND_PRODUCE, ENGINE_COMMAND_PRODUCE, city, officers, weapon, 0, 0);
+}
+internal engine_command_result recorder_damage_facility(void *o, u8 city, u8 slot, u32 amount)
+{
+    (void)slot; (void)amount;
+    return recorder_city_command((engine_recorder *)o, RECORDER_DAMAGE_FACILITY, ENGINE_COMMAND_KIND_COUNT, city, 0, ENGINE_NO_WEAPON, 0, 0);
+}
+internal b32  recorder_set_facility_level(void *o, u8 city, u8 slot, u8 level) { (void)slot; (void)level; recorder_record((engine_recorder *)o, RECORDER_SET_FACILITY_LEVEL, city); return true; }
+internal void recorder_set_city_resource(void *o, u8 city, u8 resource, u32 index, u32 value) { (void)resource; (void)index; (void)value; recorder_record((engine_recorder *)o, RECORDER_SET_CITY_RESOURCE, city); }
+
+/* The command kind of the recorder call of a city command. */
+internal recorder_call_kind
+recorder_call_of(engine_command_kind kind)
+{
+    switch (kind)
+    {
+        case ENGINE_COMMAND_DEVELOP:   return RECORDER_COMMAND_DEVELOP;
+        case ENGINE_COMMAND_PATROL:    return RECORDER_COMMAND_PATROL;
+        case ENGINE_COMMAND_CONSCRIPT: return RECORDER_COMMAND_CONSCRIPT;
+        case ENGINE_COMMAND_TRAIN:     return RECORDER_COMMAND_TRAIN;
+        case ENGINE_COMMAND_MERCHANT:  return RECORDER_COMMAND_MERCHANT;
+        case ENGINE_COMMAND_PRODUCE:   return RECORDER_COMMAND_PRODUCE;
+        default:                       return RECORDER_CALL_KIND_COUNT;
+    }
+}
+
 internal engine_api
 recorder_make_api(engine_recorder *r)
 {
@@ -500,6 +642,20 @@ recorder_make_api(engine_recorder *r)
     api.officer_by_id   = recorder_officer_by_id;
     api.force_ruler     = recorder_force_ruler;
     api.location_name_at = recorder_location_name_at;
+    api.city_economy         = recorder_city_economy;
+    api.city_income_forecast = recorder_city_income_forecast;
+    api.technique_points     = recorder_technique_points;
+    api.weapon_kind_count    = recorder_weapon_kind_count;
+    api.weapon_kind_at       = recorder_weapon_kind_at;
+    api.ledger_filter        = recorder_ledger_filter;
+    api.command_patrol       = recorder_command_patrol;
+    api.command_conscript    = recorder_command_conscript;
+    api.command_train        = recorder_command_train;
+    api.command_merchant     = recorder_command_merchant;
+    api.command_produce      = recorder_command_produce;
+    api.damage_facility      = recorder_damage_facility;
+    api.set_facility_level   = recorder_set_facility_level;
+    api.set_city_resource    = recorder_set_city_resource;
     return api;
 }
 

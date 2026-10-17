@@ -6,6 +6,8 @@
 
 #define UI_DEVELOP_OFFICER_LIST 64   /* the free officers that the dialog lists */
 
+internal void ui_draw_city_command_buttons(ui_state *ui);   /* ui_city_commands.cpp */
+
 internal const char *
 ui_text_with_key(ui_state *ui, const char *prefix, const char *key)
 {
@@ -120,6 +122,10 @@ ui_draw_city(ui_state *ui, engine_api *api)
         ImGui::Text("%s:", text_get(ui->text, "city.governor"));
         ImGui::SameLine();
         ui_code_cell(ui, api, UI_CODE_OFFICER, slots.governor_id, UI_NO_ID_16);
+        engine_city_economy economy = api->city_economy(api->engine, ui->city.selected);
+        ImGui::Text("%s: %u   %s: %u   %s: %u / %u", text_get(ui->text, "command.order"), economy.public_order,
+                    text_get(ui->text, "command.morale"), economy.morale, text_get(ui->text, "command.soldiers"),
+                    economy.soldiers, economy.soldier_cap);
         char label[96];
         if (ImGui::Button(ui_label(label, sizeof(label), ui, "city.develop", "open_develop")))
         {
@@ -127,6 +133,7 @@ ui_draw_city(ui_state *ui, engine_api *api)
             ui->develop.city = ui->city.selected;
             ui->develop.message[0] = 0;
         }
+        ui_draw_city_command_buttons(ui);
 
         ImGuiTableFlags flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY;
         if (ImGui::BeginTable("slots", 5, flags))

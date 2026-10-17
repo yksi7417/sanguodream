@@ -83,6 +83,26 @@ ui_test_gui(ImGuiTestContext *ctx)
     ui_draw(&v.ui, &v.api, &v.frame);
 }
 
+/* The five city command dialogs of M3: the window, the City panel button,
+   the UI kind and the engine command that 決定 issues. */
+struct ui_command_case
+{
+    const char         *decide_test;
+    const char         *back_test;
+    const char         *window;
+    const char         *open_button;
+    u32                 ui_kind;
+    engine_command_kind engine_kind;
+};
+
+global_variable ui_command_case ui_command_cases[] = {
+    { "patrol_decide_issues_one_command",    "patrol_back_issues_nothing",    "###Patrol",    "###open_patrol",    UI_COMMAND_PATROL,    ENGINE_COMMAND_PATROL },
+    { "conscript_decide_issues_one_command", "conscript_back_issues_nothing", "###Conscript", "###open_conscript", UI_COMMAND_CONSCRIPT, ENGINE_COMMAND_CONSCRIPT },
+    { "train_decide_issues_one_command",     "train_back_issues_nothing",     "###Train",     "###open_train",     UI_COMMAND_TRAIN,     ENGINE_COMMAND_TRAIN },
+    { "merchant_decide_issues_one_command",  "merchant_back_issues_nothing",  "###Merchant",  "###open_merchant",  UI_COMMAND_MERCHANT,  ENGINE_COMMAND_MERCHANT },
+    { "produce_decide_issues_one_command",   "produce_back_issues_nothing",   "###Produce",   "###open_produce",   UI_COMMAND_PRODUCE,   ENGINE_COMMAND_PRODUCE },
+};
+
 internal void
 register_ui_tests(ImGuiTestEngine *e)
 {
@@ -468,6 +488,10 @@ register_ui_tests(ImGuiTestEngine *e)
         v.ui.show_settings       = true;
         v.ui.show_city           = true;
         v.ui.show_develop        = true;
+        v.ui.show_economy        = true;
+        for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind) v.ui.show_command[kind] = true;
+        v.ui.ledger_city         = 1;
+        v.ui.ledger_resource     = SIM_RESOURCE_GOLD;
         IM_CHECK_GE(v.text.locale_count, 2u);
         for (u32 index = 0; index < v.text.locale_count; ++index)
         {
@@ -604,6 +628,166 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->ItemClick("###execute", 0, ImGuiTestOpFlags_NoAutoOpenFullPath);
         ctx->Yield();
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_DEVELOP), 0u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* ---- M3: the five city command dialogs, the economy panel, the ledger filter */
+
+    t = IM_REGISTER_TEST(e, "ui", "city_panel_opens_each_command_dialog_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_city           = true;
+        ctx->SetRef("###City");
+        ctx->Yield();
+        ctx->ComboClick("###city_select/###c1");
+        recorder_reset(&v.recorder);
+        for (u32 index = 0; index < ArrayCount(ui_command_cases); ++index)
+        {
+            ui_command_case *test_case = ui_command_cases + index;
+            ctx->SetRef("###City");
+            ctx->ItemClick(test_case->open_button);
+            ctx->Yield();
+            IM_CHECK(v.ui.show_command[test_case->ui_kind] && v.ui.commands[test_case->ui_kind].city == 1);   /* the dialog of this city */
+        }
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    for (u32 index = 0; index < ArrayCount(ui_command_cases); ++index)
+    {
+        t = IM_REGISTER_TEST(e, "ui", ui_command_cases[index].decide_test);
+        t->SetVarsDataType<ui_test_vars>();
+        t->GuiFunc    = ui_test_gui;
+        t->ArgVariant = (int)index;
+        t->TestFunc   = [](ImGuiTestContext *ctx)
+        {
+            ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+            ui_command_case *test_case = ui_command_cases + ctx->Test->ArgVariant;
+            u32 kind = test_case->ui_kind;
+            v.recorder.officer_count = 3;
+            v.recorder.city_count    = 2;
+            v.ui.show_command[kind]  = true;
+            ctx->SetRef(test_case->window);
+            ctx->Yield(2);
+            IM_CHECK_EQ(v.ui.commands[kind].officers[0], 100u);                         /* the dialog proposes the first free officer */
+            IM_CHECK(ctx->ItemExists("###executor"));                                    /* 執行武將 */
+            IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_CAN_ISSUE), 1u);
+            if (kind != UI_COMMAND_MERCHANT) ctx->ComboClick("###officer2/###o101");
+            if (kind == UI_COMMAND_PRODUCE)  ctx->ItemClick("###w2");
+            if (kind == UI_COMMAND_MERCHANT)
+            {
+                ctx->ItemClick("###sell");
+                ctx->ItemInputValue("###amount", 500);
+            }
+            ctx->Yield();
+            IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);                      /* choices command nothing */
+            recorder_reset(&v.recorder);
+            ctx->ItemClick("###decide");                                                  /* 決定 */
+            ctx->Yield();
+            IM_CHECK_EQ(recorder_count(&v.recorder, recorder_call_of(test_case->engine_kind)), 1u);
+            IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+            engine_command sent = v.recorder.last_city_command;
+            IM_CHECK(sent.kind == test_case->engine_kind && sent.city_id == 0 && sent.officers[0] == 100);
+            if (kind != UI_COMMAND_MERCHANT) IM_CHECK(sent.officers[1] == 101 && sent.officers[2] == ENGINE_NO_OFFICER);
+            if (kind == UI_COMMAND_PRODUCE)  IM_CHECK_EQ(sent.weapon, 2u);
+            if (kind == UI_COMMAND_MERCHANT) IM_CHECK(sent.merchant_mode == SIM_MERCHANT_SELL && sent.amount == 500);
+            IM_CHECK(!v.ui.show_command[kind]);                                          /* the dialog closes after 決定 */
+            IM_CHECK(v.ui.command_message[0] != 0);                                      /* the City panel shows the result */
+        };
+
+        t = IM_REGISTER_TEST(e, "ui", ui_command_cases[index].back_test);
+        t->SetVarsDataType<ui_test_vars>();
+        t->GuiFunc    = ui_test_gui;
+        t->ArgVariant = (int)index;
+        t->TestFunc   = [](ImGuiTestContext *ctx)
+        {
+            ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+            ui_command_case *test_case = ui_command_cases + ctx->Test->ArgVariant;
+            v.recorder.officer_count = 3;
+            v.recorder.city_count    = 2;
+            v.ui.show_command[test_case->ui_kind] = true;
+            ctx->SetRef(test_case->window);
+            ctx->Yield(2);
+            recorder_reset(&v.recorder);
+            ctx->ItemClick("###back");                                                    /* 返回 */
+            ctx->Yield();
+            IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+            IM_CHECK(!v.ui.show_command[test_case->ui_kind]);
+        };
+    }
+
+    t = IM_REGISTER_TEST(e, "ui", "refused_city_command_is_disabled_and_issues_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count     = 3;
+        v.recorder.city_count        = 2;
+        v.recorder.can_issue_refusal = SIM_REFUSAL_LIMIT_REACHED;
+        for (u32 index = 0; index < ArrayCount(ui_command_cases); ++index) v.ui.show_command[ui_command_cases[index].ui_kind] = true;
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        for (u32 index = 0; index < ArrayCount(ui_command_cases); ++index)
+        {
+            ctx->SetRef(ui_command_cases[index].window);
+            ImGuiTestItemInfo decide = ctx->ItemInfo("###decide");
+            IM_CHECK(decide.ID != 0 && (decide.ItemFlags & ImGuiItemFlags_Disabled) != 0);   /* 決定 is grey */
+            ctx->ItemClick("###decide", 0, ImGuiTestOpFlags_NoAutoOpenFullPath);
+        }
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "economy_panel_reads_the_forecast_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_economy        = true;
+        ctx->SetRef("###Economy");
+        recorder_reset(&v.recorder);
+        ctx->Yield(2);
+        IM_CHECK(ctx->ItemExists("economy"));
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_CITY_INCOME_FORECAST), 2u);   /* one row for each city */
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_CITY_ECONOMY), 2u);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_TECHNIQUE_POINTS), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "ledger_filter_calls_only_queries");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.city_count = 2;
+        recorder_seed_events(&v.recorder, 5);
+        ctx->SetRef("Event ledger");
+        ctx->Yield();
+        recorder_reset(&v.recorder);
+        ctx->ComboClick("###ledger_city/###lc1");
+        ctx->ComboClick("###ledger_resource/###lr1");                                 /* gold */
+        ctx->Yield();
+        IM_CHECK(v.ui.ledger_city == 1 && v.ui.ledger_resource == SIM_RESOURCE_GOLD);
+        recorder_reset(&v.recorder);
+        ctx->Yield(2);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_LEDGER_FILTER), 1u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_LEDGER_FILTER), 1u | ((u32)SIM_RESOURCE_GOLD << 8));
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_LEDGER_AT), 1u);             /* the rows still come from ledger_at */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        ctx->ComboClick("###ledger_city/###lc_any");
+        ctx->ComboClick("###ledger_resource/###lr_any");
+        recorder_reset(&v.recorder);
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LEDGER_FILTER), 0u);         /* no filter: every event */
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 

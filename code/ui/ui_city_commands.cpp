@@ -1,0 +1,310 @@
+/* The five city command dialogs of M3 (city-commands.md; ui/city-commands.md):
+   巡察 patrol, 徵兵 conscript, 訓練 train, 商人 merchant and 生產兵裝
+   produce. Each dialog has the frame of the spec: the 執行武將 officer
+   slots, the effect field "current -> result", the 資金 cost/stock row, the
+   行動力 cost/available row, and the buttons 決定 and 返回. The dialog asks
+   can_issue each frame. 決定 is grey when the command cannot run; one click
+   sends one command and closes the dialog. 返回 closes it and sends
+   nothing. The dialogs read the game only through engine_api. Included by
+   ui.cpp, after ui_city.cpp. */
+
+struct ui_command_info
+{
+    const char         *window;       /* the stable id of the window */
+    const char         *title_id;     /* the text id of the title */
+    const char         *open_id;      /* the stable id of the button in the City panel */
+    const char         *button_id;    /* the text id of that button */
+    const char         *value_id;     /* the text id of the effect field */
+    engine_command_kind kind;
+    u32                 max_officers;
+};
+
+global_variable ui_command_info ui_command_infos[UI_COMMAND_COUNT] = {
+    { "Patrol",    "patrol.title",    "open_patrol",    "city.patrol",    "command.order",    ENGINE_COMMAND_PATROL,    3 },
+    { "Conscript", "conscript.title", "open_conscript", "city.conscript", "command.soldiers", ENGINE_COMMAND_CONSCRIPT, 3 },
+    { "Train",     "train.title",     "open_train",     "city.train",     "command.morale",   ENGINE_COMMAND_TRAIN,     3 },
+    { "Merchant",  "merchant.title",  "open_merchant",  "city.merchant",  "command.grain",    ENGINE_COMMAND_MERCHANT,  1 },
+    { "Produce",   "produce.title",   "open_produce",   "city.produce",   "command.stock",    ENGINE_COMMAND_PRODUCE,   3 },
+};
+
+#define UI_MERCHANT_DEFAULT_AMOUNT 1000
+
+/* The ability that decides the effect of the command (city-commands.md). */
+internal u32
+ui_command_ability(engine_officer *officer, u32 kind)
+{
+    switch (kind)
+    {
+        case UI_COMMAND_PATROL:    return officer->leadership;
+        case UI_COMMAND_CONSCRIPT: return officer->charm;
+        case UI_COMMAND_TRAIN:     return officer->war;
+        case UI_COMMAND_MERCHANT:  return officer->politics;
+        case UI_COMMAND_PRODUCE:   return officer->intelligence;
+        default:                   return 0;
+    }
+}
+
+internal void
+ui_command_officer_label(ui_state *ui, engine_api *api, u16 officer_id, u32 kind, char *out, u32 out_size)
+{
+    if (officer_id == ENGINE_NO_OFFICER)
+    {
+        snprintf(out, out_size, "%s", text_get(ui->text, "develop.no_officer"));
+        return;
+    }
+    engine_officer officer = api->officer_by_id(api->engine, officer_id);
+    if (officer.officer_id == ENGINE_NO_OFFICER)
+    {
+        snprintf(out, out_size, "%u", officer_id);
+        return;
+    }
+    char name[UI_NAME_SIZE * 2];
+    ui_officer_name(ui, &officer, name, sizeof(name));
+    snprintf(out, out_size, "%s (%u)", name, ui_command_ability(&officer, kind));
+}
+
+/* One of the 執行武將 slots: a combo of the free officers of the city. */
+internal void
+ui_draw_command_officer(ui_state *ui, engine_api *api, u32 kind, u32 place, const u16 *free_ids, u32 free_count)
+{
+    ui_command_dialog *dialog = ui->commands + kind;
+    char label[128], preview[96], combo[128];
+    ui_command_officer_label(ui, api, dialog->officers[place], kind, preview, sizeof(preview));
+    snprintf(combo, sizeof(combo), "%s %u###officer%u", text_get(ui->text, "develop.officer"), place + 1, place + 1);
+    if (ImGui::BeginCombo(combo, preview))
+    {
+        snprintf(label, sizeof(label), "%s###o_none", text_get(ui->text, "develop.no_officer"));
+        if (ImGui::Selectable(label, dialog->officers[place] == ENGINE_NO_OFFICER)) dialog->officers[place] = ENGINE_NO_OFFICER;
+        for (u32 index = 0; index < free_count; ++index)
+        {
+            char name[96];
+            ui_command_officer_label(ui, api, free_ids[index], kind, name, sizeof(name));
+            snprintf(label, sizeof(label), "%s###o%u", name, free_ids[index]);
+            if (ImGui::Selectable(label, dialog->officers[place] == free_ids[index])) dialog->officers[place] = free_ids[index];
+        }
+        ImGui::EndCombo();
+    }
+}
+
+/* The dialog keeps its choices while it shows one city. For a new city,
+   or after a command, it proposes the first free officer (ui/city-commands.md:
+   "the game fills the officer slots with a proposal"). */
+internal void
+ui_command_reset_for_city(ui_state *ui, engine_api *api, u32 kind)
+{
+    ui_command_dialog *dialog = ui->commands + kind;
+    u16 first = ENGINE_NO_OFFICER;
+    ui_free_officers(api, dialog->city, &first, 1);
+    dialog->officers[0]   = first;
+    dialog->officers[1]   = ENGINE_NO_OFFICER;
+    dialog->officers[2]   = ENGINE_NO_OFFICER;
+    dialog->prepared_city = dialog->city;
+    if (dialog->amount <= 0) dialog->amount = UI_MERCHANT_DEFAULT_AMOUNT;
+}
+
+/* The current value that the command changes, from the city queries. */
+internal u32
+ui_command_current_value(engine_api *api, u32 kind, engine_city_economy *economy, u8 weapon)
+{
+    switch (kind)
+    {
+        case UI_COMMAND_PATROL:    return economy->public_order;
+        case UI_COMMAND_CONSCRIPT: return economy->soldiers;
+        case UI_COMMAND_TRAIN:     return economy->morale;
+        case UI_COMMAND_MERCHANT:  return economy->grain;
+        case UI_COMMAND_PRODUCE:
+        {
+            engine_weapon_kind row = api->weapon_kind_at(api->engine, weapon);
+            return row.id != ENGINE_NO_WEAPON && row.stock < CITY_EQUIPMENT_STOCK_COUNT ? economy->stocks[row.stock] : 0;
+        }
+        default:                   return 0;
+    }
+}
+
+/* The 兵裝 rows of 生產兵裝: one button for each weapon with its cost, and
+   the 庫存 (stock) of each weapon. */
+internal void
+ui_draw_weapon_rows(ui_state *ui, engine_api *api, engine_city_economy *economy)
+{
+    ui_command_dialog *dialog = ui->commands + UI_COMMAND_PRODUCE;
+    ImGui::TextUnformatted(text_get(ui->text, "command.weapons"));
+    u32 count = api->weapon_kind_count(api->engine);
+    for (u32 index = 0; index < count; ++index)
+    {
+        engine_weapon_kind kind = api->weapon_kind_at(api->engine, index);
+        char label[96];
+        snprintf(label, sizeof(label), "%s %u###w%u", ui_text_with_key(ui, "weapon", kind.key), kind.cost, kind.id);
+        if (index % 4 != 0) ImGui::SameLine();
+        bool selected = dialog->weapon == kind.id;
+        if (selected) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.5f, 0.8f, 1.0f));
+        if (ImGui::Button(label)) dialog->weapon = kind.id;
+        if (selected) ImGui::PopStyleColor();
+    }
+    ImGui::Text("%s:", text_get(ui->text, "command.stock"));
+    for (u32 index = 0; index < count; ++index)
+    {
+        engine_weapon_kind kind = api->weapon_kind_at(api->engine, index);
+        if (index % 5 != 0) ImGui::SameLine();
+        ImGui::Text("%s %u", ui_text_with_key(ui, "weapon", kind.key), kind.stock < CITY_EQUIPMENT_STOCK_COUNT ? economy->stocks[kind.stock] : 0);
+    }
+}
+
+/* The merchant: buy or sell, the amount and the city price. */
+internal void
+ui_draw_merchant_order(ui_state *ui, engine_city_economy *economy)
+{
+    ui_command_dialog *dialog = ui->commands + UI_COMMAND_MERCHANT;
+    char label[96];
+    snprintf(label, sizeof(label), "%s###buy", text_get(ui->text, "command.buy"));
+    if (ImGui::RadioButton(label, dialog->merchant_mode == SIM_MERCHANT_BUY)) dialog->merchant_mode = SIM_MERCHANT_BUY;
+    ImGui::SameLine();
+    snprintf(label, sizeof(label), "%s###sell", text_get(ui->text, "command.sell"));
+    if (ImGui::RadioButton(label, dialog->merchant_mode == SIM_MERCHANT_SELL)) dialog->merchant_mode = SIM_MERCHANT_SELL;
+    snprintf(label, sizeof(label), "%s###amount", text_get(ui->text, "command.amount"));
+    ImGui::SetNextItemWidth(160.0f);
+    ImGui::InputInt(label, &dialog->amount, 100, 1000);
+    if (dialog->amount < 0) dialog->amount = 0;
+    ImGui::Text("%s: %s%u=%s1", text_get(ui->text, "command.price"), text_get(ui->text, "command.grain"), economy->grain_per_gold,
+                text_get(ui->text, "command.gold"));
+}
+
+internal engine_command_result
+ui_issue_city_command(engine_api *api, u32 kind, engine_command *command)
+{
+    switch (kind)
+    {
+        case UI_COMMAND_PATROL:    return api->command_patrol(api->engine, command->city_id, command->officers);
+        case UI_COMMAND_CONSCRIPT: return api->command_conscript(api->engine, command->city_id, command->officers);
+        case UI_COMMAND_TRAIN:     return api->command_train(api->engine, command->city_id, command->officers);
+        case UI_COMMAND_MERCHANT:  return api->command_merchant(api->engine, command->city_id, command->officers[0],
+                                                                command->merchant_mode, command->amount);
+        case UI_COMMAND_PRODUCE:   return api->command_produce(api->engine, command->city_id, command->weapon, command->officers);
+        default:
+        {
+            engine_command_result none = {};
+            none.refusal = SIM_REFUSAL_NO_CITY;
+            return none;
+        }
+    }
+}
+
+/* The fields of the frame: effect, 資金, 期間, 行動力, or the refusal. */
+internal void
+ui_draw_command_fields(ui_state *ui, engine_api *api, u32 kind, engine_city_economy *economy, engine_check *check, u32 current)
+{
+    ui_command_info *info = ui_command_infos + kind;
+    b32 runs = check->refusal == SIM_REFUSAL_NONE;
+    const char *arrow = "\xE2\x86\x92";   /* U+2192 */
+    if (runs) ImGui::Text("%s: %u %s %u", text_get(ui->text, info->value_id), current, arrow, check->value_after);
+    else      ImGui::Text("%s: %u %s -", text_get(ui->text, info->value_id), current, arrow);
+    if (kind == UI_COMMAND_MERCHANT && runs && check->gold_gain)
+    {
+        ImGui::Text("%s: +%u / %u", text_get(ui->text, "command.gold"), check->gold_gain, economy->gold);
+    }
+    else if (kind != UI_COMMAND_TRAIN)
+    {
+        ImGui::Text("%s: %u / %u", text_get(ui->text, "command.gold"), runs ? check->gold : 0, economy->gold);
+    }
+    if (kind == UI_COMMAND_PRODUCE)
+    {
+        ImGui::Text("%s: %u%s", text_get(ui->text, "command.period"), runs ? check->days : 0, text_get(ui->text, "command.days"));
+    }
+    engine_city city = api->city_at(api->engine, ui->commands[kind].city);
+    u32 available = city.owner_force_id != ENGINE_NO_FACTION ? api->actions_left(api->engine, city.owner_force_id) : 0;
+    ImGui::Text("%s: %u / %u", text_get(ui->text, "command.action_points"), runs ? check->action_points : 0, available);
+    if (!runs)
+    {
+        ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f), "%s: %s", text_get(ui->text, "develop.refused"), ui_refusal_text(ui, check->refusal));
+    }
+}
+
+/* 決定 (green) and 返回 (orange). */
+internal void
+ui_draw_command_buttons(ui_state *ui, engine_api *api, u32 kind, engine_command *command, engine_check *check)
+{
+    char label[96];
+    ImGui::BeginDisabled(check->refusal != SIM_REFUSAL_NONE);
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.55f, 0.25f, 1.0f));
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "command.decide", "decide")))
+    {
+        engine_command_result result = ui_issue_city_command(api, kind, command);
+        if (result.refusal == SIM_REFUSAL_NONE)
+        {
+            snprintf(ui->command_message, sizeof(ui->command_message), "%s: %s %u", text_get(ui->text, ui_command_infos[kind].title_id),
+                     text_get(ui->text, "command.done"), result.command_id);
+            ui->commands[kind].prepared_city = ENGINE_NO_CITY;
+            ui->show_command[kind] = false;
+        }
+        else
+        {
+            snprintf(ui->command_message, sizeof(ui->command_message), "%s: %s", text_get(ui->text, "develop.refused"),
+                     ui_refusal_text(ui, result.refusal));
+        }
+    }
+    ImGui::PopStyleColor();
+    ImGui::EndDisabled();
+    ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.75f, 0.45f, 0.1f, 1.0f));
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "command.back", "back"))) ui->show_command[kind] = false;
+    ImGui::PopStyleColor();
+}
+
+internal void
+ui_draw_city_command(ui_state *ui, engine_api *api, u32 kind)
+{
+    ui_command_info *info = ui_command_infos + kind;
+    ui_command_dialog *dialog = ui->commands + kind;
+    char title[128];
+    ImGui::SetNextWindowSize(ImVec2(440, kind == UI_COMMAND_PRODUCE ? 420.0f : 300.0f), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin(ui_label(title, sizeof(title), ui, info->title_id, info->window), &ui->show_command[kind]))
+    {
+        if (dialog->prepared_city != dialog->city) ui_command_reset_for_city(ui, api, kind);
+        char city_name[96];
+        ui_city_label(ui, api, dialog->city, city_name, sizeof(city_name));
+        ImGui::Text("%s: %s", text_get(ui->text, "city.select"), city_name);
+        engine_city_economy economy = api->city_economy(api->engine, dialog->city);
+        if (kind == UI_COMMAND_PRODUCE)  ui_draw_weapon_rows(ui, api, &economy);
+        if (kind == UI_COMMAND_MERCHANT) ui_draw_merchant_order(ui, &economy);
+
+        /* 執行武將: the button names the officer slots; the combos choose the officers. */
+        char label[96];
+        ImGui::Button(ui_label(label, sizeof(label), ui, "command.executor", "executor"));
+        u16 free_ids[UI_DEVELOP_OFFICER_LIST];
+        u32 free_count = ui_free_officers(api, dialog->city, free_ids, ArrayCount(free_ids));
+        for (u32 place = 0; place < info->max_officers; ++place) ui_draw_command_officer(ui, api, kind, place, free_ids, free_count);
+
+        engine_command command = {};
+        command.kind          = info->kind;
+        command.city_id       = dialog->city;
+        command.weapon        = dialog->weapon;
+        command.merchant_mode = (u8)dialog->merchant_mode;
+        command.amount        = (u32)(dialog->amount > 0 ? dialog->amount : 0);
+        for (u32 place = 0; place < SIM_DEVELOP_OFFICERS; ++place)
+        {
+            command.officers[place] = place < info->max_officers ? dialog->officers[place] : ENGINE_NO_OFFICER;
+        }
+        engine_check check = api->can_issue(api->engine, &command);
+        ImGui::Separator();
+        ui_draw_command_fields(ui, api, kind, &economy, &check, ui_command_current_value(api, kind, &economy, dialog->weapon));
+        ui_draw_command_buttons(ui, api, kind, &command, &check);
+    }
+    ImGui::End();
+}
+
+/* The buttons of the City panel that open the five dialogs for its city. */
+internal void
+ui_draw_city_command_buttons(ui_state *ui)
+{
+    char label[96];
+    for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind)
+    {
+        ui_command_info *info = ui_command_infos + kind;
+        if (kind > 0) ImGui::SameLine();
+        if (ImGui::Button(ui_label(label, sizeof(label), ui, info->button_id, info->open_id)))
+        {
+            ui->show_command[kind] = true;
+            ui->commands[kind].city = ui->city.selected;
+        }
+    }
+    if (ui->command_message[0]) ImGui::TextUnformatted(ui->command_message);
+}

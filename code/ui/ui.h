@@ -12,6 +12,27 @@
 #include "render/terrain_mesh.h"   /* terrain_level_y: the scene places models on the cell tops */
 #include "text/text.h"
 
+/* The five city command dialogs of M3 (ui/city-commands.md). */
+enum ui_city_command
+{
+    UI_COMMAND_PATROL,      /* 巡察 */
+    UI_COMMAND_CONSCRIPT,   /* 徵兵 */
+    UI_COMMAND_TRAIN,       /* 訓練 */
+    UI_COMMAND_MERCHANT,    /* 商人 */
+    UI_COMMAND_PRODUCE,     /* 生產兵裝 */
+    UI_COMMAND_COUNT
+};
+
+struct ui_command_dialog
+{
+    u8  city;                            /* the city of the dialog */
+    u8  prepared_city;                   /* the city of the default choices; ENGINE_NO_CITY: choose again */
+    u16 officers[SIM_DEVELOP_OFFICERS];  /* 執行武將 */
+    u8  weapon;                          /* produce */
+    int merchant_mode;                   /* merchant: sim_merchant_mode */
+    int amount;                          /* merchant: the gold to spend or the grain to sell */
+};
+
 struct ui_state
 {
     bool show_demo;
@@ -48,6 +69,12 @@ struct ui_state
         u16  officers[SIM_DEVELOP_OFFICERS];
         char message[96];        /* result of the last Execute click */
     } develop;
+    bool show_economy;
+    bool show_command[UI_COMMAND_COUNT];
+    ui_command_dialog commands[UI_COMMAND_COUNT];
+    char command_message[96];    /* result of the last 決定 of a city command; the City panel shows it */
+    u8   ledger_city;            /* the ledger filter: ENGINE_ANY_CITY or a city id */
+    u8   ledger_resource;        /* the ledger filter: ENGINE_ANY_RESOURCE or a sim_resource */
     text_catalog *text;      /* the UI strings and the names; owned by the caller */
     char pending_locale[TEXT_LOCALE_SIZE];   /* set by the Language combo; ui_draw loads it at the start of the next frame */
     char load_message[96];   /* result of the last "Load sample save" click */
