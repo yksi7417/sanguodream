@@ -289,12 +289,12 @@ ui_draw_diplomacy(ui_state *ui, engine_api *api)
         }
         ImGui::EndTable();
     }
-    ui_officer_pick(ui, api, "diplomacy.envoy", "envoy", &ui->court.officer, UI_OFFICERS_OWN, ENGINE_NO_FACTION);
+    ui_officer_pick(ui, api, "diplomacy.envoy", "envoy", &ui->diplomacy.envoy, UI_OFFICERS_OWN, ENGINE_NO_FACTION);
     ImGui::InputInt(ui_label(label, sizeof(label), ui, "diplomacy.gold", "dip_gold"), &ui->diplomacy.gold, 100, 1000);
     ImGui::InputInt(ui_label(label, sizeof(label), ui, "diplomacy.months", "dip_months"), &ui->diplomacy.months, 1, 6);
     if (ui->diplomacy.gold < 0) ui->diplomacy.gold = 0;
     if (ui->diplomacy.months < 0) ui->diplomacy.months = 0;
-    engine_court_order order = ui_court_order(api, ui->court.officer, ENGINE_NO_OFFICER);
+    engine_court_order order = ui_court_order(api, ui->diplomacy.envoy, ENGINE_NO_OFFICER);
     order.force  = ui->diplomacy.force;
     order.gold   = (u32)ui->diplomacy.gold;
     order.months = (u32)ui->diplomacy.months;

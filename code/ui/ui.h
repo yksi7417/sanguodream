@@ -163,6 +163,7 @@ struct ui_state
         u8  second;              /* 二虎競食: the second faction */
         u8  city;                /* 驅虎吞狼, 流言: the target city */
         u16 captive;             /* 交換俘虜: the own officer that the target holds */
+        u16 envoy;               /* the officer that goes */
         int gold;
         int months;
     } diplomacy;

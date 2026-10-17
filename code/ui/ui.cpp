@@ -100,6 +100,7 @@ ui_init(ui_state *ui, text_catalog *text)
     ui->diplomacy.second      = ENGINE_NO_FACTION;
     ui->diplomacy.city        = ENGINE_NO_CITY;
     ui->diplomacy.captive     = ENGINE_NO_OFFICER;
+    ui->diplomacy.envoy       = ENGINE_NO_OFFICER;
     ui->diplomacy.gold        = 1000;
     ui->diplomacy.months      = 6;
     ui->ledger_city           = ENGINE_ANY_CITY;

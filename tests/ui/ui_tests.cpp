@@ -1223,7 +1223,7 @@ register_ui_tests(ImGuiTestEngine *e)
         v.recorder.officer_count = 3;
         v.recorder.city_count    = 2;
         v.ui.show_diplomacy      = true;
-        v.ui.court.officer       = 101;
+        v.ui.diplomacy.envoy     = 101;
         v.ui.diplomacy.force     = 2;
         ctx->SetRef("###Diplomacy");
         ctx->Yield(2);
