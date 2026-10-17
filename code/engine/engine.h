@@ -155,6 +155,13 @@ enum engine_command_kind
     ENGINE_COMMAND_WAIT,
     ENGINE_COMMAND_RETREAT,
     ENGINE_COMMAND_SUPPLY,
+    ENGINE_COMMAND_ATTACK,         /* M6: unit at the hex q, r */
+    ENGINE_COMMAND_JOINT_ATTACK,
+    ENGINE_COMMAND_TACTIC,         /* row: the row of tactic_kind_at */
+    ENGINE_COMMAND_PLOT,           /* row: the row of plot_kind_at */
+    ENGINE_COMMAND_BUILD,          /* row: the row of building_kind_at */
+    ENGINE_COMMAND_REPAIR,
+    ENGINE_COMMAND_DISMANTLE,
     ENGINE_COMMAND_KIND_COUNT
 };
 
@@ -175,6 +182,7 @@ struct engine_command
     s32 q, r;                               /* ENGINE_COMMAND_MOVE: the hex */
     u32 target_unit;                        /* ENGINE_COMMAND_SUPPLY */
     u32 soldiers, gold, grain;              /* ENGINE_COMMAND_SUPPLY */
+    u8  row;                                /* ENGINE_COMMAND_TACTIC, _PLOT, _BUILD: the row of its table */
 };
 
 /* The answer of can_issue: the refusal reason, or SIM_REFUSAL_NONE with
@@ -383,9 +391,84 @@ struct engine_unit
     u8  home_city;
     u8  destination;        /* a transport unit: its city; ENGINE_NO_CITY */
     b32 moved;              /* it moved in this turn */
-    b32 acted;              /* it waited, retreated or supplied in this turn */
+    b32 acted;              /* it waited, retreated, supplied or fought in this turn */
     engine_unit_values values;
+    u8  state;              /* M6: sim_unit_state */
+    u8  state_turns;
 };
+
+/* ---- M6: combat, plots, fire, buildings, siege -------------------------- */
+
+/* One row of tactics.tsv (military-units-and-tactics.md). */
+struct engine_tactic_kind
+{
+    u8   id;                /* ENGINE_NO_ROW for an index out of range */
+    char key[CONTENT_KEY_SIZE];   /* the text id is "tactic.<key>" */
+    u32  unit_types;        /* bit unit type */
+    u8   aptitude;          /* the lowest aptitude: 0 C .. 3 S */
+    u32  morale;            /* the morale cost (気力) */
+    u32  range_min, range_max;
+    u8   pattern;           /* tactic_pattern */
+    u8   effect;            /* tactic_effect */
+    u32  damage_percent;
+    b32  always_success;
+};
+
+/* One row of plots.tsv (plots-and-states.md). */
+struct engine_plot_kind
+{
+    u8   id;
+    char key[CONTENT_KEY_SIZE];   /* the text id is "plot.<key>" */
+    u32  morale;
+    u32  range;
+    u8   target;            /* plot_target */
+    u8   effect;            /* plot_effect */
+    u32  turns;
+};
+
+/* One row of buildings.tsv (military-facilities.md, obstacles-and-traps.md). */
+struct engine_building_kind
+{
+    u8   id;
+    char key[CONTENT_KEY_SIZE];   /* the text id is "building.<key>" */
+    u8   type;              /* building_type */
+    u32  durability;
+    u32  gold;
+    u8   technique;         /* ENGINE_NO_TECHNIQUE if none */
+    u32  range_min, range_max;
+    b32  natural;
+};
+
+/* A building, a trap or a natural trap on the map. */
+struct engine_building
+{
+    u32 id;                 /* ENGINE_NO_BUILDING if none lives there */
+    u8  kind;               /* the row of building_kind_at */
+    u8  force_id;           /* ENGINE_NO_FACTION for a trap or a natural trap */
+    s32 q, r;
+    u32 durability, durability_max;
+    b32 complete;
+    u8  city_id;            /* a dike: the city it floods; ENGINE_NO_CITY */
+};
+
+/* The turns of fire of each cell, row-major by offset. The engine owns it. */
+struct engine_fire_view
+{
+    u32       width, height;
+    const u8 *turns;        /* 0: no fire */
+};
+
+/* The siege state of a city. */
+struct engine_city_siege
+{
+    u8  city_id;            /* ENGINE_NO_CITY if the city is not loaded */
+    u32 durability, durability_max;
+    u32 soldiers;
+    b32 surrounded;         /* enemy units on every free neighbour hex */
+};
+
+#define ENGINE_NO_ROW      0xFF
+#define ENGINE_NO_BUILDING 0xFFFFFFFFu
 
 /* The hexes that a unit can reach now, with their costs. The engine owns
    the arrays; the next reachable call replaces them. */
@@ -440,6 +523,10 @@ struct engine_content_status
     u32         disaster_count;
     u32         terrain_count;
     u32         unit_type_count;
+    u32         tactic_count;     /* M6 */
+    u32         plot_count;
+    u32         building_count;
+    u32         critical_count;
     const char *detail;           /* a static string: the file that did not load, or "ok" */
 };
 
@@ -584,6 +671,27 @@ typedef void                engine_set_faction_human_fn(void *engine, u8 force_i
 typedef void                engine_set_city_owner_fn(void *engine, u8 city_id, u8 force_id);   /* the order changes at the next turn */
 typedef void                engine_set_city_gold_fn(void *engine, u8 city_id, u32 gold);
 typedef void                engine_set_actions_fn(void *engine, u8 force_id, u32 action_points);
+/* M6 queries */
+typedef u32                  engine_tactic_kind_count_fn(void *engine);
+typedef engine_tactic_kind   engine_tactic_kind_at_fn(void *engine, u32 index);
+typedef u32                  engine_plot_kind_count_fn(void *engine);
+typedef engine_plot_kind     engine_plot_kind_at_fn(void *engine, u32 index);
+typedef u32                  engine_building_kind_count_fn(void *engine);
+typedef engine_building_kind engine_building_kind_at_fn(void *engine, u32 index);
+typedef u32                  engine_building_count_fn(void *engine);               /* the places of the buildings, alive or not */
+typedef engine_building      engine_building_at_fn(void *engine, u32 building_id);
+typedef u32                  engine_building_at_hex_fn(void *engine, s32 q, s32 r); /* ENGINE_NO_BUILDING if none */
+typedef engine_fire_view     engine_fire_view_fn(void *engine);
+typedef engine_city_siege    engine_city_siege_fn(void *engine, u8 city_id);
+/* M6 commands. The unit acts on the hex q, r. A refused command changes
+   nothing and ledgers nothing. */
+typedef engine_command_result engine_command_target_fn(void *engine, u32 unit_id, s32 q, s32 r);          /* 攻擊, 共同攻擊, 修補, 撤去 */
+typedef engine_command_result engine_command_row_fn(void *engine, u32 unit_id, u8 row, s32 q, s32 r);     /* 戰法, 計略, 建設 */
+/* Test and editor commands. They ledger nothing. */
+typedef u32                  engine_place_building_fn(void *engine, u8 kind, u8 force_id, s32 q, s32 r); /* a complete building; ENGINE_NO_BUILDING if refused */
+typedef void                 engine_set_unit_fn(void *engine, u32 unit_id, u32 soldiers, u32 morale);
+typedef b32                  engine_set_unit_place_fn(void *engine, u32 unit_id, u8 force_id, s32 q, s32 r);   /* false if the hex is not free */
+typedef void                 engine_set_city_durability_fn(void *engine, u8 city_id, u32 durability);
 /* A placeholder unit until M5: it only blocks the commands of enemy
    cities within 2 hexes. Returns ENGINE_NO_UNIT if there is no room. */
 typedef u32                 engine_place_unit_fn(void *engine, u8 force_id, s32 q, s32 r);
@@ -683,6 +791,29 @@ struct engine_api
     engine_command_unit_fn          *command_wait;
     engine_command_unit_fn          *command_retreat;
     engine_command_supply_fn        *command_supply;
+    /* M6 combat: attacks, tactics, plots, fire, buildings, siege */
+    engine_tactic_kind_count_fn     *tactic_kind_count;
+    engine_tactic_kind_at_fn        *tactic_kind_at;
+    engine_plot_kind_count_fn       *plot_kind_count;
+    engine_plot_kind_at_fn          *plot_kind_at;
+    engine_building_kind_count_fn   *building_kind_count;
+    engine_building_kind_at_fn      *building_kind_at;
+    engine_building_count_fn        *building_count;
+    engine_building_at_fn           *building_at;
+    engine_building_at_hex_fn       *building_at_hex;
+    engine_fire_view_fn             *fire_view;
+    engine_city_siege_fn            *city_siege;
+    engine_command_target_fn        *command_attack;
+    engine_command_target_fn        *command_joint_attack;
+    engine_command_row_fn           *command_tactic;
+    engine_command_row_fn           *command_plot;
+    engine_command_row_fn           *command_build;
+    engine_command_target_fn        *command_repair;
+    engine_command_target_fn        *command_dismantle;
+    engine_place_building_fn        *place_building;
+    engine_set_unit_fn              *set_unit;
+    engine_set_unit_place_fn        *set_unit_place;
+    engine_set_city_durability_fn   *set_city_durability;
 };
 
 /* The real engine lives in code/engine/engine.cpp. */

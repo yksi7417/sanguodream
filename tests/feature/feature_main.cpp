@@ -29,6 +29,7 @@
 #include "city_command_tests.cpp"
 #include "growth_tests.cpp"
 #include "march_tests.cpp"
+#include "combat_tests.cpp"
 #include "fixture_tests.cpp"
 
 int
@@ -80,6 +81,10 @@ main(int argc, char **argv)
     test_counts march_counts = {};
     feature_march_tests(&march_counts);
     failed |= test_report("feature/march", &march_counts);
+
+    test_counts combat_counts = {};
+    feature_combat_tests(&combat_counts);
+    failed |= test_report("feature/combat", &combat_counts);
 
     char fixtures_dir[MAX_PATH];
     if (argc > 1)

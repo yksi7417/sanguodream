@@ -94,6 +94,7 @@ engine_load_content(engine *e, const char *folder)
     *status = {};
     status->detail = "ok";
     tsv_table facilities = {}, cities = {}, rules = {}, weapons = {}, techniques = {}, disasters = {}, terrain = {}, unit_types = {};
+    tsv_table tactics = {}, plots = {}, buildings = {}, criticals = {};
     u32 bad_row = 0;
     if (!engine_read_table(e, folder, "facilities.tsv", &facilities))      status->detail = "facilities.tsv not found";
     else if (!engine_read_table(e, folder, "cities.tsv", &cities))         status->detail = "cities.tsv not found";
@@ -103,6 +104,10 @@ engine_load_content(engine *e, const char *folder)
     else if (!engine_read_table(e, folder, "disasters.tsv", &disasters))   status->detail = "disasters.tsv not found";
     else if (!engine_read_table(e, folder, "terrain.tsv", &terrain))       status->detail = "terrain.tsv not found";
     else if (!engine_read_table(e, folder, "unit_types.tsv", &unit_types)) status->detail = "unit_types.tsv not found";
+    else if (!engine_read_table(e, folder, "tactics.tsv", &tactics))       status->detail = "tactics.tsv not found";
+    else if (!engine_read_table(e, folder, "plots.tsv", &plots))           status->detail = "plots.tsv not found";
+    else if (!engine_read_table(e, folder, "buildings.tsv", &buildings))   status->detail = "buildings.tsv not found";
+    else if (!engine_read_table(e, folder, "critical_skills.tsv", &criticals)) status->detail = "critical_skills.tsv not found";
     else if (!content_load_facilities(content, &facilities, &bad_row))    status->detail = "facilities.tsv has a bad row";
     else if (!content_load_cities(content, &cities, &bad_row))            status->detail = "cities.tsv has a bad row";
     else if (!content_load_rules(content, &rules, &bad_row))              status->detail = "rules.tsv has a bad row";
@@ -111,6 +116,10 @@ engine_load_content(engine *e, const char *folder)
     else if (!content_load_disasters(content, &disasters, &bad_row))      status->detail = "disasters.tsv has a bad row";
     else if (!content_load_terrain(content, &terrain, &bad_row))          status->detail = "terrain.tsv has a bad row";
     else if (!content_load_unit_types(content, &unit_types, &bad_row))    status->detail = "unit_types.tsv has a bad row";
+    else if (!content_load_tactics(content, &tactics, &bad_row))          status->detail = "tactics.tsv has a bad row";
+    else if (!content_load_plots(content, &plots, &bad_row))              status->detail = "plots.tsv has a bad row";
+    else if (!content_load_buildings(content, &buildings, &bad_row))      status->detail = "buildings.tsv has a bad row";
+    else if (!content_load_criticals(content, &criticals, &bad_row))      status->detail = "critical_skills.tsv has a bad row";
     else
     {
         status->loaded          = true;
@@ -122,12 +131,17 @@ engine_load_content(engine *e, const char *folder)
         status->disaster_count  = content->disaster_count;
         status->terrain_count   = content->terrain_count;
         status->unit_type_count = content->unit_type_count;
+        status->tactic_count    = content->tactic_count;
+        status->plot_count      = content->plot_count;
+        status->building_count  = content->building_count;
+        status->critical_count  = content->critical_count;
         sim_set_content(e->sim, content);
     }
     arena_reset(&e->scratch);
 }
 
 internal void engine_content_terrain(engine *e);   /* engine_march.cpp */
+internal void engine_place_natural_traps(engine *e);   /* engine_combat.cpp */
 
 internal engine *
 engine_create(memory_arena *permanent, memory_arena *transient, engine_config config)
@@ -152,6 +166,7 @@ engine_create(memory_arena *permanent, memory_arena *transient, engine_config co
     e->reach_costs   = PushArray(permanent, cells ? cells : 1, u32);
     engine_load_content(e, config.content_folder);
     if (e->content.loaded) engine_content_terrain(e);   /* engine_march.cpp: the placeholder map from terrain.tsv */
+    if (e->content.loaded) engine_place_natural_traps(e);
     return e;
 }
 
@@ -693,6 +708,13 @@ engine_unit_command_kind(engine_command_kind kind)
         case ENGINE_COMMAND_WAIT:    return SIM_COMMAND_WAIT;
         case ENGINE_COMMAND_RETREAT: return SIM_COMMAND_RETREAT;
         case ENGINE_COMMAND_SUPPLY:  return SIM_COMMAND_SUPPLY;
+        case ENGINE_COMMAND_ATTACK:       return SIM_COMMAND_ATTACK;
+        case ENGINE_COMMAND_JOINT_ATTACK: return SIM_COMMAND_JOINT_ATTACK;
+        case ENGINE_COMMAND_TACTIC:       return SIM_COMMAND_TACTIC;
+        case ENGINE_COMMAND_PLOT:         return SIM_COMMAND_PLOT;
+        case ENGINE_COMMAND_BUILD:        return SIM_COMMAND_BUILD;
+        case ENGINE_COMMAND_REPAIR:       return SIM_COMMAND_REPAIR;
+        case ENGINE_COMMAND_DISMANTLE:    return SIM_COMMAND_DISMANTLE;
         default:                     return SIM_COMMAND_NONE;
     }
 }
@@ -738,9 +760,17 @@ engine_api_can_issue(void *opaque, const engine_command *command)
         case ENGINE_COMMAND_WAIT:
         case ENGINE_COMMAND_RETREAT:
         case ENGINE_COMMAND_SUPPLY:
+        case ENGINE_COMMAND_ATTACK:
+        case ENGINE_COMMAND_JOINT_ATTACK:
+        case ENGINE_COMMAND_TACTIC:
+        case ENGINE_COMMAND_PLOT:
+        case ENGINE_COMMAND_BUILD:
+        case ENGINE_COMMAND_REPAIR:
+        case ENGINE_COMMAND_DISMANTLE:
         {
             sim_unit_order order = engine_unit_order(command->unit, command->q, command->r, command->target_unit,
                                                      command->soldiers, command->gold, command->grain);
+            order.kind = command->row;
             arena_reset(&e->sim->scratch);
             return sim_check_unit_order(e->sim, engine_unit_command_kind(command->kind), &order, &e->sim->scratch);
         }
@@ -1115,6 +1145,7 @@ engine_api_set_city_resource(void *opaque, u8 city_id, u8 resource, u32 index, u
 
 #include "engine/engine_growth.cpp"
 #include "engine/engine_march.cpp"
+#include "engine/engine_combat.cpp"
 
 internal engine_api
 engine_make_api(engine *e)
@@ -1179,5 +1210,6 @@ engine_make_api(engine *e)
     api.set_city_resource    = engine_api_set_city_resource;
     engine_bind_growth_api(&api);
     engine_bind_march_api(&api);
+    engine_bind_combat_api(&api);
     return api;
 }

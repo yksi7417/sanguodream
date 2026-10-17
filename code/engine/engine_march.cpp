@@ -218,6 +218,8 @@ engine_api_unit_at(void *opaque, u32 unit_id)
     result.moved       = unit->moved_turn == sim->turn + 1;
     result.acted       = unit->acted_turn == sim->turn + 1;
     result.values      = engine_values_view(sim_unit_values_of(sim, unit->force_id, unit->unit_type, unit->officers));
+    result.state       = unit->state;
+    result.state_turns = unit->state_turns;
     return result;
 }
 
