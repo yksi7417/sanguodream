@@ -232,7 +232,7 @@ main(int argc, char **argv)
     /* the scene renderer and the frame arena for its command buffers */
     char data_dir[MAX_PATH];
     snprintf(data_dir, MAX_PATH, "%s\\..\\data\\placeholder", exe_dir);
-    memory_arena frame_arena = test_arena_create(Megabytes(64));
+    memory_arena frame_arena = test_arena_create(Megabytes(160));   /* M10: the mesh of the 200 x 200 map */
     d3d11_renderer renderer;
     b32 renderer_ready = d3d11_renderer_init(&renderer, window.device, window.context, data_dir, &frame_arena);
     if (!renderer_ready) printf("demo_player: scene renderer failed: %s\n", renderer.last_error);

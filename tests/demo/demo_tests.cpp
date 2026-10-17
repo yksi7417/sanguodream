@@ -9,7 +9,8 @@
 
    Included by demo_player.cpp (unity build). */
 
-#define DEMO_ENGINE_ARENA_SIZE Megabytes(32)
+#define DEMO_ENGINE_ARENA_SIZE Megabytes(48)
+#define DEMO_M10_NAME          "m10_map"
 
 /* build\demos, with no last backslash. demo_player.cpp sets it. */
 global_variable char g_demo_output_dir[MAX_PATH];
@@ -42,6 +43,9 @@ demo_gui(ImGuiTestContext *ctx)
         config.read_entire_file = test_platform_read_entire_file;
         config.write_entire_file = test_platform_write_entire_file;
         config.save_folder      = "demo_saves";
+        /* The walkthroughs of M0 to M9 play on the placeholder board that
+           they were made for; the walkthrough of M10 shows the real map. */
+        config.use_pack_map     = strcmp(ctx->Test->Name, DEMO_M10_NAME) == 0;
         v.backend = engine_create(&v.permanent, &v.transient, config);
         v.api     = engine_make_api(v.backend);
         text_catalog_init(&v.text, arena_sub(&v.permanent, Megabytes(4)), test_platform_read_entire_file,
@@ -1443,6 +1447,109 @@ demo_m9_playable(ImGuiTestContext *ctx)
     IM_CHECK(demo_screenshot_panel(ctx, milestone, "###StartSettings", "start_settings"));
 }
 
+/* Scrolls the canvas of the Hex map panel so that the hex is in the middle. */
+internal void
+demo_scroll_map_to(ImGuiTestContext *ctx, demo_vars &v, hex_coord hex)
+{
+    ImGuiWindow *canvas = ctx->WindowInfo("//Hex map/map_canvas").Window;
+    IM_CHECK(canvas != 0);
+    f32 zoom = v.ui.map.zoom;
+    hex_point origin;
+    origin.x = zoom;
+    origin.y = zoom;
+    hex_point center = hex_to_pixel(hex, zoom, origin);
+    ctx->ScrollToX(canvas->ID, Maximum(0.0f, center.x - canvas->Size.x * 0.5f));
+    ctx->ScrollToY(canvas->ID, Maximum(0.0f, center.y - canvas->Size.y * 0.5f));
+    ctx->Yield(2);
+}
+
+/* M10, the real map: the continent of 200 x 200 hexes in the scene and
+   in the Hex map panel; a click on 洛陽 frames its 22 slots; the data of a
+   gate hex; the gate sides are cliff; a burning hex. */
+internal void
+demo_m10_map(ImGuiTestContext *ctx)
+{
+    const char *milestone = DEMO_M10_NAME;
+    demo_vars &v = ctx->GetVars<demo_vars>();
+    engine_api *api = &v.api;
+    void *e = api->engine;
+    engine_map_info info = api->map_info(e);
+    IM_CHECK(info.real_map && info.width == 200 && info.height == 200 && info.city_hexes == 294 && info.slots == 591);
+    IM_CHECK(demo_begin_video(ctx, milestone));
+
+    /* The continent in the scene. */
+    IM_CHECK(demo_open_panel(ctx, "Scene", &v.ui.show_scene));
+    ctx->SetRef("Scene");
+    ctx->ItemClick("Tilt up");
+    ctx->ItemClick("Orbit right");
+    ctx->SleepStandard();
+    ctx->ItemClick("Reset view");
+    ctx->SleepStandard();
+
+    /* The sample save puts the 42 cities on their flowers. */
+    IM_CHECK(demo_open_panel(ctx, "Simulation", &v.ui.show_sim));
+    ctx->SetRef("Simulation");
+    ctx->ItemClick("Load sample save");
+    ctx->Yield();
+    IM_CHECK_EQ(api->city_count(e), 42u);
+
+    /* The Hex map: 洛陽 and its slots. */
+    IM_CHECK(demo_open_panel(ctx, "Hex map", &v.ui.show_map));
+    ctx->WindowResize("//Hex map", ImVec2(720, 560));
+    v.ui.map.zoom = 10.0f;
+    ctx->Yield();
+    engine_city_slots luoyang = api->city_slots(e, 15);
+    hex_coord center = hex_make(luoyang.q, luoyang.r);
+    demo_scroll_map_to(ctx, v, center);
+    ctx->SleepStandard();
+    demo_click_cell(ctx, v, center);
+    IM_CHECK(v.ui.map.has_city && v.ui.map.city == 15);
+    IM_CHECK_EQ(luoyang.slot_count, 22);
+    ctx->SleepStandard();
+    ctx->SleepStandard();
+
+    /* The data of the gate 虎牢關 (43): the gate hex stays, its sides are cliff. */
+    engine_base hulao = api->base_at(e, 43 - CONTENT_FIRST_BASE);
+    hex_coord gate = hex_make(hulao.q, hulao.r);
+    ctx->SetRef("Hex map");
+    ctx->ItemClick("Clear selection");
+    demo_scroll_map_to(ctx, v, gate);
+    demo_click_cell(ctx, v, gate);
+    IM_CHECK(v.ui.map.has_from && hex_equal(v.ui.map.from, gate));
+    engine_hex gate_hex = api->hex_at(e, gate.q, gate.r);
+    IM_CHECK(gate_hex.base_id == 43 && gate_hex.terrain == 18);
+    u32 cliffs = 0;
+    for (u32 direction = 0; direction < HEX_DIRECTION_COUNT; ++direction)
+    {
+        hex_coord side = hex_neighbor(gate, direction);
+        engine_hex next = api->hex_at(e, side.q, side.r);
+        if (next.region == 43 && next.terrain == 15) cliffs++;
+    }
+    IM_CHECK_GE(cliffs, 2u);
+    ctx->SleepStandard();
+
+    /* A fire on grass beside 洛陽: 4 times the cost of the table. */
+    for (u32 slot = 0; slot < luoyang.slot_count; ++slot)
+    {
+        engine_facility facility = api->facility_at(e, 15, (u8)slot);
+        if (api->hex_at(e, facility.q, facility.r).terrain != 1) continue;
+        u32 before = api->move_cost(e, 1, api->city_at(e, 15).owner_force_id, facility.q, facility.r);
+        api->start_fire(e, facility.q, facility.r, 5);
+        IM_CHECK_EQ(api->move_cost(e, 1, api->city_at(e, 15).owner_force_id, facility.q, facility.r), before * 4);
+        demo_scroll_map_to(ctx, v, hex_make(facility.q, facility.r));
+        demo_click_cell(ctx, v, hex_make(facility.q, facility.r));
+        break;
+    }
+    ctx->SleepStandard();
+    demo_scroll_map_to(ctx, v, center);
+    ctx->SleepStandard();
+
+    IM_CHECK(demo_end_video(ctx));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "Hex map", "hex_map"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "Scene", "scene"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "Simulation", "simulation"));
+}
+
 internal void
 register_demo_tests(ImGuiTestEngine *e)
 {
@@ -1497,4 +1604,9 @@ register_demo_tests(ImGuiTestEngine *e)
     t->SetVarsDataType<demo_vars>();
     t->GuiFunc  = demo_gui;
     t->TestFunc = demo_m9_playable;
+
+    t = IM_REGISTER_TEST(e, "demo", DEMO_M10_NAME);
+    t->SetVarsDataType<demo_vars>();
+    t->GuiFunc  = demo_gui;
+    t->TestFunc = demo_m10_map;
 }
