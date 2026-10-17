@@ -1,0 +1,50 @@
+id	key	name_zh	chance	conditions	effects	names_zh	names	status
+# The historical events of events.md (guide book p.56 to p.83) as data: the engine has one interpreter, not one handler for each event.
+# conditions: clauses separated by ";"; an event fires when all hold for one faction. effects: the changes, in order. @i is the officer i of names.
+# Clauses: scenario:S (the S of events.md: the file number + 1, Q-189), opening (the first month), start_before/start_by/start_from:YYYY/MM (the start date), date_from:YYYY/MM, days:N,
+#   ruler:@i, faction_of:@i, ruler_family:@i, rules:C|C, rules_any:C|C, not_rules:C|C, cities:N, cities_at_most:N, rank:N, rank_below:N, free:@i|@j, free_any:@i|@j, serves:@i:L, has:@i,
+#   unmarried:@i|@j, captive:@i, in_other:@i, loyalty_below:@i:L, merit_at_least:@i:N, order_ruler:N, order_ruler_below:N, order_of:@i:N, emperor_held, emperor_is:E, no_emperor,
+#   dead:@i, death_year:@i, adviser:@i, officers:N, age:@i:N, faction_cities:@i:N.
+# Effects: join:@i:LOYALTY:MERIT, defect:@i:LOYALTY:MERIT, merit:@i:N, merit_like:@i:@j, loyalty:@i:N, loyalty_all:N, order_all:N, morale_all:N, marry:@i:@j, sworn:@i|@j, dies:@i,
+#   rank:N, emperor:E, friendliness_all:N, friendliness_with:@i:N, raise:@i:ABILITY:VALUE, adviser:@i; "-" is a dialogue only.
+# The book gives the triggers; the clean room leaves out the choices, the pictures, the absences of chained events and the faction split of 連環計 (Q-189).
+0	yellow_turbans	黃巾之亂	100	scenario:1;opening	-	-	-	documented
+1	peach_garden	桃園三結義	100	scenario:1;opening;has:@0	-	劉備	BC42B3C6	documented
+2	shao_deposed	少帝廢立	100	start_before:189/08;date_from:189/09;ruler:@0;emperor_held;emperor_is:2;rules:17|15;has:@1	emperor:3	董卓|李儒	B8B3A8F4|A7F5BEA7	documented
+3	anti_dong	反董卓連合	100	scenario:2;opening	-	-	-	documented
+4	dian_wei	追趕老虎之人	100	start_before:193/12;days:90;rules_any:12|11;free:@0;serves:@1:90;order_of:@1:80	join:@0:100:500;merit:@1:500	典韋|夏侯惇	A8E5ADB3|AE4CAB4AB1AC	assumed
+5	chain_plan	連環計	100	scenario:2;date_from:192/01;ruler:@0;emperor_held;cities:2;has:@1;has:@2;unmarried:@2;order_ruler_below:75	join:@3:100:1000;marry:@2:@3;dies:@4;dies:@0	董卓|王允|呂布|貂蟬|李儒	B8B3A8F4|A4FDA4B9|A766A5AC|B649C2CD|A7F5BEA7	assumed
+6	xu_chu	惡來對許褚	100	start_before:193/12;days:180;rules_any:14|13;free:@0;serves:@1:95;order_of:@1:80	join:@0:100:500;merit:@1:300	許褚|典韋	B35CBB75|A8E5ADB3	documented
+7	guo_jia	荀彧推薦郭嘉	100	start_before:193/12;days:30;free:@0;serves:@1:95	join:@0:100:500;merit:@1:500	郭嘉|荀彧	B3A2B9C5|AFFBD17B	documented
+8	lady_mi	糜氏與劉備	100	start_by:196/12;days:30;ruler:@0;rules_any:8|9;unmarried:@0|@1;serves:@2:95	join:@1:100:1000;marry:@0:@1;loyalty:@2:100	劉備|糜氏|糜竺	BC42B3C6|C153A4F3|C153AAC7	documented
+9	sun_ce_sets_out	孫策出陣	100	scenario:3;opening;ruler:@0;has:@1;has:@2	-	孫策|周瑜|朱治	AE5DB5A6|A950B7EC|A6B6AA76	documented
+10	little_conqueror	小霸王・孫策	100	scenario:3;start_by:194/12;days:30;ruler:@0;rules:26|22|23;free_any:@1|@2|@3|@4|@5	join:@1:100:1000;join:@2:100:1000;join:@3:100:1000;join:@4:100:1000;join:@5:100:1000	孫策|蔣欽|周泰|陳武|凌統|董襲	AE5DB5A6|BDB1B4DC|A950AEF5|B3AFAA5A|ADE2B2CE|B8B3C5A7	documented
+11	two_zhangs	周瑜推薦二張	100	scenario:2;start_by:194/12;days:30;rules_any:22|25|26;free:@0|@1;adviser:@2;serves:@2:95	join:@0:100:500;join:@1:100:500;merit:@2:500	張昭|張紘|周瑜	B169AC4C|B169D354|A950B7EC	assumed
+12	two_qiao	二喬婚禮	100	scenario:3;start_before:198/12;days:30;rules:26|22|23|24;unmarried:@0|@1|@2|@3;has:@0	marry:@0:@2;marry:@1:@3;join:@2:100:1000;join:@3:100:1000	孫策|周瑜|大喬|小喬	AE5DB5A6|A950B7EC|A46AB3EC|A470B3EC	documented
+13	false_emperor	偽帝僭稱	100	scenario:3;days:30;ruler:@0;cities:3;no_emperor;rank_below:9	rank:9;friendliness_all:-30	袁術	B04BB34E	assumed
+14	cao_pi_zhen	公子得第一	100	scenario:4;start_before:204/12;has:@0;unmarried:@0;captive:@1	join:@1:100:3000;marry:@0:@1	曹丕|甄氏	B1E4A541|BAC2A4F3	documented
+15	two_powers	二強開戰	100	scenario:4;start_before:199/12;ruler:@0;cities:5;faction_cities:@1:5	friendliness_with:@1:-100	曹操|袁紹	B1E4BEDE|B04BB2D0	assumed
+16	zhao_yun	趙雲再會	100	scenario:4;start_from:195/01;days:30;ruler:@0;free:@1;order_ruler:100	join:@1:100:4000	劉備|趙雲	BC42B3C6|BBAFB6B3	documented
+17	good_fellows	好漢・劉備	100	scenario:4;start_by:206/12;days:30;ruler:@0;rules:14;has:@1;free_any:@2|@3|@4|@5|@6	join:@2:100:1000;join:@3:100:1000;join:@4:100:1000;join:@5:100:1000;join:@6:100:1000	劉備|關羽|周倉|裴元紹|劉辟|龔都|廖化	BC42B3C6|C3F6A6D0|A950ADDC|BB70A4B8B2D0|BC42B940|C5C7B3A3|B9F9A4C6	documented
+18	guo_jia_death	郭嘉之死	100	death_year:@0;faction_of:@0;cities:6	dies:@0	郭嘉	B3A2B9C5	documented
+19	sun_ce_death	孫策之死	100	death_year:@0;ruler:@0;rules:22|23|24|25|26;has:@1	dies:@0	孫策|孫權	AE5DB5A6|AE5DC576	assumed
+20	zhuge_marriage	諸葛亮娶妻	100	start_by:202/12;days:30;faction_of:@0;age:@0:20;unmarried:@0|@1	marry:@0:@1;join:@1:100:1000	諸葛亮|黃月英	BDD1B8AFAB47|B6C0A4EBAD5E	documented
+21	gan_ning	甘寧逃亡	100	scenario:5;start_by:207/12;days:30;rules:22|23|24|25|26;in_other:@0;loyalty_below:@0:90	defect:@0:100:4000	甘寧	A5CCB9E7	assumed
+22	xu_shu	徐庶登場	100	scenario:4;start_by:207/12;days:30;ruler:@0;rules:28;order_of:@0:100;free:@1	join:@1:100:8000	劉備|徐庶	BC42B3C6|AE7DB166	documented
+23	cao_south	曹操南征	100	scenario:5;days:30;ruler:@0;rules:13|16;not_rules:28;cities:15	friendliness_all:-40	曹操	B1E4BEDE	assumed
+24	three_visits	三顧茅廬	100	scenario:5;start_by:207/12;date_from:208/01;days:60;ruler:@0;rules:28;cities_at_most:2;has:@1;has:@2;order_of:@0:100;free:@3	join:@3:100:12000;adviser:@3;join:@4:100:1000;join:@5:100:500	劉備|關羽|張飛|諸葛亮|黃月英|諸葛均	BC42B3C6|C3F6A6D0|B169ADB8|BDD1B8AFAB47|B6C0A4EBAD5E|BDD1B8AFA7A1	documented
+25	ma_brothers	馬氏五常	100	scenario:5;start_by:209/12;days:60;rules:30;free:@0|@1;serves:@2:95	join:@0:100:2000;join:@1:100:500;merit:@2:500	馬良|馬謖|伊籍	B0A8A87D|B0A8EEA2|A5ECC479	documented
+26	sun_shangxiang	孫尚香結婚	100	scenario:5;start_by:209/12;ruler:@0;unmarried:@0|@1;in_other:@1	friendliness_with:@1:20;defect:@1:100:1000;marry:@0:@1	劉備|孫尚香	BC42B3C6|AE5DA97CADBB	assumed
+27	wu_xia_ameng	已非昔日之吳下阿蒙	100	days:30;ruler:@0;serves:@1:95;serves:@2:95;merit_at_least:@1:5000;merit_at_least:@2:5000	raise:@1:leadership:91;raise:@1:intellect:89;raise:@1:politics:78;merit:@1:500;raise:@2:leadership:78;raise:@2:intellect:51;raise:@2:politics:42;merit:@2:500	孫權|呂蒙|蔣欽	AE5DC576|A766BB58|BDB1B4DC	documented
+28	zhou_yu_death	周瑜之死	100	scenario:5;death_year:@0;faction_of:@0;rules:22|23|24|25|26;has:@1	merit_like:@1:@0;dies:@0	周瑜|魯肅	A950B7EC|BE7CB5C2	documented
+29	cao_cao_death	曹操之死	100	scenario:6;death_year:@0;ruler:@0;rank:7;rules:15|6|17	dies:@0	曹操	B1E4BEDE	documented
+30	king_hanzhong	漢中王即位	100	scenario:6;start_by:218/12;days:180;ruler:@0;emperor_held;rules:35|36|37|38|39;rank_below:8;has:@1	rank:8;order_all:15;morale_all:15;loyalty_all:15;merit:@1:2000	劉備|諸葛亮	BC42B3C6|BDD1B8AFAB47	documented
+31	wei_emperor	魏帝即位	100	scenario:6;start_by:219/12;days:180;ruler_family:@0;rank:8;emperor_held;rules:13|15|6|17;cities:12	emperor:0;rank:9;order_all:20;morale_all:20;friendliness_all:-40	曹操	B1E4BEDE	assumed
+32	shu_emperor	蜀帝即位	100	scenario:6;start_by:220/12;days:180;ruler_family:@0;rank:8;rules:35|36|37|38|39;has:@1;no_emperor	rank:9;order_all:30;morale_all:30;loyalty_all:30	劉備|諸葛亮	BC42B3C6|BDD1B8AFAB47	documented
+33	tiger_cubs	虎之子	100	ruler_family:@0;has:@1;has:@2;merit_at_least:@1:8000;merit_at_least:@2:8000	sworn:@2|@1;merit:@1:500;merit:@2:500;loyalty:@1:100;loyalty:@2:100	劉備|關興|張苞	BC42B3C6|C3F6BFB3|B169AD63	documented
+34	wu_king	吳王即位	100	scenario:6;start_by:221/12;days:180;ruler_family:@0;rank_below:8;rules:22|23|24|25|26;cities:8;no_emperor	rank:8;order_all:10;loyalty_all:10	孫堅	AE5DB0ED	documented
+35	lu_xun	陸遜登場	100	scenario:6;days:30;ruler:@0;dead:@1;dead:@2;dead:@3;serves:@4:95;officers:10	merit:@4:12000;loyalty:@4:100;merit:@5:300	孫權|周瑜|魯肅|呂蒙|陸遜|闞澤	AE5DC576|A950B7EC|BE7CB5C2|A766BB58|B3B0BBB9|F545BF41	documented
+36	northern_expedition	諸葛亮北伐	100	scenario:6;rank:9;rules:35|36|37|38|39|40|41;has:@0;order_of:@0:95;no_emperor	friendliness_all:-100;loyalty_all:10	諸葛亮	BDD1B8AFAB47	documented
+37	wu_emperor	吳帝即位	100	scenario:7;start_by:228/12;days:180;ruler_family:@0;rank:8;rules:22|23|24|25|26;cities:8;no_emperor	rank:9;order_all:20;loyalty_all:20;friendliness_all:-30	孫堅	AE5DB0ED	documented
+38	liu_bei_death	劉備之死	100	scenario:6;death_year:@0;ruler:@0;rank:9;rules:35|36|37|38|39;has:@1	dies:@0	劉備|諸葛亮	BC42B3C6|BDD1B8AFAB47	documented
+39	zhuge_death	諸葛亮之死	100	scenario:7;death_year:@0;rules:35|36|37|38|39;not_rules:15|13|6;rank:9;adviser:@0;has:@1	merit_like:@1:@0;dies:@0	諸葛亮|姜維	BDD1B8AFAB47|ABB8BAFB	documented

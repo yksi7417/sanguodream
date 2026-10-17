@@ -1,0 +1,28 @@
+id	key	name_zh	name	age	status
+# The officers with a second portrait and the age of the change (events.md, portrait change; guide book). name: the Big5 bytes of family + given name in hex.
+# The clean room has placeholder portraits: the engine gives the stage (0 or 1) and the front end picks the picture. 呂蒙 also changes at the event 吳下阿蒙.
+0	xiahou_dun	夏侯惇	AE4CAB4AB1AC	40	documented
+1	guan_yu	關羽	C3F6A6D0	47	documented
+2	gan_ning	甘寧	A5CCB9E7	42	documented
+3	jiang_wei	姜維	ABB8BAFB	48	documented
+4	huang_zhong	黃忠	B6C0A9BE	55	documented
+5	sima_yi	司馬懿	A571B0A8C574	41	documented
+6	zhou_yu	周瑜	A950B7EC	36	documented
+7	xun_yu	荀彧	AFFBD17B	38	documented
+8	zhuge_liang	諸葛亮	BDD1B8AFAB47	43	documented
+9	xu_huang	徐晃	AE7DAECC	47	documented
+10	cao_cao	曹操	B1E4BEDE	54	documented
+11	sun_quan	孫權	AE5DC576	42	documented
+12	sun_ce	孫策	AE5DB5A6	26	documented
+13	sun_shangxiang	孫尚香	AE5DA97CADBB	18	documented
+14	zhao_yun	趙雲	BBAFB6B3	58	documented
+15	zhang_he	張郃	B169ADA8	54	documented
+16	diao_chan	貂蟬	B649C2CD	19	documented
+17	zhang_fei	張飛	B169ADB8	42	documented
+18	zhang_liao	張遼	B169BFF1	47	documented
+19	deng_ai	鄧艾	BE48A6E3	53	documented
+20	ma_chao	馬超	B0A8B657	35	documented
+21	lu_xun	陸遜	B3B0BBB9	46	documented
+22	liu_bei	劉備	BC42B3C6	48	documented
+23	lu_bu	呂布	A766A5AC	43	documented
+24	lu_meng	呂蒙	A766BB58	38	documented
