@@ -52,6 +52,9 @@ internal void
 sim_init_map(sim_state *sim, memory_arena *arena, u32 width, u32 height, u8 default_cost)
 {
     hex_map_init(&sim->map, arena, width, height, default_cost);
+    /* The working memory of a move range: six arrays and a heap for each
+       cell, with room. */
+    sim->scratch = arena_sub(arena, (u64)width * height * 128 + Kilobytes(64));
 }
 
 /* xorshift64*: small, fast, deterministic across compilers. */
@@ -218,6 +221,20 @@ sim_apply(sim_state *sim, sim_command command, sim_event_sink *events)
             break;
         case SIM_COMMAND_START_DISASTER:
             sim_start_disaster_command(sim, command, events);
+            break;
+        case SIM_COMMAND_SORTIE:
+        case SIM_COMMAND_TRANSPORT:
+            sim_sortie(sim, command, events);
+            break;
+        case SIM_COMMAND_MOVE:
+            arena_reset(&sim->scratch);
+            sim_move_unit(sim, command, &sim->scratch, events);
+            break;
+        case SIM_COMMAND_WAIT:
+        case SIM_COMMAND_RETREAT:
+        case SIM_COMMAND_SUPPLY:
+            arena_reset(&sim->scratch);
+            sim_unit_action(sim, command, &sim->scratch, events);
             break;
         case SIM_COMMAND_LOAD_SAVE:
             InvalidCodePath;   /* needs its save: see sim_load_save */
@@ -457,6 +474,20 @@ sim_event_name(sim_event_kind kind)
         case SIM_EVENT_SOLDIERS_LOST:           return "soldiers_lost";
         case SIM_EVENT_GAME_WON:                return "game_won";
         case SIM_EVENT_GAME_LOST:               return "game_lost";
+        case SIM_EVENT_UNIT_SORTIED:            return "unit_sortied";
+        case SIM_EVENT_UNIT_SUPPLIES:           return "unit_supplies";
+        case SIM_EVENT_UNIT_GRAIN_TAKEN:        return "unit_grain_taken";
+        case SIM_EVENT_UNIT_WEAPONS_TAKEN:      return "unit_weapons_taken";
+        case SIM_EVENT_UNIT_MOVED:              return "unit_moved";
+        case SIM_EVENT_UNIT_SOLDIERS_LOST:      return "unit_soldiers_lost";
+        case SIM_EVENT_UNIT_WAITED:             return "unit_waited";
+        case SIM_EVENT_UNIT_ENTERED_CITY:       return "unit_entered_city";
+        case SIM_EVENT_UNIT_GOLD_RETURNED:      return "unit_gold_returned";
+        case SIM_EVENT_UNIT_GRAIN_RETURNED:     return "unit_grain_returned";
+        case SIM_EVENT_UNIT_RETREATED:          return "unit_retreated";
+        case SIM_EVENT_UNIT_SUPPLIED:           return "unit_supplied";
+        case SIM_EVENT_UNIT_GRAIN_EATEN:        return "unit_grain_eaten";
+        case SIM_EVENT_UNIT_DESERTED:           return "unit_deserted";
         default:                                return "?";
     }
 }
@@ -480,6 +511,12 @@ sim_command_name(sim_command_kind kind)
         case SIM_COMMAND_RESEARCH:        return "research";
         case SIM_COMMAND_MERGE:           return "merge";
         case SIM_COMMAND_START_DISASTER:  return "start_disaster";
+        case SIM_COMMAND_SORTIE:          return "sortie";
+        case SIM_COMMAND_TRANSPORT:       return "transport";
+        case SIM_COMMAND_MOVE:            return "move";
+        case SIM_COMMAND_WAIT:            return "wait";
+        case SIM_COMMAND_RETREAT:         return "retreat";
+        case SIM_COMMAND_SUPPLY:          return "supply";
         default:                          return "?";
     }
 }
@@ -516,6 +553,13 @@ sim_refusal_name(sim_refusal refusal)
         case SIM_REFUSAL_GAME_OVER:             return "game_over";
         case SIM_REFUSAL_NO_DISASTER:           return "no_disaster";
         case SIM_REFUSAL_NO_TECHNIQUE:          return "no_technique";
+        case SIM_REFUSAL_NO_UNIT:               return "no_unit";
+        case SIM_REFUSAL_UNIT_ACTED:            return "unit_acted";
+        case SIM_REFUSAL_UNREACHABLE:           return "unreachable";
+        case SIM_REFUSAL_NO_ROOM:               return "no_room";
+        case SIM_REFUSAL_NO_SOLDIERS:           return "no_soldiers";
+        case SIM_REFUSAL_NO_WEAPONS:            return "no_weapons";
+        case SIM_REFUSAL_NOT_ADJACENT:          return "not_adjacent";
         default:                                return "?";
     }
 }
@@ -528,3 +572,4 @@ sim_refusal_name(sim_refusal refusal)
 #include "sim/merge.cpp"
 #include "sim/disasters.cpp"
 #include "sim/outcome.cpp"
+#include "sim/units.cpp"

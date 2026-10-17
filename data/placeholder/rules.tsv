@@ -48,14 +48,14 @@ produce.skill_period_percent	50	documented	skills.md, 發明 and 造船: half th
 level.2_percent	120	documented	cities-and-facilities.md, merge level 2
 level.3_percent	150	documented	cities-and-facilities.md, merge level 3
 skill.income_percent	150	documented	skills.md, 富豪 and 米道: 1.5 times
-skill.rich	87	assumed	Q-159: the save number of 富豪 (skills.md #88 minus 1)
-skill.rice	88	assumed	Q-159: the save number of 米道 (#89 minus 1)
-skill.tax	89	assumed	Q-159: the save number of 徵稅 (#90 minus 1)
-skill.levy	90	assumed	Q-159: the save number of 徵收 (#91 minus 1)
-skill.capable	80	assumed	Q-159: the save number of 能吏 (#81 minus 1)
-skill.breeding	81	assumed	Q-159: the save number of 繁殖 (#82 minus 1)
-skill.invention	82	assumed	Q-159: the save number of 發明 (#83 minus 1)
-skill.shipbuilding	83	assumed	Q-159: the save number of 造船 (#84 minus 1)
+skill.rich	88	documented	skills.md #88 富豪 (a rule names a skill by its skills.md number; the save stores it minus 1, assumed Q-159)
+skill.rice	89	documented	skills.md #89 米道
+skill.tax	90	documented	skills.md #90 徵稅
+skill.levy	91	documented	skills.md #91 徵收
+skill.capable	81	documented	skills.md #81 能吏
+skill.breeding	82	documented	skills.md #82 繁殖
+skill.invention	83	documented	skills.md #83 發明
+skill.shipbuilding	84	documented	skills.md #84 造船
 technique.per_command	10	assumed	Q-158: technique points for each command that raises them
 merit.per_command	50	documented	save-file.md, officer +105: +50 for each officer that does an order
 facility.recovery	100	assumed	Q-157: the durability that a facility recovers each turn
@@ -69,8 +69,29 @@ merge.full_politics	100	assumed	Q-163: the politics that gives the shortest merg
 research.full_ability	200	assumed	Q-161: the ability sum that gives the shortest research period
 research.personnel_percent	75	assumed	Q-164: the research period in a city with a personnel office (manual p.29: less time)
 research.teaching_percent	50	documented	research-techniques.md, 指導 halves the gold
-skill.teaching	84	assumed	Q-159: the save number of 指導 (skills.md #85 minus 1)
+skill.teaching	85	documented	skills.md #85 指導
 tally.action_points	10	assumed	Q-164: the action points that each tally office adds at the start of a turn
 military_office.ap_percent	50	documented	cities-and-facilities.md, military office: military commands cost half the action points
 drill.ship_period_percent	75	assumed	Q-164: the ship period in a city with a drill ground (manual p.29: less time)
 game.end_year	351	documented	calendar-and-turn.md, defeat when the year becomes 351
+# M5: units, movement and the map.
+ap.sortie	10	documented	city-commands.md, 出征
+ap.transport	10	documented	city-commands.md, 輸送
+unit.soldier_cap	5000	assumed	Q-169: the soldiers of a commander without a post (posts are M7, Q-147); 改革軍制 adds its value
+unit.deputy_percent	50	assumed	Q-170: the part of the better ability of a deputy that the unit gains
+grade.s	120	assumed	Q-168: the percent of the class grade S for attack, defence and destroy
+grade.a	110	assumed	Q-168
+grade.b	100	assumed	Q-168
+grade.c	90	assumed	Q-168
+grade.d	80	assumed	Q-168
+grade.e	70	assumed	Q-168
+aptitude.s	120	assumed	Q-170: the percent of the officer aptitude S
+aptitude.a	110	assumed	Q-170
+aptitude.b	100	assumed	Q-170
+aptitude.c	90	assumed	Q-170
+move.bonus	4	assumed	Q-169: the movement that one technique or skill adds (出產良馬, 精銳, 強化車軸, 木牛流馬, 強行, 長驅, 運搬)
+skill.ignore_zoc	1	documented	skills.md #1 飛將: no zone of control on land
+skill.escape	2	documented	skills.md #2 遁走: no zone of control on land
+skill.forced_march	3	documented	skills.md #3 強行: more movement on land
+skill.long_drive	4	documented	skills.md #4 長驅: more movement for cavalry
+skill.haul	8	documented	skills.md #8 運搬: more movement for transport units

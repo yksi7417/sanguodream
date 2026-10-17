@@ -20,7 +20,21 @@ sim_event_resource(sim_event_kind kind)
         case SIM_EVENT_SALARIES_PAID:
         case SIM_EVENT_GOLD_SPENT:
         case SIM_EVENT_GOLD_OVER_CAP:
+        case SIM_EVENT_UNIT_SUPPLIES:
+        case SIM_EVENT_UNIT_GOLD_RETURNED:
         case SIM_EVENT_GOLD_EARNED:           return SIM_RESOURCE_GOLD;
+        case SIM_EVENT_UNIT_GRAIN_TAKEN:
+        case SIM_EVENT_UNIT_GRAIN_RETURNED:
+        case SIM_EVENT_UNIT_GRAIN_EATEN:
+        case SIM_EVENT_GRAIN_LOST:
+        case SIM_EVENT_GRAIN_HARVEST:         return SIM_RESOURCE_GRAIN;
+        case SIM_EVENT_UNIT_SORTIED:
+        case SIM_EVENT_UNIT_ENTERED_CITY:
+        case SIM_EVENT_UNIT_SOLDIERS_LOST:
+        case SIM_EVENT_UNIT_DESERTED:
+        case SIM_EVENT_SOLDIERS_LOST:         return SIM_RESOURCE_SOLDIERS;
+        case SIM_EVENT_UNIT_WEAPONS_TAKEN:    return SIM_RESOURCE_WEAPONS;
+        case SIM_EVENT_TECHNIQUE_SPENT:       return SIM_RESOURCE_TECHNIQUE;
         case SIM_EVENT_GRAIN_INCOME:
         case SIM_EVENT_GRAIN_CONSUMED:
         case SIM_EVENT_GRAIN_OVER_CAP:
@@ -97,20 +111,28 @@ sim_order_percent(u32 public_order, sim_rules *rules)
     return floor + (100 - floor) * order / rules->order_max;
 }
 
+/* True if the officer has the skill. The rules name a skill by its number
+   in skills.md (1 to 100), and 0 names no skill. The save stores the
+   number minus 1, and 255 for no skill (assumed, Q-159). */
+internal b32
+sim_officer_has_skill(officer_component *officer, u32 skill)
+{
+    return officer && skill >= 1 && skill <= 100 && officer->skill_number != 255 && (u32)officer->skill_number + 1 == skill;
+}
+
 /* True if an active officer of the owner with the skill is in the city.
    "Income and disaster skills apply to the city where the officer is"
-   (skills.md). The save number of a skill is assumed (Q-159); a rule of 0
-   names no skill. */
+   (skills.md). */
 internal b32
 sim_city_has_skill(sim_state *sim, u8 city_id, u32 skill)
 {
     city_component *city = sim_find_city(sim, city_id);
-    if (!city || city->owner_force_id == SIM_NO_FORCE || skill == 0 || skill >= 255) return false;
+    if (!city || city->owner_force_id == SIM_NO_FORCE) return false;
     for (u32 index = 0; index < sim->officers.count; ++index)
     {
         officer_component *officer = sim->officers.data + index;
         if (sim_officer_is_active(officer) && officer->force_id == city->owner_force_id &&
-            officer->current_position == city_id && officer->skill_number == skill) return true;
+            officer->current_position == city_id && sim_officer_has_skill(officer, skill)) return true;
     }
     return false;
 }

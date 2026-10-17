@@ -17,6 +17,10 @@ struct engine
     u32           ledger_count;
     u32           ledger_capacity;
     u32          *filter_indices;  /* the answer of ledger_filter; ledger_capacity entries */
+    u8           *tiles;           /* the atlas colour of each cell; see terrain_view */
+    u32           tiles_version;   /* the map version of tiles */
+    hex_coord    *reach_cells;     /* the answer of reachable; one entry for each cell */
+    u32          *reach_costs;
     platform_read_entire_file *read_entire_file;
     engine_content_status      content;   /* what engine_create loaded from the content pack */
 };
@@ -89,7 +93,7 @@ engine_load_content(engine *e, const char *folder)
     engine_content_status *status = &e->content;
     *status = {};
     status->detail = "ok";
-    tsv_table facilities = {}, cities = {}, rules = {}, weapons = {}, techniques = {}, disasters = {};
+    tsv_table facilities = {}, cities = {}, rules = {}, weapons = {}, techniques = {}, disasters = {}, terrain = {}, unit_types = {};
     u32 bad_row = 0;
     if (!engine_read_table(e, folder, "facilities.tsv", &facilities))      status->detail = "facilities.tsv not found";
     else if (!engine_read_table(e, folder, "cities.tsv", &cities))         status->detail = "cities.tsv not found";
@@ -97,12 +101,16 @@ engine_load_content(engine *e, const char *folder)
     else if (!engine_read_table(e, folder, "weapons.tsv", &weapons))       status->detail = "weapons.tsv not found";
     else if (!engine_read_table(e, folder, "techniques.tsv", &techniques)) status->detail = "techniques.tsv not found";
     else if (!engine_read_table(e, folder, "disasters.tsv", &disasters))   status->detail = "disasters.tsv not found";
+    else if (!engine_read_table(e, folder, "terrain.tsv", &terrain))       status->detail = "terrain.tsv not found";
+    else if (!engine_read_table(e, folder, "unit_types.tsv", &unit_types)) status->detail = "unit_types.tsv not found";
     else if (!content_load_facilities(content, &facilities, &bad_row))    status->detail = "facilities.tsv has a bad row";
     else if (!content_load_cities(content, &cities, &bad_row))            status->detail = "cities.tsv has a bad row";
     else if (!content_load_rules(content, &rules, &bad_row))              status->detail = "rules.tsv has a bad row";
     else if (!content_load_techniques(content, &techniques, &bad_row))    status->detail = "techniques.tsv has a bad row";
     else if (!content_load_weapons(content, &weapons, &bad_row))          status->detail = "weapons.tsv has a bad row";
     else if (!content_load_disasters(content, &disasters, &bad_row))      status->detail = "disasters.tsv has a bad row";
+    else if (!content_load_terrain(content, &terrain, &bad_row))          status->detail = "terrain.tsv has a bad row";
+    else if (!content_load_unit_types(content, &unit_types, &bad_row))    status->detail = "unit_types.tsv has a bad row";
     else
     {
         status->loaded          = true;
@@ -112,10 +120,14 @@ engine_load_content(engine *e, const char *folder)
         status->weapon_count    = content->weapon_count;
         status->technique_count = content->technique_count;
         status->disaster_count  = content->disaster_count;
+        status->terrain_count   = content->terrain_count;
+        status->unit_type_count = content->unit_type_count;
         sim_set_content(e->sim, content);
     }
     arena_reset(&e->scratch);
 }
+
+internal void engine_content_terrain(engine *e);   /* engine_march.cpp */
 
 internal engine *
 engine_create(memory_arena *permanent, memory_arena *transient, engine_config config)
@@ -133,7 +145,13 @@ engine_create(memory_arena *permanent, memory_arena *transient, engine_config co
     e->ledger          = PushArray(permanent, config.ledger_capacity, sim_event);
     e->filter_indices  = PushArray(permanent, config.ledger_capacity, u32);
     e->read_entire_file = config.read_entire_file;
+    u32 cells = config.map_width * config.map_height;
+    e->tiles         = PushArray(permanent, cells ? cells : 1, u8);
+    e->tiles_version = 0;
+    e->reach_cells   = PushArray(permanent, cells ? cells : 1, hex_coord);
+    e->reach_costs   = PushArray(permanent, cells ? cells : 1, u32);
     engine_load_content(e, config.content_folder);
+    if (e->content.loaded) engine_content_terrain(e);   /* engine_march.cpp: the placeholder map from terrain.tsv */
     return e;
 }
 
@@ -239,23 +257,41 @@ engine_api_path_cost(void *opaque, s32 q0, s32 r0, s32 q1, s32 r1)
     return path.total_cost;
 }
 
+/* The tiles follow the kinds through the terrain table. Without the table
+   the kind is the tile, as in M0. */
 internal engine_terrain_view
 engine_api_terrain_view(void *opaque)
 {
-    hex_map *map = &((engine *)opaque)->sim->map;
+    engine *e = (engine *)opaque;
+    hex_map *map = &e->sim->map;
+    if (e->tiles_version != map->version)
+    {
+        sim_content *content = &e->sim->content;
+        for (u32 index = 0; index < map->width * map->height; ++index)
+        {
+            u8 kind = map->kind[index];
+            e->tiles[index] = kind < content->terrain_count ? content->terrains[kind].tile : kind;
+        }
+        e->tiles_version = map->version;
+    }
     engine_terrain_view view;
     view.width   = map->width;
     view.height  = map->height;
     view.kind    = map->kind;
     view.level   = map->level;
     view.version = map->version;
+    view.tile    = e->tiles;
     return view;
 }
 
+/* The editor sets the kind and the height of a cell. With the terrain table
+   the cost of the cell follows the kind (the foot cost). */
 internal void
 engine_api_set_cell_terrain(void *opaque, s32 q, s32 r, u8 kind, u8 level)
 {
-    hex_map_set_terrain(&((engine *)opaque)->sim->map, hex_make(q, r), kind, level);
+    sim_state *sim = ((engine *)opaque)->sim;
+    hex_map_set_terrain(&sim->map, hex_make(q, r), kind, level);
+    if (kind < sim->content.terrain_count) hex_map_set_cost(&sim->map, hex_make(q, r), sim->content.terrains[kind].cost[MOVEMENT_FOOT]);
 }
 
 internal u32
@@ -610,6 +646,57 @@ engine_merge_order(u8 city_id, u8 absorber, u8 absorbed, u16 officer)
     return order;
 }
 
+/* The sim order of 出征 or 輸送. 輸送 always uses the transport row of the
+   unit table. */
+internal sim_sortie_order
+engine_sim_sortie_order(engine *e, const engine_sortie_order *in, b32 transport)
+{
+    sim_sortie_order order = {};
+    order.city_id     = in->city_id;
+    order.unit_type   = in->unit_type;
+    order.soldiers    = in->soldiers;
+    order.gold        = in->gold;
+    order.grain       = in->grain;
+    order.destination = transport ? in->destination : SIM_NO_CITY;
+    for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place) order.officers[place] = in->officers[place];
+    for (u32 stock = 0; stock < CITY_EQUIPMENT_STOCK_COUNT; ++stock) order.cargo[stock] = transport ? in->cargo[stock] : 0;
+    if (transport)
+    {
+        order.unit_type = CONTENT_NO_UNIT_TYPE;
+        for (u32 index = 0; index < e->sim->content.unit_type_count; ++index)
+        {
+            if (e->sim->content.unit_types[index].transport) order.unit_type = (u8)index;
+        }
+    }
+    return order;
+}
+
+internal sim_unit_order
+engine_unit_order(u32 unit_id, s32 q, s32 r, u32 target, u32 soldiers, u32 gold, u32 grain)
+{
+    sim_unit_order order = {};
+    order.unit     = (u16)(unit_id < SIM_UNIT_CAPACITY ? unit_id : SIM_NO_UNIT);
+    order.to       = hex_make(q, r);
+    order.target   = (u16)(target < SIM_UNIT_CAPACITY ? target : SIM_NO_UNIT);
+    order.soldiers = soldiers;
+    order.gold     = gold;
+    order.grain    = grain;
+    return order;
+}
+
+internal sim_command_kind
+engine_unit_command_kind(engine_command_kind kind)
+{
+    switch (kind)
+    {
+        case ENGINE_COMMAND_MOVE:    return SIM_COMMAND_MOVE;
+        case ENGINE_COMMAND_WAIT:    return SIM_COMMAND_WAIT;
+        case ENGINE_COMMAND_RETREAT: return SIM_COMMAND_RETREAT;
+        case ENGINE_COMMAND_SUPPLY:  return SIM_COMMAND_SUPPLY;
+        default:                     return SIM_COMMAND_NONE;
+    }
+}
+
 internal engine_check
 engine_api_can_issue(void *opaque, const engine_command *command)
 {
@@ -640,6 +727,22 @@ engine_api_can_issue(void *opaque, const engine_command *command)
         {
             sim_merge_order order = engine_merge_order(command->city_id, command->slot, command->absorbed, command->officers[0]);
             return sim_check_merge(e->sim, &order);
+        }
+        case ENGINE_COMMAND_SORTIE:
+        case ENGINE_COMMAND_TRANSPORT:
+        {
+            sim_sortie_order order = engine_sim_sortie_order(e, &command->sortie, command->kind == ENGINE_COMMAND_TRANSPORT);
+            return sim_check_sortie(e->sim, &order, command->kind == ENGINE_COMMAND_TRANSPORT);
+        }
+        case ENGINE_COMMAND_MOVE:
+        case ENGINE_COMMAND_WAIT:
+        case ENGINE_COMMAND_RETREAT:
+        case ENGINE_COMMAND_SUPPLY:
+        {
+            sim_unit_order order = engine_unit_order(command->unit, command->q, command->r, command->target_unit,
+                                                     command->soldiers, command->gold, command->grain);
+            arena_reset(&e->sim->scratch);
+            return sim_check_unit_order(e->sim, engine_unit_command_kind(command->kind), &order, &e->sim->scratch);
         }
         default:
         {
@@ -784,15 +887,24 @@ engine_api_set_actions(void *opaque, u8 force_id, u32 action_points)
     sim->turns.action_points[force_id] = action_points < cap ? action_points : cap;
 }
 
+/* A test and editor unit: no type, no officers. It blocks its hex and has
+   a zone of control. */
 internal u32
 engine_api_place_unit(void *opaque, u8 force_id, s32 q, s32 r)
 {
     sim_state *sim = ((engine *)opaque)->sim;
-    if (sim->unit_count >= SIM_UNIT_CAPACITY) return ENGINE_NO_UNIT;
-    sim_unit *unit = sim->units + sim->unit_count;
-    unit->force_id = force_id;
-    unit->hex      = hex_make(q, r);
-    return sim->unit_count++;
+    u32 unit_id = sim_new_unit_id(sim);
+    if (unit_id == SIM_NO_UNIT) return ENGINE_NO_UNIT;
+    sim_unit *unit = sim->units + unit_id;
+    *unit = {};
+    unit->alive       = true;
+    unit->force_id    = force_id;
+    unit->hex         = hex_make(q, r);
+    unit->unit_type   = CONTENT_NO_UNIT_TYPE;
+    unit->home_city   = SIM_NO_CITY;
+    unit->destination = SIM_NO_CITY;
+    for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place) unit->officers[place] = SIM_NO_OFFICER;
+    return unit_id;
 }
 
 /* ---- M3 economy --------------------------------------------------------- */
@@ -1002,6 +1114,7 @@ engine_api_set_city_resource(void *opaque, u8 city_id, u8 resource, u32 index, u
 }
 
 #include "engine/engine_growth.cpp"
+#include "engine/engine_march.cpp"
 
 internal engine_api
 engine_make_api(engine *e)
@@ -1065,5 +1178,6 @@ engine_make_api(engine *e)
     api.set_facility_level   = engine_api_set_facility_level;
     api.set_city_resource    = engine_api_set_city_resource;
     engine_bind_growth_api(&api);
+    engine_bind_march_api(&api);
     return api;
 }

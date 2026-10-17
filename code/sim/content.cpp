@@ -292,6 +292,26 @@ global_variable content_rule_field content_rule_fields[] = {
     CONTENT_RULE("military_office.ap_percent", military_office_ap_percent),
     CONTENT_RULE("drill.ship_period_percent",  drill_ship_period_percent),
     CONTENT_RULE("game.end_year",         game_end_year),
+    CONTENT_RULE("ap.sortie",             ap_sortie),
+    CONTENT_RULE("ap.transport",          ap_transport),
+    CONTENT_RULE("unit.soldier_cap",      unit_soldier_cap),
+    CONTENT_RULE("unit.deputy_percent",   unit_deputy_percent),
+    CONTENT_RULE("grade.s",               grade_percent[GRADE_S]),
+    CONTENT_RULE("grade.a",               grade_percent[GRADE_A]),
+    CONTENT_RULE("grade.b",               grade_percent[GRADE_B]),
+    CONTENT_RULE("grade.c",               grade_percent[GRADE_C]),
+    CONTENT_RULE("grade.d",               grade_percent[GRADE_D]),
+    CONTENT_RULE("grade.e",               grade_percent[GRADE_E]),
+    CONTENT_RULE("aptitude.c",            aptitude_percent[0]),
+    CONTENT_RULE("aptitude.b",            aptitude_percent[1]),
+    CONTENT_RULE("aptitude.a",            aptitude_percent[2]),
+    CONTENT_RULE("aptitude.s",            aptitude_percent[3]),
+    CONTENT_RULE("move.bonus",            move_bonus),
+    CONTENT_RULE("skill.ignore_zoc",      skill_ignore_zoc),
+    CONTENT_RULE("skill.escape",          skill_escape),
+    CONTENT_RULE("skill.forced_march",    skill_forced_march),
+    CONTENT_RULE("skill.long_drive",      skill_long_drive),
+    CONTENT_RULE("skill.haul",            skill_haul),
 };
 
 /* A key that is not in the list is a bad row: a typo must not leave a
@@ -512,4 +532,189 @@ content_load_disasters(sim_content *content, tsv_table *table, u32 *bad_row)
     }
     content->disaster_count = table->row_count;
     return true;
+}
+
+/* ---- terrain.tsv and unit_types.tsv -------------------------------------- */
+
+global_variable const char *content_movement_names[MOVEMENT_CLASS_COUNT] = { "foot", "cavalry", "siege", "navy" };
+global_variable const char *content_tactic_names[TACTIC_CLASS_COUNT] = { "pike", "halberd", "crossbow", "cavalry", "siege", "navy" };
+global_variable const char *content_grade_names[GRADE_COUNT] = { "-", "S", "A", "B", "C", "D", "E" };
+global_variable const char *content_aptitude_names[] = { "spear", "halberd", "crossbow", "cavalry", "siege", "navy" };
+
+internal const char *
+content_movement_name(movement_class movement)
+{
+    return movement < MOVEMENT_CLASS_COUNT ? content_movement_names[movement] : "?";
+}
+
+/* "pike|halberd" gives the bits of the tactic classes; "-" gives 0. A part
+   that is not a class sets *bad. */
+internal u32
+content_tactics_from_text(const char *text, b32 *bad)
+{
+    if (strcmp(text, "-") == 0) return 0;
+    u32 mask = 0;
+    char part[CONTENT_KEY_SIZE];
+    u32 length = 0;
+    for (const char *at = text;; ++at)
+    {
+        if (*at != '|' && *at != 0)
+        {
+            if (length + 1 >= sizeof(part)) { *bad = true; return 0; }
+            part[length++] = *at;
+            continue;
+        }
+        part[length] = 0;
+        u32 index = content_find_name(content_tactic_names, TACTIC_CLASS_COUNT, part);
+        if (index == TACTIC_CLASS_COUNT) { *bad = true; return 0; }
+        mask |= 1u << index;
+        length = 0;
+        if (*at == 0) break;
+    }
+    return mask;
+}
+
+/* A technique key, or "-" for none. A key that is not a technique sets *bad. */
+internal u8
+content_technique_cell(sim_content *content, tsv_table *table, u32 row, const char *column, b32 *bad)
+{
+    const char *key = tsv_cell(table, row, column);
+    if (strcmp(key, "-") == 0) return CONTENT_NO_TECHNIQUE;
+    u8 technique = content_find_technique(content, key);
+    if (technique == CONTENT_NO_TECHNIQUE) *bad = true;
+    return technique;
+}
+
+internal b32
+content_parse_terrain(sim_content *content, tsv_table *table, u32 row, terrain_kind *kind)
+{
+    u32 id = 0, tile = 0, level = 0;
+    const char *key = tsv_cell(table, row, "key");
+    if (!tsv_cell_u32(table, row, "id", &id) || id != row || !key[0] || strlen(key) >= CONTENT_KEY_SIZE) return false;
+    const char *cost_columns[MOVEMENT_CLASS_COUNT] = { "cost_foot", "cost_cavalry", "cost_siege", "cost_navy" };
+    for (u32 movement = 0; movement < MOVEMENT_CLASS_COUNT; ++movement)
+    {
+        u32 cost = 0;
+        if (!tsv_cell_u32(table, row, cost_columns[movement], &cost) || cost > 255) return false;
+        kind->cost[movement] = (u8)cost;
+    }
+    if (!tsv_cell_u32(table, row, "loss_percent", &kind->loss_percent) || !tsv_cell_u32(table, row, "loss_waiver_skill", &kind->loss_waiver_skill) ||
+        !tsv_cell_u32(table, row, "tile", &tile) || !tsv_cell_u32(table, row, "level", &level) || kind->loss_percent > 100 ||
+        kind->loss_waiver_skill > 100 || tile > 255 || level > 255)
+    {
+        return false;
+    }
+    b32 bad = false;
+    kind->needs_technique       = content_technique_cell(content, table, row, "needs_technique", &bad);
+    kind->loss_waiver_technique = content_technique_cell(content, table, row, "loss_waiver_technique", &bad);
+    kind->tactics               = content_tactics_from_text(tsv_cell(table, row, "tactics"), &bad);
+    if (bad) return false;
+    kind->id        = (u8)id;
+    memcpy(kind->key, key, strlen(key) + 1);
+    kind->buildable = tsv_cell_yes(table, row, "buildable");
+    kind->tile      = (u8)tile;
+    kind->level     = (u8)level;
+    return true;
+}
+
+internal b32
+content_load_terrain(sim_content *content, tsv_table *table, u32 *bad_row)
+{
+    content->terrain_count = 0;
+    if (table->row_count > CONTENT_TERRAIN_CAPACITY) { *bad_row = CONTENT_TERRAIN_CAPACITY; return false; }
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        terrain_kind kind = {};
+        if (!content_parse_terrain(content, table, row, &kind))
+        {
+            *bad_row = row;
+            return false;
+        }
+        content->terrains[row] = kind;
+    }
+    content->terrain_count = table->row_count;
+    return true;
+}
+
+internal unit_grade
+content_grade_from_name(const char *name)
+{
+    return (unit_grade)content_find_name(content_grade_names, GRADE_COUNT, name);
+}
+
+internal b32
+content_parse_unit_type(sim_content *content, tsv_table *table, u32 row, unit_type_kind *kind)
+{
+    u32 id = 0;
+    const char *key = tsv_cell(table, row, "key");
+    if (!tsv_cell_u32(table, row, "id", &id) || id != row || !key[0] || strlen(key) >= CONTENT_KEY_SIZE) return false;
+    if (!tsv_cell_u32(table, row, "move", &kind->move) || !tsv_cell_u32(table, row, "range", &kind->range) || kind->range < 1) return false;
+    kind->movement = (movement_class)content_find_name(content_movement_names, MOVEMENT_CLASS_COUNT, tsv_cell(table, row, "movement_class"));
+    kind->attack   = content_grade_from_name(tsv_cell(table, row, "attack"));
+    kind->defence  = content_grade_from_name(tsv_cell(table, row, "defence"));
+    kind->destroy  = content_grade_from_name(tsv_cell(table, row, "destroy"));
+    if (kind->movement == MOVEMENT_CLASS_COUNT || kind->attack == GRADE_COUNT || kind->defence == GRADE_COUNT || kind->destroy == GRADE_COUNT)
+    {
+        return false;
+    }
+    const char *aptitude = tsv_cell(table, row, "aptitude");
+    u32 aptitude_index = content_find_name(content_aptitude_names, ArrayCount(content_aptitude_names), aptitude);
+    if (strcmp(aptitude, "none") == 0) kind->aptitude = CONTENT_APTITUDE_NONE;
+    else if (aptitude_index < ArrayCount(content_aptitude_names)) kind->aptitude = (u8)aptitude_index;
+    else return false;
+    const char *weapon = tsv_cell(table, row, "weapon");
+    kind->weapon = CONTENT_NO_WEAPON;
+    if (strcmp(weapon, "-") != 0)
+    {
+        for (u32 index = 0; index < content->weapon_count; ++index)
+        {
+            if (strcmp(content->weapons[index].key, weapon) == 0) kind->weapon = (u8)index;
+        }
+        if (kind->weapon == CONTENT_NO_WEAPON) return false;
+    }
+    kind->id            = (u8)id;
+    memcpy(kind->key, key, strlen(key) + 1);
+    kind->can_attack    = tsv_cell_yes(table, row, "can_attack");
+    kind->counterattack = tsv_cell_yes(table, row, "counterattack");
+    kind->transport     = tsv_cell_yes(table, row, "transport");
+    return true;
+}
+
+internal b32
+content_load_unit_types(sim_content *content, tsv_table *table, u32 *bad_row)
+{
+    content->unit_type_count = 0;
+    if (table->row_count > CONTENT_UNIT_TYPE_CAPACITY) { *bad_row = CONTENT_UNIT_TYPE_CAPACITY; return false; }
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        unit_type_kind kind = {};
+        if (!content_parse_unit_type(content, table, row, &kind))
+        {
+            *bad_row = row;
+            return false;
+        }
+        content->unit_types[row] = kind;
+    }
+    content->unit_type_count = table->row_count;
+    return true;
+}
+
+internal u8
+content_find_terrain(sim_content *content, const char *key)
+{
+    for (u32 index = 0; index < content->terrain_count; ++index)
+    {
+        if (strcmp(content->terrains[index].key, key) == 0) return (u8)index;
+    }
+    return CONTENT_NO_TERRAIN;
+}
+
+internal u8
+content_find_unit_type(sim_content *content, const char *key)
+{
+    for (u32 index = 0; index < content->unit_type_count; ++index)
+    {
+        if (strcmp(content->unit_types[index].key, key) == 0) return (u8)index;
+    }
+    return CONTENT_NO_UNIT_TYPE;
 }

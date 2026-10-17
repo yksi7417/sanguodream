@@ -1,0 +1,22 @@
+id	key	name_zh	cost_foot	cost_cavalry	cost_siege	cost_navy	needs_technique	loss_percent	loss_waiver_technique	loss_waiver_skill	buildable	tactics	tile	level	status
+# The terrain kinds of terrain-and-map.md (manual p.17). One row for each kind of hex of the map.
+# cost_*: the movement points that a unit of the movement class spends to enter the hex; 0 = it cannot enter. The spec gives only the order (main road low; swamp and plank road high): every number is assumed (Q-167).
+# needs_technique: the technique key that a unit needs to enter (small path, shallows: 難所行軍), or - (documented).
+# loss_percent: soldiers lost when the unit enters (plank road, poison spring; documented that soldiers are lost, the percent is assumed). loss_waiver_technique and loss_waiver_skill stop the loss (難所行軍, 踏破 #7, 解毒 #9; a skill is its number in skills.md).
+# buildable: a facility can stand on it. tactics: the classes whose tactics work on it (documented). tile: the colour of the placeholder atlas. level: the height of the placeholder map.
+0	grass	草地	4	4	4	0	-	0	-	0	yes	pike|halberd|crossbow|cavalry|siege	1	1	assumed
+1	earth	土	4	4	4	0	-	0	-	0	yes	pike|halberd|crossbow|cavalry|siege	1	1	assumed
+2	main_road	主徑	3	3	3	0	-	0	-	0	yes	pike|halberd|crossbow|cavalry|siege	5	1	assumed
+3	waste	荒地	5	5	6	0	-	0	-	0	no	pike|halberd|crossbow|cavalry|siege	3	2	assumed
+4	sand	砂地	5	5	6	0	-	0	-	0	yes	halberd|crossbow|cavalry|siege	6	1	assumed
+5	ford	渡所	6	6	8	4	-	0	-	0	no	pike|halberd|crossbow|cavalry|siege	0	1	assumed
+6	swamp	濕地	7	9	10	0	-	0	-	0	no	pike|halberd|crossbow|siege	2	1	assumed
+7	forest	森林	6	8	8	0	-	0	-	0	no	pike|halberd|siege	2	2	assumed
+8	plank_road	棧道	8	8	10	0	-	10	rough_march	7	no	pike|halberd|crossbow|siege	5	3	assumed
+9	small_path	小徑	6	8	10	0	rough_march	0	-	0	no	pike|halberd|crossbow|siege	5	2	assumed
+10	shallows	淺灘	6	6	8	4	rough_march	0	-	0	no	pike|halberd|crossbow|cavalry|siege	0	0	assumed
+11	poison_spring	毒泉	5	5	6	0	-	10	-	9	no	pike|halberd|crossbow|siege	7	1	assumed
+12	river	河	0	0	0	4	-	0	-	0	no	navy	0	0	assumed
+13	sea	海	0	0	0	4	-	0	-	0	no	navy	0	0	assumed
+14	cliff	崖	0	0	0	0	-	0	-	0	no	-	4	3	documented
+15	city	都市	3	3	3	0	-	0	-	0	no	pike|halberd|crossbow|cavalry|siege	5	1	assumed

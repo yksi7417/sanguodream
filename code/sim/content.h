@@ -203,6 +203,81 @@ struct technique_kind
     b32                value_assumed;
 };
 
+/* ---- terrain and unit types (terrain-and-map.md, military-units-and-tactics.md) */
+
+enum movement_class
+{
+    MOVEMENT_FOOT,
+    MOVEMENT_CAVALRY,
+    MOVEMENT_SIEGE,
+    MOVEMENT_NAVY,
+    MOVEMENT_CLASS_COUNT
+};
+
+/* The bits of terrain_kind.tactics: the classes whose tactics work there. */
+enum tactic_class
+{
+    TACTIC_PIKE,
+    TACTIC_HALBERD,
+    TACTIC_CROSSBOW,
+    TACTIC_CAVALRY,
+    TACTIC_SIEGE,
+    TACTIC_NAVY,
+    TACTIC_CLASS_COUNT
+};
+
+#define CONTENT_TERRAIN_CAPACITY 32
+#define CONTENT_NO_TERRAIN       0xFF
+
+struct terrain_kind
+{
+    u8   id;
+    char key[CONTENT_KEY_SIZE];   /* the text id is "terrain.<key>" */
+    u8   cost[MOVEMENT_CLASS_COUNT];   /* movement points to enter; 0 = the class cannot enter */
+    u8   needs_technique;         /* CONTENT_NO_TECHNIQUE if none */
+    u32  loss_percent;            /* soldiers lost on entry */
+    u8   loss_waiver_technique;   /* CONTENT_NO_TECHNIQUE if none */
+    u32  loss_waiver_skill;       /* a skills.md number; 0 = none */
+    b32  buildable;
+    u32  tactics;                 /* bit tactic_class: the tactics of that class work here */
+    u8   tile;                    /* the colour of the placeholder atlas */
+    u8   level;                   /* the height of the placeholder map */
+};
+
+/* The grades of the manual: S > A > B > C > D > E; GRADE_NONE for "-". */
+enum unit_grade
+{
+    GRADE_NONE,
+    GRADE_S,
+    GRADE_A,
+    GRADE_B,
+    GRADE_C,
+    GRADE_D,
+    GRADE_E,
+    GRADE_COUNT
+};
+
+#define CONTENT_UNIT_TYPE_CAPACITY 16
+#define CONTENT_NO_UNIT_TYPE       0xFF
+#define CONTENT_APTITUDE_NONE      0xFF
+
+struct unit_type_kind
+{
+    u8             id;
+    char           key[CONTENT_KEY_SIZE];   /* the text id is "unit_type.<key>" */
+    u8             weapon;                  /* the weapon that it carries; CONTENT_NO_WEAPON if none */
+    u8             aptitude;                /* officer_unit_aptitude; CONTENT_APTITUDE_NONE */
+    movement_class movement;
+    u32            move;
+    unit_grade     attack;
+    unit_grade     defence;
+    unit_grade     destroy;
+    u32            range;
+    b32            can_attack;
+    b32            counterattack;
+    b32            transport;
+};
+
 /* ---- disasters (calendar-and-turn.md, "Disasters") ---------------------- */
 
 #define CONTENT_DISASTER_CAPACITY 8
@@ -308,6 +383,19 @@ struct sim_rules
     u32 military_office_ap_percent;
     u32 drill_ship_period_percent;
     u32 game_end_year;
+    /* M5: units, movement and the map */
+    u32 ap_sortie;
+    u32 ap_transport;
+    u32 unit_soldier_cap;
+    u32 unit_deputy_percent;
+    u32 grade_percent[GRADE_COUNT];     /* GRADE_NONE stays 0 */
+    u32 aptitude_percent[4];            /* C, B, A, S: the save values 0..3 */
+    u32 move_bonus;
+    u32 skill_ignore_zoc;
+    u32 skill_escape;
+    u32 skill_forced_march;
+    u32 skill_long_drive;
+    u32 skill_haul;
     u32 loaded_count;           /* rows that set a field */
 };
 
@@ -323,6 +411,10 @@ struct sim_content
     u32            technique_count;
     disaster_kind  disasters[CONTENT_DISASTER_CAPACITY];
     u32            disaster_count;
+    terrain_kind   terrains[CONTENT_TERRAIN_CAPACITY];
+    u32            terrain_count;
+    unit_type_kind unit_types[CONTENT_UNIT_TYPE_CAPACITY];
+    u32            unit_type_count;
     sim_rules      rules;
 };
 
@@ -335,6 +427,11 @@ internal b32 content_load_rules(sim_content *content, tsv_table *table, u32 *bad
 internal b32 content_load_weapons(sim_content *content, tsv_table *table, u32 *bad_row);     /* after the techniques */
 internal b32 content_load_techniques(sim_content *content, tsv_table *table, u32 *bad_row);
 internal b32 content_load_disasters(sim_content *content, tsv_table *table, u32 *bad_row);
+internal b32 content_load_terrain(sim_content *content, tsv_table *table, u32 *bad_row);      /* after the techniques */
+internal b32 content_load_unit_types(sim_content *content, tsv_table *table, u32 *bad_row);   /* after the weapons */
+internal u8  content_find_terrain(sim_content *content, const char *key);                      /* CONTENT_NO_TERRAIN if none */
+internal u8  content_find_unit_type(sim_content *content, const char *key);                    /* CONTENT_NO_UNIT_TYPE if none */
+internal const char *content_movement_name(movement_class movement);
 
 internal facility_effect    content_effect_from_name(const char *name);
 internal facility_limit     content_limit_from_name(const char *name);

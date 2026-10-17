@@ -38,6 +38,14 @@ engine_fixture_destroy(engine_fixture *f)
     test_arena_destroy(&f->transient);
 }
 
+/* The row-major index of a hex in a map of this width (odd-r offset). */
+internal u32
+hex_map_index_of(u32 width, hex_coord hex)
+{
+    hex_offset o = hex_to_offset(hex);
+    return (u32)o.row * width + (u32)o.col;
+}
+
 internal void
 feature_engine_tests(test_counts *counts)
 {
@@ -59,7 +67,9 @@ feature_engine_tests(test_counts *counts)
     /* The map through the api. */
     engine_map_size size = api->map_size(e);
     TEST_CHECK(counts, size.width == 16 && size.height == 12, "map size comes from the config");
-    TEST_CHECK(counts, api->cell_cost(e, 3, 3) == 1, "cells start at the default cost");
+    engine_terrain_view start = api->terrain_view(e);
+    TEST_CHECK(counts, api->cell_cost(e, 3, 3) == api->terrain_kind_at(e, start.kind[hex_map_index_of(start.width, hex_make(3, 3))]).cost[MOVEMENT_FOOT],
+               "a cell of the placeholder map costs the foot cost of its kind in terrain.tsv");
     TEST_CHECK(counts, api->cell_cost(e, -1, 0) == HEX_IMPASSABLE, "off-map cells are impassable");
     /* The placeholder landscape has water and hills; flatten it through the api first. */
     for (u32 row = 0; row < size.height; ++row)
@@ -68,8 +78,8 @@ feature_engine_tests(test_counts *counts)
         {
             hex_offset o; o.col = (s32)col; o.row = (s32)row;
             hex_coord c = hex_from_offset(o);
-            api->set_cell_cost(e, c.q, c.r, 1);
             api->set_cell_terrain(e, c.q, c.r, 1, 1);
+            api->set_cell_cost(e, c.q, c.r, 1);
         }
     }
     engine_terrain_view terrain = api->terrain_view(e);

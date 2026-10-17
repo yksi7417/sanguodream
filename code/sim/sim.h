@@ -84,6 +84,21 @@ enum sim_event_kind
     SIM_EVENT_SOLDIERS_LOST,        /* subject = city; detail = disaster; delta = soldiers out (negative); assumed */
     SIM_EVENT_GAME_WON,             /* faction; detail = sim_outcome_kind */
     SIM_EVENT_GAME_LOST,            /* faction; detail = sim_outcome_kind */
+    /* M5: units. A unit event has detail = the unit id and subject = the city of the event, or 0. */
+    SIM_EVENT_UNIT_SORTIED,         /* subject = city; detail = unit; delta = soldiers out of the city (negative) */
+    SIM_EVENT_UNIT_SUPPLIES,        /* subject = city; detail = unit; delta = gold out (negative); the grain is in UNIT_GRAIN_TAKEN */
+    SIM_EVENT_UNIT_GRAIN_TAKEN,     /* subject = city; detail = unit; delta = grain out (negative) */
+    SIM_EVENT_UNIT_WEAPONS_TAKEN,   /* subject = city; detail = unit; delta = weapons out (negative) */
+    SIM_EVENT_UNIT_MOVED,           /* detail = unit; delta = the movement points spent */
+    SIM_EVENT_UNIT_SOLDIERS_LOST,   /* detail = unit; delta = soldiers out (negative): plank road, poison spring; assumed */
+    SIM_EVENT_UNIT_WAITED,          /* detail = unit */
+    SIM_EVENT_UNIT_ENTERED_CITY,    /* subject = city; detail = unit; delta = soldiers into the city */
+    SIM_EVENT_UNIT_GOLD_RETURNED,   /* subject = city; detail = unit; delta = gold into the city */
+    SIM_EVENT_UNIT_GRAIN_RETURNED,  /* subject = city; detail = unit; delta = grain into the city */
+    SIM_EVENT_UNIT_RETREATED,       /* subject = the home city; detail = unit */
+    SIM_EVENT_UNIT_SUPPLIED,        /* detail = the unit that receives; delta = soldiers; the gold and grain move too */
+    SIM_EVENT_UNIT_GRAIN_EATEN,     /* detail = unit; delta = grain out (negative); assumed */
+    SIM_EVENT_UNIT_DESERTED,        /* detail = unit; delta = soldiers out (negative): the unit had no grain; assumed */
     SIM_EVENT_COUNT
 };
 
@@ -147,6 +162,12 @@ enum sim_command_kind
     SIM_COMMAND_RESEARCH,        /* 研究技巧 */
     SIM_COMMAND_MERGE,           /* 吸收合併 (PK) */
     SIM_COMMAND_START_DISASTER,  /* a test and editor command: the calendar starts disasters at random */
+    SIM_COMMAND_SORTIE,          /* 出征 */
+    SIM_COMMAND_TRANSPORT,       /* 輸送 */
+    SIM_COMMAND_MOVE,            /* 移動: a unit moves */
+    SIM_COMMAND_WAIT,            /* 待命 */
+    SIM_COMMAND_RETREAT,         /* 退卻 */
+    SIM_COMMAND_SUPPLY,          /* 補給: a transport unit gives to an adjacent unit */
     SIM_COMMAND_COUNT
 };
 
@@ -208,6 +229,30 @@ struct sim_disaster_order
     u8 disaster;                            /* the row of disasters.tsv */
 };
 
+/* 出征 and 輸送: officers leave a city with soldiers, gold and grain. */
+struct sim_sortie_order
+{
+    u8  city_id;
+    u8  unit_type;                          /* the row of unit_types.tsv; the transport row for 輸送 */
+    u16 officers[SIM_COMMAND_OFFICERS];     /* [0] is the commander */
+    u32 soldiers;
+    u32 gold;
+    u32 grain;
+    u8  destination;                        /* 輸送: the own city of the cargo */
+    u32 cargo[CITY_EQUIPMENT_STOCK_COUNT];  /* 輸送: the weapons */
+};
+
+/* The orders of a unit: move, wait, retreat, supply. */
+struct sim_unit_order
+{
+    u16       unit;
+    hex_coord to;                           /* move */
+    u16       target;                       /* supply: the unit that receives */
+    u32       soldiers;                     /* supply */
+    u32       gold;
+    u32       grain;
+};
+
 struct sim_command
 {
     sim_command_kind   kind;
@@ -218,6 +263,8 @@ struct sim_command
     sim_research_order research;  /* SIM_COMMAND_RESEARCH */
     sim_merge_order    merge;     /* SIM_COMMAND_MERGE */
     sim_disaster_order disaster;  /* SIM_COMMAND_START_DISASTER */
+    sim_sortie_order   sortie;    /* SIM_COMMAND_SORTIE, SIM_COMMAND_TRANSPORT */
+    sim_unit_order     unit;      /* SIM_COMMAND_MOVE .. SIM_COMMAND_SUPPLY */
 };
 
 /* Why the sim refuses a command (calendar-and-turn.md, "Reasons that block
@@ -251,6 +298,13 @@ enum sim_refusal
     SIM_REFUSAL_GAME_OVER,             /* the game ended (victory or defeat) */
     SIM_REFUSAL_NO_DISASTER,           /* no such disaster, or it runs in the city */
     SIM_REFUSAL_NO_TECHNIQUE,          /* no such technique */
+    SIM_REFUSAL_NO_UNIT,               /* no such unit, or the faction that acts does not own it */
+    SIM_REFUSAL_UNIT_ACTED,            /* the unit moved or acted in this turn */
+    SIM_REFUSAL_UNREACHABLE,           /* the hex is not in the move range of the unit */
+    SIM_REFUSAL_NO_ROOM,               /* no free hex next to the city for the new unit */
+    SIM_REFUSAL_NO_SOLDIERS,           /* no soldiers, or more than the city has or the commander can lead */
+    SIM_REFUSAL_NO_WEAPONS,            /* the city has fewer weapons than the unit needs */
+    SIM_REFUSAL_NOT_ADJACENT,          /* supply: the target is not a unit of the faction next to the transport unit */
     SIM_REFUSAL_COUNT
 };
 
@@ -361,13 +415,54 @@ struct sim_city_site
     sim_slot  slots[SIM_SLOT_CAPACITY];
 };
 
-/* A unit on the map. A placeholder until M5: units only block commands of
-   enemy cities within 2 hexes. */
-#define SIM_UNIT_CAPACITY 64
+/* A unit on the map (military-units-and-tactics.md). The id of a unit is
+   its place in sim_state.units: it stays the same while the unit lives.
+   An officer in a unit has the position SIM_UNIT_POSITION_BASE + the id
+   (save-file.md, officer +100). A unit from place_unit (a test and editor
+   call) has no type and no officers: it only blocks and exerts its zone of
+   control. */
+#define SIM_UNIT_CAPACITY      256
+#define SIM_NO_UNIT            0xFFFF
+#define SIM_UNIT_POSITION_BASE 87
+
 struct sim_unit
 {
+    b32       alive;
     u8        force_id;
     hex_coord hex;
+    u8        unit_type;                          /* CONTENT_NO_UNIT_TYPE for a placed test unit */
+    u16       officers[SIM_COMMAND_OFFICERS];     /* [0] is the commander (主將), then the deputies (副將) */
+    u32       soldiers;
+    u32       gold;
+    u32       grain;
+    u32       morale;
+    u32       weapons;                            /* the weapons of its class that it carries: one for each soldier, or 1 */
+    u32       cargo[CITY_EQUIPMENT_STOCK_COUNT];  /* a transport unit: the weapons that it carries */
+    u8        home_city;                          /* the base of departure */
+    u8        destination;                        /* a transport unit: its city; SIM_NO_CITY */
+    u32       moved_turn;                         /* sim turn + 1 of the last move; 0 = never */
+    u32       acted_turn;                         /* sim turn + 1 of the last action (wait, supply) */
+};
+
+/* The five values of a unit (military-units-and-tactics.md, "Unit values"). */
+struct sim_unit_values
+{
+    u32 attack;
+    u32 defence;
+    u32 intellect;
+    u32 build;
+    u32 move;
+    u32 aptitude;      /* the best aptitude of the officers for the class: 0 C .. 3 S; 255 none */
+    b32 ignores_zoc;   /* 飛將 or 遁走 on land, not for a siege weapon */
+};
+
+/* The hexes that a unit can reach in this turn, with the cost of each. */
+struct sim_reach
+{
+    hex_coord *cells;
+    u32       *costs;
+    u32       *from;     /* the index in cells of the hex before; U32_MAX for the start */
+    u32        count;
 };
 
 /* ---- factions and the turn order (calendar-and-turn.md) ----------------- */
@@ -449,7 +544,8 @@ struct sim_state
     sim_turn_state turns;
     sim_city_site  sites[SAVE_CITY_COUNT];
     sim_unit       units[SIM_UNIT_CAPACITY];
-    u32            unit_count;
+    u32            unit_count;      /* the places of units[] in use, alive or dead */
+    memory_arena   scratch;         /* the working memory of a search; reset before each use */
     u32            technique_points[SIM_FORCE_CAPACITY];   /* 技巧P of each faction; the save field is not decoded */
     u64            techniques[SIM_FORCE_CAPACITY];         /* bit t: the faction has technique t (CONTENT_TECHNIQUE_CAPACITY = 64) */
     sim_research_job research[SIM_FORCE_CAPACITY];
@@ -618,6 +714,29 @@ internal void        sim_start_disaster_command(sim_state *sim, sim_command comm
 internal void        sim_roll_disasters(sim_state *sim, u32 month, u32 cause, sim_event_sink *events);
 internal void        sim_disaster_grain(sim_state *sim, city_component *city, u32 payment, u32 cause, sim_event_sink *events);
 internal void        sim_run_disasters_turn(sim_state *sim, u32 cause, sim_event_sink *events);
+
+/* units.cpp: units, the move range, the zone of control, sortie,
+   transport, move, wait, retreat and supply (military-units-and-tactics.md,
+   terrain-and-map.md) */
+internal b32              sim_officer_has_skill(officer_component *officer, u32 skill);   /* economy.cpp; skills.md numbers */
+internal sim_unit        *sim_find_unit(sim_state *sim, u32 unit_id);
+internal u32              sim_unit_at(sim_state *sim, hex_coord hex);          /* SIM_NO_UNIT if none */
+internal u8               sim_city_at(sim_state *sim, hex_coord hex);          /* SIM_NO_CITY if none */
+internal sim_unit_values  sim_unit_values_of(sim_state *sim, u8 force, u8 unit_type, const u16 *officers);
+internal u32              sim_unit_soldier_cap(sim_state *sim, u8 force);
+internal terrain_kind    *sim_terrain_at(sim_state *sim, hex_coord hex);
+internal u32              sim_entry_cost(sim_state *sim, u8 force, movement_class movement, hex_coord hex, u32 self);
+internal b32              sim_in_enemy_zone(sim_state *sim, u8 force, hex_coord hex, u32 self);
+internal sim_reach        sim_unit_reach(sim_state *sim, u32 unit_id, memory_arena *scratch);
+internal u32              sim_reach_find(sim_reach *reach, hex_coord hex);
+internal sim_check        sim_check_sortie(sim_state *sim, sim_sortie_order *order, b32 transport);
+internal void             sim_sortie(sim_state *sim, sim_command command, sim_event_sink *events);
+internal sim_check        sim_check_unit_order(sim_state *sim, sim_command_kind kind, sim_unit_order *order, memory_arena *scratch);
+internal void             sim_move_unit(sim_state *sim, sim_command command, memory_arena *scratch, sim_event_sink *events);
+internal void             sim_unit_action(sim_state *sim, sim_command command, memory_arena *scratch, sim_event_sink *events);
+internal void             sim_run_units_turn(sim_state *sim, u32 cause, sim_event_sink *events);
+internal sim_sortie_order sim_sortie_proposal(sim_state *sim, u8 city_id, u8 unit_type);
+internal u32              sim_military_ap(sim_state *sim, city_component *city, u32 action_points);   /* city_commands.cpp */
 
 /* outcome.cpp: victory and defeat (calendar-and-turn.md) */
 internal void sim_check_outcome(sim_state *sim, u32 cause, sim_event_sink *events);

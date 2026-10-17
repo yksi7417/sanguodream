@@ -1,0 +1,20 @@
+id	key	name_zh	weapon	aptitude	movement_class	move	attack	defence	destroy	range	can_attack	counterattack	transport	status
+# The unit classes of military-units-and-tactics.md (manual p.14). One row for each class of unit.
+# weapon: the weapon key of weapons.tsv that the unit carries (one for each soldier, or one item for a siege weapon or a ship), or - (sword, boat, transport).
+# aptitude: the officer aptitude that counts (spear, halberd, crossbow, cavalry, siege, navy, none).
+# move: 22 foot, 28 cavalry, 18 siege (observed, guide book p.36 to p.47). The navy and the transport values are assumed (Q-168).
+# attack, defence, destroy: the grades S A B C D E of the manual, or - (documented). The percent of each grade is in rules.tsv (assumed, Q-168).
+# range: the hexes of a normal attack (1, or 2 for an arrow attack; documented). can_attack: siege weapons cannot attack (documented). counterattack: siege weapons do not counterattack (documented).
+0	sword	劍兵	-	none	foot	22	E	E	-	1	yes	yes	no	documented
+1	pike	槍兵	pike	spear	foot	22	A	A	-	1	yes	yes	no	documented
+2	halberd	戟兵	halberd	halberd	foot	22	B	S	-	1	yes	yes	no	documented
+3	crossbow	弩兵	crossbow	crossbow	foot	22	C	C	-	2	yes	yes	no	documented
+4	cavalry	騎兵	horse	cavalry	cavalry	28	S	B	-	1	yes	yes	no	documented
+5	ram	衝車	ram	siege	siege	18	-	D	B	1	no	no	no	documented
+6	wood_beast	木獸	wood_beast	siege	siege	18	-	D	A	1	no	no	no	documented
+7	tower	井闌	tower	siege	siege	18	-	D	D	2	no	no	no	documented
+8	catapult	投石	catapult	siege	siege	18	-	D	C	3	no	no	no	documented
+9	boat	走舸	-	navy	navy	18	E	E	-	2	yes	yes	no	assumed
+10	tower_ship	樓船	tower_ship	navy	navy	22	B	B	-	2	yes	yes	no	assumed
+11	battle_ship	鬥艦	battle_ship	navy	navy	22	A	A	-	2	yes	yes	no	assumed
+12	transport	輸送隊	-	none	foot	22	E	E	-	1	yes	yes	yes	assumed

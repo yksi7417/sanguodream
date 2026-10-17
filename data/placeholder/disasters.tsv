@@ -5,8 +5,8 @@ id	key	name_zh	months	chance_percent	turns	start_order_loss	turn_order_loss	grai
 # start_order_loss: public order at the start. turn_order_loss: public order each turn. grain_percent: locusts take this percent of each grain payment; the harvest adds it to the grain of the season.
 # soldier_percent: soldiers lost each turn. facility_damage: durability that one built facility of facility_target (an effect name, any, or none) loses each turn.
 # low_order_only: yes if the disaster starts only below order.bandit_threshold. ends_at_order: yes if it stops when public order reaches order.bandit_threshold.
-# skill_block: the skill that stops the disaster in the city (skills.md: 風水 #98). skill_chance: the skill that changes the chance (祈願 #99 more often, 威壓 #96 less often); skill_chance_percent: the chance with that skill. 0 = no skill. Skill numbers: skills.md # minus 1 (assumed, Q-159).
-0	locusts	蝗災	1|4|7	5	9	10	0	50	0	200	grain	no	no	97	0	100	assumed
-1	plague	瘟疫	1|4|7|10	5	6	10	0	0	5	0	none	no	no	97	0	100	assumed
-2	bandits	盜賊	1|2|3|4|5|6|7|8|9|10|11|12	10	0	0	2	0	0	300	any	yes	yes	0	95	50	assumed
-3	good_harvest	豐收	7	10	0	0	0	50	0	0	none	no	no	0	98	200	assumed
+# skill_block: the skill that stops the disaster in the city (skills.md: 風水 #98). skill_chance: the skill that changes the chance (祈願 #99 more often, 威壓 #96 less often); skill_chance_percent: the chance with that skill. 0 = no skill. A skill is its number in skills.md.
+0	locusts	蝗災	1|4|7	5	9	10	0	50	0	200	grain	no	no	98	0	100	assumed
+1	plague	瘟疫	1|4|7|10	5	6	10	0	0	5	0	none	no	no	98	0	100	assumed
+2	bandits	盜賊	1|2|3|4|5|6|7|8|9|10|11|12	10	0	0	2	0	0	300	any	yes	yes	0	96	50	assumed
+3	good_harvest	豐收	7	10	0	0	0	50	0	0	none	no	no	0	99	200	assumed

@@ -167,11 +167,9 @@ sim_check_city_officers(sim_state *sim, city_component *city, const u16 *officer
 internal b32
 sim_order_has_skill(sim_state *sim, const u16 *officers, u32 skill)
 {
-    if (skill == 0 || skill >= 255) return false;
     for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place)
     {
-        officer_component *officer = sim_find_officer(sim, officers[place]);
-        if (officer && officer->skill_number == skill) return true;
+        if (sim_officer_has_skill(sim_find_officer(sim, officers[place]), skill)) return true;
     }
     return false;
 }

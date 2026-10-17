@@ -127,6 +127,17 @@ struct engine_faction
     b32 acted;              /* it pressed "proceed" (or passed) in this turn */
 };
 
+/* The order of 出征 and 輸送 (city-commands.md). */
+struct engine_sortie_order
+{
+    u8  city_id;
+    u8  unit_type;          /* the transport row for 輸送 */
+    u16 officers[SIM_COMMAND_OFFICERS];   /* [0] the commander; ENGINE_NO_OFFICER for an empty place */
+    u32 soldiers, gold, grain;
+    u8  destination;        /* 輸送 */
+    u32 cargo[CITY_EQUIPMENT_STOCK_COUNT];   /* 輸送 */
+};
+
 /* A command that a front end can check before it issues it. */
 enum engine_command_kind
 {
@@ -138,6 +149,12 @@ enum engine_command_kind
     ENGINE_COMMAND_PRODUCE,
     ENGINE_COMMAND_RESEARCH,
     ENGINE_COMMAND_MERGE,
+    ENGINE_COMMAND_SORTIE,
+    ENGINE_COMMAND_TRANSPORT,
+    ENGINE_COMMAND_MOVE,
+    ENGINE_COMMAND_WAIT,
+    ENGINE_COMMAND_RETREAT,
+    ENGINE_COMMAND_SUPPLY,
     ENGINE_COMMAND_KIND_COUNT
 };
 
@@ -153,6 +170,11 @@ struct engine_command
     u32 amount;                             /* ENGINE_COMMAND_MERCHANT: the gold to spend or the grain to sell */
     u8  technique;                          /* ENGINE_COMMAND_RESEARCH: the row of technique_kind_at */
     u8  absorbed;                           /* ENGINE_COMMAND_MERGE: the slot that becomes free */
+    engine_sortie_order sortie;             /* ENGINE_COMMAND_SORTIE, ENGINE_COMMAND_TRANSPORT */
+    u32 unit;                               /* ENGINE_COMMAND_MOVE .. ENGINE_COMMAND_SUPPLY */
+    s32 q, r;                               /* ENGINE_COMMAND_MOVE: the hex */
+    u32 target_unit;                        /* ENGINE_COMMAND_SUPPLY */
+    u32 soldiers, gold, grain;              /* ENGINE_COMMAND_SUPPLY */
 };
 
 /* The answer of can_issue: the refusal reason, or SIM_REFUSAL_NONE with
@@ -304,6 +326,77 @@ struct engine_outcome
     u32 end_year;           /* the year of the defeat by time (351) */
 };
 
+/* ---- M5: the map, the unit classes and the units ------------------------- */
+
+/* One row of terrain.tsv (terrain-and-map.md). */
+struct engine_terrain_kind
+{
+    u8   id;                /* ENGINE_NO_TERRAIN for an index out of range */
+    char key[CONTENT_KEY_SIZE];   /* the text id is "terrain.<key>" */
+    u8   cost[MOVEMENT_CLASS_COUNT];   /* 0: the class cannot enter */
+    u8   needs_technique;   /* ENGINE_NO_TECHNIQUE if none */
+    u32  loss_percent;
+    b32  buildable;
+    u32  tactics;           /* bit tactic_class */
+    u8   tile;
+    u8   level;
+};
+
+/* One row of unit_types.tsv (military-units-and-tactics.md). */
+struct engine_unit_type
+{
+    u8   id;                /* ENGINE_NO_UNIT_TYPE for an index out of range */
+    char key[CONTENT_KEY_SIZE];   /* the text id is "unit_type.<key>" */
+    u8   weapon;            /* ENGINE_NO_WEAPON if none */
+    u8   aptitude;          /* officer_unit_aptitude, or 255 */
+    u8   movement;          /* movement_class */
+    u32  move;
+    u8   attack, defence, destroy;   /* unit_grade */
+    u32  range;
+    b32  can_attack;
+    b32  counterattack;
+    b32  transport;
+};
+
+#define ENGINE_NO_TERRAIN   0xFF
+#define ENGINE_NO_UNIT_TYPE 0xFF
+
+/* The five values of a unit (military-units-and-tactics.md). */
+struct engine_unit_values
+{
+    u32 attack, defence, intellect, build, move;
+    u32 aptitude;           /* 0 C .. 3 S; 255 none */
+    b32 ignores_zoc;
+    b32 assumed;            /* the formula is assumed (Q-170) */
+};
+
+/* A unit on the map. */
+struct engine_unit
+{
+    u32 id;                 /* ENGINE_NO_UNIT if no unit lives there */
+    u8  force_id;
+    s32 q, r;
+    u8  unit_type;          /* ENGINE_NO_UNIT_TYPE for a placed test unit */
+    u16 officers[SIM_COMMAND_OFFICERS];   /* [0] the commander */
+    u32 soldiers, gold, grain, morale, weapons;
+    u32 cargo[CITY_EQUIPMENT_STOCK_COUNT];
+    u8  home_city;
+    u8  destination;        /* a transport unit: its city; ENGINE_NO_CITY */
+    b32 moved;              /* it moved in this turn */
+    b32 acted;              /* it waited, retreated or supplied in this turn */
+    engine_unit_values values;
+};
+
+/* The hexes that a unit can reach now, with their costs. The engine owns
+   the arrays; the next reachable call replaces them. */
+struct engine_reach_view
+{
+    u32              unit;
+    u32              count;     /* the first cell is the hex of the unit */
+    const hex_coord *cells;
+    const u32       *costs;
+};
+
 /* The game settings (game-setup-and-modes.md; F-132 adds the rest in M9). */
 struct engine_settings
 {
@@ -345,6 +438,8 @@ struct engine_content_status
     u32         rule_count;
     u32         technique_count;
     u32         disaster_count;
+    u32         terrain_count;
+    u32         unit_type_count;
     const char *detail;           /* a static string: the file that did not load, or "ok" */
 };
 
@@ -376,6 +471,7 @@ struct engine_terrain_view
     const u8 *kind;
     const u8 *level;
     u32       version;
+    const u8 *tile;     /* the colour of the atlas for each cell, from the terrain table; kind when no table loaded */
 };
 
 /* Queries */
@@ -466,6 +562,22 @@ typedef void                engine_set_settings_fn(void *engine, engine_settings
 typedef void                engine_grant_technique_fn(void *engine, u8 force_id, u8 technique);   /* a scenario can start with techniques */
 typedef void                engine_set_technique_points_fn(void *engine, u8 force_id, u32 points);
 typedef void                engine_set_date_fn(void *engine, u16 year, u8 month, u8 day);   /* day 1, 11 or 21; the start date stays */
+/* M5 queries */
+typedef u32                 engine_terrain_kind_count_fn(void *engine);
+typedef engine_terrain_kind engine_terrain_kind_at_fn(void *engine, u32 index);
+typedef u32                 engine_unit_type_count_fn(void *engine);
+typedef engine_unit_type    engine_unit_type_at_fn(void *engine, u32 index);
+typedef u32                 engine_unit_count_fn(void *engine);                  /* the places of the units, alive or not */
+typedef engine_unit         engine_unit_at_fn(void *engine, u32 unit_id);        /* id ENGINE_NO_UNIT if no unit lives there */
+typedef u32                 engine_unit_at_hex_fn(void *engine, s32 q, s32 r);   /* ENGINE_NO_UNIT if none */
+typedef engine_reach_view   engine_reachable_fn(void *engine, u32 unit_id);
+typedef engine_unit_values  engine_unit_values_fn(void *engine, u8 force_id, u8 unit_type, const u16 officers[SIM_COMMAND_OFFICERS]);
+typedef engine_sortie_order engine_sortie_proposal_fn(void *engine, u8 city_id, u8 unit_type);   /* 自動編制 */
+/* M5 commands. A refused command changes nothing and ledgers nothing. */
+typedef engine_command_result engine_command_sortie_fn(void *engine, const engine_sortie_order *order);
+typedef engine_command_result engine_command_move_fn(void *engine, u32 unit_id, s32 q, s32 r);
+typedef engine_command_result engine_command_unit_fn(void *engine, u32 unit_id);   /* 待命, 退卻 */
+typedef engine_command_result engine_command_supply_fn(void *engine, u32 unit_id, u32 target_unit, u32 soldiers, u32 gold, u32 grain);
 typedef b32                 engine_set_facility_level_fn(void *engine, u8 city_id, u8 slot, u8 level);  /* a built market, farm, barracks, smithy or stable; level 1 to 3 */
 typedef void                engine_set_city_resource_fn(void *engine, u8 city_id, u8 resource, u32 index, u32 value); /* index: the weapon stock */
 typedef void                engine_set_faction_human_fn(void *engine, u8 force_id, b32 human);
@@ -554,6 +666,23 @@ struct engine_api
     engine_grant_technique_fn       *grant_technique;
     engine_set_technique_points_fn  *set_technique_points;
     engine_set_date_fn              *set_date;
+    /* M5 march: the map, the units and their commands */
+    engine_terrain_kind_count_fn    *terrain_kind_count;
+    engine_terrain_kind_at_fn       *terrain_kind_at;
+    engine_unit_type_count_fn       *unit_type_count;
+    engine_unit_type_at_fn          *unit_type_at;
+    engine_unit_count_fn            *unit_count;
+    engine_unit_at_fn               *unit_at;
+    engine_unit_at_hex_fn           *unit_at_hex;
+    engine_reachable_fn             *reachable;
+    engine_unit_values_fn           *unit_values;
+    engine_sortie_proposal_fn       *sortie_proposal;
+    engine_command_sortie_fn        *command_sortie;
+    engine_command_sortie_fn        *command_transport;
+    engine_command_move_fn          *command_move;
+    engine_command_unit_fn          *command_wait;
+    engine_command_unit_fn          *command_retreat;
+    engine_command_supply_fn        *command_supply;
 };
 
 /* The real engine lives in code/engine/engine.cpp. */

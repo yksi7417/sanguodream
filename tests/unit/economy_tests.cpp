@@ -31,10 +31,10 @@ unit_economy_rules(void)
     rules.city_grain_income            = 500;
     rules.officer_salary               = 10;
     rules.grain_soldiers               = 100;
-    rules.skill_rich  = 87;
-    rules.skill_rice  = 88;
-    rules.skill_tax   = 89;
-    rules.skill_levy  = 90;
+    rules.skill_rich  = 88;   /* skills.md numbers; the save stores the number minus 1 */
+    rules.skill_rice  = 89;
+    rules.skill_tax   = 90;
+    rules.skill_levy  = 91;
     return rules;
 }
 
