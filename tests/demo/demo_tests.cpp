@@ -668,6 +668,126 @@ demo_m4_growth(ImGuiTestContext *ctx)
     IM_CHECK(demo_screenshot_panel(ctx, milestone, "Event ledger", "event_ledger"));
 }
 
+/* The first live unit of a force, or ENGINE_NO_UNIT. */
+internal u32
+demo_unit_of(engine_api *api, u8 force)
+{
+    for (u32 id = 0; id < api->unit_count(api->engine); ++id)
+    {
+        engine_unit unit = api->unit_at(api->engine, id);
+        if (unit.id != ENGINE_NO_UNIT && unit.force_id == force) return id;
+    }
+    return ENGINE_NO_UNIT;
+}
+
+/* The hex of the range that costs the most: the end of a long march. */
+internal hex_coord
+demo_far_hex(engine_api *api, u32 unit_id)
+{
+    engine_reach_view reach = api->reachable(api->engine, unit_id);
+    u32 best = 0;
+    for (u32 index = 1; index < reach.count; ++index)
+    {
+        if (reach.costs[index] > reach.costs[best]) best = index;
+    }
+    return reach.cells[best];
+}
+
+/* M5, march: a sortie from the formation dialog, the unit on the Hex map
+   with its move range, a move, the command menu (待命), the mini map, and a
+   second march in the next turn. */
+internal void
+demo_m5_march(ImGuiTestContext *ctx)
+{
+    const char *milestone = "m5_march";
+    demo_vars &v = ctx->GetVars<demo_vars>();
+    engine_api *api = &v.api;
+    IM_CHECK(demo_begin_video(ctx, milestone));
+
+    IM_CHECK(demo_open_panel(ctx, "Simulation", &v.ui.show_sim));
+    IM_CHECK(demo_open_panel(ctx, "Event ledger", &v.ui.show_ledger));
+    ctx->SetRef("Simulation");
+    ctx->ItemClick("Load sample save");
+    ctx->ItemClick("Load city names");
+    ctx->Yield();
+    IM_CHECK_EQ(api->city_count(api->engine), 42u);
+    u8 player = api->whose_turn(api->engine);
+    u8 city = demo_busiest_city_of_player(api);
+    IM_CHECK(player != ENGINE_NO_FACTION && city != ENGINE_NO_CITY);
+    api->set_city_resource(api->engine, city, SIM_RESOURCE_WEAPONS, 0, 10000);   /* pikes for the march */
+
+    IM_CHECK(demo_open_panel(ctx, "###City", &v.ui.show_city));
+    ctx->SetRef("###City");
+    char item[32];
+    snprintf(item, sizeof(item), "###city_select/###c%u", city);
+    ctx->ComboClick(item);
+    ctx->ItemClick("###open_sortie");
+    ctx->Yield();
+    ctx->SetRef("###Sortie");
+    ctx->ComboClick("###unit_type/###u1");                   /* 槍兵 */
+    ctx->ItemClick("###auto");                               /* 自動編制 */
+    ctx->SleepStandard();
+    ctx->ItemClick("###decide");
+    ctx->Yield();
+    u32 unit_id = demo_unit_of(api, player);
+    IM_CHECK(unit_id != ENGINE_NO_UNIT && !v.ui.show_sortie);
+    v.ui.show_city = false;
+
+    v.ui.map.zoom = 8.0f;                                    /* the 40 x 30 map fits the panel */
+    IM_CHECK(demo_open_panel(ctx, "Hex map", &v.ui.show_map));
+    ctx->WindowFocus("//Hex map");
+    engine_unit unit = api->unit_at(api->engine, unit_id);
+    demo_click_cell(ctx, v, hex_make(unit.q, unit.r));
+    IM_CHECK_EQ(v.ui.units.selected, unit_id);               /* selected: the range shows */
+    ctx->SleepStandard();
+    hex_coord target = demo_far_hex(api, unit_id);
+    ctx->WindowFocus("//Hex map");
+    demo_click_cell(ctx, v, target);
+    unit = api->unit_at(api->engine, unit_id);
+    IM_CHECK(unit.q == target.q && unit.r == target.r && unit.moved);
+    IM_CHECK(v.ui.show_unit_menu);
+    ctx->SetRef("###UnitMenu");
+    ctx->SleepStandard();
+    ctx->ItemClick("###wait");                               /* 待命 */
+    IM_CHECK(api->unit_at(api->engine, unit_id).acted);
+
+    IM_CHECK(demo_open_panel(ctx, "###MiniMap", &v.ui.show_minimap));
+    ctx->SleepStandard();
+
+    ctx->SetRef("Simulation");
+    ctx->ItemClick("Advance turn");
+    ctx->Yield();
+    for (u32 step = 0; step < 10 && api->whose_turn(api->engine) != player; ++step)
+    {
+        ctx->ItemClick("Advance turn");
+        ctx->Yield();
+    }
+    IM_CHECK_EQ(api->whose_turn(api->engine), player);
+    target = demo_far_hex(api, unit_id);
+    ctx->WindowFocus("//Hex map");
+    demo_click_cell(ctx, v, target);
+    IM_CHECK(api->unit_at(api->engine, unit_id).q == target.q);
+    ctx->SetRef("###UnitMenu");
+    ctx->ItemClick("###wait");
+    b32 sortied = false, moved = false, eaten = false;
+    for (u32 index = 0; index < api->ledger_count(api->engine); ++index)
+    {
+        sim_event_kind kind = api->ledger_at(api->engine, index).kind;
+        sortied |= kind == SIM_EVENT_UNIT_SORTIED;
+        moved   |= kind == SIM_EVENT_UNIT_MOVED;
+        eaten   |= kind == SIM_EVENT_UNIT_GRAIN_EATEN;
+    }
+    IM_CHECK(sortied && moved && eaten);                     /* the ledger has the sortie, the moves and the grain */
+    ctx->SleepStandard();
+
+    IM_CHECK(demo_end_video(ctx));
+
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "Hex map", "hex_map"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Unit", "unit"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###MiniMap", "minimap"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "Event ledger", "event_ledger"));
+}
+
 internal void
 register_demo_tests(ImGuiTestEngine *e)
 {
@@ -697,4 +817,9 @@ register_demo_tests(ImGuiTestEngine *e)
     t->SetVarsDataType<demo_vars>();
     t->GuiFunc  = demo_gui;
     t->TestFunc = demo_m4_growth;
+
+    t = IM_REGISTER_TEST(e, "demo", "m5_march");
+    t->SetVarsDataType<demo_vars>();
+    t->GuiFunc  = demo_gui;
+    t->TestFunc = demo_m5_march;
 }
