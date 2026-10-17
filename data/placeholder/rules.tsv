@@ -253,3 +253,12 @@ ai.sortie_reserve	10000	assumed	the soldiers that the AI keeps in the city after
 ai.goodwill_gold	8000	assumed	the gold that a city needs for an AI 親善 (Q-185)
 ai.commands	8	assumed	the most commands of an AI faction in one turn (knowledge/ai.md: a small set of options; Q-185)
 corps.ap_divisor	4	assumed	the action points of a delegated corps each turn: max(leadership, charm) of the viceroy divided by this (knowledge/ai.md; Q-185)
+lifespan.long_years	10	assumed	壽命 長: the years that an officer lives after the death year of the historical setting (game-setup-and-modes.md; Q-187)
+new_officer.max	8	documented	game-setup-and-modes.md: at most 8 new officers join one game
+new_officer.high	85	assumed	the ability of a new officer that the type marks high (guide book p.52; Q-188)
+new_officer.normal	65	assumed	the ability that the type marks normal (Q-188)
+new_officer.low	40	assumed	the ability that the type marks low (Q-188)
+train.ap	20	documented	pk-officer-training.md: 培育武將 costs 20 AP
+train.turns	3	documented	pk-officer-training.md: the officer is away 30 days (3 turns of 10 days)
+ability_research.ap	20	documented	pk-officer-training.md: 研究能力 costs 20 AP
+ability_research.gold	300	documented	pk-officer-training.md: 研究能力 costs 300 gold

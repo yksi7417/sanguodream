@@ -1,0 +1,20 @@
+id	key	name_zh	family	given	sex	leadership	force	intellect	politics	charm	skill	personality	status
+# The ancient officers: famous people of other eras that a player can add as new officers (game-setup-and-modes.md, Steam guide section 1).
+# The spec names the feature but not the officers or their numbers: the list, the abilities, the skills and the personalities are assumed (Q-188).
+# family, given: the Big5 bytes in hex. skill: the skills.md number, 0 = none.
+0	xiang_yu	項羽	B6B5	A6D0	male	100	100	55	40	85	11	reckless	assumed
+1	han_xin	韓信	C1FA	AB48	male	100	85	95	60	75	0	calm	assumed
+2	bai_qi	白起	A5D5	B05F	male	98	90	88	45	60	11	bold	assumed
+3	sun_wu	孫武	AE5D	AA5A	male	99	70	100	75	80	66	calm	assumed
+4	wu_qi	吳起	A764	B05F	male	96	85	90	80	70	0	bold	assumed
+5	yue_yi	樂毅	BCD6	BCDD	male	95	80	88	75	85	0	calm	assumed
+6	guan_zhong	管仲	BADE	A5F2	male	70	40	95	100	88	80	careful	assumed
+7	zhang_liang	張良	B169	A87D	male	80	45	100	90	90	66	calm	assumed
+8	xiao_he	蕭何	BFBD	A6F3	male	60	30	90	100	85	0	careful	assumed
+9	huo_qubing	霍去病	C04E	A568AF66	male	98	96	70	40	80	0	reckless	assumed
+10	wei_qing	衛青	BDC3	AB43	male	97	88	80	65	88	0	bold	assumed
+11	li_mu	李牧	A7F5	AAAA	male	96	85	88	65	80	45	calm	assumed
+12	lian_po	廉頗	B747	BBE1	male	94	92	70	55	75	47	bold	assumed
+13	wang_jian	王翦	A4FD	E6F9	male	95	80	88	70	75	0	careful	assumed
+14	wu_zixu	伍子胥	A5EE	A46CAD45	male	90	85	92	80	70	0	bold	assumed
+15	xi_shi	西施	A6E8	AC49	female	40	20	70	75	100	80	careful	assumed
