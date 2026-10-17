@@ -21,6 +21,7 @@ sim_init(sim_state *sim, memory_arena *arena, u64 seed)
     sim->turns.start_date = calendar_make(SIM_DEFAULT_START_YEAR, SIM_DEFAULT_START_MONTH, 1);
     sim->turns.date       = sim->turns.start_date;
     sim->unit_count = 0;
+    for (u32 force = 0; force < SIM_FORCE_CAPACITY; ++force) sim->technique_points[force] = 0;
     for (u32 index = 0; index < ArrayCount(sim->officer_index); ++index) sim->officer_index[index] = SIM_NO_OFFICER;
     for (u32 index = 0; index < ArrayCount(sim->city_index); ++index)    sim->city_index[index]    = SIM_NO_CITY;
     sim_init_sites(sim);
@@ -190,6 +191,16 @@ sim_apply(sim_state *sim, sim_command command, sim_event_sink *events)
         case SIM_COMMAND_DEVELOP:
             sim_develop(sim, command, events);
             break;
+        case SIM_COMMAND_PATROL:
+        case SIM_COMMAND_CONSCRIPT:
+        case SIM_COMMAND_TRAIN:
+        case SIM_COMMAND_MERCHANT:
+        case SIM_COMMAND_PRODUCE:
+            sim_city_command(sim, command, events);
+            break;
+        case SIM_COMMAND_DAMAGE_FACILITY:
+            sim_damage_facility(sim, command, events);
+            break;
         case SIM_COMMAND_LOAD_SAVE:
             InvalidCodePath;   /* needs its save: see sim_load_save */
             break;
@@ -228,6 +239,7 @@ sim_unload_world(sim_state *sim)
     {
         sim->turns.action_points[force] = 0;
         sim->turns.human[force]         = false;
+        sim->technique_points[force]    = 0;
     }
     sim_init_sites(sim);
 }
@@ -326,7 +338,9 @@ sim_load_save(sim_state *sim, save_file *save, sim_command command, sim_event_si
     }
     for (u32 index = 0; index < save->city_count; ++index)
     {
-        sim_add_city(sim, sim_city_from_record(save->cities + index));
+        city_component city = sim_city_from_record(save->cities + index);
+        city.morale = (u8)Minimum(sim->content.rules.city_start_morale, 255u);   /* the save field is not decoded (Q-154) */
+        sim_add_city(sim, city);
     }
 
     u8 day = (u8)(1 + (save->header.scenario_start_ten_day_period > 0 ? save->header.scenario_start_ten_day_period - 1 : 0) *
@@ -389,6 +403,26 @@ sim_event_name(sim_event_kind kind)
         case SIM_EVENT_GOLD_SPENT:              return "gold_spent";
         case SIM_EVENT_FACILITY_COMPLETED:      return "facility_completed";
         case SIM_EVENT_OFFICER_RELEASED:        return "officer_released";
+        case SIM_EVENT_GOLD_OVER_CAP:           return "gold_over_cap";
+        case SIM_EVENT_GRAIN_OVER_CAP:          return "grain_over_cap";
+        case SIM_EVENT_SALARIES_UNPAID:         return "salaries_unpaid";
+        case SIM_EVENT_SOLDIERS_DESERTED:       return "soldiers_deserted";
+        case SIM_EVENT_WEAPONS_FREE:            return "weapons_free";
+        case SIM_EVENT_FACILITY_REPAIRED:       return "facility_repaired";
+        case SIM_EVENT_FACILITY_DAMAGED:        return "facility_damaged";
+        case SIM_EVENT_FACILITY_DESTROYED:      return "facility_destroyed";
+        case SIM_EVENT_TECHNIQUE_GAINED:        return "technique_gained";
+        case SIM_EVENT_MERIT_GAINED:            return "merit_gained";
+        case SIM_EVENT_PATROLLED:               return "patrolled";
+        case SIM_EVENT_CONSCRIPTED:             return "conscripted";
+        case SIM_EVENT_ORDER_LOST:              return "order_lost";
+        case SIM_EVENT_MORALE_LOST:             return "morale_lost";
+        case SIM_EVENT_TRAINED:                 return "trained";
+        case SIM_EVENT_GRAIN_BOUGHT:            return "grain_bought";
+        case SIM_EVENT_GRAIN_SOLD:              return "grain_sold";
+        case SIM_EVENT_GOLD_EARNED:             return "gold_earned";
+        case SIM_EVENT_PRODUCTION_STARTED:      return "production_started";
+        case SIM_EVENT_WEAPONS_PRODUCED:        return "weapons_produced";
         default:                                return "?";
     }
 }
@@ -403,6 +437,12 @@ sim_command_name(sim_command_kind kind)
         case SIM_COMMAND_LOAD_SAVE:       return "load_save";
         case SIM_COMMAND_LOAD_NAME_INDEX: return "load_name_index";
         case SIM_COMMAND_DEVELOP:         return "develop";
+        case SIM_COMMAND_PATROL:          return "patrol";
+        case SIM_COMMAND_CONSCRIPT:       return "conscript";
+        case SIM_COMMAND_TRAIN:           return "train";
+        case SIM_COMMAND_MERCHANT:        return "merchant";
+        case SIM_COMMAND_PRODUCE:         return "produce";
+        case SIM_COMMAND_DAMAGE_FACILITY: return "damage_facility";
         default:                          return "?";
     }
 }
@@ -428,9 +468,15 @@ sim_refusal_name(sim_refusal refusal)
         case SIM_REFUSAL_OFFICER_BUSY:          return "officer_busy";
         case SIM_REFUSAL_NO_ACTION_POINTS:      return "no_action_points";
         case SIM_REFUSAL_NO_GOLD:               return "no_gold";
+        case SIM_REFUSAL_LIMIT_REACHED:         return "limit_reached";
+        case SIM_REFUSAL_TOO_MANY_OFFICERS:     return "too_many_officers";
+        case SIM_REFUSAL_NO_AMOUNT:             return "no_amount";
+        case SIM_REFUSAL_NO_GRAIN:              return "no_grain";
         default:                                return "?";
     }
 }
 
 #include "sim/turn.cpp"
 #include "sim/develop.cpp"
+#include "sim/economy.cpp"
+#include "sim/city_commands.cpp"

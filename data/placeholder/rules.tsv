@@ -13,3 +13,49 @@ city.gold_income	100	assumed	Q-021: the initial gold income of a city
 city.grain_income	500	assumed	Q-021: the initial grain income of a city
 officer.salary	10	assumed	Q-027: the gold of one officer each month
 grain.soldiers	100	assumed	Q-119: one grain each turn for this number of soldiers
+# M3 economy: the city commands, the production and the durability.
+ap.patrol	20	documented	city-commands.md, 巡察
+ap.conscript	20	documented	city-commands.md, 徵兵
+ap.train	20	documented	city-commands.md, 訓練
+ap.merchant	20	documented	city-commands.md, 商人
+ap.produce	20	documented	city-commands.md, 生產兵裝
+patrol.gold	100	documented	city-commands.md, 巡察
+conscript.gold	300	documented	city-commands.md, 徵兵
+order.max	100	documented	ui/city-commands.md, 治安 current/100
+order.bandit_threshold	80	documented	cities-and-facilities.md, above 80 no bandits
+order.income_floor	50	assumed	Q-151: the income percent at public order 0; 100 percent at order 100
+patrol.leadership_percent	10	assumed	Q-152: public order for each 100 of the leadership sum
+patrol.enemy_percent	50	assumed	Q-152: the rise with an enemy within 2 hexes
+conscript.charm_soldiers	10	assumed	Q-153: soldiers for each point of the charm sum
+conscript.enemy_percent	50	assumed	Q-153: the soldiers with an enemy within 2 hexes
+conscript.order_loss	5	assumed	Q-153: public order that one conscription takes
+conscript.morale_loss	5	assumed	Q-153: morale that one conscription takes
+city.soldier_cap	100000	documented	cities-and-facilities.md, soldiers cap
+city.big_soldier_cap	150000	documented	cities-and-facilities.md, big city
+city.weapon_cap	100000	documented	cities-and-facilities.md, weapons cap of each weapon
+city.start_morale	50	assumed	Q-154: the morale of a loaded city (the save field is not decoded)
+morale.max	100	documented	city-commands.md, 訓練 (120 with 熟練兵, M4)
+train.force_percent	10	assumed	Q-154: morale for each 100 of the force sum
+train.drill_percent	150	assumed	Q-154: a drill ground gives a larger effect
+merchant.grain_per_gold	6	assumed	Q-155: the city price; the example 兵糧6=資金1 of ui/city-commands.md
+merchant.politics_divisor	10	assumed	Q-155: one percent better price for each 10 politics
+produce.intellect_quantity	10	assumed	Q-023, Q-156: weapons for each point of the intellect sum
+produce.full_intellect	100	assumed	Q-156: the intellect sum that gives the shortest period of a siege weapon or a ship
+produce.specialty_percent	80	assumed	Q-022, Q-156: the cost in a specialty city
+produce.free_monthly	100	assumed	Q-022: the free weapons each month of a specialty city with the facility
+produce.skill_percent	150	assumed	Q-156: 能吏 and 繁殖 raise the quantity
+produce.skill_period_percent	50	documented	skills.md, 發明 and 造船: half the time
+level.2_percent	120	documented	cities-and-facilities.md, merge level 2
+level.3_percent	150	documented	cities-and-facilities.md, merge level 3
+skill.income_percent	150	documented	skills.md, 富豪 and 米道: 1.5 times
+skill.rich	87	assumed	Q-159: the save number of 富豪 (skills.md #88 minus 1)
+skill.rice	88	assumed	Q-159: the save number of 米道 (#89 minus 1)
+skill.tax	89	assumed	Q-159: the save number of 徵稅 (#90 minus 1)
+skill.levy	90	assumed	Q-159: the save number of 徵收 (#91 minus 1)
+skill.capable	80	assumed	Q-159: the save number of 能吏 (#81 minus 1)
+skill.breeding	81	assumed	Q-159: the save number of 繁殖 (#82 minus 1)
+skill.invention	82	assumed	Q-159: the save number of 發明 (#83 minus 1)
+skill.shipbuilding	83	assumed	Q-159: the save number of 造船 (#84 minus 1)
+technique.per_command	10	assumed	Q-158: technique points for each command that raises them
+merit.per_command	50	documented	save-file.md, officer +105: +50 for each officer that does an order
+facility.recovery	100	assumed	Q-157: the durability that a facility recovers each turn

@@ -290,32 +290,6 @@ sim_emit_hook(sim_state *sim, sim_event_kind kind, u32 cause, sim_event_sink *ev
     sim_emit(events, sim_event_make(sim, kind, cause));
 }
 
-/* A city event with an assumed amount. */
-internal void
-sim_emit_city_amount(sim_state *sim, sim_event_kind kind, city_component *city, s32 delta, u32 cause, sim_event_sink *events)
-{
-    sim_event event = sim_event_make(sim, kind, cause);
-    event.subject = sim_city_entity(sim, city->city_id);
-    event.faction = city->owner_force_id;
-    event.delta   = delta;
-    event.assumed = true;
-    sim_emit(events, event);
-}
-
-/* The salaries of a city each month: the active officers of the owner
-   whose base is the city, times officer.salary (assumed, Q-027). */
-internal u32
-sim_city_salaries(sim_state *sim, city_component *city)
-{
-    u32 officers = 0;
-    for (u32 index = 0; index < sim->officers.count; ++index)
-    {
-        officer_component *officer = sim->officers.data + index;
-        if (sim_officer_is_active(officer) && officer->force_id == city->owner_force_id && officer->base_location == city->city_id) officers++;
-    }
-    return officers * sim->content.rules.officer_salary;
-}
-
 /* 1 January: the game removes every black market (PK; manual p.29). */
 internal void
 sim_remove_new_year_facilities(sim_state *sim, u32 cause, sim_event_sink *events)
@@ -338,6 +312,8 @@ sim_remove_new_year_facilities(sim_state *sim, u32 cause, sim_event_sink *events
             slot->state = SIM_SLOT_EMPTY;
             slot->facility = CONTENT_NO_FACILITY;
             slot->turns_left = 0;
+            slot->level = 0;
+            slot->job_weapon = CONTENT_NO_WEAPON;
             sim_event event = sim_event_make(sim, SIM_EVENT_BLACK_MARKET_REMOVED, cause);
             event.subject = city ? sim_city_entity(sim, (u8)city_id) : 0;
             event.faction = city ? city->owner_force_id : SIM_NO_FORCE;
@@ -347,66 +323,10 @@ sim_remove_new_year_facilities(sim_state *sim, u32 cause, sim_event_sink *events
     }
 }
 
-/* Day 1 of each month: gold income, then the salaries (guide book p.4). */
-internal void
-sim_run_month(sim_state *sim, u32 cause, sim_event_sink *events)
-{
-    sim_rules *rules = &sim->content.rules;
-    for (u32 index = 0; index < sim->cities.count; ++index)
-    {
-        city_component *city = sim->cities.data + index;
-        if (city->owner_force_id == SIM_NO_FORCE) continue;
-        u32 income = sim_city_gold_income(sim, city->city_id);
-        u32 room   = city->gold < rules->city_gold_cap ? rules->city_gold_cap - city->gold : 0;
-        u32 added  = income < room ? income : room;
-        city->gold += added;
-        sim_emit_city_amount(sim, SIM_EVENT_GOLD_INCOME, city, (s32)added, cause, events);
-        u32 salaries = sim_city_salaries(sim, city);
-        u32 paid = salaries < city->gold ? salaries : city->gold;
-        city->gold -= paid;
-        if (salaries) sim_emit_city_amount(sim, SIM_EVENT_SALARIES_PAID, city, -(s32)paid, cause, events);
-    }
-}
-
-/* Day 1 of months 1, 4, 7 and 10: grain income (guide book p.4). */
-internal void
-sim_run_season(sim_state *sim, u32 cause, sim_event_sink *events)
-{
-    sim_rules *rules = &sim->content.rules;
-    for (u32 index = 0; index < sim->cities.count; ++index)
-    {
-        city_component *city = sim->cities.data + index;
-        if (city->owner_force_id == SIM_NO_FORCE) continue;
-        u32 income = sim_city_grain_income(sim, city->city_id);
-        u32 room   = city->food < rules->city_grain_cap ? rules->city_grain_cap - city->food : 0;
-        u32 added  = income < room ? income : room;
-        city->food += added;
-        sim_emit_city_amount(sim, SIM_EVENT_GRAIN_INCOME, city, (s32)added, cause, events);
-    }
-}
-
-/* Each turn each base eats grain in proportion to its soldiers (guide
-   book p.4): one grain for each grain.soldiers soldiers (assumed, Q-119).
-   The units of M5 eat too. */
-internal void
-sim_run_consumption(sim_state *sim, u32 cause, sim_event_sink *events)
-{
-    u32 soldiers_per_grain = sim->content.rules.grain_soldiers;
-    if (!soldiers_per_grain) return;
-    for (u32 index = 0; index < sim->cities.count; ++index)
-    {
-        city_component *city = sim->cities.data + index;
-        if (city->owner_force_id == SIM_NO_FORCE) continue;
-        u32 eaten = city->troops / soldiers_per_grain;
-        if (eaten > city->food) eaten = city->food;
-        city->food -= eaten;
-        if (eaten) sim_emit_city_amount(sim, SIM_EVENT_GRAIN_CONSUMED, city, -(s32)eaten, cause, events);
-    }
-}
-
 /* The calendar events of the new date (calendar-and-turn.md, "Calendar
-   events"). The disasters and the officer changes are hooks: named events
-   without logic until F-007 and F-051. */
+   events"). The production system (economy.cpp) gives the gold, the grain,
+   the salaries and the consumption. The disasters and the officer changes
+   are hooks: named events without logic until F-007 and F-051. */
 internal void
 sim_run_calendar(sim_state *sim, u32 cause, sim_event_sink *events)
 {
@@ -426,7 +346,7 @@ sim_run_calendar(sim_state *sim, u32 cause, sim_event_sink *events)
         sim_event month = sim_event_make(sim, SIM_EVENT_MONTH_STARTED, cause);
         month.delta = date.month;
         sim_emit(events, month);
-        sim_run_month(sim, cause, events);
+        sim_run_production_month(sim, cause, events);
         sim_emit_hook(sim, SIM_EVENT_HOOK_BANDITS, cause, events);
     }
     if (calendar_starts_season(date))
@@ -434,10 +354,11 @@ sim_run_calendar(sim_state *sim, u32 cause, sim_event_sink *events)
         sim_event season = sim_event_make(sim, SIM_EVENT_SEASON_STARTED, cause);
         season.delta = calendar_season_of(date);
         sim_emit(events, season);
-        sim_run_season(sim, cause, events);
+        sim_run_production_season(sim, cause, events);
         if (date.month == 7) sim_emit_hook(sim, SIM_EVENT_HOOK_GOOD_HARVEST, cause, events);
         if (date.month != 10) sim_emit_hook(sim, SIM_EVENT_HOOK_LOCUSTS, cause, events);
         sim_emit_hook(sim, SIM_EVENT_HOOK_PLAGUE, cause, events);
     }
-    sim_run_consumption(sim, cause, events);
+    sim_run_production_turn(sim, cause, events);
+    sim_run_durability(sim, cause, events);
 }

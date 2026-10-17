@@ -61,6 +61,7 @@ struct facility_kind
     b32             needs_item;
     b32             adjacency_bonus;         /* an adjacent mint or granary multiplies the value */
     b32             new_year_removal;        /* the game removes it on 1 January */
+    b32             mergeable;               /* the PK merge can raise its level to 2 and 3 (manual p.28) */
     b32             pk;
 };
 
@@ -84,11 +85,73 @@ struct city_kind
     b32            has_port;
 };
 
+/* One weapon of weapons.tsv (weapons-and-production.md). */
+#define CONTENT_WEAPON_CAPACITY 16
+#define CONTENT_NO_WEAPON       0xFF
+
+struct weapon_kind
+{
+    u8              id;
+    char            key[CONTENT_KEY_SIZE];   /* the text id is "weapon.<key>" */
+    u32             cost;                    /* the gold of one production command */
+    facility_effect facility;                /* the effect of the facility that produces it */
+    city_specialty  specialty;               /* the specialty that makes it cheaper */
+    u32             stock;                   /* the index into the weapon stocks of a city */
+    u32             min_days;                /* 0 for a weapon that arrives at once */
+    u32             max_days;
+    b32             needs_technique;         /* the techniques are not modelled yet (M4) */
+};
+
 /* The numbers of rules.tsv. A missing row leaves 0. */
 struct sim_rules
 {
     u32 ap_cap;
     u32 ap_develop;
+    u32 ap_patrol;
+    u32 ap_conscript;
+    u32 ap_train;
+    u32 ap_merchant;
+    u32 ap_produce;
+    u32 patrol_gold;
+    u32 conscript_gold;
+    u32 order_max;
+    u32 order_bandit_threshold;
+    u32 order_income_floor;
+    u32 patrol_leadership_percent;
+    u32 patrol_enemy_percent;
+    u32 conscript_charm_soldiers;
+    u32 conscript_enemy_percent;
+    u32 conscript_order_loss;
+    u32 conscript_morale_loss;
+    u32 city_soldier_cap;
+    u32 city_big_soldier_cap;
+    u32 city_weapon_cap;
+    u32 city_start_morale;
+    u32 morale_max;
+    u32 train_force_percent;
+    u32 train_drill_percent;
+    u32 merchant_grain_per_gold;
+    u32 merchant_politics_divisor;
+    u32 produce_intellect_quantity;
+    u32 produce_full_intellect;
+    u32 produce_specialty_percent;
+    u32 produce_free_monthly;
+    u32 produce_skill_percent;
+    u32 produce_skill_period_percent;
+    u32 level2_percent;
+    u32 level3_percent;
+    u32 skill_income_percent;
+    u32 skill_rich;
+    u32 skill_rice;
+    u32 skill_tax;
+    u32 skill_levy;
+    u32 skill_capable;
+    u32 skill_breeding;
+    u32 skill_invention;
+    u32 skill_shipbuilding;
+    u32 technique_per_command;
+    u32 merit_per_command;
+    u32 facility_recovery;
     u32 develop_officers;
     u32 develop_max_days;
     u32 develop_full_politics;
@@ -109,6 +172,8 @@ struct sim_content
     u32           facility_count;
     city_kind     cities[SAVE_CITY_COUNT];
     u32           city_count;
+    weapon_kind   weapons[CONTENT_WEAPON_CAPACITY];
+    u32           weapon_count;
     sim_rules     rules;
 };
 
@@ -118,6 +183,7 @@ struct sim_content
 internal b32 content_load_facilities(sim_content *content, tsv_table *table, u32 *bad_row);
 internal b32 content_load_cities(sim_content *content, tsv_table *table, u32 *bad_row);
 internal b32 content_load_rules(sim_content *content, tsv_table *table, u32 *bad_row);
+internal b32 content_load_weapons(sim_content *content, tsv_table *table, u32 *bad_row);
 
 internal facility_effect content_effect_from_name(const char *name);
 internal facility_limit  content_limit_from_name(const char *name);

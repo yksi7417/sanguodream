@@ -53,8 +53,9 @@ sim_init_sites(sim_state *sim)
             sim_slot *slot = site->slots + slot_index;
             *slot = {};
             slot->hex      = hex_add(site->hex, sim_city_slot_hex(slot_index));
-            slot->state    = SIM_SLOT_EMPTY;
-            slot->facility = CONTENT_NO_FACILITY;
+            slot->state      = SIM_SLOT_EMPTY;
+            slot->facility   = CONTENT_NO_FACILITY;
+            slot->job_weapon = CONTENT_NO_WEAPON;
             for (u32 place = 0; place < SIM_DEVELOP_OFFICERS; ++place) slot->officers[place] = SIM_NO_OFFICER;
         }
     }
@@ -231,6 +232,9 @@ sim_develop(sim_state *sim, sim_command command, sim_event_sink *events)
     slot->facility   = order->facility;
     slot->level      = 1;
     slot->turns_left = (u16)check.turns;
+    slot->durability = sim->content.facilities[order->facility].durability;   /* full from the start (assumed, Q-157) */
+    slot->used_turn  = 0;
+    slot->job_weapon = CONTENT_NO_WEAPON;
     for (u32 place = 0; place < SIM_DEVELOP_OFFICERS; ++place)
     {
         slot->officers[place] = order->officers[place];
@@ -255,10 +259,49 @@ sim_develop(sim_state *sim, sim_command command, sim_event_sink *events)
     points.faction = force;
     points.delta   = -(s32)check.action_points;
     sim_emit(events, points);
+    sim_reward_command(sim, force, order->officers, true, command.id, events);
+}
+
+/* The officers of a job are free again: one released event for each. */
+internal void
+sim_release_slot_officers(sim_state *sim, sim_slot *slot, u32 cause, sim_event_sink *events)
+{
+    for (u32 place = 0; place < SIM_DEVELOP_OFFICERS; ++place)
+    {
+        officer_component *officer = sim_find_officer(sim, slot->officers[place]);
+        if (officer)
+        {
+            officer->job_city = SIM_NO_CITY;
+            sim_event released = sim_event_make(sim, SIM_EVENT_OFFICER_RELEASED, cause);
+            released.subject = sim_officer_entity(sim, slot->officers[place]);
+            released.faction = officer->force_id;
+            sim_emit(events, released);
+        }
+        slot->officers[place] = SIM_NO_OFFICER;
+    }
+}
+
+/* A production job of a workshop or a shipyard is complete: one item
+   arrives (manual p.12), within the cap of the stock. */
+internal void
+sim_complete_production(sim_state *sim, city_component *city, sim_slot *slot, u32 slot_index, u32 cause, sim_event_sink *events)
+{
+    weapon_kind *weapon = sim->content.weapons + slot->job_weapon;
+    if (city)
+    {
+        u32 *stock = city->equipment_stocks + weapon->stock;
+        u32 added = *stock < sim->content.rules.city_weapon_cap ? 1 : 0;
+        *stock += added;
+        sim_emit_city(sim, SIM_EVENT_WEAPONS_PRODUCED, city, (s32)added, weapon->id, false, cause, events);
+    }
+    (void)slot_index;
+    slot->job_weapon = CONTENT_NO_WEAPON;
+    sim_release_slot_officers(sim, slot, cause, events);
 }
 
 /* At the start of each turn each job advances one turn. A job at 0 turns is
-   complete: the facility works and its officers are free. */
+   complete: the facility works, or the weapon arrives, and its officers are
+   free. */
 internal void
 sim_progress_jobs(sim_state *sim, u32 cause, sim_event_sink *events)
 {
@@ -269,28 +312,22 @@ sim_progress_jobs(sim_state *sim, u32 cause, sim_event_sink *events)
         for (u32 slot_index = 0; slot_index < site->slot_count; ++slot_index)
         {
             sim_slot *slot = site->slots + slot_index;
-            if (slot->state != SIM_SLOT_BUILDING) continue;
+            b32 producing = slot->state == SIM_SLOT_BUILT && slot->job_weapon < sim->content.weapon_count;
+            if (slot->state != SIM_SLOT_BUILDING && !producing) continue;
             if (slot->turns_left > 0) slot->turns_left--;
             if (slot->turns_left > 0) continue;
+            if (producing)
+            {
+                sim_complete_production(sim, city, slot, slot_index, cause, events);
+                continue;
+            }
             slot->state = SIM_SLOT_BUILT;
             sim_event completed = sim_event_make(sim, SIM_EVENT_FACILITY_COMPLETED, cause);
             completed.subject = city ? sim_city_entity(sim, (u8)city_id) : 0;
             completed.faction = city ? city->owner_force_id : SIM_NO_FORCE;
             completed.delta   = slot->facility;
             sim_emit(events, completed);
-            for (u32 place = 0; place < SIM_DEVELOP_OFFICERS; ++place)
-            {
-                officer_component *officer = sim_find_officer(sim, slot->officers[place]);
-                if (officer)
-                {
-                    officer->job_city = SIM_NO_CITY;
-                    sim_event released = sim_event_make(sim, SIM_EVENT_OFFICER_RELEASED, cause);
-                    released.subject = sim_officer_entity(sim, slot->officers[place]);
-                    released.faction = officer->force_id;
-                    sim_emit(events, released);
-                }
-                slot->officers[place] = SIM_NO_OFFICER;
-            }
+            sim_release_slot_officers(sim, slot, cause, events);
         }
     }
 }
@@ -312,7 +349,8 @@ sim_slot_has_neighbour(sim_state *sim, sim_city_site *site, u32 slot_index, faci
 /* The gold each month or the grain each season of one built facility. A
    market next to a built mint, or a farm next to a built granary, gives
    adjacency.percent of its value (1.5 times; documented). One mint or
-   several give the same bonus (assumed, Q-148). */
+   several give the same bonus (assumed, Q-148). A merged facility of
+   level 2 or 3 gives 1.2 or 1.5 times (sim_facility_output). */
 internal u32
 sim_slot_yield(sim_state *sim, u8 city_id, u32 slot_index, facility_effect *effect)
 {
@@ -328,19 +366,15 @@ sim_slot_yield(sim_state *sim, u8 city_id, u32 slot_index, facility_effect *effe
     {
         case FACILITY_EFFECT_GOLD:
             *effect = FACILITY_EFFECT_GOLD;
-            value = kind->value;
-            if (kind->adjacency_bonus && sim_slot_has_neighbour(sim, site, slot_index, FACILITY_EFFECT_MINT))
-            {
-                value = value * sim->content.rules.adjacency_percent / 100;
-            }
+            value = sim_facility_output(kind->value, slot->level,
+                                        kind->adjacency_bonus && sim_slot_has_neighbour(sim, site, slot_index, FACILITY_EFFECT_MINT),
+                                        &sim->content.rules);
             break;
         case FACILITY_EFFECT_GRAIN:
             *effect = FACILITY_EFFECT_GRAIN;
-            value = kind->value;
-            if (kind->adjacency_bonus && sim_slot_has_neighbour(sim, site, slot_index, FACILITY_EFFECT_GRANARY))
-            {
-                value = value * sim->content.rules.adjacency_percent / 100;
-            }
+            value = sim_facility_output(kind->value, slot->level,
+                                        kind->adjacency_bonus && sim_slot_has_neighbour(sim, site, slot_index, FACILITY_EFFECT_GRANARY),
+                                        &sim->content.rules);
             break;
         case FACILITY_EFFECT_GRAIN_BY_SOLDIERS:
         {

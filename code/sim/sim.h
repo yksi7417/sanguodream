@@ -49,7 +49,47 @@ enum sim_event_kind
     SIM_EVENT_GOLD_SPENT,           /* subject = city; delta = gold out (negative) */
     SIM_EVENT_FACILITY_COMPLETED,   /* subject = city; delta = the facility id */
     SIM_EVENT_OFFICER_RELEASED,     /* subject = officer; the job is complete */
+    /* M3 economy: the production at the calendar events */
+    SIM_EVENT_GOLD_OVER_CAP,        /* subject = city; delta = the gold above the cap (negative) */
+    SIM_EVENT_GRAIN_OVER_CAP,       /* subject = city; delta = the grain above the cap (negative) */
+    SIM_EVENT_SALARIES_UNPAID,      /* subject = city; detail = the gold that the city could not pay; delta = 0 */
+    SIM_EVENT_SOLDIERS_DESERTED,    /* subject = city; delta = soldiers out (negative): the city had no grain; assumed */
+    SIM_EVENT_WEAPONS_FREE,         /* subject = city; detail = weapon; delta = the free weapons of a specialty city; assumed */
+    SIM_EVENT_FACILITY_REPAIRED,    /* subject = city; detail = slot; delta = durability in; assumed */
+    SIM_EVENT_FACILITY_DAMAGED,     /* subject = city; detail = slot; delta = durability out (negative) */
+    SIM_EVENT_FACILITY_DESTROYED,   /* subject = city; detail = slot; delta = the facility id */
+    SIM_EVENT_TECHNIQUE_GAINED,     /* faction; delta = technique points in; assumed */
+    SIM_EVENT_MERIT_GAINED,         /* subject = officer; delta = merit in */
+    /* M3 economy: the city commands */
+    SIM_EVENT_PATROLLED,            /* subject = city; delta = public order in; assumed */
+    SIM_EVENT_CONSCRIPTED,          /* subject = city; detail = slot of the barracks; delta = soldiers in; assumed */
+    SIM_EVENT_ORDER_LOST,           /* subject = city; delta = public order out (negative); assumed */
+    SIM_EVENT_MORALE_LOST,          /* subject = city; delta = morale out (negative); assumed */
+    SIM_EVENT_TRAINED,              /* subject = city; delta = morale in; assumed */
+    SIM_EVENT_GRAIN_BOUGHT,         /* subject = city; delta = grain in; assumed price */
+    SIM_EVENT_GRAIN_SOLD,           /* subject = city; delta = grain out (negative) */
+    SIM_EVENT_GOLD_EARNED,          /* subject = city; delta = gold in from a sale; assumed price */
+    SIM_EVENT_PRODUCTION_STARTED,   /* subject = city; detail = weapon; delta = the period in turns */
+    SIM_EVENT_WEAPONS_PRODUCED,     /* subject = city; detail = weapon; delta = weapons in; assumed quantity */
     SIM_EVENT_COUNT
+};
+
+/* The quantity that an event changes. The ledger filter of the UI uses it
+   (sim_event_resource). */
+enum sim_resource
+{
+    SIM_RESOURCE_NONE,
+    SIM_RESOURCE_GOLD,
+    SIM_RESOURCE_GRAIN,
+    SIM_RESOURCE_SOLDIERS,
+    SIM_RESOURCE_MORALE,
+    SIM_RESOURCE_PUBLIC_ORDER,
+    SIM_RESOURCE_WEAPONS,
+    SIM_RESOURCE_DURABILITY,
+    SIM_RESOURCE_TECHNIQUE,
+    SIM_RESOURCE_ACTION_POINTS,
+    SIM_RESOURCE_MERIT,
+    SIM_RESOURCE_COUNT
 };
 
 #define SIM_NO_FORCE   0xFF
@@ -68,6 +108,7 @@ struct sim_event
     u32            cause;     /* id of the command that caused it, 0 for the turn itself */
     u8             faction;   /* the force id, SIM_NO_FORCE if the event has no faction */
     b32            assumed;   /* the amount comes from an assumed number (DECISIONS.md) */
+    u32            detail;    /* a slot, a weapon or an amount; see the event kind */
 };
 
 struct sim_event_sink
@@ -84,10 +125,41 @@ enum sim_command_kind
     SIM_COMMAND_LOAD_SAVE,       /* carries a decoded save: run it with sim_load_save, not sim_apply */
     SIM_COMMAND_LOAD_NAME_INDEX, /* carries a decoded name index: run it with sim_load_name_index */
     SIM_COMMAND_DEVELOP,         /* city-commands.md, 開發 */
+    SIM_COMMAND_PATROL,          /* 巡察 */
+    SIM_COMMAND_CONSCRIPT,       /* 徵兵 */
+    SIM_COMMAND_TRAIN,           /* 訓練 */
+    SIM_COMMAND_MERCHANT,        /* 商人 */
+    SIM_COMMAND_PRODUCE,         /* 生產兵裝 */
+    SIM_COMMAND_DAMAGE_FACILITY, /* a test and editor command until an attacker exists (M6) */
     SIM_COMMAND_COUNT
 };
 
 #define SIM_DEVELOP_OFFICERS 3
+#define SIM_COMMAND_OFFICERS SIM_DEVELOP_OFFICERS
+
+enum sim_merchant_mode
+{
+    SIM_MERCHANT_BUY,            /* spend gold, get grain */
+    SIM_MERCHANT_SELL,           /* sell grain, get gold */
+    SIM_MERCHANT_MODE_COUNT
+};
+
+/* The order of patrol, conscript, train, merchant and produce. */
+struct sim_city_order
+{
+    u8  city_id;
+    u8  weapon;                             /* produce: the row of weapons.tsv */
+    u8  mode;                               /* merchant: sim_merchant_mode */
+    u32 amount;                             /* merchant: the gold to spend or the grain to sell */
+    u16 officers[SIM_COMMAND_OFFICERS];     /* SIM_NO_OFFICER for an empty place */
+};
+
+struct sim_damage_order
+{
+    u8  city_id;
+    u8  slot;
+    u32 amount;
+};
 
 struct sim_develop_order
 {
@@ -102,6 +174,8 @@ struct sim_command
     sim_command_kind  kind;
     u32               id;        /* assigned by sim_make_command */
     sim_develop_order develop;   /* SIM_COMMAND_DEVELOP */
+    sim_city_order    city;      /* SIM_COMMAND_PATROL .. SIM_COMMAND_PRODUCE */
+    sim_damage_order  damage;    /* SIM_COMMAND_DAMAGE_FACILITY */
 };
 
 /* Why the sim refuses a command (calendar-and-turn.md, "Reasons that block
@@ -124,6 +198,10 @@ enum sim_refusal
     SIM_REFUSAL_OFFICER_BUSY,          /* the officer works on a job of several turns */
     SIM_REFUSAL_NO_ACTION_POINTS,      /* the corps has fewer points than the command costs */
     SIM_REFUSAL_NO_GOLD,               /* the city has less gold than the command costs */
+    SIM_REFUSAL_LIMIT_REACHED,         /* the command ran its limit of this turn (once, or once per facility) */
+    SIM_REFUSAL_TOO_MANY_OFFICERS,     /* the command takes fewer officers (merchant: 1) */
+    SIM_REFUSAL_NO_AMOUNT,             /* the merchant order has no amount */
+    SIM_REFUSAL_NO_GRAIN,              /* the city has less grain than the order sells */
     SIM_REFUSAL_COUNT
 };
 
@@ -136,6 +214,11 @@ struct sim_check
     u32         turns;       /* the period in turns */
     u32         days;        /* turns * 10 */
     u8          slot;        /* the slot that the command uses */
+    u32         value_before;   /* the value that the command changes: public order, soldiers, morale, grain or stock */
+    u32         value_after;
+    u32         quantity;       /* the amount that the command adds or moves */
+    u32         gold_gain;      /* merchant sale: the gold that the city gets */
+    b32         assumed;        /* the effect comes from an assumed rule */
 };
 
 /* An officer of the loaded game: the fields of the officer record that the
@@ -184,6 +267,10 @@ struct city_component
     u32 equipment_stocks[CITY_EQUIPMENT_STOCK_COUNT];
     u16 durability_maximum;              /* hypothesis */
     u8  public_order;                    /* hypothesis */
+    /* the state of the city commands (M3) */
+    u8  morale;                          /* 氣力; the save field is not decoded: city.start_morale (assumed) */
+    u32 patrolled_turn;                  /* sim turn + 1 of the last patrol; 0 = never */
+    u32 trained_turn;                    /* sim turn + 1 of the last train */
 };
 
 /* ---- facility slots (cities-and-facilities.md) -------------------------- */
@@ -203,9 +290,12 @@ struct sim_slot
     hex_coord hex;                                /* placeholder layout: see sim_city_slot_hex */
     u8        state;                              /* sim_slot_state */
     u8        facility;                           /* CONTENT_NO_FACILITY when empty */
-    u8        level;                              /* 1; the PK merge raises it (M4) */
-    u16       turns_left;                         /* while building */
-    u16       officers[SIM_DEVELOP_OFFICERS];     /* while building */
+    u8        level;                              /* 1; the PK merge raises it (M4); the editor sets it */
+    u16       turns_left;                         /* while building, or while a production job runs */
+    u16       officers[SIM_DEVELOP_OFFICERS];     /* while building, or while a production job runs */
+    u32       durability;                         /* full when the develop starts (assumed) */
+    u32       used_turn;                          /* sim turn + 1 of the last conscription or production */
+    u8        job_weapon;                         /* the weapon of a production job; CONTENT_NO_WEAPON if none */
 };
 
 struct sim_city_site
@@ -266,6 +356,7 @@ struct sim_state
     sim_city_site  sites[SAVE_CITY_COUNT];
     sim_unit       units[SIM_UNIT_CAPACITY];
     u32            unit_count;
+    u32            technique_points[SIM_FORCE_CAPACITY];   /* 技巧P of each faction; the save field is not decoded */
     u16            officer_index[SAVE_OFFICER_SLOTS];   /* officer id -> dense index, SIM_NO_OFFICER if none */
     u8             city_index[SAVE_CITY_COUNT];         /* city id -> dense index, SIM_NO_CITY if none */
 };
@@ -330,5 +421,64 @@ internal u32       sim_slot_yield(sim_state *sim, u8 city_id, u32 slot, facility
 internal u32       sim_city_gold_income(sim_state *sim, u8 city_id);
 internal u32       sim_city_grain_income(sim_state *sim, u8 city_id);
 internal u32       sim_city_used_slots(sim_state *sim, u8 city_id);   /* built or under construction */
+internal b32       sim_enemy_near(sim_state *sim, city_component *city);
+internal sim_check sim_refuse(sim_check check, sim_refusal refusal);
+internal void      sim_release_slot_officers(sim_state *sim, sim_slot *slot, u32 cause, sim_event_sink *events);
+
+/* economy.cpp: the production at the calendar events, durability, technique
+   points and merit (cities-and-facilities.md, calendar-and-turn.md) */
+struct sim_income_forecast
+{
+    u32 gold_base;              /* the initial income of the city (assumed, Q-021) */
+    u32 gold_facilities;        /* the sum of the facility outputs */
+    u32 order_percent;          /* public order: high order raises the income (assumed rule) */
+    u32 gold_skill_percent;     /* 富豪 */
+    u32 gold_month;             /* the gold of one month */
+    u32 gold_payment;           /* the gold of one payment */
+    b32 gold_every_turn;        /* 徵稅: a payment each turn, each halved */
+    u32 grain_base;
+    u32 grain_facilities;
+    u32 grain_skill_percent;    /* 米道 */
+    u32 grain_season;           /* the grain of one season */
+    u32 grain_payment;          /* the grain of one payment */
+    b32 grain_every_month;      /* 徵收: a payment each month, each halved */
+    u32 salaries;               /* the gold of the salaries each month */
+    u32 grain_per_turn;         /* the grain that the soldiers eat each turn */
+};
+
+internal sim_resource        sim_event_resource(sim_event_kind kind);
+internal const char         *sim_resource_name(sim_resource resource);
+internal u32                 sim_percent_of(u32 amount, u32 percent);
+internal u32                 sim_level_percent(u32 level, sim_rules *rules);
+internal u32                 sim_facility_output(u32 value, u32 level, b32 adjacent_bonus, sim_rules *rules);
+internal u32                 sim_order_percent(u32 public_order, sim_rules *rules);
+internal b32                 sim_city_has_skill(sim_state *sim, u8 city_id, u32 skill);
+internal sim_income_forecast sim_city_forecast(sim_state *sim, u8 city_id);
+internal u32                 sim_city_salaries(sim_state *sim, city_component *city);
+internal u32                 sim_city_soldier_cap(sim_state *sim, u8 city_id);
+internal void                sim_reward_command(sim_state *sim, u8 force, const u16 *officers, b32 technique,
+                                                u32 cause, sim_event_sink *events);
+internal void                sim_emit_city(sim_state *sim, sim_event_kind kind, city_component *city, s32 delta, u32 detail,
+                                           b32 assumed, u32 cause, sim_event_sink *events);
+internal sim_refusal         sim_check_damage(sim_state *sim, sim_damage_order *order);
+internal void                sim_run_production_month(sim_state *sim, u32 cause, sim_event_sink *events);
+internal void                sim_run_production_season(sim_state *sim, u32 cause, sim_event_sink *events);
+internal void                sim_run_production_turn(sim_state *sim, u32 cause, sim_event_sink *events);
+internal void                sim_run_durability(sim_state *sim, u32 cause, sim_event_sink *events);
+internal void                sim_damage_facility(sim_state *sim, sim_command command, sim_event_sink *events);
+
+/* city_commands.cpp: patrol, conscript, train, merchant and produce
+   (city-commands.md, weapons-and-production.md) */
+internal u32       sim_patrol_rise(u32 leadership_sum, b32 enemy_near, sim_rules *rules);
+internal u32       sim_conscript_soldiers(u32 charm_sum, u32 level, b32 enemy_near, sim_rules *rules);
+internal u32       sim_train_rise(u32 force_sum, b32 drill_ground, sim_rules *rules);
+internal u32       sim_merchant_percent(u32 politics, sim_rules *rules);
+internal u32       sim_merchant_grain_for_gold(u32 gold, u32 politics, sim_rules *rules);
+internal u32       sim_merchant_gold_for_grain(u32 grain, u32 politics, sim_rules *rules);
+internal u32       sim_produce_quantity(u32 intellect_sum, u32 level, b32 skill, sim_rules *rules);
+internal u32       sim_produce_days(u32 intellect_sum, u32 min_days, u32 max_days, b32 skill, sim_rules *rules);
+internal u32       sim_weapon_cost(u32 cost, b32 specialty, sim_rules *rules);
+internal sim_check sim_check_city_command(sim_state *sim, sim_command_kind kind, sim_city_order *order);
+internal void      sim_city_command(sim_state *sim, sim_command command, sim_event_sink *events);
 
 #endif /* SIM_H */
