@@ -57,6 +57,7 @@ demo_gui(ImGuiTestContext *ctx)
         v.ui.show_city     = false;
         v.ui.show_develop  = false;
         v.ui.show_economy  = false;
+        v.ui.show_techniques = false;
     }
     v.frame.dt_seconds  = ImGui::GetIO().DeltaTime;
     v.frame.render      = g_demo_render;
@@ -551,6 +552,122 @@ demo_m3_economy(ImGuiTestContext *ctx)
     IM_CHECK(demo_screenshot_panel(ctx, milestone, "Event ledger", "event_ledger"));
 }
 
+/* M4, growth: build two markets side by side, merge them to level 2,
+   research the veterans technique, watch the technique table, start a
+   disaster in the city and read it in the City panel and the ledger. The
+   save has no technique points that the loader can read, so the walkthrough
+   gives the faction 3000 with the editor call. */
+internal void
+demo_m4_growth(ImGuiTestContext *ctx)
+{
+    const char *milestone = "m4_growth";
+    demo_vars &v = ctx->GetVars<demo_vars>();
+    engine_api *api = &v.api;
+    IM_CHECK(demo_begin_video(ctx, milestone));
+
+    IM_CHECK(demo_open_panel(ctx, "Simulation", &v.ui.show_sim));
+    IM_CHECK(demo_open_panel(ctx, "Event ledger", &v.ui.show_ledger));
+    ctx->SetRef("Simulation");
+    ctx->ItemClick("Load sample save");
+    ctx->ItemClick("Load city names");
+    ctx->Yield();
+    IM_CHECK_EQ(api->city_count(api->engine), 42u);
+    u8 player = api->whose_turn(api->engine);
+    IM_CHECK(player != ENGINE_NO_FACTION);
+    api->set_technique_points(api->engine, player, 3000);
+
+    u8 city = demo_busiest_city_of_player(api);
+    IM_CHECK(city != ENGINE_NO_CITY);
+    IM_CHECK(demo_open_panel(ctx, "###City", &v.ui.show_city));
+    ctx->SetRef("###City");
+    char item[32];
+    snprintf(item, sizeof(item), "###city_select/###c%u", city);
+    ctx->ComboClick(item);
+    IM_CHECK_EQ(v.ui.city.selected, city);
+
+    /* Two markets in the first two slots: the two slots are neighbours. */
+    u8 first  = demo_develop(ctx, v, city, 0);
+    u8 second = demo_develop(ctx, v, city, 0);
+    IM_CHECK(first != ENGINE_ANY_SLOT && second != ENGINE_ANY_SLOT);
+    v.ui.show_develop = false;
+    ctx->SetRef("Simulation");
+    for (u32 turn = 0; turn < 12; ++turn)
+    {
+        if (api->facility_at(api->engine, city, first).state == SIM_SLOT_BUILT &&
+            api->facility_at(api->engine, city, second).state == SIM_SLOT_BUILT) break;
+        ctx->ItemClick("Advance turn");
+        ctx->Yield();
+    }
+    IM_CHECK_EQ(api->facility_at(api->engine, city, second).state, (u8)SIM_SLOT_BUILT);
+
+    /* The merge: the first market absorbs the second. */
+    u32 mark = api->ledger_count(api->engine);
+    ctx->SetRef("###City");
+    ctx->ItemClick("###open_merge");
+    ctx->Yield();
+    ctx->SetRef("###Merge");
+    snprintf(item, sizeof(item), "###absorber/###a%u", first);
+    ctx->ComboClick(item);
+    snprintf(item, sizeof(item), "###absorbed/###b%u", second);
+    ctx->ComboClick(item);
+    ctx->SleepStandard();
+    ctx->ItemClick("###decide");
+    ctx->Yield();
+    IM_CHECK(!v.ui.show_merge);
+    IM_CHECK_EQ(api->facility_at(api->engine, city, second).state, (u8)SIM_SLOT_MERGING);
+
+    /* The research: the veterans technique of the drill line. */
+    ctx->SetRef("###City");
+    ctx->ItemClick("###open_research");
+    ctx->Yield();
+    ctx->SetRef("###Research");
+    ctx->ItemClick("###t16");
+    ctx->SleepStandard();
+    ctx->ItemClick("###decide");
+    ctx->Yield();
+    IM_CHECK(!v.ui.show_research);
+    IM_CHECK_EQ(api->faction_techniques(api->engine, player).researching, (u8)16);
+    IM_CHECK(demo_open_panel(ctx, "###Techniques", &v.ui.show_techniques));
+    ctx->SleepStandard();
+
+    ctx->SetRef("Simulation");
+    for (u32 turn = 0; turn < 12; ++turn)
+    {
+        if (api->faction_techniques(api->engine, player).researching == ENGINE_NO_TECHNIQUE &&
+            api->facility_at(api->engine, city, first).level == 2) break;
+        ctx->ItemClick("Advance turn");
+        ctx->Yield();
+    }
+    IM_CHECK_EQ(api->facility_at(api->engine, city, first).level, (u8)2);           /* the merge gave level 2 */
+    IM_CHECK((api->faction_techniques(api->engine, player).owned >> 16) & 1);         /* the faction has the veterans technique */
+    IM_CHECK_EQ(api->city_economy(api->engine, city).morale_max, 120u);               /* morale up to 120 */
+    ctx->SleepStandard();
+
+    /* A disaster: locusts in the city (the calendar starts them at random). */
+    api->start_disaster(api->engine, city, 0);
+    ctx->SetRef("Simulation");
+    ctx->ItemClick("Advance turn");
+    ctx->Yield();
+    IM_CHECK_GT(api->city_disasters(api->engine, city).running, 0u);
+    b32 merged = false, researched = false, disaster = false;
+    for (u32 index = mark; index < api->ledger_count(api->engine); ++index)
+    {
+        sim_event_kind kind = api->ledger_at(api->engine, index).kind;
+        merged     |= kind == SIM_EVENT_FACILITY_MERGED;
+        researched |= kind == SIM_EVENT_TECHNIQUE_RESEARCHED;
+        disaster   |= kind == SIM_EVENT_DISASTER_STARTED;
+    }
+    IM_CHECK(merged && researched && disaster);                                       /* the ledger has each step */
+    ctx->SleepStandard();
+
+    IM_CHECK(demo_end_video(ctx));
+
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "Simulation", "simulation"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###City", "city"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Techniques", "techniques"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "Event ledger", "event_ledger"));
+}
+
 internal void
 register_demo_tests(ImGuiTestEngine *e)
 {
@@ -575,4 +692,9 @@ register_demo_tests(ImGuiTestEngine *e)
     t->SetVarsDataType<demo_vars>();
     t->GuiFunc  = demo_gui;
     t->TestFunc = demo_m3_economy;
+
+    t = IM_REGISTER_TEST(e, "demo", "m4_growth");
+    t->SetVarsDataType<demo_vars>();
+    t->GuiFunc  = demo_gui;
+    t->TestFunc = demo_m4_growth;
 }
