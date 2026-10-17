@@ -11,16 +11,19 @@ struct engine_fixture
 
 /* Initialises in place: the engine keeps pointers to the fixture's arenas,
    so the fixture must live where the caller put it, never in a temporary. */
+/* real_map: false keeps the placeholder map of map_width x map_height, the
+   synthetic board of the tests of M0 to M9; true loads map\ of the pack (M10). */
 internal void
-engine_fixture_init_map(engine_fixture *f, u64 seed, u32 ledger_capacity, u32 map_width, u32 map_height)
+engine_fixture_init_with(engine_fixture *f, u64 seed, u32 ledger_capacity, u32 map_width, u32 map_height, b32 real_map)
 {
-    f->permanent = test_arena_create(Megabytes(8));
-    f->transient = test_arena_create(Megabytes(8));
+    f->permanent = test_arena_create(real_map ? Megabytes(48) : Megabytes(8));
+    f->transient = test_arena_create(real_map ? Megabytes(16) : Megabytes(8));
     engine_config config = engine_default_config();
     config.seed            = seed;
     config.ledger_capacity = ledger_capacity;
     config.map_width       = map_width;
     config.map_height      = map_height;
+    config.use_pack_map    = real_map;
     config.read_entire_file = test_platform_read_entire_file;
     config.write_entire_file = test_platform_write_entire_file;
     config.save_folder      = "test_saves";
@@ -37,11 +40,24 @@ engine_fixture_init_map(engine_fixture *f, u64 seed, u32 ledger_capacity, u32 ma
     f->api.set_settings(f->api.engine, settings);
 }
 
-/* The map of the game: 40 x 30 holds the 42 cities of the placeholder layout. */
+internal void
+engine_fixture_init_map(engine_fixture *f, u64 seed, u32 ledger_capacity, u32 map_width, u32 map_height)
+{
+    engine_fixture_init_with(f, seed, ledger_capacity, map_width, map_height, false);
+}
+
+/* The placeholder map: 40 x 30 holds the 42 cities of the placeholder layout. */
 internal void
 engine_fixture_init(engine_fixture *f, u64 seed, u32 ledger_capacity)
 {
     engine_fixture_init_map(f, seed, ledger_capacity, 40, 30);
+}
+
+/* M10: the real map of the pack (200 x 200, formats/map-data.md). */
+internal void
+engine_fixture_init_real(engine_fixture *f, u64 seed, u32 ledger_capacity)
+{
+    engine_fixture_init_with(f, seed, ledger_capacity, 40, 30, true);
 }
 
 internal void
@@ -51,7 +67,7 @@ engine_fixture_destroy(engine_fixture *f)
     test_arena_destroy(&f->transient);
 }
 
-/* The row-major index of a hex in a map of this width (odd-r offset). */
+/* The row-major index of a hex in a map of this width (odd-q offset). */
 internal u32
 hex_map_index_of(u32 width, hex_coord hex)
 {

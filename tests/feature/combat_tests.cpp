@@ -49,8 +49,7 @@ feature_battle_init(feature_battle *battle)
     battle->c = feature_sortie_unit(api, city, 1);
     battle->t = feature_sortie_unit(api, city, 1, FEATURE_UNIT_TOWER);
     if (battle->a == ENGINE_NO_UNIT || battle->b == ENGINE_NO_UNIT || battle->c == ENGINE_NO_UNIT || battle->t == ENGINE_NO_UNIT) return false;
-    battle->start = feature_unit_hex(api, battle->a);
-    battle->d     = feature_corridor(api, battle->start);
+    battle->d     = feature_corridor_for_unit(api, battle->a, &battle->start);
     if (battle->d >= HEX_DIRECTION_COUNT) return false;
     battle->enemy = (u8)(force + 1);
     hex_coord first = feature_along(battle->start, battle->d, 1);
@@ -198,8 +197,9 @@ feature_turn_two_tests(test_counts *counts, feature_battle *battle)
     engine_fire_view fire = api->fire_view(e);
     hex_offset o = hex_to_offset(empty);
     TEST_CHECK(counts, check.refusal == SIM_REFUSAL_NONE && check.quantity == 100 && result.refusal == SIM_REFUSAL_NONE &&
-                       feature_count_events(api, SIM_EVENT_PLOT_USED, mark) == 1 && fire.turns[(u32)o.row * fire.width + (u32)o.col] == 3,
-               "火計 on an empty hex always works; the fire lasts 3 turns (assumed)");
+                       feature_count_events(api, SIM_EVENT_PLOT_USED, mark) == 1 && fire.turns[(u32)o.row * fire.width + (u32)o.col] >= 1 &&
+                       fire.turns[(u32)o.row * fire.width + (u32)o.col] <= 7,
+               "火計 on an empty hex always works; the fire lasts 1 to 7 turns (terrain-and-map.md, F-149)");
     feature_next_own_turn(api, force);
 }
 
@@ -402,8 +402,8 @@ feature_water_tests(test_counts *counts)
     engine_api *api = setup.api;
     void *e = api->engine;
     u32 unit_id = feature_sortie_unit(api, setup.city, 1);
-    hex_coord start = feature_unit_hex(api, unit_id);
-    u32 d = feature_corridor(api, start);
+    hex_coord start = {};
+    u32 d = feature_corridor_for_unit(api, unit_id, &start);
     if (d >= HEX_DIRECTION_COUNT) { TEST_CHECK(counts, false, "a corridor for the water test"); engine_fixture_destroy(&setup.fixture); return; }
     u8 river = feature_terrain_id(api, "river");
     hex_coord first = feature_along(start, d, 1);

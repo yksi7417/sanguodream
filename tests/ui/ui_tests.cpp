@@ -63,6 +63,7 @@ ui_test_gui(ImGuiTestContext *ctx)
             v.transient = test_arena_create(Megabytes(8));
             engine_config config = engine_default_config();
             config.ledger_capacity = 1024;
+            config.use_pack_map    = false;   /* the e2e tests use the placeholder board of M0 to M9 */
             config.read_entire_file = test_platform_read_entire_file;
             config.write_entire_file = test_platform_write_entire_file;
             config.save_folder      = "test_saves";
@@ -240,8 +241,10 @@ register_ui_tests(ImGuiTestEngine *e)
         recorder_reset(&v.recorder);
         ctx->Yield();
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_MAP_SIZE), 1u);
-        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_CELL_COST), 8u * 6u);   /* one per cell of the 8x6 fake map */
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_TERRAIN_VIEW), 1u);     /* M10: one terrain view gives the tile of every cell */
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_CELL_COST), 0u);        /* the tiles replace a cost query for each cell */
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_PATH_COST), 0u);        /* nothing selected yet */
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_HEX_AT), 0u);           /* no hex picked yet */
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
         ctx->ItemClick("Clear selection");
         ctx->Yield();
@@ -1889,6 +1892,35 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->KeyUp(ImGuiKey_D);
         ctx->Yield();
         IM_CHECK_GT(canvas->Scroll.x, 0.0f);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* M10: a click on a city hex selects the city; the panel frames its
+       slots from city_slots and facility_at, and commands nothing. */
+    t = IM_REGISTER_TEST(e, "ui", "map_click_on_a_city_frames_its_slots_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.city_count = 2;
+        v.ui.show_map = true;
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        hex_offset city_cell = { RECORDER_CITY_COL, RECORDER_CITY_ROW };
+        ui_test_click_cell(ctx, v, hex_from_offset(city_cell));
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_HEX_AT), (u32)RECORDER_CITY_COL | ((u32)RECORDER_CITY_ROW << 16));
+        IM_CHECK(v.ui.map.has_city && v.ui.map.city == 0);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_CITY_SLOTS), 1u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_CITY_SLOTS), 0u);   /* the slots of city 0 */
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_FACILITY_AT), (u32)RECORDER_SLOTS);   /* one query for each slot */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        ctx->SetRef("Hex map");
+        ctx->ItemClick("Clear city");
+        ctx->Yield();
+        IM_CHECK(!v.ui.map.has_city);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 

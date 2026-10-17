@@ -33,6 +33,7 @@
 #include "court_tests.cpp"
 #include "rivals_tests.cpp"
 #include "playable_tests.cpp"
+#include "map_tests.cpp"
 #include "fixture_tests.cpp"
 
 int
@@ -98,6 +99,9 @@ main(int argc, char **argv)
     test_counts playable_counts = {};
     feature_playable_tests(&playable_counts);
     failed |= test_report("feature/playable", &playable_counts);
+    test_counts map_counts = {};
+    feature_map_tests(&map_counts);
+    failed |= test_report("feature/map", &map_counts);
 
     char fixtures_dir[MAX_PATH];
     if (argc > 1)
@@ -117,7 +121,11 @@ main(int argc, char **argv)
 
     memory_arena arena = test_arena_create(Megabytes(64));
     test_counts fixture_counts = {};
-    u32 files = feature_fixture_tests(fixtures_dir, &arena, &fixture_counts);
+    u32 files = feature_fixture_tests(fixtures_dir, "", false, &arena, &fixture_counts);
+    char map_dir[MAX_PATH];
+    snprintf(map_dir, sizeof(map_dir), "%s\\map", fixtures_dir);
+    arena_reset(&arena);
+    files += feature_fixture_tests(map_dir, "map/", true, &arena, &fixture_counts);   /* M10: the map fixtures */
     printf("%s %u/%u feature/fixtures (%u files)\n", fixture_counts.failed ? "FAIL" : "PASS",
            fixture_counts.passed, fixture_counts.passed + fixture_counts.failed, files);
     failed |= fixture_counts.failed ? 1 : 0;

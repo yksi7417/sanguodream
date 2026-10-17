@@ -119,6 +119,13 @@ enum recorder_call_kind
     RECORDER_BATTLE_COUNT,
     RECORDER_BATTLE_AT,
     RECORDER_SUBJECT_OF,
+    /* M10 queries */
+    RECORDER_MAP_INFO,
+    RECORDER_HEX_AT,               /* arg = the col | the row << 16 of the hex */
+    RECORDER_ARMAMENT_COUNT,
+    RECORDER_ARMAMENT_AT,
+    RECORDER_MOVE_COST,
+    RECORDER_BANDIT_SITES,         /* arg = the city */
     RECORDER_END_TURN,        /* commands start here */
     RECORDER_ADVANCE_TURNS,
     RECORDER_LEDGER_CLEAR,
@@ -187,6 +194,7 @@ enum recorder_call_kind
     RECORDER_COMMAND_TRAIN_OFFICER,    /* arg = the row | the officer << 8 */
     RECORDER_TRIGGER_HISTORY,      /* arg = the row */
     RECORDER_LOAD_SCENARIO,
+    RECORDER_START_FIRE,           /* M10: arg = the turns */
     RECORDER_CALL_KIND_COUNT
 };
 
@@ -501,6 +509,7 @@ recorder_terrain_view(void *o)
     for (u32 i = 0; i < 48; ++i) { recorder_terrain_kind[i] = (i % 8 == 3) ? 3 : 1; recorder_terrain_level[i] = (i % 8 == 3) ? 2 : 1; }
     engine_terrain_view v;
     v.width = 8; v.height = 6; v.kind = recorder_terrain_kind; v.level = recorder_terrain_level; v.version = 1;
+    v.tile = recorder_terrain_kind;   /* M10: the Hex map panel draws the tile colours */
     return v;
 }
 
@@ -1466,6 +1475,57 @@ internal engine_battle recorder_battle_at(void *o, u32 index)
     battle.open_at_start = index == 0;
     return battle;
 }
+/* ---- M10: the real map. The scripted map has one city cell: offset (2, 2)
+   is city 0. */
+#define RECORDER_CITY_COL 2
+#define RECORDER_CITY_ROW 2
+
+internal engine_map_info recorder_map_info(void *o)
+{
+    recorder_record((engine_recorder *)o, RECORDER_MAP_INFO, 0);
+    engine_map_info info = {};
+    info.real_map = true; info.detail = "ok"; info.width = 8; info.height = 6;
+    return info;
+}
+internal engine_hex recorder_hex_at(void *o, s32 q, s32 r)
+{
+    hex_offset offset = hex_to_offset(hex_make(q, r));
+    recorder_record((engine_recorder *)o, RECORDER_HEX_AT, (u32)(offset.col & 0xFFFF) | ((u32)(offset.row & 0xFFFF) << 16));
+    engine_hex hex = {};
+    hex.on_map      = offset.col >= 0 && offset.row >= 0 && offset.col < 8 && offset.row < 6;
+    hex.terrain     = 1;
+    hex.region      = ENGINE_NO_REGION;
+    hex.region_city = ENGINE_NO_CITY;
+    hex.city_id     = offset.col == RECORDER_CITY_COL && offset.row == RECORDER_CITY_ROW ? 0 : ENGINE_NO_CITY;
+    hex.base_id     = ENGINE_NO_BASE;
+    return hex;
+}
+internal u32 recorder_armament_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_ARMAMENT_COUNT, 0); return 0; }
+internal engine_armament recorder_armament_at(void *o, u32 index)
+{
+    recorder_record((engine_recorder *)o, RECORDER_ARMAMENT_AT, index);
+    engine_armament armament = {};
+    armament.id = ENGINE_NO_ARMAMENT;
+    return armament;
+}
+internal u32 recorder_move_cost(void *o, u8 unit_type, u8 force_id, s32 q, s32 r)
+{
+    (void)force_id; (void)q; (void)r;
+    recorder_record((engine_recorder *)o, RECORDER_MOVE_COST, unit_type);
+    return 4;
+}
+internal engine_bandit_sites recorder_bandit_sites(void *o, u8 city_id)
+{
+    recorder_record((engine_recorder *)o, RECORDER_BANDIT_SITES, city_id);
+    engine_bandit_sites sites = {};
+    return sites;
+}
+internal void recorder_start_fire(void *o, s32 q, s32 r, u32 turns)
+{
+    (void)q; (void)r;
+    recorder_record((engine_recorder *)o, RECORDER_START_FIRE, turns);
+}
+
 internal engine_command_result recorder_create_officer(void *o, const sim_new_officer_order *order)
 {
     engine_recorder *r = (engine_recorder *)o;
@@ -1701,6 +1761,13 @@ recorder_make_api(engine_recorder *r)
     api.load_scenario         = recorder_load_scenario;
     api.battle_count          = recorder_battle_count;
     api.battle_at             = recorder_battle_at;
+    api.map_info              = recorder_map_info;   /* M10 */
+    api.hex_at                = recorder_hex_at;
+    api.armament_count        = recorder_armament_count;
+    api.armament_at           = recorder_armament_at;
+    api.move_cost             = recorder_move_cost;
+    api.bandit_sites          = recorder_bandit_sites;
+    api.start_fire            = recorder_start_fire;
     return api;
 }
 

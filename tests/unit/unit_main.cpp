@@ -1,6 +1,6 @@
 /* unit_tests.exe: the base of the pyramid. Exercises functions and structs of
-   each module in isolation: base.h, ecs/, sim/, text/. No engine, no UI. The one file read is
-   the sample save in inflate_tests.cpp. */
+   each module in isolation: base.h, ecs/, sim/, text/. No engine, no UI. The files read are
+   the sample save in inflate_tests.cpp and the map fixtures in map_tests.cpp (M10). */
 
 #define _CRT_SECURE_NO_WARNINGS
 #include <string.h>
@@ -40,6 +40,7 @@
 #include "court_tests.cpp"
 #include "rivals_tests.cpp"
 #include "playable_tests.cpp"
+#include "map_tests.cpp"
 
 int
 main(void)
@@ -144,6 +145,10 @@ main(void)
     test_counts playable = {};
     unit_playable_tests(&playable, &arena);
     failed |= test_report("unit/playable", &playable);
+
+    test_counts map = {};
+    unit_map_tests(&map);
+    failed |= test_report("unit/map", &map);
     test_arena_destroy(&arena);
 
     printf(failed ? "RESULT FAIL\n" : "RESULT PASS\n");

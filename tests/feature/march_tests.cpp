@@ -61,7 +61,7 @@ internal void
 feature_march_table_tests(test_counts *counts, engine_api *api)
 {
     void *e = api->engine;
-    TEST_CHECK(counts, api->terrain_kind_count(e) == 16 && api->content_status(e).terrain_count == 16, "terrain.tsv has the 16 kinds of the manual and the city");
+    TEST_CHECK(counts, api->terrain_kind_count(e) == 20 && api->content_status(e).terrain_count == 20, "terrain.tsv has the 20 terrains of the map (M10)");
     TEST_CHECK(counts, api->unit_type_count(e) == 13 && api->content_status(e).unit_type_count == 13, "unit_types.tsv has 12 classes and the transport unit");
     engine_unit_type pike = api->unit_type_at(e, FEATURE_UNIT_PIKE), cavalry = api->unit_type_at(e, FEATURE_UNIT_CAVALRY);
     engine_unit_type ram = api->unit_type_at(e, 5), crossbow = api->unit_type_at(e, 3);
@@ -168,12 +168,13 @@ feature_sortie_tests(test_counts *counts)
 /* Cliffs around the unit except a straight corridor of 6 hexes from it in a
    direction that stays on the map and away from cities. Returns the
    direction, or HEX_DIRECTION_COUNT. */
+/* The first direction from start with 6 hexes on the map and away from
+   every city, or HEX_DIRECTION_COUNT. */
 internal u32
-feature_corridor(engine_api *api, hex_coord start)
+feature_corridor_direction(engine_api *api, hex_coord start)
 {
     void *e = api->engine;
     engine_map_size size = api->map_size(e);
-    u8 cliff = feature_terrain_id(api, "cliff"), grass = feature_terrain_id(api, "grass");
     for (u32 d = 0; d < HEX_DIRECTION_COUNT; ++d)
     {
         b32 ok = true;
@@ -189,20 +190,56 @@ feature_corridor(engine_api *api, hex_coord start)
                 if (hex_distance(cell, hex_make(slots.q, slots.r)) <= 1) ok = false;
             }
         }
-        if (!ok) continue;
-        for (s32 dq = -8; dq <= 8; ++dq)
+        if (ok) return d;
+    }
+    return HEX_DIRECTION_COUNT;
+}
+
+internal u32
+feature_corridor(engine_api *api, hex_coord start)
+{
+    void *e = api->engine;
+    u8 cliff = feature_terrain_id(api, "cliff"), grass = feature_terrain_id(api, "grass");
+    u32 d = feature_corridor_direction(api, start);
+    if (d >= HEX_DIRECTION_COUNT) return HEX_DIRECTION_COUNT;
+    for (s32 dq = -8; dq <= 8; ++dq)
+    {
+        for (s32 dr = -8; dr <= 8; ++dr)
         {
-            for (s32 dr = -8; dr <= 8; ++dr)
-            {
-                hex_coord hex = hex_make(start.q + dq, start.r + dr);
-                if (hex_distance(hex, start) > 8 || hex_equal(hex, start)) continue;
-                b32 in_corridor = false;
-                hex_coord along = start;
-                for (u32 step = 0; step < 6; ++step) { along = hex_neighbor(along, d); in_corridor |= hex_equal(along, hex); }
-                api->set_cell_terrain(e, hex.q, hex.r, in_corridor ? grass : cliff, 1);
-            }
+            hex_coord hex = hex_make(start.q + dq, start.r + dr);
+            if (hex_distance(hex, start) > 8 || hex_equal(hex, start)) continue;
+            b32 in_corridor = false;
+            hex_coord along = start;
+            for (u32 step = 0; step < 6; ++step) { along = hex_neighbor(along, d); in_corridor |= hex_equal(along, hex); }
+            api->set_cell_terrain(e, hex.q, hex.r, in_corridor ? grass : cliff, 1);
         }
-        return d;
+    }
+    return d;
+}
+
+/* A corridor for a unit beside its city. On the flat-top grid (M10) only
+   some hexes beside a city of the placeholder board have a straight
+   corridor, so the editor moves the unit to the nearest free hex with
+   one. start gets the hex of the unit. */
+internal u32
+feature_corridor_for_unit(engine_api *api, u32 unit_id, hex_coord *start)
+{
+    void *e = api->engine;
+    engine_unit unit = api->unit_at(e, unit_id);
+    *start = hex_make(unit.q, unit.r);
+    if (feature_corridor_direction(api, *start) < HEX_DIRECTION_COUNT) return feature_corridor(api, *start);
+    for (s32 dq = -2; dq <= 2; ++dq)
+    {
+        for (s32 dr = -2; dr <= 2; ++dr)
+        {
+            hex_coord hex = hex_make(unit.q + dq, unit.r + dr);
+            if (hex_distance(hex, *start) > 2 || feature_corridor_direction(api, hex) >= HEX_DIRECTION_COUNT) continue;
+            if (api->unit_at_hex(e, hex.q, hex.r) != ENGINE_NO_UNIT || api->hex_at(e, hex.q, hex.r).city_id != ENGINE_NO_CITY) continue;
+            api->set_cell_terrain(e, hex.q, hex.r, feature_terrain_id(api, "grass"), 1);
+            if (!api->set_unit_place(e, unit_id, unit.force_id, hex.q, hex.r)) continue;
+            *start = hex;
+            return feature_corridor(api, hex);
+        }
     }
     return HEX_DIRECTION_COUNT;
 }
@@ -255,15 +292,15 @@ feature_move_tests(test_counts *counts)
     void *e = api->engine;
     u8 city = setup.city, force = setup.force;
     u32 unit_id = feature_sortie_unit(api, city, 1);
+    hex_coord start = {};
+    u32 d = feature_corridor_for_unit(api, unit_id, &start);
     engine_unit unit = api->unit_at(e, unit_id);
-    hex_coord start = hex_make(unit.q, unit.r);
-    u32 d = feature_corridor(api, start);
     TEST_CHECK(counts, unit_id != ENGINE_NO_UNIT && d < HEX_DIRECTION_COUNT, "a unit stands at the start of a corridor of grass");
     if (d >= HEX_DIRECTION_COUNT) { engine_fixture_destroy(&setup.fixture); return; }
 
     u32 cost = 0;
-    TEST_CHECK(counts, feature_reaches(api, unit_id, feature_along(start, d, 5), &cost) && cost == 20 && !feature_reaches(api, unit_id, feature_along(start, d, 6), 0),
-               "on grass (cost 4, assumed) a pike unit with movement 22 reaches 5 hexes and not 6");
+    TEST_CHECK(counts, feature_reaches(api, unit_id, feature_along(start, d, 4), &cost) && cost == 20 && !feature_reaches(api, unit_id, feature_along(start, d, 5), 0),
+               "on grass (cost 5, movement-costs.tsv) a pike unit with movement 22 reaches 4 hexes and not 5");
 
     /* The zone of control: an enemy next to the second hex of the corridor. */
     hex_coord second = feature_along(start, d, 2);
@@ -323,9 +360,8 @@ feature_terrain_rule_tests(test_counts *counts)
     void *e = api->engine;
     u8 city = setup.city, force = setup.force;
     u32 unit_id = feature_sortie_unit(api, city, 1);
-    engine_unit unit = api->unit_at(e, unit_id);
-    hex_coord start = hex_make(unit.q, unit.r);
-    u32 d = feature_corridor(api, start);
+    hex_coord start = {};
+    u32 d = feature_corridor_for_unit(api, unit_id, &start);
     if (d >= HEX_DIRECTION_COUNT) { TEST_CHECK(counts, false, "a corridor for the terrain tests"); engine_fixture_destroy(&setup.fixture); return; }
     hex_coord first = feature_along(start, d, 1), second = feature_along(start, d, 2);
 
@@ -334,7 +370,7 @@ feature_terrain_rule_tests(test_counts *counts)
                "without 難所行軍 a unit cannot enter a small path");
     api->grant_technique(e, force, FEATURE_TECH_ROUGH_MARCH_M5);
     u32 cost = 0;
-    TEST_CHECK(counts, feature_reaches(api, unit_id, second, &cost) && cost == 10, "with 難所行軍 the small path is open (cost 6 + 4, assumed)");
+    TEST_CHECK(counts, feature_reaches(api, unit_id, second, &cost) && cost == 11, "with 難所行軍 the small path is open (cost 6 + 5, movement-costs.tsv)");
 
     /* A plank road takes 10 percent of the soldiers, but not with 難所行軍. */
     api->set_cell_terrain(e, first.q, first.r, feature_terrain_id(api, "plank_road"), 3);
