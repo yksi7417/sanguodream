@@ -197,7 +197,11 @@ The tests and the demo use the stable id: `ctx->SetRef("###Officers")`,
 ## Fonts
 code/ui/ui_fonts.h loads data/fonts/NotoSansCJKtc-Regular.otf and merges
 data/fonts/NotoSansThai-Regular.ttf. win32_hexdom.exe and demo_player.exe
-call `ui_fonts_load` before the first frame. ImGui 1.91 puts each glyph in
+call `ui_fonts_load` before the first frame, with the size in pixels
+(`HEXDOM_FONT_DEFAULT_PIXELS`, 19). The Settings panel has a font size
+slider (8 to 32 pixels). The DLL writes the choice into `game_memory`;
+the platform layer builds the atlas again between two frames when the
+size changes. ImGui 1.91 puts each glyph in
 one texture, so the loader adds only the glyphs that the game can show.
 docs/ASSETS.md gives the list, the licences and the fonts that qualify.
 

@@ -396,16 +396,16 @@ ui_draw_city_disasters(ui_state *ui, engine_api *api, u8 city_id)
 
 /* The buttons of the City panel that open 研究技巧 and 吸收合併 for its city. */
 internal void
-ui_draw_growth_buttons(ui_state *ui)
+ui_draw_growth_buttons(ui_state *ui, engine_api *api, u16 first_officer)
 {
-    char label[96];
-    if (ImGui::Button(ui_label(label, sizeof(label), ui, "city.merge", "open_merge")))
+    if (ui_city_button(ui, "city.merge", "open_merge", SIM_REFUSAL_NONE))
     {
         ui->show_merge = true;
         ui->merge.city = ui->city.selected;
     }
     ImGui::SameLine();
-    if (ImGui::Button(ui_label(label, sizeof(label), ui, "city.research", "open_research")))
+    if (ui_city_button(ui, "city.research", "open_research",
+                       ui_probe_city_command(api, ui->city.selected, ENGINE_COMMAND_RESEARCH, first_officer)))
     {
         ui->show_research = true;
         ui->research.city = ui->city.selected;

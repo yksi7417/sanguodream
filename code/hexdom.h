@@ -15,6 +15,12 @@ struct ImGuiContext;
 #define HEXDOM_DATA_ROOT    "..\\data"
 #define HEXDOM_CONTENT_PACK "placeholder"
 
+/* The font size in pixels. The UI keeps the setting; the platform layer
+   builds the atlas at that size (ui/ui_fonts.h). */
+#define HEXDOM_FONT_DEFAULT_PIXELS 19
+#define HEXDOM_FONT_MIN_PIXELS     8
+#define HEXDOM_FONT_MAX_PIXELS     32
+
 struct read_file_result
 {
     u64   size;
@@ -63,6 +69,7 @@ struct game_memory
     void *transient;    /* per-session scratch */
     platform_api platform;
     b32   quit_requested;   /* M9: the game asks the platform to close the window (結束遊戲) */
+    u32   font_pixels;      /* the font size that the UI wants; the platform builds the atlas again when it differs (0: the default) */
 };
 
 #define GAME_UPDATE_AND_RENDER(name) void name(game_memory *memory, game_input *input, \

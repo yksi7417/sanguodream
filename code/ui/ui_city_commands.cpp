@@ -291,16 +291,56 @@ ui_draw_city_command(ui_state *ui, engine_api *api, u32 kind)
     ImGui::End();
 }
 
+/* A trial order for a button of the City panel: the first free officer
+   and the first row of each table. The answer of can_issue says whether
+   the action points or the gold allow the command at all; the dialog then
+   checks the real order. */
+internal sim_refusal
+ui_probe_city_command(engine_api *api, u8 city, engine_command_kind kind, u16 first_officer)
+{
+    engine_command command = {};
+    command.kind    = kind;
+    command.city_id = city;
+    command.slot    = ENGINE_ANY_SLOT;
+    for (u32 place = 0; place < SIM_DEVELOP_OFFICERS; ++place) command.officers[place] = ENGINE_NO_OFFICER;
+    command.officers[0] = first_officer;
+    switch (kind)
+    {
+        case ENGINE_COMMAND_DEVELOP:  command.facility = api->facility_kind_at(api->engine, 0).id; break;
+        case ENGINE_COMMAND_PRODUCE:  command.weapon = api->weapon_kind_at(api->engine, 0).id; break;
+        case ENGINE_COMMAND_RESEARCH: command.technique = api->technique_kind_at(api->engine, 0).id; break;
+        case ENGINE_COMMAND_MERCHANT:
+        {
+            command.merchant_mode = SIM_MERCHANT_BUY;
+            command.amount        = UI_MERCHANT_DEFAULT_AMOUNT;
+            break;
+        }
+        case ENGINE_COMMAND_SORTIE:
+        case ENGINE_COMMAND_TRANSPORT:
+        {
+            command.sortie.city_id = city;
+            for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place) command.sortie.officers[place] = ENGINE_NO_OFFICER;
+            command.sortie.officers[0] = first_officer;
+            command.sortie.soldiers    = 1;
+            command.sortie.destination = city;
+            break;
+        }
+        case ENGINE_COMMAND_MERGE: return SIM_REFUSAL_NONE;   /* the two slots are the choice of the dialog */
+        default: break;
+    }
+    return api->can_issue(api->engine, &command).refusal;
+}
+
 /* The buttons of the City panel that open the five dialogs for its city. */
 internal void
-ui_draw_city_command_buttons(ui_state *ui)
+ui_draw_city_command_buttons(ui_state *ui, engine_api *api, u16 first_officer)
 {
-    char label[96];
     for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind)
     {
         ui_command_info *info = ui_command_infos + kind;
         if (kind > 0) ImGui::SameLine();
-        if (ImGui::Button(ui_label(label, sizeof(label), ui, info->button_id, info->open_id)))
+        if (ui_city_button(ui, info->button_id, info->open_id,
+                           ui_probe_city_command(api, ui->city.selected, info->kind, first_officer)))
         {
             ui->show_command[kind] = true;
             ui->commands[kind].city = ui->city.selected;

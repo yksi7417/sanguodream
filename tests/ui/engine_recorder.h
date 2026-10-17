@@ -118,6 +118,7 @@ enum recorder_call_kind
     RECORDER_SCENARIO_AT,
     RECORDER_BATTLE_COUNT,
     RECORDER_BATTLE_AT,
+    RECORDER_SUBJECT_OF,
     RECORDER_END_TURN,        /* commands start here */
     RECORDER_ADVANCE_TURNS,
     RECORDER_LEDGER_CLEAR,
@@ -215,6 +216,7 @@ struct engine_recorder
     char          last_load_path[RECORDER_MAX_PATH];
     b32           load_fails;         /* script a refused load */
     b32           has_names;          /* city_name_at answers only after a name index load */
+    u8            foreign_city;       /* this scripted city belongs to force 2, not to force 1; 0 = none (city 0 is always force 1) */
     char          last_name_index_path[RECORDER_MAX_PATH];
     sim_refusal   can_issue_refusal;  /* script the answer of can_issue and command_develop */
     engine_command last_develop;      /* the arguments of the last command_develop */
@@ -431,7 +433,7 @@ internal engine_city recorder_city_at(void *o, u32 i)
     city.city_id = ENGINE_NO_CITY;
     if (i >= r->city_count) return city;
     city.city_id               = (u8)i;
-    city.owner_force_id        = 1;        /* the force of the scripted officers */
+    city.owner_force_id        = (u8)(r->foreign_city && i == r->foreign_city ? 2 : 1);   /* the force of the scripted officers */
     city.commanding_officer_id = i == 0 ? 100 : 0xFFFF;   /* officer 100 commands city 0 */
     city.gold                  = 1000 * (i + 1);
     return city;
@@ -663,6 +665,17 @@ internal engine_weapon_kind recorder_weapon_kind_at(void *o, u32 index)
     kind.max_days = index < 4 ? 0 : 90;
     return kind;
 }
+/* Entity 1 + i is the scripted city i; 1000 + i is the scripted officer 100 + i. */
+internal engine_subject recorder_subject_of(void *o, u32 entity)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_SUBJECT_OF, entity);
+    engine_subject subject = {};
+    if (entity >= 1 && entity <= r->city_count)                      { subject.kind = ENGINE_SUBJECT_CITY;    subject.id = (u16)(entity - 1); }
+    else if (entity >= 1000 && entity < 1000 + r->officer_count)     { subject.kind = ENGINE_SUBJECT_OFFICER; subject.id = (u16)(entity - 1000 + 100); }
+    return subject;
+}
+
 internal engine_ledger_view recorder_ledger_filter(void *o, u8 city_id, u8 resource)
 {
     engine_recorder *r = (engine_recorder *)o;
@@ -1559,6 +1572,7 @@ recorder_make_api(engine_recorder *r)
     api.weapon_kind_count    = recorder_weapon_kind_count;
     api.weapon_kind_at       = recorder_weapon_kind_at;
     api.ledger_filter        = recorder_ledger_filter;
+    api.subject_of           = recorder_subject_of;
     api.command_patrol       = recorder_command_patrol;
     api.command_conscript    = recorder_command_conscript;
     api.command_train        = recorder_command_train;

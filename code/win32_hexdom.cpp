@@ -252,7 +252,8 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
        builds the atlas texture in its first NewFrame. */
     char font_data_dir[MAX_PATH];
     snprintf(font_data_dir, MAX_PATH, "%s\\%s", g_win32.exe_dir, HEXDOM_DATA_ROOT);
-    ui_font_result fonts = ui_fonts_load(font_data_dir, HEXDOM_CONTENT_PACK);
+    u32 font_pixels = HEXDOM_FONT_DEFAULT_PIXELS;
+    ui_font_result fonts = ui_fonts_load(font_data_dir, HEXDOM_CONTENT_PACK, font_pixels);
     win32_log(fonts.message);
 
     /* One memory block for the whole game, carved into permanent, transient
@@ -346,6 +347,19 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
 
         win32_render_frame(&window, renderer.ready ? &renderer : 0, commands, &frame);
         win32_present_frame(&window);
+
+        /* A new font size from the Settings panel: the atlas is built again
+           between two frames. The DX11 backend makes its font texture again
+           in its next NewFrame. */
+        if (memory.font_pixels >= HEXDOM_FONT_MIN_PIXELS && memory.font_pixels <= HEXDOM_FONT_MAX_PIXELS &&
+            memory.font_pixels != font_pixels)
+        {
+            font_pixels = memory.font_pixels;
+            ImGui_ImplDX11_InvalidateDeviceObjects();
+            ImGui::GetIO().Fonts->Clear();
+            fonts = ui_fonts_load(font_data_dir, HEXDOM_CONTENT_PACK, font_pixels);
+            win32_log(fonts.message);
+        }
 
         frame_index++;
         if (max_frames && frame_index >= max_frames)

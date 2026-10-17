@@ -12,6 +12,7 @@
 #define UI_SCENE_ZOOM_STEP   1.25f
 #define UI_SCENE_DRAG_SPEED  0.008f
 #define UI_SCENE_PAN_SPEED   0.05f
+#define UI_SCENE_KEY_PAN_SPEED 0.6f   /* of the camera distance each second while W, A, S or D is down */
 
 internal void
 ui_scene_init(ui_state *ui)
@@ -63,7 +64,8 @@ ui_draw_scene_panel(ui_state *ui, engine_api *api)
                     (f64)(ui->scene.cam.yaw * 180.0f / RENDER_PI), (f64)(ui->scene.cam.pitch * 180.0f / RENDER_PI), (f64)ui->scene.cam.distance);
         if (ui->scene.has_hover) ImGui::Text("under the mouse: (%d, %d)", ui->scene.hover.q, ui->scene.hover.r);
         else                     ImGui::Text("under the mouse: nothing");
-        ImGui::TextWrapped("Right drag orbits, middle drag pans, wheel zooms, left click picks.");
+        ImGui::TextWrapped("Right drag orbits, middle drag pans, wheel zooms, left click picks. "
+                           "W A S D pan, PageUp and PageDown zoom (the Hex map panel takes the keys while it has the focus).");
     }
     ImGui::End();
 }
@@ -106,6 +108,24 @@ ui_scene_handle_mouse(ui_state *ui, engine_api *api, f32 viewport_width, f32 vie
         if (!ui->map.has_from || ui->map.has_to) { ui->map.from = ui->scene.hover; ui->map.has_from = true; ui->map.has_to = false; }
         else                                     { ui->map.to = ui->scene.hover; ui->map.has_to = true; }
     }
+}
+
+/* The keys move the camera when no text box and not the Hex map panel
+   take them: W, A, S and D pan; PageUp and PageDown zoom. */
+internal void
+ui_scene_handle_keys(ui_state *ui, f32 dt_seconds)
+{
+    ImGuiIO &io = ImGui::GetIO();
+    if (io.WantTextInput || ui->map.focused) return;
+    f32 step = UI_SCENE_KEY_PAN_SPEED * ui->scene.cam.distance * dt_seconds;
+    f32 right = 0.0f, forward = 0.0f;
+    if (ImGui::IsKeyDown(ImGuiKey_W)) forward += step;
+    if (ImGui::IsKeyDown(ImGuiKey_S)) forward -= step;
+    if (ImGui::IsKeyDown(ImGuiKey_D)) right   += step;
+    if (ImGui::IsKeyDown(ImGuiKey_A)) right   -= step;
+    if (right != 0.0f || forward != 0.0f) camera_pan(&ui->scene.cam, right, forward);
+    if (ImGui::IsKeyPressed(ImGuiKey_PageUp))   camera_zoom(&ui->scene.cam, 1.0f / UI_SCENE_ZOOM_STEP);
+    if (ImGui::IsKeyPressed(ImGuiKey_PageDown)) camera_zoom(&ui->scene.cam, UI_SCENE_ZOOM_STEP);
 }
 
 /* Fills the frame's render commands from the engine: the terrain, the

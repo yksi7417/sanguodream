@@ -213,16 +213,17 @@ ui_draw_march_dialog(ui_state *ui, engine_api *api, b32 transport)
 
 /* The buttons of the City panel that open 出征 and 輸送 for its city. */
 internal void
-ui_draw_march_buttons(ui_state *ui)
+ui_draw_march_buttons(ui_state *ui, engine_api *api, u16 first_officer)
 {
-    char label[96];
-    if (ImGui::Button(ui_label(label, sizeof(label), ui, "city.sortie", "open_sortie")))
+    if (ui_city_button(ui, "city.sortie", "open_sortie",
+                       ui_probe_city_command(api, ui->city.selected, ENGINE_COMMAND_SORTIE, first_officer)))
     {
         ui->show_sortie = true;
         ui->sortie.city = ui->city.selected;
     }
     ImGui::SameLine();
-    if (ImGui::Button(ui_label(label, sizeof(label), ui, "city.transport", "open_transport")))
+    if (ui_city_button(ui, "city.transport", "open_transport",
+                       ui_probe_city_command(api, ui->city.selected, ENGINE_COMMAND_TRANSPORT, first_officer)))
     {
         ui->show_transport = true;
         ui->transport.city = ui->city.selected;

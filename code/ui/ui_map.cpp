@@ -8,12 +8,41 @@
 internal void ui_draw_map_units(ui_state *ui, engine_api *api, ImDrawList *draw, f32 cell, hex_point origin);
 internal b32  ui_unit_click(ui_state *ui, engine_api *api, hex_coord hex);
 
+#define UI_MAP_ZOOM_MIN         4.0f
+#define UI_MAP_ZOOM_MAX         30.0f
+#define UI_MAP_KEY_ZOOM_STEP    2.0f     /* pixels of cell size for one PageUp or PageDown */
+#define UI_MAP_KEY_SCROLL_SPEED 600.0f   /* pixels each second while W, A, S or D is down */
+
 internal void
 ui_map_init(ui_state *ui)
 {
     ui->map.has_from = false;
     ui->map.has_to   = false;
     ui->map.zoom     = 12.0f;
+    ui->map.focused  = false;
+}
+
+/* The keys of the Hex map panel while it has the focus: PageUp and
+   PageDown change the zoom; W, A, S and D scroll the canvas (in the child). */
+internal void
+ui_map_handle_zoom_keys(ui_state *ui)
+{
+    ui->map.focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+    if (!ui->map.focused || ImGui::GetIO().WantTextInput) return;
+    if (ImGui::IsKeyPressed(ImGuiKey_PageUp))   ui->map.zoom = Minimum(ui->map.zoom + UI_MAP_KEY_ZOOM_STEP, UI_MAP_ZOOM_MAX);
+    if (ImGui::IsKeyPressed(ImGuiKey_PageDown)) ui->map.zoom = Maximum(ui->map.zoom - UI_MAP_KEY_ZOOM_STEP, UI_MAP_ZOOM_MIN);
+}
+
+internal void
+ui_map_handle_scroll_keys(ui_state *ui)
+{
+    ImGuiIO &io = ImGui::GetIO();
+    if (!ui->map.focused || io.WantTextInput) return;
+    f32 step = UI_MAP_KEY_SCROLL_SPEED * io.DeltaTime;
+    if (ImGui::IsKeyDown(ImGuiKey_W)) ImGui::SetScrollY(ImGui::GetScrollY() - step);
+    if (ImGui::IsKeyDown(ImGuiKey_S)) ImGui::SetScrollY(ImGui::GetScrollY() + step);
+    if (ImGui::IsKeyDown(ImGuiKey_A)) ImGui::SetScrollX(ImGui::GetScrollX() - step);
+    if (ImGui::IsKeyDown(ImGuiKey_D)) ImGui::SetScrollX(ImGui::GetScrollX() + step);
 }
 
 internal ImU32
@@ -48,16 +77,17 @@ ui_draw_map(ui_state *ui, engine_api *api)
     ImGui::SetNextWindowSize(ImVec2(640, 480), ImGuiCond_FirstUseEver);
     if (ImGui::Begin("Hex map", &ui->show_map))
     {
+        ui_map_handle_zoom_keys(ui);
         engine_map_size size = api->map_size(api->engine);
         ImGui::Text("%u x %u cells", size.width, size.height);
         ImGui::SameLine();
         ImGui::SetNextItemWidth(120.0f);
-        ImGui::SliderFloat("zoom", &ui->map.zoom, 4.0f, 30.0f, "%.0f px");
+        ImGui::SliderFloat("zoom", &ui->map.zoom, UI_MAP_ZOOM_MIN, UI_MAP_ZOOM_MAX, "%.0f px");
         ImGui::SameLine();
         if (ImGui::SmallButton("Clear selection")) { ui->map.has_from = ui->map.has_to = false; }
 
         if (ui->map.has_from) ImGui::Text("from (%d, %d)", ui->map.from.q, ui->map.from.r);
-        else                  ImGui::Text("click a cell to pick 'from', another to pick 'to'");
+        else                  ImGui::Text("click a cell to pick 'from', another to pick 'to'; W A S D scroll, PageUp PageDown zoom");
         if (ui->map.has_to)
         {
             ImGui::SameLine();
@@ -67,6 +97,7 @@ ui_draw_map(ui_state *ui, engine_api *api)
         }
 
         ImGui::BeginChild("map_canvas", ImVec2(0, 0), ImGuiChildFlags_Borders, ImGuiWindowFlags_HorizontalScrollbar);
+        ui_map_handle_scroll_keys(ui);
         ImDrawList *draw = ImGui::GetWindowDrawList();
         f32 cell = ui->map.zoom;
         hex_point origin;

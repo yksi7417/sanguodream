@@ -6,10 +6,12 @@
 
 #define UI_DEVELOP_OFFICER_LIST 64   /* the free officers that the dialog lists */
 
-internal void ui_draw_city_command_buttons(ui_state *ui);   /* ui_city_commands.cpp */
-internal void ui_draw_growth_buttons(ui_state *ui);         /* ui_growth.cpp */
-internal void ui_draw_march_buttons(ui_state *ui);          /* ui_march.cpp */
+internal void ui_draw_city_command_buttons(ui_state *ui, engine_api *api, u16 first_officer);   /* ui_city_commands.cpp */
+internal void ui_draw_growth_buttons(ui_state *ui, engine_api *api, u16 first_officer);         /* ui_growth.cpp */
+internal void ui_draw_march_buttons(ui_state *ui, engine_api *api, u16 first_officer);          /* ui_march.cpp */
 internal void ui_draw_city_disasters(ui_state *ui, engine_api *api, u8 city_id);
+internal sim_refusal ui_probe_city_command(engine_api *api, u8 city, engine_command_kind kind, u16 first_officer);   /* ui_city_commands.cpp */
+internal u32  ui_free_officers(engine_api *api, u8 city_id, u16 *ids, u32 capacity);
 
 internal const char *
 ui_text_with_key(ui_state *ui, const char *prefix, const char *key)
@@ -46,17 +48,51 @@ ui_slot_state_text(ui_state *ui, u8 state)
     }
 }
 
-/* The name of a city for a combo: the decoded name, or its id. */
+/* The name of a city: the decoded name; its id until a name index loads;
+   the id and the name when the panels show raw numbers. */
 internal void
 ui_city_label(ui_state *ui, engine_api *api, u8 city_id, char *out, u32 out_size)
 {
     engine_city_name name = api->city_name_at(api->engine, city_id);
     char decoded[UI_NAME_SIZE] = "";
     if (name.city_id != ENGINE_NO_CITY) text_name(ui->text, name.name, sizeof(name.name), decoded, sizeof(decoded));
-    if (decoded[0]) snprintf(out, out_size, "%u %s", city_id, decoded);
-    else            snprintf(out, out_size, "%u", city_id);
+    if (!decoded[0])       snprintf(out, out_size, "%u", city_id);
+    else if (ui->show_raw) snprintf(out, out_size, "%u %s", city_id, decoded);
+    else                   snprintf(out, out_size, "%s", decoded);
 }
 
+/* True if the force owns a loaded city. */
+internal b32
+ui_force_owns_a_city(engine_api *api, u8 force)
+{
+    u32 count = api->city_count(api->engine);
+    for (u32 index = 0; index < count; ++index)
+    {
+        if (api->city_at(api->engine, index).owner_force_id == force) return true;
+    }
+    return false;
+}
+
+/* While the panels list only the cities of the player, the City panel
+   shows one of them: a city of another force goes to the first own city. */
+internal void
+ui_city_keep_selection(ui_state *ui, engine_api *api, engine_city *city)
+{
+    u8 force = ui_city_filter_force(ui, api);
+    if (force == ENGINE_NO_FACTION || city->owner_force_id == force) return;
+    u32 count = api->city_count(api->engine);
+    for (u32 index = 0; index < count; ++index)
+    {
+        engine_city other = api->city_at(api->engine, index);
+        if (other.owner_force_id != force) continue;
+        ui->city.selected = other.city_id;
+        *city = other;
+        return;
+    }
+}
+
+/* The combo lists the cities of the player, or every city when "All
+   cities" is on or the player owns none. */
 internal void
 ui_draw_city_combo(ui_state *ui, engine_api *api)
 {
@@ -65,9 +101,12 @@ ui_draw_city_combo(ui_state *ui, engine_api *api)
     if (ImGui::BeginCombo(ui_label(label, sizeof(label), ui, "city.select", "city_select"), preview))
     {
         u32 count = api->city_count(api->engine);
+        u8 force = ui_city_filter_force(ui, api);
+        if (force != ENGINE_NO_FACTION && !ui_force_owns_a_city(api, force)) force = ENGINE_NO_FACTION;
         for (u32 index = 0; index < count; ++index)
         {
             engine_city city = api->city_at(api->engine, index);
+            if (force != ENGINE_NO_FACTION && city.owner_force_id != force) continue;
             char name[96];
             ui_city_label(ui, api, city.city_id, name, sizeof(name));
             snprintf(label, sizeof(label), "%s###c%u", name, city.city_id);
@@ -96,6 +135,60 @@ ui_draw_slot_row(ui_state *ui, engine_api *api, engine_facility *slot)
     else             ImGui::TextUnformatted("-");
 }
 
+/* A refusal that the action points, the gold or the technique points
+   cause. The City panel greys a button for these; the dialog explains the
+   other refusals (no officer, no slot, an enemy near). */
+internal b32
+ui_refusal_is_cost(sim_refusal refusal)
+{
+    return refusal == SIM_REFUSAL_NO_ACTION_POINTS || refusal == SIM_REFUSAL_NO_GOLD ||
+           refusal == SIM_REFUSAL_NO_TECHNIQUE_POINTS;
+}
+
+/* A button of the City panel. A cost refusal greys it and names the
+   reason in a tooltip. Returns true on a click. */
+internal b32
+ui_city_button(ui_state *ui, const char *text_id, const char *stable_id, sim_refusal refusal)
+{
+    char label[96];
+    b32 grey = ui_refusal_is_cost(refusal);
+    ImGui::BeginDisabled(grey);
+    b32 clicked = ImGui::Button(ui_label(label, sizeof(label), ui, text_id, stable_id));
+    ImGui::EndDisabled();
+    if (grey && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+    {
+        ImGui::SetTooltip("%s: %s", text_get(ui->text, "develop.refused"), ui_refusal_text(ui, refusal));
+    }
+    return clicked;
+}
+
+/* The command buttons of the City panel: only for a city of the faction
+   that acts. Each button asks can_issue with a trial order, so that a
+   command the action points or the gold do not allow is grey. */
+internal void
+ui_draw_city_buttons(ui_state *ui, engine_api *api, engine_city *city)
+{
+    u8 acting = api->whose_turn(api->engine);
+    if (city->owner_force_id == ENGINE_NO_FACTION || city->owner_force_id != acting)
+    {
+        ImGui::TextDisabled("%s", text_get(ui->text, "city.not_yours"));
+        return;
+    }
+    u16 first_officer = ENGINE_NO_OFFICER;
+    ui_free_officers(api, ui->city.selected, &first_officer, 1);
+    if (ui_city_button(ui, "city.develop", "open_develop",
+                       ui_probe_city_command(api, ui->city.selected, ENGINE_COMMAND_DEVELOP, first_officer)))
+    {
+        ui->show_develop = true;
+        ui->develop.city = ui->city.selected;
+        ui->develop.message[0] = 0;
+    }
+    ui_draw_growth_buttons(ui, api, first_officer);
+    ImGui::SameLine();
+    ui_draw_city_command_buttons(ui, api, first_officer);
+    ui_draw_march_buttons(ui, api, first_officer);
+}
+
 internal void
 ui_draw_city(ui_state *ui, engine_api *api)
 {
@@ -111,8 +204,11 @@ ui_draw_city(ui_state *ui, engine_api *api)
         }
         ui_draw_city_combo(ui, api);
         ImGui::SameLine();
+        ui_all_cities_toggle(ui);
+        ImGui::SameLine();
         ui_raw_toggle(ui);
         engine_city city = api->city_at(api->engine, ui->city.selected);
+        ui_city_keep_selection(ui, api, &city);
         engine_city_slots slots = api->city_slots(api->engine, ui->city.selected);
         ImGui::Text("%s:", text_get(ui->text, "column.owner"));
         ImGui::SameLine();
@@ -133,17 +229,7 @@ ui_draw_city(ui_state *ui, engine_api *api)
         ImGui::Text("%s: %u   %s: %u   %s: %u / %u", text_get(ui->text, "command.order"), economy.public_order,
                     text_get(ui->text, "command.morale"), economy.morale, text_get(ui->text, "command.soldiers"),
                     economy.soldiers, economy.soldier_cap);
-        char label[96];
-        if (ImGui::Button(ui_label(label, sizeof(label), ui, "city.develop", "open_develop")))
-        {
-            ui->show_develop = true;
-            ui->develop.city = ui->city.selected;
-            ui->develop.message[0] = 0;
-        }
-        ui_draw_growth_buttons(ui);
-        ImGui::SameLine();
-        ui_draw_city_command_buttons(ui);
-        ui_draw_march_buttons(ui);
+        ui_draw_city_buttons(ui, api, &city);
         ui_draw_city_disasters(ui, api, ui->city.selected);
 
         ImGuiTableFlags flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY;

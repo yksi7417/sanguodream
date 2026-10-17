@@ -241,10 +241,14 @@ main(int argc, char **argv)
     /* The same fonts as the game window, so the video shows the decoded names. */
     char font_data_dir[MAX_PATH];
     snprintf(font_data_dir, MAX_PATH, "%s\\%s", exe_dir, HEXDOM_DATA_ROOT);
-    ui_font_result fonts = ui_fonts_load(font_data_dir, HEXDOM_CONTENT_PACK);
+    ui_font_result fonts = ui_fonts_load(font_data_dir, HEXDOM_CONTENT_PACK, HEXDOM_FONT_DEFAULT_PIXELS);
     printf("%s\n", fonts.message);
 
     test_io.ConfigRunSpeed            = ImGuiTestRunSpeed_Cinematic;
+    /* A cinematic walkthrough takes about one minute; the default watchdog stops a test at 60 s. */
+    test_io.ConfigWatchdogWarning     = 120.0f;
+    test_io.ConfigWatchdogKillTest    = 180.0f;
+    test_io.ConfigWatchdogKillApp     = 300.0f;
     test_io.ConfigVerboseLevel        = ImGuiTestVerboseLevel_Info;
     test_io.ConfigVerboseLevelOnError = ImGuiTestVerboseLevel_Debug;
     test_io.ConfigLogToTTY            = true;

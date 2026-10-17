@@ -85,6 +85,21 @@ struct engine_city_name
     u8 name[NAME_INDEX_CITY_NAME_SIZE];
 };
 
+/* What the subject of a ledger event is: the city or the officer behind
+   the entity id, so that a front end can show a name in place of the id. */
+enum engine_subject_kind
+{
+    ENGINE_SUBJECT_NONE,      /* no entity, or an entity that is no city and no officer any more */
+    ENGINE_SUBJECT_CITY,      /* id = the city id */
+    ENGINE_SUBJECT_OFFICER,   /* id = the officer id */
+};
+
+struct engine_subject
+{
+    u8  kind;                 /* engine_subject_kind */
+    u16 id;
+};
+
 /* The name of a location from the name index (Scenario.s11): a city 0..41,
    or a gate or a port 42..86. The Big5 bytes of the entry, NUL padded. */
 struct engine_location_name
@@ -940,6 +955,8 @@ typedef engine_weapon_kind     engine_weapon_kind_at_fn(void *engine, u32 index)
 /* The ledger events of a city (or ENGINE_ANY_CITY) that change a resource
    (sim_resource, or ENGINE_ANY_RESOURCE). A query: it changes nothing. */
 typedef engine_ledger_view     engine_ledger_filter_fn(void *engine, u8 city_id, u8 resource);
+/* The city or the officer that a ledger event names as its subject. */
+typedef engine_subject         engine_subject_of_fn(void *engine, u32 entity);
 /* Commands */
 typedef u32                 engine_end_turn_fn(void *engine);                 /* returns the command id */
 typedef u32                 engine_advance_turns_fn(void *engine, u32 count); /* returns events emitted */
@@ -1178,6 +1195,7 @@ struct engine_api
     engine_weapon_kind_count_fn     *weapon_kind_count;
     engine_weapon_kind_at_fn        *weapon_kind_at;
     engine_ledger_filter_fn         *ledger_filter;
+    engine_subject_of_fn            *subject_of;
     engine_command_city_fn          *command_patrol;
     engine_command_city_fn          *command_conscript;
     engine_command_city_fn          *command_train;

@@ -1042,3 +1042,7 @@ difficulty.0	初級
 difficulty.1	中級
 difficulty.2	上級
 difficulty.3	超級
+cities.all	全部都市
+table.filter	篩選
+city.not_yours	這不是你的都市，不能對它下令。
+settings.font_size	字型大小

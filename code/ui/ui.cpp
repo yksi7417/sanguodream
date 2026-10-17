@@ -16,7 +16,7 @@ ui_label(char *out, u32 out_size, ui_state *ui, const char *text_id, const char 
 }
 
 #include "ui/ui_map.cpp"
-#include "ui/ui_world.cpp"
+#include "ui/ui_world.cpp"   /* includes ui_table.cpp for its tables */
 #include "ui/ui_settings.cpp"
 #include "ui/ui_city.cpp"
 #include "ui/ui_city_commands.cpp"
@@ -54,6 +54,12 @@ ui_init(ui_state *ui, text_catalog *text)
     ui->show_city     = true;
     ui->show_develop  = false;
     ui->show_raw      = false;
+    ui->show_all_cities = false;
+    ui->font_size     = HEXDOM_FONT_DEFAULT_PIXELS;
+    ui->officers_view = {};
+    ui->cities_view   = {};
+    ui->ledger_view   = {};
+    ui->officers_view.sort_column = ui->cities_view.sort_column = ui->ledger_view.sort_column = UI_SORT_NO_COLUMN;
     ui->city.selected = 0;
     ui->develop = {};
     ui->develop.prepared_city = ENGINE_NO_CITY;
@@ -311,10 +317,172 @@ ui_draw_ledger_filters(ui_state *ui, engine_api *api)
     }
 }
 
+/* What the detail field of an event holds (the comments of sim_event_kind
+   in sim.h), so that the ledger can show a name in place of the number. */
+enum ui_detail_kind
+{
+    UI_DETAIL_NUMBER,
+    UI_DETAIL_UNIT,
+    UI_DETAIL_WEAPON,
+    UI_DETAIL_TECHNIQUE,
+    UI_DETAIL_DISASTER,
+    UI_DETAIL_OFFICER,
+    UI_DETAIL_FORCE,
+    UI_DETAIL_CITY,
+};
+
+internal ui_detail_kind
+ui_event_detail_kind(sim_event_kind kind)
+{
+    switch (kind)
+    {
+        case SIM_EVENT_UNIT_SORTIED:        case SIM_EVENT_UNIT_SUPPLIES:      case SIM_EVENT_UNIT_GRAIN_TAKEN:
+        case SIM_EVENT_UNIT_WEAPONS_TAKEN:  case SIM_EVENT_UNIT_MOVED:         case SIM_EVENT_UNIT_SOLDIERS_LOST:
+        case SIM_EVENT_UNIT_WAITED:         case SIM_EVENT_UNIT_ENTERED_CITY:  case SIM_EVENT_UNIT_GOLD_RETURNED:
+        case SIM_EVENT_UNIT_GRAIN_RETURNED: case SIM_EVENT_UNIT_RETREATED:     case SIM_EVENT_UNIT_SUPPLIED:
+        case SIM_EVENT_UNIT_GRAIN_EATEN:    case SIM_EVENT_UNIT_DESERTED:      case SIM_EVENT_UNIT_DAMAGED:
+        case SIM_EVENT_COUNTERATTACK:       case SIM_EVENT_CRITICAL_HIT:       case SIM_EVENT_TACTIC_USED:
+        case SIM_EVENT_PLOT_USED:           case SIM_EVENT_MORALE_CHANGED:     case SIM_EVENT_UNIT_PUSHED:
+        case SIM_EVENT_UNIT_STATE:          case SIM_EVENT_UNIT_DESTROYED:     case SIM_EVENT_UNIT_LOOT:
+        case SIM_EVENT_AID_ARRIVED:         case SIM_EVENT_AID_LEFT:
+            return UI_DETAIL_UNIT;
+        case SIM_EVENT_WEAPONS_FREE: case SIM_EVENT_PRODUCTION_STARTED: case SIM_EVENT_WEAPONS_PRODUCED:
+            return UI_DETAIL_WEAPON;
+        case SIM_EVENT_TECHNIQUE_SPENT: case SIM_EVENT_RESEARCH_STARTED: case SIM_EVENT_TECHNIQUE_RESEARCHED:
+            return UI_DETAIL_TECHNIQUE;
+        case SIM_EVENT_DISASTER_STARTED: case SIM_EVENT_DISASTER_ENDED: case SIM_EVENT_GRAIN_LOST:
+        case SIM_EVENT_GRAIN_HARVEST:    case SIM_EVENT_SOLDIERS_LOST:
+            return UI_DETAIL_DISASTER;
+        case SIM_EVENT_SWORN: case SIM_EVENT_MARRIED: case SIM_EVENT_DUEL_STARTED: case SIM_EVENT_DUEL_REFUSED:
+        case SIM_EVENT_DEBATE_STARTED:
+            return UI_DETAIL_OFFICER;
+        case SIM_EVENT_FRIENDLINESS_CHANGED: case SIM_EVENT_RELATION_CHANGED: case SIM_EVENT_DIPLOMACY_FAILED:
+        case SIM_EVENT_FACTION_SURRENDERED:  case SIM_EVENT_BASE_CAPTURED:    case SIM_EVENT_OFFICER_RECRUITED:
+        case SIM_EVENT_OFFICER_LEFT:         case SIM_EVENT_FACTION_FOUNDED:
+            return UI_DETAIL_FORCE;
+        case SIM_EVENT_OFFICER_CREATED:
+            return UI_DETAIL_CITY;
+        default:
+            return UI_DETAIL_NUMBER;
+    }
+}
+
+/* The subject of an event as a name: the city or the officer behind the
+   entity (subject_of); "-" for none; the number when raw numbers are on. */
+internal void
+ui_event_subject_text(ui_state *ui, engine_api *api, u32 entity, char *out, u32 out_size)
+{
+    if (!entity) { snprintf(out, out_size, "-"); return; }
+    if (ui->show_raw) { snprintf(out, out_size, "%u", entity); return; }
+    engine_subject subject = api->subject_of(api->engine, entity);
+    if (subject.kind == ENGINE_SUBJECT_CITY)         ui_city_label(ui, api, (u8)subject.id, out, out_size);
+    else if (subject.kind == ENGINE_SUBJECT_OFFICER) ui_officer_text(ui, api, subject.id, out, out_size);
+    else                                             snprintf(out, out_size, "%u", entity);
+}
+
+/* The detail of an event as a name when the kind says what it is. */
+internal void
+ui_event_detail_text(ui_state *ui, engine_api *api, sim_event *ev, char *out, u32 out_size)
+{
+    if (!ui->show_raw)
+    {
+        switch (ui_event_detail_kind(ev->kind))
+        {
+            case UI_DETAIL_UNIT:
+            {
+                engine_unit unit = api->unit_at(api->engine, ev->detail);
+                if (unit.id != ENGINE_NO_UNIT) { ui_unit_label(ui, api, &unit, out, out_size); return; }
+                break;
+            }
+            case UI_DETAIL_WEAPON:
+            {
+                engine_weapon_kind kind = api->weapon_kind_at(api->engine, ev->detail);
+                if (kind.id != ENGINE_NO_WEAPON) { snprintf(out, out_size, "%s", ui_text_with_key(ui, "weapon", kind.key)); return; }
+                break;
+            }
+            case UI_DETAIL_TECHNIQUE:
+            {
+                engine_technique_kind kind = api->technique_kind_at(api->engine, ev->detail);
+                if (kind.id != ENGINE_NO_TECHNIQUE) { snprintf(out, out_size, "%s", ui_text_with_key(ui, "technique", kind.key)); return; }
+                break;
+            }
+            case UI_DETAIL_DISASTER:
+            {
+                engine_disaster_kind kind = api->disaster_kind_at(api->engine, ev->detail);
+                if (kind.key[0]) { snprintf(out, out_size, "%s", ui_text_with_key(ui, "disaster", kind.key)); return; }
+                break;
+            }
+            case UI_DETAIL_OFFICER: ui_officer_text(ui, api, (u16)ev->detail, out, out_size); return;
+            case UI_DETAIL_FORCE:   ui_force_text(ui, api, (u8)ev->detail, out, out_size);    return;
+            case UI_DETAIL_CITY:    ui_city_label(ui, api, (u8)ev->detail, out, out_size);    return;
+            default: break;
+        }
+    }
+    snprintf(out, out_size, "%u", ev->detail);
+}
+
+/* The rows of the ledger table: every event, or the events of the city and
+   resource filters (ledger_filter). A source index is a place in that list. */
+struct ui_ledger_rows
+{
+    b32                filtered;
+    engine_ledger_view view;
+};
+
+internal u32
+ui_ledger_event_index(ui_ledger_rows *rows, u32 source)
+{
+    return rows->filtered ? rows->view.indices[source] : source;
+}
+
+internal u8
+ui_ledger_row_cells(ui_state *ui, engine_api *api, void *user, u32 source, ui_sort_key *cells)
+{
+    ui_ledger_rows *rows = (ui_ledger_rows *)user;
+    u32 index = ui_ledger_event_index(rows, source);
+    sim_event ev = api->ledger_at(api->engine, index);
+    char text[UI_NAME_SIZE * 2];
+    ui_key_number(cells + 0, index);
+    ui_key_number(cells + 1, ev.turn);
+    ui_key_text(cells + 2, sim_event_name(ev.kind));
+    ui_event_subject_text(ui, api, ev.subject, text, sizeof(text));
+    ui_key_text(cells + 3, text);
+    ui_key_number(cells + 4, ev.delta);
+    ui_key_number(cells + 5, ev.cause);
+    ui_key_code(ui, api, cells + 6, UI_CODE_FORCE, ev.faction, ENGINE_NO_FACTION);
+    ui_key_text(cells + 7, ev.assumed ? "assumed" : "");
+    ui_event_detail_text(ui, api, &ev, text, sizeof(text));
+    ui_key_text(cells + 8, text);
+    return ENGINE_NO_FACTION;
+}
+
+internal void
+ui_draw_ledger_row(ui_state *ui, engine_api *api, u32 index)
+{
+    sim_event ev = api->ledger_at(api->engine, index);
+    char text[UI_NAME_SIZE * 2];
+    ImGui::TableNextRow();
+    ImGui::TableNextColumn(); ImGui::Text("%u", index);
+    ImGui::TableNextColumn(); ImGui::Text("%u", ev.turn);
+    ImGui::TableNextColumn(); ImGui::TextUnformatted(sim_event_name(ev.kind));
+    ImGui::TableNextColumn();
+    ui_event_subject_text(ui, api, ev.subject, text, sizeof(text));
+    ImGui::TextUnformatted(text);
+    ui_raw_tooltip(ui, ev.subject);
+    ImGui::TableNextColumn(); ImGui::Text("%d", ev.delta);
+    ImGui::TableNextColumn(); ImGui::Text("%u", ev.cause);
+    ImGui::TableNextColumn(); ui_code_cell(ui, api, UI_CODE_FORCE, ev.faction, ENGINE_NO_FACTION);
+    ImGui::TableNextColumn(); ImGui::TextUnformatted(ev.assumed ? "assumed" : "");
+    ImGui::TableNextColumn();
+    ui_event_detail_text(ui, api, &ev, text, sizeof(text));
+    ImGui::TextUnformatted(text);
+    ui_raw_tooltip(ui, ev.detail);
+}
+
 internal void
 ui_draw_ledger(ui_state *ui, engine_api *api)
 {
-    ImGui::SetNextWindowSize(ImVec2(640, 300), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(760, 300), ImGuiCond_FirstUseEver);
     if (ImGui::Begin("Event ledger", &ui->show_ledger))
     {
         u32 count = api->ledger_count(api->engine);
@@ -327,48 +495,47 @@ ui_draw_ledger(ui_state *ui, engine_api *api)
         }
         ImGui::SameLine();
         ui_draw_ledger_filters(ui, api);
-        b32 filtered = ui->ledger_city != ENGINE_ANY_CITY || ui->ledger_resource != ENGINE_ANY_RESOURCE;
-        engine_ledger_view view = {};
-        if (filtered)
+        ui_ledger_rows rows = {};
+        rows.filtered = ui->ledger_city != ENGINE_ANY_CITY || ui->ledger_resource != ENGINE_ANY_RESOURCE;
+        if (rows.filtered)
         {
-            view  = api->ledger_filter(api->engine, ui->ledger_city, ui->ledger_resource);
-            count = view.count;
+            rows.view = api->ledger_filter(api->engine, ui->ledger_city, ui->ledger_resource);
+            count     = rows.view.count;
         }
-        ImGuiTableFlags flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
-                                ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable;
-        if (ImGui::BeginTable("ledger", 9, flags))
+        ui_table_source source = {};
+        source.source_count = count;
+        source.column_count = 9;
+        source.only_force   = ENGINE_NO_FACTION;
+        source.row          = ui_ledger_row_cells;
+        source.user         = &rows;
+        source.rows         = ui->ledger_rows;
+        source.keys         = ui->ledger_keys;
+        source.capacity     = ArrayCount(ui->ledger_rows);
+        ui_table_view_update(ui, api, &ui->ledger_view, &source);
+        ui_table_filter_box(ui, &ui->ledger_view, "filter_ledger");
+        ImGui::SameLine();
+        ui_raw_toggle(ui);
+        if (ImGui::BeginTable("ledger", 9, UI_TABLE_FLAGS))
         {
             ImGui::TableSetupScrollFreeze(0, 1);
             ImGui::TableSetupColumn("#", ImGuiTableColumnFlags_WidthFixed, 50.0f);
             ImGui::TableSetupColumn("turn", ImGuiTableColumnFlags_WidthFixed, 50.0f);
             ImGui::TableSetupColumn("event");
-            ImGui::TableSetupColumn("subject", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+            ImGui::TableSetupColumn("subject", ImGuiTableColumnFlags_WidthFixed, 90.0f);
             ImGui::TableSetupColumn("delta", ImGuiTableColumnFlags_WidthFixed, 60.0f);
             ImGui::TableSetupColumn("cause", ImGuiTableColumnFlags_WidthFixed, 60.0f);
-            ImGui::TableSetupColumn("faction", ImGuiTableColumnFlags_WidthFixed, 50.0f);
+            ImGui::TableSetupColumn("faction", ImGuiTableColumnFlags_WidthFixed, 80.0f);
             ImGui::TableSetupColumn("assumed", ImGuiTableColumnFlags_WidthFixed, 60.0f);
-            ImGui::TableSetupColumn("detail", ImGuiTableColumnFlags_WidthFixed, 50.0f);
+            ImGui::TableSetupColumn("detail", ImGuiTableColumnFlags_WidthFixed, 100.0f);
             ImGui::TableHeadersRow();
+            ui_table_read_sort(&ui->ledger_view);
             ImGuiListClipper clipper;
-            clipper.Begin((int)count);
+            clipper.Begin((int)ui->ledger_view.count);
             while (clipper.Step())
             {
                 for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; ++row)
                 {
-                    u32 index = filtered ? view.indices[row] : (u32)row;
-                    sim_event ev = api->ledger_at(api->engine, index);
-                    ImGui::TableNextRow();
-                    ImGui::TableNextColumn(); ImGui::Text("%u", index);
-                    ImGui::TableNextColumn(); ImGui::Text("%u", ev.turn);
-                    ImGui::TableNextColumn(); ImGui::TextUnformatted(sim_event_name(ev.kind));
-                    ImGui::TableNextColumn(); ImGui::Text("%u", ev.subject);
-                    ImGui::TableNextColumn(); ImGui::Text("%d", ev.delta);
-                    ImGui::TableNextColumn(); ImGui::Text("%u", ev.cause);
-                    ImGui::TableNextColumn();
-                    if (ev.faction == ENGINE_NO_FACTION) ImGui::TextUnformatted("-");
-                    else                                 ImGui::Text("%u", ev.faction);
-                    ImGui::TableNextColumn(); ImGui::TextUnformatted(ev.assumed ? "assumed" : "");
-                    ImGui::TableNextColumn(); ImGui::Text("%u", ev.detail);
+                    ui_draw_ledger_row(ui, api, ui_ledger_event_index(&rows, ui->ledger_rows[row]));
                 }
             }
             ImGui::EndTable();
@@ -395,6 +562,7 @@ internal void
 ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
 {
     ui_apply_pending_locale(ui);
+    if (!ui->show_map) ui->map.focused = false;   /* a closed panel takes no keys */
     ui_draw_menu_bar(ui, api, frame);
     if (ui->show_demo)   ImGui::ShowDemoWindow(&ui->show_demo);
     if (ui->show_sim)    ui_draw_simulation(ui, api);
@@ -435,6 +603,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     {
         if (!ui->scene.initialized) ui_scene_reset_camera(ui, api);
         ui_scene_handle_mouse(ui, api, frame->render->viewport_width, frame->render->viewport_height);
+        ui_scene_handle_keys(ui, frame->dt_seconds);
     }
     ui_scene_push(ui, api, frame);
 }

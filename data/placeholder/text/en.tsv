@@ -1044,3 +1044,7 @@ difficulty.0	beginner	初級
 difficulty.1	normal	中級
 difficulty.2	hard	上級
 difficulty.3	super	超級
+cities.all	All cities	check box: list every city, not only the cities of the player
+table.filter	filter	hint in the filter box of a table
+city.not_yours	This city is not yours. It takes no command from you.	the City panel for a city of another force
+settings.font_size	Font size	slider, pixels

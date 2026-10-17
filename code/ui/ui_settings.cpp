@@ -73,11 +73,24 @@ ui_draw_game_settings(ui_state *ui, engine_api *api)
     }
 }
 
+/* The font size in pixels. The platform layer builds the atlas again when
+   it changes (win32_hexdom.cpp); the headless tests only keep the number. */
+internal void
+ui_draw_font_size(ui_state *ui)
+{
+    char label[128];
+    ImGui::SetNextItemWidth(200.0f);
+    ImGui::SliderInt(ui_label(label, sizeof(label), ui, "settings.font_size", "font_size"), &ui->font_size,
+                     HEXDOM_FONT_MIN_PIXELS, HEXDOM_FONT_MAX_PIXELS, "%d px");
+    if (ui->font_size < HEXDOM_FONT_MIN_PIXELS) ui->font_size = HEXDOM_FONT_MIN_PIXELS;
+    if (ui->font_size > HEXDOM_FONT_MAX_PIXELS) ui->font_size = HEXDOM_FONT_MAX_PIXELS;
+}
+
 internal void
 ui_draw_settings(ui_state *ui, engine_api *api)
 {
     char title[128];
-    ImGui::SetNextWindowSize(ImVec2(420, 180), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(420, 200), ImGuiCond_FirstUseEver);
     if (ImGui::Begin(ui_label(title, sizeof(title), ui, "settings.title", "Settings"), &ui->show_settings))
     {
         ui_draw_game_settings(ui, api);
@@ -89,6 +102,7 @@ ui_draw_settings(ui_state *ui, engine_api *api)
                 ImGui::TextDisabled("%s", text_get(ui->text, "settings.no_strings"));
             }
         }
+        ui_draw_font_size(ui);
         ImFont *font = ImGui::GetFont();
         ImGui::Text("%s: %s", text_get(ui->text, "settings.font"), font ? font->GetDebugName() : "-");
         if (ui->text)

@@ -1083,6 +1083,28 @@ engine_api_weapon_kind_at(void *opaque, u32 index)
 
 /* A query: the events of a city that change a resource. A city event has
    the entity of the city as its subject (economy.cpp, sim_emit_city). */
+internal engine_subject
+engine_api_subject_of(void *opaque, u32 entity)
+{
+    engine *e = (engine *)opaque;
+    engine_subject subject = {};
+    if (!entity || entity_index(entity) >= e->sim->entities.capacity) return subject;
+    city_component *city = table_get(&e->sim->cities, entity);
+    if (city)
+    {
+        subject.kind = ENGINE_SUBJECT_CITY;
+        subject.id   = city->city_id;
+        return subject;
+    }
+    officer_component *officer = table_get(&e->sim->officers, entity);
+    if (officer)
+    {
+        subject.kind = ENGINE_SUBJECT_OFFICER;
+        subject.id   = officer->officer_id;
+    }
+    return subject;
+}
+
 internal engine_ledger_view
 engine_api_ledger_filter(void *opaque, u8 city_id, u8 resource)
 {
@@ -1261,6 +1283,7 @@ engine_make_api(engine *e)
     api.weapon_kind_count    = engine_api_weapon_kind_count;
     api.weapon_kind_at       = engine_api_weapon_kind_at;
     api.ledger_filter        = engine_api_ledger_filter;
+    api.subject_of           = engine_api_subject_of;
     api.command_patrol       = engine_api_command_patrol;
     api.command_conscript    = engine_api_command_conscript;
     api.command_train        = engine_api_command_train;

@@ -100,6 +100,40 @@ ui_force_text(ui_state *ui, engine_api *api, u8 force_id, char *out, u32 out_siz
     else                            ui_officer_text(ui, api, ruler, out, out_size);
 }
 
+/* The faction of the player: the faction that acts if a human plays it,
+   else the first human faction, else the faction that acts. */
+internal u8
+ui_player_force(engine_api *api)
+{
+    u8 acting = api->whose_turn(api->engine);
+    u8 first_human = ENGINE_NO_FACTION;
+    u32 count = api->faction_count(api->engine);
+    for (u32 index = 0; index < count; ++index)
+    {
+        engine_faction faction = api->faction_at(api->engine, index);
+        if (!faction.human) continue;
+        if (faction.force_id == acting) return acting;
+        if (first_human == ENGINE_NO_FACTION) first_human = faction.force_id;
+    }
+    return first_human != ENGINE_NO_FACTION ? first_human : acting;
+}
+
+/* The force whose cities the Cities panel and the City combo list, or
+   ENGINE_NO_FACTION for every city ("All cities", or no player). */
+internal u8
+ui_city_filter_force(ui_state *ui, engine_api *api)
+{
+    return ui->show_all_cities ? ENGINE_NO_FACTION : ui_player_force(api);
+}
+
+/* The "All cities" check box. The Cities panel and the City panel share it. */
+internal void
+ui_all_cities_toggle(ui_state *ui)
+{
+    char label[96];
+    ImGui::Checkbox(ui_label(label, sizeof(label), ui, "cities.all", "all_cities"), &ui->show_all_cities);
+}
+
 /* A location as its name from the name index; "-" for none; the number
    until a name index loads. */
 internal void
@@ -182,6 +216,32 @@ ui_draw_officer_row(ui_state *ui, engine_api *api, engine_officer *officer)
     ImGui::TableNextColumn(); ImGui::Text("%u", officer->merit);   /* 0xFFFF for templates */
 }
 
+#include "ui/ui_table.cpp"   /* the filter and the sort of the tables; needs the code cells above */
+
+/* The cells of one officer row for the filter and the sort of the view
+   (ui_table.cpp): the same texts as ui_draw_officer_row shows. */
+internal u8
+ui_officer_row_cells(ui_state *ui, engine_api *api, void *user, u32 source, ui_sort_key *cells)
+{
+    (void)user;
+    engine_officer officer = api->officer_at(api->engine, source);
+    char name[UI_NAME_SIZE], text[48];
+    ui_key_number(cells + 0, officer.officer_id);
+    text_name(ui->text, officer.family_name, sizeof(officer.family_name), name, sizeof(name));
+    ui_key_text(cells + 1, name);
+    text_name(ui->text, officer.given_name, sizeof(officer.given_name), name, sizeof(name));
+    ui_key_text(cells + 2, name);
+    ui_key_code(ui, api, cells + 3, UI_CODE_FORCE, officer.force_id, UI_NO_ID_8);
+    ui_key_code(ui, api, cells + 4, UI_CODE_STATUS, officer.status, U32_MAX);
+    ui_key_code(ui, api, cells + 5, UI_CODE_LOCATION, officer.base_location, UI_NO_ID_16);
+    snprintf(text, sizeof(text), "%u/%u/%u/%u/%u", officer.leadership, officer.war, officer.intelligence, officer.politics, officer.charm);
+    ui_key_mixed(cells + 6, (s64)officer.leadership + officer.war + officer.intelligence + officer.politics + officer.charm, text);
+    snprintf(text, sizeof(text), "%u-%u", officer.birth_year, officer.death_year);
+    ui_key_mixed(cells + 7, officer.birth_year, text);
+    ui_key_number(cells + 8, officer.merit);
+    return officer.force_id;
+}
+
 internal void
 ui_draw_officers(ui_state *ui, engine_api *api)
 {
@@ -190,13 +250,22 @@ ui_draw_officers(ui_state *ui, engine_api *api)
     if (ImGui::Begin(ui_label(title, sizeof(title), ui, "officers.title", "Officers"), &ui->show_officers))
     {
         u32 count = api->officer_count(api->engine);
+        ui_table_source source = {};
+        source.source_count = count;
+        source.column_count = 9;
+        source.only_force   = ENGINE_NO_FACTION;
+        source.row          = ui_officer_row_cells;
+        source.rows         = ui->officers_rows;
+        source.keys         = ui->officers_keys;
+        source.capacity     = ArrayCount(ui->officers_rows);
+        ui_table_view_update(ui, api, &ui->officers_view, &source);
         ImGui::Text("%u %s", count, text_get(ui->text, "officers.count"));
+        ImGui::SameLine();
+        ui_table_filter_box(ui, &ui->officers_view, "filter_officers");
         ImGui::SameLine();
         ui_raw_toggle(ui);
         ImGui::TextDisabled("%s", text_get(ui->text, "officers.help"));
-        ImGuiTableFlags flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
-                                ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable;
-        if (ImGui::BeginTable("officers", 9, flags))
+        if (ImGui::BeginTable("officers", 9, UI_TABLE_FLAGS))
         {
             ImGui::TableSetupScrollFreeze(0, 1);
             ui_table_column(ui, "column.id", "id", ImGuiTableColumnFlags_WidthFixed, 40.0f);
@@ -209,13 +278,14 @@ ui_draw_officers(ui_state *ui, engine_api *api)
             ui_table_column(ui, "column.years", "years");
             ui_table_column(ui, "column.merit", "merit", ImGuiTableColumnFlags_WidthFixed, 50.0f);
             ImGui::TableHeadersRow();
+            ui_table_read_sort(&ui->officers_view);
             ImGuiListClipper clipper;
-            clipper.Begin((int)count);
+            clipper.Begin((int)ui->officers_view.count);
             while (clipper.Step())
             {
                 for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; ++row)
                 {
-                    engine_officer officer = api->officer_at(api->engine, (u32)row);
+                    engine_officer officer = api->officer_at(api->engine, ui->officers_rows[row]);
                     ui_draw_officer_row(ui, api, &officer);
                 }
             }
@@ -242,6 +312,31 @@ ui_draw_city_row(ui_state *ui, engine_api *api, engine_city *city, engine_city_n
     ImGui::TableNextColumn(); ImGui::Text("%u", city->durability_maximum);
 }
 
+/* The cells of one city row for the view: the texts of ui_draw_city_row. */
+internal u8
+ui_city_row_cells(ui_state *ui, engine_api *api, void *user, u32 source, ui_sort_key *cells)
+{
+    (void)user;
+    engine_city city = api->city_at(api->engine, source);
+    engine_city_name name = api->city_name_at(api->engine, city.city_id);
+    char decoded[UI_NAME_SIZE];
+    ui_key_number(cells + 0, city.city_id);
+    if (name.city_id == ENGINE_NO_CITY) ui_key_text(cells + 1, "-");
+    else
+    {
+        text_name(ui->text, name.name, sizeof(name.name), decoded, sizeof(decoded));
+        ui_key_text(cells + 1, decoded);
+    }
+    ui_key_code(ui, api, cells + 2, UI_CODE_FORCE, city.owner_force_id, UI_NO_ID_8);
+    ui_key_code(ui, api, cells + 3, UI_CODE_OFFICER, city.commanding_officer_id, UI_NO_ID_16);
+    ui_key_number(cells + 4, city.gold);
+    ui_key_number(cells + 5, city.troops);
+    ui_key_number(cells + 6, city.food);
+    ui_key_number(cells + 7, city.public_order);
+    ui_key_number(cells + 8, city.durability_maximum);
+    return city.owner_force_id;
+}
+
 internal void
 ui_draw_cities(ui_state *ui, engine_api *api)
 {
@@ -250,13 +345,30 @@ ui_draw_cities(ui_state *ui, engine_api *api)
     if (ImGui::Begin(ui_label(title, sizeof(title), ui, "cities.title", "Cities"), &ui->show_cities))
     {
         u32 count = api->city_count(api->engine);
+        ui_table_source source = {};
+        source.source_count = count;
+        source.column_count = 9;
+        source.only_force   = ui_city_filter_force(ui, api);
+        source.row          = ui_city_row_cells;
+        source.rows         = ui->cities_rows;
+        source.keys         = ui->cities_keys;
+        source.capacity     = ArrayCount(ui->cities_rows);
+        ui_table_view_update(ui, api, &ui->cities_view, &source);
+        if (ui->cities_view.count == 0 && source.only_force != ENGINE_NO_FACTION)
+        {
+            /* the player owns no city: the panel lists every city */
+            source.only_force = ENGINE_NO_FACTION;
+            ui_table_view_update(ui, api, &ui->cities_view, &source);
+        }
         ImGui::Text("%u %s", count, text_get(ui->text, "cities.count"));
+        ImGui::SameLine();
+        ui_all_cities_toggle(ui);
+        ImGui::SameLine();
+        ui_table_filter_box(ui, &ui->cities_view, "filter_cities");
         ImGui::SameLine();
         ui_raw_toggle(ui);
         ImGui::TextDisabled("%s", text_get(ui->text, "cities.help"));
-        ImGuiTableFlags flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
-                                ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable;
-        if (ImGui::BeginTable("cities", 9, flags))
+        if (ImGui::BeginTable("cities", 9, UI_TABLE_FLAGS))
         {
             ImGui::TableSetupScrollFreeze(0, 1);
             ui_table_column(ui, "column.id", "id", ImGuiTableColumnFlags_WidthFixed, 30.0f);
@@ -269,13 +381,14 @@ ui_draw_cities(ui_state *ui, engine_api *api)
             ui_table_column(ui, "column.order", "order", ImGuiTableColumnFlags_WidthFixed, 45.0f);
             ui_table_column(ui, "column.durability", "durability");
             ImGui::TableHeadersRow();
+            ui_table_read_sort(&ui->cities_view);
             ImGuiListClipper clipper;
-            clipper.Begin((int)count);
+            clipper.Begin((int)ui->cities_view.count);
             while (clipper.Step())
             {
                 for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; ++row)
                 {
-                    engine_city city = api->city_at(api->engine, (u32)row);
+                    engine_city city = api->city_at(api->engine, ui->cities_rows[row]);
                     engine_city_name name = api->city_name_at(api->engine, city.city_id);
                     ui_draw_city_row(ui, api, &city, &name);
                 }

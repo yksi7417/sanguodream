@@ -18,11 +18,11 @@
 #include <stdio.h>
 #include "imgui.h"
 #include "imgui_internal.h"     /* ImFileLoadToMemory */
+#include "hexdom.h"             /* the font size limits */
 #include "text/text.h"
 
 #define UI_FONT_CJK_FILE   "NotoSansCJKtc-Regular.otf"   /* Latin, CJK, kana and Hangul */
 #define UI_FONT_THAI_FILE  "NotoSansThai-Regular.ttf"    /* merged into the CJK font */
-#define UI_FONT_PIXEL_SIZE 16.0f
 #define UI_FONT_PATH_SIZE  512
 
 struct ui_font_result
@@ -101,13 +101,17 @@ ui_fonts_add_pack_text(ImFontGlyphRangesBuilder *builder, const char *data_dir, 
 }
 
 /* Loads the fonts from <data_dir>\fonts into the atlas of the current
-   ImGui context. data_dir is a full path, for example
-   "C:\src\hexdom\build\..\data". */
+   ImGui context, at pixel_size pixels. data_dir is a full path, for
+   example "C:\src\hexdom\build\..\data". To change the size while the
+   window is open: invalidate the device objects of the renderer backend,
+   clear io.Fonts, and call this again between two frames. */
 internal ui_font_result
-ui_fonts_load(const char *data_dir, const char *pack)
+ui_fonts_load(const char *data_dir, const char *pack, u32 pixel_size)
 {
     ui_font_result result = {};
     ImGuiIO &io = ImGui::GetIO();
+    if (pixel_size < HEXDOM_FONT_MIN_PIXELS || pixel_size > HEXDOM_FONT_MAX_PIXELS) pixel_size = HEXDOM_FONT_DEFAULT_PIXELS;
+    f32 size = (f32)pixel_size;
     char cjk_path[UI_FONT_PATH_SIZE];
     char thai_path[UI_FONT_PATH_SIZE];
     snprintf(cjk_path, sizeof(cjk_path), "%s\\fonts\\%s", data_dir, UI_FONT_CJK_FILE);
@@ -146,7 +150,7 @@ ui_fonts_load(const char *data_dir, const char *pack)
     config.OversampleH = 1;
     config.OversampleV = 1;
     config.PixelSnapH  = true;
-    result.loaded_cjk = io.Fonts->AddFontFromFileTTF(cjk_path, UI_FONT_PIXEL_SIZE, &config, ui_font_glyph_ranges.Data) != 0;
+    result.loaded_cjk = io.Fonts->AddFontFromFileTTF(cjk_path, size, &config, ui_font_glyph_ranges.Data) != 0;
     if (!result.loaded_cjk)
     {
         io.Fonts->AddFontDefault();
@@ -156,10 +160,10 @@ ui_fonts_load(const char *data_dir, const char *pack)
     if (ui_fonts_file_exists(thai_path))
     {
         config.MergeMode = true;
-        result.loaded_thai = io.Fonts->AddFontFromFileTTF(thai_path, UI_FONT_PIXEL_SIZE, &config, ui_font_thai_ranges) != 0;
+        result.loaded_thai = io.Fonts->AddFontFromFileTTF(thai_path, size, &config, ui_font_thai_ranges) != 0;
     }
-    snprintf(result.message, sizeof(result.message), "fonts: %s%s, %u code points",
-             UI_FONT_CJK_FILE, result.loaded_thai ? " + " UI_FONT_THAI_FILE : "", result.glyph_count);
+    snprintf(result.message, sizeof(result.message), "fonts: %s%s, %u code points, %u px",
+             UI_FONT_CJK_FILE, result.loaded_thai ? " + " UI_FONT_THAI_FILE : "", result.glyph_count, pixel_size);
     return result;
 }
 

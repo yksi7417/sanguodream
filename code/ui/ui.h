@@ -7,6 +7,7 @@
    survives DLL reloads. bool rather than b32 because ImGui writes these. */
 
 #include "base.h"
+#include "hexdom.h"               /* the font size limits that the platform shares */
 #include "engine/engine.h"
 #include "render/render.h"
 #include "render/terrain_mesh.h"   /* terrain_level_y: the scene places models on the cell tops */
@@ -59,6 +60,62 @@ enum ui_pick
     UI_PICK_COUNT
 };
 
+/* ---- table views (ui_table.cpp) ---------------------------------------- */
+
+#define UI_TABLE_FILTER_SIZE   48
+#define UI_TABLE_FILTER_WIDTH  150.0f
+#define UI_TABLE_MAX_COLUMNS   12
+#define UI_SORT_TEXT_SIZE      32
+#define UI_SORT_NO_COLUMN      -1
+#define UI_LEDGER_VIEW_CAPACITY 65536   /* the ledger capacity of engine_default_config */
+
+/* One cell of a row: its text for the filter, its number for the sort. */
+struct ui_sort_key
+{
+    s64  number;
+    b32  numeric;
+    char text[UI_SORT_TEXT_SIZE];
+};
+
+/* The filter and the sort of one table, and the facts its order was built from. */
+struct ui_table_view
+{
+    char filter[UI_TABLE_FILTER_SIZE];
+    s32  sort_column;                 /* UI_SORT_NO_COLUMN: the source order */
+    bool sort_descending;
+    u32  count;                       /* the rows that pass the filter */
+    bool built;
+    char built_filter[UI_TABLE_FILTER_SIZE];
+    char built_locale[TEXT_LOCALE_SIZE];
+    s32  built_sort_column;
+    bool built_sort_descending;
+    bool built_raw;
+    u8   built_force;
+    u32  built_source_count;
+    u32  built_turn;
+    u32  built_ledger_count;
+};
+
+struct ui_state;
+
+/* Fills one cell for each column of the row source, and returns the force
+   of the row (ENGINE_NO_FACTION when the table has no force filter). */
+typedef u8 ui_table_row_fn(ui_state *ui, engine_api *api, void *user, u32 source, ui_sort_key *cells);
+
+/* The rows of one table for a build: the count, the cells, and the arrays
+   of the view (rows: the display order; keys: the sort key by source index). */
+struct ui_table_source
+{
+    u32              source_count;
+    u32              column_count;
+    u8               only_force;      /* ENGINE_NO_FACTION: every row */
+    ui_table_row_fn *row;
+    void            *user;
+    u32             *rows;
+    ui_sort_key     *keys;
+    u32              capacity;
+};
+
 struct ui_state
 {
     bool show_demo;
@@ -82,10 +139,22 @@ struct ui_state
     bool show_city;
     bool show_develop;
     bool show_raw;               /* the id and code columns show the raw numbers, not the names */
+    bool show_all_cities;        /* the Cities panel and the City combo list every city, not only the player's */
+    int  font_size;              /* pixels; the platform builds the font atlas again when it changes */
     struct
     {
         u8 selected;             /* the city id that the City panel shows */
     } city;
+    /* the filter and the sort of the big tables (ui_table.cpp) */
+    ui_table_view officers_view;
+    ui_table_view cities_view;
+    ui_table_view ledger_view;
+    u32           officers_rows[SIM_OFFICER_CAPACITY];
+    ui_sort_key   officers_keys[SIM_OFFICER_CAPACITY];
+    u32           cities_rows[SIM_CITY_CAPACITY];
+    ui_sort_key   cities_keys[SIM_CITY_CAPACITY];
+    u32           ledger_rows[UI_LEDGER_VIEW_CAPACITY];
+    ui_sort_key   ledger_keys[UI_LEDGER_VIEW_CAPACITY];
     struct
     {
         u8   city;               /* the city of the dialog */
@@ -232,6 +301,7 @@ struct ui_state
         hex_coord from;
         hex_coord to;
         f32       zoom;
+        bool      focused;       /* the Hex map panel has the keyboard: W A S D scroll it, PageUp and PageDown zoom it */
     } map;
 };
 

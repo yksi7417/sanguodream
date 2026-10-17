@@ -105,6 +105,19 @@ global_variable ui_command_case ui_command_cases[] = {
     { "produce_decide_issues_one_command",   "produce_back_issues_nothing",   "###Produce",   "###open_produce",   UI_COMMAND_PRODUCE,   ENGINE_COMMAND_PRODUCE },
 };
 
+/* Clicks the header of a column of a sortable table. The column labels of
+   the panels have a "###" stable id, which the test engine's own
+   TableClickHeader does not hash the way ImGui does; this helper does. */
+internal void
+ui_test_click_header(ImGuiTestContext *ctx, const char *table_ref, int column_n, const char *label)
+{
+    ImGuiTable *table = ImGui::TableFindByID(ctx->GetID(table_ref));
+    IM_CHECK_SILENT(table != 0);
+    ImGuiID instance  = ImGui::TableGetInstanceID(table, 0);
+    ImGuiID column_id = ImHashData(&column_n, sizeof(column_n), instance);   /* TableHeadersRow: PushID(column_n) */
+    ctx->ItemClick(ImHashStr(label, 0, column_id));                            /* TableHeader: GetID(label) */
+}
+
 /* Moves the mouse to the center of a hex of the Hex map panel and clicks it. */
 internal void
 ui_test_click_cell(ImGuiTestContext *ctx, ui_test_vars &v, hex_coord cell)
@@ -416,7 +429,7 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_OFFICER_BY_ID), 0u);
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOCATION_NAME_AT), 0u);
         IM_CHECK_EQ(v.text.stats.label_lookups - before.label_lookups, 0ull);
-        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_OFFICER_AT), 3u);                /* the rows are still read */
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_OFFICER_AT), 3u + 1u);           /* the rows are still read; the City panel asks its first free officer */
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
         ctx->SetRef("###City");
         ctx->ItemClick("###raw");
@@ -1711,6 +1724,209 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->Yield(10);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
         IM_CHECK_GT(recorder_count(&v.recorder, RECORDER_TURN), 0u);      /* but it does read state */
+    };
+
+    /* ---- the table views, the own-faction filter, the City buttons, the font size, the keys */
+
+    t = IM_REGISTER_TEST(e, "ui", "officers_table_filter_and_sort_change_the_order_and_command_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        ctx->SetRef("###Officers");
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.officers_view.count, 3u);
+        ctx->ItemInputValue("###filter_officers", "102");
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.officers_view.count, 1u);                                       /* the id column matches */
+        IM_CHECK_EQ(v.ui.officers_rows[0], 2u);
+        v.ui.officers_view.filter[0] = 0;
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.officers_view.count, 3u);
+        char header[96];
+        snprintf(header, sizeof(header), "%s###id", text_get(&v.text, "column.id"));
+        ui_test_click_header(ctx, "officers", 0, header);                                  /* ascending */
+        ctx->Yield(2);
+        ui_test_click_header(ctx, "officers", 0, header);                                  /* descending */
+        ctx->Yield(2);
+        IM_CHECK(v.ui.officers_view.sort_column == 0 && v.ui.officers_view.sort_descending);
+        IM_CHECK_EQ(v.ui.officers_rows[0], 2u);
+        IM_CHECK_EQ(v.ui.officers_rows[2], 0u);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_OFFICER_AT), 2u);            /* the rows are drawn in the sorted order */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "cities_panel_lists_the_cities_of_the_player_until_all_cities");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.city_count   = 3;
+        v.recorder.foreign_city = 2;         /* city 2 belongs to force 2; the player is force 1 */
+        v.ui.show_map           = false;
+        ctx->SetRef("###Cities");
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.show_all_cities);
+        IM_CHECK_EQ(v.ui.cities_view.count, 2u);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_CITY_AT), 2u);                  /* only the rows of the player are drawn */
+        ctx->ItemClick("###all_cities");
+        ctx->Yield(2);
+        IM_CHECK(v.ui.show_all_cities);
+        IM_CHECK_EQ(v.ui.cities_view.count, 3u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "city_panel_hides_the_command_buttons_of_a_city_of_another_force");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 3;
+        v.recorder.foreign_city  = 2;
+        v.ui.show_city           = true;
+        ctx->SetRef("###City");
+        ctx->Yield(2);
+        IM_CHECK(ctx->ItemExists("###open_develop"));                                      /* city 0 is the player's */
+        ctx->ItemClick("###all_cities");
+        ctx->ComboClick("###city_select/###c2");
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.city.selected, 2u);
+        IM_CHECK(!ctx->ItemExists("###open_develop"));                                     /* no button for a city of another force */
+        IM_CHECK(!ctx->ItemExists("###open_patrol"));
+        IM_CHECK(!ctx->ItemExists("###open_sortie"));
+        ctx->ItemClick("###all_cities");                                                    /* off again: the panel returns to a city of the player */
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.show_all_cities);
+        IM_CHECK_EQ(v.ui.city.selected, 0u);
+        IM_CHECK(ctx->ItemExists("###open_develop"));
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "city_panel_greys_a_button_that_the_action_points_refuse");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count     = 3;
+        v.recorder.city_count        = 2;
+        v.recorder.can_issue_refusal = SIM_REFUSAL_NO_ACTION_POINTS;
+        v.ui.show_city               = true;
+        ctx->SetRef("###City");
+        ctx->Yield(2);
+        ImGuiTestItemInfo develop = ctx->ItemInfo("###open_develop");
+        IM_CHECK(develop.ID != 0 && (develop.ItemFlags & ImGuiItemFlags_Disabled) != 0);   /* a cost refusal greys the button */
+        ImGuiTestItemInfo merge = ctx->ItemInfo("###open_merge");
+        IM_CHECK(merge.ID != 0 && (merge.ItemFlags & ImGuiItemFlags_Disabled) == 0);       /* merge asks nothing before its dialog */
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###open_develop", 0, ImGuiTestOpFlags_NoAutoOpenFullPath);
+        ctx->Yield();
+        IM_CHECK(!v.ui.show_develop);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        v.recorder.can_issue_refusal = SIM_REFUSAL_NO_OFFICER;                               /* not a cost: the dialog explains it */
+        ctx->Yield(2);
+        develop = ctx->ItemInfo("###open_develop");
+        IM_CHECK(develop.ID != 0 && (develop.ItemFlags & ImGuiItemFlags_Disabled) == 0);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "font_size_slider_changes_the_setting_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.ui.show_settings = true;
+        ctx->SetRef("###Settings");
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.font_size, HEXDOM_FONT_DEFAULT_PIXELS);
+        recorder_reset(&v.recorder);
+        ctx->ItemInputValue("###font_size", 12);
+        ctx->Yield();
+        IM_CHECK_EQ(v.ui.font_size, 12);
+        ctx->ItemInputValue("###font_size", 99);                                            /* out of range: the panel clamps */
+        ctx->Yield();
+        IM_CHECK_EQ(v.ui.font_size, HEXDOM_FONT_MAX_PIXELS);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "hex_map_keys_zoom_and_scroll_and_command_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.ui.map.zoom = 20.0f;
+        ctx->WindowFocus("//Hex map");
+        ctx->WindowResize("//Hex map", ImVec2(240, 200));                                  /* smaller than the canvas, so that it scrolls */
+        ctx->Yield(2);
+        IM_CHECK(v.ui.map.focused);
+        recorder_reset(&v.recorder);
+        ctx->KeyPress(ImGuiKey_PageUp);
+        ctx->Yield();
+        IM_CHECK_EQ(v.ui.map.zoom, 22.0f);
+        ctx->KeyPress(ImGuiKey_PageDown);
+        ctx->Yield();
+        IM_CHECK_EQ(v.ui.map.zoom, 20.0f);
+        ImGuiWindow *canvas = ctx->WindowInfo("//Hex map/map_canvas").Window;
+        IM_CHECK(canvas != 0);
+        f32 scroll_before = canvas->Scroll.y;
+        ctx->KeyDown(ImGuiKey_S);
+        ctx->Yield(5);
+        ctx->KeyUp(ImGuiKey_S);
+        ctx->Yield();
+        IM_CHECK_GT(canvas->Scroll.y, scroll_before);
+        ctx->KeyDown(ImGuiKey_D);
+        ctx->Yield(5);
+        ctx->KeyUp(ImGuiKey_D);
+        ctx->Yield();
+        IM_CHECK_GT(canvas->Scroll.x, 0.0f);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "ledger_names_the_subject_faction_and_detail_through_queries_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 2;
+        v.recorder.city_count    = 2;
+        v.recorder.has_names     = true;
+        recorder_seed_events(&v.recorder, 3);
+        v.recorder.events[0].subject = 2;                       /* the scripted city 1 */
+        v.recorder.events[0].faction = 1;
+        v.recorder.events[1].subject = 1000;                    /* the scripted officer 100 */
+        v.recorder.events[1].faction = ENGINE_NO_FACTION;
+        v.recorder.events[2].kind    = SIM_EVENT_OFFICER_CREATED;
+        v.recorder.events[2].detail  = 1;                       /* detail = the city */
+        v.recorder.events[2].faction = ENGINE_NO_FACTION;
+        v.ui.show_sim = v.ui.show_officers = v.ui.show_cities = v.ui.show_map = false;
+        ctx->SetRef("Event ledger");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_SUBJECT_OF), 2u);                /* the two events with a subject */
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_CITY_NAME_AT), 2u);              /* the city subject and the city detail */
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_FORCE_RULER), 1u);               /* the one event with a faction */
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_OFFICER_BY_ID), 2u);             /* the ruler and the officer subject */
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LEDGER_AT), 3u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        ctx->ItemClick("###raw");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_SUBJECT_OF), 0u);                /* raw numbers need no names */
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_CITY_NAME_AT), 0u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
     /* ---- end to end: real engine behind the real panels ------------------- */
