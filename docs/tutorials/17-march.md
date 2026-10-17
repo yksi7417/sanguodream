@@ -51,8 +51,9 @@ number minus 1 (assumed, Q-159). `sim_officer_has_skill` does the
 conversion.
 
 ## The placeholder map
-The spec has no map data (Q-034). engine_march.cpp makes a placeholder
-from terrain.tsv. A hash of each cell picks a kind. The city hexes, their
+Until M10 the spec had no map data (Q-034). M10 loads the real map
+(tutorial 22); a pack without map\ and the tests of M0 to M9 still get
+this placeholder. engine_march.cpp makes the placeholder from terrain.tsv. A hash of each cell picks a kind. The city hexes, their
 slots and the hexes next to them are grass. Main roads link the cities
 that are neighbours on the grid of the placeholder layout. A road over
 water is a ford. Three roads of the west have the special kinds of the

@@ -35,6 +35,7 @@ run_tests.bat --e2e
 | 19 | Court: officers, posts, personnel, diplomacy, duel and debate | code/sim/officers.cpp, diplomacy.cpp, duel.cpp, debate.cpp, code/engine/engine_court.cpp, code/ui/ui_court.cpp, data/placeholder/skills.tsv, posts.tsv, ranks.tsv, items.tsv | tests/unit/court_tests.cpp, tests/feature/court_tests.cpp, tests/ui/ui_tests.cpp |
 | 20 | Rivals: the AI, corps, council, the Han emperor, events and bases | code/sim/ai.cpp, rivals.cpp, events.cpp, bases.cpp, code/engine/engine_rivals.cpp, code/ui/ui_rivals.cpp, data/placeholder/bases.tsv, events.tsv, ai_priorities.tsv | tests/unit/rivals_tests.cpp, tests/feature/rivals_tests.cpp, tests/ui/ui_tests.cpp |
 | 21 | Playable: save and load, the start, new officers, PK training, history and the game screens | code/engine/engine_saves.cpp, engine_playable.cpp, code/sim/pk.cpp, history.cpp, code/ui/ui_game.cpp, data/placeholder/ability_chart.tsv, ancient_officers.tsv, history.tsv, portraits.tsv, scenarios.tsv, battles.tsv, data/civil_war/ | tests/unit/playable_tests.cpp, tests/feature/playable_tests.cpp, tests/ui/ui_tests.cpp |
+| 22 | Map: the real continent, its terrain rules and its sites | code/sim/map.cpp, code/sim/hex.h, code/engine/engine_map.cpp, code/ui/ui_map.cpp, misc/make_map_pack.py, data/placeholder/map/, terrain.tsv, movement_costs.tsv | tests/unit/map_tests.cpp, tests/feature/map_tests.cpp, tests/feature/fixture_tests.cpp, tests/ui/ui_tests.cpp |
 
 You will see these conventions everywhere:
 - `internal` means `static`: the function is private to its translation

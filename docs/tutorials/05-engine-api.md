@@ -17,7 +17,8 @@ makes hot reload safe (the game rebuilds the table after a reload).
    first, commands last. The comment at the top is the design rule: a new
    mechanic grows this table and nothing else in the UI contract.
 2. `engine_config` and `engine_default_config`: seed, ledger capacity, and
-   placeholder map dimensions until the scenario format is in the spec.
+   the size of the placeholder map. With `use_pack_map` (M10) the engine
+   loads map\hexes.tsv of the pack and takes its size (tutorial 22).
 3. engine.cpp: `engine` owns the sim, a ledger, and a scratch arena.
    `engine_run_command` is the one path for commands into the sim: it
    resets scratch, makes a sink, applies, appends to the ledger.

@@ -44,9 +44,9 @@ If a table does not load, `content_status` names it. The develop
 command then refuses with `SIM_REFUSAL_NO_CONTENT`.
 
 ## The slots
-Each city has the slot count of cities.tsv (guide book p.25). The spec
-does not give the shape of the slots (Q-145). Thus the engine uses a
-placeholder layout (`sim_city_slot_hex`). Slots 0 to 5 are the ring of
+Each city has the slot count of cities.tsv (guide book p.25). On the real
+map (M10, tutorial 22) the slots are the slot hexes of the map. On the
+placeholder map the engine uses a placeholder layout (`sim_city_slot_hex`). Slots 0 to 5 are the ring of
 hexes next to the city. Slots 6 to 17 are the second ring. Slots 18 to 23
 are the third ring. The city stands on a grid of the placeholder map.
 

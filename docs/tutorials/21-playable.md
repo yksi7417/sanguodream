@@ -138,7 +138,8 @@ the title menu at the start.
   engine editor commands allow. The spec lists more fields.
 - The battle mode lists the five battles that the Steam guide names. The
   spec has no data for them, so no battle starts (Q-190).
-- F-077, the map of the real continent, waits for Q-034.
+- F-077, the map of the real continent, waited for Q-034. M10 builds it
+  (tutorial 22).
 
 ## The tests, line by line
 - playable_tests.cpp (unit) checks the loaders of the chart, the ancient

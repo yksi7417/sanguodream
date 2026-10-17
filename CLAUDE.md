@@ -82,8 +82,13 @@ decompilation of it.
 - misc/make_big5_table.py  writes code/text/big5_table.h from
                          data/unicode/BIG5.TXT
 - misc/gif_encode.cpp    the GIF encoder of demo_player.exe without ffmpeg
+- misc/make_map_pack.py  copies the map fixtures of the spec into the pack
+                         (run it after a spec update; tutorial 22)
 - data/placeholder/      the content pack: text/<locale>.tsv (UI strings),
                          names/<locale>.tsv (names by Big5 hex)
+- data/placeholder/map/  the real map (M10): hexes.tsv and bases.tsv of
+                         spec-src/spec/fixtures/map; misc/make_map_pack.py
+                         copies them and writes movement_costs.tsv
 - data/civil_war/        the second content pack (M9): the same engine code
                          with other data; see its README.md
 - data/fonts/, data/unicode/   open-licence assets; see docs/ASSETS.md

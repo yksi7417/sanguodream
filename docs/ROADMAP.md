@@ -243,7 +243,7 @@ city. A unit moves within its range, stops in a zone of control, loses
 soldiers on a plank road or a poison spring, and eats grain. Wait,
 retreat (assumed: in the same turn, Q-171) and supply complete the orders of M5.
 The placeholder map comes from terrain.tsv with roads between the
-cities; the real map waits for Q-034. The Hex map panel, the scene and
+cities; M10 replaces it with the real map. The Hex map panel, the scene and
 the mini map show the units and the cities in the faction colours. The
 demo is "demo/m5_march". FEATURES.md marks F-072 to F-076, F-078, F-080
 and F-081 as built.
@@ -309,13 +309,72 @@ the 40 historical events of history.tsv, the three endings and the
 portrait stage are in. The game screens sit on top of the debug panels.
 The editor and the battle mode are stubs. data/civil_war/ is the second
 content pack. The demo is "demo/m9_playable". FEATURES.md marks F-009,
-F-060, F-061, F-131 to F-135 and F-140 to F-145 as built. F-077 waits for
-Q-034.
+F-060, F-061, F-131 to F-135 and F-140 to F-145 as built. F-077 waited for
+Q-034; M10 builds it.
 
 This milestone has three parts:
 - a game UI on top of the debug panels. The text module and text/<locale>.tsv exist (tutorial 12). Portraits and music come from the player's own install at runtime, never from the repo.
 - save and load of the engine's own format
 - a second content pack (Civil War) as the proof that the mechanics are generic
+
+### M10 The real map
+Status (2026-10-17): done (tutorial 22). The spec input was
+formats/map-data.md, mechanics/terrain-and-map.md and spec/fixtures/map/
+(spec c6e197a, Q-034 resolved). The game window plays on the real
+continent of 200 x 200 hexes. The tests of M0 to M9 keep the placeholder
+map as their board. The demo is "demo/m10_map". The analysis side can mark
+F-077 and F-147 to F-151 as built.
+
+Spec input: formats/map-data.md, mechanics/terrain-and-map.md, fixtures/map/*.tsv.
+- Engine:
+  - hex.h uses the grid of the spec: flat-top hexes in odd-q offset. Column
+    x runs west to east, row y north to south; odd columns sit half a hex
+    south.
+  - data/placeholder/map/ holds hexes.tsv and bases.tsv of the spec.
+    misc/make_map_pack.py copies them and writes movement_costs.tsv.
+  - code/sim/map.cpp loads the terrain, the region, the trap, the flags and
+    the height of each hex, and the hex of each base. The rules of the load
+    turn the 28 side hexes of the gates to cliff. They give the 50 slots of
+    the port regions to the city of the port (F-151).
+  - Each city stands on its flower of 7 hexes. Its slots are the 開發地 of
+    the map, and the mint and the granary use the real slot neighbours.
+    Each port and gate stands on its hex.
+  - terrain.tsv has the 20 terrains with the ids of the spec, "enterable",
+    "burnable" and "buildable". movement_costs.tsv has the 12 armaments x
+    20 terrains. A unit type pays the row of its armament on land and the
+    row of its ship on water. A hex with a fire costs 4 times (F-148).
+  - A fire counts 0 to 7 turns and stays only on a burnable terrain (F-149).
+  - A military facility stands only on 草地, 土, 砂地 and 主徑; a fire ship
+    only on 河 and 海 (F-147).
+  - F-150, the sites:
+    - the 4 dikes flood their fixed zones;
+    - a used rockfall comes back with a chance of 10 percent;
+    - bandits use a bandit site of their city;
+    - the game picks 6 + 6 event sites for the temples and the ruins.
+- API: `map_info`, `hex_at`, `armament_count`, `armament_at`, `move_cost`,
+  `bandit_sites` and the test command `start_fire`; `slot_neighbours` in
+  `facility_at`; `enterable` and `burnable` in `terrain_kind_at`;
+  `engine_config.use_pack_map`.
+- Tests:
+  - unit: the loader with the counts of the spec. These are 40,000 hexes,
+    42, 10 and 35 bases, 294 city hexes and 591 slots. Also the gate
+    cliffs, the slots and their neighbours, the sites, the flood zones, the
+    errors, the cost table, and the neighbour table of map-data.md;
+  - feature: movement on real terrain, fire decay, build permission, the
+    rockfall, the bandit sites and the event sites. Also AI turns and a save
+    on the real map, and each row of the seven map fixtures;
+  - ui: the Hex map draws from one terrain view; a click on a city frames
+    its slots and commands nothing;
+  - demo: "demo/m10_map".
+- UI: the Hex map panel draws the visible hexes in the tile colours. It
+  shows the data of the picked hex and frames the slots of a clicked city.
+  The scene shows the continent and the same slots.
+- Open points for the analysis side (see the M10 report):
+  - the masks of 關所 and 港 in facility-types.tsv;
+  - the one ruin of events.md against the 6 + 6 event sites;
+  - the entry of a unit into an own port or gate;
+  - the land armament of a ship unit and the movement of the transport;
+  - the sortie hex of a city flower.
 
 ## 4. Playability
 The analysis repo's spec/knowledge/playability.md (mined from the video
