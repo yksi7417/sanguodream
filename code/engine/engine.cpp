@@ -1174,6 +1174,7 @@ engine_api_set_city_resource(void *opaque, u8 city_id, u8 resource, u32 index, u
 #include "engine/engine_march.cpp"
 #include "engine/engine_combat.cpp"
 #include "engine/engine_court.cpp"
+#include "engine/engine_rivals.cpp"
 
 internal engine_api
 engine_make_api(engine *e)
@@ -1240,5 +1241,6 @@ engine_make_api(engine *e)
     engine_bind_march_api(&api);
     engine_bind_combat_api(&api);
     engine_bind_court_api(&api);
+    engine_bind_rivals_api(&api);
     return api;
 }
