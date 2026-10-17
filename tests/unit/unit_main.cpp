@@ -37,6 +37,7 @@
 #include "growth_tests.cpp"
 #include "march_tests.cpp"
 #include "combat_tests.cpp"
+#include "court_tests.cpp"
 
 int
 main(void)
@@ -130,6 +131,11 @@ main(void)
     test_counts combat = {};
     unit_combat_tests(&combat, &arena);
     failed |= test_report("unit/combat", &combat);
+
+    arena_reset(&arena);
+    test_counts court = {};
+    unit_court_tests(&court, &arena);
+    failed |= test_report("unit/court", &court);
     test_arena_destroy(&arena);
 
     printf(failed ? "RESULT FAIL\n" : "RESULT PASS\n");

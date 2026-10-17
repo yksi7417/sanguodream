@@ -27,7 +27,9 @@ engine_fixture_init_map(engine_fixture *f, u64 seed, u32 ledger_capacity, u32 ma
     /* The random disasters change the numbers of the other tests: they are
        off unless a test turns them on (disaster_tests.cpp). */
     engine_settings settings = f->api.settings(f->api.engine);
-    settings.disasters = false;
+    settings.disasters      = false;
+    settings.ability_change = false;   /* M7: no growth with age and no deaths, except in the court tests */
+    settings.lifespan       = false;
     f->api.set_settings(f->api.engine, settings);
 }
 
