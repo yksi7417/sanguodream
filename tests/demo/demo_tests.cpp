@@ -40,6 +40,8 @@ demo_gui(ImGuiTestContext *ctx)
         v.transient = test_arena_create(DEMO_ENGINE_ARENA_SIZE);
         engine_config config = engine_default_config();
         config.read_entire_file = test_platform_read_entire_file;
+        config.write_entire_file = test_platform_write_entire_file;
+        config.save_folder      = "demo_saves";
         v.backend = engine_create(&v.permanent, &v.transient, config);
         v.api     = engine_make_api(v.backend);
         text_catalog_init(&v.text, arena_sub(&v.permanent, Megabytes(4)), test_platform_read_entire_file,

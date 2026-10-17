@@ -64,6 +64,8 @@ ui_test_gui(ImGuiTestContext *ctx)
             engine_config config = engine_default_config();
             config.ledger_capacity = 1024;
             config.read_entire_file = test_platform_read_entire_file;
+            config.write_entire_file = test_platform_write_entire_file;
+            config.save_folder      = "test_saves";
             v.backend = engine_create(&v.permanent, &v.transient, config);
             v.api     = engine_make_api(v.backend);
         }

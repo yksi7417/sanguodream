@@ -103,6 +103,8 @@ enum recorder_call_kind
     RECORDER_EVENT_KIND_COUNT,
     RECORDER_EVENT_KIND_AT,
     RECORDER_PENDING_EVENT,
+    RECORDER_SAVE_SLOT,        /* M9 queries */
+    RECORDER_REFRESH_SAVE_SLOTS,
     RECORDER_END_TURN,        /* commands start here */
     RECORDER_ADVANCE_TURNS,
     RECORDER_LEDGER_CLEAR,
@@ -164,6 +166,8 @@ enum recorder_call_kind
     RECORDER_TRIGGER_EVENT,        /* arg = the event */
     RECORDER_SET_EMPEROR,
     RECORDER_SET_BASE,
+    RECORDER_SAVE_GAME,            /* M9: arg = the slot */
+    RECORDER_LOAD_GAME,            /* arg = the slot */
     RECORDER_CALL_KIND_COUNT
 };
 
@@ -212,6 +216,7 @@ struct engine_recorder
     engine_court_order last_court;    /* the order of the last command_court */
     b32           pending_active;     /* M8: the pending_event answer */
     sim_corps_order last_corps;       /* the order of the last command_corps */
+    char          last_save_comment[ENGINE_SAVE_COMMENT_SIZE];   /* M9: the comment of the last save_game */
 };
 
 internal void
@@ -1338,6 +1343,28 @@ internal engine_command_result recorder_trigger_event(void *o, u8 event, u8 forc
 internal void recorder_set_emperor(void *o, u8 who, u8 city) { (void)city; recorder_record((engine_recorder *)o, RECORDER_SET_EMPEROR, who); }
 internal void recorder_set_base(void *o, u32 index, u8 force, u32 troops, u32 durability) { (void)force; (void)troops; (void)durability; recorder_record((engine_recorder *)o, RECORDER_SET_BASE, index); }
 
+/* ---- M9: slot 1 holds a save; the others are empty ---------------------- */
+internal engine_save_status recorder_save_game(void *o, u32 slot, const char *comment)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_SAVE_GAME, slot);
+    snprintf(r->last_save_comment, sizeof(r->last_save_comment), "%s", comment ? comment : "");
+    return ENGINE_SAVE_OK;
+}
+internal engine_save_status recorder_load_game(void *o, u32 slot) { recorder_record((engine_recorder *)o, RECORDER_LOAD_GAME, slot); return ENGINE_SAVE_OK; }
+internal engine_save_slot recorder_save_slot(void *o, u32 slot)
+{
+    recorder_record((engine_recorder *)o, RECORDER_SAVE_SLOT, slot);
+    engine_save_slot info = {};
+    info.player = ENGINE_NO_FACTION;
+    if (slot != 1) return info;
+    info.used = true;
+    snprintf(info.comment, sizeof(info.comment), "autumn");
+    info.year = 194; info.month = 9; info.day = 1; info.player = 1; info.turn = 25;
+    return info;
+}
+internal void recorder_refresh_save_slots(void *o) { recorder_record((engine_recorder *)o, RECORDER_REFRESH_SAVE_SLOTS, 0); }
+
 /* The command kind of the recorder call of a city command. */
 internal recorder_call_kind
 recorder_call_of(engine_command_kind kind)
@@ -1514,6 +1541,10 @@ recorder_make_api(engine_recorder *r)
     api.trigger_event         = recorder_trigger_event;
     api.set_emperor           = recorder_set_emperor;
     api.set_base              = recorder_set_base;
+    api.save_game             = recorder_save_game;
+    api.load_game             = recorder_load_game;
+    api.save_slot             = recorder_save_slot;
+    api.refresh_save_slots    = recorder_refresh_save_slots;
     return api;
 }
 

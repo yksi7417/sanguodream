@@ -23,6 +23,10 @@ struct engine
     u32          *reach_costs;
     platform_read_entire_file *read_entire_file;
     engine_content_status      content;   /* what engine_create loaded from the content pack */
+    platform_write_entire_file *write_entire_file;   /* M9 */
+    char             save_folder[128];
+    char             content_folder[128];          /* a save remembers its pack */
+    engine_save_slot slots[ENGINE_SAVE_SLOTS];     /* the list of the save dialog */
 };
 
 internal engine_config
@@ -35,6 +39,8 @@ engine_default_config(void)
     c.map_height       = 30;
     c.map_default_cost = 1;
     c.read_entire_file = 0;
+    c.write_entire_file = 0;
+    c.save_folder      = "saves";
     c.content_folder   = HEXDOM_DATA_ROOT "\\" HEXDOM_CONTENT_PACK;
     return c;
 }
@@ -182,6 +188,9 @@ engine_create(memory_arena *permanent, memory_arena *transient, engine_config co
     e->ledger          = PushArray(permanent, config.ledger_capacity, sim_event);
     e->filter_indices  = PushArray(permanent, config.ledger_capacity, u32);
     e->read_entire_file = config.read_entire_file;
+    e->write_entire_file = config.write_entire_file;
+    snprintf(e->save_folder, sizeof(e->save_folder), "%s", config.save_folder ? config.save_folder : "saves");
+    snprintf(e->content_folder, sizeof(e->content_folder), "%s", config.content_folder ? config.content_folder : "");
     u32 cells = config.map_width * config.map_height;
     e->tiles         = PushArray(permanent, cells ? cells : 1, u8);
     e->tiles_version = 0;
@@ -1175,6 +1184,7 @@ engine_api_set_city_resource(void *opaque, u8 city_id, u8 resource, u32 index, u
 #include "engine/engine_combat.cpp"
 #include "engine/engine_court.cpp"
 #include "engine/engine_rivals.cpp"
+#include "engine/engine_saves.cpp"
 
 internal engine_api
 engine_make_api(engine *e)
@@ -1242,5 +1252,6 @@ engine_make_api(engine *e)
     engine_bind_combat_api(&api);
     engine_bind_court_api(&api);
     engine_bind_rivals_api(&api);
+    engine_bind_saves_api(&api);
     return api;
 }

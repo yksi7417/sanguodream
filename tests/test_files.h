@@ -84,4 +84,31 @@ internal PLATFORM_READ_ENTIRE_FILE(test_platform_read_entire_file)
     return result;
 }
 
+/* As the reader: a relative path is relative to the folder of the test
+   executable. The folder of the file is made if it does not exist. */
+internal PLATFORM_WRITE_ENTIRE_FILE(test_platform_write_entire_file)
+{
+    char resolved[MAX_PATH];
+    b32 is_absolute = path[0] == '\\' || path[0] == '/' || (path[0] && path[1] == ':');
+    if (is_absolute)
+    {
+        snprintf(resolved, MAX_PATH, "%s", path);
+    }
+    else
+    {
+        char exe_dir[MAX_PATH];
+        test_exe_dir(exe_dir, MAX_PATH);
+        snprintf(resolved, MAX_PATH, "%s\\%s", exe_dir, path);
+    }
+    char folder[MAX_PATH];
+    snprintf(folder, MAX_PATH, "%s", resolved);
+    char *last = strrchr(folder, '\\');
+    if (last) { *last = 0; CreateDirectoryA(folder, 0); }
+    FILE *file = fopen(resolved, "wb");
+    if (!file) return false;
+    b32 ok = fwrite(data, 1, (size_t)size, file) == (size_t)size;
+    fclose(file);
+    return ok;
+}
+
 #endif /* TEST_FILES_H */

@@ -561,6 +561,37 @@ struct engine_pending_event
     u8  choices;
 };
 
+/* ---- M9: save and load (manual p.6: 32 slots with a comment, no autosave) */
+
+#define ENGINE_SAVE_SLOTS        32
+#define ENGINE_SAVE_COMMENT_SIZE 64
+
+enum engine_save_status
+{
+    ENGINE_SAVE_OK,
+    ENGINE_SAVE_NO_WRITER,        /* the config has no file writer */
+    ENGINE_SAVE_NO_READER,        /* the config has no file reader */
+    ENGINE_SAVE_BAD_SLOT,         /* the slot is not 0 .. 31 */
+    ENGINE_SAVE_NO_GAME,          /* no game is loaded */
+    ENGINE_SAVE_NO_MEMORY,        /* the transient arena cannot hold the file */
+    ENGINE_SAVE_WRITE_FAILED,
+    ENGINE_SAVE_NO_FILE,          /* the slot is empty */
+    ENGINE_SAVE_BAD_FILE,         /* not a hexdom save, or cut short */
+    ENGINE_SAVE_OTHER_VERSION,    /* another build of the engine wrote it */
+    ENGINE_SAVE_OTHER_PACK,       /* another content pack wrote it */
+    ENGINE_SAVE_STATUS_COUNT
+};
+
+struct engine_save_slot
+{
+    b32  used;
+    char comment[ENGINE_SAVE_COMMENT_SIZE];
+    u16  year;
+    u8   month, day;
+    u8   player;                  /* the faction that acted when the game was saved */
+    u32  turn;
+};
+
 /* ---- M7: officers, court, items, diplomacy, duel, debate ---------------- */
 
 /* The order of the personnel, court, diplomacy and plot commands. */
@@ -972,6 +1003,14 @@ typedef engine_command_result engine_command_event_choice_fn(void *engine, u8 ch
 typedef engine_command_result engine_trigger_event_fn(void *engine, u8 event, u8 force_id, u8 city_id, u16 officer_or_unit);
 typedef void                  engine_set_emperor_fn(void *engine, u8 who, u8 city_id);
 typedef void                  engine_set_base_fn(void *engine, u32 index, u8 force_id, u32 troops, u32 durability);
+/* M9 save and load. save_game writes the slot file and its comment; the
+   ledger gets nothing. load_game replaces the game and the ledger with the
+   slot; a refused load changes nothing. save_slot answers from the list
+   that refresh_save_slots and save_game keep. */
+typedef engine_save_status engine_save_game_fn(void *engine, u32 slot, const char *comment);
+typedef engine_save_status engine_load_game_fn(void *engine, u32 slot);
+typedef engine_save_slot   engine_save_slot_fn(void *engine, u32 slot);
+typedef void               engine_refresh_save_slots_fn(void *engine);
 /* A placeholder unit until M5: it only blocks the commands of enemy
    cities within 2 hexes. Returns ENGINE_NO_UNIT if there is no room. */
 typedef u32                 engine_place_unit_fn(void *engine, u8 force_id, s32 q, s32 r);
@@ -1141,6 +1180,11 @@ struct engine_api
     engine_trigger_event_fn         *trigger_event;
     engine_set_emperor_fn           *set_emperor;
     engine_set_base_fn              *set_base;
+    /* M9 save and load */
+    engine_save_game_fn             *save_game;
+    engine_load_game_fn             *load_game;
+    engine_save_slot_fn             *save_slot;
+    engine_refresh_save_slots_fn    *refresh_save_slots;
 };
 
 #define ENGINE_NO_BASE 0xFFFFFFFFu
@@ -1155,6 +1199,8 @@ struct engine_config
     u32 map_height;
     u8  map_default_cost;
     platform_read_entire_file *read_entire_file;   /* zero: the load commands refuse with ENGINE_LOAD_NO_FILE_READER */
+    platform_write_entire_file *write_entire_file; /* M9: zero: save_game refuses with ENGINE_SAVE_NO_WRITER */
+    const char *save_folder;      /* M9: the folder of the 32 save slots; relative to the executable */
     const char *content_folder;   /* the folder of facilities.tsv, cities.tsv and rules.tsv; relative to the executable */
 };
 internal engine_config engine_default_config(void);

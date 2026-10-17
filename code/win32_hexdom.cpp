@@ -86,6 +86,26 @@ internal PLATFORM_READ_ENTIRE_FILE(win32_read_entire_file)
     return result;
 }
 
+/* As the reader, a relative path is relative to the folder of the
+   executable. The folder of the file is made if it does not exist. */
+internal PLATFORM_WRITE_ENTIRE_FILE(win32_write_entire_file)
+{
+    char resolved[MAX_PATH];
+    b32 is_absolute = path[0] == '\\' || path[0] == '/' || (path[0] && path[1] == ':');
+    if (is_absolute) snprintf(resolved, MAX_PATH, "%s", path);
+    else             snprintf(resolved, MAX_PATH, "%s\\%s", g_win32.exe_dir, path);
+    char folder[MAX_PATH];
+    snprintf(folder, MAX_PATH, "%s", resolved);
+    char *last = strrchr(folder, '\\');
+    if (last) { *last = 0; CreateDirectoryA(folder, 0); }
+    HANDLE file = CreateFileA(resolved, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+    if (file == INVALID_HANDLE_VALUE) return false;
+    DWORD written = 0;
+    b32 ok = size < 0xFFFFFFFF && WriteFile(file, data, (DWORD)size, &written, 0) && written == (DWORD)size;
+    CloseHandle(file);
+    return ok;
+}
+
 internal void *
 win32_imgui_alloc(size_t size, void *user)
 {
@@ -261,7 +281,8 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
     arena_init(&frame, (u8 *)block + memory.permanent_size + memory.transient_size, frame_size);
 
     memory.platform.read_entire_file = win32_read_entire_file;
-    memory.platform.log              = win32_platform_log;
+    memory.platform.write_entire_file = win32_write_entire_file;
+    memory.platform.log            = win32_platform_log;
     memory.platform.imgui_alloc      = win32_imgui_alloc;
     memory.platform.imgui_free       = win32_imgui_free;
     memory.platform.imgui_alloc_user = 0;

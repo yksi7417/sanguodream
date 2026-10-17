@@ -24,6 +24,10 @@ struct read_file_result
 #define PLATFORM_READ_ENTIRE_FILE(name) read_file_result name(const char *path, memory_arena *arena)
 typedef PLATFORM_READ_ENTIRE_FILE(platform_read_entire_file);
 
+/* Writes the whole file; creates its folder. False if the file is not written. */
+#define PLATFORM_WRITE_ENTIRE_FILE(name) b32 name(const char *path, const void *data, u64 size)
+typedef PLATFORM_WRITE_ENTIRE_FILE(platform_write_entire_file);
+
 #define PLATFORM_LOG(name) void name(const char *message)
 typedef PLATFORM_LOG(platform_log);
 
@@ -33,6 +37,7 @@ typedef void  imgui_free_fn(void *ptr, void *user);
 struct platform_api
 {
     platform_read_entire_file *read_entire_file;
+    platform_write_entire_file *write_entire_file;   /* M9: the save slots */
     platform_log              *log;
     imgui_alloc_fn            *imgui_alloc;      /* ImGui allocates through the exe's */
     imgui_free_fn             *imgui_free;       /* heap so a DLL reload never frees   */

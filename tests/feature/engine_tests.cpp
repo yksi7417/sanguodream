@@ -22,6 +22,8 @@ engine_fixture_init_map(engine_fixture *f, u64 seed, u32 ledger_capacity, u32 ma
     config.map_width       = map_width;
     config.map_height      = map_height;
     config.read_entire_file = test_platform_read_entire_file;
+    config.write_entire_file = test_platform_write_entire_file;
+    config.save_folder      = "test_saves";
     f->backend = engine_create(&f->permanent, &f->transient, config);
     f->api     = engine_make_api(f->backend);
     /* The random disasters change the numbers of the other tests: they are

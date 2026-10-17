@@ -56,7 +56,8 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         arena_init(&game->transient, memory->transient, memory->transient_size);
 
         engine_config config = engine_default_config();
-        config.read_entire_file = memory->platform.read_entire_file;
+        config.read_entire_file  = memory->platform.read_entire_file;
+        config.write_entire_file = memory->platform.write_entire_file;
         game->backend = engine_create(&game->permanent, &game->transient, config);
         game->api     = engine_make_api(game->backend);
         game->reload_count = 0;
