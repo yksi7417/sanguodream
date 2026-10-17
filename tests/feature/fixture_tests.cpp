@@ -46,47 +46,31 @@ struct fixture_handler
 
 /* One entry per mechanic in spec-src/spec/mechanics/. Add the handler in the
    RED step, before implementing the mechanic in code/sim/ and code/engine/. */
-/* The movement of each unit class before techniques
-   (military-units-and-tactics.md): 22 for the three foot classes, 28 for
-   cavalry, 18 for the siege weapons. */
-struct fixture_class_movement
-{
-    const char *unit_class;
-    u32         movement;
-};
-
-global_variable fixture_class_movement g_class_movement[] = {
-    { "pike", 22 }, { "halberd", 22 }, { "crossbow", 22 },
-    { "cavalry", 28 },
-    { "ram", 18 }, { "tower", 18 },
-};
-
 /* unit-values-guidebook.tsv: the unit values of 18 screenshots of the
-   guide book. This handler checks only the movement column against the
-   class rule. The full check of the attack, defence, intellect and build
-   columns belongs to M3 (F-081). It needs the formula from the officer
-   abilities to the unit values, and the officer data of each scenario
-   (Q-030). Until then the handler prints those columns as pending. They
-   are not failures. The engine has no unit classes yet, so the class rule
-   comes from the table above. */
+   guide book. The handler checks the movement column against the class
+   row of unit_types.tsv in the engine (before techniques and skills: the
+   screenshots show none that change the movement). The attack, defence,
+   intellect and build columns need the officer data of each scenario
+   (Q-030), and the engine's formula is assumed (Q-170). Until Q-030 the
+   handler prints those columns as pending. They are not failures. */
 internal void
 fixture_unit_values_guidebook(tsv_table *table, engine_api *api, test_counts *counts)
 {
-    (void)api;
     for (u32 row = 0; row < table->row_count; ++row)
     {
         const char *unit_class = tsv_cell(table, row, "class");
         u32 movement = 0, expected = 0;
-        for (u32 index = 0; index < ArrayCount(g_class_movement); ++index)
+        for (u32 index = 0; index < api->unit_type_count(api->engine); ++index)
         {
-            if (strcmp(g_class_movement[index].unit_class, unit_class) == 0) expected = g_class_movement[index].movement;
+            engine_unit_type type = api->unit_type_at(api->engine, index);
+            if (strcmp(type.key, unit_class) == 0) expected = type.move;
         }
         b32 parsed = tsv_cell_u32(table, row, "move", &movement);
         char name[128];
-        snprintf(name, sizeof(name), "unit-values-guidebook row %u (%s): movement of the class", row, unit_class);
+        snprintf(name, sizeof(name), "unit-values-guidebook row %u (%s): movement of the class in unit_types.tsv", row, unit_class);
         TEST_CHECK(counts, parsed && expected != 0 && movement == expected, name);
     }
-    printf("  PENDING %u rows x attack, defence, intellect, build: Q-030 and the unit-value formula (F-081, M3)\n",
+    printf("  PENDING %u rows x attack, defence, intellect, build: Q-030 (the officers of each scenario) and Q-170 (the formula)\n",
            table->row_count);
 }
 

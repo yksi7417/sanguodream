@@ -12,15 +12,15 @@ struct engine_fixture
 /* Initialises in place: the engine keeps pointers to the fixture's arenas,
    so the fixture must live where the caller put it, never in a temporary. */
 internal void
-engine_fixture_init(engine_fixture *f, u64 seed, u32 ledger_capacity)
+engine_fixture_init_map(engine_fixture *f, u64 seed, u32 ledger_capacity, u32 map_width, u32 map_height)
 {
     f->permanent = test_arena_create(Megabytes(8));
     f->transient = test_arena_create(Megabytes(8));
     engine_config config = engine_default_config();
     config.seed            = seed;
     config.ledger_capacity = ledger_capacity;
-    config.map_width       = 16;
-    config.map_height      = 12;
+    config.map_width       = map_width;
+    config.map_height      = map_height;
     config.read_entire_file = test_platform_read_entire_file;
     f->backend = engine_create(&f->permanent, &f->transient, config);
     f->api     = engine_make_api(f->backend);
@@ -29,6 +29,13 @@ engine_fixture_init(engine_fixture *f, u64 seed, u32 ledger_capacity)
     engine_settings settings = f->api.settings(f->api.engine);
     settings.disasters = false;
     f->api.set_settings(f->api.engine, settings);
+}
+
+/* The map of the game: 40 x 30 holds the 42 cities of the placeholder layout. */
+internal void
+engine_fixture_init(engine_fixture *f, u64 seed, u32 ledger_capacity)
+{
+    engine_fixture_init_map(f, seed, ledger_capacity, 40, 30);
 }
 
 internal void
@@ -50,7 +57,7 @@ internal void
 feature_engine_tests(test_counts *counts)
 {
     engine_fixture f;
-    engine_fixture_init(&f, 1, 16);
+    engine_fixture_init_map(&f, 1, 16, 16, 12);
     engine_api *api = &f.api;
     void *e = api->engine;
 
