@@ -168,7 +168,7 @@ ui_draw_start_settings(ui_state *ui, engine_api *api)
     for (int value = 0; value < DIFFICULTY_COUNT; ++value)
     {
         char text[48], stable[64];
-        text_label(ui->text, "level", (u32)value, text, sizeof(text));
+        text_label(ui->text, "difficulty", (u32)value, text, sizeof(text));
         snprintf(stable, sizeof(stable), "%s###level%d", text, value);
         if (value) ImGui::SameLine();
         ImGui::RadioButton(stable, &level, value);
@@ -179,7 +179,13 @@ ui_draw_start_settings(ui_state *ui, engine_api *api)
     if (ImGui::Button(ui_label(label, sizeof(label), ui, "start.ok", "start_ok")))
     {
         api->set_settings(e, settings);
-        for (u32 step = 0; step < 300 && api->whose_turn(e) != ENGINE_NO_FACTION && !((ui->game.rulers >> api->whose_turn(e)) & 1); ++step) api->end_turn(e);
+        /* The turn passes until a chosen ruler acts (after a scenario no faction acts yet). */
+        for (u32 step = 0; step < 300; ++step)
+        {
+            u8 acting = api->whose_turn(e);
+            if (acting != ENGINE_NO_FACTION && ((ui->game.rulers >> acting) & 1)) break;
+            api->end_turn(e);
+        }
         ui_enter_game(ui);
     }
     ImGui::End();

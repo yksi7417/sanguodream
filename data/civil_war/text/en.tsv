@@ -1040,3 +1040,7 @@ ending.2	B: prosperity by conquest	外征繁榮
 ending.3	C: prosperity at home	內政繁榮
 refusal.no_chart_row	no such ability of the chart	沒有能力
 refusal.no_uses	the ability has no use left	沒有次數
+difficulty.0	beginner	初級
+difficulty.1	normal	中級
+difficulty.2	hard	上級
+difficulty.3	super	超級
