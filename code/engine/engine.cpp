@@ -103,6 +103,7 @@ engine_load_content(engine *e, const char *folder)
     tsv_table tactics = {}, plots = {}, buildings = {}, criticals = {};
     tsv_table skills = {}, ranks = {}, posts = {}, items = {};
     tsv_table bases = {}, event_rows = {}, priorities = {};
+    tsv_table chart = {}, ancients = {};
     u32 bad_row = 0;
     if (!engine_read_table(e, folder, "facilities.tsv", &facilities))      status->detail = "facilities.tsv not found";
     else if (!engine_read_table(e, folder, "cities.tsv", &cities))         status->detail = "cities.tsv not found";
@@ -123,6 +124,8 @@ engine_load_content(engine *e, const char *folder)
     else if (!engine_read_table(e, folder, "bases.tsv", &bases))           status->detail = "bases.tsv not found";
     else if (!engine_read_table(e, folder, "events.tsv", &event_rows))     status->detail = "events.tsv not found";
     else if (!engine_read_table(e, folder, "ai_priorities.tsv", &priorities)) status->detail = "ai_priorities.tsv not found";
+    else if (!engine_read_table(e, folder, "ability_chart.tsv", &chart))     status->detail = "ability_chart.tsv not found";
+    else if (!engine_read_table(e, folder, "ancient_officers.tsv", &ancients)) status->detail = "ancient_officers.tsv not found";
     else if (!content_load_facilities(content, &facilities, &bad_row))    status->detail = "facilities.tsv has a bad row";
     else if (!content_load_cities(content, &cities, &bad_row))            status->detail = "cities.tsv has a bad row";
     else if (!content_load_rules(content, &rules, &bad_row))              status->detail = "rules.tsv has a bad row";
@@ -142,6 +145,8 @@ engine_load_content(engine *e, const char *folder)
     else if (!content_load_bases(content, &bases, &bad_row))              status->detail = "bases.tsv has a bad row";
     else if (!content_load_events(content, &event_rows, &bad_row))        status->detail = "events.tsv has a bad row";
     else if (!content_load_priorities(content, &priorities, &bad_row))    status->detail = "ai_priorities.tsv has a bad row";
+    else if (!content_load_chart(content, &chart, &bad_row))              status->detail = "ability_chart.tsv has a bad row";
+    else if (!content_load_ancients(content, &ancients, &bad_row))        status->detail = "ancient_officers.tsv has a bad row";
     else
     {
         status->loaded          = true;
@@ -164,6 +169,8 @@ engine_load_content(engine *e, const char *folder)
         status->base_count      = content->base_count;
         status->event_count     = content->event_count;
         status->priority_count  = content->priority_count;
+        status->chart_count     = content->chart_count;
+        status->ancient_count   = content->ancient_count;
         sim_set_content(e->sim, content);
     }
     arena_reset(&e->scratch);
@@ -1185,6 +1192,7 @@ engine_api_set_city_resource(void *opaque, u8 city_id, u8 resource, u32 index, u
 #include "engine/engine_court.cpp"
 #include "engine/engine_rivals.cpp"
 #include "engine/engine_saves.cpp"
+#include "engine/engine_playable.cpp"
 
 internal engine_api
 engine_make_api(engine *e)
@@ -1253,5 +1261,6 @@ engine_make_api(engine *e)
     engine_bind_court_api(&api);
     engine_bind_rivals_api(&api);
     engine_bind_saves_api(&api);
+    engine_bind_playable_api(&api);
     return api;
 }

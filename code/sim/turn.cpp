@@ -358,6 +358,7 @@ sim_run_calendar(sim_state *sim, u32 cause, sim_event_sink *events)
     calendar_date date = sim->turns.date;
     sim_progress_jobs(sim, cause, events);
     sim_progress_research(sim, cause, events);
+    sim_progress_pk(sim, cause, events);   /* M9: 研究能力 and 培育武將 */
     if (calendar_starts_year(date))
     {
         sim_event year = sim_event_make(sim, SIM_EVENT_YEAR_STARTED, cause);

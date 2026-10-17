@@ -376,6 +376,29 @@ sim_choose_successor(sim_state *sim, u8 force, u32 cause, sim_event_sink *events
     }
 }
 
+/* M9: the settings of the start that change the officers once
+   (game-setup-and-modes.md). 血緣・關係 off clears the historical relations:
+   liked, disliked, spouse and sworn brothers (the father stays: it is
+   blood). 女武將 off: a female officer outside a faction never appears. */
+internal void
+sim_apply_start_settings(sim_state *sim, sim_settings *before)
+{
+    b32 clear_relations = before->relations && !sim->settings.relations;
+    b32 hide_females    = before->female_officers && !sim->settings.female_officers;
+    if (!clear_relations && !hide_females) return;
+    for (u32 index = 0; index < sim->officers.count; ++index)
+    {
+        officer_component *officer = sim->officers.data + index;
+        if (clear_relations)
+        {
+            for (u32 slot = 0; slot < OFFICER_RELATION_SLOTS; ++slot) officer->liked[slot] = officer->disliked[slot] = SIM_NO_OFFICER;
+            officer->spouse                   = SIM_NO_OFFICER;
+            officer->sworn_brother_group_head = SIM_NO_OFFICER;
+        }
+        if (hide_females && officer->female && officer->status == OFFICER_STATUS_FREE_OR_NOT_APPEARED) officer->status = OFFICER_STATUS_DEAD;
+    }
+}
+
 internal void
 sim_officer_dies(sim_state *sim, officer_component *officer, u32 cause, sim_event_sink *events)
 {
@@ -514,7 +537,8 @@ sim_run_officers_year(sim_state *sim, u32 cause, sim_event_sink *events)
             sim_change_ability(sim, officer, CONTENT_ABILITY_FORCE, -(s32)rules->age_decline, true, cause, events);
             sim_change_ability(sim, officer, CONTENT_ABILITY_LEADERSHIP, -(s32)rules->age_decline, true, cause, events);
         }
-        if (sim->settings.lifespan && officer->death_year && year > officer->death_year && sim_random_below(sim, 100) < rules->death_chance)
+        u32 death_year = officer->death_year + (sim->settings.long_lifespan ? rules->lifespan_long_years : 0);   /* M9: 壽命 長 */
+        if (sim->settings.lifespan && officer->death_year && year > death_year && sim_random_below(sim, 100) < rules->death_chance)
         {
             sim_officer_dies(sim, officer, cause, events);
         }

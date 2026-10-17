@@ -33,6 +33,9 @@ engine_api_officer_detail(void *opaque, u16 officer_id)
     for (u32 ability = 0; ability < CONTENT_ABILITY_COUNT; ++ability) result.experience[ability] = officer->experience[ability];
     result.age         = sim_officer_age(sim, officer);
     result.soldier_cap = sim_officer_soldier_cap(sim, officer);
+    result.training_turns = officer->training_turns;   /* M9 */
+    result.training_row   = officer->training_turns ? officer->training_row : (u8)ENGINE_NO_ROW;
+    result.created        = officer->created;
     u8 acting = sim_whose_turn(sim);
     if (acting != SIM_NO_FORCE && sim_check_recruit_target(sim, acting, officer) == SIM_REFUSAL_NONE)
     {

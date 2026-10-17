@@ -440,6 +440,10 @@ global_variable content_rule_field content_rule_fields[] = {
     CONTENT_RULE("event.experience", event_experience), CONTENT_RULE("event.merit", event_merit),
     CONTENT_RULE("ai.urgency", ai_urgency), CONTENT_RULE("ai.sortie_soldiers", ai_sortie_soldiers), CONTENT_RULE("ai.sortie_reserve", ai_sortie_reserve),
     CONTENT_RULE("ai.goodwill_gold", ai_goodwill_gold), CONTENT_RULE("ai.commands", ai_commands), CONTENT_RULE("corps.ap_divisor", corps_ap_divisor),
+    CONTENT_RULE("lifespan.long_years", lifespan_long_years), CONTENT_RULE("new_officer.max", new_officer_max),
+    CONTENT_RULE("new_officer.high", new_officer_high), CONTENT_RULE("new_officer.normal", new_officer_normal), CONTENT_RULE("new_officer.low", new_officer_low),
+    CONTENT_RULE("train.ap", train_ap), CONTENT_RULE("train.turns", train_turns),
+    CONTENT_RULE("ability_research.ap", ability_research_ap), CONTENT_RULE("ability_research.gold", ability_research_gold),
 };
 
 /* Sets the rule field with this key. False if no field has the key. */
@@ -1380,6 +1384,120 @@ content_load_priorities(sim_content *content, tsv_table *table, u32 *bad_row)
         memcpy(kind.key, key, strlen(key) + 1);
         content->priorities[row] = kind;
         content->priority_count = row + 1;
+    }
+    return true;
+}
+
+/* ---- M9: the ability chart and the ancient officers ------------------------------ */
+
+global_variable const char *content_chart_kind_names[CHART_KIND_COUNT] = { "plus", "floor", "aptitude", "skill" };
+global_variable const char *content_chart_zone_names[CHART_ZONE_COUNT] = { "attack", "plot", "defence", "domestic" };
+global_variable const char *content_unit_class_names[OFFICER_UNIT_APTITUDE_COUNT] = { "pike", "halberd", "crossbow", "cavalry", "siege", "navy" };
+
+/* "0|3": the bits of the rows; "-": none. */
+internal b32
+content_parse_row_mask(const char *text, u32 limit, u32 *mask)
+{
+    *mask = 0;
+    if (strcmp(text, "-") == 0) return true;
+    u32 value = 0;
+    b32 digits = false;
+    for (const char *at = text;; ++at)
+    {
+        if (*at >= '0' && *at <= '9') { value = value * 10 + (u32)(*at - '0'); digits = true; continue; }
+        if ((*at != '|' && *at != 0) || !digits || value >= limit) return false;
+        *mask |= 1u << value;
+        value  = 0;
+        digits = false;
+        if (*at == 0) return true;
+    }
+}
+
+internal b32
+content_load_chart(sim_content *content, tsv_table *table, u32 *bad_row)
+{
+    content->chart_count = 0;
+    if (table->row_count > CONTENT_CHART_CAPACITY) { *bad_row = CONTENT_CHART_CAPACITY; return false; }
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        chart_row kind = {};
+        u32 id = 0, amount = 0, count = 0, months = 0, target = 0;
+        const char *key = tsv_cell(table, row, "key"), *target_text = tsv_cell(table, row, "target");
+        kind.kind = (u8)content_find_name(content_chart_kind_names, CHART_KIND_COUNT, tsv_cell(table, row, "kind"));
+        kind.zone = (u8)content_find_name(content_chart_zone_names, CHART_ZONE_COUNT, tsv_cell(table, row, "zone"));
+        b32 bad = !tsv_cell_u32(table, row, "id", &id) || id != row || !key[0] || strlen(key) >= CONTENT_KEY_SIZE ||
+                  kind.kind == CHART_KIND_COUNT || kind.zone == CHART_ZONE_COUNT ||
+                  !tsv_cell_u32(table, row, "amount", &amount) || !tsv_cell_u32(table, row, "count", &count) || !tsv_cell_u32(table, row, "months", &months) ||
+                  amount > 100 || count == 0 || count > 255 || months == 0 || months > 24 ||
+                  !content_parse_row_mask(tsv_cell(table, row, "requires"), row, &kind.requires);
+        if (!bad)
+        {
+            switch (kind.kind)
+            {
+                case CHART_PLUS:
+                case CHART_FLOOR:    target = content_find_name(content_ability_names, CONTENT_ABILITY_COUNT, target_text); bad = target == CONTENT_ABILITY_COUNT; break;
+                case CHART_APTITUDE: target = content_find_name(content_unit_class_names, OFFICER_UNIT_APTITUDE_COUNT, target_text); bad = target == OFFICER_UNIT_APTITUDE_COUNT || amount > 3; break;
+                default:             bad = !tsv_cell_u32(table, row, "target", &target) || target == 0 || target > 100; break;
+            }
+        }
+        if (bad) { *bad_row = row; content->chart_count = 0; return false; }
+        kind.id     = (u8)id;
+        kind.target = (u8)target;
+        kind.amount = (u8)amount;
+        kind.count  = (u8)count;
+        kind.months = (u8)months;
+        memcpy(kind.key, key, strlen(key) + 1);
+        content->chart[row] = kind;
+        content->chart_count = row + 1;
+    }
+    return true;
+}
+
+/* The Big5 hex of one name into a NUL-padded field. */
+internal b32
+content_parse_big5_field(const char *text, u8 *out, u32 size)
+{
+    for (u32 index = 0; index < size; ++index) out[index] = 0;
+    u32 used = 0;
+    for (const char *at = text; *at; at += 2)
+    {
+        if (!at[1] || used >= size) return false;
+        u32 high = content_hex_value(at[0]), low = content_hex_value(at[1]);
+        if (high > 15 || low > 15) return false;
+        out[used++] = (u8)(high * 16 + low);
+    }
+    return used > 0;
+}
+
+internal b32
+content_load_ancients(sim_content *content, tsv_table *table, u32 *bad_row)
+{
+    static const char *personalities[PERSONALITY_COUNT] = { "careful", "calm", "bold", "reckless" };
+    content->ancient_count = 0;
+    if (table->row_count > CONTENT_ANCIENT_CAPACITY) { *bad_row = CONTENT_ANCIENT_CAPACITY; return false; }
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        ancient_officer kind = {};
+        u32 id = 0, skill = 0, value = 0;
+        const char *key = tsv_cell(table, row, "key"), *sex = tsv_cell(table, row, "sex");
+        kind.personality = (u8)content_find_name(personalities, PERSONALITY_COUNT, tsv_cell(table, row, "personality"));
+        b32 bad = !tsv_cell_u32(table, row, "id", &id) || id != row || !key[0] || strlen(key) >= CONTENT_KEY_SIZE ||
+                  !content_parse_big5_field(tsv_cell(table, row, "family"), kind.family_name, OFFICER_FAMILY_NAME_SIZE) ||
+                  !content_parse_big5_field(tsv_cell(table, row, "given"), kind.given_name, OFFICER_GIVEN_NAME_SIZE) ||
+                  !tsv_cell_u32(table, row, "skill", &skill) || skill > 100 || kind.personality == PERSONALITY_COUNT ||
+                  (strcmp(sex, "male") != 0 && strcmp(sex, "female") != 0);
+        for (u32 ability = 0; ability < CONTENT_ABILITY_COUNT && !bad; ++ability)
+        {
+            bad = !tsv_cell_u32(table, row, content_ability_names[ability], &value) || value == 0 || value > 120;
+            kind.abilities[ability] = (u8)value;
+        }
+        if (bad) { *bad_row = row; content->ancient_count = 0; return false; }
+        kind.id     = (u8)id;
+        kind.skill  = (u8)skill;
+        kind.female = strcmp(sex, "female") == 0;
+        memcpy(kind.key, key, strlen(key) + 1);
+        content->ancients[row] = kind;
+        content->ancient_count = row + 1;
     }
     return true;
 }

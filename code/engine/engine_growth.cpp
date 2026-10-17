@@ -114,6 +114,13 @@ engine_api_settings(void *opaque)
     result.lifespan       = ((engine *)opaque)->sim->settings.lifespan;
     result.ai             = ((engine *)opaque)->sim->settings.ai;
     result.events         = ((engine *)opaque)->sim->settings.events;
+    sim_settings *sim_settings_now = &((engine *)opaque)->sim->settings;
+    result.long_lifespan   = sim_settings_now->long_lifespan;
+    result.female_officers = sim_settings_now->female_officers;
+    result.strong_plots    = sim_settings_now->strong_plots;
+    result.relations       = sim_settings_now->relations;
+    result.duel_mode       = sim_settings_now->duel_mode;
+    result.difficulty      = sim_settings_now->difficulty;
     return result;
 }
 
@@ -174,6 +181,15 @@ engine_api_set_settings(void *opaque, engine_settings settings)
     ((engine *)opaque)->sim->settings.lifespan       = settings.lifespan;
     ((engine *)opaque)->sim->settings.ai             = settings.ai;
     ((engine *)opaque)->sim->settings.events         = settings.events;
+    sim_state *sim = ((engine *)opaque)->sim;
+    sim_settings before = sim->settings;
+    sim->settings.long_lifespan   = settings.long_lifespan;
+    sim->settings.female_officers = settings.female_officers;
+    sim->settings.strong_plots    = settings.strong_plots;
+    sim->settings.relations       = settings.relations;
+    sim->settings.duel_mode       = settings.duel_mode < DUEL_MODE_COUNT ? settings.duel_mode : (u8)DUEL_MODE_MANUAL;
+    sim->settings.difficulty      = settings.difficulty < DIFFICULTY_COUNT ? settings.difficulty : (u8)DIFFICULTY_NORMAL;
+    sim_apply_start_settings(sim, &before);
 }
 
 internal void

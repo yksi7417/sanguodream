@@ -172,6 +172,14 @@ enum sim_event_kind
     SIM_EVENT_BASE_INCOME,          /* subject = the city; detail = the base id; delta = gold in; assumed */
     SIM_EVENT_BASE_TAKEN,           /* faction = the new owner; detail = the base id */
     SIM_EVENT_AI_PLANNED,           /* faction; delta = the commands that the AI gave in its turn */
+    /* M9 */
+    SIM_EVENT_OFFICER_CREATED,      /* subject = the officer; detail = the city; faction = a new faction or SIM_NO_FORCE */
+    SIM_EVENT_ABILITY_RESEARCH_STARTED,   /* faction; detail = the row of ability_chart.tsv; delta = the turns */
+    SIM_EVENT_ABILITY_RESEARCHED,   /* faction; detail = the row; delta = the uses it adds */
+    SIM_EVENT_TRAINING_STARTED,     /* subject = the officer; faction; detail = the row */
+    SIM_EVENT_OFFICER_TRAINED,      /* subject = the officer; faction; detail = the row; delta = the rise */
+    SIM_EVENT_HISTORY_FIRED,        /* faction; detail = the row of history.tsv */
+    SIM_EVENT_ENDING,               /* faction; detail = sim_ending_kind */
     SIM_EVENT_COUNT
 };
 
@@ -269,6 +277,10 @@ enum sim_command_kind
     SIM_COMMAND_COUNCIL,         /* 評定: the officers act on one proposal of the council */
     SIM_COMMAND_EVENT_CHOICE,    /* the answer to the event that waits */
     SIM_COMMAND_TRIGGER_EVENT,   /* a test and editor command: an event of events.tsv fires now */
+    /* M9 */
+    SIM_COMMAND_CREATE_OFFICER,  /* 新武將: a start-menu and editor command */
+    SIM_COMMAND_RESEARCH_ABILITY,/* 研究能力 (PK) */
+    SIM_COMMAND_TRAIN_OFFICER,   /* 培育武將 (PK) */
     SIM_COMMAND_COUNT
 };
 
@@ -434,10 +446,37 @@ struct sim_m8_order
     u8  value;                              /* council: the proposal; event choice: the choice; trigger: the row of events.tsv */
 };
 
+/* The orders of M9. 萬能, 軍師, 將軍 and 凡才 set the abilities of an
+   automatic new officer (game-setup-and-modes.md). */
+enum sim_officer_type { OFFICER_TYPE_ALL_ROUND, OFFICER_TYPE_STRATEGIST, OFFICER_TYPE_GENERAL, OFFICER_TYPE_COMMON, OFFICER_TYPE_COUNT };
+#define SIM_NO_ANCIENT 0xFF
+
+struct sim_new_officer_order
+{
+    u8  family_name[OFFICER_FAMILY_NAME_SIZE];   /* Big5, NUL-padded; an ancient officer brings its own */
+    u8  given_name[OFFICER_GIVEN_NAME_SIZE];
+    b32 female;
+    u8  type;                               /* sim_officer_type */
+    u8  personality;                        /* sim_personality */
+    u16 birth_year;
+    u8  city_id;                            /* the city where the officer appears */
+    b32 found_force;                        /* the officer founds a faction in the empty city */
+    u8  ancient;                            /* the row of ancient_officers.tsv, or SIM_NO_ANCIENT */
+};
+
+struct sim_pk_order
+{
+    u8  city_id;                            /* research: the city that pays the gold */
+    u16 officer;                            /* train: the officer */
+    u8  row;                                /* the row of ability_chart.tsv */
+};
+
 struct sim_command
 {
     sim_command_kind   kind;
     u32                id;        /* assigned by sim_make_command */
+    sim_new_officer_order newcomer; /* SIM_COMMAND_CREATE_OFFICER */
+    sim_pk_order       pk;        /* SIM_COMMAND_RESEARCH_ABILITY, SIM_COMMAND_TRAIN_OFFICER */
     sim_corps_order    corps;     /* SIM_COMMAND_CORPS */
     sim_m8_order       m8;        /* SIM_COMMAND_ADVISER .. SIM_COMMAND_TRIGGER_EVENT */
     sim_court_order    court;     /* SIM_COMMAND_SEARCH .. SIM_COMMAND_FACTION_PLOT */
@@ -516,6 +555,9 @@ enum sim_refusal
     SIM_REFUSAL_NO_CORPS,              /* no such corps, or no free place for a new one */
     SIM_REFUSAL_RULER_ABSENT,          /* 評定 needs the ruler in the city */
     SIM_REFUSAL_NO_EVENT,              /* no event waits, or no such event or choice */
+    /* M9 */
+    SIM_REFUSAL_NO_CHART_ROW,          /* no such row of the ability chart */
+    SIM_REFUSAL_NO_USES,               /* the faction has no use of the row left */
     SIM_REFUSAL_COUNT
 };
 
@@ -587,6 +629,9 @@ struct officer_component
     u16 experience[CONTENT_ABILITY_COUNT];
     u32 rewarded_turn;                   /* sim turn + 1 of the last reward */
     u8  han_respect;                     /* M8: 0 漢室無視, 1 normal, 2 漢室重視; the save field is not decoded (Q-186) */
+    u8  training_turns;                  /* M9: the turns of 培育武將 left; the officer is away */
+    u8  training_row;                    /* M9: the row of ability_chart.tsv that the training gives */
+    b32 created;                         /* M9: a new officer of this game */
 };
 
 enum sim_personality { PERSONALITY_CAREFUL, PERSONALITY_CALM, PERSONALITY_BOLD, PERSONALITY_RECKLESS, PERSONALITY_COUNT };
@@ -901,7 +946,20 @@ struct sim_settings
     b32 lifespan;           /* M7: officers die near their historical year */
     b32 ai;                 /* M8: the computer factions and the delegated corps act */
     b32 events;             /* M8: 事件 */
+    /* M9: the other settings of the start (game-setup-and-modes.md) */
+    b32 long_lifespan;      /* 壽命 長: officers live lifespan.long_years more */
+    b32 female_officers;    /* 女武將: off, a free female officer never appears */
+    b32 strong_plots;       /* 落雷・妖術: off, nobody uses the two plots */
+    b32 relations;          /* 血緣・關係: off, the historical relations are cleared */
+    u8  duel_mode;          /* 單挑・舌戰: sim_duel_mode */
+    u8  difficulty;         /* 遊戲等級: sim_difficulty */
 };
+
+/* Who plays the duels and debates of a human faction: the player, the
+   computer for the rounds (the player keeps the last choice), or the
+   computer for all. */
+enum sim_duel_mode { DUEL_MODE_MANUAL, DUEL_MODE_SEMI, DUEL_MODE_AUTO, DUEL_MODE_COUNT };
+enum sim_difficulty { DIFFICULTY_BEGINNER, DIFFICULTY_NORMAL, DIFFICULTY_HARD, DIFFICULTY_SUPER, DIFFICULTY_COUNT };
 
 enum sim_outcome_kind
 {
@@ -979,6 +1037,14 @@ struct sim_pending_event
     u32 cause;
 };
 
+/* M9: the 研究能力 of a faction: one at a time. */
+struct sim_ability_job
+{
+    u8  row;                             /* CONTENT_NO_CHART_ROW when idle */
+    u8  city;
+    u16 turns_left;
+};
+
 /* A command that the AI planner, the council or the adviser proposes. */
 struct sim_proposal
 {
@@ -1038,6 +1104,11 @@ struct sim_state
     sim_relic      relics[SIM_RELIC_COUNT];
     sim_pending_event pending;
     u32            event_turn[CONTENT_EVENT_CAPACITY];   /* sim turn + 1 of the last time each event fired */
+    /* M9 */
+    u32            new_officer_count;                     /* 新武將 that joined this game */
+    u8             ability_uses[SIM_FORCE_CAPACITY][CONTENT_CHART_CAPACITY];
+    u32            ability_known[SIM_FORCE_CAPACITY];     /* bit r: the faction researched the row r once */
+    sim_ability_job ability_job[SIM_FORCE_CAPACITY];
 };
 
 #define SIM_ENTITY_CAPACITY  4096
@@ -1246,6 +1317,7 @@ internal b32       sim_building_available(sim_state *sim, u8 force, u32 kind_id)
 internal b32       sim_can_place(sim_state *sim, building_kind *kind, hex_coord hex);
 
 /* officers.cpp, diplomacy.cpp, duel.cpp, debate.cpp (M7) */
+internal void sim_apply_start_settings(sim_state *sim, sim_settings *before);   /* M9 */
 internal void      sim_init_officer_state(sim_state *sim, officer_component *officer, officer_record *record);
 internal u32       sim_monthly_loyalty_loss(sim_state *sim, officer_component *officer, officer_component *ruler);
 internal void      sim_load_items(sim_state *sim, save_file *save);
@@ -1330,6 +1402,16 @@ internal void      sim_resolve_event(sim_state *sim, u8 choice, u32 cause, sim_e
 internal void      sim_plan_faction(sim_state *sim, u8 force, u8 city_filter, u8 corps_filter, u32 flags, sim_plan *plan);
 internal void      sim_run_ai_faction(sim_state *sim, u8 force, u32 cause, sim_event_sink *events);
 internal void      sim_run_delegated_corps(sim_state *sim, u8 force, u32 cause, sim_event_sink *events);
+
+/* pk.cpp (M9): new officers, 研究能力, 培育武將 */
+internal sim_check sim_check_create_officer(sim_state *sim, sim_new_officer_order *order);
+internal void      sim_create_officer_command(sim_state *sim, sim_command command, sim_event_sink *events);
+internal sim_check sim_check_research_ability(sim_state *sim, sim_pk_order *order);
+internal void      sim_research_ability_command(sim_state *sim, sim_command command, sim_event_sink *events);
+internal sim_check sim_check_train_officer(sim_state *sim, sim_pk_order *order);
+internal void      sim_train_officer_command(sim_state *sim, sim_command command, sim_event_sink *events);
+internal void      sim_progress_pk(sim_state *sim, u32 cause, sim_event_sink *events);
+internal void      sim_reset_pk(sim_state *sim);
 
 /* outcome.cpp: victory and defeat (calendar-and-turn.md) */
 internal void sim_check_outcome(sim_state *sim, u32 cause, sim_event_sink *events);

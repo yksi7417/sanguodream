@@ -315,6 +315,7 @@ sim_check_plot(sim_state *sim, sim_unit_order *order)
     if (refusal != SIM_REFUSAL_NONE) return sim_refuse(check, refusal);
     plot_kind *plot = sim_plot(sim, order->kind);
     if (!plot || ((plot->not_unit_types >> unit->unit_type) & 1)) return sim_refuse(check, SIM_REFUSAL_NO_APTITUDE);
+    if (!sim->settings.strong_plots && (plot->effect == PLOT_SORCERY || plot->effect == PLOT_LIGHTNING)) return sim_refuse(check, SIM_REFUSAL_NO_APTITUDE);   /* M9: 落雷・妖術 off */
     if (plot->needs_skill && !sim_unit_has_skill(sim, unit->officers, plot->needs_skill) &&
         !(plot->needs_skill_2 && sim_unit_has_skill(sim, unit->officers, plot->needs_skill_2))) return sim_refuse(check, SIM_REFUSAL_NO_APTITUDE);
     if (unit->morale < plot->morale) return sim_refuse(check, SIM_REFUSAL_NO_MORALE);

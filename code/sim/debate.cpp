@@ -146,6 +146,9 @@ sim_debate_end(sim_state *sim, u8 winner, u32 cause, sim_event_sink *events);
 
 /* Starts a debate of two officers. A large gap of intellect ends it at
    once (guide book p.33). The higher intellect speaks first (assumed). */
+internal void sim_debate_auto(sim_state *sim, u32 cause, sim_event_sink *events);
+internal void sim_debate_close(sim_state *sim, u8 choice, u32 cause, sim_event_sink *events);
+
 internal void
 sim_begin_debate(sim_state *sim, u16 officer_a, u16 officer_b, u8 purpose, sim_court_order *order, u8 force, u32 cause, sim_event_sink *events)
 {
@@ -179,6 +182,13 @@ sim_begin_debate(sim_state *sim, u16 officer_a, u16 officer_b, u8 purpose, sim_c
     {
         if (a->intelligence >= b->intelligence + gap) sim_debate_end(sim, 0, cause, events);
         else if (b->intelligence >= a->intelligence + gap) sim_debate_end(sim, 1, cause, events);
+    }
+    /* M9: 單挑・舌戰 not manual: the computer plays the exchanges of a human faction;
+       automatic also takes the first result choice. */
+    if (force < SIM_FORCE_CAPACITY && sim->turns.human[force] && sim->settings.duel_mode != DUEL_MODE_MANUAL)
+    {
+        sim_debate_auto(sim, cause, events);
+        if (sim->settings.duel_mode == DUEL_MODE_AUTO && debate->active && debate->finished) sim_debate_close(sim, 0, cause, events);
     }
 }
 

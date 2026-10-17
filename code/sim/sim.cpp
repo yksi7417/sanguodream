@@ -34,11 +34,17 @@ sim_init(sim_state *sim, memory_arena *arena, u64 seed)
     sim->settings.lifespan       = true;
     sim->settings.ai             = true;    /* M8: the computer factions act, and 事件 is on */
     sim->settings.events         = true;
+    sim->settings.female_officers = true;   /* M9: the defaults of a new game */
+    sim->settings.strong_plots    = true;
+    sim->settings.relations       = true;
+    sim->settings.duel_mode       = DUEL_MODE_MANUAL;
+    sim->settings.difficulty      = DIFFICULTY_NORMAL;
     sim->duel   = {};
     sim->debate = {};
     for (u32 index = 0; index < SAVE_ITEM_COUNT; ++index) sim->items[index] = {};
     for (u32 force = 0; force < SIM_FORCE_CAPACITY; ++force) sim->adviser[force] = SIM_NO_OFFICER;   /* M8 */
     sim->pending = {};
+    sim_reset_pk(sim);   /* M9 */
     sim->emperor = {};
     sim->ruleset.combat_damage = sim_rule_combat_damage;   /* the generic rule; a pack can set its own */
     sim->ruleset.loyalty_drift = sim_monthly_loyalty_loss;
@@ -245,6 +251,9 @@ sim_apply(sim_state *sim, sim_command command, sim_event_sink *events)
         case SIM_COMMAND_COUNCIL:       sim_council_command(sim, command, events);     break;
         case SIM_COMMAND_EVENT_CHOICE:  sim_event_choice_command(sim, command, events); break;
         case SIM_COMMAND_TRIGGER_EVENT: sim_trigger_event_command(sim, command, events); break;
+        case SIM_COMMAND_CREATE_OFFICER:   sim_create_officer_command(sim, command, events); break;
+        case SIM_COMMAND_RESEARCH_ABILITY: sim_research_ability_command(sim, command, events); break;
+        case SIM_COMMAND_TRAIN_OFFICER:    sim_train_officer_command(sim, command, events); break;
         case SIM_COMMAND_DEVELOP:
             sim_develop(sim, command, events);
             break;
@@ -342,6 +351,7 @@ sim_unload_world(sim_state *sim)
         for (u32 index = 0; index < SIM_CORPS_CAPACITY; ++index) { sim->corps[force][index] = {}; sim->corps_ap[force][index] = 0; }
     }
     sim->pending = {};
+    sim_reset_pk(sim);   /* M9 */
     for (u32 index = 0; index < CONTENT_EVENT_CAPACITY; ++index) sim->event_turn[index] = 0;
     for (u32 index = 0; index < CONTENT_BASE_COUNT; ++index) sim->bases[index] = {};
     for (u32 index = 0; index < SIM_RELIC_COUNT; ++index) sim->relics[index] = {};
@@ -641,6 +651,13 @@ sim_event_name(sim_event_kind kind)
         case SIM_EVENT_BASE_INCOME:             return "base_income";
         case SIM_EVENT_BASE_TAKEN:              return "base_taken";
         case SIM_EVENT_AI_PLANNED:              return "ai_planned";
+        case SIM_EVENT_OFFICER_CREATED:         return "officer_created";
+        case SIM_EVENT_ABILITY_RESEARCH_STARTED: return "ability_research_started";
+        case SIM_EVENT_ABILITY_RESEARCHED:      return "ability_researched";
+        case SIM_EVENT_TRAINING_STARTED:        return "training_started";
+        case SIM_EVENT_OFFICER_TRAINED:         return "officer_trained";
+        case SIM_EVENT_HISTORY_FIRED:           return "history_fired";
+        case SIM_EVENT_ENDING:                  return "ending";
         default:                                return "?";
     }
 }
@@ -696,6 +713,9 @@ sim_command_name(sim_command_kind kind)
         case SIM_COMMAND_COUNCIL:         return "council";
         case SIM_COMMAND_EVENT_CHOICE:    return "event_choice";
         case SIM_COMMAND_TRIGGER_EVENT:   return "trigger_event";
+        case SIM_COMMAND_CREATE_OFFICER:  return "create_officer";
+        case SIM_COMMAND_RESEARCH_ABILITY: return "research_ability";
+        case SIM_COMMAND_TRAIN_OFFICER:   return "train_officer";
         default:                          return "?";
     }
 }
@@ -763,6 +783,8 @@ sim_refusal_name(sim_refusal refusal)
         case SIM_REFUSAL_NO_CORPS:              return "no_corps";
         case SIM_REFUSAL_RULER_ABSENT:          return "ruler_absent";
         case SIM_REFUSAL_NO_EVENT:              return "no_event";
+        case SIM_REFUSAL_NO_CHART_ROW:          return "no_chart_row";
+        case SIM_REFUSAL_NO_USES:               return "no_uses";
         default:                                return "?";
     }
 }
@@ -786,3 +808,4 @@ sim_refusal_name(sim_refusal refusal)
 #include "sim/bases.cpp"
 #include "sim/events.cpp"
 #include "sim/ai.cpp"
+#include "sim/pk.cpp"

@@ -515,6 +515,42 @@ struct ai_priority
     u32  threshold;
 };
 
+/* M9: one row of ability_chart.tsv, the 能力表 of the Power Up Kit
+   (pk-officer-training.md). Research makes the row usable count times;
+   training gives it to one officer. */
+#define CONTENT_CHART_CAPACITY 32
+#define CONTENT_NO_CHART_ROW   0xFF
+enum chart_kind { CHART_PLUS, CHART_FLOOR, CHART_APTITUDE, CHART_SKILL, CHART_KIND_COUNT };
+enum chart_zone { CHART_ZONE_ATTACK, CHART_ZONE_PLOT, CHART_ZONE_DEFENCE, CHART_ZONE_DOMESTIC, CHART_ZONE_COUNT };
+
+struct chart_row
+{
+    u8   id;
+    char key[CONTENT_KEY_SIZE];       /* the text id is "chart.<key>" */
+    u8   zone;                        /* chart_zone */
+    u8   kind;                        /* chart_kind */
+    u8   target;                      /* plus, floor: content_ability; aptitude: the class 0..5; skill: the skill number */
+    u8   amount;                      /* plus: the rise; floor: the value; aptitude: the grade after (0 C .. 3 S) */
+    u8   count;                       /* the uses that one research gives */
+    u8   months;                      /* the months of the research */
+    u32  requires;                    /* bit r: the row r must be researched first */
+};
+
+/* M9: one row of ancient_officers.tsv: an officer of another era that a
+   player can add as a new officer (game-setup-and-modes.md). */
+#define CONTENT_ANCIENT_CAPACITY 16
+struct ancient_officer
+{
+    u8   id;
+    char key[CONTENT_KEY_SIZE];
+    u8   family_name[OFFICER_FAMILY_NAME_SIZE];
+    u8   given_name[OFFICER_GIVEN_NAME_SIZE];
+    u8   abilities[CONTENT_ABILITY_COUNT];
+    u8   skill;                       /* the skill number; 0 = none */
+    u8   personality;                 /* sim_personality order: careful, calm, bold, reckless */
+    b32  female;
+};
+
 /* The numbers of rules.tsv. A missing row leaves 0. */
 struct sim_rules
 {
@@ -651,6 +687,9 @@ struct sim_rules
     u32 emperor_technique, emperor_loyalty, emperor_city;
     u32 event_experience, event_merit;
     u32 ai_urgency, ai_sortie_soldiers, ai_sortie_reserve, ai_goodwill_gold, ai_commands, corps_ap_divisor;
+    /* M9 */
+    u32 lifespan_long_years, new_officer_max, new_officer_high, new_officer_normal, new_officer_low;
+    u32 train_ap, train_turns, ability_research_ap, ability_research_gold;
     u32 loaded_count;           /* rows that set a field */
 };
 
@@ -692,6 +731,10 @@ struct sim_content
     u32            event_count;
     ai_priority    priorities[CONTENT_PRIORITY_CAPACITY];
     u32            priority_count;
+    chart_row      chart[CONTENT_CHART_CAPACITY];          /* M9 */
+    u32            chart_count;
+    ancient_officer ancients[CONTENT_ANCIENT_CAPACITY];
+    u32            ancient_count;
     sim_rules      rules;
 };
 
@@ -722,6 +765,8 @@ internal b32 content_load_bases(sim_content *content, tsv_table *table, u32 *bad
 internal b32 content_load_events(sim_content *content, tsv_table *table, u32 *bad_row);
 internal b32 content_load_priorities(sim_content *content, tsv_table *table, u32 *bad_row);
 internal u8  content_find_event(sim_content *content, const char *key);   /* CONTENT_EVENT_CAPACITY if none */
+internal b32 content_load_chart(sim_content *content, tsv_table *table, u32 *bad_row);      /* M9 */
+internal b32 content_load_ancients(sim_content *content, tsv_table *table, u32 *bad_row);
 
 internal facility_effect    content_effect_from_name(const char *name);
 internal facility_limit     content_limit_from_name(const char *name);

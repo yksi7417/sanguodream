@@ -39,6 +39,7 @@
 #include "combat_tests.cpp"
 #include "court_tests.cpp"
 #include "rivals_tests.cpp"
+#include "playable_tests.cpp"
 
 int
 main(void)
@@ -140,6 +141,9 @@ main(void)
     test_counts rivals = {};
     unit_rivals_tests(&rivals, &arena);
     failed |= test_report("unit/rivals", &rivals);
+    test_counts playable = {};
+    unit_playable_tests(&playable, &arena);
+    failed |= test_report("unit/playable", &playable);
     test_arena_destroy(&arena);
 
     printf(failed ? "RESULT FAIL\n" : "RESULT PASS\n");

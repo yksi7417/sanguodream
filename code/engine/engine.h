@@ -592,6 +592,39 @@ struct engine_save_slot
     u32  turn;
 };
 
+/* ---- M9: new officers and the PK ability chart ---------------------------- */
+
+struct engine_chart_row
+{
+    u8   id;                        /* ENGINE_NO_ROW for an index out of range */
+    char key[CONTENT_KEY_SIZE];     /* the text id is "chart.<key>" */
+    u8   zone;                      /* chart_zone */
+    u8   kind;                      /* chart_kind */
+    u8   target, amount, count, months;
+    u32  requires;                  /* bit r: the row r first */
+};
+
+struct engine_faction_chart
+{
+    u8  uses[CONTENT_CHART_CAPACITY];
+    u32 known;                      /* bit r: researched once */
+    u8  job_row;                    /* the research that runs, or ENGINE_NO_ROW */
+    u8  job_city;
+    u32 turns_left;
+};
+
+struct engine_ancient
+{
+    u8   id;                        /* ENGINE_NO_ROW */
+    char key[CONTENT_KEY_SIZE];
+    u8   family_name[OFFICER_FAMILY_NAME_SIZE];
+    u8   given_name[OFFICER_GIVEN_NAME_SIZE];
+    u8   abilities[CONTENT_ABILITY_COUNT];
+    u8   skill;
+    u8   personality;
+    b32  female;
+};
+
 /* ---- M7: officers, court, items, diplomacy, duel, debate ---------------- */
 
 /* The order of the personnel, court, diplomacy and plot commands. */
@@ -616,6 +649,10 @@ struct engine_officer_detail
     u32 age;
     u32 soldier_cap;                /* the soldiers that the officer leads */
     u32 recruit_chance;             /* the chance for the acting faction now, 0 if it cannot recruit the officer */
+    u8  training_turns;             /* M9: 培育武將: the turns left; the officer is away */
+    u8  training_row;               /* M9: the row of chart_row_at */
+    b32 created;                    /* M9: a new officer of this game */
+    u8  portrait_stage;             /* M9: 0 the first portrait, 1 the second (events.md, portrait change) */
 };
 
 /* The editor fields of an officer that the save does not decode (Q-177). */
@@ -734,6 +771,12 @@ struct engine_settings
     b32 lifespan;           /* M7: officers die near their historical year */
     b32 ai;                 /* M8: the computer factions and the delegated corps act */
     b32 events;             /* M8: 事件 */
+    b32 long_lifespan;      /* M9: 壽命 長 */
+    b32 female_officers;    /* M9: 女武將; off hides the free female officers once */
+    b32 strong_plots;       /* M9: 落雷・妖術 */
+    b32 relations;          /* M9: 血緣・關係; off clears the relations once */
+    u8  duel_mode;          /* M9: sim_duel_mode */
+    u8  difficulty;         /* M9: sim_difficulty */
 };
 
 /* The indices of the ledger events that a filter keeps, in ledger order.
@@ -784,6 +827,8 @@ struct engine_content_status
     u32         base_count;       /* M8 */
     u32         event_count;
     u32         priority_count;
+    u32         chart_count;      /* M9 */
+    u32         ancient_count;
     const char *detail;           /* a static string: the file that did not load, or "ok" */
 };
 
@@ -1011,6 +1056,17 @@ typedef engine_save_status engine_save_game_fn(void *engine, u32 slot, const cha
 typedef engine_save_status engine_load_game_fn(void *engine, u32 slot);
 typedef engine_save_slot   engine_save_slot_fn(void *engine, u32 slot);
 typedef void               engine_refresh_save_slots_fn(void *engine);
+/* M9 new officers and the PK chart. create_officer is a start-menu and
+   editor command; it ledgers OFFICER_CREATED. */
+typedef u32                  engine_chart_count_fn(void *engine);
+typedef engine_chart_row     engine_chart_row_at_fn(void *engine, u32 index);
+typedef engine_faction_chart engine_faction_chart_fn(void *engine, u8 force_id);
+typedef u32                  engine_ancient_count_fn(void *engine);
+typedef engine_ancient       engine_ancient_at_fn(void *engine, u32 index);
+typedef u32                  engine_new_officer_count_fn(void *engine);
+typedef engine_command_result engine_create_officer_fn(void *engine, const sim_new_officer_order *order);
+typedef engine_command_result engine_command_research_ability_fn(void *engine, u8 city_id, u8 row);
+typedef engine_command_result engine_command_train_officer_fn(void *engine, u16 officer, u8 row);
 /* A placeholder unit until M5: it only blocks the commands of enemy
    cities within 2 hexes. Returns ENGINE_NO_UNIT if there is no room. */
 typedef u32                 engine_place_unit_fn(void *engine, u8 force_id, s32 q, s32 r);
@@ -1185,6 +1241,16 @@ struct engine_api
     engine_load_game_fn             *load_game;
     engine_save_slot_fn             *save_slot;
     engine_refresh_save_slots_fn    *refresh_save_slots;
+    /* M9 new officers and the PK chart */
+    engine_chart_count_fn           *chart_count;
+    engine_chart_row_at_fn          *chart_row_at;
+    engine_faction_chart_fn         *faction_chart;
+    engine_ancient_count_fn         *ancient_count;
+    engine_ancient_at_fn            *ancient_at;
+    engine_new_officer_count_fn     *new_officer_count;
+    engine_create_officer_fn        *create_officer;
+    engine_command_research_ability_fn *command_research_ability;
+    engine_command_train_officer_fn *command_train_officer;
 };
 
 #define ENGINE_NO_BASE 0xFFFFFFFFu

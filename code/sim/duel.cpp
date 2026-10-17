@@ -75,6 +75,8 @@ sim_duel_setup_side(sim_state *sim, sim_duel_side *side, u32 unit_id, b32 human)
 }
 
 /* 單挑: the challenge. The unit acts; the target accepts or refuses. */
+internal void sim_duel_auto(sim_state *sim, u32 cause, sim_event_sink *events);
+
 internal void
 sim_start_duel(sim_state *sim, sim_command command, sim_event_sink *events)
 {
@@ -101,6 +103,8 @@ sim_start_duel(sim_state *sim, sim_command command, sim_event_sink *events)
     duel->winner = 2;
     sim_duel_setup_side(sim, duel->side + 0, order->unit, true);
     sim_duel_setup_side(sim, duel->side + 1, target_id, false);
+    /* M9: 單挑・舌戰 semi-automatic or automatic: the computer plays the rounds. */
+    if (sim->settings.duel_mode != DUEL_MODE_MANUAL) sim_duel_auto(sim, command.id, events);
 }
 
 /* ---- one strike and one round ---------------------------------------------------- */

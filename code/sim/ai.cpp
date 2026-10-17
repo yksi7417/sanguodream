@@ -386,7 +386,10 @@ internal void
 sim_run_ai_faction(sim_state *sim, u8 force, u32 cause, sim_event_sink *events)
 {
     if (!sim->settings.ai || !sim->has_content) return;
-    u32 issued = sim_ai_run_plan(sim, force, 0xFF, CORPS_FLAG_ALL, sim->content.rules.ai_commands, events);
+    /* 遊戲等級 (assumed, Q-187): half, the same, 1.5 times or 2 times the commands. */
+    static const u32 percent[DIFFICULTY_COUNT] = { 50, 100, 150, 200 };
+    u32 budget = Maximum(1u, sim_percent_of(sim->content.rules.ai_commands, percent[Minimum((u32)sim->settings.difficulty, (u32)DIFFICULTY_COUNT - 1)]));
+    u32 issued = sim_ai_run_plan(sim, force, 0xFF, CORPS_FLAG_ALL, budget, events);
     issued += sim_ai_units(sim, force, cause, events);
     if (sim->pending.active && sim->pending.force == force) sim->pending.active = false;   /* the AI takes the first choice */
     sim_event planned = sim_event_make(sim, SIM_EVENT_AI_PLANNED, cause);
