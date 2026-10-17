@@ -1,0 +1,12 @@
+id	key	name_zh	year	kind	file	status
+# The scenario list of game-setup-and-modes.md (manual p.35; Steam guide section 1). kind: save (a saved game), base (a scenario of the base game), pk (a Power Up Kit scenario).
+# file: relative to the executable; - if the clean room does not have the file. The clean room has two files of spec/fixtures: the scenario 群雄割據 and a save of it.
+# The spec gives no years for the PK scenarios (0 here) and names no base scenario but 群雄割據 (Q-189).
+0	sample_save	群雄割據 (存檔)	194	save	..\spec-src\spec\fixtures\saves\sample.s11	documented
+1	warlords	群雄割據	194	base	..\spec-src\spec\fixtures\scenarios\SCEN002.s11	documented
+2	lu_bu_campaign	呂布討伐戰	0	pk	-	documented
+3	yuan_succession	袁家之戰	0	pk	-	documented
+4	hanzhong	漢中爭奪戰	0	pk	-	documented
+5	he_jin	何進包圍網	0	pk	-	documented
+6	power_broker	局勢掌控者	0	pk	-	documented
+7	women_war	女流之戰	0	pk	-	documented

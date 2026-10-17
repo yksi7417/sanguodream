@@ -262,3 +262,4 @@ train.ap	20	documented	pk-officer-training.md: 培育武將 costs 20 AP
 train.turns	3	documented	pk-officer-training.md: the officer is away 30 days (3 turns of 10 days)
 ability_research.ap	20	documented	pk-officer-training.md: 研究能力 costs 20 AP
 ability_research.gold	300	documented	pk-officer-training.md: 研究能力 costs 300 gold
+scenario.public_order	70	assumed	the public order of each city in a new game from a scenario file; the scenario record has no public order (scenario-file.md; Q-189)
