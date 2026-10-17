@@ -182,3 +182,84 @@ refusal.limit_reached	the command ran its limit of this turn
 refusal.too_many_officers	the command takes fewer officers
 refusal.no_amount	no amount
 refusal.no_grain	not sufficient grain
+refusal.needs_technique	the faction needs a technique first
+refusal.no_technique_points	not sufficient technique points
+refusal.weapon_replaced	a stronger weapon replaces this one
+refusal.not_mergeable	these facilities cannot merge
+refusal.game_over	the game is over
+refusal.no_disaster	no such disaster, or it runs now
+refusal.no_technique	no such technique
+menu.techniques	Techniques	menu item and panel
+techniques.title	Techniques	技巧表
+research.title	Research	研究技巧
+research.points	Technique points	技巧P
+research.running	Research	the research that runs now
+research.turns	turns	after a number
+research.technique	Technique
+research.line	Line	a line of four techniques
+merge.title	Merge	吸收合併
+merge.absorber	Absorber	the facility that gains the level
+merge.absorbed	Absorbed	the level-1 facility that becomes a free slot
+merge.level	Level
+city.research	Research	button: opens 研究技巧
+city.merge	Merge	button: opens 吸收合併
+city.disasters	Disasters
+city.no_disaster	none
+slot.merging	merging	the absorbed side of a merge
+settings.disasters	Disasters	game setting: locusts, plague, bandits, good harvest
+outcome.end_year	The game ends in the year
+outcome.none	the game runs
+outcome.victory	Victory
+outcome.defeat_time	Defeat: the year 351
+outcome.defeat_no_city	Defeat: no city
+outcome.defeat_no_officer	Defeat: no officer
+outcome.defeat_surrender	Defeat: surrender
+line.pike	Pike	槍兵
+line.halberd	Halberd	戟兵
+line.crossbow	Crossbow	弩兵
+line.cavalry	Cavalry	騎兵
+line.drill	Drill	鍊兵
+line.invention	Invention	發明
+line.defence	Defence	防衛
+line.fire	Fire	火攻
+line.pk	PK	the four techniques of the Power Up Kit
+technique.pike_drill	Pike drill	鍛鍊槍兵
+technique.grain_raid	Grain raid	襲擊兵糧
+technique.ambush	Ambush	奇襲
+technique.elite_pike	Elite pikes	精銳槍兵
+technique.halberd_drill	Halberd drill	鍛鍊戟兵
+technique.arrow_shield	Arrow shield	箭盾
+technique.great_shield	Great shield	大盾
+technique.elite_halberd	Elite halberds	精銳戟兵
+technique.crossbow_drill	Crossbow drill	鍛鍊弩兵
+technique.return_fire	Return fire	還射
+technique.strong_crossbow	Strong crossbow	強弩
+technique.elite_crossbow	Elite crossbows	精銳弩兵
+technique.cavalry_drill	Cavalry drill	鍛鍊騎兵
+technique.fine_horses	Fine horses	出產良馬
+technique.mounted_archery	Mounted archery	騎射
+technique.elite_cavalry	Elite cavalry	精銳騎兵
+technique.veterans	Veterans	熟練兵
+technique.rough_march	Rough march	難所行軍
+technique.army_reform	Army reform	改革軍制
+technique.ladders	Ladders	雲梯
+technique.axles	Axles	強化車軸
+technique.stonework	Stonework	石造建築
+technique.catapults	Catapults	開發投石
+technique.thunderbolt	Thunderbolt	霹靂
+technique.engineers	Engineers	培訓工兵
+technique.strong_facilities	Strong facilities	強化設施
+technique.strong_walls	Strong walls	強化城牆
+technique.strong_defence	Strong defence	強化防衛
+technique.wood_beasts	Wood beasts	開發木獸
+technique.divine_fire	Divine fire	神火計
+technique.gunpowder	Gunpowder	鍊成火藥
+technique.explosives	Explosives	鍊成炸藥
+technique.wooden_ox	Wooden ox	木牛流馬
+technique.port_expansion	Port expansion	擴展港關
+technique.order_decrees	Order decrees	整備政令
+technique.hearts_and_minds	Hearts and minds	掌握人心
+disaster.locusts	Locusts	蝗災
+disaster.plague	Plague	瘟疫
+disaster.bandits	Bandits	盜賊
+disaster.good_harvest	Good harvest	豐收

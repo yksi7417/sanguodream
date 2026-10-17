@@ -73,6 +73,25 @@ struct ui_state
     bool show_command[UI_COMMAND_COUNT];
     ui_command_dialog commands[UI_COMMAND_COUNT];
     char command_message[96];    /* result of the last 決定 of a city command; the City panel shows it */
+    /* M4: the 研究技巧 and 吸收合併 dialogs and the technique table (技巧表) */
+    bool show_research;
+    struct
+    {
+        u8  city;
+        u8  prepared_city;               /* ENGINE_NO_CITY: choose again */
+        u8  technique;                   /* ENGINE_NO_TECHNIQUE until a click */
+        u16 officers[SIM_DEVELOP_OFFICERS];
+    } research;
+    bool show_merge;
+    struct
+    {
+        u8  city;
+        u8  prepared_city;
+        u8  absorber;                    /* ENGINE_ANY_SLOT until a choice */
+        u8  absorbed;
+        u16 officer;
+    } merge;
+    bool show_techniques;
     u8   ledger_city;            /* the ledger filter: ENGINE_ANY_CITY or a city id */
     u8   ledger_resource;        /* the ledger filter: ENGINE_ANY_RESOURCE or a sim_resource */
     text_catalog *text;      /* the UI strings and the names; owned by the caller */

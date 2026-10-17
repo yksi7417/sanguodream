@@ -21,6 +21,7 @@ ui_label(char *out, u32 out_size, ui_state *ui, const char *text_id, const char 
 #include "ui/ui_city.cpp"
 #include "ui/ui_city_commands.cpp"
 #include "ui/ui_economy.cpp"
+#include "ui/ui_growth.cpp"
 
 /* Writes an overlay colour for one cell of the terrain view, if it is on the map. */
 internal void
@@ -61,6 +62,16 @@ ui_init(ui_state *ui, text_catalog *text)
         ui->commands[kind].amount        = UI_MERCHANT_DEFAULT_AMOUNT;
     }
     ui->command_message[0]    = 0;
+    ui->show_research         = false;
+    ui->research              = {};
+    ui->research.prepared_city = ENGINE_NO_CITY;
+    ui->research.technique    = ENGINE_NO_TECHNIQUE;
+    ui->show_merge            = false;
+    ui->merge                 = {};
+    ui->merge.prepared_city   = ENGINE_NO_CITY;
+    ui->merge.absorber        = ENGINE_ANY_SLOT;
+    ui->merge.absorbed        = ENGINE_ANY_SLOT;
+    ui->show_techniques       = false;
     ui->ledger_city           = ENGINE_ANY_CITY;
     ui->ledger_resource       = ENGINE_ANY_RESOURCE;
     ui->text          = text;
@@ -99,6 +110,7 @@ ui_draw_menu_bar(ui_state *ui, engine_api *api, ui_frame_info *frame)
             ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.city", "City"), 0, &ui->show_city);
             ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.develop", "Develop"), 0, &ui->show_develop);
             ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.economy", "Economy"), 0, &ui->show_economy);
+            ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.techniques", "Techniques"), 0, &ui->show_techniques);
             ImGui::MenuItem("Event ledger", 0, &ui->show_ledger);
             ImGui::MenuItem("Memory", 0, &ui->show_memory);
             ImGui::Separator();
@@ -171,6 +183,7 @@ ui_draw_simulation(ui_state *ui, engine_api *api)
         ImGui::Text("Turn: %u", api->turn(api->engine));
         ImGui::Text("Entities alive: %u / %u", api->entities_alive(api->engine), api->entity_capacity(api->engine));
         ui_draw_turn_status(ui, api);
+        ui_draw_outcome(ui, api);
         ImGui::Separator();
         /* "Advance turn" is the proceed button: the faction that acts ends its turn. */
         if (ImGui::Button("Advance turn"))
@@ -328,10 +341,13 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->show_cities) ui_draw_cities(ui, api);
     if (ui->show_ledger) ui_draw_ledger(ui, api);
     if (ui->show_memory) ui_draw_memory(ui, api, frame);
-    if (ui->show_settings) ui_draw_settings(ui);
+    if (ui->show_settings) ui_draw_settings(ui, api);
     if (ui->show_city)    ui_draw_city(ui, api);
     if (ui->show_develop) ui_draw_develop(ui, api);
     if (ui->show_economy) ui_draw_economy(ui, api);
+    if (ui->show_research)   ui_draw_research(ui, api);
+    if (ui->show_merge)      ui_draw_merge(ui, api);
+    if (ui->show_techniques) ui_draw_techniques(ui, api);
     for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind)
     {
         if (ui->show_command[kind]) ui_draw_city_command(ui, api, kind);

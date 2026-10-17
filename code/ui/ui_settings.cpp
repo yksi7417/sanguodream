@@ -47,13 +47,29 @@ ui_draw_language_combo(ui_state *ui)
     }
 }
 
+/* The game settings of the engine (game-setup-and-modes.md). A change is
+   one set_settings call. */
 internal void
-ui_draw_settings(ui_state *ui)
+ui_draw_game_settings(ui_state *ui, engine_api *api)
+{
+    engine_settings settings = api->settings(api->engine);
+    bool disasters = settings.disasters != 0;
+    char label[128];
+    if (ImGui::Checkbox(ui_label(label, sizeof(label), ui, "settings.disasters", "disasters"), &disasters))
+    {
+        settings.disasters = disasters;
+        api->set_settings(api->engine, settings);
+    }
+}
+
+internal void
+ui_draw_settings(ui_state *ui, engine_api *api)
 {
     char title[128];
-    ImGui::SetNextWindowSize(ImVec2(420, 160), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(420, 180), ImGuiCond_FirstUseEver);
     if (ImGui::Begin(ui_label(title, sizeof(title), ui, "settings.title", "Settings"), &ui->show_settings))
     {
+        ui_draw_game_settings(ui, api);
         if (ui->text)
         {
             ui_draw_language_combo(ui);

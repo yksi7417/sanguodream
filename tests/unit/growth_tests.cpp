@@ -126,10 +126,55 @@ unit_growth_rule_tests(test_counts *counts)
                "without the rules the period is the longest; a period is at least one turn");
 }
 
+/* Victory and defeat on a small world of two factions: one city and one
+   officer each. Force 0 is human. */
+internal void
+unit_outcome_tests(test_counts *counts, memory_arena *arena)
+{
+    sim_state *sim = PushStruct(arena, sim_state);
+    sim_init(sim, arena, 1);
+    sim_event_sink sink = sim_sink_from_arena(arena, 64);
+    for (u8 force = 0; force < 2; ++force)
+    {
+        city_component city = {};
+        city.city_id        = force;
+        city.owner_force_id = force;
+        sim_add_city(sim, city);
+        officer_component officer = {};
+        officer.officer_id = force;
+        officer.force_id   = force;
+        officer.status     = OFFICER_STATUS_RULER;
+        officer.job_city   = SIM_NO_CITY;
+        sim_add_officer(sim, officer);
+    }
+    sim->turns.human[0] = true;
+    sim_check_outcome(sim, 0, &sink);
+    TEST_CHECK(counts, !sim_game_over(sim) && sink.count == 0, "two factions with a city and an officer each: the game runs");
+
+    sim->officers.data[0].status = 8;   /* dead */
+    sim_check_outcome(sim, 0, &sink);
+    TEST_CHECK(counts, sim->outcome.kind == SIM_OUTCOME_DEFEAT_NO_OFFICER && sink.count == 1 && sink.events[0].kind == SIM_EVENT_GAME_LOST &&
+                       sink.events[0].detail == SIM_OUTCOME_DEFEAT_NO_OFFICER && sink.events[0].faction == 0,
+               "defeat: the human faction has no active officer");
+    sim_check_outcome(sim, 0, &sink);
+    TEST_CHECK(counts, sink.count == 1, "after the end of the game the check emits nothing");
+
+    sim->outcome = {};
+    sim->officers.data[0].status = OFFICER_STATUS_RULER;
+    sim->cities.data[1].owner_force_id = SIM_NO_FORCE;   /* an empty city does not count */
+    sink.count = 0;
+    sim_check_outcome(sim, 0, &sink);
+    TEST_CHECK(counts, sim->outcome.kind == SIM_OUTCOME_VICTORY && sim->outcome.force_id == 0 && sink.events[0].kind == SIM_EVENT_GAME_WON,
+               "victory: the human faction owns every city that has an owner");
+    TEST_CHECK(counts, strcmp(sim_outcome_name(SIM_OUTCOME_DEFEAT_TIME), "defeat_time") == 0 &&
+                       strcmp(sim_outcome_name(SIM_OUTCOME_COUNT), "?") == 0, "each outcome has a name");
+}
+
 internal void
 unit_growth_tests(test_counts *counts, memory_arena *arena)
 {
     unit_technique_table_tests(counts, arena);
     unit_disaster_table_tests(counts, arena);
     unit_growth_rule_tests(counts);
+    unit_outcome_tests(counts, arena);
 }

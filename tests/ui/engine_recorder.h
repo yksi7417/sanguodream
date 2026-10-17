@@ -45,6 +45,14 @@ enum recorder_call_kind
     RECORDER_WEAPON_KIND_COUNT,
     RECORDER_WEAPON_KIND_AT,
     RECORDER_LEDGER_FILTER,   /* arg = city | resource << 8 */
+    RECORDER_TECHNIQUE_KIND_COUNT,
+    RECORDER_TECHNIQUE_KIND_AT,
+    RECORDER_FACTION_TECHNIQUES,
+    RECORDER_DISASTER_KIND_COUNT,
+    RECORDER_DISASTER_KIND_AT,
+    RECORDER_CITY_DISASTERS,
+    RECORDER_OUTCOME,
+    RECORDER_SETTINGS,
     RECORDER_END_TURN,        /* commands start here */
     RECORDER_ADVANCE_TURNS,
     RECORDER_LEDGER_CLEAR,
@@ -66,6 +74,13 @@ enum recorder_call_kind
     RECORDER_DAMAGE_FACILITY,
     RECORDER_SET_FACILITY_LEVEL,
     RECORDER_SET_CITY_RESOURCE,
+    RECORDER_COMMAND_RESEARCH,
+    RECORDER_COMMAND_MERGE,
+    RECORDER_START_DISASTER,
+    RECORDER_SET_SETTINGS,
+    RECORDER_GRANT_TECHNIQUE,
+    RECORDER_SET_TECHNIQUE_POINTS,
+    RECORDER_SET_DATE,
     RECORDER_CALL_KIND_COUNT
 };
 
@@ -100,6 +115,10 @@ struct engine_recorder
     engine_command last_develop;      /* the arguments of the last command_develop */
     engine_command last_city_command; /* the arguments of the last patrol, conscript, train, merchant or produce */
     u32           filter_indices[RECORDER_MAX_EVENTS];   /* the answer of ledger_filter: every scripted event */
+    engine_command last_research;     /* the arguments of the last command_research */
+    engine_command last_merge;        /* the arguments of the last command_merge (slot = absorber) */
+    engine_settings settings;         /* the answer of settings; set_settings changes it */
+    u8            outcome_kind;       /* script the answer of outcome */
 };
 
 internal void
@@ -423,6 +442,12 @@ internal engine_facility recorder_facility_at(void *o, u8 city_id, u8 slot)
     facility.slot     = slot;
     facility.state    = SIM_SLOT_EMPTY;
     facility.facility = ENGINE_NO_FACILITY;
+    if (slot == 2 || slot == 3)   /* two built markets: the merge dialog lists them */
+    {
+        facility.state    = SIM_SLOT_BUILT;
+        facility.facility = 0;
+        facility.level    = 1;
+    }
     return facility;
 }
 internal u32 recorder_facility_kind_count(void *o)
@@ -578,6 +603,139 @@ internal engine_command_result recorder_damage_facility(void *o, u8 city, u8 slo
 internal b32  recorder_set_facility_level(void *o, u8 city, u8 slot, u8 level) { (void)slot; (void)level; recorder_record((engine_recorder *)o, RECORDER_SET_FACILITY_LEVEL, city); return true; }
 internal void recorder_set_city_resource(void *o, u8 city, u8 resource, u32 index, u32 value) { (void)resource; (void)index; (void)value; recorder_record((engine_recorder *)o, RECORDER_SET_CITY_RESOURCE, city); }
 
+/* ---- M4 growth: two lines of four techniques, four disasters ------------ */
+
+global_variable const char *recorder_technique_keys[] = {
+    "pike_drill", "grain_raid", "ambush", "elite_pike", "veterans", "rough_march", "army_reform", "ladders",
+};
+global_variable const char *recorder_disaster_keys[] = { "locusts", "plague", "bandits", "good_harvest" };
+
+internal u32 recorder_technique_kind_count(void *o)
+{
+    recorder_record((engine_recorder *)o, RECORDER_TECHNIQUE_KIND_COUNT, 0);
+    return ArrayCount(recorder_technique_keys);
+}
+internal engine_technique_kind recorder_technique_kind_at(void *o, u32 index)
+{
+    recorder_record((engine_recorder *)o, RECORDER_TECHNIQUE_KIND_AT, index);
+    engine_technique_kind kind = {};
+    kind.id = ENGINE_NO_TECHNIQUE;
+    if (index >= ArrayCount(recorder_technique_keys)) return kind;
+    u32 levels_points[4] = { 1000, 2000, 3000, 5000 }, levels_gold[4] = { 1000, 2000, 5000, 10000 };
+    kind.id       = (u8)index;
+    snprintf(kind.key, sizeof(kind.key), "%s", recorder_technique_keys[index]);
+    kind.line     = (u8)(index < 4 ? TECHNIQUE_LINE_PIKE : TECHNIQUE_LINE_DRILL);
+    kind.level    = index % 4 + 1;
+    kind.points   = levels_points[index % 4];
+    kind.gold     = levels_gold[index % 4];
+    kind.ability  = (u8)(index < 4 ? CONTENT_ABILITY_LEADERSHIP : CONTENT_ABILITY_FORCE);
+    kind.min_days = 40;
+    kind.max_days = 60;
+    kind.previous = index % 4 ? (u8)(index - 1) : ENGINE_NO_TECHNIQUE;
+    return kind;
+}
+internal engine_faction_techniques recorder_faction_techniques(void *o, u8 force)
+{
+    recorder_record((engine_recorder *)o, RECORDER_FACTION_TECHNIQUES, force);
+    engine_faction_techniques techniques = {};
+    techniques.force_id         = force;
+    techniques.owned            = 1;   /* the first technique */
+    techniques.technique_points = 4000;
+    techniques.researching      = ENGINE_NO_TECHNIQUE;
+    for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place) techniques.officers[place] = ENGINE_NO_OFFICER;
+    return techniques;
+}
+internal u32 recorder_disaster_kind_count(void *o)
+{
+    recorder_record((engine_recorder *)o, RECORDER_DISASTER_KIND_COUNT, 0);
+    return ArrayCount(recorder_disaster_keys);
+}
+internal engine_disaster_kind recorder_disaster_kind_at(void *o, u32 index)
+{
+    recorder_record((engine_recorder *)o, RECORDER_DISASTER_KIND_AT, index);
+    engine_disaster_kind kind = {};
+    kind.id = ENGINE_NO_DISASTER;
+    if (index >= ArrayCount(recorder_disaster_keys)) return kind;
+    kind.id = (u8)index;
+    snprintf(kind.key, sizeof(kind.key), "%s", recorder_disaster_keys[index]);
+    kind.chance_percent = 5;
+    kind.month_mask     = 1u << 1;
+    return kind;
+}
+/* City 1 has locusts for 3 more turns; the other cities have none. */
+internal engine_city_disasters recorder_city_disasters(void *o, u8 city)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_CITY_DISASTERS, city);
+    engine_city_disasters disasters = {};
+    disasters.city_id = city < r->city_count ? city : ENGINE_NO_CITY;
+    if (city == 1)
+    {
+        disasters.turns[0] = 3;
+        disasters.running  = 1;
+    }
+    return disasters;
+}
+internal engine_outcome recorder_outcome(void *o)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_OUTCOME, 0);
+    engine_outcome outcome = {};
+    outcome.kind     = r->outcome_kind;
+    outcome.force_id = r->outcome_kind ? 0 : ENGINE_NO_FACTION;
+    outcome.end_year = 351;
+    return outcome;
+}
+internal engine_settings recorder_settings(void *o)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_SETTINGS, 0);
+    return r->settings;
+}
+internal engine_command_result recorder_command_research(void *o, u8 city, u8 technique, const u16 officers[SIM_DEVELOP_OFFICERS])
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_COMMAND_RESEARCH, city);
+    r->last_research = {};
+    r->last_research.kind      = ENGINE_COMMAND_RESEARCH;
+    r->last_research.city_id   = city;
+    r->last_research.technique = technique;
+    for (u32 place = 0; place < SIM_DEVELOP_OFFICERS; ++place) r->last_research.officers[place] = officers[place];
+    engine_command_result result = {};
+    result.refusal = r->can_issue_refusal;
+    if (result.refusal == SIM_REFUSAL_NONE) result.command_id = r->next_command_id++;
+    return result;
+}
+internal engine_command_result recorder_command_merge(void *o, u8 city, u8 absorber, u8 absorbed, u16 officer)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_COMMAND_MERGE, city);
+    r->last_merge = {};
+    r->last_merge.kind        = ENGINE_COMMAND_MERGE;
+    r->last_merge.city_id     = city;
+    r->last_merge.slot        = absorber;
+    r->last_merge.absorbed    = absorbed;
+    r->last_merge.officers[0] = officer;
+    engine_command_result result = {};
+    result.refusal = r->can_issue_refusal;
+    if (result.refusal == SIM_REFUSAL_NONE) result.command_id = r->next_command_id++;
+    return result;
+}
+internal engine_command_result recorder_start_disaster(void *o, u8 city, u8 disaster)
+{
+    (void)disaster;
+    return recorder_city_command((engine_recorder *)o, RECORDER_START_DISASTER, ENGINE_COMMAND_KIND_COUNT, city, 0, ENGINE_NO_WEAPON, 0, 0);
+}
+internal void recorder_set_settings(void *o, engine_settings settings)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_SET_SETTINGS, settings.disasters ? 1 : 0);
+    r->settings = settings;
+}
+internal void recorder_grant_technique(void *o, u8 force, u8 technique) { (void)technique; recorder_record((engine_recorder *)o, RECORDER_GRANT_TECHNIQUE, force); }
+internal void recorder_set_technique_points(void *o, u8 force, u32 points) { (void)points; recorder_record((engine_recorder *)o, RECORDER_SET_TECHNIQUE_POINTS, force); }
+internal void recorder_set_date(void *o, u16 year, u8 month, u8 day) { (void)month; (void)day; recorder_record((engine_recorder *)o, RECORDER_SET_DATE, year); }
+
 /* The command kind of the recorder call of a city command. */
 internal recorder_call_kind
 recorder_call_of(engine_command_kind kind)
@@ -656,6 +814,21 @@ recorder_make_api(engine_recorder *r)
     api.damage_facility      = recorder_damage_facility;
     api.set_facility_level   = recorder_set_facility_level;
     api.set_city_resource    = recorder_set_city_resource;
+    api.technique_kind_count = recorder_technique_kind_count;
+    api.technique_kind_at    = recorder_technique_kind_at;
+    api.faction_techniques   = recorder_faction_techniques;
+    api.disaster_kind_count  = recorder_disaster_kind_count;
+    api.disaster_kind_at     = recorder_disaster_kind_at;
+    api.city_disasters       = recorder_city_disasters;
+    api.outcome              = recorder_outcome;
+    api.settings             = recorder_settings;
+    api.command_research     = recorder_command_research;
+    api.command_merge        = recorder_command_merge;
+    api.start_disaster       = recorder_start_disaster;
+    api.set_settings         = recorder_set_settings;
+    api.grant_technique      = recorder_grant_technique;
+    api.set_technique_points = recorder_set_technique_points;
+    api.set_date             = recorder_set_date;
     return api;
 }
 

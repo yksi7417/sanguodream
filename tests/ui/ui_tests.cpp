@@ -489,6 +489,9 @@ register_ui_tests(ImGuiTestEngine *e)
         v.ui.show_city           = true;
         v.ui.show_develop        = true;
         v.ui.show_economy        = true;
+        v.ui.show_research       = true;
+        v.ui.show_merge          = true;
+        v.ui.show_techniques     = true;
         for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind) v.ui.show_command[kind] = true;
         v.ui.ledger_city         = 1;
         v.ui.ledger_resource     = SIM_RESOURCE_GOLD;
@@ -740,6 +743,183 @@ register_ui_tests(ImGuiTestEngine *e)
             ctx->ItemClick("###decide", 0, ImGuiTestOpFlags_NoAutoOpenFullPath);
         }
         ctx->Yield();
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* ---- M4: research, merge, the technique table, the settings ----------- */
+
+    t = IM_REGISTER_TEST(e, "ui", "city_panel_opens_research_and_merge_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_city           = true;
+        ctx->SetRef("###City");
+        ctx->Yield();
+        ctx->ComboClick("###city_select/###c1");
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###open_research");
+        ctx->SetRef("###City");
+        ctx->ItemClick("###open_merge");
+        ctx->Yield();
+        IM_CHECK(v.ui.show_research && v.ui.research.city == 1 && v.ui.show_merge && v.ui.merge.city == 1);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_CITY_DISASTERS), 1u);   /* the City panel shows the disasters of the city */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "research_decide_issues_one_command_research");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_research       = true;
+        ctx->SetRef("###Research");
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.research.officers[0], 100u);                             /* the first free officer by default */
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_FACTION_TECHNIQUES), 1u);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_CAN_ISSUE), 1u);
+        ctx->ItemClick("###t1");                                                  /* the second technique of the first line */
+        ctx->ComboClick("###officer2/###o101");
+        ctx->Yield();
+        IM_CHECK(v.ui.research.technique == 1 && v.ui.research.officers[1] == 101);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);                    /* choices command nothing */
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###decide");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_RESEARCH), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        engine_command sent = v.recorder.last_research;
+        IM_CHECK(sent.city_id == 0 && sent.technique == 1 && sent.officers[0] == 100 && sent.officers[1] == 101 &&
+                 sent.officers[2] == ENGINE_NO_OFFICER);
+        IM_CHECK(!v.ui.show_research && v.ui.command_message[0] != 0);           /* the dialog closes and the result shows */
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "merge_decide_issues_one_command_merge");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_merge          = true;
+        ctx->SetRef("###Merge");
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.merge.officer, 100u);
+        ctx->ComboClick("###absorber/###a2");
+        ctx->ComboClick("###absorbed/###b3");
+        ctx->ComboClick("###officer1/###o102");
+        ctx->Yield();
+        IM_CHECK(v.ui.merge.absorber == 2 && v.ui.merge.absorbed == 3 && v.ui.merge.officer == 102);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###decide");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_MERGE), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        engine_command sent = v.recorder.last_merge;
+        IM_CHECK(sent.city_id == 0 && sent.slot == 2 && sent.absorbed == 3 && sent.officers[0] == 102);
+        IM_CHECK(!v.ui.show_merge);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "research_and_merge_back_issue_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_research       = true;
+        v.ui.show_merge          = true;
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->SetRef("###Research");
+        ctx->ItemClick("###back");
+        ctx->SetRef("###Merge");
+        ctx->ItemClick("###back");
+        ctx->Yield();
+        IM_CHECK(!v.ui.show_research && !v.ui.show_merge);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "refused_research_and_merge_are_disabled_and_issue_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count     = 3;
+        v.recorder.city_count        = 2;
+        v.recorder.can_issue_refusal = SIM_REFUSAL_NEEDS_TECHNIQUE;
+        v.ui.show_research           = true;
+        v.ui.show_merge              = true;
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        const char *windows[2] = { "###Research", "###Merge" };
+        for (u32 index = 0; index < 2; ++index)
+        {
+            ctx->SetRef(windows[index]);
+            ImGuiTestItemInfo decide = ctx->ItemInfo("###decide");
+            IM_CHECK(decide.ID != 0 && (decide.ItemFlags & ImGuiItemFlags_Disabled) != 0);   /* 決定 is grey */
+            ctx->ItemClick("###decide", 0, ImGuiTestOpFlags_NoAutoOpenFullPath);
+        }
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "techniques_panel_reads_the_table_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_techniques     = true;
+        ctx->SetRef("###Techniques");
+        recorder_reset(&v.recorder);
+        ctx->Yield(2);
+        IM_CHECK(ctx->ItemExists("techniques"));
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_FACTION_TECHNIQUES), 1u);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_TECHNIQUE_KIND_AT), 8u);   /* each row of the table */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "disasters_check_box_calls_set_settings_once");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.settings.disasters = true;
+        v.ui.show_settings            = true;
+        ctx->SetRef("###Settings");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###disasters");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_SET_SETTINGS), 1u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_SET_SETTINGS), 0u);   /* the click turns the disasters off */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "simulation_panel_shows_the_outcome_through_the_query");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.outcome_kind = SIM_OUTCOME_VICTORY;
+        recorder_reset(&v.recorder);
+        ctx->Yield(2);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_OUTCOME), 1u);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 

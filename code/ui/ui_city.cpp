@@ -7,6 +7,8 @@
 #define UI_DEVELOP_OFFICER_LIST 64   /* the free officers that the dialog lists */
 
 internal void ui_draw_city_command_buttons(ui_state *ui);   /* ui_city_commands.cpp */
+internal void ui_draw_growth_buttons(ui_state *ui);         /* ui_growth.cpp */
+internal void ui_draw_city_disasters(ui_state *ui, engine_api *api, u8 city_id);
 
 internal const char *
 ui_text_with_key(ui_state *ui, const char *prefix, const char *key)
@@ -38,6 +40,7 @@ ui_slot_state_text(ui_state *ui, u8 state)
         case SIM_SLOT_EMPTY:    return text_get(ui->text, "slot.empty");
         case SIM_SLOT_BUILDING: return text_get(ui->text, "slot.building");
         case SIM_SLOT_BUILT:    return text_get(ui->text, "slot.built");
+        case SIM_SLOT_MERGING:  return text_get(ui->text, "slot.merging");
         default:                return "?";
     }
 }
@@ -79,7 +82,10 @@ ui_draw_slot_row(ui_state *ui, engine_api *api, engine_facility *slot)
 {
     ImGui::TableNextRow();
     ImGui::TableNextColumn(); ImGui::Text("%u", slot->slot);
-    ImGui::TableNextColumn(); ImGui::TextUnformatted(slot->facility == ENGINE_NO_FACILITY ? "-" : ui_facility_name(ui, api, slot->facility));
+    ImGui::TableNextColumn();
+    if (slot->facility == ENGINE_NO_FACILITY) ImGui::TextUnformatted("-");
+    else if (slot->level > 1)                 ImGui::Text("%s Lv%u", ui_facility_name(ui, api, slot->facility), slot->level);
+    else                                      ImGui::TextUnformatted(ui_facility_name(ui, api, slot->facility));
     ImGui::TableNextColumn(); ImGui::TextUnformatted(ui_slot_state_text(ui, slot->state));
     ImGui::TableNextColumn();
     if (slot->state == SIM_SLOT_BUILDING) ImGui::Text("%u", slot->turns_left);
@@ -133,7 +139,10 @@ ui_draw_city(ui_state *ui, engine_api *api)
             ui->develop.city = ui->city.selected;
             ui->develop.message[0] = 0;
         }
+        ui_draw_growth_buttons(ui);
+        ImGui::SameLine();
         ui_draw_city_command_buttons(ui);
+        ui_draw_city_disasters(ui, api, ui->city.selected);
 
         ImGuiTableFlags flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY;
         if (ImGui::BeginTable("slots", 5, flags))
