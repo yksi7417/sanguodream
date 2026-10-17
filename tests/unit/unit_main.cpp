@@ -34,6 +34,7 @@
 #include "turn_tests.cpp"
 #include "develop_tests.cpp"
 #include "economy_tests.cpp"
+#include "growth_tests.cpp"
 
 int
 main(void)
@@ -112,6 +113,11 @@ main(void)
     test_counts economy = {};
     unit_economy_tests(&economy, &arena);
     failed |= test_report("unit/economy", &economy);
+
+    arena_reset(&arena);
+    test_counts growth = {};
+    unit_growth_tests(&growth, &arena);
+    failed |= test_report("unit/growth", &growth);
     test_arena_destroy(&arena);
 
     printf(failed ? "RESULT FAIL\n" : "RESULT PASS\n");

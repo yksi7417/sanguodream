@@ -465,6 +465,7 @@ typedef engine_command_result engine_start_disaster_fn(void *engine, u8 city_id,
 typedef void                engine_set_settings_fn(void *engine, engine_settings settings);
 typedef void                engine_grant_technique_fn(void *engine, u8 force_id, u8 technique);   /* a scenario can start with techniques */
 typedef void                engine_set_technique_points_fn(void *engine, u8 force_id, u32 points);
+typedef void                engine_set_date_fn(void *engine, u16 year, u8 month, u8 day);   /* day 1, 11 or 21; the start date stays */
 typedef b32                 engine_set_facility_level_fn(void *engine, u8 city_id, u8 slot, u8 level);  /* a built market, farm, barracks, smithy or stable; level 1 to 3 */
 typedef void                engine_set_city_resource_fn(void *engine, u8 city_id, u8 resource, u32 index, u32 value); /* index: the weapon stock */
 typedef void                engine_set_faction_human_fn(void *engine, u8 force_id, b32 human);
@@ -552,6 +553,7 @@ struct engine_api
     engine_set_settings_fn          *set_settings;
     engine_grant_technique_fn       *grant_technique;
     engine_set_technique_points_fn  *set_technique_points;
+    engine_set_date_fn              *set_date;
 };
 
 /* The real engine lives in code/engine/engine.cpp. */

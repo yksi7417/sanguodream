@@ -180,9 +180,19 @@ engine_api_set_technique_points(void *opaque, u8 force_id, u32 points)
     if (force_id != SIM_NO_FORCE) ((engine *)opaque)->sim->technique_points[force_id] = points;
 }
 
+/* The editor sets the date. The save date is not decoded (Q-004), so a
+   scenario editor and the tests of the year 351 need it. */
+internal void
+engine_api_set_date(void *opaque, u16 year, u8 month, u8 day)
+{
+    if (month < 1 || month > 12 || (day != 1 && day != 11 && day != 21)) return;
+    ((engine *)opaque)->sim->turns.date = calendar_make(year, month, day);
+}
+
 internal void
 engine_bind_growth_api(engine_api *api)
 {
+    api->set_date             = engine_api_set_date;
     api->technique_kind_count = engine_api_technique_kind_count;
     api->technique_kind_at    = engine_api_technique_kind_at;
     api->faction_techniques   = engine_api_faction_techniques;

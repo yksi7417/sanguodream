@@ -483,8 +483,11 @@ content_parse_disaster(tsv_table *table, u32 row, disaster_kind *kind)
     }
     kind->month_mask = content_month_mask_from_text(tsv_cell(table, row, "months"));
     const char *target = tsv_cell(table, row, "facility_target");
-    kind->facility_target = strcmp(target, "any") == 0 ? (u32)CONTENT_TARGET_ANY : (u32)content_effect_from_name(target);
-    if (!kind->month_mask || kind->chance_percent > 100 || kind->facility_target > CONTENT_TARGET_ANY) return false;
+    facility_effect effect = content_effect_from_name(target);
+    b32 any = strcmp(target, "any") == 0;
+    if (!any && effect == FACILITY_EFFECT_COUNT) return false;
+    kind->facility_target = any ? (u32)CONTENT_TARGET_ANY : (u32)effect;
+    if (!kind->month_mask || kind->chance_percent > 100) return false;
     kind->id = (u8)id;
     memcpy(kind->key, key, strlen(key) + 1);
     kind->low_order_only = tsv_cell_yes(table, row, "low_order_only");
