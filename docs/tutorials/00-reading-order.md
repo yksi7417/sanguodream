@@ -34,6 +34,7 @@ run_tests.bat --e2e
 | 18 | Battle: attacks, tactics, plots, fire, buildings and sieges | code/sim/combat.cpp, code/sim/field.cpp, code/engine/engine_combat.cpp, code/ui/ui_combat.cpp, data/placeholder/tactics.tsv, plots.tsv, buildings.tsv, critical_skills.tsv | tests/unit/combat_tests.cpp, tests/feature/combat_tests.cpp, tests/ui/ui_tests.cpp |
 | 19 | Court: officers, posts, personnel, diplomacy, duel and debate | code/sim/officers.cpp, diplomacy.cpp, duel.cpp, debate.cpp, code/engine/engine_court.cpp, code/ui/ui_court.cpp, data/placeholder/skills.tsv, posts.tsv, ranks.tsv, items.tsv | tests/unit/court_tests.cpp, tests/feature/court_tests.cpp, tests/ui/ui_tests.cpp |
 | 20 | Rivals: the AI, corps, council, the Han emperor, events and bases | code/sim/ai.cpp, rivals.cpp, events.cpp, bases.cpp, code/engine/engine_rivals.cpp, code/ui/ui_rivals.cpp, data/placeholder/bases.tsv, events.tsv, ai_priorities.tsv | tests/unit/rivals_tests.cpp, tests/feature/rivals_tests.cpp, tests/ui/ui_tests.cpp |
+| 21 | Playable: save and load, the start, new officers, PK training, history and the game screens | code/engine/engine_saves.cpp, engine_playable.cpp, code/sim/pk.cpp, history.cpp, code/ui/ui_game.cpp, data/placeholder/ability_chart.tsv, ancient_officers.tsv, history.tsv, portraits.tsv, scenarios.tsv, battles.tsv, data/civil_war/ | tests/unit/playable_tests.cpp, tests/feature/playable_tests.cpp, tests/ui/ui_tests.cpp |
 
 You will see these conventions everywhere:
 - `internal` means `static`: the function is private to its translation

@@ -84,6 +84,8 @@ decompilation of it.
 - misc/gif_encode.cpp    the GIF encoder of demo_player.exe without ffmpeg
 - data/placeholder/      the content pack: text/<locale>.tsv (UI strings),
                          names/<locale>.tsv (names by Big5 hex)
+- data/civil_war/        the second content pack (M9): the same engine code
+                         with other data; see its README.md
 - data/fonts/, data/unicode/   open-licence assets; see docs/ASSETS.md
 - tests/unit/            per-module unit tests
 - tests/feature/         engine_api behaviour tests and the fixture runner

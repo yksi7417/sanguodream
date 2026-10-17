@@ -302,6 +302,16 @@ Spec input: mechanics/{tech-tree,events,ai-phase-order}.md.
 - Tests: AI feature tests are "given this state, the AI issues a command of kind X"; never pixel-based or time-based.
 
 ### M9 Playable
+Status (2026-10-17): done (tutorial 21). The engine saves and loads its own
+format in 32 slots. The start has the settings of game-setup-and-modes.md,
+the scenario list, the ruler list and new officers. The PK ability chart,
+the 40 historical events of history.tsv, the three endings and the
+portrait stage are in. The game screens sit on top of the debug panels.
+The editor and the battle mode are stubs. data/civil_war/ is the second
+content pack. The demo is "demo/m9_playable". FEATURES.md marks F-009,
+F-060, F-061, F-131 to F-135 and F-140 to F-145 as built. F-077 waits for
+Q-034.
+
 This milestone has three parts:
 - a game UI on top of the debug panels. The text module and text/<locale>.tsv exist (tutorial 12). Portraits and music come from the player's own install at runtime, never from the repo.
 - save and load of the engine's own format
