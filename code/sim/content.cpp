@@ -368,7 +368,84 @@ global_variable content_rule_field content_rule_fields[] = {
     CONTENT_RULE("skill.sweep",           skill_sweep),
     CONTENT_RULE("skill.awe",             skill_awe),
     CONTENT_RULE("skill.archer",          skill_archer),
+    /* M7 */
+    CONTENT_RULE("ap.search", ap_search), CONTENT_RULE("ap.recruit", ap_recruit), CONTENT_RULE("ap.reward", ap_reward),
+    CONTENT_RULE("ap.give_item", ap_give_item), CONTENT_RULE("ap.diplomacy", ap_diplomacy), CONTENT_RULE("ap.faction_plot", ap_faction_plot),
+    CONTENT_RULE("reward.gold", reward_gold), CONTENT_RULE("reward.loyalty", reward_loyalty),
+    CONTENT_RULE("reward.compatibility_divisor", reward_compatibility_divisor),
+    CONTENT_RULE("search.base", search_base), CONTENT_RULE("search.politics_percent", search_politics_percent),
+    CONTENT_RULE("search.gold_chance", search_gold_chance), CONTENT_RULE("search.gold", search_gold),
+    CONTENT_RULE("search.debate_intellect", search_debate_intellect),
+    CONTENT_RULE("recruit.base", recruit_base), CONTENT_RULE("recruit.charm_percent", recruit_charm_percent),
+    CONTENT_RULE("recruit.captive_bonus", recruit_captive_bonus), CONTENT_RULE("recruit.relation_bonus", recruit_relation_bonus),
+    CONTENT_RULE("recruit.new_loyalty", recruit_new_loyalty), CONTENT_RULE("recruit.compatibility_divisor", recruit_compatibility_divisor),
+    CONTENT_RULE("recruit.debate_intellect", recruit_debate_intellect),
+    CONTENT_RULE("loyalty.start", loyalty_start), CONTENT_RULE("loyalty.monthly", loyalty_monthly),
+    CONTENT_RULE("loyalty.ambition", loyalty_ambition), CONTENT_RULE("loyalty.unpaid", loyalty_unpaid),
+    CONTENT_RULE("loyalty.leave", loyalty_leave), CONTENT_RULE("loyalty.leave_chance", loyalty_leave_chance),
+    CONTENT_RULE("experience.command", experience_command), CONTENT_RULE("experience.level", experience_level),
+    CONTENT_RULE("age.decline", age_decline), CONTENT_RULE("age.death_chance", death_chance),
+    CONTENT_RULE("health.wound_turns", wound_turns), CONTENT_RULE("stamina.recovery", stamina_recovery),
+    CONTENT_RULE("release.technique", release_technique), CONTENT_RULE("exile.technique", exile_technique),
+    CONTENT_RULE("matchmaking.technique", matchmaking_technique), CONTENT_RULE("matchmaking.merit", matchmaking_merit),
+    CONTENT_RULE("matchmaking.age", matchmaking_age),
+    CONTENT_RULE("relation.liked_percent", relation_liked_percent), CONTENT_RULE("relation.disliked_intellect", relation_disliked_intellect),
+    CONTENT_RULE("duel.damage", duel_damage), CONTENT_RULE("duel.attack_percent", duel_attack_percent),
+    CONTENT_RULE("duel.defence_percent", duel_defence_percent), CONTENT_RULE("duel.spirit_rise", duel_spirit_rise),
+    CONTENT_RULE("duel.spirit_hit", duel_spirit_hit), CONTENT_RULE("duel.critical_rounds", duel_critical_rounds),
+    CONTENT_RULE("duel.max_rounds", duel_max_rounds), CONTENT_RULE("duel.capture_percent", duel_capture_percent),
+    CONTENT_RULE("duel.merit", duel_merit), CONTENT_RULE("duel.technique", duel_technique),
+    CONTENT_RULE("duel.force_chance", duel_force_chance), CONTENT_RULE("duel.morale_loss", duel_morale_loss),
+    CONTENT_RULE("duel.accept_careful", duel_accept[0]), CONTENT_RULE("duel.accept_calm", duel_accept[1]),
+    CONTENT_RULE("duel.accept_bold", duel_accept[2]), CONTENT_RULE("duel.accept_reckless", duel_accept[3]),
+    CONTENT_RULE("duel.lower_force_percent", duel_lower_force_percent), CONTENT_RULE("duel.finisher", duel_finisher),
+    CONTENT_RULE("duel.vital", duel_vital), CONTENT_RULE("duel.peerless", duel_peerless), CONTENT_RULE("duel.hidden", duel_hidden),
+    CONTENT_RULE("duel.feint", duel_feint), CONTENT_RULE("duel.boost_percent", duel_boost_percent),
+    CONTENT_RULE("duel.boost_rounds", duel_boost_rounds), CONTENT_RULE("duel.retreat_chance", duel_retreat_chance),
+    CONTENT_RULE("duel.polearm_percent", duel_polearm_percent), CONTENT_RULE("duel.sky_halberd_percent", duel_sky_halberd_percent),
+    CONTENT_RULE("duel.sword_percent", duel_sword_percent), CONTENT_RULE("duel.one_blow_chance", duel_one_blow_chance),
+    CONTENT_RULE("duel.one_blow_percent", duel_one_blow_percent),
+    CONTENT_RULE("debate.mind", debate_mind), CONTENT_RULE("debate.small", debate_card_damage[1]),
+    CONTENT_RULE("debate.medium", debate_card_damage[2]), CONTENT_RULE("debate.large", debate_card_damage[3]),
+    CONTENT_RULE("debate.topic_percent", debate_topic_percent), CONTENT_RULE("debate.shout", debate_shout),
+    CONTENT_RULE("debate.ignore", debate_ignore), CONTENT_RULE("debate.anger_hit", debate_anger_hit),
+    CONTENT_RULE("debate.anger_draw", debate_anger_draw), CONTENT_RULE("debate.anger_card", debate_anger_card),
+    CONTENT_RULE("debate.calm_card", debate_calm_card), CONTENT_RULE("debate.rage_rounds", debate_rage_rounds),
+    CONTENT_RULE("debate.topic_rounds", debate_topic_rounds), CONTENT_RULE("debate.instant_gap", debate_instant_gap),
+    CONTENT_RULE("debate.merit", debate_merit), CONTENT_RULE("debate.technique", debate_technique),
+    CONTENT_RULE("debate.press_chance", debate_press_chance), CONTENT_RULE("debate.skill_card_percent", debate_skill_card_percent),
+    CONTENT_RULE("friendliness.start", friendliness_start), CONTENT_RULE("goodwill.gold", goodwill_gold),
+    CONTENT_RULE("goodwill.base", goodwill_base), CONTENT_RULE("goodwill.politics_percent", goodwill_politics_percent),
+    CONTENT_RULE("diplomacy.fail_loss", diplomacy_fail_loss), CONTENT_RULE("alliance.gold", alliance_gold),
+    CONTENT_RULE("alliance.base", alliance_base), CONTENT_RULE("break.loss", break_loss), CONTENT_RULE("break.technique", break_technique),
+    CONTENT_RULE("ceasefire.base", ceasefire_base), CONTENT_RULE("ceasefire.month_cost", ceasefire_month_cost),
+    CONTENT_RULE("surrender.base", surrender_base), CONTENT_RULE("exchange.base", exchange_base), CONTENT_RULE("aid.base", aid_base),
+    CONTENT_RULE("aid.turns", aid_turns), CONTENT_RULE("aid.soldiers", aid_soldiers), CONTENT_RULE("diplomacy.technique", diplomacy_technique),
+    CONTENT_RULE("faction_plot.gold", faction_plot_gold), CONTENT_RULE("two_tigers.base", two_tigers_base),
+    CONTENT_RULE("two_tigers.loss", two_tigers_loss), CONTENT_RULE("drive_tiger.base", drive_tiger_base),
+    CONTENT_RULE("rumour.base", rumour_base), CONTENT_RULE("rumour.order_loss", rumour_order_loss),
+    CONTENT_RULE("rumour.loyalty_loss", rumour_loyalty_loss),
+    CONTENT_RULE("skill.search", skill_search), CONTENT_RULE("skill.debater", skill_debater),
+    CONTENT_RULE("skill.benevolence", skill_benevolence), CONTENT_RULE("skill.wife_help", skill_wife_help),
+    CONTENT_RULE("skill.guard", skill_guard), CONTENT_RULE("skill.fame", skill_fame), CONTENT_RULE("skill.fame_percent", skill_fame_percent),
+    CONTENT_RULE("skill.morale_up", skill_morale_up), CONTENT_RULE("skill.double_attack", skill_double_attack),
+    CONTENT_RULE("skill.heart_attack", skill_heart_attack), CONTENT_RULE("skill.unyielding", skill_unyielding),
+    CONTENT_RULE("skill.diamond", skill_diamond), CONTENT_RULE("skill.iron_wall", skill_iron_wall), CONTENT_RULE("skill.fury", skill_fury),
+    CONTENT_RULE("skill.plot_thrift", skill_plot_thrift), CONTENT_RULE("skill.heart_attack_percent", skill_heart_attack_percent), CONTENT_RULE("item.seal_technique", seal_technique),
 };
+
+/* Sets the rule field with this key. False if no field has the key. */
+internal b32
+content_set_rule(sim_rules *rules, const char *key, u32 value)
+{
+    for (u32 field = 0; field < ArrayCount(content_rule_fields); ++field)
+    {
+        if (strcmp(content_rule_fields[field].key, key) != 0) continue;
+        *(u32 *)((u8 *)rules + content_rule_fields[field].offset) = value;
+        return true;
+    }
+    return false;
+}
 
 /* A key that is not in the list is a bad row: a typo must not leave a
    rule at 0 without a sign. */
@@ -1000,4 +1077,159 @@ content_load_criticals(sim_content *content, tsv_table *table, u32 *bad_row)
         content->critical_count = row + 1;
     }
     return true;
+}
+
+/* ---- skills.tsv, ranks.tsv, posts.tsv, items.tsv (M7) ------------------------ */
+
+global_variable const char *content_skill_category_names[SKILL_CATEGORY_COUNT] = {
+    "movement", "attack", "defence", "plot", "support", "domestic", "income", "disaster", "relation",
+};
+global_variable const char *content_item_type_names[ITEM_TYPE_COUNT] = {
+    "horse", "bow", "sword", "book", "polearm", "seal", "hidden_weapon", "bronze", "other",
+};
+global_variable const char *content_polearm_names[POLEARM_COUNT] = { "plain", "sky_halberd", "snake_spear", "dragon_blade" };
+
+/* One row of skills.tsv for each number 1 to 100, in order. A hooked skill
+   names the rule hook "skill.<effect>"; the loader writes its number there. */
+internal b32
+content_load_skills(sim_content *content, tsv_table *table, u32 *bad_row)
+{
+    content->skill_count = 0;
+    if (table->row_count != CONTENT_SKILL_COUNT) { *bad_row = table->row_count; return false; }
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        skill_kind kind = {};
+        u32 number = 0;
+        const char *key = tsv_cell(table, row, "key"), *effect = tsv_cell(table, row, "effect");
+        kind.category = (u8)content_find_name(content_skill_category_names, SKILL_CATEGORY_COUNT, tsv_cell(table, row, "category"));
+        const char *applies = tsv_cell(table, row, "applies");
+        b32 by_rule = strcmp(applies, "rule") == 0;
+        kind.hooked   = by_rule || strcmp(applies, "table") == 0;
+        b32 bad = !tsv_cell_u32(table, row, "number", &number) || number != row + 1 || !key[0] || strlen(key) >= CONTENT_KEY_SIZE ||
+                  strlen(effect) >= CONTENT_KEY_SIZE || kind.category == SKILL_CATEGORY_COUNT ||
+                  (!kind.hooked && strcmp(applies, "none") != 0);
+        if (!bad && by_rule)
+        {
+            char rule[CONTENT_KEY_SIZE + 8] = "skill.";
+            memcpy(rule + 6, effect, strlen(effect) + 1);
+            bad = !content_set_rule(&content->rules, rule, number);
+        }
+        if (bad) { *bad_row = row; content->skill_count = 0; return false; }
+        kind.number = (u8)number;
+        memcpy(kind.key, key, strlen(key) + 1);
+        memcpy(kind.effect, effect, strlen(effect) + 1);
+        content->skills[row] = kind;
+        content->skill_count = row + 1;
+    }
+    return true;
+}
+
+internal b32
+content_load_ranks(sim_content *content, tsv_table *table, u32 *bad_row)
+{
+    content->rank_count = 0;
+    if (table->row_count == 0 || table->row_count > CONTENT_RANK_CAPACITY) { *bad_row = 0; return false; }
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        rank_kind kind = {};
+        u32 id = 0;
+        const char *key = tsv_cell(table, row, "key");
+        if (!tsv_cell_u32(table, row, "id", &id) || id != row || !key[0] || strlen(key) >= CONTENT_KEY_SIZE ||
+            !tsv_cell_u32(table, row, "soldiers", &kind.soldiers) || !tsv_cell_u32(table, row, "cities", &kind.cities) ||
+            (row > 0 && kind.cities < content->ranks[row - 1].cities))
+        {
+            *bad_row = row;
+            content->rank_count = 0;
+            return false;
+        }
+        kind.id = (u8)id;
+        memcpy(kind.key, key, strlen(key) + 1);
+        kind.needs_emperor = tsv_cell_yes(table, row, "needs_emperor");
+        content->ranks[row] = kind;
+        content->rank_count = row + 1;
+    }
+    return true;
+}
+
+internal b32
+content_load_posts(sim_content *content, tsv_table *table, u32 *bad_row)
+{
+    content->post_count = 0;
+    if (table->row_count > CONTENT_POST_CAPACITY) { *bad_row = CONTENT_POST_CAPACITY; return false; }
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        post_kind kind = {};
+        u32 id = 0, rank = 0;
+        const char *key = tsv_cell(table, row, "key"), *ability = tsv_cell(table, row, "ability");
+        kind.ability = strcmp(ability, "-") == 0 ? (u8)CONTENT_ABILITY_COUNT : (u8)content_ability_from_name(ability);
+        if (!tsv_cell_u32(table, row, "id", &id) || id != row || !key[0] || strlen(key) >= CONTENT_KEY_SIZE ||
+            !tsv_cell_u32(table, row, "merit", &kind.merit) || !tsv_cell_u32(table, row, "soldiers", &kind.soldiers) ||
+            !tsv_cell_u32(table, row, "bonus", &kind.bonus) || !tsv_cell_u32(table, row, "rank", &rank) || rank >= content->rank_count ||
+            (strcmp(ability, "-") != 0 && kind.ability == CONTENT_ABILITY_COUNT))
+        {
+            *bad_row = row;
+            content->post_count = 0;
+            return false;
+        }
+        kind.id   = (u8)id;
+        kind.rank = (u8)rank;
+        memcpy(kind.key, key, strlen(key) + 1);
+        content->posts[row] = kind;
+        content->post_count = row + 1;
+    }
+    return true;
+}
+
+internal u32
+content_hex_value(char c)
+{
+    if (c >= '0' && c <= '9') return (u32)(c - '0');
+    if (c >= 'A' && c <= 'F') return (u32)(c - 'A' + 10);
+    if (c >= 'a' && c <= 'f') return (u32)(c - 'a' + 10);
+    return 16;
+}
+
+internal b32
+content_load_items(sim_content *content, tsv_table *table, u32 *bad_row)
+{
+    content->item_count = 0;
+    if (table->row_count > CONTENT_ITEM_CAPACITY) { *bad_row = CONTENT_ITEM_CAPACITY; return false; }
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        item_kind kind = {};
+        u32 id = 0;
+        const char *key = tsv_cell(table, row, "key"), *hex = tsv_cell(table, row, "big5");
+        kind.type    = (u8)content_find_name(content_item_type_names, ITEM_TYPE_COUNT, tsv_cell(table, row, "type"));
+        kind.polearm = (u8)content_find_name(content_polearm_names, POLEARM_COUNT, tsv_cell(table, row, "polearm"));
+        u32 length = (u32)strlen(hex);
+        b32 bad = !tsv_cell_u32(table, row, "id", &id) || id != row || !key[0] || strlen(key) >= CONTENT_KEY_SIZE ||
+                  kind.type == ITEM_TYPE_COUNT || kind.polearm == POLEARM_COUNT || length == 0 || (length & 1) ||
+                  length / 2 > CONTENT_BIG5_NAME_SIZE;
+        for (u32 at = 0; !bad && at < length; at += 2)
+        {
+            u32 high = content_hex_value(hex[at]), low = content_hex_value(hex[at + 1]);
+            if (high > 15 || low > 15) bad = true;
+            else kind.big5[at / 2] = (u8)(high * 16 + low);
+        }
+        if (bad) { *bad_row = row; content->item_count = 0; return false; }
+        kind.big5_size = length / 2;
+        kind.id = (u8)id;
+        memcpy(kind.key, key, strlen(key) + 1);
+        content->items[row] = kind;
+        content->item_count = row + 1;
+    }
+    return true;
+}
+
+/* The kind of an item by the Big5 bytes of its name (NUL padded). */
+internal u8
+content_find_item_kind(sim_content *content, const u8 *big5_name, u32 size)
+{
+    for (u32 index = 0; index < content->item_count; ++index)
+    {
+        item_kind *kind = content->items + index;
+        if (kind->big5_size > size || memcmp(kind->big5, big5_name, kind->big5_size) != 0) continue;
+        if (kind->big5_size == size || big5_name[kind->big5_size] == 0) return (u8)index;
+    }
+    return CONTENT_NO_ITEM_KIND;
 }

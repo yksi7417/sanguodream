@@ -387,6 +387,78 @@ struct disaster_kind
    harvest): grain_percent adds grain. A disaster with turns > 0 runs for
    that many turns: grain_percent takes grain from each grain payment. */
 
+/* ---- M7: skills, posts, ranks and items --------------------------------- */
+
+#define CONTENT_SKILL_COUNT     100   /* skills.md: the numbers 1 to 100 */
+#define CONTENT_POST_CAPACITY   96
+#define CONTENT_RANK_CAPACITY   16
+#define CONTENT_ITEM_CAPACITY   32
+#define CONTENT_NO_POST         0xFF
+#define CONTENT_NO_ITEM_KIND    0xFF
+#define CONTENT_BIG5_NAME_SIZE  16    /* the Big5 bytes of an item name in items.tsv */
+
+/* One row of skills.tsv: a skill of skills.md. The column applies is
+   "rule" (the loader writes the number into the rule field
+   "skill.<effect>"), "table" (another table of the pack names the number:
+   critical_skills.tsv, terrain.tsv, plots.tsv, disasters.tsv) or "none"
+   (no effect yet). hooked is true for rule and table. */
+struct skill_kind
+{
+    u8   number;                      /* 1 .. 100 */
+    char key[CONTENT_KEY_SIZE];
+    char effect[CONTENT_KEY_SIZE];
+    u8   category;                    /* skill_category */
+    b32  hooked;
+};
+
+enum skill_category
+{
+    SKILL_MOVEMENT, SKILL_ATTACK, SKILL_DEFENCE, SKILL_PLOT, SKILL_SUPPORT, SKILL_DOMESTIC, SKILL_INCOME, SKILL_DISASTER,
+    SKILL_RELATION, SKILL_CATEGORY_COUNT
+};
+
+/* One row of posts.tsv (factions-corps-and-posts.md, 官職). */
+struct post_kind
+{
+    u8   id;
+    char key[CONTENT_KEY_SIZE];
+    u32  merit;                       /* the merit that the post needs */
+    u32  soldiers;                    /* the soldiers that the holder leads */
+    u8   ability;                     /* content_ability that the post raises, or CONTENT_ABILITY_COUNT */
+    u32  bonus;
+    u8   rank;                        /* the lowest rank of the ruler (the row of ranks.tsv) that allows the post */
+};
+
+/* One row of ranks.tsv (爵位). */
+struct rank_kind
+{
+    u8   id;
+    char key[CONTENT_KEY_SIZE];
+    u32  soldiers;                    /* the soldiers of the ruler */
+    u32  cities;                      /* the cities that the faction needs */
+    b32  needs_emperor;               /* the faction protects the Han emperor, or no emperor exists */
+};
+
+enum item_type
+{
+    ITEM_HORSE, ITEM_BOW, ITEM_SWORD, ITEM_BOOK, ITEM_POLEARM, ITEM_SEAL, ITEM_HIDDEN_WEAPON, ITEM_BRONZE, ITEM_OTHER,
+    ITEM_TYPE_COUNT
+};
+
+enum item_polearm { POLEARM_PLAIN, POLEARM_SKY_HALBERD, POLEARM_SNAKE_SPEAR, POLEARM_DRAGON_BLADE, POLEARM_COUNT };
+
+/* One row of items.tsv: the kind of an item of the save, found by the Big5
+   bytes of its name (save-file.md, Item record). */
+struct item_kind
+{
+    u8   id;
+    char key[CONTENT_KEY_SIZE];
+    u8   big5[CONTENT_BIG5_NAME_SIZE];
+    u32  big5_size;
+    u8   type;                        /* item_type */
+    u8   polearm;                     /* item_polearm */
+};
+
 /* The numbers of rules.tsv. A missing row leaves 0. */
 struct sim_rules
 {
@@ -491,6 +563,32 @@ struct sim_rules
     u32 maze_confuse_chance, camp_recover_chance, natural_recovery, loot_percent, ap_dismantle, dismantle_technique;
     u32 siege_ladder_percent, siege_defence_percent, siege_wall_percent;
     u32 skill_ambush_critical, skill_long_plot, skill_surprise, skill_sweep, skill_awe, skill_archer;
+    /* M7: officers, personnel, posts, duel, debate, diplomacy, faction plots */
+    u32 ap_search, ap_recruit, ap_reward, ap_give_item, ap_diplomacy, ap_faction_plot;
+    u32 reward_gold, reward_loyalty, reward_compatibility_divisor;
+    u32 search_base, search_politics_percent, search_gold_chance, search_gold, search_debate_intellect;
+    u32 recruit_base, recruit_charm_percent, recruit_captive_bonus, recruit_relation_bonus, recruit_new_loyalty;
+    u32 recruit_compatibility_divisor, recruit_debate_intellect;
+    u32 loyalty_start, loyalty_monthly, loyalty_ambition, loyalty_unpaid, loyalty_leave, loyalty_leave_chance;
+    u32 experience_command, experience_level, age_decline, death_chance, wound_turns, stamina_recovery;
+    u32 release_technique, exile_technique, matchmaking_technique, matchmaking_merit, matchmaking_age;
+    u32 relation_liked_percent, relation_disliked_intellect;
+    u32 duel_damage, duel_attack_percent, duel_defence_percent, duel_spirit_rise, duel_spirit_hit, duel_critical_rounds;
+    u32 duel_max_rounds, duel_capture_percent, duel_merit, duel_technique, duel_force_chance, duel_morale_loss;
+    u32 duel_accept[4];                 /* careful, calm, bold, reckless */
+    u32 duel_lower_force_percent, duel_finisher, duel_vital, duel_peerless, duel_hidden, duel_feint;
+    u32 duel_boost_percent, duel_boost_rounds, duel_retreat_chance, duel_polearm_percent, duel_sky_halberd_percent;
+    u32 duel_sword_percent, duel_one_blow_chance, duel_one_blow_percent;
+    u32 debate_mind, debate_card_damage[4], debate_topic_percent, debate_shout, debate_ignore, debate_anger_hit;
+    u32 debate_anger_draw, debate_anger_card, debate_calm_card, debate_rage_rounds, debate_topic_rounds, debate_instant_gap;
+    u32 debate_merit, debate_technique, debate_press_chance, debate_skill_card_percent;
+    u32 friendliness_start, goodwill_gold, goodwill_base, goodwill_politics_percent, diplomacy_fail_loss;
+    u32 alliance_gold, alliance_base, break_loss, break_technique, ceasefire_base, ceasefire_month_cost;
+    u32 surrender_base, exchange_base, aid_base, aid_turns, aid_soldiers, diplomacy_technique;
+    u32 faction_plot_gold, two_tigers_base, two_tigers_loss, drive_tiger_base, rumour_base, rumour_order_loss, rumour_loyalty_loss;
+    u32 skill_search, skill_debater, skill_benevolence, skill_wife_help, skill_guard, skill_fame, skill_fame_percent;
+    u32 skill_morale_up, skill_double_attack, skill_heart_attack, skill_unyielding, skill_diamond, skill_iron_wall, skill_fury;
+    u32 skill_plot_thrift, skill_heart_attack_percent, seal_technique;
     u32 loaded_count;           /* rows that set a field */
 };
 
@@ -518,6 +616,14 @@ struct sim_content
     u32            building_count;
     critical_skill criticals[CONTENT_CRITICAL_CAPACITY];
     u32            critical_count;
+    skill_kind     skills[CONTENT_SKILL_COUNT];
+    u32            skill_count;
+    post_kind      posts[CONTENT_POST_CAPACITY];
+    u32            post_count;
+    rank_kind      ranks[CONTENT_RANK_CAPACITY];
+    u32            rank_count;
+    item_kind      items[CONTENT_ITEM_CAPACITY];
+    u32            item_count;
     sim_rules      rules;
 };
 
@@ -539,6 +645,11 @@ internal b32 content_load_tactics(sim_content *content, tsv_table *table, u32 *b
 internal b32 content_load_plots(sim_content *content, tsv_table *table, u32 *bad_row);       /* after the unit types and the terrain */
 internal b32 content_load_buildings(sim_content *content, tsv_table *table, u32 *bad_row);   /* after the techniques */
 internal b32 content_load_criticals(sim_content *content, tsv_table *table, u32 *bad_row);
+internal b32 content_load_skills(sim_content *content, tsv_table *table, u32 *bad_row);   /* after the rules: it sets the skill.* rules */
+internal b32 content_load_ranks(sim_content *content, tsv_table *table, u32 *bad_row);
+internal b32 content_load_posts(sim_content *content, tsv_table *table, u32 *bad_row);    /* after the ranks */
+internal b32 content_load_items(sim_content *content, tsv_table *table, u32 *bad_row);
+internal u8  content_find_item_kind(sim_content *content, const u8 *big5_name, u32 size);  /* CONTENT_NO_ITEM_KIND if none */
 
 internal facility_effect    content_effect_from_name(const char *name);
 internal facility_limit     content_limit_from_name(const char *name);
