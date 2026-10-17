@@ -715,7 +715,7 @@ struct sim_rules
     u32 ai_urgency, ai_sortie_soldiers, ai_sortie_reserve, ai_goodwill_gold, ai_commands, corps_ap_divisor;
     /* M9 */
     u32 lifespan_long_years, new_officer_max, new_officer_high, new_officer_normal, new_officer_low;
-    u32 train_ap, train_turns, ability_research_ap, ability_research_gold;
+    u32 train_ap, train_turns, ability_research_ap, ability_research_gold, scenario_public_order;
     u32 loaded_count;           /* rows that set a field */
 };
 

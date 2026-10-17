@@ -184,9 +184,119 @@ engine_api_trigger_history(void *opaque, u32 row, u8 force_id)
     return result;
 }
 
+/* ---- the scenarios --------------------------------------------------------------------- */
+
+/* Reads scenarios.tsv of the pack. A row whose file the engine cannot read
+   stays in the list as not available (the six PK scenarios: the clean room
+   has only the files of spec/fixtures). A pack without the table has no
+   scenarios. */
+internal void
+engine_load_scenarios(engine *e, const char *folder)
+{
+    static const char *kinds[ENGINE_SCENARIO_KIND_COUNT] = { "save", "base", "pk" };
+    e->scenario_count = 0;
+    tsv_table table = {};
+    arena_reset(&e->scratch);
+    if (!folder || !engine_read_table(e, folder, "scenarios.tsv", &table)) return;
+    for (u32 row = 0; row < table.row_count && e->scenario_count < ENGINE_SCENARIO_CAPACITY; ++row)
+    {
+        engine_scenario *scenario = e->scenarios + e->scenario_count;
+        *scenario = {};
+        u32 id = 0, year = 0;
+        const char *key = tsv_cell(&table, row, "key"), *file = tsv_cell(&table, row, "file");
+        u32 kind = content_find_name(kinds, ENGINE_SCENARIO_KIND_COUNT, tsv_cell(&table, row, "kind"));
+        if (!tsv_cell_u32(&table, row, "id", &id) || id != row || !key[0] || strlen(key) >= CONTENT_KEY_SIZE || kind == ENGINE_SCENARIO_KIND_COUNT ||
+            !tsv_cell_u32(&table, row, "year", &year) || strlen(file) >= sizeof(scenario->file))
+        {
+            e->scenario_count = 0;   /* a bad table gives no list */
+            break;
+        }
+        scenario->id   = (u8)id;
+        scenario->kind = (u8)kind;
+        scenario->year = (u16)year;
+        memcpy(scenario->key, key, strlen(key) + 1);
+        if (strcmp(file, "-") != 0) memcpy(scenario->file, file, strlen(file) + 1);
+        e->scenario_count++;
+    }
+    arena_reset(&e->scratch);
+    for (u32 index = 0; index < e->scenario_count && e->read_entire_file; ++index)
+    {
+        engine_scenario *scenario = e->scenarios + index;
+        if (!scenario->file[0]) continue;
+        u64 mark = e->transient->used;
+        scenario->available = e->read_entire_file(scenario->file, e->transient).contents != 0;
+        e->transient->used = mark;
+    }
+}
+
+internal u32
+engine_api_scenario_count(void *opaque)
+{
+    return ((engine *)opaque)->scenario_count;
+}
+
+internal engine_scenario
+engine_api_scenario_at(void *opaque, u32 index)
+{
+    engine *e = (engine *)opaque;
+    engine_scenario result = {};
+    result.id = ENGINE_NO_ROW;
+    return index < e->scenario_count ? e->scenarios[index] : result;
+}
+
+/* A new game from a scenario file: the records of the scenario become a
+   save in the scratch arena, and the save loader takes it. The scenario has
+   no public order and no player: each city starts with
+   scenario.public_order (assumed, Q-189), and no faction is human. */
+internal engine_load_result
+engine_api_load_scenario(void *opaque, const char *path)
+{
+    engine *e = (engine *)opaque;
+    engine_load_result result;
+    read_file_result file;
+    if (!engine_read_file_to_scratch(e, path, &file, &result)) return result;
+    scenario_file scenario;
+    scenario_load_status loaded = scenario_load(&e->scratch, (const u8 *)file.contents, file.size, &scenario);
+    if (loaded != SCENARIO_LOAD_OK)
+    {
+        result.status = ENGINE_LOAD_BAD_SAVE;
+        result.detail = scenario_load_status_name(loaded);
+        return result;
+    }
+    save_file save = {};
+    save.header.scenario_number              = scenario.header.scenario_number;
+    save.header.scenario_start_year          = scenario.header.start_year;
+    save.header.scenario_start_month         = scenario.header.start_month;
+    save.header.scenario_start_ten_day_period = scenario.header.start_ten_day_period;
+    save.officers           = scenario.officers;
+    save.officer_slot_count = scenario.officer_slot_count;
+    save.cities             = scenario.cities;
+    save.city_count         = scenario.city_count;
+    save.items              = scenario.items;
+    save.item_count         = scenario.item_count;
+    u32 order = Minimum(e->sim->content.rules.scenario_public_order, 100u);
+    for (u32 index = 0; index < save.city_count; ++index) save.cities[index].public_order = (u8)order;
+    sim_event_sink sink = sim_sink_from_arena(&e->scratch, ENGINE_SINK_CAPACITY);
+    sim_command command = sim_make_command(e->sim, SIM_COMMAND_LOAD_SAVE);
+    if (!sim_load_save(e->sim, &save, command, &sink))
+    {
+        result.status = ENGINE_LOAD_BAD_SAVE;
+        result.detail = "the scenario has more officers or cities than the game can hold";
+        return result;
+    }
+    for (u32 force = 0; force < SIM_FORCE_CAPACITY; ++force) e->sim->turns.human[force] = false;
+    engine_ledger_append(e, &sink);
+    result.status     = ENGINE_LOAD_OK;
+    result.command_id = command.id;
+    return result;
+}
+
 internal void
 engine_bind_playable_api(engine_api *api)
 {
+    api->scenario_count           = engine_api_scenario_count;
+    api->scenario_at              = engine_api_scenario_at;
+    api->load_scenario            = engine_api_load_scenario;
     api->history_count            = engine_api_history_count;
     api->history_at               = engine_api_history_at;
     api->history_ready            = engine_api_history_ready;

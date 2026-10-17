@@ -27,6 +27,8 @@ struct engine
     char             save_folder[128];
     char             content_folder[128];          /* a save remembers its pack */
     engine_save_slot slots[ENGINE_SAVE_SLOTS];     /* the list of the save dialog */
+    engine_scenario  scenarios[ENGINE_SCENARIO_CAPACITY];   /* M9: scenarios.tsv */
+    u32              scenario_count;
 };
 
 internal engine_config
@@ -184,6 +186,7 @@ engine_load_content(engine *e, const char *folder)
 
 internal void engine_content_terrain(engine *e);   /* engine_march.cpp */
 internal void engine_place_natural_traps(engine *e);   /* engine_combat.cpp */
+internal void engine_load_scenarios(engine *e, const char *folder);   /* engine_playable.cpp */
 
 internal engine *
 engine_create(memory_arena *permanent, memory_arena *transient, engine_config config)
@@ -212,6 +215,7 @@ engine_create(memory_arena *permanent, memory_arena *transient, engine_config co
     engine_load_content(e, config.content_folder);
     if (e->content.loaded) engine_content_terrain(e);   /* engine_march.cpp: the placeholder map from terrain.tsv */
     if (e->content.loaded) engine_place_natural_traps(e);
+    engine_load_scenarios(e, config.content_folder);   /* M9: the scenario list (engine_playable.cpp) */
     return e;
 }
 

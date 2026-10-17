@@ -614,6 +614,20 @@ struct engine_faction_chart
     u32 turns_left;
 };
 
+/* M9: one row of scenarios.tsv (game-setup-and-modes.md, F-133). */
+#define ENGINE_SCENARIO_CAPACITY 16
+enum engine_scenario_kind { ENGINE_SCENARIO_SAVE, ENGINE_SCENARIO_BASE, ENGINE_SCENARIO_PK, ENGINE_SCENARIO_KIND_COUNT };
+
+struct engine_scenario
+{
+    u8   id;                        /* ENGINE_NO_ROW */
+    char key[CONTENT_KEY_SIZE];     /* the text id is "scenario.<key>" */
+    u16  year;                      /* 0 if the spec does not give it */
+    u8   kind;                      /* engine_scenario_kind */
+    char file[160];                 /* relative to the executable; "" if the clean room does not have the file */
+    b32  available;                 /* the file was found when the engine started */
+};
+
 struct engine_history_kind
 {
     u8   id;                        /* ENGINE_NO_ROW */
@@ -1087,6 +1101,12 @@ typedef u32                  engine_history_count_fn(void *engine);
 typedef engine_history_kind  engine_history_at_fn(void *engine, u32 index);
 typedef b32                  engine_history_ready_fn(void *engine, u32 row, u8 force_id);
 typedef engine_command_result engine_trigger_history_fn(void *engine, u32 row, u8 force_id);
+/* M9 scenarios. load_scenario starts a new game from a scenario file
+   (SCEN0nn.s11) as load_save does from a save; no faction is human until
+   the front end chooses the rulers (set_faction_human). */
+typedef u32                  engine_scenario_count_fn(void *engine);
+typedef engine_scenario      engine_scenario_at_fn(void *engine, u32 index);
+typedef engine_load_result   engine_load_scenario_fn(void *engine, const char *path);
 /* A placeholder unit until M5: it only blocks the commands of enemy
    cities within 2 hexes. Returns ENGINE_NO_UNIT if there is no room. */
 typedef u32                 engine_place_unit_fn(void *engine, u8 force_id, s32 q, s32 r);
@@ -1276,6 +1296,10 @@ struct engine_api
     engine_history_at_fn            *history_at;
     engine_history_ready_fn         *history_ready;
     engine_trigger_history_fn       *trigger_history;
+    /* M9 scenarios */
+    engine_scenario_count_fn        *scenario_count;
+    engine_scenario_at_fn           *scenario_at;
+    engine_load_scenario_fn         *load_scenario;
 };
 
 #define ENGINE_NO_BASE 0xFFFFFFFFu

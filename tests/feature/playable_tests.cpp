@@ -451,9 +451,45 @@ feature_ending_tests(test_counts *counts)
     TEST_CHECK(counts, restless == ENDING_CONQUEST || restless == ENDING_PROSPERITY, "without the abdication the ruler takes the title: ending B or C by facilities and soldiers");
 }
 
+/* ---- F-133: the scenario list ----------------------------------------------------------- */
+
+internal void
+feature_scenario_tests(test_counts *counts)
+{
+    engine_fixture fixture;
+    engine_fixture_init(&fixture, 1, 65536);
+    engine_api *api = &fixture.api;
+    void *e = api->engine;
+    u32 pk = 0, pk_available = 0;
+    for (u32 index = 0; index < api->scenario_count(e); ++index)
+    {
+        engine_scenario scenario = api->scenario_at(e, index);
+        pk += scenario.kind == ENGINE_SCENARIO_PK;
+        pk_available += scenario.kind == ENGINE_SCENARIO_PK && scenario.available;
+    }
+    engine_scenario warlords = api->scenario_at(e, 1);
+    TEST_CHECK(counts, api->scenario_count(e) == 8 && pk == 6 && pk_available == 0 && api->scenario_at(e, 0).available &&
+                       warlords.kind == ENGINE_SCENARIO_BASE && warlords.available && warlords.year == 194,
+               "scenarios.tsv lists the save, 群雄割據 and the six PK scenarios; the clean room has the files of the first two only");
+
+    engine_load_result loaded = api->load_scenario(e, warlords.file);
+    u32 rulers = 0, owned = 0;
+    for (u32 index = 0; index < api->faction_count(e); ++index) rulers += api->force_ruler(e, api->faction_at(e, index).force_id) != ENGINE_NO_OFFICER;
+    for (u32 index = 0; index < api->city_count(e); ++index) owned += api->city_at(e, index).owner_force_id != ENGINE_NO_FACTION;
+    engine_date date = api->date(e);
+    TEST_CHECK(counts, loaded.status == ENGINE_LOAD_OK && api->city_count(e) == 42 && api->officer_count(e) > 300 && rulers > 3 && owned > 10 &&
+                       date.year == 194 && api->city_economy(e, api->city_at(e, 0).city_id).public_order == 70,
+               "load_scenario starts a new game from SCEN002: 42 cities, the factions and their rulers, public order 70 (assumed)");
+    u8 player = api->faction_at(e, 0).force_id;
+    TEST_CHECK(counts, feature_play_as(api, player) && api->whose_turn(e) == player, "the front end chooses a ruler: that faction then plays");
+    TEST_CHECK(counts, api->load_scenario(e, "no_such_file.s11").status == ENGINE_LOAD_FILE_NOT_FOUND, "refused: a scenario file that does not exist");
+    engine_fixture_destroy(&fixture);
+}
+
 internal void
 feature_playable_tests(test_counts *counts)
 {
+    feature_scenario_tests(counts);
     feature_history_tests(counts);
     feature_ending_tests(counts);
     feature_save_load_tests(counts);

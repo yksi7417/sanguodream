@@ -444,6 +444,7 @@ global_variable content_rule_field content_rule_fields[] = {
     CONTENT_RULE("new_officer.high", new_officer_high), CONTENT_RULE("new_officer.normal", new_officer_normal), CONTENT_RULE("new_officer.low", new_officer_low),
     CONTENT_RULE("train.ap", train_ap), CONTENT_RULE("train.turns", train_turns),
     CONTENT_RULE("ability_research.ap", ability_research_ap), CONTENT_RULE("ability_research.gold", ability_research_gold),
+    CONTENT_RULE("scenario.public_order", scenario_public_order),
 };
 
 /* Sets the rule field with this key. False if no field has the key. */
