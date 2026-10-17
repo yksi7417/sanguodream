@@ -183,8 +183,8 @@ disables the "Execute" button. One click of "Execute" sends one
 - The level of a facility is always 1. The merge (F-024) comes in M4.
 - The effects other than gold and grain have no logic yet (conscription,
   production, offices).
-- The command raises no technique points, no politics and no merit
-  (F-005).
+- The command raises no politics (F-051). Tutorial 15 adds the technique
+  points and the merit of the command (F-005).
 
 ## Exercises
 - Add the "dismantle" command: it frees a slot and costs 10 action points.

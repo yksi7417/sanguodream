@@ -55,6 +55,8 @@ The table of hooks follows the spec:
 | 7 | good harvest, locusts, plague |
 | 10 | plague |
 
+Tutorial 15 adds public order, the income skills, the caps and the free
+weapons to the rules below.
 The engine assumes the amounts of gold and grain. Each amount comes from
 rules.tsv, and each event has `assumed` set. The Event ledger panel shows
 "assumed" in its last column. The rules are:

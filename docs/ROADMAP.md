@@ -20,7 +20,7 @@ test (see .claude/rules/testing-pyramid.md).
 | L1 Base | code/base.h, code/ecs/ | types, arenas, entity ids, component tables | done |
 | L2 Space | code/sim/hex.h | hex coordinates, the cost map, shortest paths | done |
 | L3 Time | code/sim/sim.h, sim.cpp, calendar.h, turn.cpp | turns, commands in, events out, seeded PRNG; the calendar, the turn order and the action points (tutorial 13) | done for M2 |
-| L4 Domain | code/sim/ (one file per subsystem) | territory, settlements, resources, facilities, units, characters | facilities, slots and the develop command (tutorial 14); the rest next |
+| L4 Domain | code/sim/ (one file per subsystem) | territory, settlements, resources, facilities, units, characters | facilities, slots and the develop command (tutorial 14); the production system, durability and the five city commands (tutorial 15); the rest next |
 | L5 Conflict | code/sim/ | movement rules, zones of control, combat, siege | later |
 | L6 Politics | code/sim/ | diplomacy, loyalty, factions, scripted events | later |
 | L7 AI | code/sim/ai_*.cpp | planning over the same commands a player uses | later |
@@ -182,6 +182,26 @@ Spec input: mechanics/turn-structure.md (phases, action points, who acts when).
 - Tests: feature tests for every refusal reason; a ui test that disabled buttons issue nothing.
 
 ### M3 Economy
+Status (2026-10-16): done (tutorial 15). The spec input was
+mechanics/cities-and-facilities.md, calendar-and-turn.md, city-commands.md,
+weapons-and-production.md and skills.md. The production system
+(code/sim/economy.cpp) gives the gold, the grain, the salaries and the
+consumption at the calendar events. It applies the mint and granary bonus,
+the PK markets, the merge levels, public order, the income skills and the
+caps. The ledger explains each change of the gold and the grain: the sum of
+the events of a city is the change of its stock. Facilities recover
+durability each turn and the engine destroys a facility at 0. The five city
+commands patrol, conscript, train, merchant and produce have the documented
+costs and the refusal reasons of M2. Each command gives merit, and all but
+the merchant give technique points. rules.tsv has the effects as assumed
+rules (Q-151 to Q-160). The UI has a dialog for each command, an
+Economy panel and a ledger filter by city and resource. The demo is
+"demo/m3_economy". FEATURES.md marks F-005, F-006, F-025, F-026, F-027,
+F-029, F-030 and F-031 as built.
+The spec has no fixture for the economy yet. Thus the 12-month trace checks
+the calendar order, the forecast amounts, the ledger sums and the caps. It
+does not compare with a game trace.
+
 Spec input: mechanics/{market,upkeep,tax,harvest}.md with a 12-month trace.
 - Engine: a Production system over the facilities.tsv yields and the resources.tsv decay; the ledger explains every number.
 - Tests: the fixture trace of one untouched city for 12 months matches within tolerance; a ui ledger filter test.
