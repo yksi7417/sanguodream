@@ -1149,6 +1149,173 @@ demo_m7_court(ImGuiTestContext *ctx)
     IM_CHECK(demo_screenshot_panel(ctx, milestone, "Event ledger", "event_ledger"));
 }
 
+/* The faction with the most cities whose ruler stands in one of them: the
+   council meets where the ruler stands, and a corps takes another city. */
+internal u8
+demo_rival_faction(engine_api *api)
+{
+    void *e = api->engine;
+    u8 best = ENGINE_NO_FACTION;
+    u32 best_cities = 0;
+    for (u32 index = 0; index < api->faction_count(e); ++index)
+    {
+        u8 force = api->faction_at(e, index).force_id;
+        engine_officer ruler = api->officer_by_id(e, api->force_ruler(e, force));
+        if (ruler.officer_id == ENGINE_NO_OFFICER || ruler.current_position >= SAVE_CITY_COUNT) continue;
+        if (api->city_at(e, ruler.current_position).owner_force_id != force) continue;
+        u32 cities = 0;
+        for (u32 city = 0; city < api->city_count(e); ++city) cities += api->city_at(e, city).owner_force_id == force;
+        if (cities > best_cities) { best = force; best_cities = cities; }
+    }
+    return best;
+}
+
+/* An active officer of the faction that is not the ruler, with intellect at
+   least min_intellect, and not the excluded one. */
+internal u16
+demo_rival_officer(engine_api *api, u8 force, u32 min_intellect, u16 exclude)
+{
+    for (u32 index = 0; index < api->officer_count(api->engine); ++index)
+    {
+        engine_officer officer = api->officer_at(api->engine, index);
+        if (officer.force_id != force || officer.status == 0 || officer.status > 3 || officer.current_position >= SAVE_CITY_COUNT) continue;
+        if (officer.intelligence >= min_intellect && officer.officer_id != exclude) return officer.officer_id;
+    }
+    return ENGINE_NO_OFFICER;
+}
+
+/* M8, rivals: the ports and passes on the Bases panel and the mini map, a
+   new corps, a 軍師 and his advice, a council proposal, the treason event
+   and its dialog, and a turn in which the computer factions and the
+   delegated corps act. */
+internal void
+demo_m8_rivals(ImGuiTestContext *ctx)
+{
+    const char *milestone = "m8_rivals";
+    demo_vars &v = ctx->GetVars<demo_vars>();
+    engine_api *api = &v.api;
+    void *e = api->engine;
+    IM_CHECK(demo_begin_video(ctx, milestone));
+
+    IM_CHECK(demo_open_panel(ctx, "Simulation", &v.ui.show_sim));
+    IM_CHECK(demo_open_panel(ctx, "Event ledger", &v.ui.show_ledger));
+    ctx->SetRef("Simulation");
+    ctx->ItemClick("Load sample save");
+    ctx->ItemClick("Load city names");
+    ctx->Yield();
+    engine_settings settings = api->settings(e);
+    settings.events = false;                                 /* the demo fires its event itself */
+    api->set_settings(e, settings);
+
+    /* Play the faction with the most cities; the other factions are the AI. */
+    u8 player = demo_rival_faction(api);
+    IM_CHECK(player != ENGINE_NO_FACTION);
+    api->set_faction_human(e, player, true);
+    for (u32 step = 0; step < 300 && api->whose_turn(e) != player; ++step) api->end_turn(e);
+    IM_CHECK(api->whose_turn(e) == player);
+    engine_officer ruler = api->officer_by_id(e, api->force_ruler(e, player));
+    u8 ruler_city = (u8)ruler.current_position;
+    u8 corps_city = ENGINE_NO_CITY;
+    for (u32 city = 0; city < api->city_count(e) && corps_city == ENGINE_NO_CITY; ++city)
+    {
+        if (city != ruler_city && api->city_at(e, city).owner_force_id == player) corps_city = (u8)city;
+    }
+    IM_CHECK(corps_city != ENGINE_NO_CITY);
+    for (u32 city = 0; city < api->city_count(e); ++city) if (api->city_at(e, city).owner_force_id == player) api->set_city_gold(e, (u8)city, 30000);
+    api->set_actions(e, player, 255);
+    v.ui.city.selected = ruler_city;
+
+    /* 港關: the 45 bases in their table and on the mini map. */
+    IM_CHECK(api->base_count(e) == 45);
+    IM_CHECK(demo_open_panel(ctx, "###Bases", &v.ui.show_bases));
+    IM_CHECK(demo_scroll_table(ctx, "###Bases", "bases_table"));
+    IM_CHECK(demo_open_panel(ctx, "###MiniMap", &v.ui.show_minimap));
+    ctx->SleepStandard();
+    v.ui.show_bases = false;
+
+    /* 軍團: a 都督 and a city, then Create. */
+    IM_CHECK(demo_open_panel(ctx, "###Ruler", &v.ui.show_ruler));
+    ctx->SetRef("###Ruler");
+    u16 viceroy = demo_rival_officer(api, player, 0, ENGINE_NO_OFFICER);
+    char item[64];
+    snprintf(item, sizeof(item), "###viceroy/###o%u", viceroy);
+    ctx->ComboClick(item);
+    v.ui.ruler.cities = 1ull << corps_city;
+    ctx->SleepStandard();
+    ctx->ItemClick("###corps_create");
+    IM_CHECK(api->corps_at(e, player, 1).alive && api->city_corps(e, corps_city) == 1);
+    ctx->SleepStandard();
+
+    /* 軍師: an officer with intellect 70 or more; the advice appears. */
+    u16 adviser = demo_rival_officer(api, player, 70, viceroy);
+    IM_CHECK(adviser != ENGINE_NO_OFFICER);
+    snprintf(item, sizeof(item), "###adviser_pick/###o%u", adviser);
+    ctx->ComboClick(item);
+    ctx->ItemClick("###appoint_adviser");
+    IM_CHECK(api->adviser(e, player) == adviser && api->advice(e, player).count > 0);
+    ctx->SleepStandard();
+
+    /* 評定: low public order in the city of the ruler makes 巡察 the first proposal. */
+    api->set_city_resource(e, ruler_city, SIM_RESOURCE_PUBLIC_ORDER, 0, 30);
+    ctx->Yield(2);
+    engine_plan_view council = api->council(e, player, ruler_city);
+    IM_CHECK(council.refusal == SIM_REFUSAL_NONE && council.count > 0 && council.items[0].kind == SIM_COMMAND_PATROL);
+    u32 mark = api->ledger_count(e);
+    ctx->ItemClick("###council0");
+    b32 patrolled = false;
+    for (u32 index = mark; index < api->ledger_count(e); ++index) patrolled |= api->ledger_at(e, index).kind == SIM_EVENT_PATROLLED;
+    IM_CHECK(patrolled);
+    ctx->SleepStandard();
+
+    /* 謀反的嫌疑: the editor fires the event; the dialog asks the ruler. */
+    engine_officer_detail detail = api->officer_detail(e, viceroy);
+    engine_officer_edit edit = {};
+    edit.loyalty = 50; edit.ambition = detail.ambition; edit.justice = detail.justice; edit.personality = detail.personality;
+    edit.growth = detail.growth; edit.female = detail.female; edit.merit = api->officer_by_id(e, viceroy).merit; edit.captor = ENGINE_NO_FACTION;
+    api->set_officer(e, viceroy, &edit);
+    IM_CHECK(api->trigger_event(e, 0, player, ENGINE_NO_CITY, ENGINE_NO_OFFICER).refusal == SIM_REFUSAL_NONE);
+    ctx->Yield(2);
+    IM_CHECK(api->pending_event(e).active);
+    ctx->SetRef("###Event");
+    ctx->SleepStandard();
+    ctx->ItemClick("###choice0");                            /* a slander: the corps stays */
+    IM_CHECK(!api->pending_event(e).active && api->corps_at(e, player, 1).alive);
+    ctx->SleepStandard();
+
+    /* The next turn: the computer factions plan and act; the corps acts with its own points. */
+    settings = api->settings(e);
+    settings.ai = true;
+    api->set_settings(e, settings);
+    mark = api->ledger_count(e);
+    demo_next_turn_of(ctx, api, player);
+    IM_CHECK(api->whose_turn(e) == player);
+    u32 planned = 0;
+    for (u32 index = mark; index < api->ledger_count(e); ++index)
+    {
+        sim_event event = api->ledger_at(e, index);
+        planned += event.kind == SIM_EVENT_AI_PLANNED && event.delta > 0;
+    }
+    IM_CHECK(planned > 0);                                   /* the ledger has the turns of the AI */
+    v.ui.show_bases = true;
+    ctx->Yield(2);
+    ctx->SleepStandard();
+
+    IM_CHECK(demo_end_video(ctx));
+
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Ruler", "ruler"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Bases", "bases"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###MiniMap", "minimap"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "Event ledger", "event_ledger"));
+    /* The event dialog: the editor fires the event again for its picture. */
+    IM_CHECK(api->trigger_event(e, 0, player, ENGINE_NO_CITY, ENGINE_NO_OFFICER).refusal == SIM_REFUSAL_NONE);
+    ctx->Yield(2);
+    IM_CHECK(api->pending_event(e).active);
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Event", "event"));
+    ctx->SetRef("###Event");
+    ctx->ItemClick("###choice0");
+    IM_CHECK(!api->pending_event(e).active);
+}
+
 internal void
 register_demo_tests(ImGuiTestEngine *e)
 {
@@ -1193,4 +1360,9 @@ register_demo_tests(ImGuiTestEngine *e)
     t->SetVarsDataType<demo_vars>();
     t->GuiFunc  = demo_gui;
     t->TestFunc = demo_m7_court;
+
+    t = IM_REGISTER_TEST(e, "demo", "m8_rivals");
+    t->SetVarsDataType<demo_vars>();
+    t->GuiFunc  = demo_gui;
+    t->TestFunc = demo_m8_rivals;
 }
