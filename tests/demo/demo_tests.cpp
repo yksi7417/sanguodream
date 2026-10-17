@@ -56,6 +56,7 @@ demo_gui(ImGuiTestContext *ctx)
         v.ui.show_scene    = false;
         v.ui.show_city     = false;
         v.ui.show_develop  = false;
+        v.ui.show_economy  = false;
     }
     v.frame.dt_seconds  = ImGui::GetIO().DeltaTime;
     v.frame.render      = g_demo_render;
@@ -377,6 +378,179 @@ demo_m2_turns(ImGuiTestContext *ctx)
     IM_CHECK(demo_screenshot_panel(ctx, milestone, "Event ledger", "event_ledger"));
 }
 
+/* The owned city of the faction that acts with the most free officers. */
+internal u8
+demo_busiest_city_of_player(engine_api *api)
+{
+    u8 player = api->whose_turn(api->engine);
+    u8 best = ENGINE_NO_CITY;
+    u32 best_count = 0;
+    for (u32 city = 0; city < api->city_count(api->engine); ++city)
+    {
+        if (api->city_at(api->engine, city).owner_force_id != player) continue;
+        u16 ids[64];
+        u32 count = ui_free_officers(api, (u8)city, ids, ArrayCount(ids));
+        if (count > best_count) { best = (u8)city; best_count = count; }
+    }
+    return best;
+}
+
+/* Develops a facility in the Develop dialog with the first three free
+   officers. Returns the slot. */
+internal u8
+demo_develop(ImGuiTestContext *ctx, demo_vars &v, u8 city, u8 facility)
+{
+    engine_api *api = &v.api;
+    ctx->SetRef("###City");
+    ctx->ItemClick("###open_develop");
+    ctx->Yield();
+    ctx->SetRef("###Develop");
+    char item[32];
+    snprintf(item, sizeof(item), "###facility/###f%u", facility);
+    ctx->ComboClick(item);
+    u16 ids[3] = { ENGINE_NO_OFFICER, ENGINE_NO_OFFICER, ENGINE_NO_OFFICER };
+    ui_free_officers(api, city, ids, 3);
+    for (u32 place = 1; place < 3; ++place)
+    {
+        if (ids[place] == ENGINE_NO_OFFICER) continue;
+        snprintf(item, sizeof(item), "###officer%u/###o%u", place + 1, ids[place]);
+        ctx->ComboClick(item);
+    }
+    ctx->Yield();
+    engine_command command = {};
+    command.kind = ENGINE_COMMAND_DEVELOP;
+    command.city_id = city; command.facility = facility; command.slot = v.ui.develop.slot;
+    for (u32 place = 0; place < SIM_DEVELOP_OFFICERS; ++place) command.officers[place] = v.ui.develop.officers[place];
+    engine_check check = api->can_issue(api->engine, &command);
+    IM_CHECK_RETV(check.refusal == SIM_REFUSAL_NONE, ENGINE_ANY_SLOT);
+    ctx->ItemClick("###execute");
+    ctx->Yield();
+    IM_CHECK_RETV(api->facility_at(api->engine, city, check.slot).state == SIM_SLOT_BUILDING, ENGINE_ANY_SLOT);
+    return check.slot;
+}
+
+/* Opens a city command dialog from the City panel and clicks 決定. */
+internal void
+demo_city_command(ImGuiTestContext *ctx, demo_vars &v, const char *open_button, const char *window, u32 kind, s32 weapon_button)
+{
+    ctx->SetRef("###City");
+    ctx->ItemClick(open_button);
+    ctx->Yield();
+    IM_CHECK(v.ui.show_command[kind]);
+    ctx->SetRef(window);
+    if (weapon_button >= 0)
+    {
+        char item[16];
+        snprintf(item, sizeof(item), "###w%d", weapon_button);
+        ctx->ItemClick(item);
+    }
+    ctx->SleepStandard();
+    ctx->ItemClick("###decide");
+    ctx->Yield();
+    IM_CHECK(!v.ui.show_command[kind]);                                      /* 決定 ran the command and closed the dialog */
+}
+
+/* M3, the economy: load the sample save, open a city of the player, build a
+   barracks and a smithy, run patrol, conscript, train and produce, advance
+   three months, then show the economy summary and the ledger of the city
+   filtered to its gold. */
+internal void
+demo_m3_economy(ImGuiTestContext *ctx)
+{
+    const char *milestone = "m3_economy";
+    demo_vars &v = ctx->GetVars<demo_vars>();
+    engine_api *api = &v.api;
+    IM_CHECK(demo_begin_video(ctx, milestone));
+
+    IM_CHECK(demo_open_panel(ctx, "Simulation", &v.ui.show_sim));
+    IM_CHECK(demo_open_panel(ctx, "Event ledger", &v.ui.show_ledger));
+    ctx->SetRef("Simulation");
+    ctx->ItemClick("Load sample save");
+    ctx->ItemClick("Load city names");
+    ctx->Yield();
+    IM_CHECK_EQ(api->city_count(api->engine), 42u);
+    u8 player = api->whose_turn(api->engine);
+    IM_CHECK(player != ENGINE_NO_FACTION);
+
+    u8 city = demo_busiest_city_of_player(api);
+    IM_CHECK(city != ENGINE_NO_CITY);
+    IM_CHECK(demo_open_panel(ctx, "###City", &v.ui.show_city));
+    ctx->SetRef("###City");
+    char item[32];
+    snprintf(item, sizeof(item), "###city_select/###c%u", city);
+    ctx->ComboClick(item);
+    IM_CHECK_EQ(v.ui.city.selected, city);
+    ctx->SleepStandard();
+
+    /* Conscription needs a barracks and the pikes need a smithy. */
+    u8 barracks = demo_develop(ctx, v, city, 2);
+    u8 smithy   = demo_develop(ctx, v, city, 3);
+    IM_CHECK(barracks != ENGINE_ANY_SLOT && smithy != ENGINE_ANY_SLOT);
+    v.ui.show_develop = false;
+    ctx->SetRef("Simulation");
+    for (u32 turn = 0; turn < 12; ++turn)
+    {
+        if (api->facility_at(api->engine, city, barracks).state == SIM_SLOT_BUILT &&
+            api->facility_at(api->engine, city, smithy).state == SIM_SLOT_BUILT) break;
+        ctx->ItemClick("Advance turn");
+        ctx->Yield();
+    }
+    IM_CHECK_EQ(api->facility_at(api->engine, city, barracks).state, (u8)SIM_SLOT_BUILT);
+    IM_CHECK_EQ(api->facility_at(api->engine, city, smithy).state, (u8)SIM_SLOT_BUILT);
+
+    engine_city_economy before = api->city_economy(api->engine, city);
+    u32 mark = api->ledger_count(api->engine);
+    demo_city_command(ctx, v, "###open_patrol", "###Patrol", UI_COMMAND_PATROL, -1);
+    demo_city_command(ctx, v, "###open_conscript", "###Conscript", UI_COMMAND_CONSCRIPT, -1);
+    demo_city_command(ctx, v, "###open_train", "###Train", UI_COMMAND_TRAIN, -1);
+    demo_city_command(ctx, v, "###open_produce", "###Produce", UI_COMMAND_PRODUCE, 0);
+    engine_city_economy after = api->city_economy(api->engine, city);
+    b32 patrolled = false, conscripted = false, trained = false, produced = false;
+    for (u32 index = mark; index < api->ledger_count(api->engine); ++index)
+    {
+        sim_event_kind kind = api->ledger_at(api->engine, index).kind;
+        patrolled   |= kind == SIM_EVENT_PATROLLED;
+        conscripted |= kind == SIM_EVENT_CONSCRIPTED;
+        trained     |= kind == SIM_EVENT_TRAINED;
+        produced    |= kind == SIM_EVENT_WEAPONS_PRODUCED;
+    }
+    IM_CHECK(patrolled && conscripted && trained && produced);              /* the four commands are in the ledger */
+    IM_CHECK(after.soldiers > before.soldiers && after.stocks[0] > before.stocks[0]);
+    ctx->SleepStandard();
+
+    ctx->SetRef("Simulation");
+    s64 start_day = api->date(api->engine).days_since_start;
+    for (u32 turn = 0; turn < 9; ++turn)
+    {
+        ctx->ItemClick("Advance turn");
+        ctx->Yield();
+    }
+    IM_CHECK_EQ(api->date(api->engine).days_since_start, start_day + 90);  /* three months */
+
+    IM_CHECK(demo_open_panel(ctx, "###Economy", &v.ui.show_economy));
+    ctx->SetRef("###Economy");
+    IM_CHECK(ctx->ItemExists("economy"));
+    ctx->SleepStandard();
+
+    ctx->SetRef("Event ledger");
+    snprintf(item, sizeof(item), "###ledger_city/###lc%u", city);
+    ctx->ComboClick(item);
+    snprintf(item, sizeof(item), "###ledger_resource/###lr%u", (u32)SIM_RESOURCE_GOLD);
+    ctx->ComboClick(item);
+    ctx->Yield();
+    IM_CHECK(v.ui.ledger_city == city && v.ui.ledger_resource == SIM_RESOURCE_GOLD);
+    engine_ledger_view gold = api->ledger_filter(api->engine, city, SIM_RESOURCE_GOLD);
+    IM_CHECK_GT(gold.count, 3u);                                             /* income, salaries and the costs of the commands */
+    ctx->SleepStandard();
+
+    IM_CHECK(demo_end_video(ctx));
+
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "Simulation", "simulation"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###City", "city"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Economy", "economy"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "Event ledger", "event_ledger"));
+}
+
 internal void
 register_demo_tests(ImGuiTestEngine *e)
 {
@@ -396,4 +570,9 @@ register_demo_tests(ImGuiTestEngine *e)
     t->SetVarsDataType<demo_vars>();
     t->GuiFunc  = demo_gui;
     t->TestFunc = demo_m2_turns;
+
+    t = IM_REGISTER_TEST(e, "demo", "m3_economy");
+    t->SetVarsDataType<demo_vars>();
+    t->GuiFunc  = demo_gui;
+    t->TestFunc = demo_m3_economy;
 }
