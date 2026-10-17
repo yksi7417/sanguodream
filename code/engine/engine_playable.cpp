@@ -229,6 +229,45 @@ engine_load_scenarios(engine *e, const char *folder)
     }
 }
 
+/* battles.tsv: the list of 決戰稱霸. A pack without the table has none. */
+internal void
+engine_load_battles(engine *e, const char *folder)
+{
+    e->battle_count = 0;
+    tsv_table table = {};
+    arena_reset(&e->scratch);
+    if (!folder || !engine_read_table(e, folder, "battles.tsv", &table)) return;
+    for (u32 row = 0; row < table.row_count && e->battle_count < ENGINE_BATTLE_CAPACITY; ++row)
+    {
+        engine_battle *battle = e->battles + e->battle_count;
+        *battle = {};
+        u32 id = 0;
+        const char *key = tsv_cell(&table, row, "key");
+        if (!tsv_cell_u32(&table, row, "id", &id) || id != row || !key[0] || strlen(key) >= CONTENT_KEY_SIZE) { e->battle_count = 0; break; }
+        battle->id            = (u8)id;
+        battle->open_at_start = strcmp(tsv_cell(&table, row, "open"), "yes") == 0;
+        battle->playable      = false;
+        memcpy(battle->key, key, strlen(key) + 1);
+        e->battle_count++;
+    }
+    arena_reset(&e->scratch);
+}
+
+internal u32
+engine_api_battle_count(void *opaque)
+{
+    return ((engine *)opaque)->battle_count;
+}
+
+internal engine_battle
+engine_api_battle_at(void *opaque, u32 index)
+{
+    engine *e = (engine *)opaque;
+    engine_battle result = {};
+    result.id = ENGINE_NO_ROW;
+    return index < e->battle_count ? e->battles[index] : result;
+}
+
 internal u32
 engine_api_scenario_count(void *opaque)
 {
@@ -297,6 +336,8 @@ engine_bind_playable_api(engine_api *api)
     api->scenario_count           = engine_api_scenario_count;
     api->scenario_at              = engine_api_scenario_at;
     api->load_scenario            = engine_api_load_scenario;
+    api->battle_count             = engine_api_battle_count;
+    api->battle_at                = engine_api_battle_at;
     api->history_count            = engine_api_history_count;
     api->history_at               = engine_api_history_at;
     api->history_ready            = engine_api_history_ready;

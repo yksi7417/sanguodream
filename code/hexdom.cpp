@@ -68,6 +68,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         memory->platform.log(text_catalog_has_strings(&game->text) ? "hexdom: locale zh-TW loaded"
                                                                    : "hexdom: no strings file for zh-TW; the UI shows ids");
         ui_init(&game->ui, &game->text);
+        game->ui.show_title = true;   /* M9: the game starts at the title menu */
 
         memory->platform.log("hexdom: game state initialized");
         memory->is_initialized = true;
@@ -89,4 +90,5 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     frame_info.render           = input->render;
     frame_info.frame_arena      = frame;
     ui_draw(&game->ui, &game->api, &frame_info);
+    memory->quit_requested = game->ui.quit_requested;
 }

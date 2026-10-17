@@ -381,9 +381,24 @@ unit_text_label_tests(test_counts *counts, memory_arena *arena)
     TEST_CHECK(counts, strcmp(text_label(0, "status", 7, out, sizeof(out)), "?7") == 0, "no catalog gives ? and the number");
 }
 
+/* M9: a typed name goes back to Big5 for a new officer. */
+internal void
+unit_text_encode_tests(test_counts *counts)
+{
+    u8 bytes[8] = {};
+    u32 size = text_encode_big5("\xE5\xBC\xB5\xE4\xB8\x80", bytes, sizeof(bytes));   /* 張一 */
+    char back[32];
+    text_decode_big5_into(bytes, size, back, sizeof(back));
+    TEST_CHECK(counts, size == 4 && bytes[0] == 0xB1 && bytes[1] == 0x69 && bytes[2] == 0xA4 && bytes[3] == 0x40 && strcmp(back, "\xE5\xBC\xB5\xE4\xB8\x80") == 0,
+               "text_encode_big5 gives the Big5 bytes of a UTF-8 name, and they decode back");
+    TEST_CHECK(counts, text_encode_big5("abc", bytes, sizeof(bytes)) == 0 && text_encode_big5("\xE5\xBC\xB5\xE5\xBC\xB5\xE5\xBC\xB5", bytes, 4) == 0,
+               "a character without a Big5 code, or a buffer too small, gives 0");
+}
+
 internal void
 unit_text_tests(test_counts *counts)
 {
+    unit_text_encode_tests(counts);
     memory_arena arena = test_arena_create(Megabytes(1));
     unit_text_big5_pair_tests(counts);
     unit_text_big5_round_trip_tests(counts);

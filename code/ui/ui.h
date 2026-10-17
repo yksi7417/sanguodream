@@ -179,7 +179,47 @@ struct ui_state
         u32 flags;               /* sim_corps_flag */
         u16 adviser;             /* 軍師: the officer to appoint */
     } ruler;
-    u8   ledger_city;            /* the ledger filter: ENGINE_ANY_CITY or a city id */
+    /* M9: the game screens (ui/title-and-load.md, ui/screen-flow.md) */
+    bool show_title;
+    bool show_scenarios;
+    bool show_rulers;
+    bool show_start_settings;
+    bool show_topbar;            /* the game mode: the top bar and the history window */
+    bool show_history;
+    bool show_saveload;
+    bool show_options;
+    bool show_new_officer;
+    bool show_editor;
+    bool show_battles;
+    bool show_abilities;
+    bool show_info;
+    bool quit_requested;         /* 結束遊戲: the platform closes the window */
+    struct
+    {
+        u64  rulers;             /* bit f: the player plays the faction f */
+        bool saving;             /* the save/load screen saves */
+        u32  page;               /* 0 .. 3: slots 1-8 .. 25-32 */
+        u32  hovered;            /* the slot of the detail panel */
+        u32  chosen;             /* the slot that waits for its comment; ENGINE_SAVE_SLOTS if none */
+        char comment[ENGINE_SAVE_COMMENT_SIZE];
+        char message[96];
+        char family[32];         /* 新武將: UTF-8 */
+        char given[32];
+        bool female;
+        int  type;               /* sim_officer_type */
+        int  personality;
+        int  birth_year;
+        u8   city;
+        bool found_force;
+        u8   ancient;            /* SIM_NO_ANCIENT */
+        u16  editor_officer;
+        int  editor_loyalty, editor_merit, editor_technique, editor_gold, editor_order, editor_soldiers;
+        int  editor_unit_soldiers, editor_unit_morale;
+        u16  trainee;            /* 培育武將: the officer */
+        engine_settings start;   /* the settings that the start screen edits; 決定 applies them */
+        bool start_loaded;       /* start holds the settings of the engine */
+    } game;
+    u8   ledger_city;           /* the ledger filter: ENGINE_ANY_CITY or a city id */
     u8   ledger_resource;        /* the ledger filter: ENGINE_ANY_RESOURCE or a sim_resource */
     text_catalog *text;      /* the UI strings and the names; owned by the caller */
     char pending_locale[TEXT_LOCALE_SIZE];   /* set by the Language combo; ui_draw loads it at the start of the next frame */

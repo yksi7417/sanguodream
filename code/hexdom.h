@@ -62,6 +62,7 @@ struct game_memory
     u64   transient_size;
     void *transient;    /* per-session scratch */
     platform_api platform;
+    b32   quit_requested;   /* M9: the game asks the platform to close the window (結束遊戲) */
 };
 
 #define GAME_UPDATE_AND_RENDER(name) void name(game_memory *memory, game_input *input, \

@@ -425,4 +425,10 @@ ui_draw_outcome(ui_state *ui, engine_api *api)
     ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.3f, 1.0f), "%s:", ui_text_with_key(ui, "outcome", sim_outcome_name((sim_outcome_kind)outcome.kind)));
     ImGui::SameLine();
     ui_code_cell(ui, api, UI_CODE_FORCE, outcome.force_id, ENGINE_NO_FACTION);
+    if (outcome.kind == SIM_OUTCOME_VICTORY)
+    {
+        char ending[64];
+        text_label(ui->text, "ending", outcome.ending, ending, sizeof(ending));
+        ImGui::TextUnformatted(ending);   /* M9: events.md, endings */
+    }
 }

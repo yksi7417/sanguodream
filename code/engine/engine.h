@@ -628,6 +628,17 @@ struct engine_scenario
     b32  available;                 /* the file was found when the engine started */
 };
 
+/* M9: one row of battles.tsv, the 決戰稱霸 mode (game-setup-and-modes.md,
+   F-135). The spec names the battles but has no data for them. */
+#define ENGINE_BATTLE_CAPACITY 16
+struct engine_battle
+{
+    u8   id;                        /* ENGINE_NO_ROW */
+    char key[CONTENT_KEY_SIZE];     /* the text id is "battle.<key>" */
+    b32  open_at_start;             /* four battles are open at the start; a clear opens the others */
+    b32  playable;                  /* false: the clean room has no data of the battle */
+};
+
 struct engine_history_kind
 {
     u8   id;                        /* ENGINE_NO_ROW */
@@ -1107,6 +1118,8 @@ typedef engine_command_result engine_trigger_history_fn(void *engine, u32 row, u
 typedef u32                  engine_scenario_count_fn(void *engine);
 typedef engine_scenario      engine_scenario_at_fn(void *engine, u32 index);
 typedef engine_load_result   engine_load_scenario_fn(void *engine, const char *path);
+typedef u32                  engine_battle_count_fn(void *engine);
+typedef engine_battle        engine_battle_at_fn(void *engine, u32 index);
 /* A placeholder unit until M5: it only blocks the commands of enemy
    cities within 2 hexes. Returns ENGINE_NO_UNIT if there is no room. */
 typedef u32                 engine_place_unit_fn(void *engine, u8 force_id, s32 q, s32 r);
@@ -1300,6 +1313,8 @@ struct engine_api
     engine_scenario_count_fn        *scenario_count;
     engine_scenario_at_fn           *scenario_at;
     engine_load_scenario_fn         *load_scenario;
+    engine_battle_count_fn          *battle_count;
+    engine_battle_at_fn             *battle_at;
 };
 
 #define ENGINE_NO_BASE 0xFFFFFFFFu

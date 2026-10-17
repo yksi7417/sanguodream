@@ -1,0 +1,599 @@
+/* The game screens of M9 (ui/title-and-load.md, ui/screen-flow.md,
+   ui/main-map.md, ui/information-screens.md; F-140 to F-145, F-133 to
+   F-135, F-060, F-061, F-009): the title menu, the scenario list, the
+   ruler list, the settings of the start, the top bar with 進行 and the
+   history window, the save and load screen, the options (new officers,
+   editor, settings), the battle mode list, the ability chart and the
+   information screen. They sit on top of the debug panels: the city, unit,
+   duel and debate panels of the earlier milestones are the command menus
+   and screens of the game. Placeholder art: ImGui windows. The UI calls
+   engine_api only. */
+
+/* The panels that the main map shows when a game starts. */
+internal void
+ui_enter_game(ui_state *ui)
+{
+    ui->show_title = ui->show_scenarios = ui->show_rulers = ui->show_start_settings = false;
+    ui->show_topbar  = true;
+    ui->show_history = true;
+    ui->show_minimap = true;
+    ui->show_map     = true;
+    ui->show_city    = true;
+}
+
+internal void
+ui_open_saveload(ui_state *ui, engine_api *api, bool saving)
+{
+    ui->show_saveload  = true;
+    ui->game.saving    = saving;
+    ui->game.chosen    = ENGINE_SAVE_SLOTS;
+    ui->game.message[0] = 0;
+    api->refresh_save_slots(api->engine);
+}
+
+/* ---- 標題 (F-145) -------------------------------------------------------------------- */
+
+internal void
+ui_draw_title(ui_state *ui, engine_api *api)
+{
+    char title[128], label[96];
+    ImGui::SetNextWindowSize(ImVec2(360, 330), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "title.title", "Title"), 0, ImGuiWindowFlags_NoCollapse)) { ImGui::End(); return; }
+    ImVec2 size(320, 0);
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "title.load", "title_load"), size)) ui_open_saveload(ui, api, false);
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "title.new", "title_new"), size)) ui->show_scenarios = true;
+    ImGui::BeginDisabled();
+    ImGui::Button(ui_label(label, sizeof(label), ui, "title.tutorial", "title_tutorial"), size);   /* the tutorial scenario is not in the spec */
+    ImGui::EndDisabled();
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "title.battle", "title_battle"), size)) ui->show_battles = true;
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "title.options", "title_options"), size)) ui->show_options = true;
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "title.quit", "title_quit"), size)) ui->quit_requested = true;
+    ImGui::End();
+}
+
+/* ---- 劇本 and 君主 (F-133, F-145) --------------------------------------------------------- */
+
+internal void
+ui_draw_scenarios(ui_state *ui, engine_api *api)
+{
+    char title[128];
+    ImGui::SetNextWindowSize(ImVec2(420, 320), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "scenarios.title", "Scenarios"), &ui->show_scenarios)) { ImGui::End(); return; }
+    void *e = api->engine;
+    for (u32 index = 0; index < api->scenario_count(e); ++index)
+    {
+        engine_scenario scenario = api->scenario_at(e, index);
+        char kind[48], row[256];
+        text_label(ui->text, "scenario_kind", scenario.kind, kind, sizeof(kind));
+        if (scenario.year) snprintf(row, sizeof(row), "%u  %s  [%s]###sc%u", scenario.year, ui_text_with_key(ui, "scenario", scenario.key), kind, index);
+        else               snprintf(row, sizeof(row), "-  %s  [%s]###sc%u", ui_text_with_key(ui, "scenario", scenario.key), kind, index);
+        ImGui::BeginDisabled(!scenario.available);
+        if (ImGui::Selectable(row))
+        {
+            engine_load_result loaded = scenario.kind == ENGINE_SCENARIO_SAVE ? api->load_save(e, scenario.file) : api->load_scenario(e, scenario.file);
+            if (loaded.status == ENGINE_LOAD_OK)
+            {
+                ui->game.rulers   = 0;
+                ui->show_scenarios = false;
+                ui->show_rulers    = true;
+            }
+        }
+        ImGui::EndDisabled();
+        if (!scenario.available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("%s", text_get(ui->text, "scenarios.unavailable"));
+    }
+    ImGui::End();
+}
+
+/* Up to 8 rulers (manual p.4). The faction that the save played starts checked. */
+internal void
+ui_draw_rulers(ui_state *ui, engine_api *api)
+{
+    char title[128], label[96];
+    ImGui::SetNextWindowSize(ImVec2(360, 420), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "rulers.title", "Rulers"), &ui->show_rulers)) { ImGui::End(); return; }
+    void *e = api->engine;
+    u32 chosen = 0;
+    for (u32 force = 0; force < 64; ++force) chosen += (ui->game.rulers >> force) & 1;
+    for (u32 index = 0; index < api->faction_count(e); ++index)
+    {
+        engine_faction faction = api->faction_at(e, index);
+        if (api->force_ruler(e, faction.force_id) == ENGINE_NO_OFFICER) continue;
+        char name[UI_NAME_SIZE * 2], row[160];
+        ui_force_text(ui, api, faction.force_id, name, sizeof(name));
+        snprintf(row, sizeof(row), "%s###ruler%u", name, faction.force_id);
+        bool on = ((ui->game.rulers >> faction.force_id) & 1) != 0;
+        ImGui::BeginDisabled(!on && chosen >= 8);
+        if (ImGui::Checkbox(row, &on)) ui->game.rulers ^= 1ull << faction.force_id;
+        ImGui::EndDisabled();
+    }
+    ImGui::BeginDisabled(chosen == 0);
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "rulers.ok", "rulers_ok")))
+    {
+        for (u32 index = 0; index < api->faction_count(e); ++index)
+        {
+            u8 force = api->faction_at(e, index).force_id;
+            api->set_faction_human(e, force, ((ui->game.rulers >> force) & 1) != 0);
+        }
+        ui->show_rulers         = false;
+        ui->show_start_settings = true;
+        ui->game.start_loaded   = false;
+    }
+    ImGui::EndDisabled();
+    ImGui::End();
+}
+
+/* 遊戲設定 of the start (F-132): then the first turn of a player. */
+internal void
+ui_draw_start_settings(ui_state *ui, engine_api *api)
+{
+    char title[128], label[96];
+    ImGui::SetNextWindowSize(ImVec2(420, 380), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "start.title", "StartSettings"), &ui->show_start_settings)) { ImGui::End(); return; }
+    void *e = api->engine;
+    if (!ui->game.start_loaded) { ui->game.start = api->settings(e); ui->game.start_loaded = true; }
+    engine_settings settings = ui->game.start;
+    int lifespan = !settings.lifespan ? 0 : settings.long_lifespan ? 2 : 1;
+    ImGui::TextUnformatted(text_get(ui->text, "start.lifespan"));
+    for (int value = 0; value < 3; ++value)
+    {
+        char text[48], stable[64];
+        text_label(ui->text, "lifespan", (u32)value, text, sizeof(text));
+        snprintf(stable, sizeof(stable), "%s###lifespan%d", text, value);
+        if (value) ImGui::SameLine();
+        ImGui::RadioButton(stable, &lifespan, value);
+    }
+    settings.lifespan      = lifespan != 0;
+    settings.long_lifespan = lifespan == 2;
+    bool flags[6] = { settings.ability_change != 0, settings.events != 0, settings.female_officers != 0, settings.strong_plots != 0, settings.relations != 0, settings.disasters != 0 };
+    static const char *ids[6]     = { "start.ability_change", "start.events", "start.female", "start.strong_plots", "start.relations", "settings.disasters" };
+    static const char *stables[6] = { "ability_change", "start_events", "female", "strong_plots", "relations", "start_disasters" };
+    for (u32 index = 0; index < 6; ++index) ImGui::Checkbox(ui_label(label, sizeof(label), ui, ids[index], stables[index]), flags + index);
+    settings.ability_change  = flags[0];
+    settings.events          = flags[1];
+    settings.female_officers = flags[2];
+    settings.strong_plots    = flags[3];
+    settings.relations       = flags[4];
+    settings.disasters       = flags[5];
+    int duel = settings.duel_mode, level = settings.difficulty;
+    ImGui::TextUnformatted(text_get(ui->text, "start.duel"));
+    for (int value = 0; value < DUEL_MODE_COUNT; ++value)
+    {
+        char text[48], stable[64];
+        text_label(ui->text, "duel_mode", (u32)value, text, sizeof(text));
+        snprintf(stable, sizeof(stable), "%s###duel%d", text, value);
+        if (value) ImGui::SameLine();
+        ImGui::RadioButton(stable, &duel, value);
+    }
+    ImGui::TextUnformatted(text_get(ui->text, "start.level"));
+    for (int value = 0; value < DIFFICULTY_COUNT; ++value)
+    {
+        char text[48], stable[64];
+        text_label(ui->text, "level", (u32)value, text, sizeof(text));
+        snprintf(stable, sizeof(stable), "%s###level%d", text, value);
+        if (value) ImGui::SameLine();
+        ImGui::RadioButton(stable, &level, value);
+    }
+    settings.duel_mode  = (u8)duel;
+    settings.difficulty = (u8)level;
+    ui->game.start      = settings;
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "start.ok", "start_ok")))
+    {
+        api->set_settings(e, settings);
+        for (u32 step = 0; step < 300 && api->whose_turn(e) != ENGINE_NO_FACTION && !((ui->game.rulers >> api->whose_turn(e)) & 1); ++step) api->end_turn(e);
+        ui_enter_game(ui);
+    }
+    ImGui::End();
+}
+
+/* ---- 主地圖: the top bar and the history window (F-140) ----------------------------------------- */
+
+internal void
+ui_draw_topbar(ui_state *ui, engine_api *api)
+{
+    char title[128], label[96];
+    ImGui::SetNextWindowPos(ImVec2(0, 20), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(760, 70), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "topbar.title", "TopBar"), 0, ImGuiWindowFlags_NoCollapse)) { ImGui::End(); return; }
+    void *e = api->engine;
+    engine_date date = api->date(e);
+    u8 force = api->whose_turn(e);
+    char faction[UI_NAME_SIZE * 2] = "-";
+    if (force != ENGINE_NO_FACTION) ui_force_text(ui, api, force, faction, sizeof(faction));
+    ImGui::Text("%u/%u/%u   %s   %s %u", date.year, date.month, date.day, faction, text_get(ui->text, "topbar.points"),
+                force != ENGINE_NO_FACTION ? api->actions_left(e, force) : 0u);
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "topbar.proceed", "proceed"))) api->end_turn(e);
+    ImGui::SameLine();
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "topbar.info", "open_info"))) ui->show_info = true;
+    ImGui::SameLine();
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "topbar.ruler", "open_ruler"))) ui->show_ruler = true;
+    ImGui::SameLine();
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "topbar.abilities", "open_abilities"))) ui->show_abilities = true;
+    ImGui::SameLine();
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "topbar.save", "open_save"))) ui_open_saveload(ui, api, true);
+    ImGui::SameLine();
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "topbar.load", "open_load"))) ui_open_saveload(ui, api, false);
+    ImGui::SameLine();
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "topbar.system", "open_system"))) ui->show_options = true;
+    ImGui::End();
+}
+
+/* The last events of the ledger, newest first (main-map.md, history window). */
+internal void
+ui_draw_history(ui_state *ui, engine_api *api)
+{
+    char title[128];
+    ImGui::SetNextWindowSize(ImVec2(420, 220), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "history.title", "History"), &ui->show_history)) { ImGui::End(); return; }
+    u32 count = api->ledger_count(api->engine);
+    for (u32 shown = 0; shown < 12 && shown < count; ++shown)
+    {
+        sim_event event = api->ledger_at(api->engine, count - 1 - shown);
+        ImGui::Text("%u  %s  %d", event.turn, sim_event_name(event.kind), event.delta);
+    }
+    ImGui::End();
+}
+
+/* ---- 儲存 and 載入 (F-009) ------------------------------------------------------------------ */
+
+internal void
+ui_draw_saveload(ui_state *ui, engine_api *api)
+{
+    char title[128], label[96];
+    ImGui::SetNextWindowSize(ImVec2(620, 420), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "saves.title", "SaveLoad"), &ui->show_saveload)) { ImGui::End(); return; }
+    void *e = api->engine;
+    ImGui::TextUnformatted(text_get(ui->text, ui->game.saving ? "saves.saving" : "saves.loading"));
+    for (u32 page = 0; page < ENGINE_SAVE_SLOTS / 8; ++page)
+    {
+        char tab[64];
+        snprintf(tab, sizeof(tab), "%u-%u###page%u", page * 8 + 1, page * 8 + 8, page);
+        if (page) ImGui::SameLine();
+        if (ImGui::Button(tab)) ui->game.page = page;
+    }
+    ImGui::BeginGroup();
+    for (u32 slot = ui->game.page * 8; slot < ui->game.page * 8 + 8; ++slot)
+    {
+        engine_save_slot info = api->save_slot(e, slot);
+        char row[160];
+        if (info.used) snprintf(row, sizeof(row), "%2u  %u/%u/%u  %s###slot%u", slot + 1, info.year, info.month, info.day, info.comment, slot);
+        else           snprintf(row, sizeof(row), "%2u  %s###slot%u", slot + 1, text_get(ui->text, "saves.empty"), slot);
+        ImGui::BeginDisabled(!ui->game.saving && !info.used);
+        if (ImGui::Button(row, ImVec2(300, 0)))
+        {
+            if (ui->game.saving) { ui->game.chosen = slot; snprintf(ui->game.comment, sizeof(ui->game.comment), "%s", info.comment); }
+            else
+            {
+                engine_save_status status = api->load_game(e, slot);
+                text_label(ui->text, "save_status", status, ui->game.message, sizeof(ui->game.message));
+                if (status == ENGINE_SAVE_OK) { ui->show_saveload = false; ui_enter_game(ui); }
+            }
+        }
+        ImGui::EndDisabled();
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ui->game.hovered = slot;
+    }
+    ImGui::EndGroup();
+    ImGui::SameLine();
+    ImGui::BeginGroup();
+    engine_save_slot detail = api->save_slot(e, ui->game.hovered);
+    ImGui::Text("%s %u", text_get(ui->text, "saves.slot"), ui->game.hovered + 1);
+    if (detail.used)
+    {
+        char faction[UI_NAME_SIZE * 2] = "-";
+        if (detail.player != ENGINE_NO_FACTION) ui_force_text(ui, api, detail.player, faction, sizeof(faction));
+        ImGui::Text("%u/%u/%u  %s", detail.year, detail.month, detail.day, faction);
+        ImGui::Text("%s: %s", text_get(ui->text, "saves.comment"), detail.comment);
+    }
+    ImGui::EndGroup();
+    if (ui->game.saving && ui->game.chosen < ENGINE_SAVE_SLOTS)
+    {
+        ImGui::Separator();
+        ImGui::InputText(ui_label(label, sizeof(label), ui, "saves.comment", "comment"), ui->game.comment, sizeof(ui->game.comment));
+        if (ImGui::Button(ui_label(label, sizeof(label), ui, "saves.ok", "save_ok")))
+        {
+            engine_save_status status = api->save_game(e, ui->game.chosen, ui->game.comment);
+            text_label(ui->text, "save_status", status, ui->game.message, sizeof(ui->game.message));
+            ui->game.chosen = ENGINE_SAVE_SLOTS;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button(ui_label(label, sizeof(label), ui, "saves.back", "save_back"))) ui->game.chosen = ENGINE_SAVE_SLOTS;
+    }
+    if (ui->game.message[0]) ImGui::TextWrapped("%s", ui->game.message);
+    ImGui::End();
+}
+
+/* ---- 項目: new officers, editor, settings (F-060, F-134) ---------------------------------- */
+
+internal void
+ui_draw_options(ui_state *ui, engine_api *api)
+{
+    (void)api;
+    char title[128], label[96];
+    ImGui::SetNextWindowSize(ImVec2(300, 160), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "options.title", "Options"), &ui->show_options)) { ImGui::End(); return; }
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "options.new_officer", "open_new_officer"))) ui->show_new_officer = true;
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "options.editor", "open_editor")))         ui->show_editor = true;
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "options.settings", "open_settings")))     ui->show_settings = true;
+    ImGui::End();
+}
+
+internal void
+ui_draw_new_officer(ui_state *ui, engine_api *api)
+{
+    char title[128], label[96];
+    ImGui::SetNextWindowSize(ImVec2(440, 460), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "newcomer.title", "NewOfficer"), &ui->show_new_officer)) { ImGui::End(); return; }
+    void *e = api->engine;
+    ImGui::Text("%s: %u / 8", text_get(ui->text, "newcomer.count"), api->new_officer_count(e));
+    ImGui::InputText(ui_label(label, sizeof(label), ui, "newcomer.family", "family"), ui->game.family, sizeof(ui->game.family));
+    ImGui::InputText(ui_label(label, sizeof(label), ui, "newcomer.given", "given"), ui->game.given, sizeof(ui->game.given));
+    ImGui::Checkbox(ui_label(label, sizeof(label), ui, "newcomer.female", "female_officer"), &ui->game.female);
+    for (int type = 0; type < OFFICER_TYPE_COUNT; ++type)
+    {
+        char text[48], stable[64];
+        text_label(ui->text, "officer_type", (u32)type, text, sizeof(text));
+        snprintf(stable, sizeof(stable), "%s###type%d", text, type);
+        if (type) ImGui::SameLine();
+        ImGui::RadioButton(stable, &ui->game.type, type);
+    }
+    for (int value = 0; value < PERSONALITY_COUNT; ++value)
+    {
+        char text[48], stable[64];
+        text_label(ui->text, "personality", (u32)value, text, sizeof(text));
+        snprintf(stable, sizeof(stable), "%s###personality%d", text, value);
+        if (value) ImGui::SameLine();
+        ImGui::RadioButton(stable, &ui->game.personality, value);
+    }
+    ImGui::InputInt(ui_label(label, sizeof(label), ui, "newcomer.birth_year", "birth_year"), &ui->game.birth_year);
+    char city[UI_NAME_SIZE * 2] = "-";
+    if (ui->game.city != ENGINE_NO_CITY) ui_city_label(ui, api, ui->game.city, city, sizeof(city));
+    if (ImGui::BeginCombo(ui_label(label, sizeof(label), ui, "newcomer.city", "newcomer_city"), city))
+    {
+        for (u32 index = 0; index < api->city_count(e); ++index)
+        {
+            engine_city each = api->city_at(e, index);
+            char name[UI_NAME_SIZE * 2], row[128];
+            ui_city_label(ui, api, each.city_id, name, sizeof(name));
+            snprintf(row, sizeof(row), "%s###c%u", name, each.city_id);
+            if (ImGui::Selectable(row, ui->game.city == each.city_id)) ui->game.city = each.city_id;
+        }
+        ImGui::EndCombo();
+    }
+    ImGui::Checkbox(ui_label(label, sizeof(label), ui, "newcomer.found_force", "found_force"), &ui->game.found_force);
+    char ancient[UI_NAME_SIZE * 2] = "-";
+    if (ui->game.ancient != SIM_NO_ANCIENT)
+    {
+        engine_ancient row = api->ancient_at(e, ui->game.ancient);
+        u8 full[OFFICER_FAMILY_NAME_SIZE + OFFICER_GIVEN_NAME_SIZE] = {};
+        u32 used = 0;
+        for (u32 at = 0; at < OFFICER_FAMILY_NAME_SIZE && row.family_name[at]; ++at) full[used++] = row.family_name[at];
+        for (u32 at = 0; at < OFFICER_GIVEN_NAME_SIZE && row.given_name[at]; ++at) full[used++] = row.given_name[at];
+        text_name(ui->text, full, used, ancient, sizeof(ancient));
+    }
+    if (ImGui::BeginCombo(ui_label(label, sizeof(label), ui, "newcomer.ancient", "ancient"), ancient))
+    {
+        if (ImGui::Selectable(text_get(ui->text, "newcomer.none"), ui->game.ancient == SIM_NO_ANCIENT)) ui->game.ancient = SIM_NO_ANCIENT;
+        for (u32 index = 0; index < api->ancient_count(e); ++index)
+        {
+            engine_ancient row = api->ancient_at(e, index);
+            u8 full[OFFICER_FAMILY_NAME_SIZE + OFFICER_GIVEN_NAME_SIZE] = {};
+            u32 used = 0;
+            for (u32 at = 0; at < OFFICER_FAMILY_NAME_SIZE && row.family_name[at]; ++at) full[used++] = row.family_name[at];
+            for (u32 at = 0; at < OFFICER_GIVEN_NAME_SIZE && row.given_name[at]; ++at) full[used++] = row.given_name[at];
+            char name[UI_NAME_SIZE * 2], item[128];
+            text_name(ui->text, full, used, name, sizeof(name));
+            snprintf(item, sizeof(item), "%s###a%u", name, index);
+            if (ImGui::Selectable(item, ui->game.ancient == index)) ui->game.ancient = (u8)index;
+        }
+        ImGui::EndCombo();
+    }
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "newcomer.create", "create_officer")))
+    {
+        sim_new_officer_order order = {};
+        text_encode_big5(ui->game.family, order.family_name, sizeof(order.family_name));
+        text_encode_big5(ui->game.given, order.given_name, sizeof(order.given_name));
+        order.female      = ui->game.female;
+        order.type        = (u8)ui->game.type;
+        order.personality = (u8)ui->game.personality;
+        order.birth_year  = (u16)Minimum((u32)Maximum(ui->game.birth_year, 0), 400u);
+        order.city_id     = ui->game.city;
+        order.found_force = ui->game.found_force;
+        order.ancient     = ui->game.ancient;
+        ui_growth_result(ui, "newcomer.title", api->create_officer(e, &order));
+    }
+    if (ui->command_message[0]) ImGui::TextWrapped("%s", ui->command_message);
+    ImGui::End();
+}
+
+/* 編輯 (PK): the officer, faction, city and unit fields that the engine
+   editor commands can set (game-setup-and-modes.md). */
+internal void
+ui_draw_editor(ui_state *ui, engine_api *api)
+{
+    char title[128], label[96];
+    ImGui::SetNextWindowSize(ImVec2(420, 460), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "editor.title", "Editor"), &ui->show_editor)) { ImGui::End(); return; }
+    void *e = api->engine;
+    ui_officer_pick(ui, api, "editor.officer", "editor_officer", &ui->game.editor_officer, UI_OFFICERS_OWN, ENGINE_NO_FACTION);
+    ImGui::SliderInt(ui_label(label, sizeof(label), ui, "editor.loyalty", "editor_loyalty"), &ui->game.editor_loyalty, 0, 100);
+    ImGui::InputInt(ui_label(label, sizeof(label), ui, "editor.merit", "editor_merit"), &ui->game.editor_merit);
+    ImGui::BeginDisabled(ui->game.editor_officer == ENGINE_NO_OFFICER);
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "editor.apply_officer", "editor_apply_officer")))
+    {
+        engine_officer_detail detail = api->officer_detail(e, ui->game.editor_officer);
+        engine_officer_edit edit = {};
+        edit.loyalty = (u8)Minimum((u32)Maximum(ui->game.editor_loyalty, 0), 100u);
+        edit.ambition = detail.ambition; edit.justice = detail.justice; edit.personality = detail.personality; edit.growth = detail.growth;
+        edit.female = detail.female;
+        edit.merit  = (u16)Minimum((u32)Maximum(ui->game.editor_merit, 0), 65535u);
+        edit.captor = ENGINE_NO_FACTION;
+        api->set_officer(e, ui->game.editor_officer, &edit);
+    }
+    ImGui::EndDisabled();
+    ImGui::Separator();
+    u8 force = api->whose_turn(e);
+    ImGui::InputInt(ui_label(label, sizeof(label), ui, "editor.technique", "editor_technique"), &ui->game.editor_technique);
+    ImGui::BeginDisabled(force == ENGINE_NO_FACTION);
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "editor.apply_faction", "editor_apply_faction")))
+    {
+        api->set_technique_points(e, force, (u32)Maximum(ui->game.editor_technique, 0));
+    }
+    ImGui::EndDisabled();
+    ImGui::Separator();
+    u8 city = ui->city.selected;
+    char name[UI_NAME_SIZE * 2];
+    ui_city_label(ui, api, city, name, sizeof(name));
+    ImGui::TextUnformatted(name);
+    ImGui::InputInt(ui_label(label, sizeof(label), ui, "editor.gold", "editor_gold"), &ui->game.editor_gold);
+    ImGui::SliderInt(ui_label(label, sizeof(label), ui, "editor.order", "editor_order"), &ui->game.editor_order, 0, 100);
+    ImGui::InputInt(ui_label(label, sizeof(label), ui, "editor.soldiers", "editor_soldiers"), &ui->game.editor_soldiers);
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "editor.apply_city", "editor_apply_city")))
+    {
+        api->set_city_gold(e, city, (u32)Maximum(ui->game.editor_gold, 0));
+        api->set_city_resource(e, city, SIM_RESOURCE_PUBLIC_ORDER, 0, (u32)Maximum(ui->game.editor_order, 0));
+        api->set_city_resource(e, city, SIM_RESOURCE_SOLDIERS, 0, (u32)Maximum(ui->game.editor_soldiers, 0));
+    }
+    ImGui::Separator();
+    ImGui::InputInt(ui_label(label, sizeof(label), ui, "editor.unit_soldiers", "editor_unit_soldiers"), &ui->game.editor_unit_soldiers);
+    ImGui::SliderInt(ui_label(label, sizeof(label), ui, "editor.unit_morale", "editor_unit_morale"), &ui->game.editor_unit_morale, 0, 120);
+    ImGui::BeginDisabled(ui->units.selected == ENGINE_NO_UNIT);
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "editor.apply_unit", "editor_apply_unit")))
+    {
+        api->set_unit(e, ui->units.selected, (u32)Maximum(ui->game.editor_unit_soldiers, 0), (u32)Maximum(ui->game.editor_unit_morale, 0));
+    }
+    ImGui::EndDisabled();
+    ImGui::End();
+}
+
+/* ---- 決戰稱霸 (F-135) ------------------------------------------------------------------------ */
+
+internal void
+ui_draw_battles(ui_state *ui, engine_api *api)
+{
+    char title[128];
+    ImGui::SetNextWindowSize(ImVec2(360, 260), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "battles.title", "Battles"), &ui->show_battles)) { ImGui::End(); return; }
+    void *e = api->engine;
+    for (u32 index = 0; index < api->battle_count(e); ++index)
+    {
+        engine_battle battle = api->battle_at(e, index);
+        char row[160];
+        snprintf(row, sizeof(row), "%s  [%s]###battle%u", ui_text_with_key(ui, "battle", battle.key),
+                 text_get(ui->text, battle.open_at_start ? "battles.open" : "battles.locked"), index);
+        ImGui::BeginDisabled(!battle.playable);
+        ImGui::Button(row, ImVec2(320, 0));
+        ImGui::EndDisabled();
+        if (!battle.playable && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("%s", text_get(ui->text, "battles.unavailable"));
+    }
+    ImGui::End();
+}
+
+/* ---- 能力表: 研究能力 and 培育武將 (F-061) ---------------------------------------------------- */
+
+internal void
+ui_draw_abilities(ui_state *ui, engine_api *api)
+{
+    char title[128];
+    ImGui::SetNextWindowSize(ImVec2(560, 460), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "abilities.title", "Abilities"), &ui->show_abilities)) { ImGui::End(); return; }
+    void *e = api->engine;
+    u8 force = api->whose_turn(e);
+    if (force == ENGINE_NO_FACTION) { ImGui::TextUnformatted(text_get(ui->text, "court.no_faction")); ImGui::End(); return; }
+    engine_faction_chart chart = api->faction_chart(e, force);
+    if (chart.job_row != ENGINE_NO_ROW)
+    {
+        ImGui::Text("%s: %s (%u)", text_get(ui->text, "abilities.running"), ui_text_with_key(ui, "chart", api->chart_row_at(e, chart.job_row).key), chart.turns_left);
+    }
+    ui_officer_pick(ui, api, "abilities.officer", "trainee", &ui->game.trainee, UI_OFFICERS_OWN, ENGINE_NO_FACTION);
+    if (ImGui::BeginTable("chart_table", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+    {
+        ImGui::TableSetupColumn(text_get(ui->text, "abilities.name"));
+        ImGui::TableSetupColumn(text_get(ui->text, "abilities.zone"));
+        ImGui::TableSetupColumn(text_get(ui->text, "abilities.uses"));
+        ImGui::TableSetupColumn(text_get(ui->text, "abilities.research"));
+        ImGui::TableSetupColumn(text_get(ui->text, "abilities.train"));
+        ImGui::TableHeadersRow();
+        for (u32 index = 0; index < api->chart_count(e); ++index)
+        {
+            engine_chart_row row = api->chart_row_at(e, index);
+            char zone[48], button[64];
+            text_label(ui->text, "chart_zone", row.zone, zone, sizeof(zone));
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn(); ImGui::TextUnformatted(ui_text_with_key(ui, "chart", row.key));
+            ImGui::TableNextColumn(); ImGui::TextUnformatted(zone);
+            ImGui::TableNextColumn(); ImGui::Text("%u%s", chart.uses[index], (chart.known >> index) & 1 ? " *" : "");
+            ImGui::TableNextColumn();
+            snprintf(button, sizeof(button), "%s###research%u", text_get(ui->text, "abilities.research"), index);
+            if (ImGui::SmallButton(button)) ui_growth_result(ui, "abilities.research", api->command_research_ability(e, ui->city.selected, (u8)index));
+            ImGui::TableNextColumn();
+            snprintf(button, sizeof(button), "%s###train%u", text_get(ui->text, "abilities.train"), index);
+            ImGui::BeginDisabled(!chart.uses[index] || ui->game.trainee == ENGINE_NO_OFFICER);
+            if (ImGui::SmallButton(button)) ui_growth_result(ui, "abilities.train", api->command_train_officer(e, ui->game.trainee, (u8)index));
+            ImGui::EndDisabled();
+        }
+        ImGui::EndTable();
+    }
+    if (ui->command_message[0]) ImGui::TextWrapped("%s", ui->command_message);
+    ImGui::End();
+}
+
+/* ---- 情報 (F-143): the faction, its units and corps, and the lists ------------------------- */
+
+internal void
+ui_draw_info(ui_state *ui, engine_api *api)
+{
+    char title[128], label[96];
+    ImGui::SetNextWindowSize(ImVec2(460, 420), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "info.title", "Info"), &ui->show_info)) { ImGui::End(); return; }
+    void *e = api->engine;
+    u8 force = api->whose_turn(e);
+    if (force == ENGINE_NO_FACTION) { ImGui::TextUnformatted(text_get(ui->text, "court.no_faction")); ImGui::End(); return; }
+    char name[UI_NAME_SIZE * 2];
+    ui_force_text(ui, api, force, name, sizeof(name));
+    u32 cities = 0, officers = 0, units = 0, corps = 0;
+    for (u32 index = 0; index < api->city_count(e); ++index) cities += api->city_at(e, index).owner_force_id == force;
+    for (u32 index = 0; index < api->officer_count(e); ++index) { engine_officer officer = api->officer_at(e, index); officers += officer.force_id == force && officer.status <= 3; }
+    for (u32 index = 1; index < SIM_CORPS_CAPACITY; ++index) corps += api->corps_at(e, force, (u8)index).alive;
+    engine_rank_kind rank = api->rank_kind_at(e, api->faction_rank(e, force));
+    ImGui::Text("%s   %s: %s", name, text_get(ui->text, "info.rank"), ui_text_with_key(ui, "rank", rank.key));
+    ImGui::Text("%s %u   %s %u   %s %u   %s %u", text_get(ui->text, "info.cities"), cities, text_get(ui->text, "info.officers"), officers,
+                text_get(ui->text, "info.corps"), corps, text_get(ui->text, "info.technique"), api->technique_points(e, force));
+    ImGui::SeparatorText(text_get(ui->text, "info.units"));
+    for (u32 id = 0; id < api->unit_count(e); ++id)
+    {
+        engine_unit unit = api->unit_at(e, id);
+        if (unit.id == ENGINE_NO_UNIT || unit.force_id != force) continue;
+        char text[UI_NAME_SIZE * 4];
+        ui_unit_label(ui, api, &unit, text, sizeof(text));
+        ImGui::BulletText("%s", text);
+        units++;
+    }
+    if (!units) ImGui::TextDisabled("-");
+    ImGui::Separator();
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "info.open_officers", "info_officers"))) ui->show_officers = true;
+    ImGui::SameLine();
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "info.open_cities", "info_cities"))) ui->show_cities = true;
+    ImGui::SameLine();
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "info.open_bases", "info_bases"))) ui->show_bases = true;
+    ImGui::SameLine();
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "info.open_techniques", "info_techniques"))) ui->show_techniques = true;
+    ImGui::End();
+}
+
+/* All the game screens; each draws only while it is open. */
+internal void
+ui_draw_game_screens(ui_state *ui, engine_api *api)
+{
+    if (ui->show_title)          ui_draw_title(ui, api);
+    if (ui->show_scenarios)      ui_draw_scenarios(ui, api);
+    if (ui->show_rulers)         ui_draw_rulers(ui, api);
+    if (ui->show_start_settings) ui_draw_start_settings(ui, api);
+    if (ui->show_topbar)         ui_draw_topbar(ui, api);
+    if (ui->show_history)        ui_draw_history(ui, api);
+    if (ui->show_saveload)       ui_draw_saveload(ui, api);
+    if (ui->show_options)        ui_draw_options(ui, api);
+    if (ui->show_new_officer)    ui_draw_new_officer(ui, api);
+    if (ui->show_editor)         ui_draw_editor(ui, api);
+    if (ui->show_battles)        ui_draw_battles(ui, api);
+    if (ui->show_abilities)      ui_draw_abilities(ui, api);
+    if (ui->show_info)           ui_draw_info(ui, api);
+}

@@ -59,6 +59,8 @@ internal b32 text_big5_from_private_use(u32 code_point, u8 *lead, u8 *trail);
    decoder reads the next byte as a new character. Returns the number of
    bytes it wrote, without the NUL. */
 internal u32 text_decode_big5_into(const u8 *bytes, u32 length, char *out, u32 out_size);
+/* M9: the Big5 bytes of UTF-8 text; 0 if a character has no Big5 code. */
+internal u32 text_encode_big5(const char *utf8, u8 *out, u32 out_size);
 
 /* As text_decode_big5_into, into a buffer from the arena. */
 internal char *text_decode_big5(const u8 *bytes, u32 length, memory_arena *arena);

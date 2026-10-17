@@ -335,6 +335,7 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
         if (game.is_valid)
         {
             game.update_and_render(&memory, &input, imgui, &frame);
+            if (memory.quit_requested) PostQuitMessage(0);   /* M9: 結束遊戲 on the title menu */
         }
         else
         {

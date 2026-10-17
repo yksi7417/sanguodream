@@ -105,6 +105,19 @@ enum recorder_call_kind
     RECORDER_PENDING_EVENT,
     RECORDER_SAVE_SLOT,        /* M9 queries */
     RECORDER_REFRESH_SAVE_SLOTS,
+    RECORDER_CHART_COUNT,
+    RECORDER_CHART_ROW_AT,
+    RECORDER_FACTION_CHART,
+    RECORDER_ANCIENT_COUNT,
+    RECORDER_ANCIENT_AT,
+    RECORDER_NEW_OFFICER_COUNT,
+    RECORDER_HISTORY_COUNT,
+    RECORDER_HISTORY_AT,
+    RECORDER_HISTORY_READY,
+    RECORDER_SCENARIO_COUNT,
+    RECORDER_SCENARIO_AT,
+    RECORDER_BATTLE_COUNT,
+    RECORDER_BATTLE_AT,
     RECORDER_END_TURN,        /* commands start here */
     RECORDER_ADVANCE_TURNS,
     RECORDER_LEDGER_CLEAR,
@@ -168,6 +181,11 @@ enum recorder_call_kind
     RECORDER_SET_BASE,
     RECORDER_SAVE_GAME,            /* M9: arg = the slot */
     RECORDER_LOAD_GAME,            /* arg = the slot */
+    RECORDER_CREATE_OFFICER,       /* arg = the type | the city << 8 */
+    RECORDER_COMMAND_RESEARCH_ABILITY, /* arg = the row | the city << 8 */
+    RECORDER_COMMAND_TRAIN_OFFICER,    /* arg = the row | the officer << 8 */
+    RECORDER_TRIGGER_HISTORY,      /* arg = the row */
+    RECORDER_LOAD_SCENARIO,
     RECORDER_CALL_KIND_COUNT
 };
 
@@ -217,6 +235,7 @@ struct engine_recorder
     b32           pending_active;     /* M8: the pending_event answer */
     sim_corps_order last_corps;       /* the order of the last command_corps */
     char          last_save_comment[ENGINE_SAVE_COMMENT_SIZE];   /* M9: the comment of the last save_game */
+    sim_new_officer_order last_newcomer;   /* the order of the last create_officer */
 };
 
 internal void
@@ -1365,6 +1384,111 @@ internal engine_save_slot recorder_save_slot(void *o, u32 slot)
 }
 internal void recorder_refresh_save_slots(void *o) { recorder_record((engine_recorder *)o, RECORDER_REFRESH_SAVE_SLOTS, 0); }
 
+/* ---- M9: two chart rows (row 0 with 2 uses), one ancient officer, one
+   history row, two scenarios (the save and an unavailable PK one), two
+   battles ------------------------------------------------------------------ */
+internal u32 recorder_chart_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_CHART_COUNT, 0); return 2; }
+internal engine_chart_row recorder_chart_row_at(void *o, u32 index)
+{
+    recorder_record((engine_recorder *)o, RECORDER_CHART_ROW_AT, index);
+    engine_chart_row row = {};
+    row.id = index < 2 ? (u8)index : (u8)ENGINE_NO_ROW;
+    snprintf(row.key, sizeof(row.key), "%s", index ? "force_5" : "leadership_5");
+    row.kind = CHART_PLUS; row.target = (u8)index; row.amount = 5; row.count = 3; row.months = 3;
+    return row;
+}
+internal engine_faction_chart recorder_faction_chart(void *o, u8 force)
+{
+    recorder_record((engine_recorder *)o, RECORDER_FACTION_CHART, force);
+    engine_faction_chart chart = {};
+    chart.uses[0] = 2;
+    chart.known   = 1;
+    chart.job_row = ENGINE_NO_ROW;
+    chart.job_city = ENGINE_NO_CITY;
+    return chart;
+}
+internal u32 recorder_ancient_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_ANCIENT_COUNT, 0); return 1; }
+internal engine_ancient recorder_ancient_at(void *o, u32 index)
+{
+    recorder_record((engine_recorder *)o, RECORDER_ANCIENT_AT, index);
+    engine_ancient row = {};
+    row.id = index == 0 ? 0 : (u8)ENGINE_NO_ROW;
+    snprintf(row.key, sizeof(row.key), "xiang_yu");
+    row.family_name[0] = 0xB6; row.family_name[1] = 0xB5; row.given_name[0] = 0xA6; row.given_name[1] = 0xD0;
+    for (u32 ability = 0; ability < CONTENT_ABILITY_COUNT; ++ability) row.abilities[ability] = 90;
+    return row;
+}
+internal u32 recorder_new_officer_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_NEW_OFFICER_COUNT, 0); return 0; }
+internal u32 recorder_history_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_HISTORY_COUNT, 0); return 1; }
+internal engine_history_kind recorder_history_at(void *o, u32 index)
+{
+    recorder_record((engine_recorder *)o, RECORDER_HISTORY_AT, index);
+    engine_history_kind kind = {};
+    kind.id = index == 0 ? 0 : (u8)ENGINE_NO_ROW;
+    snprintf(kind.key, sizeof(kind.key), "zhao_yun");
+    kind.chance = 100;
+    return kind;
+}
+internal b32 recorder_history_ready(void *o, u32 row, u8 force) { (void)force; recorder_record((engine_recorder *)o, RECORDER_HISTORY_READY, row); return false; }
+internal u32 recorder_scenario_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_SCENARIO_COUNT, 0); return 2; }
+internal engine_scenario recorder_scenario_at(void *o, u32 index)
+{
+    recorder_record((engine_recorder *)o, RECORDER_SCENARIO_AT, index);
+    engine_scenario scenario = {};
+    scenario.id = index < 2 ? (u8)index : (u8)ENGINE_NO_ROW;
+    snprintf(scenario.key, sizeof(scenario.key), "%s", index ? "lu_bu_campaign" : "sample_save");
+    scenario.kind      = (u8)(index ? ENGINE_SCENARIO_PK : ENGINE_SCENARIO_SAVE);
+    scenario.year      = (u16)(index ? 0 : 194);
+    scenario.available = index == 0;
+    if (index == 0) snprintf(scenario.file, sizeof(scenario.file), "sample.s11");
+    return scenario;
+}
+internal u32 recorder_battle_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_BATTLE_COUNT, 0); return 2; }
+internal engine_battle recorder_battle_at(void *o, u32 index)
+{
+    recorder_record((engine_recorder *)o, RECORDER_BATTLE_AT, index);
+    engine_battle battle = {};
+    battle.id = index < 2 ? (u8)index : (u8)ENGINE_NO_ROW;
+    snprintf(battle.key, sizeof(battle.key), "%s", index ? "rebels" : "hefei");
+    battle.open_at_start = index == 0;
+    return battle;
+}
+internal engine_command_result recorder_create_officer(void *o, const sim_new_officer_order *order)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_CREATE_OFFICER, (u32)order->type | ((u32)order->city_id << 8));
+    r->last_newcomer = *order;
+    return recorder_unit_result(r);
+}
+internal engine_command_result recorder_command_research_ability(void *o, u8 city, u8 row)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_COMMAND_RESEARCH_ABILITY, (u32)row | ((u32)city << 8));
+    return recorder_unit_result(r);
+}
+internal engine_command_result recorder_command_train_officer(void *o, u16 officer, u8 row)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_COMMAND_TRAIN_OFFICER, (u32)row | ((u32)officer << 8));
+    return recorder_unit_result(r);
+}
+internal engine_command_result recorder_trigger_history(void *o, u32 row, u8 force)
+{
+    (void)force;
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_TRIGGER_HISTORY, row);
+    return recorder_unit_result(r);
+}
+internal engine_load_result recorder_load_scenario(void *o, const char *path)
+{
+    (void)path;
+    recorder_record((engine_recorder *)o, RECORDER_LOAD_SCENARIO, 0);
+    engine_load_result result = {};
+    result.status = ENGINE_LOAD_OK;
+    result.detail = "ok";
+    return result;
+}
+
 /* The command kind of the recorder call of a city command. */
 internal recorder_call_kind
 recorder_call_of(engine_command_kind kind)
@@ -1545,6 +1669,24 @@ recorder_make_api(engine_recorder *r)
     api.load_game             = recorder_load_game;
     api.save_slot             = recorder_save_slot;
     api.refresh_save_slots    = recorder_refresh_save_slots;
+    api.chart_count           = recorder_chart_count;
+    api.chart_row_at          = recorder_chart_row_at;
+    api.faction_chart         = recorder_faction_chart;
+    api.ancient_count         = recorder_ancient_count;
+    api.ancient_at            = recorder_ancient_at;
+    api.new_officer_count     = recorder_new_officer_count;
+    api.create_officer        = recorder_create_officer;
+    api.command_research_ability = recorder_command_research_ability;
+    api.command_train_officer = recorder_command_train_officer;
+    api.history_count         = recorder_history_count;
+    api.history_at            = recorder_history_at;
+    api.history_ready         = recorder_history_ready;
+    api.trigger_history       = recorder_trigger_history;
+    api.scenario_count        = recorder_scenario_count;
+    api.scenario_at           = recorder_scenario_at;
+    api.load_scenario         = recorder_load_scenario;
+    api.battle_count          = recorder_battle_count;
+    api.battle_at             = recorder_battle_at;
     return api;
 }
 

@@ -548,3 +548,42 @@ text_name(text_catalog *catalog, const u8 *bytes, u32 size, char *out, u32 out_s
     text_decode_big5_into(bytes, size, out, out_size);
     return out;
 }
+
+/* M9: the Big5 bytes of a UTF-8 text, for a name that a player types (新武將).
+   Each code point is found by a search of the Big5 table. Returns the byte
+   count, or 0 if a character has no Big5 code or out is too small. */
+internal u32
+text_encode_big5(const char *utf8, u8 *out, u32 out_size)
+{
+    u32 used = 0;
+    for (const u8 *at = (const u8 *)utf8; *at;)
+    {
+        u32 code = 0, extra = 0;
+        if      (*at < 0x80)           { code = *at; extra = 0; }
+        else if ((*at & 0xE0) == 0xC0) { code = *at & 0x1F; extra = 1; }
+        else if ((*at & 0xF0) == 0xE0) { code = *at & 0x0F; extra = 2; }
+        else if ((*at & 0xF8) == 0xF0) { code = *at & 0x07; extra = 3; }
+        else return 0;
+        ++at;
+        for (u32 index = 0; index < extra; ++index)
+        {
+            if ((*at & 0xC0) != 0x80) return 0;
+            code = (code << 6) | (*at++ & 0x3F);
+        }
+        if (code < 0x80 || used + 2 > out_size) return 0;
+        b32 found = false;
+        for (u32 lead = 0xA1; lead <= 0xF9 && !found; ++lead)
+        {
+            for (u32 index = 0; index < BIG5_TRAIL_COUNT && !found; ++index)
+            {
+                u8 trail = text_big5_trail_of_index(index);
+                if (text_big5_pair_to_code_point((u8)lead, trail) != code) continue;
+                out[used++] = (u8)lead;
+                out[used++] = trail;
+                found = true;
+            }
+        }
+        if (!found) return 0;
+    }
+    return used;
+}

@@ -524,6 +524,11 @@ register_ui_tests(ImGuiTestEngine *e)
         v.ui.show_ruler          = true;
         v.ui.show_bases          = true;
         v.recorder.pending_active = true;
+        v.ui.show_title = v.ui.show_scenarios = v.ui.show_rulers = v.ui.show_start_settings = true;   /* M9 */
+        v.ui.show_topbar = v.ui.show_history = v.ui.show_saveload = v.ui.show_options = true;
+        v.ui.show_new_officer = v.ui.show_editor = v.ui.show_battles = v.ui.show_abilities = v.ui.show_info = true;
+        v.ui.game.chosen = 1;
+        v.ui.game.ancient = 0;
         v.ui.units.selected      = 0;
         for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind) v.ui.show_command[kind] = true;
         v.ui.ledger_city         = 1;
@@ -1379,6 +1384,215 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK(ctx->ItemExists("bases_table"));
         IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_BASE_AT), 4u);   /* the table and the mini map */
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "title_new_game_flow_loads_chooses_rulers_and_sets_settings");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_title          = true;
+        ctx->SetRef("###Title");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###title_new");
+        ctx->Yield(2);
+        IM_CHECK(v.ui.show_scenarios && recorder_count_commands(&v.recorder) == 0u);
+        ctx->SetRef("###Scenarios");
+        IM_CHECK((ctx->ItemInfo("###sc1").ItemFlags & ImGuiItemFlags_Disabled) != 0);   /* a PK scenario without its file */
+        ctx->ItemClick("###sc0");
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOAD_SAVE), 1u);
+        IM_CHECK(v.ui.show_rulers && !v.ui.show_scenarios);
+        ctx->SetRef("###Rulers");
+        ctx->ItemClick("###ruler1");
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###rulers_ok");
+        ctx->Yield(2);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_SET_FACTION_HUMAN), 1u);
+        IM_CHECK(v.ui.show_start_settings);
+        ctx->SetRef("###StartSettings");
+        ctx->ItemClick("###level2");
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###start_ok");
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_SET_SETTINGS), 1u);
+        IM_CHECK(v.recorder.settings.difficulty == DIFFICULTY_HARD && v.ui.show_topbar && v.ui.show_history && !v.ui.show_title);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "topbar_proceed_issues_one_end_turn");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_topbar         = true;
+        v.ui.show_history        = true;
+        ctx->SetRef("###TopBar");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###proceed");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_END_TURN), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "save_screen_slot_and_comment_issue_one_save_game");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_topbar         = true;
+        ctx->SetRef("###TopBar");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###open_save");
+        ctx->Yield(2);
+        IM_CHECK(v.ui.show_saveload && recorder_count(&v.recorder, RECORDER_REFRESH_SAVE_SLOTS) == 1u && recorder_count_commands(&v.recorder) == 0u);
+        ctx->SetRef("###SaveLoad");
+        ctx->ItemClick("###slot2");
+        ctx->Yield();
+        ctx->ItemInputValue("###comment", "spring");
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###save_ok");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_SAVE_GAME), 1u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_SAVE_GAME), 2u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK_STR_EQ(v.recorder.last_save_comment, "spring");
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "load_screen_slot_issues_one_load_game");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_title          = true;
+        ctx->SetRef("###Title");
+        ctx->Yield(2);
+        ctx->ItemClick("###title_load");
+        ctx->Yield(2);
+        ctx->SetRef("###SaveLoad");
+        IM_CHECK((ctx->ItemInfo("###slot0").ItemFlags & ImGuiItemFlags_Disabled) != 0);   /* an empty slot does not load */
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###slot1");
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOAD_GAME), 1u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_LOAD_GAME), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(v.ui.show_topbar && !v.ui.show_saveload);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "new_officer_dialog_issues_one_create_officer");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_new_officer    = true;
+        v.ui.game.city           = 1;
+        ctx->SetRef("###NewOfficer");
+        ctx->Yield(2);
+        ctx->ItemInputValue("###family", "\xE5\xBC\xB5");   /* 張 */
+        ctx->ItemInputValue("###given", "\xE4\xB8\x80");    /* 一 */
+        ctx->ItemClick("###type1");
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###create_officer");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_CREATE_OFFICER), 1u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_CREATE_OFFICER), (u32)OFFICER_TYPE_STRATEGIST | (1u << 8));
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(v.recorder.last_newcomer.family_name[0] == 0xB1 && v.recorder.last_newcomer.family_name[1] == 0x69 &&
+                 v.recorder.last_newcomer.given_name[0] == 0xA4 && v.recorder.last_newcomer.ancient == SIM_NO_ANCIENT);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "ability_chart_research_and_train_issue_one_command_each");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_abilities      = true;
+        v.ui.city.selected       = 0;
+        v.ui.game.trainee        = 101;
+        ctx->SetRef("###Abilities");
+        ctx->Yield(2);
+        IM_CHECK((ctx->ItemInfo("chart_table/###train1").ItemFlags & ImGuiItemFlags_Disabled) != 0);   /* no use of row 1 */
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("chart_table/###research1");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_COMMAND_RESEARCH_ABILITY), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("chart_table/###train0");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_COMMAND_TRAIN_OFFICER), 0u | (101u << 8));
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "editor_apply_buttons_issue_the_editor_commands");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_editor         = true;
+        v.ui.game.editor_officer = 101;
+        v.ui.city.selected       = 1;
+        ctx->SetRef("###Editor");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###editor_apply_officer");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_SET_OFFICER), 101u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###editor_apply_city");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_SET_CITY_GOLD), 1u);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_SET_CITY_RESOURCE), 2u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 3u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "battle_list_and_info_screen_read_and_command_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_battles        = true;
+        v.ui.show_info           = true;
+        v.ui.show_options        = true;
+        recorder_reset(&v.recorder);
+        ctx->Yield(2);
+        ctx->SetRef("###Battles");
+        IM_CHECK((ctx->ItemInfo("###battle0").ItemFlags & ImGuiItemFlags_Disabled) != 0);   /* no battle data in the clean room */
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_BATTLE_AT), 2u);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_FACTION_RANK), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        ctx->SetRef("###Options");
+        ctx->ItemClick("###open_new_officer");
+        ctx->Yield();
+        IM_CHECK(v.ui.show_new_officer);
     };
 
     t = IM_REGISTER_TEST(e, "ui", "hex_map_draws_buildings_and_fire_and_commands_nothing");

@@ -26,6 +26,7 @@ ui_label(char *out, u32 out_size, ui_state *ui, const char *text_id, const char 
 #include "ui/ui_combat.cpp"
 #include "ui/ui_court.cpp"
 #include "ui/ui_rivals.cpp"
+#include "ui/ui_game.cpp"
 
 /* Writes an overlay colour for one cell of the terrain view, if it is on the map. */
 internal void
@@ -112,6 +113,20 @@ ui_init(ui_state *ui, text_catalog *text)
     ui->ruler.corps           = 1;
     ui->ruler.policy          = CORPS_POLICY_DELEGATE;
     ui->ruler.flags           = CORPS_FLAG_ALL;
+    ui->game                  = {};   /* M9: the game screens; the game exe opens the title */
+    ui->game.chosen           = ENGINE_SAVE_SLOTS;
+    ui->game.city             = ENGINE_NO_CITY;
+    ui->game.ancient          = SIM_NO_ANCIENT;
+    ui->game.editor_officer   = ENGINE_NO_OFFICER;
+    ui->game.trainee          = ENGINE_NO_OFFICER;
+    ui->game.birth_year       = 170;
+    ui->game.type             = OFFICER_TYPE_ALL_ROUND;
+    ui->game.personality      = PERSONALITY_CALM;
+    ui->game.editor_loyalty   = 80;
+    ui->show_title = ui->show_scenarios = ui->show_rulers = ui->show_start_settings = false;
+    ui->show_topbar = ui->show_history = ui->show_saveload = ui->show_options = false;
+    ui->show_new_officer = ui->show_editor = ui->show_battles = ui->show_abilities = ui->show_info = false;
+    ui->quit_requested = false;
     ui->ledger_city           = ENGINE_ANY_CITY;
     ui->ledger_resource       = ENGINE_ANY_RESOURCE;
     ui->text          = text;
@@ -157,6 +172,8 @@ ui_draw_menu_bar(ui_state *ui, engine_api *api, ui_frame_info *frame)
         ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.diplomacy", "Diplomacy"), 0, &ui->show_diplomacy);
         ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.ruler", "Ruler"), 0, &ui->show_ruler);
         ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.bases", "Bases"), 0, &ui->show_bases);
+        ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.title", "TitleMenu"), 0, &ui->show_title);
+        ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.abilities", "AbilitiesMenu"), 0, &ui->show_abilities);
             ImGui::MenuItem("Event ledger", 0, &ui->show_ledger);
             ImGui::MenuItem("Memory", 0, &ui->show_memory);
             ImGui::Separator();
@@ -406,6 +423,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->show_ruler)      ui_draw_ruler(ui, api);
     if (ui->show_bases)      ui_draw_bases(ui, api);
     ui_draw_event_dialog(ui, api);   /* opens while an event waits for a choice */
+    ui_draw_game_screens(ui, api);   /* M9: the title, the scenario list, the top bar and the other game screens */
     for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind)
     {
         if (ui->show_command[kind]) ui_draw_city_command(ui, api, kind);
