@@ -24,6 +24,7 @@ ui_label(char *out, u32 out_size, ui_state *ui, const char *text_id, const char 
 #include "ui/ui_growth.cpp"
 #include "ui/ui_march.cpp"
 #include "ui/ui_combat.cpp"
+#include "ui/ui_court.cpp"
 
 /* Writes an overlay colour for one cell of the terrain view, if it is on the map. */
 internal void
@@ -86,6 +87,21 @@ ui_init(ui_state *ui, text_catalog *text)
     ui->units                 = {};
     ui->units.selected        = ENGINE_NO_UNIT;
     ui->units.supply_target   = ENGINE_NO_UNIT;
+    ui->show_court            = false;
+    ui->show_diplomacy        = false;
+    ui->show_duel             = false;
+    ui->show_debate           = false;
+    ui->court                 = {};
+    ui->court.officer = ui->court.target = ui->court.partner = ui->court.captive = ENGINE_NO_OFFICER;
+    ui->court.post            = ENGINE_NO_ROW;
+    ui->court.item            = ENGINE_NO_ROW;
+    ui->diplomacy             = {};
+    ui->diplomacy.force       = ENGINE_NO_FACTION;
+    ui->diplomacy.second      = ENGINE_NO_FACTION;
+    ui->diplomacy.city        = ENGINE_NO_CITY;
+    ui->diplomacy.captive     = ENGINE_NO_OFFICER;
+    ui->diplomacy.gold        = 1000;
+    ui->diplomacy.months      = 6;
     ui->ledger_city           = ENGINE_ANY_CITY;
     ui->ledger_resource       = ENGINE_ANY_RESOURCE;
     ui->text          = text;
@@ -127,6 +143,8 @@ ui_draw_menu_bar(ui_state *ui, engine_api *api, ui_frame_info *frame)
             ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.techniques", "Techniques"), 0, &ui->show_techniques);
             ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.unit", "Unit"), 0, &ui->show_unit);
             ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.minimap", "MiniMap"), 0, &ui->show_minimap);
+        ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.court", "Court"), 0, &ui->show_court);
+        ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.diplomacy", "Diplomacy"), 0, &ui->show_diplomacy);
             ImGui::MenuItem("Event ledger", 0, &ui->show_ledger);
             ImGui::MenuItem("Memory", 0, &ui->show_memory);
             ImGui::Separator();
@@ -370,6 +388,9 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->show_unit_menu)  ui_draw_unit_menu(ui, api);
     if (ui->show_minimap)    ui_draw_minimap(ui, api);
     if (ui->show_actions)    ui_draw_actions(ui, api);
+    if (ui->show_court)      ui_draw_court(ui, api);
+    if (ui->show_diplomacy)  ui_draw_diplomacy(ui, api);
+    ui_draw_mini_games(ui, api);   /* the duel and debate screens open when one runs */
     for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind)
     {
         if (ui->show_command[kind]) ui_draw_city_command(ui, api, kind);

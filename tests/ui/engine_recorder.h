@@ -74,6 +74,20 @@ enum recorder_call_kind
     RECORDER_BUILDING_AT_HEX,
     RECORDER_FIRE_VIEW,
     RECORDER_CITY_SIEGE,
+    RECORDER_OFFICER_DETAIL,
+    RECORDER_SKILL_KIND_COUNT,
+    RECORDER_SKILL_KIND_AT,
+    RECORDER_POST_KIND_COUNT,
+    RECORDER_POST_KIND_AT,
+    RECORDER_RANK_KIND_COUNT,
+    RECORDER_RANK_KIND_AT,
+    RECORDER_FACTION_RANK,
+    RECORDER_POST_HOLDER,
+    RECORDER_ITEM_COUNT,
+    RECORDER_ITEM_AT,
+    RECORDER_DIPLOMACY,
+    RECORDER_DUEL_VIEW,
+    RECORDER_DEBATE_VIEW,
     RECORDER_END_TURN,        /* commands start here */
     RECORDER_ADVANCE_TURNS,
     RECORDER_LEDGER_CLEAR,
@@ -119,6 +133,15 @@ enum recorder_call_kind
     RECORDER_SET_UNIT,
     RECORDER_SET_UNIT_PLACE,
     RECORDER_SET_CITY_DURABILITY,
+    RECORDER_COMMAND_COURT,       /* arg = the engine_command_kind */
+    RECORDER_COMMAND_DUEL,
+    RECORDER_COMMAND_DUEL_ACTION, /* arg = action | value << 8 */
+    RECORDER_COMMAND_DEBATE_ACTION,
+    RECORDER_START_DEBATE,
+    RECORDER_SET_OFFICER,
+    RECORDER_SET_ITEM_OWNER,
+    RECORDER_SET_DIPLOMACY,
+    RECORDER_SET_STAMINA,
     RECORDER_CALL_KIND_COUNT
 };
 
@@ -162,6 +185,9 @@ struct engine_recorder
     hex_coord     reach_cells[3];
     u32           reach_costs[3];
     u8            fire[64];           /* the fire_view answer: one burning cell */
+    b32           duel_active;        /* M7: the duel_view and debate_view answers */
+    b32           debate_active;
+    engine_court_order last_court;    /* the order of the last command_court */
 };
 
 internal void
@@ -1033,6 +1059,129 @@ internal void recorder_set_city_durability(void *o, u8 city_id, u32 durability)
     recorder_record((engine_recorder *)o, RECORDER_SET_CITY_DURABILITY, city_id);
 }
 
+/* M7: officer 100 is the selected officer; two posts, one rank, one item;
+   faction 2 is the other faction. */
+internal engine_officer_detail recorder_officer_detail(void *o, u16 officer_id)
+{
+    recorder_record((engine_recorder *)o, RECORDER_OFFICER_DETAIL, officer_id);
+    engine_officer_detail detail = {};
+    detail.officer_id = officer_id >= 100 && officer_id < 103 ? officer_id : ENGINE_NO_OFFICER;
+    detail.loyalty = 80; detail.ambition = 2; detail.justice = 2; detail.stamina = 100; detail.post = ENGINE_NO_ROW; detail.soldier_cap = 5000;
+    detail.former_force = ENGINE_NO_FACTION; detail.age = 30;
+    for (u32 slot = 0; slot < OFFICER_RELATION_SLOTS; ++slot) detail.liked[slot] = detail.disliked[slot] = ENGINE_NO_OFFICER;
+    detail.recruit_chance = officer_id == 102 ? 60 : 0;
+    return detail;
+}
+internal u32 recorder_skill_kind_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_SKILL_KIND_COUNT, 0); return 0; }
+internal engine_skill_kind recorder_skill_kind_at(void *o, u32 index) { recorder_record((engine_recorder *)o, RECORDER_SKILL_KIND_AT, index); engine_skill_kind kind = {}; return kind; }
+internal u32 recorder_post_kind_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_POST_KIND_COUNT, 0); return 2; }
+internal engine_post_kind recorder_post_kind_at(void *o, u32 index)
+{
+    recorder_record((engine_recorder *)o, RECORDER_POST_KIND_AT, index);
+    engine_post_kind kind = {};
+    kind.id = index < 2 ? (u8)index : ENGINE_NO_ROW;
+    snprintf(kind.key, sizeof(kind.key), "post_%02u", index);
+    kind.merit = index ? 4000 : 0; kind.soldiers = 6000; kind.ability = CONTENT_ABILITY_POLITICS; kind.bonus = 1;
+    return kind;
+}
+internal u32 recorder_rank_kind_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_RANK_KIND_COUNT, 0); return 1; }
+internal engine_rank_kind recorder_rank_kind_at(void *o, u32 index)
+{
+    recorder_record((engine_recorder *)o, RECORDER_RANK_KIND_AT, index);
+    engine_rank_kind kind = {};
+    kind.id = 0; snprintf(kind.key, sizeof(kind.key), "none"); kind.soldiers = 10000;
+    return kind;
+}
+internal u8  recorder_faction_rank(void *o, u8 force) { recorder_record((engine_recorder *)o, RECORDER_FACTION_RANK, force); return 0; }
+internal u16 recorder_post_holder(void *o, u8 force, u8 post) { (void)force; recorder_record((engine_recorder *)o, RECORDER_POST_HOLDER, post); return ENGINE_NO_OFFICER; }
+internal u32 recorder_item_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_ITEM_COUNT, 0); return 1; }
+internal engine_item recorder_item_at(void *o, u32 index)
+{
+    recorder_record((engine_recorder *)o, RECORDER_ITEM_AT, index);
+    engine_item item = {};
+    item.id = index == 0 ? 0 : ENGINE_NO_ROW;
+    item.name[0] = 'A'; item.strength = 10; item.owner = 101; item.city = ENGINE_NO_CITY;
+    return item;
+}
+internal engine_diplomacy recorder_diplomacy(void *o, u8 a, u8 b)
+{
+    (void)a;
+    recorder_record((engine_recorder *)o, RECORDER_DIPLOMACY, b);
+    engine_diplomacy state = {};
+    state.friendliness = 50; state.level = 2;
+    return state;
+}
+internal engine_duel_view recorder_duel_view(void *o)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_DUEL_VIEW, 0);
+    engine_duel_view view = {};
+    view.active = r->duel_active;
+    for (u32 index = 0; index < 2; ++index)
+    {
+        view.side[index].officers[0] = (u16)(100 + index);
+        view.side[index].officers[1] = view.side[index].officers[2] = ENGINE_NO_OFFICER;
+        view.side[index].stamina[0]  = 80;
+        view.side[index].spirit      = 120;
+    }
+    view.ready[DUEL_FINISHER] = r->duel_active;
+    view.ready[DUEL_RETREAT]  = r->duel_active;
+    return view;
+}
+internal engine_debate_view recorder_debate_view(void *o)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_DEBATE_VIEW, 0);
+    engine_debate_view view = {};
+    view.active = r->debate_active;
+    for (u32 index = 0; index < 2; ++index)
+    {
+        view.side[index].officer    = (u16)(100 + index);
+        view.side[index].hand_count = 3;
+        view.side[index].mind       = 100;
+        view.side[index].rocks      = 5;
+        for (u32 place = 0; place < 3; ++place) view.side[index].hand[place] = sim_card_make(CARD_TOPIC, (u8)place, 2);
+        view.last[index].type = CARD_TYPE_COUNT;
+    }
+    return view;
+}
+internal engine_command_result recorder_command_court(void *o, engine_command_kind kind, const engine_court_order *order)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_COMMAND_COURT, kind);
+    r->last_court = *order;
+    return recorder_unit_result(r);
+}
+internal engine_command_result recorder_command_duel(void *o, u32 unit_id, s32 q, s32 r)
+{ return recorder_unit_target((engine_recorder *)o, RECORDER_COMMAND_DUEL, ENGINE_COMMAND_DUEL, unit_id, 0, q, r); }
+internal engine_command_result recorder_command_duel_action(void *o, u8 action, u8 value)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_COMMAND_DUEL_ACTION, (u32)action | ((u32)value << 8));
+    return recorder_unit_result(r);
+}
+internal engine_command_result recorder_command_debate_action(void *o, u8 action, u8 value)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_COMMAND_DEBATE_ACTION, (u32)action | ((u32)value << 8));
+    return recorder_unit_result(r);
+}
+internal engine_command_result recorder_start_debate(void *o, u16 a, u16 b)
+{
+    (void)b;
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_START_DEBATE, a);
+    return recorder_unit_result(r);
+}
+internal void recorder_set_officer(void *o, u16 officer_id, const engine_officer_edit *edit) { (void)edit; recorder_record((engine_recorder *)o, RECORDER_SET_OFFICER, officer_id); }
+internal void recorder_set_item_owner(void *o, u8 item, u16 officer_id) { (void)officer_id; recorder_record((engine_recorder *)o, RECORDER_SET_ITEM_OWNER, item); }
+internal void recorder_set_diplomacy(void *o, u8 a, u8 b, u32 friendliness, u8 relation, u32 months)
+{
+    (void)a; (void)friendliness; (void)relation; (void)months;
+    recorder_record((engine_recorder *)o, RECORDER_SET_DIPLOMACY, b);
+}
+internal void recorder_set_stamina(void *o, u16 officer_id, u8 stamina) { (void)stamina; recorder_record((engine_recorder *)o, RECORDER_SET_STAMINA, officer_id); }
+
 /* The command kind of the recorder call of a city command. */
 internal recorder_call_kind
 recorder_call_of(engine_command_kind kind)
@@ -1164,6 +1313,29 @@ recorder_make_api(engine_recorder *r)
     api.set_unit             = recorder_set_unit;
     api.set_unit_place       = recorder_set_unit_place;
     api.set_city_durability  = recorder_set_city_durability;
+    api.officer_detail        = recorder_officer_detail;
+    api.skill_kind_count      = recorder_skill_kind_count;
+    api.skill_kind_at         = recorder_skill_kind_at;
+    api.post_kind_count       = recorder_post_kind_count;
+    api.post_kind_at          = recorder_post_kind_at;
+    api.rank_kind_count       = recorder_rank_kind_count;
+    api.rank_kind_at          = recorder_rank_kind_at;
+    api.faction_rank          = recorder_faction_rank;
+    api.post_holder           = recorder_post_holder;
+    api.item_count            = recorder_item_count;
+    api.item_at               = recorder_item_at;
+    api.diplomacy             = recorder_diplomacy;
+    api.duel_view             = recorder_duel_view;
+    api.debate_view           = recorder_debate_view;
+    api.command_court         = recorder_command_court;
+    api.command_duel          = recorder_command_duel;
+    api.command_duel_action   = recorder_command_duel_action;
+    api.command_debate_action = recorder_command_debate_action;
+    api.start_debate          = recorder_start_debate;
+    api.set_officer           = recorder_set_officer;
+    api.set_item_owner        = recorder_set_item_owner;
+    api.set_diplomacy         = recorder_set_diplomacy;
+    api.set_stamina           = recorder_set_stamina;
     return api;
 }
 

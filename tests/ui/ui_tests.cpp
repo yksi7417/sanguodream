@@ -1065,7 +1065,7 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->Yield(2);
         ImGuiTestItemInfo attack = ctx->ItemInfo("###attack"), duel = ctx->ItemInfo("###duel");
         IM_CHECK(attack.ID != 0 && (attack.ItemFlags & ImGuiItemFlags_Disabled) == 0);   /* 攻擊 works since M6 */
-        IM_CHECK(duel.ID != 0 && (duel.ItemFlags & ImGuiItemFlags_Disabled) != 0);       /* 單挑 is grey until M7 */
+        IM_CHECK(duel.ID != 0 && (duel.ItemFlags & ImGuiItemFlags_Disabled) == 0);       /* 單挑 works since M7 */
         recorder_reset(&v.recorder);
         ctx->ItemClick("###wait");
         ctx->Yield();
@@ -1160,6 +1160,127 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_BUILD), 1u);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
         IM_CHECK(v.recorder.last_unit_command.row == 0 && v.recorder.last_unit_command.q == 3 && v.recorder.last_unit_command.r == 2);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "unit_menu_duel_waits_for_a_hex_and_issues_one_command_duel");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.units.selected      = 0;
+        v.ui.show_unit_menu      = true;
+        ctx->SetRef("###UnitMenu");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###duel");
+        ctx->Yield();
+        IM_CHECK(v.ui.combat.pick == UI_PICK_DUEL);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        ui_test_click_cell(ctx, v, hex_make(2, 2));
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_DUEL), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "court_reward_and_appoint_issue_one_command_court_each");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_court          = true;
+        v.ui.court.officer       = 101;
+        ctx->SetRef("###Court");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###reward");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_COURT), 1u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_COMMAND_COURT), (u32)ENGINE_COMMAND_REWARD);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(v.recorder.last_court.officers[0] == 101 && v.recorder.last_court.city_id == 0);
+        ctx->ComboClick("###post/###p1");
+        ctx->Yield();
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###appoint");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_COURT), 1u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_COMMAND_COURT), (u32)ENGINE_COMMAND_APPOINT);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(v.recorder.last_court.target == 101 && v.recorder.last_court.post == 1);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "diplomacy_goodwill_issues_one_command_court");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_diplomacy      = true;
+        v.ui.court.officer       = 101;
+        v.ui.diplomacy.force     = 2;
+        ctx->SetRef("###Diplomacy");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###goodwill");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_COURT), 1u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_COMMAND_COURT), (u32)ENGINE_COMMAND_DIPLOMACY);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(v.recorder.last_court.kind == SIM_DIPLOMACY_GOODWILL && v.recorder.last_court.force == 2 && v.recorder.last_court.officer == 101);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "duel_screen_policy_special_and_round_issue_one_command_each");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.recorder.duel_active   = true;
+        ctx->Yield(2);
+        IM_CHECK(v.ui.show_duel);                                       /* the screen opens when a duel runs */
+        ctx->SetRef("###Duel");
+        static const char *items[3] = { "###policy0", "###special0", "###duel_round" };
+        static const u32 args[3] = { SIM_DUEL_POLICY | (DUEL_ATTACK << 8), SIM_DUEL_SPECIAL | (DUEL_FINISHER << 8), SIM_DUEL_ROUND };
+        for (u32 index = 0; index < 3; ++index)
+        {
+            recorder_reset(&v.recorder);
+            ctx->ItemClick(items[index]);
+            ctx->Yield();
+            IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_DUEL_ACTION), 1u);
+            IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_COMMAND_DUEL_ACTION), args[index]);
+            IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        }
+        ImGuiTestItemInfo peerless = ctx->ItemInfo("###special5");
+        IM_CHECK(peerless.ID != 0 && (peerless.ItemFlags & ImGuiItemFlags_Disabled) != 0);   /* 無雙 is grey without spirit 300 */
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "debate_screen_card_issues_one_command_debate_action");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.recorder.debate_active = true;
+        ctx->Yield(2);
+        IM_CHECK(v.ui.show_debate);
+        ctx->SetRef("###Debate");
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###card1");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_DEBATE_ACTION), 1u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_COMMAND_DEBATE_ACTION), (u32)(SIM_DEBATE_PLAY | (1 << 8)));
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
     };
 
     t = IM_REGISTER_TEST(e, "ui", "hex_map_draws_buildings_and_fire_and_commands_nothing");

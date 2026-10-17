@@ -399,3 +399,350 @@ building.fire_ball_3	Hellfire ball	業火球
 building.fire_ship	Fire ship	火船
 building.dike	Dike	堤防
 building.rockfall	Rockfall	落石
+menu.court	Court	宮廷
+menu.diplomacy	Diplomacy	外交
+court.title	Court	宮廷
+court.no_faction	No faction acts now.	沒有行動中的勢力
+court.rank	Rank	爵位
+court.officer	Officer	武將
+court.loyalty	Loyalty	忠誠
+court.merit	Merit	功績
+court.age	Age	年齡
+court.personality	Personality	性格
+court.ambition	Ambition	野心
+court.justice	Justice	義理
+court.health	Health	健康
+court.stamina	Stamina	體力
+court.post	Post	官職
+court.soldiers	Soldiers	兵力上限
+court.spouse	Spouse	配偶
+court.liked	Liked	親愛
+court.disliked	Disliked	厭惡
+court.reward	Reward	褒賞
+court.exile	Exile	流放
+court.appoint	Appoint	任命
+court.search	Search	探索
+court.recruit_target	Officer to recruit	登庸對象
+court.chance	Chance	成功率
+court.recruit	Recruit	登庸
+court.item	Item	寶物
+court.give	Give	授與
+court.partner	Partner	對象
+court.sworn_kind	Sworn brothers	結義
+court.marriage_kind	Marriage	婚姻
+court.matchmake	Matchmake	仲介
+court.captive	Captive	俘虜
+court.release	Release	釋放
+personality.0	Careful	小心
+personality.1	Calm	冷靜
+personality.2	Bold	剛膽
+personality.3	Reckless	豬突
+health.0	Healthy	健康
+health.1	Light wound	輕傷
+health.2	Heavy wound	重傷
+health.3	Near death	瀕死
+diplomacy.title	Diplomacy	外交
+diplomacy.faction	Faction	勢力
+diplomacy.friendliness	Friendliness	友好度
+diplomacy.relation	Relation	關係
+diplomacy.months	Months	月數
+diplomacy.envoy	Envoy	使者
+diplomacy.gold	Gold	金
+diplomacy.goodwill	Goodwill	親善
+diplomacy.alliance	Alliance	同盟
+diplomacy.break	Break	摒棄
+diplomacy.ceasefire	Ceasefire	停戰協定
+diplomacy.surrender	Demand surrender	降伏勸告
+diplomacy.exchange	Exchange captive	交換俘虜
+diplomacy.aid	Request aid	請求援軍
+diplomacy.captive	Own captive	被俘武將
+diplomacy.second	Second faction	第二勢力
+diplomacy.city	Target city	目標都市
+plot_cmd.two_tigers	Two tigers	二虎競食
+plot_cmd.drive_tiger	Drive the tiger	驅虎吞狼
+plot_cmd.rumour	Rumour	流言
+level.0	Hostile	險惡
+level.1	Unfriendly	不和
+level.2	Neutral	中立
+level.3	Friendly	友好
+level.4	Intimate	親密
+relation.0	None	無
+relation.1	Alliance	同盟
+relation.2	Ceasefire	停戰
+duel.title	Duel	單挑
+duel.round	Round	合
+duel.force	Force	武力
+duel.stamina	Stamina	體力
+duel.spirit	Spirit	鬥志
+duel.policy_0	Attack	重視攻擊
+duel.policy_1	Defence	重視防禦
+duel.policy_2	Spirit	重視鬥志
+duel.policy_3	One blow	重視一擊
+duel_policy.0	Attack	重視攻擊
+duel_policy.1	Defence	重視防禦
+duel_policy.2	Spirit	重視鬥志
+duel_policy.3	One blow	重視一擊
+duel.special_0	Finisher	必殺技
+duel.special_1	Focus	集氣
+duel.special_2	Hold	堅守
+duel.special_3	Retreat	退卻
+duel.special_4	Vital spot	要害
+duel.special_5	Peerless	無雙
+duel.special_6	Hidden weapon	暗器
+duel.special_7	Feigned retreat	偽退
+duel.substitute	Substitute	替換
+duel.next_round	Next round	下一合
+duel.auto	Automatic	自動
+duel.close	Close	關閉
+duel_result.0	Running	進行中
+duel_result.1	Victory	勝利
+duel_result.2	Draw	平手
+duel_result.3	Retreat	退卻
+debate.title	Debate	舌戰
+debate.topic	Topic	話題
+debate.intellect	Intellect	智力
+debate.mind	Mind	心理
+debate.anger	Anger	怒氣
+debate.rage	Rage	激憤
+debate.last_left	Played	出牌
+debate.last_right	Answer	回應
+debate.speak	Speak with the best card	自動發言
+debate.listen	Let the other speak	對方發言
+debate.won	The debate is won.	舌戰勝利
+debate.lost	The debate is lost.	舌戰失敗
+debate.sympathy	Show sympathy	施予同情
+debate.press	Press	進逼
+debate.close	Close	關閉
+topic.0	Reason	道理
+topic.1	Story	故事
+topic.2	Season	時節
+strength.1	small	小
+strength.2	medium	中
+strength.3	large	大
+card.0	Topic	話題
+card.1	Ignore	無視
+card.2	Shout	大喝
+card.3	Sophistry	詭辯
+card.4	Calm	鎮靜
+card.5	Anger	憤怒
+card.6	Rethink	熟慮
+refusal.not_recruitable	the officer cannot be recruited	無法登庸
+refusal.no_item	the faction does not hold the item	沒有寶物
+refusal.no_post	no such post	沒有官職
+refusal.post_taken	another officer holds the post	官職已有人擔任
+refusal.no_merit	not sufficient merit	功績不足
+refusal.no_rank	the rank of the ruler does not allow it	爵位不足
+refusal.not_matchable	the two officers cannot be matched	無法仲介
+refusal.no_faction	no such faction	沒有勢力
+refusal.relation	the relation does not allow it	關係不允許
+refusal.at_peace	the factions are at peace	和平中
+refusal.busy	a duel or a debate runs	單挑或舌戰進行中
+refusal.no_duel	no duel or debate runs	沒有單挑或舌戰
+refusal.no_spirit	not sufficient fighting spirit	鬥志不足
+refusal.not_captive	the officer is no captive	不是俘虜
+skill.flying_general	Flying general	飛將
+skill.escape	Escape	遁走
+skill.forced_march	Forced march	強行
+skill.long_drive	Long drive	長驅
+skill.push_on	Push on	推進
+skill.helmsman	Helmsman	操舵
+skill.trailblazer	Trailblazer	踏破
+skill.haul	Haul	運搬
+skill.antidote	Antidote	解毒
+skill.sweep	Sweep	掃討
+skill.awe	Awe	威風
+skill.elation	Elation	昂揚
+skill.double_attack	Double attack	連戰
+skill.surprise	Surprise	急襲
+skill.raid	Raid	強襲
+skill.melee	Melee	亂戰
+skill.siege_master	Siege master	攻城
+skill.pincer	Pincer	掎角
+skill.capture	Capture	捕縛
+skill.subtle	Subtle	精妙
+skill.plunder	Plunder	強奪
+skill.heart_attack	Heart attack	心攻
+skill.expel	Expel	驅逐
+skill.range	Range	射程
+skill.white_horse	White horse	白馬
+skill.aide	Aide	輔佐
+skill.pike_general	Pike general	槍將
+skill.halberd_general	Halberd general	戟將
+skill.bow_general	Bow general	弓將
+skill.cavalry_general	Cavalry general	騎將
+skill.navy_general	Navy general	水將
+skill.brave_general	Brave general	勇將
+skill.divine_general	Divine general	神將
+skill.battle_god	Battle god	鬥神
+skill.pike_god	Pike god	槍神
+skill.halberd_god	Halberd god	戟神
+skill.bow_god	Bow god	弓神
+skill.cavalry_god	Cavalry god	騎神
+skill.engineer_god	Engineer god	工神
+skill.navy_god	Navy god	水神
+skill.overlord	Overlord	霸王
+skill.gallop	Gallop	疾走
+skill.archer	Archer	射手
+skill.fierce	Fierce	猛者
+skill.unyielding	Unyielding	不屈
+skill.diamond	Diamond	金剛
+skill.iron_wall	Iron wall	鐵壁
+skill.fury	Fury	怒髮
+skill.rattan	Rattan armour	藤甲
+skill.fortune	Fortune	強運
+skill.blood_path	Blood path	血路
+skill.guard	Guard	護衛
+skill.ambush	Ambush	待伏
+skill.fire_attack	Fire attack	火攻
+skill.false_word	False word	言毒
+skill.tactician	Tactician	機略
+skill.trickery	Trickery	詭計
+skill.feint	Feint	虛實
+skill.clever_plan	Clever plan	妙計
+skill.secret_plan	Secret plan	秘計
+skill.see_through	See through	看破
+skill.insight	Insight	洞察
+skill.fire_god	Fire god	火神
+skill.strategist	Strategist	神算
+skill.many_plans	Many plans	百出
+skill.cunning	Cunning	鬼謀
+skill.chain	Chain	連環
+skill.deep_plan	Deep plan	深謀
+skill.counter_plot	Counter plot	反計
+skill.beauty	Beauty	傾國
+skill.sorcery	Sorcery	妖術
+skill.demon_gate	Demon gate	鬼門
+skill.discipline	Discipline	規律
+skill.composure	Composure	沈著
+skill.clear_mirror	Clear mirror	明鏡
+skill.music	Music	樂奏
+skill.poetry	Poetry	詩想
+skill.fortify	Fortify	築城
+skill.farming	Military farms	屯田
+skill.fame	Fame	名聲
+skill.capable	Capable	能吏
+skill.breeding	Breeding	繁殖
+skill.invention	Invention	發明
+skill.shipbuilding	Shipbuilding	造船
+skill.teaching	Teaching	指導
+skill.keen_eye	Keen eye	眼力
+skill.debater	Debater	論客
+skill.rich	Rich	富豪
+skill.rice	Rice way	米道
+skill.tax	Tax	徵稅
+skill.levy	Levy	徵收
+skill.wuhuan_friend	Wuhuan friend	親烏
+skill.qiang_friend	Qiang friend	親羌
+skill.yue_friend	Yue friend	親越
+skill.man_friend	Man friend	親蠻
+skill.intimidate	Intimidate	威壓
+skill.benevolence	Benevolence	仁政
+skill.fengshui	Feng shui	風水
+skill.prayer	Prayer	祈願
+skill.wife_help	Wife help	內助
+rank.none	No rank	無
+rank.inspector	Inspector	州刺史
+rank.governor	Provincial governor	州牧
+rank.guard_general	Imperial guard general	羽林中郎將
+rank.household_general	Household general	五官中郎將
+rank.grand_general	Grand general	大將軍
+rank.grand_marshal	Grand marshal	大司馬
+rank.duke	Duke	公
+rank.king	King	王
+rank.emperor	Emperor	皇帝
+post.post_00	Chancellor	丞相
+post.post_01	Minister of works	司空
+post.post_02	Grand commandant	太尉
+post.post_03	Minister over the masses	司徒
+post.post_04	Grand commander	大都督
+post.post_05	General of the guard	衛將軍
+post.post_06	General of the swift cavalry	驃騎將軍
+post.post_07	General of chariots and cavalry	車騎將軍
+post.post_08	Superintendent of the palace	光祿勳
+post.post_09	Grand minister of agriculture	大司農
+post.post_10	Commandant of justice	廷尉
+post.post_11	Commandant of the guards	衛尉
+post.post_12	General who conquers the east	征東將軍
+post.post_13	General who conquers the south	征南將軍
+post.post_14	General who conquers the west	征西將軍
+post.post_15	General who conquers the north	征北將軍
+post.post_16	Director of the secretariat	尚書令
+post.post_17	Minister coachman	太僕
+post.post_18	Minister of ceremonies	太常
+post.post_19	Grand herald	大鴻臚
+post.post_20	General who guards the east	鎮東將軍
+post.post_21	General who guards the south	鎮南將軍
+post.post_22	General who guards the west	鎮西將軍
+post.post_23	General who guards the north	鎮北將軍
+post.post_24	Director of the inner secretariat	中書令
+post.post_25	Palace assistant secretary	御史中丞
+post.post_26	Bearer of the golden mace	執金吾
+post.post_27	Minister steward	少府
+post.post_28	General who pacifies the east	安東將軍
+post.post_29	General who pacifies the south	安南將軍
+post.post_30	General who pacifies the west	安西將軍
+post.post_31	General who pacifies the north	安北將軍
+post.post_32	Director of the archives	秘書令
+post.post_33	Palace attendant	侍中
+post.post_34	Chief clerk of the rear office	留府長史
+post.post_35	Erudite of the academy	太學博士
+post.post_36	General of the left	左將軍
+post.post_37	General of the right	右將軍
+post.post_38	General of the front	前將軍
+post.post_39	General of the rear	後將軍
+post.post_40	Supervisor of the internuncios	謁者僕射
+post.post_41	Chief commandant	都尉
+post.post_42	Gentleman of the yellow gate	黃門侍郎
+post.post_43	Grand astrologer	太史令
+post.post_44	General of the army counsellors	軍師將軍
+post.post_45	General who secures the state	安國將軍
+post.post_46	General who smashes the caitiffs	破虜將軍
+post.post_47	General who attacks rebels	討逆將軍
+post.post_48	Gentleman of the palace	郎中
+post.post_49	Attendant gentleman	從事中郎
+post.post_50	Chief clerk	長史
+post.post_51	Major	司馬
+post.post_52	General who calms the east	平東將軍
+post.post_53	General who calms the south	平南將軍
+post.post_54	General who calms the west	平西將軍
+post.post_55	General who calms the north	平北將軍
+post.post_56	Prefect of music	太樂令
+post.post_57	Prefect of the granary	大倉令
+post.post_58	Prefect of the arsenal	武庫令
+post.post_59	Prefect of the guards	衛士令
+post.post_60	General of the standard	牙門將軍
+post.post_61	Army protector	護軍
+post.post_62	Lieutenant general	偏將軍
+post.post_63	Assistant general	裨將軍
+post.post_64	Registrar	主簿
+post.post_65	Grandee remonstrant	諫議大夫
+post.post_66	Gentleman attendant	侍郎
+post.post_67	Gentleman of the household	中郎
+post.post_68	Colonel of loyalty	忠義校尉
+post.post_69	Colonel of bright trust	昭信校尉
+post.post_70	Colonel of the scholars	儒林校尉
+post.post_71	Colonel of counsel	建議校尉
+post.post_72	Left supervisor	左僕射
+post.post_73	Right supervisor	右僕射
+post.post_74	Colonel of agriculture	典農校尉
+post.post_75	Consultant	議郎
+post.post_76	Colonel of the hawk	鷹威校尉
+post.post_77	Colonel of the long river	長水校尉
+post.post_78	Colonel who smashes bandits	破賊校尉
+post.post_79	Colonel of the martial guard	武衛校尉
+item.red_hare	Red Hare	赤兔馬
+item.dilu	Dilu	的盧
+item.shadow_runner	Yellow lightning	爪黃飛電
+item.shadow	Shadow	絕影
+item.ferghana	Ferghana horse	大宛馬
+item.seven_star	Seven star sword	七星寶刀
+item.yitian	Yitian sword	倚天劍
+item.qinggang	Qinggang sword	青釭劍
+item.twin_swords	Twin swords	雌雄一對劍
+item.sky_halberd	Sky piercer	方天畫戟
+item.dragon_blade	Green dragon blade	青龍偃月刀
+item.snake_spear	Serpent spear	蛇矛
+item.art_of_war	Art of war	孫子兵法
+item.mengde	Mengde new book	孟德新書
+item.seal	Imperial seal	玉璽
+item.bronze_bird	Bronze bird	銅雀

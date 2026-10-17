@@ -55,6 +55,7 @@ enum ui_pick
     UI_PICK_BUILD,       /* 設置 */
     UI_PICK_REPAIR,      /* 修補 */
     UI_PICK_DISMANTLE,   /* 撤除 */
+    UI_PICK_DUEL,        /* 單挑 (M7) */
     UI_PICK_COUNT
 };
 
@@ -141,6 +142,30 @@ struct ui_state
         u8 row;                  /* the row of the tactic, plot or building of the pick */
         u8 list;                 /* ui_pick of the Actions list: UI_PICK_TACTIC, _PLOT or _BUILD */
     } combat;
+    /* M7: the Court and Diplomacy panels, the duel and debate screens */
+    bool show_court;
+    bool show_diplomacy;
+    bool show_duel;
+    bool show_debate;
+    struct
+    {
+        u16 officer;             /* the officer that the panel shows and that acts */
+        u16 target;              /* recruit: the officer to recruit */
+        u16 partner;             /* matchmake */
+        u16 captive;             /* release */
+        u8  post;                /* appoint */
+        u8  item;                /* give */
+        int match_kind;          /* sim_match_kind */
+    } court;
+    struct
+    {
+        u8  force;               /* the target faction */
+        u8  second;              /* 二虎競食: the second faction */
+        u8  city;                /* 驅虎吞狼, 流言: the target city */
+        u16 captive;             /* 交換俘虜: the own officer that the target holds */
+        int gold;
+        int months;
+    } diplomacy;
     u8   ledger_city;            /* the ledger filter: ENGINE_ANY_CITY or a city id */
     u8   ledger_resource;        /* the ledger filter: ENGINE_ANY_RESOURCE or a sim_resource */
     text_catalog *text;      /* the UI strings and the names; owned by the caller */

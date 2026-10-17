@@ -15,6 +15,7 @@ ui_pick_command_kind(u8 pick)
         case UI_PICK_BUILD:     return ENGINE_COMMAND_BUILD;
         case UI_PICK_REPAIR:    return ENGINE_COMMAND_REPAIR;
         case UI_PICK_DISMANTLE: return ENGINE_COMMAND_DISMANTLE;
+        case UI_PICK_DUEL:      return ENGINE_COMMAND_DUEL;
         default:                return ENGINE_COMMAND_KIND_COUNT;
     }
 }
@@ -24,7 +25,7 @@ internal const char *
 ui_pick_text_id(u8 pick)
 {
     static const char *ids[UI_PICK_COUNT] = { "unit.menu", "unit_menu.attack", "unit_menu.joint", "unit_menu.tactic", "unit_menu.plot",
-                                              "unit_menu.build", "unit_menu.repair", "unit_menu.dismantle" };
+                                              "unit_menu.build", "unit_menu.repair", "unit_menu.dismantle", "unit_menu.duel" };
     return pick < UI_PICK_COUNT ? ids[pick] : "unit.menu";
 }
 
@@ -58,6 +59,7 @@ ui_combat_click(ui_state *ui, engine_api *api, hex_coord hex)
         case UI_PICK_BUILD:     result = api->command_build(e, unit_id, ui->combat.row, hex.q, hex.r); break;
         case UI_PICK_REPAIR:    result = api->command_repair(e, unit_id, hex.q, hex.r); break;
         case UI_PICK_DISMANTLE: result = api->command_dismantle(e, unit_id, hex.q, hex.r); break;
+        case UI_PICK_DUEL:      result = api->command_duel(e, unit_id, hex.q, hex.r); break;
         default: break;
     }
     ui_growth_result(ui, ui_pick_text_id(pick), result);

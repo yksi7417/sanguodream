@@ -400,7 +400,7 @@ ui_draw_supply(ui_state *ui, engine_api *api, engine_unit *transport)
 internal u8
 ui_menu_pick(const char *item)
 {
-    static const char *names[UI_PICK_COUNT] = { "", "attack", "joint", "tactic", "plot", "build", "repair", "dismantle" };
+    static const char *names[UI_PICK_COUNT] = { "", "attack", "joint", "tactic", "plot", "build", "repair", "dismantle", "duel" };
     for (u8 pick = 1; pick < UI_PICK_COUNT; ++pick)
     {
         if (strcmp(item, names[pick]) == 0) return pick;
@@ -412,7 +412,7 @@ ui_menu_pick(const char *item)
    or of a transport unit, in the order of the manual. 待命 and 退卻 run now;
    補給 opens the Unit panel of the transport unit; 攻擊, 齊攻, 修補 and 撤除
    wait for a target hex; 戰法, 計略 and 設置 open the Actions list first.
-   單挑 is grey until the duel of M7. */
+   單挑 (M7) waits for the hex of the enemy unit. */
 internal void
 ui_draw_unit_menu(ui_state *ui, engine_api *api)
 {
