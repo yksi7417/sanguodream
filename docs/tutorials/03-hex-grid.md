@@ -16,18 +16,26 @@ rules in later layers.
 ## Two coordinate systems
 - Axial `(q, r)` is what all logic uses. Distance, neighbours and the round
   to a cell are simple in axial coordinates.
-- Odd-r offset `(col, row)` is how the map stores cells and how a scenario
-  file will describe them. The map is a rectangle where the odd rows shift
-  right by half a cell. `hex_to_offset` and `hex_from_offset` convert
-  between the two systems. The tests prove the round trip, with negative
-  coordinates included. The `& 1` and `/ 2` tricks are the place where
-  off-by-one bugs hide.
+- Odd-q offset `(col, row)` is how the map stores cells. It is the grid of
+  spec/formats/map-data.md (M10): column x runs west to east, row y runs
+  north to south, and an odd column sits half a hex south of its
+  neighbours. Thus `col = x`, `row = y`, `q = x` and
+  `r = y - (x - (x mod 2)) / 2`. `hex_to_offset` and `hex_from_offset`
+  convert between the two systems. The tests prove the round trip, with
+  negative coordinates included. The `& 1` and `/ 2` tricks are the place
+  where off-by-one bugs hide.
+- The test "the neighbours of a hex are those of the table of map-data.md"
+  compares the six neighbours with the table of the spec, for an even and
+  an odd column. The spec numbers the directions north-west, north,
+  north-east, south-west, south, south-east. `HEX_DIRECTIONS` keeps the
+  order around the hex, because the ring walks need it.
 
 ## Layout
-`hex_to_pixel` places a pointy-top hex of circumradius `size`. `hex_from_pixel`
-inverts it and rounds in cube coordinates (`hex_round`). The UI panel uses
-both: one to draw, one to turn a click into a cell. The round-trip test over
-an 11x11 neighbourhood is what lets the UI trust clicks.
+`hex_to_pixel` places a flat-top hex of circumradius `size`: the next column
+is 1.5 cells to the east, and a row is sqrt(3) cells to the south.
+`hex_from_pixel` inverts it and rounds in cube coordinates (`hex_round`). The
+UI panel uses both: one to draw, one to turn a click into a cell. The
+round-trip test over an 11x11 neighbourhood is what lets the UI trust clicks.
 
 ## The map
 `hex_map` is a width, a height and one byte of entry cost per cell. Cost 0

@@ -38,11 +38,11 @@ terrain_level_y(u8 level)
     return (f32)level * TERRAIN_STEP;
 }
 
-/* Corner k of a pointy-top hex of the given radius around center. */
+/* Corner k of a flat-top hex of the given radius around center. */
 internal v3
 terrain_corner(v3 center, f32 radius, u32 k, f32 y)
 {
-    f32 angle = (60.0f * (f32)k - 30.0f) * RENDER_PI / 180.0f;
+    f32 angle = (60.0f * (f32)k) * RENDER_PI / 180.0f;
     return v3_make(center.x + radius * cosf(angle), y, center.z + radius * sinf(angle));
 }
 

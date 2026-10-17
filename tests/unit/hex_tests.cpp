@@ -48,6 +48,36 @@ unit_hex_tests(test_counts *counts)
     }
     TEST_CHECK(counts, pixel_round_trip, "pixel <-> axial round trip at cell centers");
 
+    /* M10: the grid of formats/map-data.md. The six neighbours of (x, y) have
+       these offsets for an even x and for an odd x. */
+    s32 even_offsets[HEX_DIRECTION_COUNT][2] = { { -1, -1 }, { 0, -1 }, { 1, -1 }, { -1, 0 }, { 0, 1 }, { 1, 0 } };
+    s32 odd_offsets[HEX_DIRECTION_COUNT][2]  = { { -1, 0 }, { 0, -1 }, { 1, 0 }, { -1, 1 }, { 0, 1 }, { 1, 1 } };
+    b32 spec_neighbours = true;
+    for (s32 x = 10; x <= 11; ++x)
+    {
+        hex_offset at; at.col = x; at.row = 20;
+        hex_coord center = hex_from_offset(at);
+        for (u32 spec = 0; spec < HEX_DIRECTION_COUNT; ++spec)
+        {
+            s32 *offset = (x & 1) ? odd_offsets[spec] : even_offsets[spec];
+            b32 found = false;
+            for (u32 d = 0; d < HEX_DIRECTION_COUNT; ++d)
+            {
+                hex_offset n = hex_to_offset(hex_neighbor(center, d));
+                if (n.col == x + offset[0] && n.row == 20 + offset[1]) found = true;
+            }
+            if (!found) spec_neighbours = false;
+        }
+    }
+    TEST_CHECK(counts, spec_neighbours, "the neighbours of a hex are those of the table of map-data.md, for even and odd columns");
+    hex_offset o00 = { 0, 0 }, o10 = { 1, 0 }, o11 = { 1, 1 }, o30 = { 3, 0 }, o03 = { 0, 3 };
+    TEST_CHECK(counts, hex_distance(hex_from_offset(o00), hex_from_offset(o10)) == 1 && hex_distance(hex_from_offset(o00), hex_from_offset(o11)) == 2 &&
+                       hex_distance(hex_from_offset(o00), hex_from_offset(o30)) == 3 && hex_distance(hex_from_offset(o00), hex_from_offset(o03)) == 3,
+               "the distance of the cube coordinates of map-data.md");
+    hex_point p00 = hex_to_pixel(hex_from_offset(o00), 10.0f, porigin), p10 = hex_to_pixel(hex_from_offset(o10), 10.0f, porigin);
+    TEST_CHECK(counts, p10.x - p00.x > 14.99f && p10.x - p00.x < 15.01f && p10.y - p00.y > 8.65f && p10.y - p00.y < 8.67f,
+               "flat-top layout: the next column is 1.5 cells east, and an odd column is half a hex south");
+
     hex_map map;
     hex_map_init(&map, &arena, 10, 8, 1);
     TEST_CHECK(counts, map.width == 10 && map.height == 8, "map dimensions");

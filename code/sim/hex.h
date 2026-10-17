@@ -2,10 +2,14 @@
 #define HEX_H
 /* Hex grid mathematics and the map that stores it.
 
-   Coordinates are axial (q, r) on a pointy-top grid; storage is a rectangle
-   in odd-r offset coordinates (col, row). Everything here is generic hex
-   geometry and graph search, not game rules: terrain kinds, movement rules
-   and zones of control come from the spec and live in sim.cpp. */
+   Coordinates are axial (q, r) on a flat-top grid; storage is a rectangle
+   in odd-q offset coordinates (col, row). This is the grid of
+   formats/map-data.md: column x runs west to east, row y runs north to
+   south, and an odd column sits half a hex south of the even columns
+   beside it. Thus col = x, row = y, q = x and r = y - (x - (x mod 2)) / 2.
+   Everything here is generic hex geometry and graph search, not game
+   rules: terrain kinds, movement rules and zones of control come from the
+   spec and live in sim.cpp. */
 
 #include "base.h"
 
@@ -58,29 +62,30 @@ hex_distance(hex_coord a, hex_coord b)
     return (hex_abs(dq) + hex_abs(dr) + hex_abs(dq + dr)) / 2;
 }
 
-/* odd-r offset: odd rows are shoved right by half a cell. */
+/* odd-q offset: odd columns are shoved down (south) by half a cell. */
 internal hex_offset
 hex_to_offset(hex_coord h)
 {
     hex_offset o;
-    o.col = h.q + (h.r - (h.r & 1)) / 2;
-    o.row = h.r;
+    o.col = h.q;
+    o.row = h.r + (h.q - (h.q & 1)) / 2;
     return o;
 }
 
 internal hex_coord
 hex_from_offset(hex_offset o)
 {
-    return hex_make(o.col - (o.row - (o.row & 1)) / 2, o.row);
+    return hex_make(o.col, o.row - (o.col - (o.col & 1)) / 2);
 }
 
-/* Pointy-top layout: size is the circumradius, origin the pixel of hex (0,0). */
+/* Flat-top layout: size is the circumradius, origin the pixel of hex (0,0).
+   x grows to the east and y to the south. */
 internal hex_point
 hex_to_pixel(hex_coord h, f32 size, hex_point origin)
 {
     hex_point p;
-    p.x = origin.x + size * (1.7320508f * (f32)h.q + 0.8660254f * (f32)h.r);
-    p.y = origin.y + size * (1.5f * (f32)h.r);
+    p.x = origin.x + size * (1.5f * (f32)h.q);
+    p.y = origin.y + size * (0.8660254f * (f32)h.q + 1.7320508f * (f32)h.r);
     return p;
 }
 
@@ -105,8 +110,8 @@ hex_from_pixel(hex_point p, f32 size, hex_point origin)
 {
     f32 x = (p.x - origin.x) / size;
     f32 y = (p.y - origin.y) / size;
-    f32 fq = (0.5773503f * x) - (0.3333333f * y);
-    f32 fr = 0.6666667f * y;
+    f32 fq = 0.6666667f * x;
+    f32 fr = (-0.3333333f * x) + (0.5773503f * y);
     return hex_round(fq, fr);
 }
 
@@ -116,9 +121,9 @@ struct hex_map
 {
     u32 width;      /* columns */
     u32 height;     /* rows */
-    u8 *cost;       /* move cost to enter each cell, row-major by offset; 0 = impassable */
-    u8 *kind;       /* terrain kind per cell: an index into the pack's terrain table (placeholder until the spec's map format) */
-    u8 *level;      /* height per cell in steps; the renderer scales it (placeholder) */
+    u8 *cost;       /* move cost to enter each cell, row-major by offset (row * width + col); 0 = impassable */
+    u8 *kind;       /* terrain kind per cell: an index into the pack's terrain table */
+    u8 *level;      /* height per cell in steps; the renderer scales it */
     u32 version;    /* bumped by every change to kind or level; the renderer rebuilds its mesh when it changes */
 };
 
