@@ -6,6 +6,10 @@
 
 #define ENGINE_SCRATCH_SIZE Megabytes(4)
 #define ENGINE_SINK_CAPACITY 4096
+/* The permanent memory that the real map needs for each cell: the hex_map
+   (3), fire (1), the layers (4), the search memory of the sim (128) and the
+   arrays of the engine (tiles, reach cells and reach costs). */
+#define ENGINE_MAP_BYTES_PER_CELL (3 + 1 + 4 + 128 + 1 + sizeof(hex_coord) + sizeof(u32))
 
 struct engine
 {
@@ -31,6 +35,7 @@ struct engine
     u32              scenario_count;
     engine_battle    battles[ENGINE_BATTLE_CAPACITY];       /* M9: battles.tsv */
     u32              battle_count;
+    engine_map_info  map_info;                              /* M10: what engine_create loaded as the map */
 };
 
 internal engine_config
@@ -39,8 +44,9 @@ engine_default_config(void)
     engine_config c;
     c.seed             = 0x5EEDull;
     c.ledger_capacity  = 65536;
-    c.map_width        = 40;    /* placeholder map until spec/formats/scenario-file.md */
+    c.map_width        = 40;    /* the placeholder map, for a pack without map\hexes.tsv */
     c.map_height       = 30;
+    c.use_pack_map     = true;  /* M10: the real map of the pack */
     c.map_default_cost = 1;
     c.read_entire_file = 0;
     c.write_entire_file = 0;
@@ -109,6 +115,8 @@ engine_load_content(engine *e, const char *folder)
     tsv_table bases = {}, event_rows = {}, priorities = {};
     tsv_table chart = {}, ancients = {}, history = {}, portraits = {};
     u32 bad_row = 0;
+    tsv_table armaments = {};   /* M10: movement_costs.tsv is optional; without it the class costs of terrain.tsv apply */
+    b32 has_armaments = engine_read_table(e, folder, "movement_costs.tsv", &armaments);
     if (!engine_read_table(e, folder, "facilities.tsv", &facilities))      status->detail = "facilities.tsv not found";
     else if (!engine_read_table(e, folder, "cities.tsv", &cities))         status->detail = "cities.tsv not found";
     else if (!engine_read_table(e, folder, "rules.tsv", &rules))           status->detail = "rules.tsv not found";
@@ -139,6 +147,7 @@ engine_load_content(engine *e, const char *folder)
     else if (!content_load_weapons(content, &weapons, &bad_row))          status->detail = "weapons.tsv has a bad row";
     else if (!content_load_disasters(content, &disasters, &bad_row))      status->detail = "disasters.tsv has a bad row";
     else if (!content_load_terrain(content, &terrain, &bad_row))          status->detail = "terrain.tsv has a bad row";
+    else if (has_armaments && !content_load_armaments(content, &armaments, &bad_row)) status->detail = "movement_costs.tsv has a bad row";
     else if (!content_load_unit_types(content, &unit_types, &bad_row))    status->detail = "unit_types.tsv has a bad row";
     else if (!content_load_tactics(content, &tactics, &bad_row))          status->detail = "tactics.tsv has a bad row";
     else if (!content_load_plots(content, &plots, &bad_row))              status->detail = "plots.tsv has a bad row";
@@ -190,6 +199,8 @@ internal void engine_content_terrain(engine *e);   /* engine_march.cpp */
 internal void engine_place_natural_traps(engine *e);   /* engine_combat.cpp */
 internal void engine_load_scenarios(engine *e, const char *folder);   /* engine_playable.cpp */
 internal void engine_load_battles(engine *e, const char *folder);
+internal char *engine_read_map_text(engine *e, const char *folder, u32 *width, u32 *height);   /* engine_map.cpp */
+internal b32   engine_load_pack_map(engine *e, const char *folder, const char *hexes_text);
 
 internal engine *
 engine_create(memory_arena *permanent, memory_arena *transient, engine_config config)
@@ -199,24 +210,46 @@ engine_create(memory_arena *permanent, memory_arena *transient, engine_config co
     e->transient = transient;
     e->scratch   = arena_sub(transient, ENGINE_SCRATCH_SIZE);
     e->sim       = PushStruct(permanent, sim_state);
+    e->read_entire_file = config.read_entire_file;
+    e->write_entire_file = config.write_entire_file;
     sim_init(e->sim, permanent, config.seed);
-    sim_init_map(e->sim, permanent, config.map_width, config.map_height, config.map_default_cost);
+
+    /* M10: the size of the map is the size of map\hexes.tsv of the pack.
+       The text stays in the transient arena until the map loads. If the
+       permanent arena cannot hold the map, the placeholder map stays. */
+    u32 width = config.map_width, height = config.map_height;
+    u64 transient_mark = transient->used;
+    char *map_text = 0;
+    e->map_info.detail = "placeholder";
+    if (config.use_pack_map)
+    {
+        u32 map_width = 0, map_height = 0;
+        map_text = engine_read_map_text(e, config.content_folder, &map_width, &map_height);
+        u64 needed = (u64)map_width * map_height * ENGINE_MAP_BYTES_PER_CELL + (u64)config.ledger_capacity * (sizeof(sim_event) + sizeof(u32)) + Megabytes(1);
+        if (map_text && permanent->size - permanent->used < needed)
+        {
+            map_text = 0;
+            e->map_info.detail = "the permanent arena is too small for the map";
+        }
+        if (map_text) { width = map_width; height = map_height; }
+    }
+    sim_init_map(e->sim, permanent, width, height, config.map_default_cost);
     engine_placeholder_terrain(&e->sim->map);
     e->ledger_capacity = config.ledger_capacity;
     e->ledger_count    = 0;
     e->ledger          = PushArray(permanent, config.ledger_capacity, sim_event);
     e->filter_indices  = PushArray(permanent, config.ledger_capacity, u32);
-    e->read_entire_file = config.read_entire_file;
-    e->write_entire_file = config.write_entire_file;
     snprintf(e->save_folder, sizeof(e->save_folder), "%s", config.save_folder ? config.save_folder : "saves");
     snprintf(e->content_folder, sizeof(e->content_folder), "%s", config.content_folder ? config.content_folder : "");
-    u32 cells = config.map_width * config.map_height;
+    u32 cells = width * height;
     e->tiles         = PushArray(permanent, cells ? cells : 1, u8);
     e->tiles_version = 0;
     e->reach_cells   = PushArray(permanent, cells ? cells : 1, hex_coord);
     e->reach_costs   = PushArray(permanent, cells ? cells : 1, u32);
     engine_load_content(e, config.content_folder);
-    if (e->content.loaded) engine_content_terrain(e);   /* engine_march.cpp: the placeholder map from terrain.tsv */
+    b32 real_map = e->content.loaded && map_text && engine_load_pack_map(e, config.content_folder, map_text);
+    transient->used = transient_mark;   /* the text of the map is not needed any more */
+    if (e->content.loaded && !real_map) engine_content_terrain(e);   /* engine_march.cpp: the placeholder map from terrain.tsv */
     if (e->content.loaded) engine_place_natural_traps(e);
     engine_load_scenarios(e, config.content_folder);   /* M9: the scenario list (engine_playable.cpp) */
     engine_load_battles(e, config.content_folder);
@@ -883,6 +916,10 @@ engine_api_facility_at(void *opaque, u8 city_id, u8 slot_index)
     result.turns_left = slot->turns_left;
     result.q          = slot->hex.q;
     result.r          = slot->hex.r;
+    for (u32 other = 0; other < sim->sites[city_id].slot_count; ++other)   /* M10: the real neighbours of the slot */
+    {
+        if (other != slot_index && hex_distance(sim->sites[city_id].slots[other].hex, slot->hex) == 1) result.slot_neighbours++;
+    }
     facility_effect effect = FACILITY_EFFECT_NONE;
     result.yield        = sim_slot_yield(sim, city_id, slot_index, &effect);
     result.yield_effect = (u8)effect;
@@ -1222,6 +1259,7 @@ engine_api_set_city_resource(void *opaque, u8 city_id, u8 resource, u32 index, u
     }
 }
 
+#include "engine/engine_map.cpp"      /* M10: before engine_combat.cpp, which places the traps of the map */
 #include "engine/engine_growth.cpp"
 #include "engine/engine_march.cpp"
 #include "engine/engine_combat.cpp"
@@ -1299,5 +1337,6 @@ engine_make_api(engine *e)
     engine_bind_rivals_api(&api);
     engine_bind_saves_api(&api);
     engine_bind_playable_api(&api);
+    engine_bind_map_api(&api);
     return api;
 }

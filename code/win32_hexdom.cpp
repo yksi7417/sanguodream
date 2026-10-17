@@ -262,7 +262,7 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
     game_memory memory = {};
     memory.permanent_size = Megabytes(256);
     memory.transient_size = Megabytes(256);
-    u64 frame_size        = Megabytes(64);
+    u64 frame_size        = Megabytes(160);   /* M10: the mesh of the 200 x 200 map needs approximately 66 MB */
     u64 total_size        = memory.permanent_size + memory.transient_size + frame_size;
 
     LPVOID base_address = 0;

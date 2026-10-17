@@ -137,6 +137,8 @@ engine_api_terrain_kind_at(void *opaque, u32 index)
     result.tactics         = kind->tactics;
     result.tile            = kind->tile;
     result.level           = kind->level;
+    result.enterable       = kind->enterable;   /* M10 */
+    result.burnable        = kind->burnable;
     return result;
 }
 
@@ -167,6 +169,8 @@ engine_api_unit_type_at(void *opaque, u32 index)
     result.can_attack    = kind->can_attack;
     result.counterattack = kind->counterattack;
     result.transport     = kind->transport;
+    result.armament      = kind->armament;   /* M10 */
+    result.ship          = kind->ship;
     return result;
 }
 

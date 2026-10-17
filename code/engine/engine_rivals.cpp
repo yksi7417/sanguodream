@@ -189,8 +189,8 @@ engine_api_emperor(void *opaque)
 internal u32
 engine_api_relic_count(void *opaque)
 {
-    (void)opaque;
-    return SIM_RELIC_COUNT;
+    /* M10: the real map has 6 + 6 event sites; the placeholder map has 7 relics. */
+    return ((engine *)opaque)->sim->map_layers.loaded ? SIM_RELIC_COUNT : SIM_RELIC_PLACEHOLDER_COUNT;
 }
 
 internal engine_relic

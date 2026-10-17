@@ -228,6 +228,7 @@ engine_api_load_game(void *opaque, u32 slot)
     sim->map.level            = live->map.level;
     sim->map.version          = live->map.version + 1;   /* the renderer builds the map again */
     sim->fire                 = live->fire;
+    sim->map_layers           = live->map_layers;   /* M10: the map data comes from the pack, not from the save */
     sim->scratch              = live->scratch;
     sim->ruleset              = live->ruleset;
     engine_save_arrays(&cursor, sim, false);

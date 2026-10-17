@@ -233,7 +233,7 @@ struct engine_city_slots
     u8  used;               /* slots with a facility, built or under construction */
     u8  specialty;          /* city_specialty */
     b32 has_port;
-    s32 q, r;               /* the city on the placeholder map */
+    s32 q, r;               /* the centre hex of the city */
     u32 gold_income;        /* expected gold next month */
     u32 grain_income;       /* expected grain next season */
     u16 governor_id;        /* the governor by the selection rule; ENGINE_NO_OFFICER if none */
@@ -248,7 +248,8 @@ struct engine_facility
     u8  facility;           /* ENGINE_NO_FACILITY for an empty slot */
     u8  level;
     u16 turns_left;         /* while building */
-    s32 q, r;               /* the slot on the placeholder map */
+    s32 q, r;               /* the hex of the slot */
+    u8  slot_neighbours;    /* M10: the slots of the same city among the six neighbours (slots.tsv) */
     u32 yield;              /* gold each month or grain each season, with the level and the adjacency bonus */
     u8  yield_effect;       /* facility_effect of the yield */
     u16 officers[SIM_DEVELOP_OFFICERS];
@@ -375,10 +376,12 @@ struct engine_terrain_kind
     u8   cost[MOVEMENT_CLASS_COUNT];   /* 0: the class cannot enter */
     u8   needs_technique;   /* ENGINE_NO_TECHNIQUE if none */
     u32  loss_percent;
-    b32  buildable;
+    b32  buildable;         /* M10: a military facility can stand on it (F-147) */
     u32  tactics;           /* bit tactic_class */
     u8   tile;
     u8   level;
+    b32  enterable;         /* M10: a unit can stand on it */
+    b32  burnable;          /* M10: a fire stays on it without a unit (F-149) */
 };
 
 /* One row of unit_types.tsv (military-units-and-tactics.md). */
@@ -395,6 +398,8 @@ struct engine_unit_type
     b32  can_attack;
     b32  counterattack;
     b32  transport;
+    u8   armament;          /* M10: the row of movement_costs.tsv on land; ENGINE_NO_ARMAMENT if none */
+    u8   ship;              /* M10: the row on 河 and 海; ENGINE_NO_ARMAMENT if none */
 };
 
 #define ENGINE_NO_TERRAIN   0xFF
@@ -904,8 +909,8 @@ struct engine_load_result
 
 /* The terrain as the renderer needs it: one kind and one level per cell,
    row-major by offset. The pointers stay valid for the life of the engine;
-   version changes whenever a cell changes. Placeholder data until the
-   spec's map format exists. */
+   version changes whenever a cell changes. On the real map (M10) the level
+   is the height of the hex / 16. */
 struct engine_terrain_view
 {
     u32       width;
@@ -914,6 +919,60 @@ struct engine_terrain_view
     const u8 *level;
     u32       version;
     const u8 *tile;     /* the colour of the atlas for each cell, from the terrain table; kind when no table loaded */
+};
+
+/* ---- M10: the real map (formats/map-data.md, terrain-and-map.md) ------------ */
+
+#define ENGINE_NO_ARMAMENT 0xFF
+#define ENGINE_NO_REGION   0xFF
+#define ENGINE_BANDIT_SITE_CAPACITY 10
+
+/* What the engine loaded as the map, with the counts of the map data. */
+struct engine_map_info
+{
+    b32         real_map;          /* true: map\hexes.tsv of the pack; false: the placeholder map */
+    const char *detail;            /* a static string: "ok", "placeholder" or why the load failed */
+    u32         width, height;
+    u32         city_hexes;        /* hexes of the terrain city */
+    u32         port_hexes;
+    u32         gate_hexes;        /* after the side hexes became cliff */
+    u32         gate_side_cliffs;  /* the side hexes of the gates that became cliff (F-151) */
+    u32         cities, gates, ports;   /* the bases of the map, by kind */
+    u32         slots;             /* the development slots of all cities */
+    u32         port_region_slots; /* the slots in the region of a port, counted for the city of the port */
+    u32         dikes, rockfalls, flood_hexes, bandit_sites, event_sites, unknown_flags;
+};
+
+/* One hex of the map. */
+struct engine_hex
+{
+    b32 on_map;
+    u8  terrain;               /* the kind: the row of terrain.tsv */
+    u8  region;                /* the region of the map; ENGINE_NO_REGION on the placeholder map */
+    u8  region_city;           /* the city of the region; ENGINE_NO_CITY for none */
+    u8  trap;                  /* 0 none, 1 dike, 2 rockfall site */
+    u8  height;                /* 0 to 255; 0 on the placeholder map */
+    b32 slot, bandit_site, flood, event_site, unknown_flag;
+    u8  fire_turns;            /* 0 to 7 */
+    u8  city_id;               /* the city that stands on the hex; ENGINE_NO_CITY */
+    u32 base_id;               /* the port or the gate on the hex; ENGINE_NO_BASE */
+};
+
+/* One row of movement_costs.tsv. */
+struct engine_armament
+{
+    u8   id;                   /* ENGINE_NO_ARMAMENT for an index out of range */
+    char key[CONTENT_KEY_SIZE];
+    u32  move;
+    u8   cost[CONTENT_TERRAIN_CAPACITY];   /* by terrain id; 0 = it cannot enter */
+};
+
+/* The bandit sites that bandits of a city can use now (F-150). */
+struct engine_bandit_sites
+{
+    u32 count;
+    s32 q[ENGINE_BANDIT_SITE_CAPACITY];
+    s32 r[ENGINE_BANDIT_SITE_CAPACITY];
 };
 
 /* Queries */
@@ -1137,6 +1196,16 @@ typedef engine_scenario      engine_scenario_at_fn(void *engine, u32 index);
 typedef engine_load_result   engine_load_scenario_fn(void *engine, const char *path);
 typedef u32                  engine_battle_count_fn(void *engine);
 typedef engine_battle        engine_battle_at_fn(void *engine, u32 index);
+/* M10 queries */
+typedef engine_map_info      engine_map_info_fn(void *engine);
+typedef engine_hex           engine_hex_at_fn(void *engine, s32 q, s32 r);
+typedef u32                  engine_armament_count_fn(void *engine);
+typedef engine_armament      engine_armament_at_fn(void *engine, u32 index);
+typedef u32                  engine_move_cost_fn(void *engine, u8 unit_type, u8 force_id, s32 q, s32 r);   /* the cost to enter, with fire; 0 = cannot */
+typedef engine_bandit_sites  engine_bandit_sites_fn(void *engine, u8 city_id);
+/* M10 test and editor command: it ledgers nothing. The count is capped at 7;
+   the terrain rule of F-149 applies. */
+typedef void                 engine_start_fire_fn(void *engine, s32 q, s32 r, u32 turns);
 /* A placeholder unit until M5: it only blocks the commands of enemy
    cities within 2 hexes. Returns ENGINE_NO_UNIT if there is no room. */
 typedef u32                 engine_place_unit_fn(void *engine, u8 force_id, s32 q, s32 r);
@@ -1333,6 +1402,14 @@ struct engine_api
     engine_load_scenario_fn         *load_scenario;
     engine_battle_count_fn          *battle_count;
     engine_battle_at_fn             *battle_at;
+    /* M10 the real map */
+    engine_map_info_fn              *map_info;
+    engine_hex_at_fn                *hex_at;
+    engine_armament_count_fn        *armament_count;
+    engine_armament_at_fn           *armament_at;
+    engine_move_cost_fn             *move_cost;
+    engine_bandit_sites_fn          *bandit_sites;
+    engine_start_fire_fn            *start_fire;
 };
 
 #define ENGINE_NO_BASE 0xFFFFFFFFu
@@ -1343,8 +1420,9 @@ struct engine_config
 {
     u64 seed;
     u32 ledger_capacity;
-    u32 map_width;        /* placeholder until the scenario format is in the spec */
+    u32 map_width;        /* the placeholder map, if the pack has no map\hexes.tsv or use_pack_map is false */
     u32 map_height;
+    b32 use_pack_map;     /* M10: true (the default) loads map\ of the content pack; false keeps the placeholder map */
     u8  map_default_cost;
     platform_read_entire_file *read_entire_file;   /* zero: the load commands refuse with ENGINE_LOAD_NO_FILE_READER */
     platform_write_entire_file *write_entire_file; /* M9: zero: save_game refuses with ENGINE_SAVE_NO_WRITER */

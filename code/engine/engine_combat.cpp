@@ -43,6 +43,11 @@ engine_place_natural_traps(engine *e)
     sim_state *sim = e->sim;
     u8 dike = engine_find_building_kind(&sim->content, "dike");
     u8 rockfall = engine_find_building_kind(&sim->content, "rockfall");
+    if (sim->map_layers.loaded)
+    {
+        engine_place_map_traps(e, dike, rockfall);   /* M10: the 4 dikes and the 18 rockfall sites of the map */
+        return;
+    }
     local_persist const u8 dike_cities[] = {0, 6, 8, 10};
     local_persist const u8 rockfall_cities[] = {35, 36};
     hex_coord hex = {};
