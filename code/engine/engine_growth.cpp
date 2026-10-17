@@ -109,7 +109,9 @@ internal engine_settings
 engine_api_settings(void *opaque)
 {
     engine_settings result = {};
-    result.disasters = ((engine *)opaque)->sim->settings.disasters;
+    result.disasters      = ((engine *)opaque)->sim->settings.disasters;
+    result.ability_change = ((engine *)opaque)->sim->settings.ability_change;
+    result.lifespan       = ((engine *)opaque)->sim->settings.lifespan;
     return result;
 }
 
@@ -165,7 +167,9 @@ engine_api_start_disaster(void *opaque, u8 city_id, u8 disaster)
 internal void
 engine_api_set_settings(void *opaque, engine_settings settings)
 {
-    ((engine *)opaque)->sim->settings.disasters = settings.disasters;
+    ((engine *)opaque)->sim->settings.disasters      = settings.disasters;
+    ((engine *)opaque)->sim->settings.ability_change = settings.ability_change;
+    ((engine *)opaque)->sim->settings.lifespan       = settings.lifespan;
 }
 
 internal void

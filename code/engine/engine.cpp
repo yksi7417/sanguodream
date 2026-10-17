@@ -95,6 +95,7 @@ engine_load_content(engine *e, const char *folder)
     status->detail = "ok";
     tsv_table facilities = {}, cities = {}, rules = {}, weapons = {}, techniques = {}, disasters = {}, terrain = {}, unit_types = {};
     tsv_table tactics = {}, plots = {}, buildings = {}, criticals = {};
+    tsv_table skills = {}, ranks = {}, posts = {}, items = {};
     u32 bad_row = 0;
     if (!engine_read_table(e, folder, "facilities.tsv", &facilities))      status->detail = "facilities.tsv not found";
     else if (!engine_read_table(e, folder, "cities.tsv", &cities))         status->detail = "cities.tsv not found";
@@ -108,6 +109,10 @@ engine_load_content(engine *e, const char *folder)
     else if (!engine_read_table(e, folder, "plots.tsv", &plots))           status->detail = "plots.tsv not found";
     else if (!engine_read_table(e, folder, "buildings.tsv", &buildings))   status->detail = "buildings.tsv not found";
     else if (!engine_read_table(e, folder, "critical_skills.tsv", &criticals)) status->detail = "critical_skills.tsv not found";
+    else if (!engine_read_table(e, folder, "skills.tsv", &skills))         status->detail = "skills.tsv not found";
+    else if (!engine_read_table(e, folder, "ranks.tsv", &ranks))           status->detail = "ranks.tsv not found";
+    else if (!engine_read_table(e, folder, "posts.tsv", &posts))           status->detail = "posts.tsv not found";
+    else if (!engine_read_table(e, folder, "items.tsv", &items))           status->detail = "items.tsv not found";
     else if (!content_load_facilities(content, &facilities, &bad_row))    status->detail = "facilities.tsv has a bad row";
     else if (!content_load_cities(content, &cities, &bad_row))            status->detail = "cities.tsv has a bad row";
     else if (!content_load_rules(content, &rules, &bad_row))              status->detail = "rules.tsv has a bad row";
@@ -120,6 +125,10 @@ engine_load_content(engine *e, const char *folder)
     else if (!content_load_plots(content, &plots, &bad_row))              status->detail = "plots.tsv has a bad row";
     else if (!content_load_buildings(content, &buildings, &bad_row))      status->detail = "buildings.tsv has a bad row";
     else if (!content_load_criticals(content, &criticals, &bad_row))      status->detail = "critical_skills.tsv has a bad row";
+    else if (!content_load_skills(content, &skills, &bad_row))            status->detail = "skills.tsv has a bad row";
+    else if (!content_load_ranks(content, &ranks, &bad_row))              status->detail = "ranks.tsv has a bad row";
+    else if (!content_load_posts(content, &posts, &bad_row))              status->detail = "posts.tsv has a bad row";
+    else if (!content_load_items(content, &items, &bad_row))              status->detail = "items.tsv has a bad row";
     else
     {
         status->loaded          = true;
@@ -135,6 +144,10 @@ engine_load_content(engine *e, const char *folder)
         status->plot_count      = content->plot_count;
         status->building_count  = content->building_count;
         status->critical_count  = content->critical_count;
+        status->skill_count     = content->skill_count;
+        status->rank_count      = content->rank_count;
+        status->post_count      = content->post_count;
+        status->item_count      = content->item_count;
         sim_set_content(e->sim, content);
     }
     arena_reset(&e->scratch);
@@ -719,10 +732,14 @@ engine_unit_command_kind(engine_command_kind kind)
     }
 }
 
+internal b32 engine_can_issue_court(engine *e, const engine_command *command, engine_check *check);   /* engine_court.cpp */
+
 internal engine_check
 engine_api_can_issue(void *opaque, const engine_command *command)
 {
     engine *e = (engine *)opaque;
+    engine_check court = {};
+    if (engine_can_issue_court(e, command, &court)) return court;
     switch (command->kind)
     {
         case ENGINE_COMMAND_DEVELOP:
@@ -1146,6 +1163,7 @@ engine_api_set_city_resource(void *opaque, u8 city_id, u8 resource, u32 index, u
 #include "engine/engine_growth.cpp"
 #include "engine/engine_march.cpp"
 #include "engine/engine_combat.cpp"
+#include "engine/engine_court.cpp"
 
 internal engine_api
 engine_make_api(engine *e)
@@ -1211,5 +1229,6 @@ engine_make_api(engine *e)
     engine_bind_growth_api(&api);
     engine_bind_march_api(&api);
     engine_bind_combat_api(&api);
+    engine_bind_court_api(&api);
     return api;
 }

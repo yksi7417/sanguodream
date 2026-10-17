@@ -162,6 +162,19 @@ enum engine_command_kind
     ENGINE_COMMAND_BUILD,          /* row: the row of building_kind_at */
     ENGINE_COMMAND_REPAIR,
     ENGINE_COMMAND_DISMANTLE,
+    ENGINE_COMMAND_SEARCH,         /* M7: court; the order is court */
+    ENGINE_COMMAND_RECRUIT,
+    ENGINE_COMMAND_REWARD,
+    ENGINE_COMMAND_GIVE_ITEM,
+    ENGINE_COMMAND_APPOINT,
+    ENGINE_COMMAND_MATCHMAKE,
+    ENGINE_COMMAND_RELEASE,
+    ENGINE_COMMAND_EXILE,
+    ENGINE_COMMAND_DIPLOMACY,
+    ENGINE_COMMAND_FACTION_PLOT,
+    ENGINE_COMMAND_DUEL,           /* unit at the hex q, r */
+    ENGINE_COMMAND_DUEL_ACTION,    /* row: the action; value: amount */
+    ENGINE_COMMAND_DEBATE_ACTION,
     ENGINE_COMMAND_KIND_COUNT
 };
 
@@ -182,7 +195,9 @@ struct engine_command
     s32 q, r;                               /* ENGINE_COMMAND_MOVE: the hex */
     u32 target_unit;                        /* ENGINE_COMMAND_SUPPLY */
     u32 soldiers, gold, grain;              /* ENGINE_COMMAND_SUPPLY */
-    u8  row;                                /* ENGINE_COMMAND_TACTIC, _PLOT, _BUILD: the row of its table */
+    u8  row;                                /* ENGINE_COMMAND_TACTIC, _PLOT, _BUILD: the row of its table; DUEL_ACTION, DEBATE_ACTION: the action */
+    u8  value;                              /* ENGINE_COMMAND_DUEL_ACTION, DEBATE_ACTION: the policy, special, place or choice */
+    sim_court_order court;                  /* ENGINE_COMMAND_SEARCH .. ENGINE_COMMAND_FACTION_PLOT */
 };
 
 /* The answer of can_issue: the refusal reason, or SIM_REFUSAL_NONE with
@@ -470,6 +485,130 @@ struct engine_city_siege
 #define ENGINE_NO_ROW      0xFF
 #define ENGINE_NO_BUILDING 0xFFFFFFFFu
 
+/* ---- M7: officers, court, items, diplomacy, duel, debate ---------------- */
+
+/* The order of the personnel, court, diplomacy and plot commands. */
+typedef sim_court_order engine_court_order;
+
+/* The M7 state of an officer (officers-and-relations.md). */
+struct engine_officer_detail
+{
+    u16 officer_id;                 /* ENGINE_NO_OFFICER if not loaded */
+    u8  loyalty, ambition, justice; /* ambition and justice: 0 .. 4, 2 normal */
+    u8  personality;                /* sim_personality */
+    u8  growth;                     /* sim_growth */
+    u8  health;                     /* sim_health */
+    u8  stamina;
+    u8  post;                       /* the row of post_kind_at; ENGINE_NO_ROW */
+    b32 female;
+    b32 captive;
+    u8  former_force;               /* a captive: its faction before */
+    u16 liked[OFFICER_RELATION_SLOTS];
+    u16 disliked[OFFICER_RELATION_SLOTS];
+    u16 experience[CONTENT_ABILITY_COUNT];
+    u32 age;
+    u32 soldier_cap;                /* the soldiers that the officer leads */
+    u32 recruit_chance;             /* the chance for the acting faction now, 0 if it cannot recruit the officer */
+};
+
+/* The editor fields of an officer that the save does not decode (Q-177). */
+struct engine_officer_edit
+{
+    u8  loyalty, ambition, justice, personality, growth;
+    b32 female;
+    u16 merit;
+    u8  captor;                     /* a faction: the officer becomes its captive; ENGINE_NO_FACTION: no change */
+};
+
+struct engine_skill_kind
+{
+    u8   number;                    /* 1 .. 100; 0 for an index out of range */
+    char key[CONTENT_KEY_SIZE];     /* the text id is "skill.<key>" */
+    char effect[CONTENT_KEY_SIZE];
+    u8   category;                  /* skill_category */
+    b32  hooked;                    /* the engine applies it */
+};
+
+struct engine_post_kind
+{
+    u8   id;                        /* ENGINE_NO_ROW for an index out of range */
+    char key[CONTENT_KEY_SIZE];     /* the text id is "post.<key>" */
+    u32  merit, soldiers, bonus;
+    u8   ability;                   /* content_ability; CONTENT_ABILITY_COUNT for none */
+    u8   rank;
+};
+
+struct engine_rank_kind
+{
+    u8   id;
+    char key[CONTENT_KEY_SIZE];     /* the text id is "rank.<key>" */
+    u32  soldiers, cities;
+};
+
+struct engine_item
+{
+    u8   id;                        /* the item id; ENGINE_NO_ROW if no item */
+    u8   name[ITEM_NAME_SIZE];      /* Big5, NUL padded */
+    char key[CONTENT_KEY_SIZE];     /* the key of items.tsv, or "" if the kind is not known */
+    u8   type;                      /* item_type */
+    u8   strength;
+    u16  owner;                     /* ENGINE_NO_OFFICER */
+    u8   city;                      /* ENGINE_NO_CITY */
+};
+
+struct engine_diplomacy
+{
+    u32 friendliness;               /* 0 .. 100 */
+    u32 level;                      /* 0 險惡 .. 4 親密 */
+    u8  relation;                   /* sim_relation */
+    u32 months;                     /* a ceasefire */
+};
+
+struct engine_duel_side
+{
+    u16 officers[SIM_COMMAND_OFFICERS];
+    u8  stamina[SIM_COMMAND_OFFICERS];
+    u8  fighter;
+    u32 spirit;
+    u8  policy;
+    u8  force;
+    b32 boosted, guarded;           /* 集氣 or 堅守 runs; the defence critical runs */
+};
+
+struct engine_duel_view
+{
+    b32              active;
+    u32              round;
+    u8               result;        /* sim_duel_result after the end */
+    u8               winner;        /* 0 or 1; 2 for a draw */
+    engine_duel_side side[2];       /* 0 the challenger */
+    b32              ready[DUEL_SPECIAL_COUNT];   /* the special commands of side 0 that can run now */
+};
+
+struct engine_debate_side
+{
+    u16      officer;
+    sim_card hand[SIM_HAND_CAPACITY];
+    u8       hand_count;
+    s32      mind;
+    u32      rocks;
+    u32      anger;
+    u32      rage_rounds;
+};
+
+struct engine_debate_view
+{
+    b32                active;
+    b32                finished;
+    u32                round;
+    u8                 topic;       /* sim_topic */
+    u8                 turn;        /* the side that speaks */
+    u8                 winner;
+    u8                 purpose;     /* sim_debate_purpose */
+    engine_debate_side side[2];     /* 0 the officer of the acting faction */
+    sim_card           last[2];     /* type CARD_TYPE_COUNT if none */
+};
+
 /* The hexes that a unit can reach now, with their costs. The engine owns
    the arrays; the next reachable call replaces them. */
 struct engine_reach_view
@@ -484,6 +623,8 @@ struct engine_reach_view
 struct engine_settings
 {
     b32 disasters;          /* the calendar starts disasters */
+    b32 ability_change;     /* M7: 能力變動: abilities fall with age */
+    b32 lifespan;           /* M7: officers die near their historical year */
 };
 
 /* The indices of the ledger events that a filter keeps, in ledger order.
@@ -527,6 +668,10 @@ struct engine_content_status
     u32         plot_count;
     u32         building_count;
     u32         critical_count;
+    u32         skill_count;      /* M7 */
+    u32         rank_count;
+    u32         post_count;
+    u32         item_count;
     const char *detail;           /* a static string: the file that did not load, or "ok" */
 };
 
@@ -692,6 +837,34 @@ typedef u32                  engine_place_building_fn(void *engine, u8 kind, u8 
 typedef void                 engine_set_unit_fn(void *engine, u32 unit_id, u32 soldiers, u32 morale);
 typedef b32                  engine_set_unit_place_fn(void *engine, u32 unit_id, u8 force_id, s32 q, s32 r);   /* false if the hex is not free */
 typedef void                 engine_set_city_durability_fn(void *engine, u8 city_id, u32 durability);
+/* M7 queries */
+typedef engine_officer_detail engine_officer_detail_fn(void *engine, u16 officer_id);
+typedef u32                   engine_skill_kind_count_fn(void *engine);
+typedef engine_skill_kind     engine_skill_kind_at_fn(void *engine, u32 index);
+typedef u32                   engine_post_kind_count_fn(void *engine);
+typedef engine_post_kind      engine_post_kind_at_fn(void *engine, u32 index);
+typedef u32                   engine_rank_kind_count_fn(void *engine);
+typedef engine_rank_kind      engine_rank_kind_at_fn(void *engine, u32 index);
+typedef u8                    engine_faction_rank_fn(void *engine, u8 force_id);
+typedef u16                   engine_post_holder_fn(void *engine, u8 force_id, u8 post);   /* ENGINE_NO_OFFICER if free */
+typedef u32                   engine_item_count_fn(void *engine);
+typedef engine_item           engine_item_at_fn(void *engine, u32 index);
+typedef engine_diplomacy      engine_diplomacy_fn(void *engine, u8 force_a, u8 force_b);
+typedef engine_duel_view      engine_duel_view_fn(void *engine);
+typedef engine_debate_view    engine_debate_view_fn(void *engine);
+/* M7 commands. A refused command changes nothing and ledgers nothing. The
+   court order names the city of the acting officer. kind: the
+   ENGINE_COMMAND_SEARCH .. ENGINE_COMMAND_FACTION_PLOT command. */
+typedef engine_command_result engine_command_court_fn(void *engine, engine_command_kind kind, const engine_court_order *order);
+typedef engine_command_result engine_command_duel_fn(void *engine, u32 unit_id, s32 q, s32 r);          /* 單挑 */
+typedef engine_command_result engine_command_mini_fn(void *engine, u8 action, u8 value);               /* sim_duel_action, sim_debate_action */
+/* Test and editor commands. They ledger nothing, except the debate that
+   they start. */
+typedef engine_command_result engine_start_debate_fn(void *engine, u16 officer_a, u16 officer_b);
+typedef void                  engine_set_officer_fn(void *engine, u16 officer_id, const engine_officer_edit *edit);
+typedef void                  engine_set_item_owner_fn(void *engine, u8 item, u16 officer_id);
+typedef void                  engine_set_diplomacy_fn(void *engine, u8 force_a, u8 force_b, u32 friendliness, u8 relation, u32 months);
+typedef void                  engine_set_stamina_fn(void *engine, u16 officer_id, u8 stamina);
 /* A placeholder unit until M5: it only blocks the commands of enemy
    cities within 2 hexes. Returns ENGINE_NO_UNIT if there is no room. */
 typedef u32                 engine_place_unit_fn(void *engine, u8 force_id, s32 q, s32 r);
@@ -814,6 +987,30 @@ struct engine_api
     engine_set_unit_fn              *set_unit;
     engine_set_unit_place_fn        *set_unit_place;
     engine_set_city_durability_fn   *set_city_durability;
+    /* M7 court: officers, posts, items, diplomacy, duel, debate */
+    engine_officer_detail_fn        *officer_detail;
+    engine_skill_kind_count_fn      *skill_kind_count;
+    engine_skill_kind_at_fn         *skill_kind_at;
+    engine_post_kind_count_fn       *post_kind_count;
+    engine_post_kind_at_fn          *post_kind_at;
+    engine_rank_kind_count_fn       *rank_kind_count;
+    engine_rank_kind_at_fn          *rank_kind_at;
+    engine_faction_rank_fn          *faction_rank;
+    engine_post_holder_fn           *post_holder;
+    engine_item_count_fn            *item_count;
+    engine_item_at_fn               *item_at;
+    engine_diplomacy_fn             *diplomacy;
+    engine_duel_view_fn             *duel_view;
+    engine_debate_view_fn           *debate_view;
+    engine_command_court_fn         *command_court;
+    engine_command_duel_fn          *command_duel;
+    engine_command_mini_fn          *command_duel_action;
+    engine_command_mini_fn          *command_debate_action;
+    engine_start_debate_fn          *start_debate;
+    engine_set_officer_fn           *set_officer;
+    engine_set_item_owner_fn        *set_item_owner;
+    engine_set_diplomacy_fn         *set_diplomacy;
+    engine_set_stamina_fn           *set_stamina;
 };
 
 /* The real engine lives in code/engine/engine.cpp. */
