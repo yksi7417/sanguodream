@@ -1,0 +1,884 @@
+id	text	note
+# UI strings of the placeholder pack, English. Columns: id, text, note for translators.
+# The text column accepts \n (new line), \t (tab) and \\ (backslash).
+menu.windows	Windows	the main menu that opens and closes panels
+menu.officers	Officers	menu item and panel
+menu.cities	Cities	menu item and panel
+menu.settings	Settings	menu item and panel
+officers.title	Officers	panel title
+officers.count	officers	after a number: "853 officers"
+officers.help	Force is the name of its ruler. Point at a name or a label to see its number or its Big5 bytes. A status without a label shows "?" and the number.
+cities.title	Cities	panel title
+cities.count	cities	after a number: "42 cities"
+cities.help	Names come from the name index ("Load city names"). Public order and durability maximum are hypotheses in the spec.
+column.id	id
+column.family_name	family name
+column.given_name	given name
+column.force	force
+column.status	status
+column.location	location
+column.stats	L/W/I/P/C	leadership, war, intelligence, politics, charm
+column.years	years	birth and death years
+column.merit	merit
+column.name	name
+column.owner	owner	the force that owns the city
+column.commander	commander	officer id
+column.gold	gold
+column.troops	troops
+column.food	food
+column.order	order	public order
+column.durability	durability	durability maximum
+settings.title	Settings	panel title
+settings.language	Language	combo label
+settings.font	Font	the font that the front end loaded
+settings.missing	Missing strings	ids that no locale file has
+settings.no_strings	This locale has no strings file. The panels use the fallback locale.
+name.bytes	Big5 bytes	tooltip on a name
+menu.city	City	menu item and panel: the slots of one city
+menu.develop	Develop	menu item and dialog: the develop command
+city.title	City	panel title
+city.select	City	combo label
+city.none	No city is loaded. Load the sample save in the Simulation panel.
+city.slots	Slots	built or under construction / slots of the city
+city.gold_income	Gold income	expected gold next month
+city.grain_income	Grain income	expected grain next season
+city.governor	Governor	officer id
+city.develop	Develop...	button that opens the develop dialog
+column.slot	slot
+column.facility	facility
+column.state	state
+column.turns_left	turns left
+column.yield	yield	gold each month or grain each season
+slot.empty	empty
+slot.building	building
+slot.built	built
+develop.title	Develop	dialog title
+develop.facility	Facility	combo label
+develop.slot	Slot	combo label
+develop.any_slot	first free slot
+develop.officer	Officer	combo label, then the number 1, 2 or 3
+develop.no_officer	-	no officer in this place
+develop.cost	Gold	the cost
+develop.period	Period
+develop.days	days
+develop.action_points	Action points
+develop.execute	Execute	button
+develop.refused	Refused	then the reason
+develop.started	Started, command	then the command id
+refusal.none	none
+refusal.no_content	the content pack did not load
+refusal.no_city	no city
+refusal.not_your_turn	this faction does not act now
+refusal.no_facility	the city cannot have this facility
+refusal.enemy_near	an enemy unit is within 2 hexes
+refusal.value_at_maximum	the city has the maximum of this facility
+refusal.no_slot	no free slot
+refusal.slot_taken	the slot is not free
+refusal.no_officer	no officer
+refusal.officer_not_in_city	an officer is not in this city
+refusal.duplicate_officer	the same officer two times
+refusal.officer_already_acted	an officer acted in this turn
+refusal.officer_busy	an officer is busy with a job
+refusal.no_action_points	not sufficient action points
+refusal.no_gold	not sufficient gold
+facility.market	Market
+facility.farm	Farm
+facility.barracks	Barracks
+facility.smithy	Smithy
+facility.stable	Stable
+facility.workshop	Workshop
+facility.shipyard	Shipyard
+facility.mint	Mint
+facility.granary	Granary
+facility.bronze_sparrow_tower	Bronze Sparrow Tower
+facility.tally_office	Tally office
+facility.personnel_office	Personnel office
+facility.plot_office	Plot office
+facility.great_market	Great market
+facility.black_market	Black market
+facility.diplomacy_office	Diplomacy office
+facility.military_office	Military office
+facility.drill_ground	Drill ground
+facility.fish_market	Fish market
+facility.military_farm	Military farm
+# Names and labels of the id and code columns (tutorial 12). The zh-TW file has the game terms.
+label.raw	raw value	tooltip on a name or a label: the number in the save
+label.raw_toggle	raw numbers	check box: show the numbers in place of the names
+label.force	force	before a force id, for a force without a ruler: "force 42"
+city.specialty	Specialty	特色, cities-and-facilities.md
+status.0	ruler	officer status 0, 君主; save-file.md officer +100
+status.1	viceroy	officer status 1, 都督
+status.2	governor	officer status 2, 太守
+status.3	regular	officer status 3, 一般
+status.6	free	officer status 6, 在野; also "not yet appeared" (Q-150)
+status.8	dead	officer status 8; save-file.md gives no game term (Q-150)
+specialty.0	none	city_specialty 0: no specialty in cities.tsv
+specialty.1	big city	cities-and-facilities.md, Specialty (特色)
+specialty.2	pike	槍
+specialty.3	halberd	戟
+specialty.4	crossbow	弩
+specialty.5	horse	軍馬
+specialty.6	siege	兵器
+specialty.7	navy	艦船
+menu.economy	Economy	menu item of the Economy panel
+city.patrol	Patrol...	巡察; button that opens the dialog
+city.conscript	Conscript...	徵兵
+city.train	Train...	訓練
+city.merchant	Merchant...	商人
+city.produce	Produce weapons...	生產兵裝
+patrol.title	Patrol	巡察 dialog title
+conscript.title	Conscript	徵兵 dialog title
+train.title	Train	訓練 dialog title
+merchant.title	Merchant	商人 dialog title
+produce.title	Produce weapons	生產兵裝 dialog title
+command.executor	Officers	執行武將
+command.decide	Decide	決定
+command.back	Back	返回
+command.gold	Gold	資金: cost / stock
+command.action_points	Action points	行動力: cost / available
+command.order	Public order	治安
+command.soldiers	Soldiers	士兵
+command.morale	Morale	氣力
+command.grain	Grain	兵糧
+command.stock	Stock	庫存
+command.period	Period	期間
+command.days	 days	after a number of days
+command.weapons	Weapons	兵裝
+command.price	Price	市價
+command.buy	Buy grain	the merchant spends gold
+command.sell	Sell grain	the merchant sells grain
+command.amount	Amount	gold to spend or grain to sell
+command.done	done, command	then the command id
+weapon.pike	Pike	槍
+weapon.halberd	Halberd	戟
+weapon.crossbow	Crossbow	弩
+weapon.horse	War horse	軍馬
+weapon.ram	Ram	衝車
+weapon.wood_beast	Wood beast	木獸
+weapon.tower	Tower	井闌
+weapon.catapult	Catapult	投石
+weapon.tower_ship	Tower ship	樓船
+weapon.battle_ship	Battle ship	鬥艦
+economy.title	Economy	panel title
+economy.technique	Technique points	技巧P of the faction
+economy.salaries	Salaries	gold each month
+economy.grain_per_turn	Grain each turn	the soldiers eat it
+economy.help	The amounts are assumed (Q-021, Q-027, Q-119, Q-151). A star: the skill 徵稅 or 徵收 pays more often. An exclamation mark: public order below 80, bandits can appear.
+ledger.city	City	ledger filter
+ledger.resource	Resource	ledger filter
+ledger.any	all	no filter
+resource.none	none
+resource.gold	gold
+resource.grain	grain
+resource.soldiers	soldiers
+resource.morale	morale
+resource.public_order	public order
+resource.weapons	weapons
+resource.durability	durability
+resource.technique	technique points
+resource.action_points	action points
+resource.merit	merit
+refusal.limit_reached	the command ran its limit of this turn
+refusal.too_many_officers	the command takes fewer officers
+refusal.no_amount	no amount
+refusal.no_grain	not sufficient grain
+refusal.needs_technique	the faction needs a technique first
+refusal.no_technique_points	not sufficient technique points
+refusal.weapon_replaced	a stronger weapon replaces this one
+refusal.not_mergeable	these facilities cannot merge
+refusal.game_over	the game is over
+refusal.no_disaster	no such disaster, or it runs now
+refusal.no_technique	no such technique
+menu.techniques	Techniques	menu item and panel
+techniques.title	Techniques	技巧表
+research.title	Research	研究技巧
+research.points	Technique points	技巧P
+research.running	Research	the research that runs now
+research.turns	turns	after a number
+research.technique	Technique
+research.line	Line	a line of four techniques
+merge.title	Merge	吸收合併
+merge.absorber	Absorber	the facility that gains the level
+merge.absorbed	Absorbed	the level-1 facility that becomes a free slot
+merge.level	Level
+city.research	Research	button: opens 研究技巧
+city.merge	Merge	button: opens 吸收合併
+city.disasters	Disasters
+city.no_disaster	none
+slot.merging	merging	the absorbed side of a merge
+settings.disasters	Disasters	game setting: locusts, plague, bandits, good harvest
+outcome.end_year	The game ends in the year
+outcome.none	the game runs
+outcome.victory	Victory
+outcome.defeat_time	Defeat: the year 351
+outcome.defeat_no_city	Defeat: no city
+outcome.defeat_no_officer	Defeat: no officer
+outcome.defeat_surrender	Defeat: surrender
+line.pike	Pike	槍兵
+line.halberd	Halberd	戟兵
+line.crossbow	Crossbow	弩兵
+line.cavalry	Cavalry	騎兵
+line.drill	Drill	鍊兵
+line.invention	Invention	發明
+line.defence	Defence	防衛
+line.fire	Fire	火攻
+line.pk	PK	the four techniques of the Power Up Kit
+technique.pike_drill	Pike drill	鍛鍊槍兵
+technique.grain_raid	Grain raid	襲擊兵糧
+technique.ambush	Ambush	奇襲
+technique.elite_pike	Elite pikes	精銳槍兵
+technique.halberd_drill	Halberd drill	鍛鍊戟兵
+technique.arrow_shield	Arrow shield	箭盾
+technique.great_shield	Great shield	大盾
+technique.elite_halberd	Elite halberds	精銳戟兵
+technique.crossbow_drill	Crossbow drill	鍛鍊弩兵
+technique.return_fire	Return fire	還射
+technique.strong_crossbow	Strong crossbow	強弩
+technique.elite_crossbow	Elite crossbows	精銳弩兵
+technique.cavalry_drill	Cavalry drill	鍛鍊騎兵
+technique.fine_horses	Fine horses	出產良馬
+technique.mounted_archery	Mounted archery	騎射
+technique.elite_cavalry	Elite cavalry	精銳騎兵
+technique.veterans	Veterans	熟練兵
+technique.rough_march	Rough march	難所行軍
+technique.army_reform	Army reform	改革軍制
+technique.ladders	Ladders	雲梯
+technique.axles	Axles	強化車軸
+technique.stonework	Stonework	石造建築
+technique.catapults	Catapults	開發投石
+technique.thunderbolt	Thunderbolt	霹靂
+technique.engineers	Engineers	培訓工兵
+technique.strong_facilities	Strong facilities	強化設施
+technique.strong_walls	Strong walls	強化城牆
+technique.strong_defence	Strong defence	強化防衛
+technique.wood_beasts	Wood beasts	開發木獸
+technique.divine_fire	Divine fire	神火計
+technique.gunpowder	Gunpowder	鍊成火藥
+technique.explosives	Explosives	鍊成炸藥
+technique.wooden_ox	Wooden ox	木牛流馬
+technique.port_expansion	Port expansion	擴展港關
+technique.order_decrees	Order decrees	整備政令
+technique.hearts_and_minds	Hearts and minds	掌握人心
+disaster.locusts	Locusts	蝗災
+disaster.plague	Plague	瘟疫
+disaster.bandits	Bandits	盜賊
+disaster.good_harvest	Good harvest	豐收
+refusal.no_unit	no such unit of this faction
+refusal.unit_acted	the unit acted in this turn
+refusal.unreachable	the hex is out of the move range
+refusal.no_room	no free hex next to the city
+refusal.no_soldiers	the number of soldiers is not possible
+refusal.no_weapons	not sufficient weapons
+refusal.not_adjacent	the unit is not next to the transport unit
+menu.unit	Unit	menu item and panel
+menu.minimap	Mini map	menu item and panel
+minimap.title	Mini map
+city.sortie	Sortie	button: opens 出征
+city.transport	Transport	button: opens 輸送
+sortie.title	Sortie	出征
+transport.title	Transport	輸送
+sortie.unit_type	Class	兵科
+sortie.auto	Auto formation	自動編制
+sortie.soldiers	Soldiers
+sortie.gold	Gold
+sortie.grain	Grain
+transport.destination	Destination
+unit.title	Unit	部隊
+unit.suffix	 unit	after the name of the commander
+unit.none	No unit is selected. Click a unit on the Hex map.
+unit.commander	Commander	主將
+unit.deputy	Deputy	副將
+unit.class	Class	兵科
+unit.attack	Attack
+unit.defence	Defence
+unit.intellect	Intellect
+unit.build	Build
+unit.move	Move
+unit.move_done	Move
+unit.supply	Supply	補給
+unit.supply_target	Unit to supply
+unit.menu	Orders	the unit command menu
+unit_menu.wait	Wait	待命
+unit_menu.attack	Attack	攻擊
+unit_menu.joint	Joint attack	齊攻
+unit_menu.tactic	Tactic	戰法
+unit_menu.duel	Duel	單挑
+unit_menu.plot	Plot	計略
+unit_menu.build	Build	設置
+unit_menu.repair	Repair	修補
+unit_menu.supply	Supply	補給
+unit_menu.retreat	Retreat	退卻
+unit_type.sword	Sword	劍兵
+unit_type.pike	Pike	槍兵
+unit_type.halberd	Halberd	戟兵
+unit_type.crossbow	Crossbow	弩兵
+unit_type.cavalry	Cavalry	騎兵
+unit_type.ram	Ram	衝車
+unit_type.wood_beast	Wood beast	木獸
+unit_type.tower	Tower	井闌
+unit_type.catapult	Catapult	投石
+unit_type.boat	Boat	走舸
+unit_type.tower_ship	Tower ship	樓船
+unit_type.battle_ship	Battle ship	鬥艦
+unit_type.transport	Transport	輸送隊
+terrain.grass	Grass	草地
+terrain.earth	Earth	土
+terrain.main_road	Main road	主徑
+terrain.waste	Waste	荒地
+terrain.sand	Sand	砂地
+terrain.ford	Ford	渡所
+terrain.swamp	Swamp	濕地
+terrain.forest	Forest	森林
+terrain.plank_road	Plank road	棧道
+terrain.small_path	Small path	小徑
+terrain.shallows	Shallows	淺灘
+terrain.poison_spring	Poison spring	毒泉
+terrain.river	River	河
+terrain.sea	Sea	海
+terrain.cliff	Cliff	崖
+terrain.city	City	都市
+unit_menu.dismantle	Dismantle	撤除
+unit.pick_hint	Click the target hex on the Hex map.	M6: after a combat order
+unit.pick_cancel	Cancel the order	M6
+unit.state_1	Confused	混亂
+unit.state_2	False report	偽報
+actions.title	Actions	the list of tactics, plots or buildings of a unit
+actions.grade	Grade	the aptitude that a tactic needs
+refusal.unit_confused	the unit is in a state and cannot act
+refusal.no_target	no target on that hex, or the hex is out of range
+refusal.no_morale	not sufficient morale
+refusal.no_aptitude	the unit cannot do this
+refusal.no_partner	no other unit can join the attack
+refusal.bad_terrain	the terrain does not allow this
+refusal.not_buildable	the hex does not take a building
+tactic.pierce	Pierce	突刺
+tactic.spiral_pierce	Spiral pierce	螺旋突刺
+tactic.double_pierce	Double pierce	二段突刺
+tactic.hook	Hook	熊手
+tactic.sweep	Sweep	橫掃
+tactic.whirlwind	Whirlwind	旋風
+tactic.fire_arrow	Fire arrow	火矢
+tactic.pierce_arrow	Piercing arrow	貫箭
+tactic.volley	Volley	亂射
+tactic.charge	Charge	突擊
+tactic.breakthrough	Breakthrough	突破
+tactic.onslaught	Onslaught	突進
+tactic.smash	Smash	破碎
+tactic.flame	Flame	放射
+tactic.tower_arrow	Fire arrow (tower)	火矢
+tactic.stone	Stone	投石
+tactic.ship_arrow	Fire arrow (ship)	火矢
+tactic.ram_ship	Ram	猛撞
+tactic.ship_stone	Stone (ship)	投石
+plot.fire	Fire	火計
+plot.extinguish	Extinguish	滅火
+plot.false_report	False report	偽報
+plot.confusion	Confusion	擾亂
+plot.calm	Calm	鎮靜
+plot.ambush	Ambush	伏兵
+plot.infighting	Infighting	內訌
+plot.sorcery	Sorcery	妖術
+plot.lightning	Lightning	落雷
+building.camp	Camp	陣
+building.fort	Fort	砦
+building.citadel	Citadel	城塞
+building.arrow_tower	Arrow tower	箭樓
+building.repeating_tower	Repeating crossbow tower	連弩樓
+building.catapult_tower	Catapult tower	投石台
+building.drum_tower	Drum tower	太鼓台
+building.music_tower	Music tower	軍樂台
+building.stone_maze	Stone maze	石兵八陣
+building.earth_wall	Earth wall	土壘
+building.stone_wall	Stone wall	石牆
+building.fire_seed	Fire seed	火種
+building.fire_seed_2	Fire trap seed	火陷種
+building.fire_seed_3	Hellfire seed	業火種
+building.fire_ball	Fire ball	火球
+building.fire_ball_2	Fire trap ball	火陷球
+building.fire_ball_3	Hellfire ball	業火球
+building.fire_ship	Fire ship	火船
+building.dike	Dike	堤防
+building.rockfall	Rockfall	落石
+menu.court	Court	宮廷
+menu.diplomacy	Diplomacy	外交
+court.title	Court	宮廷
+court.no_faction	No faction acts now.	沒有行動中的勢力
+court.rank	Rank	爵位
+court.officer	Officer	武將
+court.loyalty	Loyalty	忠誠
+court.merit	Merit	功績
+court.age	Age	年齡
+court.personality	Personality	性格
+court.ambition	Ambition	野心
+court.justice	Justice	義理
+court.health	Health	健康
+court.stamina	Stamina	體力
+court.post	Post	官職
+court.soldiers	Soldiers	兵力上限
+court.spouse	Spouse	配偶
+court.liked	Liked	親愛
+court.disliked	Disliked	厭惡
+court.reward	Reward	褒賞
+court.exile	Exile	流放
+court.appoint	Appoint	任命
+court.search	Search	探索
+court.recruit_target	Officer to recruit	登庸對象
+court.chance	Chance	成功率
+court.recruit	Recruit	登庸
+court.item	Item	寶物
+court.give	Give	授與
+court.partner	Partner	對象
+court.sworn_kind	Sworn brothers	結義
+court.marriage_kind	Marriage	婚姻
+court.matchmake	Matchmake	仲介
+court.captive	Captive	俘虜
+court.release	Release	釋放
+personality.0	Careful	小心
+personality.1	Calm	冷靜
+personality.2	Bold	剛膽
+personality.3	Reckless	豬突
+health.0	Healthy	健康
+health.1	Light wound	輕傷
+health.2	Heavy wound	重傷
+health.3	Near death	瀕死
+diplomacy.title	Diplomacy	外交
+diplomacy.faction	Faction	勢力
+diplomacy.friendliness	Friendliness	友好度
+diplomacy.relation	Relation	關係
+diplomacy.months	Months	月數
+diplomacy.envoy	Envoy	使者
+diplomacy.gold	Gold	金
+diplomacy.goodwill	Goodwill	親善
+diplomacy.alliance	Alliance	同盟
+diplomacy.break	Break	摒棄
+diplomacy.ceasefire	Ceasefire	停戰協定
+diplomacy.surrender	Demand surrender	降伏勸告
+diplomacy.exchange	Exchange captive	交換俘虜
+diplomacy.aid	Request aid	請求援軍
+diplomacy.captive	Own captive	被俘武將
+diplomacy.second	Second faction	第二勢力
+diplomacy.city	Target city	目標都市
+plot_cmd.two_tigers	Two tigers	二虎競食
+plot_cmd.drive_tiger	Drive the tiger	驅虎吞狼
+plot_cmd.rumour	Rumour	流言
+level.0	Hostile	險惡
+level.1	Unfriendly	不和
+level.2	Neutral	中立
+level.3	Friendly	友好
+level.4	Intimate	親密
+relation.0	None	無
+relation.1	Alliance	同盟
+relation.2	Ceasefire	停戰
+duel.title	Duel	單挑
+duel.round	Round	合
+duel.force	Force	武力
+duel.stamina	Stamina	體力
+duel.spirit	Spirit	鬥志
+duel.policy_0	Attack	重視攻擊
+duel.policy_1	Defence	重視防禦
+duel.policy_2	Spirit	重視鬥志
+duel.policy_3	One blow	重視一擊
+duel_policy.0	Attack	重視攻擊
+duel_policy.1	Defence	重視防禦
+duel_policy.2	Spirit	重視鬥志
+duel_policy.3	One blow	重視一擊
+duel.special_0	Finisher	必殺技
+duel.special_1	Focus	集氣
+duel.special_2	Hold	堅守
+duel.special_3	Retreat	退卻
+duel.special_4	Vital spot	要害
+duel.special_5	Peerless	無雙
+duel.special_6	Hidden weapon	暗器
+duel.special_7	Feigned retreat	偽退
+duel.substitute	Substitute	替換
+duel.next_round	Next round	下一合
+duel.auto	Automatic	自動
+duel.close	Close	關閉
+duel_result.0	Running	進行中
+duel_result.1	Victory	勝利
+duel_result.2	Draw	平手
+duel_result.3	Retreat	退卻
+debate.title	Debate	舌戰
+debate.topic	Topic	話題
+debate.intellect	Intellect	智力
+debate.mind	Mind	心理
+debate.anger	Anger	怒氣
+debate.rage	Rage	激憤
+debate.last_left	Played	出牌
+debate.last_right	Answer	回應
+debate.speak	Speak with the best card	自動發言
+debate.listen	Let the other speak	對方發言
+debate.won	The debate is won.	舌戰勝利
+debate.lost	The debate is lost.	舌戰失敗
+debate.sympathy	Show sympathy	施予同情
+debate.press	Press	進逼
+debate.close	Close	關閉
+topic.0	Reason	道理
+topic.1	Story	故事
+topic.2	Season	時節
+strength.1	small	小
+strength.2	medium	中
+strength.3	large	大
+card.0	Topic	話題
+card.1	Ignore	無視
+card.2	Shout	大喝
+card.3	Sophistry	詭辯
+card.4	Calm	鎮靜
+card.5	Anger	憤怒
+card.6	Rethink	熟慮
+refusal.not_recruitable	the officer cannot be recruited	無法登庸
+refusal.no_item	the faction does not hold the item	沒有寶物
+refusal.no_post	no such post	沒有官職
+refusal.post_taken	another officer holds the post	官職已有人擔任
+refusal.no_merit	not sufficient merit	功績不足
+refusal.no_rank	the rank of the ruler does not allow it	爵位不足
+refusal.not_matchable	the two officers cannot be matched	無法仲介
+refusal.no_faction	no such faction	沒有勢力
+refusal.relation	the relation does not allow it	關係不允許
+refusal.at_peace	the factions are at peace	和平中
+refusal.busy	a duel or a debate runs	單挑或舌戰進行中
+refusal.no_duel	no duel or debate runs	沒有單挑或舌戰
+refusal.no_spirit	not sufficient fighting spirit	鬥志不足
+refusal.not_captive	the officer is no captive	不是俘虜
+skill.flying_general	Flying general	飛將
+skill.escape	Escape	遁走
+skill.forced_march	Forced march	強行
+skill.long_drive	Long drive	長驅
+skill.push_on	Push on	推進
+skill.helmsman	Helmsman	操舵
+skill.trailblazer	Trailblazer	踏破
+skill.haul	Haul	運搬
+skill.antidote	Antidote	解毒
+skill.sweep	Sweep	掃討
+skill.awe	Awe	威風
+skill.elation	Elation	昂揚
+skill.double_attack	Double attack	連戰
+skill.surprise	Surprise	急襲
+skill.raid	Raid	強襲
+skill.melee	Melee	亂戰
+skill.siege_master	Siege master	攻城
+skill.pincer	Pincer	掎角
+skill.capture	Capture	捕縛
+skill.subtle	Subtle	精妙
+skill.plunder	Plunder	強奪
+skill.heart_attack	Heart attack	心攻
+skill.expel	Expel	驅逐
+skill.range	Range	射程
+skill.white_horse	White horse	白馬
+skill.aide	Aide	輔佐
+skill.pike_general	Pike general	槍將
+skill.halberd_general	Halberd general	戟將
+skill.bow_general	Bow general	弓將
+skill.cavalry_general	Cavalry general	騎將
+skill.navy_general	Navy general	水將
+skill.brave_general	Brave general	勇將
+skill.divine_general	Divine general	神將
+skill.battle_god	Battle god	鬥神
+skill.pike_god	Pike god	槍神
+skill.halberd_god	Halberd god	戟神
+skill.bow_god	Bow god	弓神
+skill.cavalry_god	Cavalry god	騎神
+skill.engineer_god	Engineer god	工神
+skill.navy_god	Navy god	水神
+skill.overlord	Overlord	霸王
+skill.gallop	Gallop	疾走
+skill.archer	Archer	射手
+skill.fierce	Fierce	猛者
+skill.unyielding	Unyielding	不屈
+skill.diamond	Diamond	金剛
+skill.iron_wall	Iron wall	鐵壁
+skill.fury	Fury	怒髮
+skill.rattan	Rattan armour	藤甲
+skill.fortune	Fortune	強運
+skill.blood_path	Blood path	血路
+skill.guard	Guard	護衛
+skill.ambush	Ambush	待伏
+skill.fire_attack	Fire attack	火攻
+skill.false_word	False word	言毒
+skill.tactician	Tactician	機略
+skill.trickery	Trickery	詭計
+skill.feint	Feint	虛實
+skill.clever_plan	Clever plan	妙計
+skill.secret_plan	Secret plan	秘計
+skill.see_through	See through	看破
+skill.insight	Insight	洞察
+skill.fire_god	Fire god	火神
+skill.strategist	Strategist	神算
+skill.many_plans	Many plans	百出
+skill.cunning	Cunning	鬼謀
+skill.chain	Chain	連環
+skill.deep_plan	Deep plan	深謀
+skill.counter_plot	Counter plot	反計
+skill.beauty	Beauty	傾國
+skill.sorcery	Sorcery	妖術
+skill.demon_gate	Demon gate	鬼門
+skill.discipline	Discipline	規律
+skill.composure	Composure	沈著
+skill.clear_mirror	Clear mirror	明鏡
+skill.music	Music	樂奏
+skill.poetry	Poetry	詩想
+skill.fortify	Fortify	築城
+skill.farming	Military farms	屯田
+skill.fame	Fame	名聲
+skill.capable	Capable	能吏
+skill.breeding	Breeding	繁殖
+skill.invention	Invention	發明
+skill.shipbuilding	Shipbuilding	造船
+skill.teaching	Teaching	指導
+skill.keen_eye	Keen eye	眼力
+skill.debater	Debater	論客
+skill.rich	Rich	富豪
+skill.rice	Rice way	米道
+skill.tax	Tax	徵稅
+skill.levy	Levy	徵收
+skill.wuhuan_friend	Wuhuan friend	親烏
+skill.qiang_friend	Qiang friend	親羌
+skill.yue_friend	Yue friend	親越
+skill.man_friend	Man friend	親蠻
+skill.intimidate	Intimidate	威壓
+skill.benevolence	Benevolence	仁政
+skill.fengshui	Feng shui	風水
+skill.prayer	Prayer	祈願
+skill.wife_help	Wife help	內助
+rank.none	No rank	無
+rank.inspector	Inspector	州刺史
+rank.governor	Provincial governor	州牧
+rank.guard_general	Imperial guard general	羽林中郎將
+rank.household_general	Household general	五官中郎將
+rank.grand_general	Grand general	大將軍
+rank.grand_marshal	Grand marshal	大司馬
+rank.duke	Duke	公
+rank.king	King	王
+rank.emperor	Emperor	皇帝
+post.post_00	Chancellor	丞相
+post.post_01	Minister of works	司空
+post.post_02	Grand commandant	太尉
+post.post_03	Minister over the masses	司徒
+post.post_04	Grand commander	大都督
+post.post_05	General of the guard	衛將軍
+post.post_06	General of the swift cavalry	驃騎將軍
+post.post_07	General of chariots and cavalry	車騎將軍
+post.post_08	Superintendent of the palace	光祿勳
+post.post_09	Grand minister of agriculture	大司農
+post.post_10	Commandant of justice	廷尉
+post.post_11	Commandant of the guards	衛尉
+post.post_12	General who conquers the east	征東將軍
+post.post_13	General who conquers the south	征南將軍
+post.post_14	General who conquers the west	征西將軍
+post.post_15	General who conquers the north	征北將軍
+post.post_16	Director of the secretariat	尚書令
+post.post_17	Minister coachman	太僕
+post.post_18	Minister of ceremonies	太常
+post.post_19	Grand herald	大鴻臚
+post.post_20	General who guards the east	鎮東將軍
+post.post_21	General who guards the south	鎮南將軍
+post.post_22	General who guards the west	鎮西將軍
+post.post_23	General who guards the north	鎮北將軍
+post.post_24	Director of the inner secretariat	中書令
+post.post_25	Palace assistant secretary	御史中丞
+post.post_26	Bearer of the golden mace	執金吾
+post.post_27	Minister steward	少府
+post.post_28	General who pacifies the east	安東將軍
+post.post_29	General who pacifies the south	安南將軍
+post.post_30	General who pacifies the west	安西將軍
+post.post_31	General who pacifies the north	安北將軍
+post.post_32	Director of the archives	秘書令
+post.post_33	Palace attendant	侍中
+post.post_34	Chief clerk of the rear office	留府長史
+post.post_35	Erudite of the academy	太學博士
+post.post_36	General of the left	左將軍
+post.post_37	General of the right	右將軍
+post.post_38	General of the front	前將軍
+post.post_39	General of the rear	後將軍
+post.post_40	Supervisor of the internuncios	謁者僕射
+post.post_41	Chief commandant	都尉
+post.post_42	Gentleman of the yellow gate	黃門侍郎
+post.post_43	Grand astrologer	太史令
+post.post_44	General of the army counsellors	軍師將軍
+post.post_45	General who secures the state	安國將軍
+post.post_46	General who smashes the caitiffs	破虜將軍
+post.post_47	General who attacks rebels	討逆將軍
+post.post_48	Gentleman of the palace	郎中
+post.post_49	Attendant gentleman	從事中郎
+post.post_50	Chief clerk	長史
+post.post_51	Major	司馬
+post.post_52	General who calms the east	平東將軍
+post.post_53	General who calms the south	平南將軍
+post.post_54	General who calms the west	平西將軍
+post.post_55	General who calms the north	平北將軍
+post.post_56	Prefect of music	太樂令
+post.post_57	Prefect of the granary	大倉令
+post.post_58	Prefect of the arsenal	武庫令
+post.post_59	Prefect of the guards	衛士令
+post.post_60	General of the standard	牙門將軍
+post.post_61	Army protector	護軍
+post.post_62	Lieutenant general	偏將軍
+post.post_63	Assistant general	裨將軍
+post.post_64	Registrar	主簿
+post.post_65	Grandee remonstrant	諫議大夫
+post.post_66	Gentleman attendant	侍郎
+post.post_67	Gentleman of the household	中郎
+post.post_68	Colonel of loyalty	忠義校尉
+post.post_69	Colonel of bright trust	昭信校尉
+post.post_70	Colonel of the scholars	儒林校尉
+post.post_71	Colonel of counsel	建議校尉
+post.post_72	Left supervisor	左僕射
+post.post_73	Right supervisor	右僕射
+post.post_74	Colonel of agriculture	典農校尉
+post.post_75	Consultant	議郎
+post.post_76	Colonel of the hawk	鷹威校尉
+post.post_77	Colonel of the long river	長水校尉
+post.post_78	Colonel who smashes bandits	破賊校尉
+post.post_79	Colonel of the martial guard	武衛校尉
+item.red_hare	Red Hare	赤兔馬
+item.dilu	Dilu	的盧
+item.shadow_runner	Yellow lightning	爪黃飛電
+item.shadow	Shadow	絕影
+item.ferghana	Ferghana horse	大宛馬
+item.seven_star	Seven star sword	七星寶刀
+item.yitian	Yitian sword	倚天劍
+item.qinggang	Qinggang sword	青釭劍
+item.twin_swords	Twin swords	雌雄一對劍
+item.sky_halberd	Sky piercer	方天畫戟
+item.dragon_blade	Green dragon blade	青龍偃月刀
+item.snake_spear	Serpent spear	蛇矛
+item.art_of_war	Art of war	孫子兵法
+item.mengde	Mengde new book	孟德新書
+item.seal	Imperial seal	玉璽
+item.bronze_bird	Bronze bird	銅雀
+base.hu_guan	Hu Pass	壺關
+base.hulao	Hulao Pass	虎牢關
+base.tong	Tong Pass	潼關
+base.hangu	Hangu Pass	函谷關
+base.wu_guan	Wu Pass	武關
+base.yangping	Yangping Pass	陽平關
+base.jiange	Jiange	劍閣
+base.jiameng	Jiameng Pass	葭萌關
+base.fushui	Fushui Pass	涪水關
+base.mianzhu	Mianzhu Pass	綿竹關
+base.anping	Anping Port	安平港
+base.gaotang	Gaotang Port	高唐港
+base.xihe	Xihe Port	西河港
+base.baima	Baima Port	白馬港
+base.changyang	Changyang Port	昌陽港
+base.linji	Linji Port	臨濟港
+base.hailing	Hailing Port	海陵港
+base.jiangdu	Jiangdu Port	江都港
+base.ruxu	Ruxu Port	濡須港
+base.dunqiu	Dunqiu Port	頓丘港
+base.guandu	Guandu Port	官渡港
+base.mengjin	Mengjin Port	孟津港
+base.xiexian	Xiexian Port	解縣港
+base.xinfeng	Xinfeng Port	新豐港
+base.xiayang	Xiayang Port	夏陽港
+base.fangling	Fangling Port	房陵港
+base.wuhu	Wuhu Port	蕪湖港
+base.hulin	Hulin Port	虎林港
+base.qua	Qua Port	曲阿港
+base.gouzhang	Gouzhang Port	句章港
+base.wankou	Wankou Port	皖口港
+base.jiujiang	Jiujiang Port	九江港
+base.lukou	Lukou Port	陸口港
+base.poyang	Poyang Port	鄱陽港
+base.luling	Luling Port	廬陵港
+base.xiakou	Xiakou Port	夏口港
+base.huyang	Huyang Port	湖陽港
+base.zhonglu	Zhonglu Port	中廬港
+base.wulin	Wulin Port	烏林港
+base.hanjin	Hanjin Port	漢津港
+base.jiangjin	Jiangjin Port	江津港
+base.luoxian	Luoxian Port	羅縣港
+base.dongting	Dongting Port	洞庭港
+base.gongan	Gongan Port	公安港
+base.wuxian	Wuxian Port	巫縣港
+event.treason	Suspected treason	統一前謀反的嫌疑
+event.bronze_bird	Bronze bird terrace	銅雀台
+event.recommend_civil	Recommendation of a civil officer	推舉－文官
+event.recommend_military	Recommendation of a military officer	推舉－武官
+event.five_tigers	Five tiger generals	五虎將軍
+event.ruins	Ruins found	發現遺跡
+event.temple	Temple found	發現廟宇
+event.destroy_site	Ruins or temple destroyed	破壞遺跡、廟宇
+event.shao_accession	Accession of the young emperor	少帝即位
+event.xian_accession	Accession of emperor Xian	獻帝即位
+event.xian_death	Death of emperor Xian	獻帝駕崩
+event.visit_guanlu	Visit of Guan Lu	旅人訪問・管輅
+event.visit_xushao	Visit of Xu Shao	旅人訪問・許劭
+event.visit_huatuo	Visit of Hua Tuo	旅人訪問・華佗
+event.visit_yuji	Visit of Yu Ji	旅人訪問・于吉
+event.visit_miheng	Visit of Mi Heng	旅人訪問・禰衡
+event.visit_simahui_a	Visit of Sima Hui (pupils)	旅人訪問・司馬徽A
+event.visit_simahui_b	Visit of Sima Hui	旅人訪問・司馬徽B
+event.visit_huangchengyan	Visit of Huang Chengyan	旅人訪問・黃承彥
+event.spouse_help	Help of a spouse	夫婦的助力
+event.sworn_spirit	Spirit of sworn brothers	義兄弟之氣炎
+menu.ruler	Ruler	君主: 評定, 軍團, 軍師
+menu.bases	Bases	港關
+settings.ai	Computer factions act	game setting: the AI factions and the delegated corps give commands
+settings.events	Events	game setting: 事件
+ruler.title	Ruler	panel title: 君主
+ruler.emperor	Emperor	漢帝
+ruler.protector	Protector	the faction that holds the city of the emperor
+ruler.corps	Corps	軍團
+ruler.corps_number	No.	the number of the corps
+ruler.viceroy	Viceroy	都督
+ruler.cities	Cities	the cities of the corps
+ruler.policy	Policy	方針
+ruler.points	Action points	行動力 of the corps
+ruler.create	Create	軍團: new corps
+ruler.change	Change	軍團: reorganize the selected corps
+ruler.dissolve	Dissolve	軍團: dissolve the selected corps
+ruler.adviser	Adviser	軍師
+ruler.adviser_pick	New adviser	the officer to appoint as 軍師
+ruler.appoint_adviser	Appoint	appoint the 軍師
+ruler.no_advice	No advice. Appoint an adviser with intellect 70 or more.	軍師 needed
+ruler.council	Council	評定
+ruler.council_city	Council in	the city of the ruler
+emperor.0	none	no emperor
+emperor.1	Emperor Ling	靈帝
+emperor.2	Emperor Shao	少帝
+emperor.3	Emperor Xian	獻帝
+corps_policy.0	Delegate	委任
+corps_policy.1	Attack a faction	勢力攻略
+corps_policy.2	Attack a city	都市攻略
+corps_flag.0	Produce	生產
+corps_flag.1	Save gold	儲存金錢
+corps_flag.2	Save grain	儲存兵糧
+corps_flag.3	Conscript	補充士兵
+corps_flag.4	Recruit	人才
+corps_flag.5	Attack	攻擊
+corps_flag.6	Transport	輸送物資
+ai.patrol	Patrol	巡察
+ai.conscript	Conscript	徵兵
+ai.develop	Develop	開發
+ai.recruit	Recruit	登庸
+ai.train	Train	訓練
+ai.produce	Produce	生產
+ai.reward	Reward	褒賞
+ai.sortie	Sortie	出征
+ai.research	Research	研究
+ai.goodwill	Goodwill	親善
+bases.title	Bases	panel title: 港關
+bases.name	Name	the base
+bases.kind	Kind	pass or port
+bases.city	City	the owner city
+bases.faction	Faction	the faction that holds the base
+bases.durability	Durability	耐久
+bases.troops	Soldiers	兵力
+base_type.0	pass	關
+base_type.1	port	港
+event.title	Event	the dialog of an event that waits for a choice
+event_role.treason.a	Informer	密告者
+event_role.treason.b	Viceroy	都督
+event_role.visit_yuji.a	Searcher	探索者
+event_role.visit_yuji.b	Traveller	旅人
+event_question.treason	The informer says that the viceroy plans a rebellion. Is it treason?	謀反的嫌疑
+event_question.visit_yuji	Yu Ji asks for the help of the city.	于吉
+event_choice.treason.0	It is a slander	the informer loses loyalty
+event_choice.treason.1	It is treason	the viceroy founds a faction
+event_choice.visit_yuji.0	Pay gold	the faction gains technique points
+event_choice.visit_yuji.1	Give soldiers	the city gains soldiers
+event_choice.visit_yuji.2	Arrest him	public order falls
+refusal.no_corps	no such corps, or no free place for a new one	沒有軍團
+refusal.ruler_absent	the ruler is not in the city	君主不在
+refusal.no_event	no event waits for this choice	沒有事件

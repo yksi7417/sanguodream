@@ -1,0 +1,20 @@
+id	key	name_zh	weapon	aptitude	movement_class	move	attack	defence	destroy	range	can_attack	counterattack	transport	status
+# The unit classes of military-units-and-tactics.md (manual p.14). One row for each class of unit.
+# weapon: the weapon key of weapons.tsv that the unit carries (one for each soldier, or one item for a siege weapon or a ship), or - (sword, boat, transport).
+# aptitude: the officer aptitude that counts (spear, halberd, crossbow, cavalry, siege, navy, none).
+# Civil War pack: the same classes as the placeholder pack with other names and moves: 24 foot, 32 cavalry, 16 siege (a test of the generic mechanics, not a history).
+# attack, defence, destroy: the grades S A B C D E of the manual, or - (documented). The percent of each grade is in rules.tsv (assumed, Q-168).
+# range: the hexes of a normal attack (1, or 2 for an arrow attack; documented). can_attack: siege weapons cannot attack (documented). counterattack: siege weapons do not counterattack (documented).
+0	sword	Militia	-	none	foot	24	E	E	-	1	yes	yes	no	assumed
+1	pike	Infantry	pike	spear	foot	24	A	A	-	1	yes	yes	no	assumed
+2	halberd	Zouaves	halberd	halberd	foot	24	B	S	-	1	yes	yes	no	assumed
+3	crossbow	Sharpshooters	crossbow	crossbow	foot	24	C	C	-	2	yes	yes	no	assumed
+4	cavalry	Cavalry	horse	cavalry	cavalry	32	S	B	-	1	yes	yes	no	assumed
+5	ram	Siege gun	ram	siege	siege	16	-	D	B	1	no	no	no	assumed
+6	wood_beast	Mortar	wood_beast	siege	siege	16	-	D	A	1	no	no	no	assumed
+7	tower	Observation balloon	tower	siege	siege	16	-	D	D	2	no	no	no	assumed
+8	catapult	Field artillery	catapult	siege	siege	16	-	D	C	3	no	no	no	assumed
+9	boat	Gunboat	-	navy	navy	18	E	E	-	2	yes	yes	no	assumed
+10	tower_ship	Ironclad	tower_ship	navy	navy	22	B	B	-	2	yes	yes	no	assumed
+11	battle_ship	Frigate	battle_ship	navy	navy	22	A	A	-	2	yes	yes	no	assumed
+12	transport	Supply train	-	none	foot	24	E	E	-	1	yes	yes	yes	assumed

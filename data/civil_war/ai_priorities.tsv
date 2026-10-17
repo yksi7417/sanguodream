@@ -1,0 +1,13 @@
+id	key	command	priority	condition	threshold	status
+# The priority table of the AI planner (knowledge/ai.md: a small set of options each turn). One row for each kind of proposal.
+# The planner proposes a command of the row when its condition holds; a higher priority goes first; urgency adds up to 20. All numbers are assumed (Q-185).
+0	patrol	patrol	60	order_below	70	assumed
+1	conscript	conscript	55	troops_below_percent	50	assumed
+2	develop	develop	50	free_slot	0	assumed
+3	recruit	recruit	45	free_officer	0	assumed
+4	train	train	40	morale_below	70	assumed
+5	produce	produce	35	weapons_below_troops	0	assumed
+6	reward	reward	30	loyalty_below	70	assumed
+7	sortie	sortie	25	troops_above	15000	assumed
+8	research	research	20	technique_above	1000	assumed
+9	goodwill	diplomacy	10	gold_above	8000	assumed

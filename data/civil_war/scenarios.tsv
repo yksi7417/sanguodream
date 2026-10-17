@@ -1,0 +1,2 @@
+id	key	name_zh	year	kind	file	status
+0	sample_save	Sample game	194	save	..\spec-src\spec\fixtures\saves\sample.s11	documented
