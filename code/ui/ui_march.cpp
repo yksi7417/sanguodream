@@ -554,6 +554,15 @@ ui_draw_minimap(ui_state *ui, engine_api *api)
             hex_offset o = hex_to_offset(hex_make(slots.q, slots.r));
             f32 x = base.x + ((f32)o.col + ((o.row & 1) ? 0.5f : 0.0f)) * cell, y = base.y + (f32)o.row * cell;
             draw->AddRectFilled(ImVec2(x - cell, y - cell), ImVec2(x + 2.0f * cell, y + 2.0f * cell), ui_faction_color(city.owner_force_id));
+            /* M7 (diplomacy.md, manual p.8): an ally in blue, a ceasefire in yellow, a hostile faction in red. */
+            u8 acting = api->whose_turn(api->engine);
+            if (acting != ENGINE_NO_FACTION && city.owner_force_id != ENGINE_NO_FACTION && city.owner_force_id != acting)
+            {
+                u8 relation = api->diplomacy(api->engine, acting, city.owner_force_id).relation;
+                ImU32 border = relation == RELATION_ALLIANCE ? IM_COL32(60, 120, 255, 255) :
+                               relation == RELATION_CEASEFIRE ? IM_COL32(250, 220, 40, 255) : IM_COL32(230, 40, 40, 255);
+                draw->AddRect(ImVec2(x - cell - 1.0f, y - cell - 1.0f), ImVec2(x + 2.0f * cell + 1.0f, y + 2.0f * cell + 1.0f), border, 0.0f, 0, 1.5f);
+            }
         }
         for (u32 id = 0; id < api->unit_count(api->engine); ++id)
         {
