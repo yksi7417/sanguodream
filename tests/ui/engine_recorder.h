@@ -63,6 +63,17 @@ enum recorder_call_kind
     RECORDER_REACHABLE,
     RECORDER_UNIT_VALUES,
     RECORDER_SORTIE_PROPOSAL,
+    RECORDER_TACTIC_KIND_COUNT,
+    RECORDER_TACTIC_KIND_AT,
+    RECORDER_PLOT_KIND_COUNT,
+    RECORDER_PLOT_KIND_AT,
+    RECORDER_BUILDING_KIND_COUNT,
+    RECORDER_BUILDING_KIND_AT,
+    RECORDER_BUILDING_COUNT,
+    RECORDER_BUILDING_AT,
+    RECORDER_BUILDING_AT_HEX,
+    RECORDER_FIRE_VIEW,
+    RECORDER_CITY_SIEGE,
     RECORDER_END_TURN,        /* commands start here */
     RECORDER_ADVANCE_TURNS,
     RECORDER_LEDGER_CLEAR,
@@ -97,6 +108,17 @@ enum recorder_call_kind
     RECORDER_COMMAND_WAIT,
     RECORDER_COMMAND_RETREAT,
     RECORDER_COMMAND_SUPPLY,
+    RECORDER_COMMAND_ATTACK,
+    RECORDER_COMMAND_JOINT_ATTACK,
+    RECORDER_COMMAND_TACTIC,
+    RECORDER_COMMAND_PLOT,
+    RECORDER_COMMAND_BUILD,
+    RECORDER_COMMAND_REPAIR,
+    RECORDER_COMMAND_DISMANTLE,
+    RECORDER_PLACE_BUILDING,
+    RECORDER_SET_UNIT,
+    RECORDER_SET_UNIT_PLACE,
+    RECORDER_SET_CITY_DURABILITY,
     RECORDER_CALL_KIND_COUNT
 };
 
@@ -139,6 +161,7 @@ struct engine_recorder
     engine_command last_unit_command; /* the last move, wait, retreat or supply: unit, q, r, target_unit, amounts */
     hex_coord     reach_cells[3];
     u32           reach_costs[3];
+    u8            fire[64];           /* the fire_view answer: one burning cell */
 };
 
 internal void
@@ -897,6 +920,119 @@ internal engine_command_result recorder_command_supply(void *o, u32 unit_id, u32
     return recorder_unit_result(r);
 }
 
+/* M6: two tactics (突刺 for pikes, the tower arrow), two plots, two
+   building kinds (a camp and a natural dike), one camp on the map at
+   (2, 3) and one burning cell. */
+internal u32 recorder_tactic_kind_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_TACTIC_KIND_COUNT, 0); return 2; }
+internal engine_tactic_kind recorder_tactic_kind_at(void *o, u32 index)
+{
+    recorder_record((engine_recorder *)o, RECORDER_TACTIC_KIND_AT, index);
+    engine_tactic_kind kind = {};
+    kind.id = index < 2 ? (u8)index : ENGINE_NO_ROW;
+    snprintf(kind.key, sizeof(kind.key), "%s", index == 0 ? "pierce" : "tower_arrow");
+    kind.unit_types = index == 0 ? (1u << 1) : (1u << 7);
+    kind.aptitude = index == 0 ? 1 : 0; kind.morale = index == 0 ? 15 : 10; kind.range_min = 1; kind.range_max = index == 0 ? 1 : 2;
+    return kind;
+}
+internal u32 recorder_plot_kind_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_PLOT_KIND_COUNT, 0); return 2; }
+internal engine_plot_kind recorder_plot_kind_at(void *o, u32 index)
+{
+    recorder_record((engine_recorder *)o, RECORDER_PLOT_KIND_AT, index);
+    engine_plot_kind kind = {};
+    kind.id = index < 2 ? (u8)index : ENGINE_NO_ROW;
+    snprintf(kind.key, sizeof(kind.key), "%s", index == 0 ? "fire" : "confusion");
+    kind.morale = index == 0 ? 10 : 15; kind.range = index == 0 ? 1 : 2;
+    return kind;
+}
+internal u32 recorder_building_kind_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_BUILDING_KIND_COUNT, 0); return 2; }
+internal engine_building_kind recorder_building_kind_at(void *o, u32 index)
+{
+    recorder_record((engine_recorder *)o, RECORDER_BUILDING_KIND_AT, index);
+    engine_building_kind kind = {};
+    kind.id = index < 2 ? (u8)index : ENGINE_NO_ROW;
+    snprintf(kind.key, sizeof(kind.key), "%s", index == 0 ? "camp" : "dike");
+    kind.durability = 1100; kind.gold = index == 0 ? 500 : 0; kind.natural = index == 1; kind.technique = ENGINE_NO_TECHNIQUE;
+    return kind;
+}
+internal u32 recorder_building_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_BUILDING_COUNT, 0); return 1; }
+internal engine_building recorder_building_at(void *o, u32 building_id)
+{
+    recorder_record((engine_recorder *)o, RECORDER_BUILDING_AT, building_id);
+    engine_building building = {};
+    building.id = building_id == 0 ? 0 : ENGINE_NO_BUILDING;
+    building.kind = 0; building.force_id = 1; building.q = 2; building.r = 3; building.durability = 600; building.durability_max = 1100;
+    building.city_id = ENGINE_NO_CITY;
+    return building;
+}
+internal u32 recorder_building_at_hex(void *o, s32 q, s32 r)
+{
+    recorder_record((engine_recorder *)o, RECORDER_BUILDING_AT_HEX, 0);
+    return q == 2 && r == 3 ? 0 : ENGINE_NO_BUILDING;
+}
+internal engine_fire_view recorder_fire_view(void *o)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_FIRE_VIEW, 0);
+    for (u32 i = 0; i < ArrayCount(r->fire); ++i) r->fire[i] = 0;
+    r->fire[9] = 2;
+    engine_fire_view view = {};
+    view.width = 8; view.height = 8; view.turns = r->fire;
+    return view;
+}
+internal engine_city_siege recorder_city_siege(void *o, u8 city_id)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_CITY_SIEGE, city_id);
+    engine_city_siege siege = {};
+    siege.city_id = city_id < r->city_count ? city_id : ENGINE_NO_CITY;
+    siege.durability = 2000; siege.durability_max = 3000; siege.soldiers = 5000;
+    return siege;
+}
+internal engine_command_result recorder_unit_target(engine_recorder *r, recorder_call_kind kind, engine_command_kind command, u32 unit_id, u8 row, s32 q, s32 rr)
+{
+    recorder_record(r, kind, unit_id);
+    r->last_unit_command = {};
+    r->last_unit_command.kind = command;
+    r->last_unit_command.unit = unit_id; r->last_unit_command.row = row; r->last_unit_command.q = q; r->last_unit_command.r = rr;
+    return recorder_unit_result(r);
+}
+internal engine_command_result recorder_command_attack(void *o, u32 unit_id, s32 q, s32 r)
+{ return recorder_unit_target((engine_recorder *)o, RECORDER_COMMAND_ATTACK, ENGINE_COMMAND_ATTACK, unit_id, 0, q, r); }
+internal engine_command_result recorder_command_joint_attack(void *o, u32 unit_id, s32 q, s32 r)
+{ return recorder_unit_target((engine_recorder *)o, RECORDER_COMMAND_JOINT_ATTACK, ENGINE_COMMAND_JOINT_ATTACK, unit_id, 0, q, r); }
+internal engine_command_result recorder_command_tactic(void *o, u32 unit_id, u8 row, s32 q, s32 r)
+{ return recorder_unit_target((engine_recorder *)o, RECORDER_COMMAND_TACTIC, ENGINE_COMMAND_TACTIC, unit_id, row, q, r); }
+internal engine_command_result recorder_command_plot(void *o, u32 unit_id, u8 row, s32 q, s32 r)
+{ return recorder_unit_target((engine_recorder *)o, RECORDER_COMMAND_PLOT, ENGINE_COMMAND_PLOT, unit_id, row, q, r); }
+internal engine_command_result recorder_command_build(void *o, u32 unit_id, u8 row, s32 q, s32 r)
+{ return recorder_unit_target((engine_recorder *)o, RECORDER_COMMAND_BUILD, ENGINE_COMMAND_BUILD, unit_id, row, q, r); }
+internal engine_command_result recorder_command_repair(void *o, u32 unit_id, s32 q, s32 r)
+{ return recorder_unit_target((engine_recorder *)o, RECORDER_COMMAND_REPAIR, ENGINE_COMMAND_REPAIR, unit_id, 0, q, r); }
+internal engine_command_result recorder_command_dismantle(void *o, u32 unit_id, s32 q, s32 r)
+{ return recorder_unit_target((engine_recorder *)o, RECORDER_COMMAND_DISMANTLE, ENGINE_COMMAND_DISMANTLE, unit_id, 0, q, r); }
+internal u32 recorder_place_building(void *o, u8 kind, u8 force_id, s32 q, s32 r)
+{
+    (void)force_id; (void)q; (void)r;
+    recorder_record((engine_recorder *)o, RECORDER_PLACE_BUILDING, kind);
+    return 0;
+}
+internal void recorder_set_unit(void *o, u32 unit_id, u32 soldiers, u32 morale)
+{
+    (void)soldiers; (void)morale;
+    recorder_record((engine_recorder *)o, RECORDER_SET_UNIT, unit_id);
+}
+internal b32 recorder_set_unit_place(void *o, u32 unit_id, u8 force_id, s32 q, s32 r)
+{
+    (void)force_id; (void)q; (void)r;
+    recorder_record((engine_recorder *)o, RECORDER_SET_UNIT_PLACE, unit_id);
+    return true;
+}
+internal void recorder_set_city_durability(void *o, u8 city_id, u32 durability)
+{
+    (void)durability;
+    recorder_record((engine_recorder *)o, RECORDER_SET_CITY_DURABILITY, city_id);
+}
+
 /* The command kind of the recorder call of a city command. */
 internal recorder_call_kind
 recorder_call_of(engine_command_kind kind)
@@ -1006,6 +1142,28 @@ recorder_make_api(engine_recorder *r)
     api.command_wait         = recorder_command_wait;
     api.command_retreat      = recorder_command_retreat;
     api.command_supply       = recorder_command_supply;
+    api.tactic_kind_count    = recorder_tactic_kind_count;
+    api.tactic_kind_at       = recorder_tactic_kind_at;
+    api.plot_kind_count      = recorder_plot_kind_count;
+    api.plot_kind_at         = recorder_plot_kind_at;
+    api.building_kind_count  = recorder_building_kind_count;
+    api.building_kind_at     = recorder_building_kind_at;
+    api.building_count       = recorder_building_count;
+    api.building_at          = recorder_building_at;
+    api.building_at_hex      = recorder_building_at_hex;
+    api.fire_view            = recorder_fire_view;
+    api.city_siege           = recorder_city_siege;
+    api.command_attack       = recorder_command_attack;
+    api.command_joint_attack = recorder_command_joint_attack;
+    api.command_tactic       = recorder_command_tactic;
+    api.command_plot         = recorder_command_plot;
+    api.command_build        = recorder_command_build;
+    api.command_repair       = recorder_command_repair;
+    api.command_dismantle    = recorder_command_dismantle;
+    api.place_building       = recorder_place_building;
+    api.set_unit             = recorder_set_unit;
+    api.set_unit_place       = recorder_set_unit_place;
+    api.set_city_durability  = recorder_set_city_durability;
     return api;
 }
 

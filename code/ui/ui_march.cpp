@@ -5,6 +5,9 @@
    change of the game is one engine_api command. Included by ui.cpp. */
 
 internal void ui_draw_supply(ui_state *ui, engine_api *api, engine_unit *transport);
+internal b32  ui_combat_click(ui_state *ui, engine_api *api, hex_coord hex);                                       /* ui_combat.cpp */
+internal void ui_start_pick(ui_state *ui, u8 pick, u8 row);
+internal void ui_draw_map_combat(ui_state *ui, engine_api *api, ImDrawList *draw, f32 cell, hex_point origin);
 
 /* ---- faction colours (placeholder palette; terrain-and-map.md, "Map display") */
 
@@ -266,6 +269,7 @@ ui_select_unit(ui_state *ui, u32 unit_id)
 internal b32
 ui_unit_click(ui_state *ui, engine_api *api, hex_coord hex)
 {
+    if (ui_combat_click(ui, api, hex)) return true;   /* a target of 攻擊 .. 撤除 (ui_combat.cpp) */
     u32 on_hex = api->unit_at_hex(api->engine, hex.q, hex.r);
     u8 acting = api->whose_turn(api->engine);
     if (on_hex != ENGINE_NO_UNIT && on_hex != ui->units.selected && api->unit_at(api->engine, on_hex).force_id == acting)
@@ -327,6 +331,17 @@ ui_draw_unit_panel(ui_state *ui, engine_api *api)
         ImGui::Text("%s: %s (%s)", text_get(ui->text, "unit.class"), type.id == ENGINE_NO_UNIT_TYPE ? "-" : ui_text_with_key(ui, "unit_type", type.key),
                     ui_grade_text(unit.values.aptitude));
         ui_draw_unit_values(ui, &unit.values);
+        if (unit.state)
+        {
+            char state_id[32];
+            snprintf(state_id, sizeof(state_id), "unit.state_%u", unit.state);
+            ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "%s (%u)", text_get(ui->text, state_id), unit.state_turns);
+        }
+        if (ui->combat.pick != UI_PICK_NONE)
+        {
+            char cancel[64];
+            if (ImGui::Button(ui_label(cancel, sizeof(cancel), ui, "unit.pick_cancel", "pick_cancel"))) ui->combat.pick = UI_PICK_NONE;
+        }
         if (ui->units.message[0]) ImGui::TextUnformatted(ui->units.message);
         if (type.transport) ui_draw_supply(ui, api, &unit);
     }
@@ -381,15 +396,28 @@ ui_draw_supply(ui_state *ui, engine_api *api, engine_unit *transport)
     if (check.refusal != SIM_REFUSAL_NONE) ImGui::TextDisabled("%s", ui_refusal_text(ui, check.refusal));
 }
 
+/* The pick of a menu item of M6, or UI_PICK_NONE. */
+internal u8
+ui_menu_pick(const char *item)
+{
+    static const char *names[UI_PICK_COUNT] = { "", "attack", "joint", "tactic", "plot", "build", "repair", "dismantle" };
+    for (u8 pick = 1; pick < UI_PICK_COUNT; ++pick)
+    {
+        if (strcmp(item, names[pick]) == 0) return pick;
+    }
+    return UI_PICK_NONE;
+}
+
 /* The unit command menu (ui/unit-commands.md): the items of a combat unit
    or of a transport unit, in the order of the manual. 待命 and 退卻 run now;
-   補給 opens the Unit panel of the transport unit; the rest is grey until
-   the combat of M6. */
+   補給 opens the Unit panel of the transport unit; 攻擊, 齊攻, 修補 and 撤除
+   wait for a target hex; 戰法, 計略 and 設置 open the Actions list first.
+   單挑 is grey until the duel of M7. */
 internal void
 ui_draw_unit_menu(ui_state *ui, engine_api *api)
 {
     char title[128];
-    ImGui::SetNextWindowSize(ImVec2(150, 340), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(150, 370), ImGuiCond_FirstUseEver);
     if (ImGui::Begin(ui_label(title, sizeof(title), ui, "unit.menu", "UnitMenu"), &ui->show_unit_menu))
     {
         engine_unit unit = api->unit_at(api->engine, ui->units.selected);
@@ -400,8 +428,8 @@ ui_draw_unit_menu(ui_state *ui, engine_api *api)
             return;
         }
         engine_unit_type type = api->unit_type_at(api->engine, unit.unit_type);
-        static const char *combat_items[]    = { "wait", "attack", "joint", "tactic", "duel", "plot", "build", "repair", "retreat" };
-        static const char *transport_items[] = { "wait", "attack", "plot", "build", "repair", "supply", "retreat" };
+        static const char *combat_items[]    = { "wait", "attack", "joint", "tactic", "duel", "plot", "build", "repair", "dismantle", "retreat" };
+        static const char *transport_items[] = { "wait", "attack", "plot", "build", "repair", "dismantle", "supply", "retreat" };
         const char **items = type.transport ? transport_items : combat_items;
         u32 count = type.transport ? ArrayCount(transport_items) : ArrayCount(combat_items);
         char label[96], text_id[32];
@@ -409,15 +437,28 @@ ui_draw_unit_menu(ui_state *ui, engine_api *api)
         {
             const char *item = items[index];
             b32 wait = strcmp(item, "wait") == 0, retreat = strcmp(item, "retreat") == 0, supply = strcmp(item, "supply") == 0;
+            u8 pick = ui_menu_pick(item);
             engine_command command = {};
             command.kind = wait ? ENGINE_COMMAND_WAIT : ENGINE_COMMAND_RETREAT;
             command.unit = unit.id;
-            b32 enabled = supply || ((wait || retreat) && api->can_issue(api->engine, &command).refusal == SIM_REFUSAL_NONE);
+            b32 enabled = supply || pick != UI_PICK_NONE ||
+                          ((wait || retreat) && api->can_issue(api->engine, &command).refusal == SIM_REFUSAL_NONE);
+            if (pick != UI_PICK_NONE && (unit.acted || unit.state != 0)) enabled = false;
             snprintf(text_id, sizeof(text_id), "unit_menu.%s", item);
             ImGui::BeginDisabled(!enabled);
             if (ImGui::Button(ui_label(label, sizeof(label), ui, text_id, item), ImVec2(120.0f, 0.0f)))
             {
-                if (supply)
+                if (pick == UI_PICK_TACTIC || pick == UI_PICK_PLOT || pick == UI_PICK_BUILD)
+                {
+                    ui->combat.list    = pick;
+                    ui->show_actions   = true;
+                    ui->show_unit_menu = false;
+                }
+                else if (pick != UI_PICK_NONE)
+                {
+                    ui_start_pick(ui, pick, 0);
+                }
+                else if (supply)
                 {
                     ui->show_unit = true;
                 }
@@ -453,6 +494,7 @@ ui_draw_map_units(ui_state *ui, engine_api *api, ImDrawList *draw, f32 cell, hex
             ui_draw_hexagon(draw, center, cell - 1.5f, IM_COL32(0, 0, 0, 0), color);
         }
     }
+    ui_draw_map_combat(ui, api, draw, cell, origin);
     for (u32 index = 0; index < api->city_count(api->engine); ++index)
     {
         engine_city city = api->city_at(api->engine, index);

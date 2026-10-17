@@ -337,3 +337,65 @@ terrain.river	River	河
 terrain.sea	Sea	海
 terrain.cliff	Cliff	崖
 terrain.city	City	都市
+unit_menu.dismantle	Dismantle	撤除
+unit.pick_hint	Click the target hex on the Hex map.	M6: after a combat order
+unit.pick_cancel	Cancel the order	M6
+unit.state_1	Confused	混亂
+unit.state_2	False report	偽報
+actions.title	Actions	the list of tactics, plots or buildings of a unit
+actions.grade	Grade	the aptitude that a tactic needs
+refusal.unit_confused	the unit is in a state and cannot act
+refusal.no_target	no target on that hex, or the hex is out of range
+refusal.no_morale	not sufficient morale
+refusal.no_aptitude	the unit cannot do this
+refusal.no_partner	no other unit can join the attack
+refusal.bad_terrain	the terrain does not allow this
+refusal.not_buildable	the hex does not take a building
+tactic.pierce	Pierce	突刺
+tactic.spiral_pierce	Spiral pierce	螺旋突刺
+tactic.double_pierce	Double pierce	二段突刺
+tactic.hook	Hook	熊手
+tactic.sweep	Sweep	橫掃
+tactic.whirlwind	Whirlwind	旋風
+tactic.fire_arrow	Fire arrow	火矢
+tactic.pierce_arrow	Piercing arrow	貫箭
+tactic.volley	Volley	亂射
+tactic.charge	Charge	突擊
+tactic.breakthrough	Breakthrough	突破
+tactic.onslaught	Onslaught	突進
+tactic.smash	Smash	破碎
+tactic.flame	Flame	放射
+tactic.tower_arrow	Fire arrow (tower)	火矢
+tactic.stone	Stone	投石
+tactic.ship_arrow	Fire arrow (ship)	火矢
+tactic.ram_ship	Ram	猛撞
+tactic.ship_stone	Stone (ship)	投石
+plot.fire	Fire	火計
+plot.extinguish	Extinguish	滅火
+plot.false_report	False report	偽報
+plot.confusion	Confusion	擾亂
+plot.calm	Calm	鎮靜
+plot.ambush	Ambush	伏兵
+plot.infighting	Infighting	內訌
+plot.sorcery	Sorcery	妖術
+plot.lightning	Lightning	落雷
+building.camp	Camp	陣
+building.fort	Fort	砦
+building.citadel	Citadel	城塞
+building.arrow_tower	Arrow tower	箭樓
+building.repeating_tower	Repeating crossbow tower	連弩樓
+building.catapult_tower	Catapult tower	投石台
+building.drum_tower	Drum tower	太鼓台
+building.music_tower	Music tower	軍樂台
+building.stone_maze	Stone maze	石兵八陣
+building.earth_wall	Earth wall	土壘
+building.stone_wall	Stone wall	石牆
+building.fire_seed	Fire seed	火種
+building.fire_seed_2	Fire trap seed	火陷種
+building.fire_seed_3	Hellfire seed	業火種
+building.fire_ball	Fire ball	火球
+building.fire_ball_2	Fire trap ball	火陷球
+building.fire_ball_3	Hellfire ball	業火球
+building.fire_ship	Fire ship	火船
+building.dike	Dike	堤防
+building.rockfall	Rockfall	落石

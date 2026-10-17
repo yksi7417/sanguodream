@@ -43,6 +43,21 @@ struct ui_march_dialog
     int cargo[4];                        /* 輸送: pikes, halberds, crossbows, war horses */
 };
 
+/* The unit commands of M6 that wait for a target hex on the map
+   (ui/unit-commands.md). */
+enum ui_pick
+{
+    UI_PICK_NONE,
+    UI_PICK_ATTACK,      /* 攻擊 */
+    UI_PICK_JOINT,       /* 齊攻 */
+    UI_PICK_TACTIC,      /* 戰法 */
+    UI_PICK_PLOT,        /* 計略 */
+    UI_PICK_BUILD,       /* 設置 */
+    UI_PICK_REPAIR,      /* 修補 */
+    UI_PICK_DISMANTLE,   /* 撤除 */
+    UI_PICK_COUNT
+};
+
 struct ui_state
 {
     bool show_demo;
@@ -117,6 +132,15 @@ struct ui_state
         int supply_gold, supply_grain, supply_soldiers;
         char message[96];        /* the result of the last unit command */
     } units;
+    /* M6: the unit command that waits for a target hex, and the list of
+       tactics, plots or buildings that chooses its row */
+    bool show_actions;
+    struct
+    {
+        u8 pick;                 /* ui_pick: the command that the next map click issues */
+        u8 row;                  /* the row of the tactic, plot or building of the pick */
+        u8 list;                 /* ui_pick of the Actions list: UI_PICK_TACTIC, _PLOT or _BUILD */
+    } combat;
     u8   ledger_city;            /* the ledger filter: ENGINE_ANY_CITY or a city id */
     u8   ledger_resource;        /* the ledger filter: ENGINE_ANY_RESOURCE or a sim_resource */
     text_catalog *text;      /* the UI strings and the names; owned by the caller */

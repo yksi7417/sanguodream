@@ -23,6 +23,7 @@ ui_label(char *out, u32 out_size, ui_state *ui, const char *text_id, const char 
 #include "ui/ui_economy.cpp"
 #include "ui/ui_growth.cpp"
 #include "ui/ui_march.cpp"
+#include "ui/ui_combat.cpp"
 
 /* Writes an overlay colour for one cell of the terrain view, if it is on the map. */
 internal void
@@ -368,6 +369,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->show_unit)       ui_draw_unit_panel(ui, api);
     if (ui->show_unit_menu)  ui_draw_unit_menu(ui, api);
     if (ui->show_minimap)    ui_draw_minimap(ui, api);
+    if (ui->show_actions)    ui_draw_actions(ui, api);
     for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind)
     {
         if (ui->show_command[kind]) ui_draw_city_command(ui, api, kind);

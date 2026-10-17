@@ -1063,8 +1063,9 @@ register_ui_tests(ImGuiTestEngine *e)
         v.ui.show_unit_menu      = true;
         ctx->SetRef("###UnitMenu");
         ctx->Yield(2);
-        ImGuiTestItemInfo attack = ctx->ItemInfo("###attack");
-        IM_CHECK(attack.ID != 0 && (attack.ItemFlags & ImGuiItemFlags_Disabled) != 0);   /* 攻擊 is grey until M6 */
+        ImGuiTestItemInfo attack = ctx->ItemInfo("###attack"), duel = ctx->ItemInfo("###duel");
+        IM_CHECK(attack.ID != 0 && (attack.ItemFlags & ImGuiItemFlags_Disabled) == 0);   /* 攻擊 works since M6 */
+        IM_CHECK(duel.ID != 0 && (duel.ItemFlags & ImGuiItemFlags_Disabled) != 0);       /* 單挑 is grey until M7 */
         recorder_reset(&v.recorder);
         ctx->ItemClick("###wait");
         ctx->Yield();
@@ -1079,6 +1080,101 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->Yield();
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_RETREAT), 1u);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "unit_menu_attack_waits_for_a_hex_and_issues_one_command_attack");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.units.selected      = 0;
+        v.ui.show_unit_menu      = true;
+        ctx->SetRef("###UnitMenu");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###attack");
+        ctx->Yield();
+        IM_CHECK(v.ui.combat.pick == UI_PICK_ATTACK && !v.ui.show_unit_menu);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);                          /* the menu only starts the pick */
+        ctx->Yield();
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_CAN_ISSUE), 1u);                /* the map marks the targets */
+        recorder_reset(&v.recorder);
+        ui_test_click_cell(ctx, v, hex_make(2, 2));
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_ATTACK), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(v.recorder.last_unit_command.unit == 0 && v.recorder.last_unit_command.q == 2 && v.recorder.last_unit_command.r == 2);
+        IM_CHECK(v.ui.combat.pick == UI_PICK_NONE);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "unit_menu_tactic_list_and_hex_issue_one_command_tactic");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.units.selected      = 0;
+        v.ui.show_unit_menu      = true;
+        ctx->SetRef("###UnitMenu");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###tactic");
+        ctx->Yield(2);
+        IM_CHECK(v.ui.show_actions && v.ui.combat.list == UI_PICK_TACTIC);
+        ctx->SetRef("###Actions");
+        IM_CHECK(ctx->ItemExists("###a0") && !ctx->ItemExists("###a1"));               /* only the tactics of the class of the unit */
+        ctx->ItemClick("###a0");
+        ctx->Yield();
+        IM_CHECK(v.ui.combat.pick == UI_PICK_TACTIC && v.ui.combat.row == 0 && !v.ui.show_actions);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        ui_test_click_cell(ctx, v, hex_make(2, 2));
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_TACTIC), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(v.recorder.last_unit_command.row == 0 && v.recorder.last_unit_command.q == 2);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "unit_menu_build_list_and_hex_issue_one_command_build");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.units.selected      = 0;
+        v.ui.show_unit_menu      = true;
+        ctx->SetRef("###UnitMenu");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###build");
+        ctx->Yield(2);
+        ctx->SetRef("###Actions");
+        IM_CHECK(ctx->ItemExists("###a0") && !ctx->ItemExists("###a1"));               /* no natural trap in the list */
+        ctx->ItemClick("###a0");
+        ctx->Yield();
+        ui_test_click_cell(ctx, v, hex_make(3, 2));
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_BUILD), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(v.recorder.last_unit_command.row == 0 && v.recorder.last_unit_command.q == 3 && v.recorder.last_unit_command.r == 2);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "hex_map_draws_buildings_and_fire_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        recorder_reset(&v.recorder);
+        ctx->Yield(2);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_BUILDING_AT), 1u);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_FIRE_VIEW), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
     t = IM_REGISTER_TEST(e, "ui", "transport_supply_issues_one_command_supply");
