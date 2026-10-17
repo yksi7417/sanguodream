@@ -312,6 +312,62 @@ global_variable content_rule_field content_rule_fields[] = {
     CONTENT_RULE("skill.forced_march",    skill_forced_march),
     CONTENT_RULE("skill.long_drive",      skill_long_drive),
     CONTENT_RULE("skill.haul",            skill_haul),
+    CONTENT_RULE("combat.damage_percent", combat_damage_percent),
+    CONTENT_RULE("combat.min_damage",     combat_min_damage),
+    CONTENT_RULE("combat.counter_percent", combat_counter_percent),
+    CONTENT_RULE("combat.triangle_percent", combat_triangle_percent),
+    CONTENT_RULE("combat.critical_chance", combat_critical_chance),
+    CONTENT_RULE("combat.critical_percent", combat_critical_percent),
+    CONTENT_RULE("combat.morale_hit",     combat_morale_hit),
+    CONTENT_RULE("combat.tactic_success", combat_tactic_success),
+    CONTENT_RULE("combat.building_percent", combat_building_percent),
+    CONTENT_RULE("combat.siege_percent",  combat_siege_percent),
+    CONTENT_RULE("combat.base_counter",   combat_base_counter),
+    CONTENT_RULE("combat.capture_percent", combat_capture_percent),
+    CONTENT_RULE("combat.halberd_capture", combat_halberd_capture),
+    CONTENT_RULE("combat.destroy_technique", combat_destroy_technique),
+    CONTENT_RULE("plot.base_success",     plot_base_success),
+    CONTENT_RULE("fire.turns",            fire_turns),
+    CONTENT_RULE("fire.damage_percent",   fire_damage_percent),
+    CONTENT_RULE("fire.building_damage",  fire_building_damage),
+    CONTENT_RULE("fire.extra_cost",       fire_extra_cost),
+    CONTENT_RULE("build.durability_per_build", build_durability_per_build),
+    CONTENT_RULE("siege.blockade_loss",   siege_blockade_loss),
+    CONTENT_RULE("siege.recovery",        siege_recovery),
+    CONTENT_RULE("siege.default_durability", siege_default_durability),
+    CONTENT_RULE("siege.capture_technique", siege_capture_technique),
+    CONTENT_RULE("skill.capture",         skill_capture),
+    CONTENT_RULE("skill.escape_capture",  skill_escape_capture),
+    CONTENT_RULE("skill.fortune",         skill_fortune),
+    CONTENT_RULE("skill.subtle",          skill_subtle),
+    CONTENT_RULE("skill.fire_god",        skill_fire_god),
+    CONTENT_RULE("skill.rattan",          skill_rattan),
+    CONTENT_RULE("skill.insight",         skill_insight),
+    CONTENT_RULE("skill.strategist",      skill_strategist),
+    CONTENT_RULE("skill.feint",           skill_feint),
+    CONTENT_RULE("skill.calm",            skill_calm),
+    CONTENT_RULE("skill.mirror",          skill_mirror),
+    CONTENT_RULE("skill.discipline",      skill_discipline),
+    CONTENT_RULE("skill.music",           skill_music),
+    CONTENT_RULE("combat.collision_percent", combat_collision_percent),
+    CONTENT_RULE("combat.technique_percent", combat_technique_percent),
+    CONTENT_RULE("combat.ambush_percent", combat_ambush_percent),
+    CONTENT_RULE("combat.lightning_percent", combat_lightning_percent),
+    CONTENT_RULE("maze.confuse_chance",   maze_confuse_chance),
+    CONTENT_RULE("camp.recover_chance",   camp_recover_chance),
+    CONTENT_RULE("natural.recovery",      natural_recovery),
+    CONTENT_RULE("loot.percent",          loot_percent),
+    CONTENT_RULE("ap.dismantle",          ap_dismantle),
+    CONTENT_RULE("dismantle.technique",   dismantle_technique),
+    CONTENT_RULE("siege.ladder_percent",  siege_ladder_percent),
+    CONTENT_RULE("siege.defence_percent", siege_defence_percent),
+    CONTENT_RULE("siege.wall_percent",    siege_wall_percent),
+    CONTENT_RULE("skill.ambush_critical", skill_ambush_critical),
+    CONTENT_RULE("skill.long_plot",       skill_long_plot),
+    CONTENT_RULE("skill.surprise",        skill_surprise),
+    CONTENT_RULE("skill.sweep",           skill_sweep),
+    CONTENT_RULE("skill.awe",             skill_awe),
+    CONTENT_RULE("skill.archer",          skill_archer),
 };
 
 /* A key that is not in the list is a bad row: a typo must not leave a
@@ -717,4 +773,231 @@ content_find_unit_type(sim_content *content, const char *key)
         if (strcmp(content->unit_types[index].key, key) == 0) return (u8)index;
     }
     return CONTENT_NO_UNIT_TYPE;
+}
+
+/* ---- tactics.tsv, plots.tsv, buildings.tsv, critical_skills.tsv ------------ */
+
+global_variable const char *content_pattern_names[PATTERN_COUNT] = { "single", "line", "front3", "around", "splash" };
+global_variable const char *content_tactic_effect_names[TACTIC_EFFECT_COUNT] = { "none", "knock", "pull", "advance", "pass", "confuse", "fire" };
+global_variable const char *content_plot_effect_names[PLOT_EFFECT_COUNT] = {
+    "fire", "extinguish", "false_report", "confuse", "calm", "ambush", "infighting", "sorcery", "lightning",
+};
+global_variable const char *content_plot_target_names[PLOT_TARGET_COUNT] = { "enemy", "own", "hex" };
+global_variable const char *content_building_type_names[BUILDING_TYPE_COUNT] = {
+    "camp", "tower", "drum", "music", "maze", "wall", "seed", "ball", "ship", "dike", "rockfall",
+};
+global_variable const char *content_condition_names[CRITICAL_CONDITION_COUNT] = { "always", "lower_force", "forest", "building", "mounted" };
+
+/* "pike|halberd": the bits of the unit types with these keys; "-" gives 0.
+   A key that is not a unit type sets *bad. */
+internal u32
+content_unit_type_mask(sim_content *content, const char *text, b32 *bad)
+{
+    if (strcmp(text, "-") == 0) return 0;
+    u32 mask = 0;
+    char part[CONTENT_KEY_SIZE];
+    u32 length = 0;
+    for (const char *at = text;; ++at)
+    {
+        if (*at != '|' && *at != 0)
+        {
+            if (length + 1 >= sizeof(part)) { *bad = true; return 0; }
+            part[length++] = *at;
+            continue;
+        }
+        part[length] = 0;
+        u8 type = content_find_unit_type(content, part);
+        if (type == CONTENT_NO_UNIT_TYPE) { *bad = true; return 0; }
+        mask |= 1u << type;
+        length = 0;
+        if (*at == 0) break;
+    }
+    return mask;
+}
+
+/* "units|buildings|ships": the TARGET_* bits. */
+internal u32
+content_targets_from_text(const char *text, b32 *bad)
+{
+    u32 mask = 0;
+    if (strstr(text, "units"))     mask |= TARGET_UNITS;
+    if (strstr(text, "buildings")) mask |= TARGET_BUILDINGS;
+    if (strstr(text, "ships"))     mask |= TARGET_SHIPS;
+    if (!mask) *bad = true;
+    return mask;
+}
+
+internal b32
+content_parse_tactic(sim_content *content, tsv_table *table, u32 row, tactic_kind *kind)
+{
+    u32 id = 0;
+    const char *key = tsv_cell(table, row, "key");
+    if (!tsv_cell_u32(table, row, "id", &id) || id != row || !key[0] || strlen(key) >= CONTENT_KEY_SIZE) return false;
+    if (!tsv_cell_u32(table, row, "morale", &kind->morale) || !tsv_cell_u32(table, row, "range_min", &kind->range_min) ||
+        !tsv_cell_u32(table, row, "range_max", &kind->range_max) || !tsv_cell_u32(table, row, "value", &kind->value) ||
+        !tsv_cell_u32(table, row, "damage_percent", &kind->damage_percent) || kind->range_min > kind->range_max || kind->range_min < 1)
+    {
+        return false;
+    }
+    b32 bad = false;
+    kind->unit_types = content_unit_type_mask(content, tsv_cell(table, row, "unit_types"), &bad);
+    kind->targets    = content_targets_from_text(tsv_cell(table, row, "targets"), &bad);
+    kind->pattern    = (tactic_pattern)content_find_name(content_pattern_names, PATTERN_COUNT, tsv_cell(table, row, "pattern"));
+    kind->effect     = (tactic_effect)content_find_name(content_tactic_effect_names, TACTIC_EFFECT_COUNT, tsv_cell(table, row, "effect"));
+    const char *grade = tsv_cell(table, row, "grade");
+    if      (strcmp(grade, "any") == 0) kind->aptitude = 0;
+    else if (strcmp(grade, "B") == 0)   kind->aptitude = 1;
+    else if (strcmp(grade, "A") == 0)   kind->aptitude = 2;
+    else if (strcmp(grade, "S") == 0)   kind->aptitude = 3;
+    else bad = true;
+    if (bad || !kind->unit_types || kind->pattern == PATTERN_COUNT || kind->effect == TACTIC_EFFECT_COUNT) return false;
+    kind->id = (u8)id;
+    memcpy(kind->key, key, strlen(key) + 1);
+    kind->always_success = tsv_cell_yes(table, row, "always_success");
+    return true;
+}
+
+internal b32
+content_load_tactics(sim_content *content, tsv_table *table, u32 *bad_row)
+{
+    content->tactic_count = 0;
+    if (table->row_count > CONTENT_TACTIC_CAPACITY) { *bad_row = CONTENT_TACTIC_CAPACITY; return false; }
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        tactic_kind kind = {};
+        if (!content_parse_tactic(content, table, row, &kind)) { *bad_row = row; return false; }
+        content->tactics[row] = kind;
+    }
+    content->tactic_count = table->row_count;
+    return true;
+}
+
+internal b32
+content_parse_plot(sim_content *content, tsv_table *table, u32 row, plot_kind *kind)
+{
+    u32 id = 0;
+    const char *key = tsv_cell(table, row, "key");
+    if (!tsv_cell_u32(table, row, "id", &id) || id != row || !key[0] || strlen(key) >= CONTENT_KEY_SIZE) return false;
+    if (!tsv_cell_u32(table, row, "morale", &kind->morale) || !tsv_cell_u32(table, row, "range", &kind->range) ||
+        !tsv_cell_u32(table, row, "turns", &kind->turns) || !tsv_cell_u32(table, row, "needs_skill", &kind->needs_skill) ||
+        !tsv_cell_u32(table, row, "needs_skill_2", &kind->needs_skill_2))
+    {
+        return false;
+    }
+    b32 bad = false;
+    const char *area = tsv_cell(table, row, "area");
+    if (strcmp(area, "splash") == 0) kind->splash = true;
+    else if (strcmp(area, "single") != 0) bad = true;
+    kind->target = (plot_target)content_find_name(content_plot_target_names, PLOT_TARGET_COUNT, tsv_cell(table, row, "target"));
+    kind->effect = (plot_effect)content_find_name(content_plot_effect_names, PLOT_EFFECT_COUNT, tsv_cell(table, row, "effect"));
+    const char *terrain = tsv_cell(table, row, "from_terrain");
+    kind->from_terrain = CONTENT_NO_TERRAIN;
+    if (strcmp(terrain, "-") != 0)
+    {
+        kind->from_terrain = content_find_terrain(content, terrain);
+        if (kind->from_terrain == CONTENT_NO_TERRAIN) bad = true;
+    }
+    kind->not_unit_types = content_unit_type_mask(content, tsv_cell(table, row, "not_unit_types"), &bad);
+    if (bad || kind->target == PLOT_TARGET_COUNT || kind->effect == PLOT_EFFECT_COUNT) return false;
+    kind->id = (u8)id;
+    memcpy(kind->key, key, strlen(key) + 1);
+    return true;
+}
+
+internal b32
+content_load_plots(sim_content *content, tsv_table *table, u32 *bad_row)
+{
+    content->plot_count = 0;
+    if (table->row_count > CONTENT_PLOT_CAPACITY) { *bad_row = CONTENT_PLOT_CAPACITY; return false; }
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        plot_kind kind = {};
+        if (!content_parse_plot(content, table, row, &kind)) { *bad_row = row; return false; }
+        content->plots[row] = kind;
+    }
+    content->plot_count = table->row_count;
+    return true;
+}
+
+internal b32
+content_parse_building(sim_content *content, tsv_table *table, u32 row, building_kind *kind)
+{
+    u32 id = 0;
+    const char *key = tsv_cell(table, row, "key");
+    if (!tsv_cell_u32(table, row, "id", &id) || id != row || !key[0] || strlen(key) >= CONTENT_KEY_SIZE) return false;
+    if (!tsv_cell_u32(table, row, "durability", &kind->durability) || !tsv_cell_u32(table, row, "gold", &kind->gold) ||
+        !tsv_cell_u32(table, row, "range_min", &kind->range_min) || !tsv_cell_u32(table, row, "range_max", &kind->range_max) ||
+        !tsv_cell_u32(table, row, "value", &kind->value) || kind->durability == 0)
+    {
+        return false;
+    }
+    b32 bad = false;
+    kind->type      = (building_type)content_find_name(content_building_type_names, BUILDING_TYPE_COUNT, tsv_cell(table, row, "kind"));
+    kind->technique = content_technique_cell(content, table, row, "technique", &bad);
+    const char *replaces = tsv_cell(table, row, "replaces");
+    kind->replaces = CONTENT_NO_BUILDING;
+    if (strcmp(replaces, "-") != 0)
+    {
+        for (u32 index = 0; index < row; ++index)
+        {
+            if (strcmp(content->buildings[index].key, replaces) == 0) kind->replaces = (u8)index;
+        }
+        if (kind->replaces == CONTENT_NO_BUILDING) bad = true;
+    }
+    if (bad || kind->type == BUILDING_TYPE_COUNT) return false;
+    kind->id = (u8)id;
+    memcpy(kind->key, key, strlen(key) + 1);
+    kind->water   = tsv_cell_yes(table, row, "water");
+    kind->natural = tsv_cell_yes(table, row, "natural");
+    return true;
+}
+
+/* The replaced building is an earlier row. */
+internal b32
+content_load_buildings(sim_content *content, tsv_table *table, u32 *bad_row)
+{
+    content->building_count = 0;
+    if (table->row_count > CONTENT_BUILDING_CAPACITY) { *bad_row = CONTENT_BUILDING_CAPACITY; return false; }
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        building_kind kind = {};
+        if (!content_parse_building(content, table, row, &kind)) { *bad_row = row; content->building_count = 0; return false; }
+        content->buildings[row] = kind;
+        content->building_count = row + 1;
+    }
+    return true;
+}
+
+internal b32
+content_load_criticals(sim_content *content, tsv_table *table, u32 *bad_row)
+{
+    content->critical_count = 0;
+    if (table->row_count > CONTENT_CRITICAL_CAPACITY) { *bad_row = CONTENT_CRITICAL_CAPACITY; return false; }
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        critical_skill kind = {};
+        const char *action = tsv_cell(table, row, "action");
+        const char *unit_class = tsv_cell(table, row, "unit_class");
+        u32 id = 0;
+        kind.action = strcmp(action, "attack") == 0 ? CRITICAL_ATTACK : strcmp(action, "tactic") == 0 ? CRITICAL_TACTIC :
+                      strcmp(action, "both") == 0 ? CRITICAL_BOTH : 0;
+        kind.condition = (critical_condition)content_find_name(content_condition_names, CRITICAL_CONDITION_COUNT, tsv_cell(table, row, "condition"));
+        if      (strcmp(unit_class, "any") == 0)  kind.aptitude = CONTENT_ANY_APTITUDE;
+        else if (strcmp(unit_class, "pike") == 0) kind.aptitude = 0;
+        else
+        {
+            kind.aptitude = content_find_name(content_aptitude_names, ArrayCount(content_aptitude_names), unit_class);
+            if (kind.aptitude == ArrayCount(content_aptitude_names)) kind.aptitude = 0xFFFFFFFFu;
+        }
+        if (!tsv_cell_u32(table, row, "id", &id) || id != row || !tsv_cell_u32(table, row, "skill", &kind.skill) || kind.skill < 1 ||
+            kind.skill > 100 || !kind.action || kind.condition == CRITICAL_CONDITION_COUNT || kind.aptitude == 0xFFFFFFFFu)
+        {
+            *bad_row = row;
+            content->critical_count = 0;
+            return false;
+        }
+        content->criticals[row] = kind;
+        content->critical_count = row + 1;
+    }
+    return true;
 }

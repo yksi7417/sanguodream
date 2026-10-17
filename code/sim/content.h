@@ -278,6 +278,86 @@ struct unit_type_kind
     b32            transport;
 };
 
+/* ---- combat (military-units-and-tactics.md, plots-and-states.md,
+        military-facilities-and-traps.md) ---------------------------------- */
+
+enum tactic_pattern { PATTERN_SINGLE, PATTERN_LINE, PATTERN_FRONT3, PATTERN_AROUND, PATTERN_SPLASH, PATTERN_COUNT };
+enum tactic_effect  { TACTIC_NONE, TACTIC_KNOCK, TACTIC_PULL, TACTIC_ADVANCE, TACTIC_PASS, TACTIC_CONFUSE, TACTIC_FIRE, TACTIC_EFFECT_COUNT };
+
+#define TARGET_UNITS     1u
+#define TARGET_BUILDINGS 2u
+#define TARGET_SHIPS     4u
+#define CONTENT_TACTIC_CAPACITY   32
+#define CONTENT_PLOT_CAPACITY     16
+#define CONTENT_BUILDING_CAPACITY 32
+#define CONTENT_CRITICAL_CAPACITY 32
+#define CONTENT_NO_BUILDING       0xFF
+#define CONTENT_ANY_APTITUDE      0xFF
+
+struct tactic_kind
+{
+    u8             id;
+    char           key[CONTENT_KEY_SIZE];   /* the text id is "tactic.<key>" */
+    u32            unit_types;              /* bit t: unit type t uses it */
+    u32            aptitude;                /* the aptitude that the unit needs: 0 any (C), 1 B, 2 A, 3 S */
+    u32            morale;
+    u32            range_min, range_max;
+    tactic_pattern pattern;
+    tactic_effect  effect;
+    u32            value;
+    u32            damage_percent;
+    u32            targets;                 /* TARGET_* bits */
+    b32            always_success;
+};
+
+enum plot_effect { PLOT_FIRE, PLOT_EXTINGUISH, PLOT_FALSE_REPORT, PLOT_CONFUSE, PLOT_CALM, PLOT_AMBUSH, PLOT_INFIGHTING,
+                   PLOT_SORCERY, PLOT_LIGHTNING, PLOT_EFFECT_COUNT };
+enum plot_target { PLOT_TARGET_ENEMY, PLOT_TARGET_OWN, PLOT_TARGET_HEX, PLOT_TARGET_COUNT };
+
+struct plot_kind
+{
+    u8          id;
+    char        key[CONTENT_KEY_SIZE];      /* the text id is "plot.<key>" */
+    u32         morale;
+    u32         range;
+    b32         splash;                     /* the target and the six hexes around it */
+    plot_target target;
+    plot_effect effect;
+    u32         turns;
+    u32         needs_skill, needs_skill_2;   /* skills.md numbers; 0 = none */
+    u8          from_terrain;               /* CONTENT_NO_TERRAIN if any */
+    u32         not_unit_types;             /* bit t: unit type t cannot use it */
+};
+
+enum building_type { BUILDING_CAMP, BUILDING_TOWER, BUILDING_DRUM, BUILDING_MUSIC, BUILDING_MAZE, BUILDING_WALL,
+                     BUILDING_SEED, BUILDING_BALL, BUILDING_SHIP, BUILDING_DIKE, BUILDING_ROCKFALL, BUILDING_TYPE_COUNT };
+
+struct building_kind
+{
+    u8            id;
+    char          key[CONTENT_KEY_SIZE];    /* the text id is "building.<key>" */
+    building_type type;
+    u32           durability;
+    u32           gold;
+    u8            technique;                /* CONTENT_NO_TECHNIQUE if none */
+    u8            replaces;                 /* CONTENT_NO_BUILDING if none */
+    u32           range_min, range_max;
+    u32           value;
+    b32           water;                    /* only on water (fire ship) */
+    b32           natural;                  /* a natural trap of the map: no unit builds it */
+};
+
+enum critical_action    { CRITICAL_ATTACK = 1, CRITICAL_TACTIC = 2, CRITICAL_BOTH = 3 };
+enum critical_condition { CRITICAL_ALWAYS, CRITICAL_LOWER_FORCE, CRITICAL_FOREST, CRITICAL_BUILDING, CRITICAL_MOUNTED, CRITICAL_CONDITION_COUNT };
+
+struct critical_skill
+{
+    u32                skill;               /* skills.md number */
+    u32                action;              /* critical_action bits */
+    u32                aptitude;            /* the class by its aptitude (0 spear .. 5 navy); CONTENT_ANY_APTITUDE */
+    critical_condition condition;
+};
+
 /* ---- disasters (calendar-and-turn.md, "Disasters") ---------------------- */
 
 #define CONTENT_DISASTER_CAPACITY 8
@@ -396,6 +476,21 @@ struct sim_rules
     u32 skill_forced_march;
     u32 skill_long_drive;
     u32 skill_haul;
+    /* M6: combat, plots, buildings and siege */
+    u32 combat_damage_percent, combat_min_damage, combat_counter_percent, combat_triangle_percent;
+    u32 combat_critical_chance, combat_critical_percent, combat_morale_hit, combat_tactic_success;
+    u32 combat_building_percent, combat_siege_percent, combat_base_counter;
+    u32 combat_capture_percent, combat_halberd_capture, combat_destroy_technique;
+    u32 plot_base_success;
+    u32 fire_turns, fire_damage_percent, fire_building_damage, fire_extra_cost;
+    u32 build_durability_per_build;
+    u32 siege_blockade_loss, siege_recovery, siege_default_durability, siege_capture_technique;
+    u32 skill_capture, skill_escape_capture, skill_fortune, skill_subtle, skill_fire_god, skill_rattan;
+    u32 skill_insight, skill_strategist, skill_feint, skill_calm, skill_mirror, skill_discipline, skill_music;
+    u32 combat_collision_percent, combat_ambush_percent, combat_lightning_percent, combat_technique_percent;
+    u32 maze_confuse_chance, camp_recover_chance, natural_recovery, loot_percent, ap_dismantle, dismantle_technique;
+    u32 siege_ladder_percent, siege_defence_percent, siege_wall_percent;
+    u32 skill_ambush_critical, skill_long_plot, skill_surprise, skill_sweep, skill_awe, skill_archer;
     u32 loaded_count;           /* rows that set a field */
 };
 
@@ -415,6 +510,14 @@ struct sim_content
     u32            terrain_count;
     unit_type_kind unit_types[CONTENT_UNIT_TYPE_CAPACITY];
     u32            unit_type_count;
+    tactic_kind    tactics[CONTENT_TACTIC_CAPACITY];
+    u32            tactic_count;
+    plot_kind      plots[CONTENT_PLOT_CAPACITY];
+    u32            plot_count;
+    building_kind  buildings[CONTENT_BUILDING_CAPACITY];
+    u32            building_count;
+    critical_skill criticals[CONTENT_CRITICAL_CAPACITY];
+    u32            critical_count;
     sim_rules      rules;
 };
 
@@ -432,6 +535,10 @@ internal b32 content_load_unit_types(sim_content *content, tsv_table *table, u32
 internal u8  content_find_terrain(sim_content *content, const char *key);                      /* CONTENT_NO_TERRAIN if none */
 internal u8  content_find_unit_type(sim_content *content, const char *key);                    /* CONTENT_NO_UNIT_TYPE if none */
 internal const char *content_movement_name(movement_class movement);
+internal b32 content_load_tactics(sim_content *content, tsv_table *table, u32 *bad_row);     /* after the unit types */
+internal b32 content_load_plots(sim_content *content, tsv_table *table, u32 *bad_row);       /* after the unit types and the terrain */
+internal b32 content_load_buildings(sim_content *content, tsv_table *table, u32 *bad_row);   /* after the techniques */
+internal b32 content_load_criticals(sim_content *content, tsv_table *table, u32 *bad_row);
 
 internal facility_effect    content_effect_from_name(const char *name);
 internal facility_limit     content_limit_from_name(const char *name);
