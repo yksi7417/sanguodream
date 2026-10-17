@@ -327,7 +327,10 @@ sim_check_plot(sim_state *sim, sim_unit_order *order)
     u32 distance = (u32)hex_distance(unit->hex, order->to);
     if (distance > range || (plot->target != PLOT_TARGET_HEX && distance == 0)) return sim_refuse(check, SIM_REFUSAL_NO_TARGET);
     u32 other = sim_unit_at(sim, order->to);
-    if (plot->target == PLOT_TARGET_ENEMY && (other == SIM_NO_UNIT || sim->units[other].force_id == unit->force_id)) return sim_refuse(check, SIM_REFUSAL_NO_TARGET);
+    if (plot->target == PLOT_TARGET_ENEMY && (other == SIM_NO_UNIT || !sim_at_war(sim, unit->force_id, sim->units[other].force_id)))
+    {
+        return sim_refuse(check, SIM_REFUSAL_NO_TARGET);
+    }
     if (plot->target == PLOT_TARGET_OWN && (other == SIM_NO_UNIT || sim->units[other].force_id != unit->force_id)) return sim_refuse(check, SIM_REFUSAL_NO_TARGET);
     if (plot->target == PLOT_TARGET_HEX && !hex_map_contains(&sim->map, order->to)) return sim_refuse(check, SIM_REFUSAL_NO_TARGET);
     check.action_points = plot->morale;

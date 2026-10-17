@@ -30,6 +30,11 @@ sim_init(sim_state *sim, memory_arena *arena, u64 seed)
     }
     sim->settings           = {};
     sim->settings.disasters = true;   /* a new game has disasters (game-setup-and-modes.md) */
+    sim->settings.ability_change = true;   /* M7: 能力變動 and the historical lifespan (officers-and-relations.md) */
+    sim->settings.lifespan       = true;
+    sim->duel   = {};
+    sim->debate = {};
+    for (u32 index = 0; index < SAVE_ITEM_COUNT; ++index) sim->items[index] = {};
     sim->ruleset.combat_damage = sim_rule_combat_damage;   /* the generic rule; a pack can set its own */
     sim->building_count = 0;
     sim->fire           = 0;
@@ -202,8 +207,32 @@ sim_apply(sim_state *sim, sim_command command, sim_event_sink *events)
         case SIM_COMMAND_NONE:
             break;
         case SIM_COMMAND_END_TURN:
+            /* A duel or a debate that runs ends by the computer rule first (M7). */
+            if (sim->duel.active) sim_duel_auto(sim, command.id, events);
+            if (sim->debate.active)
+            {
+                sim_debate_auto(sim, command.id, events);
+                sim_command finish = command;
+                finish.mini.action = SIM_DEBATE_FINISH;
+                finish.mini.value  = 0;
+                sim_debate_action(sim, finish, events);
+            }
             sim_end_faction_turn(sim, command.id, events);
             break;
+        case SIM_COMMAND_SEARCH:
+        case SIM_COMMAND_RECRUIT:
+        case SIM_COMMAND_REWARD:
+        case SIM_COMMAND_GIVE_ITEM:
+        case SIM_COMMAND_APPOINT:
+        case SIM_COMMAND_MATCHMAKE:
+        case SIM_COMMAND_RELEASE:
+        case SIM_COMMAND_EXILE:        sim_court_command(sim, command, events);        break;
+        case SIM_COMMAND_DIPLOMACY:    sim_diplomacy(sim, command, events);            break;
+        case SIM_COMMAND_FACTION_PLOT: sim_faction_plot(sim, command, events);         break;
+        case SIM_COMMAND_DUEL:         sim_start_duel(sim, command, events);           break;
+        case SIM_COMMAND_DUEL_ACTION:  sim_duel_action(sim, command, events);          break;
+        case SIM_COMMAND_DEBATE:       sim_start_debate_command(sim, command, events); break;
+        case SIM_COMMAND_DEBATE_ACTION: sim_debate_action(sim, command, events);       break;
         case SIM_COMMAND_DEVELOP:
             sim_develop(sim, command, events);
             break;
@@ -291,6 +320,10 @@ sim_unload_world(sim_state *sim)
         sim->research[force].technique  = CONTENT_NO_TECHNIQUE;
     }
     sim->outcome = {};
+    sim->duel    = {};
+    sim->debate  = {};
+    for (u32 index = 0; index < SAVE_ITEM_COUNT; ++index) sim->items[index] = {};
+    for (u32 force = 0; force < SIM_FORCE_CAPACITY; ++force) sim->rank[force] = 0;
     sim_init_sites(sim);
     /* The natural traps belong to the map and stay; the rest go (M6). */
     for (u32 index = 0; index < sim->building_count; ++index)
@@ -396,7 +429,10 @@ sim_load_save(sim_state *sim, save_file *save, sim_command command, sim_event_si
         officer_record *record = save->officers + slot;
         if (officer_slot_is_empty(record)) continue;
         sim_add_officer(sim, sim_officer_from_record(record));
+        officer_component *added = sim_find_officer(sim, (u16)slot);
+        if (added) sim_init_officer_state(sim, added, record);   /* M7: character and relations */
     }
+    sim_load_items(sim, save);
     for (u32 index = 0; index < save->city_count; ++index)
     {
         city_component city = sim_city_from_record(save->cities + index);
@@ -410,6 +446,8 @@ sim_load_save(sim_state *sim, save_file *save, sim_command command, sim_event_si
     sim->turns.date       = sim->turns.start_date;
     u8 player = sim_player_force(sim, &save->header);
     if (player != SIM_NO_FORCE) sim->turns.human[player] = true;
+    sim_init_diplomacy(sim);                      /* M7: the save fields of diplomacy are not decoded (Q-180) */
+    sim_update_ranks(sim, true, command.id, events);
 
     sim_event event = sim_event_make(sim, SIM_EVENT_SAVE_LOADED, command.id);
     event.delta = (s32)sim->officers.count;
@@ -533,6 +571,41 @@ sim_event_name(sim_event_kind kind)
         case SIM_EVENT_BASE_RECOVERED:          return "base_recovered";
         case SIM_EVENT_BASE_CAPTURED:           return "base_captured";
         case SIM_EVENT_UNIT_LOOT:               return "unit_loot";
+        case SIM_EVENT_OFFICER_FOUND:           return "officer_found";
+        case SIM_EVENT_GOLD_FOUND:              return "gold_found";
+        case SIM_EVENT_OFFICER_RECRUITED:       return "officer_recruited";
+        case SIM_EVENT_RECRUIT_FAILED:          return "recruit_failed";
+        case SIM_EVENT_LOYALTY_CHANGED:         return "loyalty_changed";
+        case SIM_EVENT_ITEM_GIVEN:              return "item_given";
+        case SIM_EVENT_POST_APPOINTED:          return "post_appointed";
+        case SIM_EVENT_RANK_CHANGED:            return "rank_changed";
+        case SIM_EVENT_SWORN:                   return "sworn";
+        case SIM_EVENT_MARRIED:                 return "married";
+        case SIM_EVENT_CAPTIVE_RELEASED:        return "captive_released";
+        case SIM_EVENT_OFFICER_EXILED:          return "officer_exiled";
+        case SIM_EVENT_OFFICER_LEFT:            return "officer_left";
+        case SIM_EVENT_OFFICER_DIED:            return "officer_died";
+        case SIM_EVENT_ABILITY_CHANGED:         return "ability_changed";
+        case SIM_EVENT_HEALTH_CHANGED:          return "health_changed";
+        case SIM_EVENT_RULER_SUCCEEDED:         return "ruler_succeeded";
+        case SIM_EVENT_FRIENDLINESS_CHANGED:    return "friendliness_changed";
+        case SIM_EVENT_RELATION_CHANGED:        return "relation_changed";
+        case SIM_EVENT_DIPLOMACY_FAILED:        return "diplomacy_failed";
+        case SIM_EVENT_FACTION_SURRENDERED:     return "faction_surrendered";
+        case SIM_EVENT_CAPTIVE_EXCHANGED:       return "captive_exchanged";
+        case SIM_EVENT_AID_ARRIVED:             return "aid_arrived";
+        case SIM_EVENT_AID_LEFT:                return "aid_left";
+        case SIM_EVENT_FACTION_PLOT:            return "faction_plot";
+        case SIM_EVENT_FACTION_FOUNDED:         return "faction_founded";
+        case SIM_EVENT_ORDER_DROPPED:           return "order_dropped";
+        case SIM_EVENT_DUEL_STARTED:            return "duel_started";
+        case SIM_EVENT_DUEL_REFUSED:            return "duel_refused";
+        case SIM_EVENT_DUEL_STRIKE:             return "duel_strike";
+        case SIM_EVENT_DUEL_SPECIAL:            return "duel_special";
+        case SIM_EVENT_DUEL_ENDED:              return "duel_ended";
+        case SIM_EVENT_DEBATE_STARTED:          return "debate_started";
+        case SIM_EVENT_DEBATE_EXCHANGE:         return "debate_exchange";
+        case SIM_EVENT_DEBATE_ENDED:            return "debate_ended";
         default:                                return "?";
     }
 }
@@ -569,6 +642,20 @@ sim_command_name(sim_command_kind kind)
         case SIM_COMMAND_BUILD:           return "build";
         case SIM_COMMAND_REPAIR:          return "repair";
         case SIM_COMMAND_DISMANTLE:       return "dismantle";
+        case SIM_COMMAND_SEARCH:          return "search";
+        case SIM_COMMAND_RECRUIT:         return "recruit";
+        case SIM_COMMAND_REWARD:          return "reward";
+        case SIM_COMMAND_GIVE_ITEM:       return "give_item";
+        case SIM_COMMAND_APPOINT:         return "appoint";
+        case SIM_COMMAND_MATCHMAKE:       return "matchmake";
+        case SIM_COMMAND_RELEASE:         return "release";
+        case SIM_COMMAND_EXILE:           return "exile";
+        case SIM_COMMAND_DIPLOMACY:       return "diplomacy";
+        case SIM_COMMAND_FACTION_PLOT:    return "faction_plot";
+        case SIM_COMMAND_DUEL:            return "duel";
+        case SIM_COMMAND_DUEL_ACTION:     return "duel_action";
+        case SIM_COMMAND_DEBATE:          return "debate";
+        case SIM_COMMAND_DEBATE_ACTION:   return "debate_action";
         default:                          return "?";
     }
 }
@@ -619,6 +706,20 @@ sim_refusal_name(sim_refusal refusal)
         case SIM_REFUSAL_NO_PARTNER:            return "no_partner";
         case SIM_REFUSAL_BAD_TERRAIN:           return "bad_terrain";
         case SIM_REFUSAL_NOT_BUILDABLE:         return "not_buildable";
+        case SIM_REFUSAL_NOT_RECRUITABLE:       return "not_recruitable";
+        case SIM_REFUSAL_NO_ITEM:               return "no_item";
+        case SIM_REFUSAL_NO_POST:               return "no_post";
+        case SIM_REFUSAL_POST_TAKEN:            return "post_taken";
+        case SIM_REFUSAL_NO_MERIT:              return "no_merit";
+        case SIM_REFUSAL_NO_RANK:               return "no_rank";
+        case SIM_REFUSAL_NOT_MATCHABLE:         return "not_matchable";
+        case SIM_REFUSAL_NO_FACTION:            return "no_faction";
+        case SIM_REFUSAL_RELATION:              return "relation";
+        case SIM_REFUSAL_AT_PEACE:              return "at_peace";
+        case SIM_REFUSAL_BUSY:                  return "busy";
+        case SIM_REFUSAL_NO_DUEL:               return "no_duel";
+        case SIM_REFUSAL_NO_SPIRIT:             return "no_spirit";
+        case SIM_REFUSAL_NOT_CAPTIVE:           return "not_captive";
         default:                                return "?";
     }
 }
@@ -634,3 +735,7 @@ sim_refusal_name(sim_refusal refusal)
 #include "sim/units.cpp"
 #include "sim/combat.cpp"
 #include "sim/field.cpp"
+#include "sim/officers.cpp"
+#include "sim/diplomacy.cpp"
+#include "sim/duel.cpp"
+#include "sim/debate.cpp"

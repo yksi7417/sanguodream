@@ -226,21 +226,21 @@ sim_entry_cost(sim_state *sim, u8 force, movement_class movement, hex_coord hex,
 }
 
 /* True if an enemy unit or a complete enemy military building stands next
-   to the hex (manual p.14: a unit stops next to an enemy unit). Every other
-   force is an enemy until diplomacy (M7). */
+   to the hex (manual p.14: a unit stops next to an enemy unit). An ally and
+   a faction under a ceasefire are no enemy (M7, diplomacy.md). */
 internal b32
 sim_in_enemy_zone(sim_state *sim, u8 force, hex_coord hex, u32 self)
 {
     for (u32 index = 0; index < sim->unit_count; ++index)
     {
         sim_unit *other = sim->units + index;
-        if (!other->alive || index == self || other->force_id == force) continue;
+        if (!other->alive || index == self || !sim_at_war(sim, force, other->force_id)) continue;
         if (hex_distance(other->hex, hex) == 1) return true;
     }
     for (u32 index = 0; index < sim->building_count; ++index)
     {
         sim_building *building = sim->buildings + index;
-        if (!building->alive || !building->complete || building->force_id == SIM_NO_FORCE || building->force_id == force) continue;
+        if (!building->alive || !building->complete || !sim_at_war(sim, force, building->force_id)) continue;
         building_type type = sim->content.buildings[building->kind].type;
         b32 military = type == BUILDING_CAMP || type == BUILDING_TOWER || type == BUILDING_DRUM || type == BUILDING_MUSIC;
         if (military && hex_distance(building->hex, hex) == 1) return true;
@@ -389,7 +389,8 @@ sim_check_sortie(sim_state *sim, sim_sortie_order *order, b32 transport)
     sim_refusal refusal = sim_check_city_officers(sim, city, order->officers, SIM_COMMAND_OFFICERS, SIM_ABILITY_LEADERSHIP, &sum);
     if (refusal != SIM_REFUSAL_NONE)                    return sim_refuse(check, refusal);
     if (order->officers[0] == SIM_NO_OFFICER)           return sim_refuse(check, SIM_REFUSAL_NO_OFFICER);
-    u32 cap = sim_unit_soldier_cap(sim, force);
+    if (sim_busy(sim))                                  return sim_refuse(check, SIM_REFUSAL_BUSY);
+    u32 cap = sim_officer_soldier_cap(sim, sim_find_officer(sim, order->officers[0]));   /* M7: the post or rank of the commander */
     if ((!transport && order->soldiers == 0) || order->soldiers > city->troops || order->soldiers > cap)
     {
         return sim_refuse(check, SIM_REFUSAL_NO_SOLDIERS);
@@ -555,9 +556,11 @@ sim_check_unit_common(sim_state *sim, sim_unit_order *order, sim_unit **unit_out
 {
     if (!sim->has_content) return SIM_REFUSAL_NO_CONTENT;
     if (sim_game_over(sim)) return SIM_REFUSAL_GAME_OVER;
+    if (sim_busy(sim)) return SIM_REFUSAL_BUSY;   /* M7: a duel or a debate runs */
     sim_unit *unit = sim_find_unit(sim, order->unit);
     if (!unit || !sim_unit_type(sim, unit->unit_type)) return SIM_REFUSAL_NO_UNIT;
     if (sim_whose_turn(sim) != unit->force_id) return SIM_REFUSAL_NOT_YOUR_TURN;
+    if (unit->aid_turns) return SIM_REFUSAL_NO_UNIT;   /* M7: an aid unit of an ally follows its own faction */
     if (unit->acted_turn == sim->turn + 1) return SIM_REFUSAL_UNIT_ACTED;
     *unit_out = unit;
     return SIM_REFUSAL_NONE;
@@ -765,7 +768,7 @@ sim_sortie_proposal(sim_state *sim, u8 city_id, u8 unit_type)
         }
         if (best) order.officers[place] = best->officer_id;
     }
-    u32 soldiers = Minimum(city->troops, sim_unit_soldier_cap(sim, city->owner_force_id));
+    u32 soldiers = Minimum(city->troops, sim_officer_soldier_cap(sim, sim_find_officer(sim, order.officers[0])));
     if (type->weapon < sim->content.weapon_count && !sim->content.weapons[type->weapon].max_days)
     {
         soldiers = Minimum(soldiers, city->equipment_stocks[sim->content.weapons[type->weapon].stock]);

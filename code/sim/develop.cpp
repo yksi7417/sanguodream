@@ -89,8 +89,8 @@ sim_enemy_near(sim_state *sim, city_component *city)
     for (u32 index = 0; index < sim->unit_count; ++index)
     {
         sim_unit *unit = sim->units + index;
-        /* Every other force is an enemy until diplomacy exists (M7; assumed). */
-        if (unit->alive && unit->force_id != city->owner_force_id &&
+        /* An ally and a faction under a ceasefire are no enemy (M7, diplomacy.md). */
+        if (unit->alive && sim_at_war(sim, unit->force_id, city->owner_force_id) &&
             hex_distance(unit->hex, center) <= (s32)sim->content.rules.enemy_block_hexes) return true;
     }
     return false;

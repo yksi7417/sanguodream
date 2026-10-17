@@ -241,7 +241,9 @@ sim_check_conscript(sim_state *sim, city_component *city, sim_city_order *order,
     check.action_points = rules->ap_conscript;
     check.slot          = (u8)slot;
     check.value_before  = city->troops;
-    check.value_after   = sim_add_within(city->troops, sim_conscript_soldiers(charm, level, sim_enemy_near(sim, city), rules), cap);
+    u32 soldiers = sim_conscript_soldiers(charm, level, sim_enemy_near(sim, city), rules);
+    if (sim_order_has_skill(sim, order->officers, rules->skill_fame) && rules->skill_fame_percent) soldiers = sim_percent_of(soldiers, rules->skill_fame_percent);   /* 名聲 #80 */
+    check.value_after   = sim_add_within(city->troops, soldiers, cap);
     check.quantity      = check.value_after - check.value_before;
     return check;
 }
@@ -371,6 +373,7 @@ sim_check_city_command(sim_state *sim, sim_command_kind kind, sim_city_order *or
     check.assumed = true;
     if (!sim->has_content) return sim_refuse(check, SIM_REFUSAL_NO_CONTENT);
     if (sim_game_over(sim)) return sim_refuse(check, SIM_REFUSAL_GAME_OVER);
+    if (sim_busy(sim)) return sim_refuse(check, SIM_REFUSAL_BUSY);   /* M7: a duel or a debate runs */
     city_component *city = sim_find_city(sim, order->city_id);
     if (!city || city->owner_force_id == SIM_NO_FORCE) return sim_refuse(check, SIM_REFUSAL_NO_CITY);
     if (sim_whose_turn(sim) != city->owner_force_id)    return sim_refuse(check, SIM_REFUSAL_NOT_YOUR_TURN);
@@ -502,4 +505,13 @@ sim_city_command(sim_state *sim, sim_command command, sim_event_sink *events)
     sim_emit(events, points);
     /* The merchant raises politics and merit, not technique points (city-commands.md). */
     sim_reward_command(sim, force, order->officers, command.kind != SIM_COMMAND_MERCHANT, command.id, events);
+    /* M7: the command gives experience to the ability it uses (officers-and-relations.md). */
+    u32 ability = command.kind == SIM_COMMAND_PATROL    ? CONTENT_ABILITY_LEADERSHIP :
+                  command.kind == SIM_COMMAND_CONSCRIPT ? CONTENT_ABILITY_CHARM :
+                  command.kind == SIM_COMMAND_TRAIN     ? CONTENT_ABILITY_FORCE :
+                  command.kind == SIM_COMMAND_MERCHANT  ? CONTENT_ABILITY_POLITICS : CONTENT_ABILITY_INTELLECT;
+    for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place)
+    {
+        sim_gain_experience(sim, sim_find_officer(sim, order->officers[place]), ability, sim->content.rules.experience_command, command.id, events);
+    }
 }

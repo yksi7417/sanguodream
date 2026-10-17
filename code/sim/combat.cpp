@@ -107,21 +107,29 @@ struct sim_target
     u8  slot;
 };
 
+/* A thing of the other owner is a target: no owner, or a faction at war
+   (M7: not an ally and not under a ceasefire). */
+internal b32
+sim_hostile(sim_state *sim, u8 force, u8 other)
+{
+    return other != force && (other == SIM_NO_FORCE || sim_at_war(sim, force, other));
+}
+
 internal sim_target
 sim_target_at(sim_state *sim, u8 force, hex_coord hex)
 {
     sim_target target = {};
     target.unit = SIM_NO_UNIT; target.building = SIM_NO_BUILDING; target.city = SIM_NO_CITY; target.slot_city = SIM_NO_CITY;
     u32 unit = sim_unit_at(sim, hex);
-    if (unit != SIM_NO_UNIT && sim->units[unit].force_id != force) target.unit = unit;
+    if (unit != SIM_NO_UNIT && sim_hostile(sim, force, sim->units[unit].force_id)) target.unit = unit;
     u32 building = sim_building_at(sim, hex);
-    if (building != SIM_NO_BUILDING && sim->buildings[building].force_id != force) target.building = building;
+    if (building != SIM_NO_BUILDING && sim_hostile(sim, force, sim->buildings[building].force_id)) target.building = building;
     u8 city = sim_city_at(sim, hex);
-    if (city != SIM_NO_CITY && sim_find_city(sim, city)->owner_force_id != force) target.city = city;
+    if (city != SIM_NO_CITY && sim_hostile(sim, force, sim_find_city(sim, city)->owner_force_id)) target.city = city;
     for (u32 index = 0; index < sim->cities.count && target.slot_city == SIM_NO_CITY; ++index)
     {
         city_component *other = sim->cities.data + index;
-        if (other->owner_force_id == force) continue;
+        if (!sim_hostile(sim, force, other->owner_force_id)) continue;
         sim_city_site *site = sim->sites + other->city_id;
         for (u32 slot = 0; slot < site->slot_count; ++slot)
         {
@@ -296,6 +304,7 @@ sim_capture_officers(sim_state *sim, u32 unit_id, u32 captor_id, b32 halberd_tac
         event.subject = sim_officer_entity(sim, officer->officer_id);
         if (captured)
         {
+            officer->former_force     = officer->force_id;   /* M7: a release sends it back */
             officer->status           = SIM_STATUS_CAPTIVE;
             officer->force_id         = captor->force_id;
             officer->current_position = captor->home_city;
@@ -373,6 +382,7 @@ sim_capture_city(sim_state *sim, city_component *city, u32 attacker_id, u32 caus
     {
         officer_component *officer = sim->officers.data + index;
         if (!sim_officer_is_active(officer) || officer->force_id != old_owner || officer->current_position != city->city_id) continue;
+        officer->former_force = officer->force_id;
         officer->status   = SIM_STATUS_CAPTIVE;
         officer->force_id = attacker->force_id;
         sim_event captured = sim_event_make(sim, SIM_EVENT_OFFICER_CAPTURED, cause);

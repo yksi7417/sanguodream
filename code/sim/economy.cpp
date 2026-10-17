@@ -348,6 +348,7 @@ sim_run_production_month(sim_state *sim, u32 cause, sim_event_sink *events)
             if (paid < forecast.salaries)
             {
                 sim_emit_city(sim, SIM_EVENT_SALARIES_UNPAID, city, 0, forecast.salaries - paid, true, cause, events);
+                sim_unpaid_loyalty(sim, city, cause, events);   /* M7: unpaid salary lowers loyalty (manual p.11) */
             }
         }
         if (forecast.grain_every_month)

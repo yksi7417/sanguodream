@@ -358,6 +358,7 @@ sim_run_calendar(sim_state *sim, u32 cause, sim_event_sink *events)
         sim_emit(events, year);
         sim_remove_new_year_facilities(sim, cause, events);
         sim_emit_hook(sim, SIM_EVENT_HOOK_OFFICERS_AGE, cause, events);
+        sim_run_officers_year(sim, cause, events);   /* M7: growth with age and the lifespan */
         sim_emit_hook(sim, SIM_EVENT_HOOK_NEW_OFFICERS, cause, events);
     }
     if (calendar_starts_month(date))
@@ -366,6 +367,7 @@ sim_run_calendar(sim_state *sim, u32 cause, sim_event_sink *events)
         month.delta = date.month;
         sim_emit(events, month);
         sim_run_production_month(sim, cause, events);
+        sim_run_officers_month(sim, cause, events);   /* M7: loyalty, ranks, ceasefires */
         sim_emit_hook(sim, SIM_EVENT_HOOK_BANDITS, cause, events);
     }
     if (calendar_starts_season(date))
@@ -382,6 +384,7 @@ sim_run_calendar(sim_state *sim, u32 cause, sim_event_sink *events)
     sim_run_production_turn(sim, cause, events);
     sim_run_units_turn(sim, cause, events);
     sim_run_field_turn(sim, cause, events);
+    sim_run_officers_turn(sim, cause, events);
     sim_run_durability(sim, cause, events);
     sim_run_disasters_turn(sim, cause, events);
 }

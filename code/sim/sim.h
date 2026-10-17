@@ -123,6 +123,44 @@ enum sim_event_kind
     SIM_EVENT_BASE_RECOVERED,       /* subject = city; delta = durability in; assumed */
     SIM_EVENT_BASE_CAPTURED,        /* subject = city; faction = the new owner; detail = the old owner */
     SIM_EVENT_UNIT_LOOT,            /* detail = unit; delta = the amount; the loot of a destroyed facility */
+    /* M7: officers. An officer event has subject = the officer. */
+    SIM_EVENT_OFFICER_FOUND,        /* subject = the free officer that a search found; faction = the searcher */
+    SIM_EVENT_GOLD_FOUND,           /* subject = city; delta = gold in; assumed */
+    SIM_EVENT_OFFICER_RECRUITED,    /* subject = officer; faction = the new faction; detail = the old faction */
+    SIM_EVENT_RECRUIT_FAILED,       /* subject = officer */
+    SIM_EVENT_LOYALTY_CHANGED,      /* subject = officer; delta = loyalty in or out; assumed */
+    SIM_EVENT_ITEM_GIVEN,           /* subject = officer; detail = the item */
+    SIM_EVENT_POST_APPOINTED,       /* subject = officer; detail = the post */
+    SIM_EVENT_RANK_CHANGED,         /* faction; detail = the new rank */
+    SIM_EVENT_SWORN,                /* subject = officer; detail = the other officer */
+    SIM_EVENT_MARRIED,              /* subject = officer; detail = the spouse */
+    SIM_EVENT_CAPTIVE_RELEASED,     /* subject = officer; faction = its faction again */
+    SIM_EVENT_OFFICER_EXILED,       /* subject = officer */
+    SIM_EVENT_OFFICER_LEFT,         /* subject = officer; detail = the old faction; assumed */
+    SIM_EVENT_OFFICER_DIED,         /* subject = officer */
+    SIM_EVENT_ABILITY_CHANGED,      /* subject = officer; detail = content_ability; delta = points */
+    SIM_EVENT_HEALTH_CHANGED,       /* subject = officer; delta = the new sim_health */
+    SIM_EVENT_RULER_SUCCEEDED,      /* subject = the new ruler; faction */
+    /* M7: diplomacy and faction plots. faction = the actor; detail = the other faction */
+    SIM_EVENT_FRIENDLINESS_CHANGED, /* faction; detail = the other faction; delta = friendliness in or out; assumed */
+    SIM_EVENT_RELATION_CHANGED,     /* faction; detail = the other faction; delta = the new sim_relation */
+    SIM_EVENT_DIPLOMACY_FAILED,     /* faction; detail = the other faction */
+    SIM_EVENT_FACTION_SURRENDERED,  /* faction = the faction that gains; detail = the faction that joins it */
+    SIM_EVENT_CAPTIVE_EXCHANGED,    /* subject = officer; faction = its faction again */
+    SIM_EVENT_AID_ARRIVED,          /* faction = the ally; detail = the unit */
+    SIM_EVENT_AID_LEFT,             /* faction = the ally; detail = the unit */
+    SIM_EVENT_FACTION_PLOT,         /* faction; detail = sim_faction_plot_kind; delta = 1 success, 0 failure; assumed */
+    SIM_EVENT_FACTION_FOUNDED,      /* subject = city; faction = the new faction; detail = the old faction */
+    SIM_EVENT_ORDER_DROPPED,        /* subject = city; delta = public order out (negative); assumed */
+    /* M7: duel and debate */
+    SIM_EVENT_DUEL_STARTED,         /* subject = the challenger; detail = the target officer */
+    SIM_EVENT_DUEL_REFUSED,         /* subject = the challenger; detail = the target officer */
+    SIM_EVENT_DUEL_STRIKE,          /* subject = the officer hit; delta = stamina out (negative); assumed */
+    SIM_EVENT_DUEL_SPECIAL,         /* subject = the officer; detail = sim_duel_special */
+    SIM_EVENT_DUEL_ENDED,           /* subject = the winner (0 for a draw); detail = sim_duel_result */
+    SIM_EVENT_DEBATE_STARTED,       /* subject = side 0; detail = the officer of side 1 */
+    SIM_EVENT_DEBATE_EXCHANGE,      /* subject = the officer hit; delta = mind out (negative); assumed */
+    SIM_EVENT_DEBATE_ENDED,         /* subject = the winner; detail = 1 if side 0 won */
     SIM_EVENT_COUNT
 };
 
@@ -199,6 +237,21 @@ enum sim_command_kind
     SIM_COMMAND_BUILD,           /* 設置 */
     SIM_COMMAND_REPAIR,          /* 修補 */
     SIM_COMMAND_DISMANTLE,       /* 撤除 */
+    /* M7 */
+    SIM_COMMAND_SEARCH,          /* 探索人材 */
+    SIM_COMMAND_RECRUIT,         /* 登庸武將 */
+    SIM_COMMAND_REWARD,          /* 褒賞 */
+    SIM_COMMAND_GIVE_ITEM,       /* 授與 */
+    SIM_COMMAND_APPOINT,         /* 官職 */
+    SIM_COMMAND_MATCHMAKE,       /* 仲介 */
+    SIM_COMMAND_RELEASE,         /* 流放 of a captive: it goes back to its faction */
+    SIM_COMMAND_EXILE,           /* 流放 of an own officer */
+    SIM_COMMAND_DIPLOMACY,       /* 外交: sim_court_order.kind is the sim_diplomacy_kind */
+    SIM_COMMAND_FACTION_PLOT,    /* 計略 (二虎競食, 驅虎吞狼, 流言) */
+    SIM_COMMAND_DUEL,            /* 單挑: a unit challenges an adjacent unit */
+    SIM_COMMAND_DUEL_ACTION,     /* a policy, a special command, a substitute or a round of the running duel */
+    SIM_COMMAND_DEBATE,          /* a test and editor command: two officers start a debate */
+    SIM_COMMAND_DEBATE_ACTION,   /* a card, a round or the result choice of the running debate */
     SIM_COMMAND_COUNT
 };
 
@@ -285,10 +338,56 @@ struct sim_unit_order
     u8        kind;                         /* tactic, plot: the row of its table; build: the row of buildings.tsv */
 };
 
+/* The orders of M7: personnel, court, diplomacy and faction plots. */
+struct sim_court_order
+{
+    u8  city_id;                            /* the city of the officer that acts (search, recruit, reward, item, envoy) */
+    u16 officer;                            /* the officer that acts; the envoy */
+    u16 officers[SIM_COMMAND_OFFICERS];     /* reward: the officers that get it */
+    u16 target;                             /* recruit, item, appoint, matchmake, release, exile, exchange: the other officer */
+    u8  item;                               /* give item: the item id */
+    u8  post;                               /* appoint: the row of posts.tsv */
+    u8  kind;                               /* matchmake: sim_match_kind; diplomacy: sim_diplomacy_kind; plot: sim_faction_plot_kind */
+    u8  force;                              /* diplomacy, plot: the target faction */
+    u8  force_2;                            /* 二虎競食: the second target faction */
+    u8  target_city;                        /* 驅虎吞狼, 流言, 請求援軍: the city */
+    u32 gold;
+    u32 months;                             /* 停戰協定 */
+};
+
+enum sim_match_kind { SIM_MATCH_SWORN, SIM_MATCH_MARRIAGE, SIM_MATCH_KIND_COUNT };
+
+enum sim_diplomacy_kind
+{
+    SIM_DIPLOMACY_GOODWILL,      /* 親善 */
+    SIM_DIPLOMACY_ALLIANCE,      /* 同盟 */
+    SIM_DIPLOMACY_BREAK,         /* 摒棄 */
+    SIM_DIPLOMACY_CEASEFIRE,     /* 停戰協定 */
+    SIM_DIPLOMACY_SURRENDER,     /* 降伏勸告 */
+    SIM_DIPLOMACY_EXCHANGE,      /* 交換俘虜: target is an own officer that the other faction holds */
+    SIM_DIPLOMACY_AID,           /* 請求援軍: target_city is the own city that the aid goes to */
+    SIM_DIPLOMACY_KIND_COUNT
+};
+
+enum sim_faction_plot_kind { SIM_PLOT_TWO_TIGERS, SIM_PLOT_DRIVE_TIGER, SIM_PLOT_RUMOUR, SIM_FACTION_PLOT_COUNT };
+
+/* The actions of a running duel and debate. */
+enum sim_duel_action { SIM_DUEL_POLICY, SIM_DUEL_SPECIAL, SIM_DUEL_SUBSTITUTE, SIM_DUEL_ROUND, SIM_DUEL_AUTO, SIM_DUEL_ACTION_COUNT };
+enum sim_debate_action { SIM_DEBATE_PLAY, SIM_DEBATE_ROUND, SIM_DEBATE_AUTO, SIM_DEBATE_FINISH, SIM_DEBATE_ACTION_COUNT };
+
+struct sim_mini_order
+{
+    u8  action;                             /* sim_duel_action or sim_debate_action */
+    u8  value;                              /* policy, special, substitute place, card place, result choice */
+    u16 officer_a, officer_b;               /* SIM_COMMAND_DEBATE: the two officers */
+};
+
 struct sim_command
 {
     sim_command_kind   kind;
     u32                id;        /* assigned by sim_make_command */
+    sim_court_order    court;     /* SIM_COMMAND_SEARCH .. SIM_COMMAND_FACTION_PLOT */
+    sim_mini_order     mini;      /* SIM_COMMAND_DUEL_ACTION .. SIM_COMMAND_DEBATE_ACTION */
     sim_develop_order  develop;   /* SIM_COMMAND_DEVELOP */
     sim_city_order     city;      /* SIM_COMMAND_PATROL .. SIM_COMMAND_PRODUCE */
     sim_damage_order   damage;    /* SIM_COMMAND_DAMAGE_FACILITY */
@@ -344,6 +443,21 @@ enum sim_refusal
     SIM_REFUSAL_NO_PARTNER,            /* a joint attack needs two units or more */
     SIM_REFUSAL_BAD_TERRAIN,           /* the terrain of the unit or of the hex does not allow it */
     SIM_REFUSAL_NOT_BUILDABLE,         /* the building cannot stand on the hex */
+    /* M7 */
+    SIM_REFUSAL_NOT_RECRUITABLE,       /* a ruler, a sworn brother or spouse of another faction, loyalty 100, a disliked ruler */
+    SIM_REFUSAL_NO_ITEM,               /* the faction does not hold the item */
+    SIM_REFUSAL_NO_POST,               /* no such post */
+    SIM_REFUSAL_POST_TAKEN,            /* another officer of the faction holds the post */
+    SIM_REFUSAL_NO_MERIT,              /* the officer has less merit than the post or the matchmaking needs */
+    SIM_REFUSAL_NO_RANK,               /* the rank of the ruler does not allow the post */
+    SIM_REFUSAL_NOT_MATCHABLE,         /* sex, age, a spouse, a dislike, or the same group */
+    SIM_REFUSAL_NO_FACTION,            /* no such faction, or the own faction */
+    SIM_REFUSAL_RELATION,              /* the relation does not allow it: an ally for an alliance, no ally for an aid or a break */
+    SIM_REFUSAL_AT_PEACE,              /* the target is an ally or under a ceasefire */
+    SIM_REFUSAL_BUSY,                  /* a duel or a debate runs */
+    SIM_REFUSAL_NO_DUEL,               /* no duel or debate runs, or the action does not fit it */
+    SIM_REFUSAL_NO_SPIRIT,             /* the fighting spirit or the item does not allow the special command */
+    SIM_REFUSAL_NOT_CAPTIVE,           /* the officer is not a captive of the faction */
     SIM_REFUSAL_COUNT
 };
 
@@ -394,6 +508,132 @@ struct officer_component
     u32 acted_turn;                      /* sim turn + 1 of the last command; 0 = never */
     u8  job_city;                        /* the city of the develop job, SIM_NO_CITY = free */
     u8  job_slot;
+    /* M7: character, state and relations (officers-and-relations.md). The
+       save fields of loyalty, ambition, justice, personality, growth, sex
+       and health are not decoded: they start at assumed values (Q-177). */
+    u8  loyalty;                         /* 0 .. 100 */
+    u8  ambition;                        /* 0 none .. 4 high; 2 normal */
+    u8  justice;                         /* 0 low .. 4 high; 2 normal */
+    u8  personality;                     /* sim_personality */
+    u8  growth;                          /* sim_growth */
+    u8  health;                          /* sim_health */
+    u8  health_turns;                    /* turns until the health is one step better */
+    u8  stamina;                         /* 0 .. 100: the hit points of a duel */
+    u8  post;                            /* the row of posts.tsv; CONTENT_NO_POST */
+    u8  post_bonus;                      /* the points that the post added to its ability */
+    u8  wife_bonus;                      /* 1 after a marriage with 內助 */
+    b32 female;
+    u8  former_force;                    /* a captive: its faction before; SIM_NO_FORCE */
+    u16 liked[OFFICER_RELATION_SLOTS];
+    u16 disliked[OFFICER_RELATION_SLOTS];
+    u16 experience[CONTENT_ABILITY_COUNT];
+    u32 rewarded_turn;                   /* sim turn + 1 of the last reward */
+};
+
+enum sim_personality { PERSONALITY_CAREFUL, PERSONALITY_CALM, PERSONALITY_BOLD, PERSONALITY_RECKLESS, PERSONALITY_COUNT };
+enum sim_growth      { GROWTH_EARLY, GROWTH_NORMAL, GROWTH_SUSTAINED, GROWTH_LATE, GROWTH_AWAKENING, GROWTH_COUNT };
+enum sim_health      { HEALTH_GOOD, HEALTH_LIGHT_WOUND, HEALTH_HEAVY_WOUND, HEALTH_NEAR_DEATH, HEALTH_COUNT };
+
+/* An item of the save (save-file.md, Item record), with its kind from
+   items.tsv. */
+struct sim_item
+{
+    b32 exists;
+    u8  name[ITEM_NAME_SIZE];            /* Big5, NUL padded */
+    u8  kind;                            /* the row of items.tsv; CONTENT_NO_ITEM_KIND */
+    u8  type;                            /* item_type; ITEM_OTHER if the kind is not known */
+    u8  polearm;
+    u8  strength;                        /* the loyalty that the item gives */
+    u16 owner;                           /* the officer that holds it; SIM_NO_OFFICER */
+    u8  city;                            /* an item without owner: the city that holds it; SIM_NO_CITY */
+};
+
+/* Diplomacy (diplomacy.md): friendliness 0 .. 100 for each pair, the
+   relation and the months left of a ceasefire. */
+#define SIM_DIPLOMACY_FORCES 256   /* = SIM_FORCE_CAPACITY */
+
+enum sim_relation { RELATION_NONE, RELATION_ALLIANCE, RELATION_CEASEFIRE, RELATION_COUNT };
+
+struct sim_diplomacy_state
+{
+    u8 friendliness[SIM_DIPLOMACY_FORCES][SIM_DIPLOMACY_FORCES];
+    u8 relation[SIM_DIPLOMACY_FORCES][SIM_DIPLOMACY_FORCES];
+    u8 months[SIM_DIPLOMACY_FORCES][SIM_DIPLOMACY_FORCES];
+};
+
+/* ---- the duel (duel.md) ---------------------------------------------------- */
+
+enum sim_duel_policy  { DUEL_ATTACK, DUEL_DEFENCE, DUEL_SPIRIT, DUEL_ONE_BLOW, DUEL_POLICY_COUNT };
+enum sim_duel_special { DUEL_FINISHER, DUEL_FOCUS, DUEL_HOLD, DUEL_RETREAT, DUEL_VITAL, DUEL_PEERLESS, DUEL_HIDDEN, DUEL_FEINT,
+                        DUEL_SPECIAL_COUNT };
+enum sim_duel_result  { DUEL_RESULT_NONE, DUEL_RESULT_WIN, DUEL_RESULT_DRAW, DUEL_RESULT_RETREAT, DUEL_RESULT_COUNT };
+
+struct sim_duel_side
+{
+    u16 officers[SIM_COMMAND_OFFICERS];  /* the officers of the unit; [fighter] fights */
+    u8  fighter;
+    u32 unit;
+    u8  force;
+    u32 spirit;                          /* 0 .. 300 */
+    u8  policy;
+    u8  policy_rounds;                   /* rounds with the same policy */
+    u8  focus_rounds, hold_rounds, guard_rounds;
+    b32 used_hidden, used_feint;
+    b32 human;
+};
+
+struct sim_duel
+{
+    b32           active;
+    u32           round;
+    sim_duel_side side[2];               /* 0 the challenger, 1 the target */
+    u8            result;                /* sim_duel_result after the end */
+    u8            winner;                /* 0 or 1; 2 for a draw */
+    u32           cause;
+};
+
+/* ---- the debate (debate.md) ------------------------------------------------ */
+
+enum sim_card_type { CARD_TOPIC, CARD_IGNORE, CARD_SHOUT, CARD_SOPHISTRY, CARD_CALM, CARD_ANGER, CARD_RETHINK, CARD_TYPE_COUNT };
+enum sim_topic     { TOPIC_REASON, TOPIC_STORY, TOPIC_SEASON, TOPIC_COUNT };   /* 道理, 故事, 時節 */
+enum sim_debate_purpose { DEBATE_FOR_NOTHING, DEBATE_FOR_RECRUIT, DEBATE_FOR_SEARCH, DEBATE_FOR_DIPLOMACY, DEBATE_PURPOSE_COUNT };
+
+#define SIM_HAND_CAPACITY 6
+
+/* A card: the type, and for a topic card the topic and the strength 1 小 .. 3 大. */
+struct sim_card
+{
+    u8 type;
+    u8 topic;
+    u8 strength;
+};
+
+struct sim_debate_side
+{
+    u16      officer;
+    sim_card hand[SIM_HAND_CAPACITY];
+    u8       hand_count;
+    s32      mind;
+    u32      anger;
+    u8       rage_rounds;
+    b32      rethink_used;
+    b32      all_cards;                  /* 書物 */
+};
+
+struct sim_debate
+{
+    b32             active;
+    b32             finished;            /* the winner chooses: sympathy or press */
+    u32             round;
+    u8              topic;
+    u8              turn;                /* the side that attacks */
+    u8              winner;
+    sim_debate_side side[2];             /* 0 the player's officer, 1 the other */
+    sim_card        last[2];             /* the cards of the last exchange; type CARD_TYPE_COUNT if none */
+    u8              purpose;             /* sim_debate_purpose */
+    sim_court_order order;               /* the command that waits for the result */
+    u8              force;               /* the faction of side 0 */
+    u32             cause;
 };
 
 /* A city of the loaded game (save-file.md, City record). */
@@ -487,6 +727,7 @@ struct sim_unit
     u32       acted_turn;                         /* sim turn + 1 of the last action (wait, supply) */
     u8        state;                              /* sim_unit_state (plots-and-states.md) */
     u8        state_turns;                        /* turns left of the state */
+    u16       aid_turns;                          /* M7: an aid unit of an ally; the turns left; 0 = not an aid unit */
 };
 
 enum sim_unit_state
@@ -592,6 +833,8 @@ struct sim_research_job
 struct sim_settings
 {
     b32 disasters;          /* the calendar starts disasters; a new game has them */
+    b32 ability_change;     /* M7: 能力變動: abilities fall with age */
+    b32 lifespan;           /* M7: officers die near their historical year */
 };
 
 enum sim_outcome_kind
@@ -644,6 +887,12 @@ struct sim_state
     sim_outcome    outcome;
     u16            officer_index[SAVE_OFFICER_SLOTS];   /* officer id -> dense index, SIM_NO_OFFICER if none */
     u8             city_index[SAVE_CITY_COUNT];         /* city id -> dense index, SIM_NO_CITY if none */
+    /* M7 */
+    sim_item       items[SAVE_ITEM_COUNT];
+    sim_diplomacy_state diplomacy;
+    u8             rank[SIM_FORCE_CAPACITY];            /* the row of ranks.tsv of each ruler */
+    sim_duel       duel;
+    sim_debate     debate;
 };
 
 #define SIM_ENTITY_CAPACITY  4096
@@ -849,6 +1098,59 @@ internal u32       sim_add_building(sim_state *sim, u8 kind, u8 force, hex_coord
 internal void      sim_run_field_turn(sim_state *sim, u32 cause, sim_event_sink *events);
 internal b32       sim_building_available(sim_state *sim, u8 force, u32 kind_id);
 internal b32       sim_can_place(sim_state *sim, building_kind *kind, hex_coord hex);
+
+/* officers.cpp, diplomacy.cpp, duel.cpp, debate.cpp (M7) */
+internal void      sim_init_officer_state(sim_state *sim, officer_component *officer, officer_record *record);
+internal void      sim_load_items(sim_state *sim, save_file *save);
+internal u32       sim_compatibility_distance(u8 a, u8 b);
+internal b32       sim_officer_likes(officer_component *officer, u16 other);
+internal b32       sim_officer_dislikes(officer_component *officer, u16 other);
+internal b32       sim_officers_bonded(officer_component *a, officer_component *b);
+internal b32       sim_officers_blood(officer_component *a, officer_component *b);
+internal u32       sim_officer_age(sim_state *sim, officer_component *officer);
+internal sim_item *sim_officer_item(sim_state *sim, u16 officer_id, u8 type);
+internal b32       sim_faction_has_item(sim_state *sim, u8 force, u8 type);
+internal void      sim_gain_experience(sim_state *sim, officer_component *officer, u32 ability, u32 amount, u32 cause, sim_event_sink *events);
+internal void      sim_change_loyalty(sim_state *sim, officer_component *officer, s32 change, u32 cause, sim_event_sink *events);
+internal u32       sim_officer_soldier_cap(sim_state *sim, officer_component *officer);
+internal u8        sim_rank_for(sim_state *sim, u8 force);
+internal void      sim_update_ranks(sim_state *sim, b32 silent, u32 cause, sim_event_sink *events);
+internal u32       sim_faction_city_count(sim_state *sim, u8 force);
+internal sim_check sim_check_court(sim_state *sim, sim_command_kind kind, sim_court_order *order);
+internal void      sim_court_command(sim_state *sim, sim_command command, sim_event_sink *events);
+internal void      sim_run_officers_turn(sim_state *sim, u32 cause, sim_event_sink *events);
+internal void      sim_run_officers_month(sim_state *sim, u32 cause, sim_event_sink *events);
+internal void      sim_run_officers_year(sim_state *sim, u32 cause, sim_event_sink *events);
+internal void      sim_unpaid_loyalty(sim_state *sim, city_component *city, u32 cause, sim_event_sink *events);
+internal void      sim_init_diplomacy(sim_state *sim);
+internal b32       sim_at_war(sim_state *sim, u8 a, u8 b);
+internal u32       sim_friendliness(sim_state *sim, u8 a, u8 b);
+internal u32       sim_friendliness_level(u32 friendliness);
+internal u8        sim_relation(sim_state *sim, u8 a, u8 b);
+internal void      sim_change_friendliness(sim_state *sim, u8 a, u8 b, s32 change, u32 cause, sim_event_sink *events);
+internal void      sim_set_relation(sim_state *sim, u8 a, u8 b, u8 relation, u32 months, u32 cause, sim_event_sink *events);
+internal void      sim_run_diplomacy_month(sim_state *sim, u32 cause, sim_event_sink *events);
+internal void      sim_diplomacy_result(sim_state *sim, u8 force, sim_court_order *order, b32 success, u32 cause, sim_event_sink *events);
+internal sim_check sim_check_diplomacy(sim_state *sim, sim_court_order *order);
+internal void      sim_diplomacy(sim_state *sim, sim_command command, sim_event_sink *events);
+internal sim_check sim_check_faction_plot(sim_state *sim, sim_court_order *order);
+internal void      sim_faction_plot(sim_state *sim, sim_command command, sim_event_sink *events);
+internal sim_check sim_check_duel(sim_state *sim, sim_unit_order *order);
+internal void      sim_start_duel(sim_state *sim, sim_command command, sim_event_sink *events);
+internal sim_check sim_check_duel_action(sim_state *sim, sim_mini_order *order);
+internal void      sim_duel_action(sim_state *sim, sim_command command, sim_event_sink *events);
+internal void      sim_duel_auto(sim_state *sim, u32 cause, sim_event_sink *events);
+internal b32       sim_duel_special_ready(sim_state *sim, sim_duel_side *side, u8 special);
+internal void      sim_begin_debate(sim_state *sim, u16 officer_a, u16 officer_b, u8 purpose, sim_court_order *order, u8 force, u32 cause,
+                                    sim_event_sink *events);
+internal sim_check sim_check_debate_action(sim_state *sim, sim_mini_order *order);
+internal void      sim_debate_action(sim_state *sim, sim_command command, sim_event_sink *events);
+internal void      sim_debate_auto(sim_state *sim, u32 cause, sim_event_sink *events);
+internal sim_check sim_check_start_debate(sim_state *sim, sim_mini_order *order);
+internal void      sim_start_debate_command(sim_state *sim, sim_command command, sim_event_sink *events);
+internal u32       sim_debate_hand_size(u32 intellect);
+internal s32       sim_card_compare(sim_card a, sim_card b, u8 topic);
+internal b32       sim_busy(sim_state *sim);   /* a duel or a debate runs */
 
 /* outcome.cpp: victory and defeat (calendar-and-turn.md) */
 internal void sim_check_outcome(sim_state *sim, u32 cause, sim_event_sink *events);
