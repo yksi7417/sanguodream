@@ -868,8 +868,10 @@ bases.troops	Soldiers	兵力
 base_type.0	pass	關
 base_type.1	port	港
 event.title	Event	the dialog of an event that waits for a choice
-event.officer_a	Officer	the first officer of the event
-event.officer_b	Officer	the second officer of the event
+event_role.treason.a	Informer	密告者
+event_role.treason.b	Viceroy	都督
+event_role.visit_yuji.a	Searcher	探索者
+event_role.visit_yuji.b	Traveller	旅人
 event_question.treason	The informer says that the viceroy plans a rebellion. Is it treason?	謀反的嫌疑
 event_question.visit_yuji	Yu Ji asks for the help of the city.	于吉
 event_choice.treason.0	It is a slander	the informer loses loyalty

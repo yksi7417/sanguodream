@@ -343,7 +343,7 @@ engine_api_set_base(void *opaque, u32 index, u8 force_id, u32 troops, u32 durabi
     sim_base_state *base = sim_find_base(sim, index);
     if (!base) return;
     base->force      = force_id == ENGINE_NO_FACTION || force_id >= SIM_FORCE_CAPACITY ? (u8)SIM_NO_FORCE : force_id;
-    base->troops     = Minimum(troops, sim->content.rules.base_troop_cap * 2);
+    base->troops     = Minimum(troops, base->force == SIM_NO_FORCE ? sim->content.rules.base_troop_cap : sim_base_troop_cap(sim, base->force));
     base->durability = Minimum(durability, sim->content.bases[index].durability);
 }
 

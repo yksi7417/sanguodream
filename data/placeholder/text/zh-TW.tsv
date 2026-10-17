@@ -866,8 +866,10 @@ bases.troops	兵力
 base_type.0	關
 base_type.1	港
 event.title	事件
-event.officer_a	武將
-event.officer_b	武將
+event_role.treason.a	密告者
+event_role.treason.b	都督
+event_role.visit_yuji.a	探索者
+event_role.visit_yuji.b	旅人
 event_question.treason	密告者說都督計劃謀反。是謀反嗎？
 event_question.visit_yuji	于吉請求都市的幫助。
 event_choice.treason.0	是誣告

@@ -264,16 +264,18 @@ ui_draw_event_dialog(ui_state *ui, engine_api *api)
     ImGui::SetNextWindowSize(ImVec2(420, 220), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "event.title", "Event"))) { ImGui::End(); return; }
     ImGui::TextUnformatted(ui_text_with_key(ui, "event", kind.key));
-    char name[UI_NAME_SIZE * 2];
+    char name[UI_NAME_SIZE * 2], role[64];
     if (pending.officer_a != ENGINE_NO_OFFICER)
     {
         ui_officer_text(ui, api, pending.officer_a, name, sizeof(name));
-        ImGui::Text("%s: %s", text_get(ui->text, "event.officer_a"), name);
+        snprintf(role, sizeof(role), "event_role.%s.a", kind.key);
+        ImGui::Text("%s: %s", text_get(ui->text, role), name);
     }
     if (pending.officer_b != ENGINE_NO_OFFICER)
     {
         ui_officer_text(ui, api, pending.officer_b, name, sizeof(name));
-        ImGui::Text("%s: %s", text_get(ui->text, "event.officer_b"), name);
+        snprintf(role, sizeof(role), "event_role.%s.b", kind.key);
+        ImGui::Text("%s: %s", text_get(ui->text, role), name);
     }
     ImGui::TextWrapped("%s", ui_text_with_key(ui, "event_question", kind.key));
     for (u32 choice = 0; choice < pending.choices; ++choice)
