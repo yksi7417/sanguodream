@@ -286,6 +286,17 @@ Spec input: mechanics/{loyalty,recruit-officer,diplomacy,debate,duel}.md.
 - Engine: the loyalty_drift hook, diplomacy as proposals with acceptance rules, debate and duel as mini-games over character stats.
 
 ### M8 Technology, events, AI
+Status (2026-10-17): done (tutorial 20). The spec input was knowledge/ai.md,
+factions-corps-and-posts.md, city-commands.md, calendar-and-turn.md,
+events.md, bases-ports-and-passes.md and siege-and-bases.md. bases.tsv,
+events.tsv and ai_priorities.tsv hold the tables. The computer factions
+and the delegated corps use the commands of the player through the
+planner. The council and the adviser show its proposals. The engine query
+ai_plan lets a test check the command that the AI issues for a state. The
+engine uses assumed numbers for the AI, the corps, the emperor, the events
+and the bases (Q-183 to Q-186). The demo is "demo/m8_rivals". FEATURES.md marks
+F-032, F-120 to F-123 and F-130 as built.
+
 Spec input: mechanics/{tech-tree,events,ai-phase-order}.md.
 - Engine: tech.tsv unlocks; events.tsv triggers; an AI planner that uses ai_priority over the same commands that the player has.
 - Tests: AI feature tests are "given this state, the AI issues a command of kind X"; never pixel-based or time-based.
