@@ -189,6 +189,8 @@ sim_city_forecast(sim_state *sim, u8 city_id)
     forecast.gold_every_turn     = sim_city_has_skill(sim, city_id, rules->skill_tax);
     u32 gold = sim_percent_of(sim_percent_of(forecast.gold_base + forecast.gold_facilities, forecast.order_percent),
                               forecast.gold_skill_percent);
+    forecast.gold_bases   = sim_city_base_gold(sim, city_id);
+    gold += forecast.gold_bases;
     forecast.gold_payment = forecast.gold_every_turn ? gold / 2 : gold;
     forecast.gold_month   = forecast.gold_every_turn ? forecast.gold_payment * CALENDAR_TURNS_PER_MONTH : gold;
 

@@ -32,9 +32,14 @@ sim_init(sim_state *sim, memory_arena *arena, u64 seed)
     sim->settings.disasters = true;   /* a new game has disasters (game-setup-and-modes.md) */
     sim->settings.ability_change = true;   /* M7: 能力變動 and the historical lifespan (officers-and-relations.md) */
     sim->settings.lifespan       = true;
+    sim->settings.ai             = true;    /* M8: the computer factions act, and 事件 is on */
+    sim->settings.events         = true;
     sim->duel   = {};
     sim->debate = {};
     for (u32 index = 0; index < SAVE_ITEM_COUNT; ++index) sim->items[index] = {};
+    for (u32 force = 0; force < SIM_FORCE_CAPACITY; ++force) sim->adviser[force] = SIM_NO_OFFICER;   /* M8 */
+    sim->pending = {};
+    sim->emperor = {};
     sim->ruleset.combat_damage = sim_rule_combat_damage;   /* the generic rule; a pack can set its own */
     sim->ruleset.loyalty_drift = sim_monthly_loyalty_loss;
     sim->building_count = 0;
@@ -218,6 +223,7 @@ sim_apply(sim_state *sim, sim_command command, sim_event_sink *events)
                 finish.mini.value  = 0;
                 sim_debate_action(sim, finish, events);
             }
+            if (sim->pending.active) sim_resolve_event(sim, 0, command.id, events);   /* M8: an event that waits takes its first choice */
             sim_end_faction_turn(sim, command.id, events);
             break;
         case SIM_COMMAND_SEARCH:
@@ -234,6 +240,11 @@ sim_apply(sim_state *sim, sim_command command, sim_event_sink *events)
         case SIM_COMMAND_DUEL_ACTION:  sim_duel_action(sim, command, events);          break;
         case SIM_COMMAND_DEBATE:       sim_start_debate_command(sim, command, events); break;
         case SIM_COMMAND_DEBATE_ACTION: sim_debate_action(sim, command, events);       break;
+        case SIM_COMMAND_CORPS:         sim_corps_command(sim, command, events);       break;
+        case SIM_COMMAND_ADVISER:       sim_adviser_command(sim, command, events);     break;
+        case SIM_COMMAND_COUNCIL:       sim_council_command(sim, command, events);     break;
+        case SIM_COMMAND_EVENT_CHOICE:  sim_event_choice_command(sim, command, events); break;
+        case SIM_COMMAND_TRIGGER_EVENT: sim_trigger_event_command(sim, command, events); break;
         case SIM_COMMAND_DEVELOP:
             sim_develop(sim, command, events);
             break;
@@ -324,7 +335,16 @@ sim_unload_world(sim_state *sim)
     sim->duel    = {};
     sim->debate  = {};
     for (u32 index = 0; index < SAVE_ITEM_COUNT; ++index) sim->items[index] = {};
-    for (u32 force = 0; force < SIM_FORCE_CAPACITY; ++force) sim->rank[force] = 0;
+    for (u32 force = 0; force < SIM_FORCE_CAPACITY; ++force)
+    {
+        sim->rank[force]    = 0;
+        sim->adviser[force] = SIM_NO_OFFICER;
+        for (u32 index = 0; index < SIM_CORPS_CAPACITY; ++index) { sim->corps[force][index] = {}; sim->corps_ap[force][index] = 0; }
+    }
+    sim->pending = {};
+    for (u32 index = 0; index < CONTENT_EVENT_CAPACITY; ++index) sim->event_turn[index] = 0;
+    for (u32 index = 0; index < CONTENT_BASE_COUNT; ++index) sim->bases[index] = {};
+    for (u32 index = 0; index < SIM_RELIC_COUNT; ++index) sim->relics[index] = {};
     sim_init_sites(sim);
     /* The natural traps belong to the map and stay; the rest go (M6). */
     for (u32 index = 0; index < sim->building_count; ++index)
@@ -449,7 +469,10 @@ sim_load_save(sim_state *sim, save_file *save, sim_command command, sim_event_si
     u8 player = sim_player_force(sim, &save->header);
     if (player != SIM_NO_FORCE) sim->turns.human[player] = true;
     sim_init_diplomacy(sim);                      /* M7: the save fields of diplomacy are not decoded (Q-180) */
+    sim_init_emperor(sim);                        /* M8: the emperor, the bases and the ruins and temples */
     sim_update_ranks(sim, true, command.id, events);
+    sim_init_bases(sim);
+    sim_init_relics(sim);
 
     sim_event event = sim_event_make(sim, SIM_EVENT_SAVE_LOADED, command.id);
     event.delta = (s32)sim->officers.count;
@@ -608,6 +631,16 @@ sim_event_name(sim_event_kind kind)
         case SIM_EVENT_DEBATE_STARTED:          return "debate_started";
         case SIM_EVENT_DEBATE_EXCHANGE:         return "debate_exchange";
         case SIM_EVENT_DEBATE_ENDED:            return "debate_ended";
+        case SIM_EVENT_CORPS_CREATED:           return "corps_created";
+        case SIM_EVENT_CORPS_CHANGED:           return "corps_changed";
+        case SIM_EVENT_CORPS_DISSOLVED:         return "corps_dissolved";
+        case SIM_EVENT_ADVISER_APPOINTED:       return "adviser_appointed";
+        case SIM_EVENT_EMPEROR_CHANGED:         return "emperor_changed";
+        case SIM_EVENT_EVENT_FIRED:             return "event_fired";
+        case SIM_EVENT_EVENT_CHOSEN:            return "event_chosen";
+        case SIM_EVENT_BASE_INCOME:             return "base_income";
+        case SIM_EVENT_BASE_TAKEN:              return "base_taken";
+        case SIM_EVENT_AI_PLANNED:              return "ai_planned";
         default:                                return "?";
     }
 }
@@ -658,6 +691,11 @@ sim_command_name(sim_command_kind kind)
         case SIM_COMMAND_DUEL_ACTION:     return "duel_action";
         case SIM_COMMAND_DEBATE:          return "debate";
         case SIM_COMMAND_DEBATE_ACTION:   return "debate_action";
+        case SIM_COMMAND_CORPS:           return "corps";
+        case SIM_COMMAND_ADVISER:         return "adviser";
+        case SIM_COMMAND_COUNCIL:         return "council";
+        case SIM_COMMAND_EVENT_CHOICE:    return "event_choice";
+        case SIM_COMMAND_TRIGGER_EVENT:   return "trigger_event";
         default:                          return "?";
     }
 }
@@ -722,6 +760,9 @@ sim_refusal_name(sim_refusal refusal)
         case SIM_REFUSAL_NO_DUEL:               return "no_duel";
         case SIM_REFUSAL_NO_SPIRIT:             return "no_spirit";
         case SIM_REFUSAL_NOT_CAPTIVE:           return "not_captive";
+        case SIM_REFUSAL_NO_CORPS:              return "no_corps";
+        case SIM_REFUSAL_RULER_ABSENT:          return "ruler_absent";
+        case SIM_REFUSAL_NO_EVENT:              return "no_event";
         default:                                return "?";
     }
 }
@@ -741,3 +782,7 @@ sim_refusal_name(sim_refusal refusal)
 #include "sim/diplomacy.cpp"
 #include "sim/duel.cpp"
 #include "sim/debate.cpp"
+#include "sim/rivals.cpp"
+#include "sim/bases.cpp"
+#include "sim/events.cpp"
+#include "sim/ai.cpp"

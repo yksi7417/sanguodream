@@ -459,6 +459,62 @@ struct item_kind
     u8   polearm;                     /* item_polearm */
 };
 
+/* ---- M8: bases, events, the AI ------------------------------------------ */
+
+#define CONTENT_BASE_COUNT        45    /* the 10 passes and 35 ports; location ids 42 to 86 */
+#define CONTENT_FIRST_BASE        42
+#define CONTENT_EVENT_CAPACITY    32
+#define CONTENT_PRIORITY_CAPACITY 16
+#define CONTENT_EVENT_NAMES       10
+#define CONTENT_EVENT_PARAMS      6
+
+enum base_type { BASE_PASS, BASE_PORT, BASE_TYPE_COUNT };
+
+/* One row of bases.tsv (bases-ports-and-passes.md). */
+struct base_kind
+{
+    u8   id;                          /* the location id, 42 .. 86 */
+    char key[CONTENT_KEY_SIZE];       /* the text id is "base.<key>" */
+    u8   type;                        /* base_type */
+    u8   owner_city;
+    u32  durability;
+};
+
+enum event_check { EVENT_CHECK_QUARTER, EVENT_CHECK_MONTH, EVENT_CHECK_SEARCH, EVENT_CHECK_WAIT, EVENT_CHECK_NONE, EVENT_CHECK_COUNT };
+
+/* One row of events.tsv (events.md, generic events). The handler of the
+   key reads p[0..5] in its own order. */
+struct event_kind
+{
+    u8   id;
+    char key[CONTENT_KEY_SIZE];       /* the text id is "event.<key>" */
+    u8   check;                       /* event_check */
+    u32  min_days;
+    u32  months;                      /* bit m: the month m (1 .. 12); quarter checks only */
+    u32  chance;
+    u32  p[CONTENT_EVENT_PARAMS];
+    u8   names[CONTENT_EVENT_NAMES][OFFICER_FAMILY_NAME_SIZE + OFFICER_GIVEN_NAME_SIZE];   /* Big5 family + given name */
+    u8   name_sizes[CONTENT_EVENT_NAMES];
+    u32  name_count;
+};
+
+enum ai_condition
+{
+    AI_ORDER_BELOW, AI_TROOPS_BELOW_PERCENT, AI_FREE_SLOT, AI_FREE_OFFICER, AI_MORALE_BELOW, AI_WEAPONS_BELOW_TROOPS,
+    AI_LOYALTY_BELOW, AI_TROOPS_ABOVE, AI_TECHNIQUE_ABOVE, AI_GOLD_ABOVE, AI_CONDITION_COUNT
+};
+
+/* One row of ai_priorities.tsv: a kind of proposal of the AI planner. */
+struct ai_priority
+{
+    u8   id;
+    char key[CONTENT_KEY_SIZE];
+    u8   command;                     /* sim_command_kind */
+    u32  priority;
+    u8   condition;                   /* ai_condition */
+    u32  threshold;
+};
+
 /* The numbers of rules.tsv. A missing row leaves 0. */
 struct sim_rules
 {
@@ -589,6 +645,12 @@ struct sim_rules
     u32 skill_search, skill_debater, skill_benevolence, skill_wife_help, skill_guard, skill_fame, skill_fame_percent;
     u32 skill_morale_up, skill_double_attack, skill_heart_attack, skill_unyielding, skill_diamond, skill_iron_wall, skill_fury;
     u32 skill_plot_thrift, skill_heart_attack_percent, seal_technique;
+    /* M8: bases, corps, council, emperor, events, AI */
+    u32 base_gold, base_troop_cap, base_caps_percent, base_start_troops;
+    u32 corps_commands, council_officers, adviser_intellect, advice_per_intellect;
+    u32 emperor_technique, emperor_loyalty, emperor_city;
+    u32 event_experience, event_merit;
+    u32 ai_urgency, ai_sortie_soldiers, ai_sortie_reserve, ai_goodwill_gold, ai_commands, corps_ap_divisor;
     u32 loaded_count;           /* rows that set a field */
 };
 
@@ -624,6 +686,12 @@ struct sim_content
     u32            rank_count;
     item_kind      items[CONTENT_ITEM_CAPACITY];
     u32            item_count;
+    base_kind      bases[CONTENT_BASE_COUNT];
+    u32            base_count;
+    event_kind     events[CONTENT_EVENT_CAPACITY];
+    u32            event_count;
+    ai_priority    priorities[CONTENT_PRIORITY_CAPACITY];
+    u32            priority_count;
     sim_rules      rules;
 };
 
@@ -650,6 +718,10 @@ internal b32 content_load_ranks(sim_content *content, tsv_table *table, u32 *bad
 internal b32 content_load_posts(sim_content *content, tsv_table *table, u32 *bad_row);    /* after the ranks */
 internal b32 content_load_items(sim_content *content, tsv_table *table, u32 *bad_row);
 internal u8  content_find_item_kind(sim_content *content, const u8 *big5_name, u32 size);  /* CONTENT_NO_ITEM_KIND if none */
+internal b32 content_load_bases(sim_content *content, tsv_table *table, u32 *bad_row);
+internal b32 content_load_events(sim_content *content, tsv_table *table, u32 *bad_row);
+internal b32 content_load_priorities(sim_content *content, tsv_table *table, u32 *bad_row);
+internal u8  content_find_event(sim_content *content, const char *key);   /* CONTENT_EVENT_CAPACITY if none */
 
 internal facility_effect    content_effect_from_name(const char *name);
 internal facility_limit     content_limit_from_name(const char *name);

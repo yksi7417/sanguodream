@@ -287,8 +287,8 @@ feature_multiplier_tests(test_counts *counts)
                "the forecast adds the outputs of the facilities");
     TEST_CHECK(counts, forecast.amounts.gold_month == sim_percent_of(sim_percent_of(forecast.amounts.gold_base + forecast.amounts.gold_facilities,
                                                                                     forecast.amounts.order_percent),
-                                                                     forecast.amounts.gold_skill_percent),
-               "the gold of a month is the initial income plus the facilities, times the order percent and the skill percent");
+                                                                     forecast.amounts.gold_skill_percent) + forecast.amounts.gold_bases,
+               "the gold of a month is the initial income plus the facilities, times the order percent and the skill percent, plus the bases (M8)");
     TEST_CHECK(counts, api->city_slots(e, city).gold_income == forecast.amounts.gold_month, "the City panel shows the gold of the forecast");
 
     u8 black = feature_build(api, city, FEATURE_FACILITY_BLACK_MARKET, force);

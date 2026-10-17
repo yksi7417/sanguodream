@@ -259,6 +259,8 @@ sim_rank_for(sim_state *sim, u8 force)
     u8 rank = 0;
     for (u32 index = 0; index < sim->content.rank_count; ++index)
     {
+        /* M8: 皇帝 needs the protection of the Han emperor, or no emperor. */
+        if (sim->content.ranks[index].needs_emperor && sim->emperor.who != EMPEROR_NONE && sim_emperor_protector(sim) != force) continue;
         if (cities >= sim->content.ranks[index].cities) rank = (u8)index;
     }
     return rank;
@@ -820,6 +822,7 @@ sim_search(sim_state *sim, city_component *city, sim_court_order *order, u32 cau
         sim_emit_city(sim, SIM_EVENT_GOLD_FOUND, city, (s32)rules->search_gold, 0, true, cause, events);
     }
     sim_reward_officer(sim, city->owner_force_id, searcher->officer_id, success, CONTENT_ABILITY_POLITICS, cause, events);
+    if (!sim->debate.active) sim_events_after_search(sim, city->city_id, searcher->officer_id, cause, events);   /* M8: the travellers */
 }
 
 internal void
@@ -997,7 +1000,7 @@ sim_court_command(sim_state *sim, sim_command command, sim_event_sink *events)
 internal b32
 sim_busy(sim_state *sim)
 {
-    return sim->duel.active || sim->debate.active;
+    return sim->duel.active || sim->debate.active || sim->pending.active;   /* M8: an event that waits for a choice */
 }
 
 /* The officers of a city that cannot pay the salaries lose loyalty

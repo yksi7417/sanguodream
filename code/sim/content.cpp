@@ -432,6 +432,14 @@ global_variable content_rule_field content_rule_fields[] = {
     CONTENT_RULE("skill.heart_attack", skill_heart_attack), CONTENT_RULE("skill.unyielding", skill_unyielding),
     CONTENT_RULE("skill.diamond", skill_diamond), CONTENT_RULE("skill.iron_wall", skill_iron_wall), CONTENT_RULE("skill.fury", skill_fury),
     CONTENT_RULE("skill.plot_thrift", skill_plot_thrift), CONTENT_RULE("skill.heart_attack_percent", skill_heart_attack_percent), CONTENT_RULE("item.seal_technique", seal_technique),
+    /* M8 */
+    CONTENT_RULE("base.gold", base_gold), CONTENT_RULE("base.troop_cap", base_troop_cap), CONTENT_RULE("base.caps_percent", base_caps_percent),
+    CONTENT_RULE("base.start_troops", base_start_troops), CONTENT_RULE("corps.commands", corps_commands), CONTENT_RULE("council.officers", council_officers),
+    CONTENT_RULE("adviser.intellect", adviser_intellect), CONTENT_RULE("advice.per_intellect", advice_per_intellect),
+    CONTENT_RULE("emperor.technique", emperor_technique), CONTENT_RULE("emperor.loyalty", emperor_loyalty), CONTENT_RULE("emperor.city", emperor_city),
+    CONTENT_RULE("event.experience", event_experience), CONTENT_RULE("event.merit", event_merit),
+    CONTENT_RULE("ai.urgency", ai_urgency), CONTENT_RULE("ai.sortie_soldiers", ai_sortie_soldiers), CONTENT_RULE("ai.sortie_reserve", ai_sortie_reserve),
+    CONTENT_RULE("ai.goodwill_gold", ai_goodwill_gold), CONTENT_RULE("ai.commands", ai_commands), CONTENT_RULE("corps.ap_divisor", corps_ap_divisor),
 };
 
 /* Sets the rule field with this key. False if no field has the key. */
@@ -1232,4 +1240,146 @@ content_find_item_kind(sim_content *content, const u8 *big5_name, u32 size)
         if (kind->big5_size == size || big5_name[kind->big5_size] == 0) return (u8)index;
     }
     return CONTENT_NO_ITEM_KIND;
+}
+
+/* ---- bases.tsv, events.tsv, ai_priorities.tsv (M8) ----------------------------- */
+
+global_variable const char *content_base_type_names[BASE_TYPE_COUNT] = { "pass", "port" };
+global_variable const char *content_event_check_names[EVENT_CHECK_COUNT] = { "quarter", "month", "search", "wait", "none" };
+global_variable const char *content_ai_condition_names[AI_CONDITION_COUNT] = {
+    "order_below", "troops_below_percent", "free_slot", "free_officer", "morale_below", "weapons_below_troops",
+    "loyalty_below", "troops_above", "technique_above", "gold_above",
+};
+
+internal b32
+content_load_bases(sim_content *content, tsv_table *table, u32 *bad_row)
+{
+    content->base_count = 0;
+    if (table->row_count != CONTENT_BASE_COUNT) { *bad_row = table->row_count; return false; }
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        base_kind kind = {};
+        u32 id = 0, city = 0;
+        const char *key = tsv_cell(table, row, "key");
+        kind.type = (u8)content_find_name(content_base_type_names, BASE_TYPE_COUNT, tsv_cell(table, row, "kind"));
+        if (!tsv_cell_u32(table, row, "id", &id) || id != CONTENT_FIRST_BASE + row || !key[0] || strlen(key) >= CONTENT_KEY_SIZE ||
+            !tsv_cell_u32(table, row, "owner_city", &city) || city >= SAVE_CITY_COUNT || !tsv_cell_u32(table, row, "durability", &kind.durability) ||
+            kind.type == BASE_TYPE_COUNT || kind.durability == 0)
+        {
+            *bad_row = row;
+            content->base_count = 0;
+            return false;
+        }
+        kind.id         = (u8)id;
+        kind.owner_city = (u8)city;
+        memcpy(kind.key, key, strlen(key) + 1);
+        content->bases[row] = kind;
+        content->base_count = row + 1;
+    }
+    return true;
+}
+
+/* "A8AAA8DF|B0A8...": the Big5 names of an event. */
+internal b32
+content_parse_event_names(event_kind *kind, const char *text)
+{
+    kind->name_count = 0;
+    if (strcmp(text, "-") == 0) return true;
+    u32 size = 0;
+    for (const char *at = text;; ++at)
+    {
+        if (*at == '|' || *at == 0)
+        {
+            if (size == 0 || kind->name_count >= CONTENT_EVENT_NAMES) return false;
+            kind->name_sizes[kind->name_count++] = (u8)size;
+            size = 0;
+            if (*at == 0) break;
+            continue;
+        }
+        if (!at[1] || at[1] == '|') return false;
+        u32 high = content_hex_value(at[0]), low = content_hex_value(at[1]);
+        if (high > 15 || low > 15 || size >= sizeof(kind->names[0]) || kind->name_count >= CONTENT_EVENT_NAMES) return false;
+        kind->names[kind->name_count][size++] = (u8)(high * 16 + low);
+        ++at;
+    }
+    return true;
+}
+
+internal b32
+content_load_events(sim_content *content, tsv_table *table, u32 *bad_row)
+{
+    content->event_count = 0;
+    if (table->row_count > CONTENT_EVENT_CAPACITY) { *bad_row = CONTENT_EVENT_CAPACITY; return false; }
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        event_kind kind = {};
+        u32 id = 0;
+        const char *key = tsv_cell(table, row, "key"), *months = tsv_cell(table, row, "months");
+        kind.check = (u8)content_find_name(content_event_check_names, EVENT_CHECK_COUNT, tsv_cell(table, row, "check"));
+        b32 bad = !tsv_cell_u32(table, row, "id", &id) || id != row || !key[0] || strlen(key) >= CONTENT_KEY_SIZE ||
+                  !tsv_cell_u32(table, row, "min_days", &kind.min_days) || !tsv_cell_u32(table, row, "chance", &kind.chance) ||
+                  kind.check == EVENT_CHECK_COUNT || kind.chance > 100 || !content_parse_event_names(&kind, tsv_cell(table, row, "names"));
+        static const char *params[CONTENT_EVENT_PARAMS] = { "p1", "p2", "p3", "p4", "p5", "p6" };
+        for (u32 index = 0; index < CONTENT_EVENT_PARAMS && !bad; ++index) bad = !tsv_cell_u32(table, row, params[index], kind.p + index);
+        if (!bad && strcmp(months, "-") != 0)
+        {
+            kind.months = content_month_mask_from_text(months);
+            bad = kind.months == 0;
+        }
+        if (bad) { *bad_row = row; content->event_count = 0; return false; }
+        kind.id = (u8)id;
+        memcpy(kind.key, key, strlen(key) + 1);
+        content->events[row] = kind;
+        content->event_count = row + 1;
+    }
+    return true;
+}
+
+internal u8
+content_find_event(sim_content *content, const char *key)
+{
+    for (u32 index = 0; index < content->event_count; ++index)
+    {
+        if (strcmp(content->events[index].key, key) == 0) return (u8)index;
+    }
+    return CONTENT_EVENT_CAPACITY;
+}
+
+/* The command of a priority row by its key in ai_priorities.tsv. */
+internal u8
+content_ai_command(const char *name)
+{
+    static const char *names[]   = { "patrol", "conscript", "develop", "recruit", "train", "produce", "reward", "sortie", "research", "diplomacy" };
+    static const u8 commands[]   = { SIM_COMMAND_PATROL, SIM_COMMAND_CONSCRIPT, SIM_COMMAND_DEVELOP, SIM_COMMAND_RECRUIT, SIM_COMMAND_TRAIN,
+                                     SIM_COMMAND_PRODUCE, SIM_COMMAND_REWARD, SIM_COMMAND_SORTIE, SIM_COMMAND_RESEARCH, SIM_COMMAND_DIPLOMACY };
+    for (u32 index = 0; index < ArrayCount(names); ++index) if (strcmp(names[index], name) == 0) return commands[index];
+    return SIM_COMMAND_NONE;
+}
+
+internal b32
+content_load_priorities(sim_content *content, tsv_table *table, u32 *bad_row)
+{
+    content->priority_count = 0;
+    if (table->row_count > CONTENT_PRIORITY_CAPACITY) { *bad_row = CONTENT_PRIORITY_CAPACITY; return false; }
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        ai_priority kind = {};
+        u32 id = 0;
+        const char *key = tsv_cell(table, row, "key");
+        kind.command   = content_ai_command(tsv_cell(table, row, "command"));
+        kind.condition = (u8)content_find_name(content_ai_condition_names, AI_CONDITION_COUNT, tsv_cell(table, row, "condition"));
+        if (!tsv_cell_u32(table, row, "id", &id) || id != row || !key[0] || strlen(key) >= CONTENT_KEY_SIZE ||
+            !tsv_cell_u32(table, row, "priority", &kind.priority) || !tsv_cell_u32(table, row, "threshold", &kind.threshold) ||
+            kind.command == SIM_COMMAND_NONE || kind.condition == AI_CONDITION_COUNT)
+        {
+            *bad_row = row;
+            content->priority_count = 0;
+            return false;
+        }
+        kind.id = (u8)id;
+        memcpy(kind.key, key, strlen(key) + 1);
+        content->priorities[row] = kind;
+        content->priority_count = row + 1;
+    }
+    return true;
 }

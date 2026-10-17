@@ -236,6 +236,7 @@ sim_entry_cost(sim_state *sim, u8 force, movement_class movement, hex_coord hex,
     if (other != SIM_NO_UNIT && other != self) return 0;
     u8 city_id = sim_city_at(sim, hex);
     if (city_id != SIM_NO_CITY && sim_find_city(sim, city_id)->owner_force_id != force) return 0;
+    if (sim_base_at(sim, hex) != SIM_NO_BASE) return 0;   /* M8: a port or a pass blocks the hex (assumed: no unit enters a base) */
     /* A building blocks the hex, but a trap hides and does not (M6). */
     u32 building_id = sim_building_at(sim, hex);
     if (building_id != SIM_NO_BUILDING)
@@ -711,6 +712,7 @@ sim_unit_action(sim_state *sim, sim_command command, memory_arena *scratch, sim_
     {
         case SIM_COMMAND_WAIT:
             sim_emit_unit(sim, SIM_EVENT_UNIT_WAITED, order->unit, SIM_NO_CITY, 0, false, command.id, events);
+            sim_events_after_wait(sim, order->unit, command.id, events);   /* M8: ruins, temples, spouses, sworn brothers */
             break;
         case SIM_COMMAND_RETREAT:
             /* ASSUMED (Q-171): the unit returns to its home city at once. */

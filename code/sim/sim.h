@@ -161,6 +161,17 @@ enum sim_event_kind
     SIM_EVENT_DEBATE_STARTED,       /* subject = side 0; detail = the officer of side 1 */
     SIM_EVENT_DEBATE_EXCHANGE,      /* subject = the officer hit; delta = mind out (negative); assumed */
     SIM_EVENT_DEBATE_ENDED,         /* subject = the winner; detail = 1 if side 0 won */
+    /* M8 */
+    SIM_EVENT_CORPS_CREATED,        /* faction; detail = the corps; subject = the viceroy */
+    SIM_EVENT_CORPS_CHANGED,        /* faction; detail = the corps */
+    SIM_EVENT_CORPS_DISSOLVED,      /* faction; detail = the corps */
+    SIM_EVENT_ADVISER_APPOINTED,    /* subject = the officer; faction */
+    SIM_EVENT_EMPEROR_CHANGED,      /* detail = the new sim_emperor_kind; delta = the city */
+    SIM_EVENT_EVENT_FIRED,          /* faction; detail = the row of events.tsv; subject = the officer of the event */
+    SIM_EVENT_EVENT_CHOSEN,         /* faction; detail = the row of events.tsv; delta = the choice */
+    SIM_EVENT_BASE_INCOME,          /* subject = the city; detail = the base id; delta = gold in; assumed */
+    SIM_EVENT_BASE_TAKEN,           /* faction = the new owner; detail = the base id */
+    SIM_EVENT_AI_PLANNED,           /* faction; delta = the commands that the AI gave in its turn */
     SIM_EVENT_COUNT
 };
 
@@ -252,6 +263,12 @@ enum sim_command_kind
     SIM_COMMAND_DUEL_ACTION,     /* a policy, a special command, a substitute or a round of the running duel */
     SIM_COMMAND_DEBATE,          /* a test and editor command: two officers start a debate */
     SIM_COMMAND_DEBATE_ACTION,   /* a card, a round or the result choice of the running debate */
+    /* M8 */
+    SIM_COMMAND_CORPS,           /* 軍團: create, change or dissolve a corps */
+    SIM_COMMAND_ADVISER,         /* 軍師 */
+    SIM_COMMAND_COUNCIL,         /* 評定: the officers act on one proposal of the council */
+    SIM_COMMAND_EVENT_CHOICE,    /* the answer to the event that waits */
+    SIM_COMMAND_TRIGGER_EVENT,   /* a test and editor command: an event of events.tsv fires now */
     SIM_COMMAND_COUNT
 };
 
@@ -382,10 +399,47 @@ struct sim_mini_order
     u16 officer_a, officer_b;               /* SIM_COMMAND_DEBATE: the two officers */
 };
 
+/* The orders of M8. */
+enum sim_corps_action { CORPS_CREATE, CORPS_CHANGE, CORPS_DISSOLVE, CORPS_ACTION_COUNT };
+enum sim_corps_policy { CORPS_POLICY_DELEGATE, CORPS_POLICY_FACTION, CORPS_POLICY_CITY, CORPS_POLICY_COUNT };   /* 委任, 勢力攻略, 都市攻略 */
+enum sim_corps_flag
+{
+    CORPS_FLAG_PRODUCE   = 1 << 0,   /* 生產 */
+    CORPS_FLAG_SAVE_GOLD = 1 << 1,   /* 儲存金錢 */
+    CORPS_FLAG_SAVE_GRAIN= 1 << 2,   /* 儲存兵糧 */
+    CORPS_FLAG_CONSCRIPT = 1 << 3,   /* 補充士兵 */
+    CORPS_FLAG_RECRUIT   = 1 << 4,   /* 人才 */
+    CORPS_FLAG_ATTACK    = 1 << 5,   /* 攻擊 */
+    CORPS_FLAG_TRANSPORT = 1 << 6,   /* 輸送物資 */
+    CORPS_FLAG_ALL       = 0x7F,
+};
+
+struct sim_corps_order
+{
+    u8  action;                             /* sim_corps_action */
+    u8  corps;                              /* change, dissolve: the corps (1 .. SIM_CORPS_CAPACITY - 1) */
+    u16 viceroy;                            /* create, change: the 都督 */
+    u64 cities;                             /* create, change: bit c for the city c */
+    u8  policy;                             /* sim_corps_policy */
+    u8  target;                             /* the faction or the city of the policy */
+    u32 flags;                              /* sim_corps_flag */
+    u8  transport_city;                     /* PK: the destination of 輸送物資; SIM_NO_CITY */
+};
+
+struct sim_m8_order
+{
+    u8  force;                              /* adviser, council, event choice: the faction */
+    u8  city_id;                            /* council: the city; trigger: the city of the event */
+    u16 officer;                            /* adviser: the officer; trigger: the officer of the event */
+    u8  value;                              /* council: the proposal; event choice: the choice; trigger: the row of events.tsv */
+};
+
 struct sim_command
 {
     sim_command_kind   kind;
     u32                id;        /* assigned by sim_make_command */
+    sim_corps_order    corps;     /* SIM_COMMAND_CORPS */
+    sim_m8_order       m8;        /* SIM_COMMAND_ADVISER .. SIM_COMMAND_TRIGGER_EVENT */
     sim_court_order    court;     /* SIM_COMMAND_SEARCH .. SIM_COMMAND_FACTION_PLOT */
     sim_mini_order     mini;      /* SIM_COMMAND_DUEL_ACTION .. SIM_COMMAND_DEBATE_ACTION */
     sim_develop_order  develop;   /* SIM_COMMAND_DEVELOP */
@@ -458,6 +512,10 @@ enum sim_refusal
     SIM_REFUSAL_NO_DUEL,               /* no duel or debate runs, or the action does not fit it */
     SIM_REFUSAL_NO_SPIRIT,             /* the fighting spirit or the item does not allow the special command */
     SIM_REFUSAL_NOT_CAPTIVE,           /* the officer is not a captive of the faction */
+    /* M8 */
+    SIM_REFUSAL_NO_CORPS,              /* no such corps, or no free place for a new one */
+    SIM_REFUSAL_RULER_ABSENT,          /* 評定 needs the ruler in the city */
+    SIM_REFUSAL_NO_EVENT,              /* no event waits, or no such event or choice */
     SIM_REFUSAL_COUNT
 };
 
@@ -528,6 +586,7 @@ struct officer_component
     u16 disliked[OFFICER_RELATION_SLOTS];
     u16 experience[CONTENT_ABILITY_COUNT];
     u32 rewarded_turn;                   /* sim turn + 1 of the last reward */
+    u8  han_respect;                     /* M8: 0 漢室無視, 1 normal, 2 漢室重視; the save field is not decoded (Q-186) */
 };
 
 enum sim_personality { PERSONALITY_CAREFUL, PERSONALITY_CALM, PERSONALITY_BOLD, PERSONALITY_RECKLESS, PERSONALITY_COUNT };
@@ -657,6 +716,7 @@ struct city_component
     u16 disaster_turns[CONTENT_DISASTER_CAPACITY];
     /* M6: the durability of the base (siege-and-bases.md); the maximum is durability_maximum */
     u32 durability;
+    u8  corps;                           /* M8: the corps of the city; 0 = the corps of the ruler */
 };
 
 #define SIM_STATUS_CAPTIVE 5   /* the status of a captive (assumed: status 5 of save-file.md, Q-176) */
@@ -839,6 +899,8 @@ struct sim_settings
     b32 disasters;          /* the calendar starts disasters; a new game has them */
     b32 ability_change;     /* M7: 能力變動: abilities fall with age */
     b32 lifespan;           /* M7: officers die near their historical year */
+    b32 ai;                 /* M8: the computer factions and the delegated corps act */
+    b32 events;             /* M8: 事件 */
 };
 
 enum sim_outcome_kind
@@ -860,6 +922,76 @@ struct sim_outcome
     sim_outcome_kind kind;          /* SIM_OUTCOME_NONE while the game runs */
     u8               force_id;      /* the faction of the outcome */
     b32              lost[SIM_FORCE_CAPACITY];
+};
+
+/* ---- M8: bases, corps, the emperor, events ------------------------------- */
+
+/* A port or a pass on the map (bases-ports-and-passes.md). */
+struct sim_base_state
+{
+    b32       exists;
+    u8        force;                     /* SIM_NO_FORCE if none */
+    u32       durability;
+    u32       troops;
+    hex_coord hex;                       /* placeholder: near its owner city (Q-034) */
+};
+
+#define SIM_CORPS_CAPACITY 8             /* corps 0 is the corps of the ruler */
+
+/* A delegated corps (factions-corps-and-posts.md, "Delegated corps"). */
+struct sim_corps
+{
+    b32 alive;
+    u16 viceroy;                         /* the 都督 */
+    u8  policy;                          /* sim_corps_policy */
+    u8  target;                          /* a faction or a city */
+    u32 flags;                           /* sim_corps_flag */
+    u8  transport_city;                  /* SIM_NO_CITY */
+};
+
+enum sim_emperor_kind { EMPEROR_NONE, EMPEROR_LING, EMPEROR_SHAO, EMPEROR_XIAN, EMPEROR_KIND_COUNT };   /* 靈帝, 少帝, 獻帝 */
+
+struct sim_emperor
+{
+    u8 who;                              /* sim_emperor_kind */
+    u8 city;                             /* the city of the emperor; its owner protects him */
+};
+
+#define SIM_RELIC_COUNT 7                /* one ruin and six temples (events.md) */
+enum sim_relic_kind { RELIC_RUIN, RELIC_TEMPLE };
+
+struct sim_relic
+{
+    b32       alive;
+    u8        kind;                      /* sim_relic_kind */
+    hex_coord hex;
+};
+
+/* An event that waits for the choice of a human faction. */
+struct sim_pending_event
+{
+    b32 active;
+    u8  event;                           /* the row of events.tsv */
+    u8  force;
+    u16 officer_a, officer_b;
+    u8  city;
+    u8  choices;
+    u32 cause;
+};
+
+/* A command that the AI planner, the council or the adviser proposes. */
+struct sim_proposal
+{
+    sim_command command;
+    u32         score;
+    u8          row;                     /* the row of ai_priorities.tsv */
+};
+
+#define SIM_PLAN_CAPACITY 64
+struct sim_plan
+{
+    sim_proposal items[SIM_PLAN_CAPACITY];
+    u32          count;
 };
 
 struct sim_state
@@ -897,6 +1029,15 @@ struct sim_state
     u8             rank[SIM_FORCE_CAPACITY];            /* the row of ranks.tsv of each ruler */
     sim_duel       duel;
     sim_debate     debate;
+    /* M8 */
+    sim_base_state bases[CONTENT_BASE_COUNT];
+    sim_corps      corps[SIM_FORCE_CAPACITY][SIM_CORPS_CAPACITY];
+    u32            corps_ap[SIM_FORCE_CAPACITY][SIM_CORPS_CAPACITY];
+    u16            adviser[SIM_FORCE_CAPACITY];
+    sim_emperor    emperor;
+    sim_relic      relics[SIM_RELIC_COUNT];
+    sim_pending_event pending;
+    u32            event_turn[CONTENT_EVENT_CAPACITY];   /* sim turn + 1 of the last time each event fired */
 };
 
 #define SIM_ENTITY_CAPACITY  4096
@@ -971,6 +1112,7 @@ struct sim_income_forecast
     u32 gold_facilities;        /* the sum of the facility outputs */
     u32 order_percent;          /* public order: high order raises the income (assumed rule) */
     u32 gold_skill_percent;     /* 富豪 */
+    u32 gold_bases;             /* M8: the gold of the ports and passes of the same owner (assumed, Q-183) */
     u32 gold_month;             /* the gold of one month */
     u32 gold_payment;           /* the gold of one payment */
     b32 gold_every_turn;        /* 徵稅: a payment each turn, each halved */
@@ -1156,6 +1298,38 @@ internal void      sim_start_debate_command(sim_state *sim, sim_command command,
 internal u32       sim_debate_hand_size(u32 intellect);
 internal s32       sim_card_compare(sim_card a, sim_card b, u8 topic);
 internal b32       sim_busy(sim_state *sim);   /* a duel or a debate runs */
+
+/* rivals.cpp, bases.cpp, events.cpp, ai.cpp (M8) */
+#define SIM_NO_BASE 0xFFFF
+internal sim_check sim_check_corps(sim_state *sim, sim_corps_order *order);
+internal void      sim_corps_command(sim_state *sim, sim_command command, sim_event_sink *events);
+internal sim_check sim_check_adviser(sim_state *sim, sim_m8_order *order);
+internal void      sim_adviser_command(sim_state *sim, sim_command command, sim_event_sink *events);
+internal u32       sim_advice(sim_state *sim, u8 force, sim_plan *plan);
+internal sim_refusal sim_council_plan(sim_state *sim, u8 force, u8 city_id, sim_plan *plan);
+internal sim_check sim_check_council(sim_state *sim, sim_m8_order *order);
+internal void      sim_council_command(sim_state *sim, sim_command command, sim_event_sink *events);
+internal void      sim_init_emperor(sim_state *sim);
+internal u8        sim_emperor_protector(sim_state *sim);
+internal void      sim_run_emperor_month(sim_state *sim, u32 cause, sim_event_sink *events);
+internal void      sim_set_emperor(sim_state *sim, u8 who, u32 cause, sim_event_sink *events);
+internal void      sim_init_bases(sim_state *sim);
+internal u32       sim_base_at(sim_state *sim, hex_coord hex);   /* SIM_NO_BASE if none */
+internal void      sim_hurt_base(sim_state *sim, u32 index, u32 soldiers, u32 durability, u32 attacker_id, u32 cause, sim_event_sink *events);
+internal u32       sim_base_troop_cap(sim_state *sim, u8 force);
+internal u32       sim_city_base_gold(sim_state *sim, u8 city_id);
+internal void      sim_init_relics(sim_state *sim);
+internal void      sim_run_events_month(sim_state *sim, u32 cause, sim_event_sink *events);
+internal void      sim_events_after_search(sim_state *sim, u8 city_id, u16 officer, u32 cause, sim_event_sink *events);
+internal void      sim_events_after_wait(sim_state *sim, u32 unit_id, u32 cause, sim_event_sink *events);
+internal sim_check sim_check_event_choice(sim_state *sim, sim_m8_order *order);
+internal void      sim_event_choice_command(sim_state *sim, sim_command command, sim_event_sink *events);
+internal sim_check sim_check_trigger_event(sim_state *sim, sim_m8_order *order);
+internal void      sim_trigger_event_command(sim_state *sim, sim_command command, sim_event_sink *events);
+internal void      sim_resolve_event(sim_state *sim, u8 choice, u32 cause, sim_event_sink *events);
+internal void      sim_plan_faction(sim_state *sim, u8 force, u8 city_filter, u8 corps_filter, u32 flags, sim_plan *plan);
+internal void      sim_run_ai_faction(sim_state *sim, u8 force, u32 cause, sim_event_sink *events);
+internal void      sim_run_delegated_corps(sim_state *sim, u8 force, u32 cause, sim_event_sink *events);
 
 /* outcome.cpp: victory and defeat (calendar-and-turn.md) */
 internal void sim_check_outcome(sim_state *sim, u32 cause, sim_event_sink *events);

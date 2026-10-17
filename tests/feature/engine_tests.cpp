@@ -30,6 +30,8 @@ engine_fixture_init_map(engine_fixture *f, u64 seed, u32 ledger_capacity, u32 ma
     settings.disasters      = false;
     settings.ability_change = false;   /* M7: no growth with age and no deaths, except in the court tests */
     settings.lifespan       = false;
+    settings.ai             = false;   /* M8: no computer commands and no events, except in the rivals tests */
+    settings.events         = false;
     f->api.set_settings(f->api.engine, settings);
 }
 

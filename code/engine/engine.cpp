@@ -96,6 +96,7 @@ engine_load_content(engine *e, const char *folder)
     tsv_table facilities = {}, cities = {}, rules = {}, weapons = {}, techniques = {}, disasters = {}, terrain = {}, unit_types = {};
     tsv_table tactics = {}, plots = {}, buildings = {}, criticals = {};
     tsv_table skills = {}, ranks = {}, posts = {}, items = {};
+    tsv_table bases = {}, event_rows = {}, priorities = {};
     u32 bad_row = 0;
     if (!engine_read_table(e, folder, "facilities.tsv", &facilities))      status->detail = "facilities.tsv not found";
     else if (!engine_read_table(e, folder, "cities.tsv", &cities))         status->detail = "cities.tsv not found";
@@ -113,6 +114,9 @@ engine_load_content(engine *e, const char *folder)
     else if (!engine_read_table(e, folder, "ranks.tsv", &ranks))           status->detail = "ranks.tsv not found";
     else if (!engine_read_table(e, folder, "posts.tsv", &posts))           status->detail = "posts.tsv not found";
     else if (!engine_read_table(e, folder, "items.tsv", &items))           status->detail = "items.tsv not found";
+    else if (!engine_read_table(e, folder, "bases.tsv", &bases))           status->detail = "bases.tsv not found";
+    else if (!engine_read_table(e, folder, "events.tsv", &event_rows))     status->detail = "events.tsv not found";
+    else if (!engine_read_table(e, folder, "ai_priorities.tsv", &priorities)) status->detail = "ai_priorities.tsv not found";
     else if (!content_load_facilities(content, &facilities, &bad_row))    status->detail = "facilities.tsv has a bad row";
     else if (!content_load_cities(content, &cities, &bad_row))            status->detail = "cities.tsv has a bad row";
     else if (!content_load_rules(content, &rules, &bad_row))              status->detail = "rules.tsv has a bad row";
@@ -129,6 +133,9 @@ engine_load_content(engine *e, const char *folder)
     else if (!content_load_ranks(content, &ranks, &bad_row))              status->detail = "ranks.tsv has a bad row";
     else if (!content_load_posts(content, &posts, &bad_row))              status->detail = "posts.tsv has a bad row";
     else if (!content_load_items(content, &items, &bad_row))              status->detail = "items.tsv has a bad row";
+    else if (!content_load_bases(content, &bases, &bad_row))              status->detail = "bases.tsv has a bad row";
+    else if (!content_load_events(content, &event_rows, &bad_row))        status->detail = "events.tsv has a bad row";
+    else if (!content_load_priorities(content, &priorities, &bad_row))    status->detail = "ai_priorities.tsv has a bad row";
     else
     {
         status->loaded          = true;
@@ -148,6 +155,9 @@ engine_load_content(engine *e, const char *folder)
         status->rank_count      = content->rank_count;
         status->post_count      = content->post_count;
         status->item_count      = content->item_count;
+        status->base_count      = content->base_count;
+        status->event_count     = content->event_count;
+        status->priority_count  = content->priority_count;
         sim_set_content(e->sim, content);
     }
     arena_reset(&e->scratch);

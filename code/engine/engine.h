@@ -485,6 +485,82 @@ struct engine_city_siege
 #define ENGINE_NO_ROW      0xFF
 #define ENGINE_NO_BUILDING 0xFFFFFFFFu
 
+/* ---- M8: bases, corps, council, adviser, emperor, events, AI ------------ */
+
+struct engine_base
+{
+    u8   id;                        /* the location id 42 .. 86; ENGINE_NO_ROW for an index out of range */
+    char key[CONTENT_KEY_SIZE];     /* the text id is "base.<key>" */
+    u8   type;                      /* base_type */
+    u8   owner_city;
+    u8   force;                     /* ENGINE_NO_FACTION */
+    u32  durability, durability_max;
+    u32  troops, troop_cap;
+    s32  q, r;
+};
+
+struct engine_corps
+{
+    b32 alive;
+    u16 viceroy;
+    u8  policy;                     /* sim_corps_policy */
+    u8  target;
+    u32 flags;                      /* sim_corps_flag */
+    u8  transport_city;
+    u32 action_points;
+    u32 city_count;
+};
+
+/* One proposal of the planner: the AI, the council or the adviser. */
+struct engine_proposal
+{
+    u8  kind;                       /* sim_command_kind */
+    u8  city_id;
+    u16 officer;                    /* the first officer of the command, or ENGINE_NO_OFFICER */
+    u32 score;
+    char key[CONTENT_KEY_SIZE];     /* the key of ai_priorities.tsv */
+};
+
+#define ENGINE_PLAN_CAPACITY 16
+struct engine_plan_view
+{
+    sim_refusal     refusal;        /* the council: why no plan */
+    u32             count;
+    engine_proposal items[ENGINE_PLAN_CAPACITY];
+};
+
+struct engine_emperor
+{
+    u8 who;                         /* sim_emperor_kind */
+    u8 city;
+    u8 protector;                   /* ENGINE_NO_FACTION */
+};
+
+struct engine_relic
+{
+    b32 alive;
+    u8  kind;                       /* sim_relic_kind */
+    s32 q, r;
+};
+
+struct engine_event_kind
+{
+    u8   id;                        /* ENGINE_NO_ROW */
+    char key[CONTENT_KEY_SIZE];     /* the text id is "event.<key>" */
+    u8   check;                     /* event_check */
+    u32  min_days, chance;
+};
+
+struct engine_pending_event
+{
+    b32 active;
+    u8  event;                      /* the row of event_kind_at */
+    u8  force;
+    u16 officer_a, officer_b;
+    u8  city;
+    u8  choices;
+};
+
 /* ---- M7: officers, court, items, diplomacy, duel, debate ---------------- */
 
 /* The order of the personnel, court, diplomacy and plot commands. */
@@ -625,6 +701,8 @@ struct engine_settings
     b32 disasters;          /* the calendar starts disasters */
     b32 ability_change;     /* M7: 能力變動: abilities fall with age */
     b32 lifespan;           /* M7: officers die near their historical year */
+    b32 ai;                 /* M8: the computer factions and the delegated corps act */
+    b32 events;             /* M8: 事件 */
 };
 
 /* The indices of the ledger events that a filter keeps, in ledger order.
@@ -672,6 +750,9 @@ struct engine_content_status
     u32         rank_count;
     u32         post_count;
     u32         item_count;
+    u32         base_count;       /* M8 */
+    u32         event_count;
+    u32         priority_count;
     const char *detail;           /* a static string: the file that did not load, or "ok" */
 };
 
@@ -865,6 +946,32 @@ typedef void                  engine_set_officer_fn(void *engine, u16 officer_id
 typedef void                  engine_set_item_owner_fn(void *engine, u8 item, u16 officer_id);
 typedef void                  engine_set_diplomacy_fn(void *engine, u8 force_a, u8 force_b, u32 friendliness, u8 relation, u32 months);
 typedef void                  engine_set_stamina_fn(void *engine, u16 officer_id, u8 stamina);
+/* M8 queries */
+typedef u32                  engine_base_count_fn(void *engine);
+typedef engine_base          engine_base_at_fn(void *engine, u32 index);
+typedef u32                  engine_base_at_hex_fn(void *engine, s32 q, s32 r);       /* the index, or ENGINE_NO_BASE */
+typedef engine_corps         engine_corps_at_fn(void *engine, u8 force_id, u8 corps);
+typedef u8                   engine_city_corps_fn(void *engine, u8 city_id);
+typedef u16                  engine_adviser_fn(void *engine, u8 force_id);
+typedef engine_plan_view     engine_advice_fn(void *engine, u8 force_id);
+typedef engine_plan_view     engine_council_fn(void *engine, u8 force_id, u8 city_id);
+typedef engine_plan_view     engine_ai_plan_fn(void *engine, u8 force_id);           /* what the AI would do now */
+typedef engine_emperor       engine_emperor_fn(void *engine);
+typedef u32                  engine_relic_count_fn(void *engine);
+typedef engine_relic         engine_relic_at_fn(void *engine, u32 index);
+typedef u32                  engine_event_kind_count_fn(void *engine);
+typedef engine_event_kind    engine_event_kind_at_fn(void *engine, u32 index);
+typedef engine_pending_event engine_pending_event_fn(void *engine);
+/* M8 commands. A refused command changes nothing and ledgers nothing. */
+typedef engine_command_result engine_command_corps_fn(void *engine, const sim_corps_order *order);
+typedef engine_command_result engine_command_adviser_fn(void *engine, u8 force_id, u16 officer);
+typedef engine_command_result engine_command_council_fn(void *engine, u8 force_id, u8 city_id, u8 proposal);
+typedef engine_command_result engine_command_event_choice_fn(void *engine, u8 choice);
+/* Test and editor commands. trigger_event fires an event now (unit: the
+   unit of a wait event); the others ledger nothing. */
+typedef engine_command_result engine_trigger_event_fn(void *engine, u8 event, u8 force_id, u8 city_id, u16 officer_or_unit);
+typedef void                  engine_set_emperor_fn(void *engine, u8 who, u8 city_id);
+typedef void                  engine_set_base_fn(void *engine, u32 index, u8 force_id, u32 troops, u32 durability);
 /* A placeholder unit until M5: it only blocks the commands of enemy
    cities within 2 hexes. Returns ENGINE_NO_UNIT if there is no room. */
 typedef u32                 engine_place_unit_fn(void *engine, u8 force_id, s32 q, s32 r);
@@ -1011,7 +1118,32 @@ struct engine_api
     engine_set_item_owner_fn        *set_item_owner;
     engine_set_diplomacy_fn         *set_diplomacy;
     engine_set_stamina_fn           *set_stamina;
+    /* M8 rivals: bases, corps, council, adviser, emperor, events, AI */
+    engine_base_count_fn            *base_count;
+    engine_base_at_fn               *base_at;
+    engine_base_at_hex_fn           *base_at_hex;
+    engine_corps_at_fn              *corps_at;
+    engine_city_corps_fn            *city_corps;
+    engine_adviser_fn               *adviser;
+    engine_advice_fn                *advice;
+    engine_council_fn               *council;
+    engine_ai_plan_fn               *ai_plan;
+    engine_emperor_fn               *emperor;
+    engine_relic_count_fn           *relic_count;
+    engine_relic_at_fn              *relic_at;
+    engine_event_kind_count_fn      *event_kind_count;
+    engine_event_kind_at_fn         *event_kind_at;
+    engine_pending_event_fn         *pending_event;
+    engine_command_corps_fn         *command_corps;
+    engine_command_adviser_fn       *command_adviser;
+    engine_command_council_fn       *command_council;
+    engine_command_event_choice_fn  *command_event_choice;
+    engine_trigger_event_fn         *trigger_event;
+    engine_set_emperor_fn           *set_emperor;
+    engine_set_base_fn              *set_base;
 };
+
+#define ENGINE_NO_BASE 0xFFFFFFFFu
 
 /* The real engine lives in code/engine/engine.cpp. */
 struct engine;

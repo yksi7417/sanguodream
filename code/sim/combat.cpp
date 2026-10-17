@@ -105,6 +105,7 @@ struct sim_target
     u8  city;          /* an enemy city, or SIM_NO_CITY */
     u8  slot_city;     /* an enemy city with a facility on this hex, or SIM_NO_CITY */
     u8  slot;
+    u32 base;          /* M8: a port or a pass of a faction at war, or SIM_NO_BASE */
 };
 
 /* A thing of the other owner is a target: no owner, or a faction at war
@@ -120,6 +121,8 @@ sim_target_at(sim_state *sim, u8 force, hex_coord hex)
 {
     sim_target target = {};
     target.unit = SIM_NO_UNIT; target.building = SIM_NO_BUILDING; target.city = SIM_NO_CITY; target.slot_city = SIM_NO_CITY;
+    target.base = sim_base_at(sim, hex);
+    if (target.base != SIM_NO_BASE && !sim_hostile(sim, force, sim->bases[target.base].force)) target.base = SIM_NO_BASE;
     u32 unit = sim_unit_at(sim, hex);
     if (unit != SIM_NO_UNIT && sim_hostile(sim, force, sim->units[unit].force_id)) target.unit = unit;
     u32 building = sim_building_at(sim, hex);
@@ -147,7 +150,8 @@ sim_target_at(sim_state *sim, u8 force, hex_coord hex)
 internal b32
 sim_target_any(sim_target *target)
 {
-    return target->unit != SIM_NO_UNIT || target->building != SIM_NO_BUILDING || target->city != SIM_NO_CITY || target->slot_city != SIM_NO_CITY;
+    return target->unit != SIM_NO_UNIT || target->building != SIM_NO_BUILDING || target->city != SIM_NO_CITY || target->slot_city != SIM_NO_CITY ||
+           target->base != SIM_NO_BASE;
 }
 
 /* ---- the multipliers ---------------------------------------------------------- */
@@ -608,6 +612,14 @@ sim_strike(sim_state *sim, u32 attacker_id, hex_coord hex, sim_target *target, u
         if (attacker->alive) sim_hurt_city(sim, city, damage, sim_percent_of(damage, rules->combat_building_percent), attacker_id, cause, events);
         return damage;
     }
+    if (target->base != SIM_NO_BASE)
+    {
+        /* M8: a port or a pass falls like a city (siege-and-bases.md); its walls answer too. */
+        u32 damage = sim_combat_damage(sim, attacker->soldiers, values.attack, 50, percent);
+        if (counter_allowed && distance == 1 && rules->combat_base_counter) sim_hurt_unit(sim, attacker_id, rules->combat_base_counter, SIM_NO_UNIT, false, cause, events);
+        if (attacker->alive) sim_hurt_base(sim, target->base, damage, sim_percent_of(damage, rules->combat_building_percent), attacker_id, cause, events);
+        return damage;
+    }
     u32 damage = sim_combat_damage(sim, attacker->soldiers, values.attack, 100, percent);
     u32 broken = sim_percent_of(damage, rules->combat_building_percent);
     if (target->building != SIM_NO_BUILDING)
@@ -747,7 +759,7 @@ sim_check_tactic(sim_state *sim, sim_unit_order *order)
     sim_target target = sim_target_at(sim, unit->force_id, order->to);
     b32 unit_ok = target.unit != SIM_NO_UNIT && (tactic->targets & (sim_hex_is_water(sim, order->to) ? (TARGET_SHIPS | TARGET_UNITS) : TARGET_UNITS));
     if (target.unit != SIM_NO_UNIT && !sim_hex_is_water(sim, order->to) && !(tactic->targets & TARGET_UNITS)) unit_ok = false;
-    b32 building_ok = (target.building != SIM_NO_BUILDING || target.city != SIM_NO_CITY || target.slot_city != SIM_NO_CITY) &&
+    b32 building_ok = (target.building != SIM_NO_BUILDING || target.city != SIM_NO_CITY || target.slot_city != SIM_NO_CITY || target.base != SIM_NO_BASE) &&
                       (tactic->targets & TARGET_BUILDINGS);
     if (!unit_ok && !building_ok)              return sim_refuse(check, SIM_REFUSAL_NO_TARGET);
     check.action_points = tactic->morale;      /* the morale of the tactic */
@@ -947,7 +959,7 @@ sim_use_tactic(sim_state *sim, sim_command command, sim_event_sink *events)
             unit_type_kind *other = sim_unit_type(sim, sim_effective_type(sim, sim->units + target.unit));
             if (other && sim_class_beats(type->aptitude, other->aptitude)) unit_percent = sim_percent_of(unit_percent, rules->combat_triangle_percent);
             sim_target only_unit = target;
-            only_unit.building = SIM_NO_BUILDING; only_unit.city = SIM_NO_CITY; only_unit.slot_city = SIM_NO_CITY;
+            only_unit.building = SIM_NO_BUILDING; only_unit.city = SIM_NO_CITY; only_unit.slot_city = SIM_NO_CITY; only_unit.base = SIM_NO_BASE;
             sim_strike(sim, order->unit, cells[index], &only_unit, unit_percent, CRITICAL_TACTIC, false, halberd, command.id, events);
         }
         else if (index == 0 && (tactic->targets & TARGET_BUILDINGS) && sim_target_any(&target))
@@ -961,6 +973,12 @@ sim_use_tactic(sim_state *sim, sim_command command, sim_event_sink *events)
                 u32 soldiers = type->destroy == GRADE_NONE || type->range > 1 ?
                                sim_combat_damage(sim, unit->soldiers, sim_battle_values(sim, unit).attack, 50, percent) : 0;
                 sim_hurt_city(sim, city, soldiers, type->destroy != GRADE_NONE ? broken : 0, order->unit, command.id, events);
+            }
+            else if (target.base != SIM_NO_BASE)
+            {
+                u32 soldiers = type->destroy == GRADE_NONE || type->range > 1 ?
+                               sim_combat_damage(sim, unit->soldiers, sim_battle_values(sim, unit).attack, 50, percent) : 0;
+                sim_hurt_base(sim, target.base, soldiers, type->destroy != GRADE_NONE ? broken : 0, order->unit, command.id, events);
             }
             else if (target.building != SIM_NO_BUILDING)
             {
