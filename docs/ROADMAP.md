@@ -232,6 +232,22 @@ Spec input: mechanics/research-techniques.md, cities-and-facilities.md, calendar
 - Tests: feature tests for each refusal, effect and disaster; the random rolls start each disaster only in its months.
 
 ### M5 Movement and the map proper
+Status (2026-10-17): done (tutorial 17). The spec input was
+mechanics/terrain-and-map.md, military-units-and-tactics.md,
+city-commands.md and ui/unit-commands.md. terrain.tsv has the 16 kinds
+with an assumed cost for each movement class (Q-167). unit_types.tsv has
+the 12 classes and the transport unit with the documented grades and the
+observed movement. The unit values use an assumed formula (Q-170). Sortie
+and transport take officers, soldiers, weapons, gold and grain out of a
+city. A unit moves within its range, stops in a zone of control, loses
+soldiers on a plank road or a poison spring, and eats grain. Wait,
+retreat (assumed: at once, Q-171) and supply complete the orders of M5.
+The placeholder map comes from terrain.tsv with roads between the
+cities; the real map waits for Q-034. The Hex map panel, the scene and
+the mini map show the units and the cities in the faction colours. The
+demo is "demo/m5_march". FEATURES.md marks F-072 to F-076, F-078, F-080
+and F-081 as built.
+
 Spec input: formats/map.md (terrain per cell, roads, rivers), mechanics/movement.md (costs per movement class, ZOC, stack rules).
 - Engine: terrain.tsv drives the hex_map costs per movement class; units as entities with a position; the `move` command with path validation; zones of control.
 - API: `unit_at`, `reachable_cells(unit)`, `command_move(unit, to)`.
