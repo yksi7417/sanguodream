@@ -93,7 +93,31 @@ sim_unit_ability(sim_state *sim, const u16 *officers, sim_ability ability)
     }
     if (!best_deputy) return value;
     if (sim_officers_close(commander, best_deputy)) return best;
-    return value + (best - value) * sim->content.rules.unit_deputy_percent / 100;
+    /* M7 (officers-and-relations.md): a disliked deputy gives nothing; a
+       liked one gives more, less than a sworn brother (assumed, Q-170). */
+    if (sim_officer_dislikes(commander, best_deputy->officer_id) || sim_officer_dislikes(best_deputy, commander->officer_id)) return value;
+    u32 percent = sim->content.rules.unit_deputy_percent;
+    if (sim_officer_likes(commander, best_deputy->officer_id) || sim_officer_likes(best_deputy, commander->officer_id))
+    {
+        percent = Minimum(percent + sim->content.rules.relation_liked_percent, 100u);
+    }
+    return value + (best - value) * percent / 100;
+}
+
+/* True if two officers of the unit dislike each other: the unit intellect
+   falls (officers-and-relations.md). */
+internal b32
+sim_unit_has_dislike(sim_state *sim, const u16 *officers)
+{
+    for (u32 a = 0; a < SIM_COMMAND_OFFICERS; ++a)
+    {
+        officer_component *one = sim_find_officer(sim, officers[a]);
+        for (u32 b = 0; one && b < SIM_COMMAND_OFFICERS; ++b)
+        {
+            if (a != b && officers[b] != SIM_NO_OFFICER && sim_officer_dislikes(one, officers[b])) return true;
+        }
+    }
+    return false;
 }
 
 /* The best aptitude of the officers for the class: 0 C .. 3 S. */
@@ -168,6 +192,7 @@ sim_unit_values_of(sim_state *sim, u8 force, u8 unit_type, const u16 *officers)
         officer_component *officer = sim_find_officer(sim, officers[place]);
         if (officer && officer->intelligence > values.intellect) values.intellect = officer->intelligence;
     }
+    if (sim_unit_has_dislike(sim, officers)) values.intellect = sim_percent_of(values.intellect, 100 - Minimum(rules->relation_disliked_intellect, 100u));
     values.build = sim_unit_ability(sim, officers, SIM_ABILITY_POLITICS);
     values.move  = sim_unit_move(sim, force, officers, type);
     values.ignores_zoc = type->movement != MOVEMENT_SIEGE && type->movement != MOVEMENT_NAVY &&

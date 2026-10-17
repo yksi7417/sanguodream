@@ -346,6 +346,7 @@ sim_add_officer(sim_state *sim, officer_component officer)
         return false;
     }
     sim->officer_index[officer.officer_id] = (u16)sim->officers.count;
+    sim_init_officer_state(sim, &officer, 0);   /* M7: the character and no relations; a save sets its relations after */
     table_add(&sim->officers, em_create(&sim->entities), officer);
     return true;
 }
