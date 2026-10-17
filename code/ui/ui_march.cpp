@@ -525,6 +525,14 @@ ui_draw_map_units(ui_state *ui, engine_api *api, ImDrawList *draw, f32 cell, hex
    cities as large squares and units as diamonds, in the faction colours. */
 internal void ui_draw_minimap_bases(engine_api *api, ImDrawList *draw, ImVec2 base_pos, f32 cell);   /* ui_rivals.cpp */
 
+/* The top left corner of a cell on the mini map. The grid is odd-q (M10):
+   an odd column sits half a cell lower. */
+internal ImVec2
+ui_minimap_point(ImVec2 base, s32 col, s32 row, f32 cell)
+{
+    return ImVec2(base.x + (f32)col * cell, base.y + ((f32)row + ((col & 1) ? 0.5f : 0.0f)) * cell);
+}
+
 internal void
 ui_draw_minimap(ui_state *ui, engine_api *api)
 {
@@ -534,20 +542,24 @@ ui_draw_minimap(ui_state *ui, engine_api *api)
     {
         engine_map_size size = api->map_size(api->engine);
         ImVec2 avail = ImGui::GetContentRegionAvail();
-        f32 cell_w = size.width ? avail.x / ((f32)size.width + 0.5f) : 1.0f;
-        f32 cell_h = size.height ? avail.y / (f32)size.height : 1.0f;
+        f32 cell_w = size.width ? avail.x / (f32)size.width : 1.0f;
+        f32 cell_h = size.height ? avail.y / ((f32)size.height + 0.5f) : 1.0f;
         f32 cell = cell_w < cell_h ? cell_w : cell_h;
         if (cell < 1.0f) cell = 1.0f;
         ImVec2 base = ImGui::GetCursorScreenPos();
         ImDrawList *draw = ImGui::GetWindowDrawList();
+        engine_terrain_view view = api->terrain_view(api->engine);   /* M10: one view for the tiles of the 40,000 hexes */
         for (u32 row = 0; row < size.height; ++row)
         {
             for (u32 col = 0; col < size.width; ++col)
             {
                 hex_offset o; o.col = (s32)col; o.row = (s32)row;
                 hex_coord h = hex_from_offset(o);
-                f32 x = base.x + ((f32)col + ((row & 1) ? 0.5f : 0.0f)) * cell, y = base.y + (f32)row * cell;
-                draw->AddRectFilled(ImVec2(x, y), ImVec2(x + cell, y + cell), ui_map_cell_color(api->cell_cost(api->engine, h.q, h.r)));
+                ImVec2 corner = ui_minimap_point(base, (s32)col, (s32)row, cell);
+                ImU32 fill;
+                if (view.tile && col < view.width && row < view.height) fill = ui_map_tile_color(view.tile[row * view.width + col]);
+                else                                                    fill = ui_map_cell_color(api->cell_cost(api->engine, h.q, h.r));
+                draw->AddRectFilled(corner, ImVec2(corner.x + cell, corner.y + cell), fill);
             }
         }
         for (u32 index = 0; index < api->city_count(api->engine); ++index)
@@ -555,7 +567,8 @@ ui_draw_minimap(ui_state *ui, engine_api *api)
             engine_city city = api->city_at(api->engine, index);
             engine_city_slots slots = api->city_slots(api->engine, city.city_id);
             hex_offset o = hex_to_offset(hex_make(slots.q, slots.r));
-            f32 x = base.x + ((f32)o.col + ((o.row & 1) ? 0.5f : 0.0f)) * cell, y = base.y + (f32)o.row * cell;
+            ImVec2 corner = ui_minimap_point(base, o.col, o.row, cell);
+            f32 x = corner.x, y = corner.y;
             draw->AddRectFilled(ImVec2(x - cell, y - cell), ImVec2(x + 2.0f * cell, y + 2.0f * cell), ui_faction_color(city.owner_force_id));
             /* M7 (diplomacy.md, manual p.8): an ally in blue, a ceasefire in yellow, a hostile faction in red. */
             u8 acting = api->whose_turn(api->engine);
@@ -573,12 +586,13 @@ ui_draw_minimap(ui_state *ui, engine_api *api)
             engine_unit unit = api->unit_at(api->engine, id);
             if (unit.id == ENGINE_NO_UNIT) continue;
             hex_offset o = hex_to_offset(hex_make(unit.q, unit.r));
-            f32 x = base.x + ((f32)o.col + ((o.row & 1) ? 0.5f : 0.0f) + 0.5f) * cell, y = base.y + ((f32)o.row + 0.5f) * cell;
+            ImVec2 corner = ui_minimap_point(base, o.col, o.row, cell);
+            f32 x = corner.x + 0.5f * cell, y = corner.y + 0.5f * cell;
             f32 half = cell * 1.2f;
             ImVec2 diamond[4] = { ImVec2(x, y - half), ImVec2(x + half, y), ImVec2(x, y + half), ImVec2(x - half, y) };
             draw->AddConvexPolyFilled(diamond, 4, ui_faction_color(unit.force_id));
         }
-        ImGui::InvisibleButton("minimap", ImVec2(cell * ((f32)size.width + 0.5f), cell * (f32)size.height));
+        ImGui::InvisibleButton("minimap", ImVec2(cell * (f32)size.width, cell * ((f32)size.height + 0.5f)));
     }
     ImGui::End();
 }

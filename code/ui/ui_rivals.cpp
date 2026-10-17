@@ -245,7 +245,8 @@ ui_draw_minimap_bases(engine_api *api, ImDrawList *draw, ImVec2 base_pos, f32 ce
         engine_base base = api->base_at(api->engine, index);
         if (base.id == ENGINE_NO_ROW) continue;
         hex_offset o = hex_to_offset(hex_make(base.q, base.r));
-        f32 x = base_pos.x + ((f32)o.col + ((o.row & 1) ? 0.5f : 0.0f)) * cell, y = base_pos.y + (f32)o.row * cell;
+        ImVec2 corner = ui_minimap_point(base_pos, o.col, o.row, cell);
+        f32 x = corner.x, y = corner.y;
         draw->AddRect(ImVec2(x - 0.5f * cell, y - 0.5f * cell), ImVec2(x + 1.5f * cell, y + 1.5f * cell), ui_faction_color(base.force), 0.0f, 0, 1.5f);
     }
 }

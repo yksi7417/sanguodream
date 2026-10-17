@@ -302,6 +302,8 @@ struct ui_state
         hex_coord to;
         f32       zoom;
         bool      focused;       /* the Hex map panel has the keyboard: W A S D scroll it, PageUp and PageDown zoom it */
+        bool      has_city;      /* M10: a click on a city hex selects the city; its slots show on the map and the scene */
+        u8        city;
     } map;
 };
 

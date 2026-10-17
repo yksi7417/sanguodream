@@ -154,6 +154,16 @@ ui_scene_push(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->scene.has_hover) ui_scene_mark(overlay, view, ui->scene.hover, 0x60FFFFFFu);
     if (ui->map.has_from)    ui_scene_mark(overlay, view, ui->map.from, 0xB03CDCFFu);
     if (ui->map.has_to)      ui_scene_mark(overlay, view, ui->map.to,   0xB03C5AFFu);
+    /* M10: the slots of the city that the Hex map panel selected: yellow. */
+    if (ui->map.has_city)
+    {
+        engine_city_slots slots = api->city_slots(api->engine, ui->map.city);
+        for (u32 slot = 0; slot < slots.slot_count; ++slot)
+        {
+            engine_facility facility = api->facility_at(api->engine, ui->map.city, (u8)slot);
+            if (facility.city_id != ENGINE_NO_CITY) ui_scene_mark(overlay, view, hex_make(facility.q, facility.r), 0xA028E6FFu);
+        }
+    }
 
     /* The range of the selected unit: green; its hex cyan (ui/unit-commands.md). */
     if (ui->units.selected != ENGINE_NO_UNIT)
