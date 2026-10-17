@@ -32,6 +32,7 @@ run_tests.bat --e2e
 | 16 | Growth: research, merge, disasters and the end of the game | code/sim/research.cpp, merge.cpp, disasters.cpp, outcome.cpp, code/engine/engine_growth.cpp, code/ui/ui_growth.cpp, data/placeholder/techniques.tsv, disasters.tsv | tests/unit/growth_tests.cpp, tests/feature/growth_tests.cpp, tests/ui/ui_tests.cpp |
 | 17 | March: terrain, units, the move range and the unit commands | code/sim/units.cpp, code/engine/engine_march.cpp, code/ui/ui_march.cpp, ui_map.cpp, ui_scene.cpp, data/placeholder/terrain.tsv, unit_types.tsv | tests/unit/march_tests.cpp, tests/feature/march_tests.cpp, tests/ui/ui_tests.cpp |
 | 18 | Battle: attacks, tactics, plots, fire, buildings and sieges | code/sim/combat.cpp, code/sim/field.cpp, code/engine/engine_combat.cpp, code/ui/ui_combat.cpp, data/placeholder/tactics.tsv, plots.tsv, buildings.tsv, critical_skills.tsv | tests/unit/combat_tests.cpp, tests/feature/combat_tests.cpp, tests/ui/ui_tests.cpp |
+| 19 | Court: officers, posts, personnel, diplomacy, duel and debate | code/sim/officers.cpp, diplomacy.cpp, duel.cpp, debate.cpp, code/engine/engine_court.cpp, code/ui/ui_court.cpp, data/placeholder/skills.tsv, posts.tsv, ranks.tsv, items.tsv | tests/unit/court_tests.cpp, tests/feature/court_tests.cpp, tests/ui/ui_tests.cpp |
 
 You will see these conventions everywhere:
 - `internal` means `static`: the function is private to its translation

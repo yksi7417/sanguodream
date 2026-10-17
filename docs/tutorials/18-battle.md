@@ -91,7 +91,7 @@ slides into a unit or a building stops, and both lose soldiers. No unit
 answers a tactic.
 
 ## 計略 and the states
-`sim_check_plot` needs the morale, the range (more with 深謀), the target
+`sim_check_plot` needs the morale, the range (more with 鬼謀), the target
 and the terrain of 伏兵 (a forest). The chance is plot.base_success plus
 the difference of intellect, from 5 to 95 percent.
 

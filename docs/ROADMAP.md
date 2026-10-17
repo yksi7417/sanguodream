@@ -255,11 +255,33 @@ Spec input: formats/map.md (terrain per cell, roads, rivers), mechanics/movement
 - UI: units on the map, a movement range overlay.
 
 ### M6 Combat and siege
+Status (2026-10-17): done (tutorial 18). The spec input was
+mechanics/military-units-and-tactics.md, plots-and-states.md,
+military-facilities-and-traps.md, siege-and-bases.md and
+terrain-and-map.md. tactics.tsv, plots.tsv, buildings.tsv and
+critical_skills.tsv hold the documented rules. Every damage goes through
+the combat_damage rule hook with an assumed default (Q-172 to Q-176).
+Attacks, joint attacks, tactics, plots, fire, buildings, traps, natural
+traps, sieges and the capture of officers work on the placeholder map. A
+land unit on water is a boat. The demo is "demo/m6_battle". FEATURES.md
+marks F-082 to F-093 as built. Ports and passes (F-032) wait for M8.
+
 Spec input: mechanics/{combat,tactics,morale,siege}.md with many fixture rows.
 - Engine: the combat_damage rule hook, morale, siege as facility damage; the San11 ruleset.
 - Tests: fixtures dominate here; property tests (damage is never negative, dead units leave the map).
 
 ### M7 Characters and politics
+Status (2026-10-17): done (tutorial 19). The spec input was
+mechanics/officers-and-relations.md, factions-corps-and-posts.md,
+city-commands.md, skills.md, diplomacy.md, duel.md, debate.md and
+ui/duel.md. skills.tsv holds the 100 skills and sets the skill rules;
+posts.tsv, ranks.tsv and items.tsv hold the documented tables. Loyalty
+goes through the loyalty_drift rule hook. The personnel and ruler
+commands, diplomacy, the plots of factions, the duel and the debate use
+assumed numbers (Q-177 to Q-181). Allies and ceasefires are no enemies.
+The demo is "demo/m7_court". FEATURES.md marks F-051 to F-056, F-058,
+F-059, F-100, F-101 and F-110 to F-113 as built.
+
 Spec input: mechanics/{loyalty,recruit-officer,diplomacy,debate,duel}.md.
 - Engine: the loyalty_drift hook, diplomacy as proposals with acceptance rules, debate and duel as mini-games over character stats.
 
