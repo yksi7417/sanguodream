@@ -788,6 +788,195 @@ demo_m5_march(ImGuiTestContext *ctx)
     IM_CHECK(demo_screenshot_panel(ctx, milestone, "Event ledger", "event_ledger"));
 }
 
+/* A free hex next to the unit that a foot unit can enter, or the unit's hex. */
+internal hex_coord
+demo_free_neighbor(engine_api *api, engine_unit *unit, hex_coord avoid)
+{
+    hex_coord center = hex_make(unit->q, unit->r);
+    for (u32 d = 0; d < HEX_DIRECTION_COUNT; ++d)
+    {
+        hex_coord hex = hex_neighbor(center, d);
+        if (hex_equal(hex, avoid) || api->cell_cost(api->engine, hex.q, hex.r) == 0) continue;
+        if (api->unit_at_hex(api->engine, hex.q, hex.r) != ENGINE_NO_UNIT || api->building_at_hex(api->engine, hex.q, hex.r) != ENGINE_NO_BUILDING) continue;
+        b32 city = false;
+        for (u32 index = 0; index < api->city_count(api->engine); ++index)
+        {
+            engine_city_slots slots = api->city_slots(api->engine, api->city_at(api->engine, index).city_id);
+            city |= slots.q == hex.q && slots.r == hex.r;
+        }
+        if (!city) return hex;
+    }
+    return center;
+}
+
+/* Clicks "Advance turn" until the faction acts again. */
+internal void
+demo_next_turn_of(ImGuiTestContext *ctx, engine_api *api, u8 player)
+{
+    ctx->SetRef("Simulation");
+    ctx->ItemClick("Advance turn");
+    ctx->Yield();
+    for (u32 step = 0; step < 10 && api->whose_turn(api->engine) != player; ++step)
+    {
+        ctx->ItemClick("Advance turn");
+        ctx->Yield();
+    }
+}
+
+/* Opens the command menu of the selected unit, clicks an item, and for a
+   list item clicks the first row of the Actions list. */
+internal void
+demo_unit_order(ImGuiTestContext *ctx, demo_vars &v, engine_unit *unit, const char *item, b32 list)
+{
+    ctx->WindowFocus("//Hex map");
+    demo_click_cell(ctx, v, hex_make(unit->q, unit->r));      /* select */
+    if (!v.ui.show_unit_menu)
+    {
+        ctx->WindowFocus("//Hex map");
+        demo_click_cell(ctx, v, hex_make(unit->q, unit->r));  /* its own hex opens the menu */
+    }
+    IM_CHECK(v.ui.show_unit_menu);
+    ctx->SetRef("###UnitMenu");
+    ctx->SleepStandard();
+    ctx->ItemClick(item);
+    ctx->Yield();
+    if (list)
+    {
+        IM_CHECK(v.ui.show_actions);
+        ctx->SetRef("###Actions");
+        ctx->SleepStandard();
+        ctx->ItemClick("###a0");
+        ctx->Yield();
+    }
+    IM_CHECK(v.ui.combat.pick != UI_PICK_NONE);               /* the map now marks the targets */
+    ctx->SleepStandard();
+}
+
+/* M6, battle: a sortie, an enemy unit next to it, 攻擊 with the
+   counterattack, 火計 that sets a hex on fire, and in the next turns the
+   fire, a second attack that destroys the enemy, and the captives. */
+internal void
+demo_m6_battle(ImGuiTestContext *ctx)
+{
+    const char *milestone = "m6_battle";
+    demo_vars &v = ctx->GetVars<demo_vars>();
+    engine_api *api = &v.api;
+    void *e = api->engine;
+    IM_CHECK(demo_begin_video(ctx, milestone));
+
+    IM_CHECK(demo_open_panel(ctx, "Simulation", &v.ui.show_sim));
+    IM_CHECK(demo_open_panel(ctx, "Event ledger", &v.ui.show_ledger));
+    ctx->SetRef("Simulation");
+    ctx->ItemClick("Load sample save");
+    ctx->ItemClick("Load city names");
+    ctx->Yield();
+    u8 player = api->whose_turn(e);
+    u8 city = demo_busiest_city_of_player(api);
+    IM_CHECK(player != ENGINE_NO_FACTION && city != ENGINE_NO_CITY);
+    u8 enemy = ENGINE_NO_FACTION;
+    for (u32 index = 0; index < api->city_count(e) && enemy == ENGINE_NO_FACTION; ++index)
+    {
+        engine_city other = api->city_at(e, index);
+        if (other.owner_force_id != player && other.owner_force_id != ENGINE_NO_FACTION) enemy = other.owner_force_id;
+    }
+    IM_CHECK(enemy != ENGINE_NO_FACTION);
+    api->set_city_resource(e, city, SIM_RESOURCE_WEAPONS, 0, 20000);   /* pikes for two units */
+    api->set_city_resource(e, city, SIM_RESOURCE_SOLDIERS, 0, 30000);
+
+    /* 出征 from the formation dialog. */
+    IM_CHECK(demo_open_panel(ctx, "###City", &v.ui.show_city));
+    ctx->SetRef("###City");
+    char item[32];
+    snprintf(item, sizeof(item), "###city_select/###c%u", city);
+    ctx->ComboClick(item);
+    ctx->ItemClick("###open_sortie");
+    ctx->Yield();
+    ctx->SetRef("###Sortie");
+    ctx->ComboClick("###unit_type/###u1");                   /* 槍兵 */
+    ctx->ItemClick("###auto");
+    ctx->ItemClick("###decide");
+    ctx->Yield();
+    u32 unit_id = demo_unit_of(api, player);
+    IM_CHECK(unit_id != ENGINE_NO_UNIT);
+    v.ui.show_city = false;
+
+    /* The scenario editor puts an enemy unit next to it (a second sortie
+       that the editor gives to the enemy). */
+    engine_sortie_order order = api->sortie_proposal(e, city, 1);
+    order.soldiers = 3000;
+    order.grain    = 3000;
+    IM_CHECK(api->command_sortie(e, &order).refusal == SIM_REFUSAL_NONE);
+    u32 foe = ENGINE_NO_UNIT;
+    for (u32 id = 0; id < api->unit_count(e); ++id)
+    {
+        engine_unit other = api->unit_at(e, id);
+        if (other.id != ENGINE_NO_UNIT && other.id != unit_id && other.force_id == player) foe = id;
+    }
+    engine_unit unit = api->unit_at(e, unit_id);
+    hex_coord foe_hex = demo_free_neighbor(api, &unit, hex_make(unit.q, unit.r));
+    IM_CHECK(foe != ENGINE_NO_UNIT && api->set_unit_place(e, foe, enemy, foe_hex.q, foe_hex.r));
+    api->set_unit(e, unit_id, unit.soldiers, unit.morale < 60 ? 60 : unit.morale);
+
+    v.ui.map.zoom = 8.0f;
+    IM_CHECK(demo_open_panel(ctx, "Hex map", &v.ui.show_map));
+    IM_CHECK(demo_open_panel(ctx, "###Unit", &v.ui.show_unit));
+
+    /* 攻擊: the menu, then the enemy hex. */
+    u32 before = api->unit_at(e, foe).soldiers;
+    demo_unit_order(ctx, v, &unit, "###attack", false);
+    ctx->WindowFocus("//Hex map");
+    demo_click_cell(ctx, v, foe_hex);
+    IM_CHECK(api->unit_at(e, foe).soldiers < before && api->unit_at(e, unit_id).acted);
+    ctx->SleepStandard();
+
+    /* Next turn: 火計 on the hex beside the enemy. */
+    demo_next_turn_of(ctx, api, player);
+    IM_CHECK_EQ(api->whose_turn(e), player);
+    unit = api->unit_at(e, unit_id);
+    hex_coord fire_hex = demo_free_neighbor(api, &unit, foe_hex);
+    demo_unit_order(ctx, v, &unit, "###plot", true);
+    ctx->WindowFocus("//Hex map");
+    demo_click_cell(ctx, v, fire_hex);
+    engine_fire_view fire = api->fire_view(e);
+    hex_offset o = hex_to_offset(fire_hex);
+    IM_CHECK(fire.turns[(u32)o.row * fire.width + (u32)o.col] > 0);   /* the hex burns */
+    ctx->SleepStandard();
+
+    /* Next turn: the enemy is weak; a second attack destroys it. */
+    demo_next_turn_of(ctx, api, player);
+    IM_CHECK_EQ(api->whose_turn(e), player);
+    api->set_unit(e, foe, 20, 30);
+    unit = api->unit_at(e, unit_id);
+    demo_unit_order(ctx, v, &unit, "###attack", false);
+    ctx->WindowFocus("//Hex map");
+    demo_click_cell(ctx, v, foe_hex);
+    IM_CHECK(api->unit_at(e, foe).id == ENGINE_NO_UNIT);
+    b32 damaged = false, countered = false, fire_started = false, destroyed = false, fate = false;
+    for (u32 index = 0; index < api->ledger_count(e); ++index)
+    {
+        sim_event_kind kind = api->ledger_at(e, index).kind;
+        damaged      |= kind == SIM_EVENT_UNIT_DAMAGED;
+        countered    |= kind == SIM_EVENT_COUNTERATTACK;
+        fire_started |= kind == SIM_EVENT_FIRE_STARTED;
+        destroyed    |= kind == SIM_EVENT_UNIT_DESTROYED;
+        fate         |= kind == SIM_EVENT_OFFICER_CAPTURED || kind == SIM_EVENT_OFFICER_ESCAPED;
+    }
+    IM_CHECK(damaged && countered && fire_started && destroyed && fate);   /* the ledger has each step */
+    ctx->SleepStandard();
+
+    /* The Actions list of the unit for the screenshot. */
+    v.ui.combat.list  = UI_PICK_TACTIC;
+    v.ui.show_actions = true;
+    ctx->Yield(2);
+
+    IM_CHECK(demo_end_video(ctx));
+
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "Hex map", "hex_map"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Unit", "unit"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Actions", "actions"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "Event ledger", "event_ledger"));
+}
+
 internal void
 register_demo_tests(ImGuiTestEngine *e)
 {
@@ -822,4 +1011,9 @@ register_demo_tests(ImGuiTestEngine *e)
     t->SetVarsDataType<demo_vars>();
     t->GuiFunc  = demo_gui;
     t->TestFunc = demo_m5_march;
+
+    t = IM_REGISTER_TEST(e, "demo", "m6_battle");
+    t->SetVarsDataType<demo_vars>();
+    t->GuiFunc  = demo_gui;
+    t->TestFunc = demo_m6_battle;
 }
