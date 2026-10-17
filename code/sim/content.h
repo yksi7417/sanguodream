@@ -238,10 +238,25 @@ struct terrain_kind
     u32  loss_percent;            /* soldiers lost on entry */
     u8   loss_waiver_technique;   /* CONTENT_NO_TECHNIQUE if none */
     u32  loss_waiver_skill;       /* a skills.md number; 0 = none */
-    b32  buildable;
+    b32  buildable;               /* a military facility, an obstacle or a fire trap can stand here (F-147) */
     u32  tactics;                 /* bit tactic_class: the tactics of that class work here */
     u8   tile;                    /* the colour of the placeholder atlas */
     u8   level;                   /* the height of the placeholder map */
+    b32  enterable;               /* a unit can stand on it (terrain-types.tsv); 川, 岸 and 崖 are not */
+    b32  burnable;                /* a fire stays on it without a unit (F-149) */
+};
+
+/* One row of movement_costs.tsv (movement-costs.tsv of the spec): an
+   armament, its movement allowance and the cost to enter each terrain. */
+#define CONTENT_ARMAMENT_CAPACITY 16
+#define CONTENT_NO_ARMAMENT       0xFF
+
+struct armament_kind
+{
+    u8   id;
+    char key[CONTENT_KEY_SIZE];
+    u32  move;                                /* the movement allowance (stat_c) */
+    u8   cost[CONTENT_TERRAIN_CAPACITY];      /* by terrain id; 0 = it cannot enter (255 in the spec) */
 };
 
 /* The grades of the manual: S > A > B > C > D > E; GRADE_NONE for "-". */
@@ -276,6 +291,8 @@ struct unit_type_kind
     b32            can_attack;
     b32            counterattack;
     b32            transport;
+    u8             armament;                /* the row of movement_costs.tsv on land; CONTENT_NO_ARMAMENT: the class costs */
+    u8             ship;                    /* the row on 河 and 海; CONTENT_NO_ARMAMENT: the class costs */
 };
 
 /* ---- combat (military-units-and-tactics.md, plots-and-states.md,
@@ -673,6 +690,8 @@ struct sim_rules
     u32 combat_capture_percent, combat_halberd_capture, combat_destroy_technique;
     u32 plot_base_success;
     u32 fire_turns, fire_damage_percent, fire_building_damage, fire_extra_cost;
+    u32 fire_cost_multiplier, fire_attack_turns_min, fire_attack_turns_max, fire_other_turns_min, fire_other_turns_max;   /* M10 */
+    u32 rockfall_return_percent;   /* M10 */
     u32 build_durability_per_build;
     u32 siege_blockade_loss, siege_recovery, siege_default_durability, siege_capture_technique;
     u32 skill_capture, skill_escape_capture, skill_fortune, skill_subtle, skill_fire_god, skill_rattan;
@@ -733,6 +752,8 @@ struct sim_content
     u32            disaster_count;
     terrain_kind   terrains[CONTENT_TERRAIN_CAPACITY];
     u32            terrain_count;
+    armament_kind  armaments[CONTENT_ARMAMENT_CAPACITY];   /* M10: movement_costs.tsv; none for a pack without it */
+    u32            armament_count;
     unit_type_kind unit_types[CONTENT_UNIT_TYPE_CAPACITY];
     u32            unit_type_count;
     tactic_kind    tactics[CONTENT_TACTIC_CAPACITY];

@@ -335,6 +335,10 @@ terrain.river	河
 terrain.sea	海
 terrain.cliff	崖
 terrain.city	都市
+terrain.stream	川
+terrain.shore	岸
+terrain.port	港
+terrain.gate	關所
 unit_menu.dismantle	撤除
 unit.pick_hint	在地圖上點選目標。
 unit.pick_cancel	取消

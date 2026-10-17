@@ -1,22 +1,27 @@
-id	key	name_zh	cost_foot	cost_cavalry	cost_siege	cost_navy	needs_technique	loss_percent	loss_waiver_technique	loss_waiver_skill	buildable	tactics	tile	level	status
-# The terrain kinds of terrain-and-map.md (manual p.17). One row for each kind of hex of the map.
-# cost_*: the movement points that a unit of the movement class spends to enter the hex; 0 = it cannot enter. The spec gives only the order (main road low; swamp and plank road high): every number is assumed (Q-167).
+id	key	name_zh	cost_foot	cost_cavalry	cost_siege	cost_navy	needs_technique	loss_percent	loss_waiver_technique	loss_waiver_skill	buildable	enterable	burnable	tactics	tile	level	status
+# The 20 terrains of terrain-and-map.md and fixtures/map/terrain-types.tsv. The id is the terrain id of the map (formats/map-data.md), so a hex of hexes.tsv has its terrain id as its kind.
+# cost_*: the movement points to enter: the 劍 row (foot), the 軍馬 row (cavalry), the 衝車 row (siege) and the 走舸 row (navy) of movement-costs.tsv; 0 = cannot enter (255 in the spec). movement_costs.tsv has the row of each armament (code).
 # needs_technique: the technique key that a unit needs to enter (small path, shallows: 難所行軍), or - (documented).
 # loss_percent: soldiers lost when the unit enters (plank road, poison spring; documented that soldiers are lost, the percent is assumed). loss_waiver_technique and loss_waiver_skill stop the loss (難所行軍, 踏破 #7, 解毒 #9; a skill is its number in skills.md).
-# buildable: a facility can stand on it. tactics: the classes whose tactics work on it (documented). tile: the colour of the placeholder atlas. level: the height of the placeholder map.
-0	grass	草地	4	4	4	0	-	0	-	0	yes	pike|halberd|crossbow|cavalry|siege	1	1	assumed
-1	earth	土	4	4	4	0	-	0	-	0	yes	pike|halberd|crossbow|cavalry|siege	1	1	assumed
-2	main_road	主徑	3	3	3	0	-	0	-	0	yes	pike|halberd|crossbow|cavalry|siege	5	1	assumed
-3	waste	荒地	5	5	6	0	-	0	-	0	no	pike|halberd|crossbow|cavalry|siege	3	2	assumed
-4	sand	砂地	5	5	6	0	-	0	-	0	yes	halberd|crossbow|cavalry|siege	6	1	assumed
-5	ford	渡所	6	6	8	4	-	0	-	0	no	pike|halberd|crossbow|cavalry|siege	0	1	assumed
-6	swamp	濕地	7	9	10	0	-	0	-	0	no	pike|halberd|crossbow|siege	2	1	assumed
-7	forest	森林	6	8	8	0	-	0	-	0	no	pike|halberd|siege	2	2	assumed
-8	plank_road	棧道	8	8	10	0	-	10	rough_march	7	no	pike|halberd|crossbow|siege	5	3	assumed
-9	small_path	小徑	6	8	10	0	rough_march	0	-	0	no	pike|halberd|crossbow|siege	5	2	assumed
-10	shallows	淺灘	6	6	8	4	rough_march	0	-	0	no	pike|halberd|crossbow|cavalry|siege	0	0	assumed
-11	poison_spring	毒泉	5	5	6	0	-	10	-	9	no	pike|halberd|crossbow|siege	7	1	assumed
-12	river	河	0	0	0	4	-	0	-	0	no	navy	0	0	assumed
-13	sea	海	0	0	0	4	-	0	-	0	no	navy	0	0	assumed
-14	cliff	崖	0	0	0	0	-	0	-	0	no	-	4	3	documented
-15	city	都市	3	3	3	0	-	0	-	0	no	pike|halberd|crossbow|cavalry|siege	5	1	assumed
+# buildable: a military facility, an obstacle or a fire trap can stand on it (military_build, code). enterable: a unit can stand on it (code). burnable: a fire stays on it without a unit (code; the manual says that sand does not burn, Q-198).
+# tactics: the classes whose tactics work on it (documented). tile: the colour of the atlas. level: the height of the placeholder map; the real map gives a height to each hex.
+0	grass	草地	5	5	6	0	-	0	-	0	yes	yes	yes	pike|halberd|crossbow|cavalry|siege	1	1	code
+1	earth	土	5	4	5	0	-	0	-	0	yes	yes	yes	pike|halberd|crossbow|cavalry|siege	1	1	code
+2	sand	砂地	5	5	6	0	-	0	-	0	yes	yes	yes	halberd|crossbow|cavalry|siege	6	1	code
+3	swamp	濕地	8	8	8	0	-	0	-	0	no	yes	yes	pike|halberd|crossbow|siege	2	1	code
+4	poison_spring	毒泉	12	12	12	0	-	10	-	9	no	yes	no	pike|halberd|crossbow|siege	7	1	code
+5	forest	森	6	10	8	0	-	0	-	0	no	yes	yes	pike|halberd|siege	2	2	code
+6	stream	川	0	0	0	0	-	0	-	0	no	no	no	-	0	0	code
+7	river	河	0	0	0	4	-	0	-	0	no	yes	no	navy	0	0	code
+8	sea	海	0	0	0	4	-	0	-	0	no	yes	no	navy	0	0	code
+9	waste	荒地	6	7	7	0	-	0	-	0	no	yes	yes	pike|halberd|crossbow|cavalry|siege	3	2	code
+10	main_road	主徑	4	4	4	0	-	0	-	0	yes	yes	yes	pike|halberd|crossbow|cavalry|siege	5	1	code
+11	plank_road	棧道	6	7	6	0	-	10	rough_march	7	no	yes	yes	pike|halberd|crossbow|siege	5	3	code
+12	ford	渡所	4	4	4	0	-	0	-	0	no	yes	yes	pike|halberd|crossbow|cavalry|siege	0	1	code
+13	shallows	淺瀨	5	5	5	0	rough_march	0	-	0	no	yes	no	pike|halberd|crossbow|cavalry|siege	0	0	code
+14	shore	岸	0	0	0	0	-	0	-	0	no	no	no	-	6	0	code
+15	cliff	崖	0	0	0	0	-	0	-	0	no	no	no	-	4	3	code
+16	city	都市	4	4	4	0	-	0	-	0	no	yes	yes	pike|halberd|crossbow|cavalry|siege	5	1	code
+17	port	港	4	4	4	0	-	0	-	0	no	yes	yes	pike|halberd|crossbow|cavalry|siege	5	1	code
+18	gate	關所	4	4	4	0	-	0	-	0	no	yes	yes	pike|halberd|crossbow|cavalry|siege	5	2	code
+19	small_path	小徑	6	10	10	0	rough_march	0	-	0	no	yes	no	pike|halberd|crossbow|siege	5	2	code

@@ -331,6 +331,12 @@ global_variable content_rule_field content_rule_fields[] = {
     CONTENT_RULE("fire.damage_percent",   fire_damage_percent),
     CONTENT_RULE("fire.building_damage",  fire_building_damage),
     CONTENT_RULE("fire.extra_cost",       fire_extra_cost),
+    CONTENT_RULE("fire.cost_multiplier",  fire_cost_multiplier),
+    CONTENT_RULE("fire.attack_turns_min", fire_attack_turns_min),
+    CONTENT_RULE("fire.attack_turns_max", fire_attack_turns_max),
+    CONTENT_RULE("fire.other_turns_min",  fire_other_turns_min),
+    CONTENT_RULE("fire.other_turns_max",  fire_other_turns_max),
+    CONTENT_RULE("rockfall.return_percent", rockfall_return_percent),
     CONTENT_RULE("build.durability_per_build", build_durability_per_build),
     CONTENT_RULE("siege.blockade_loss",   siege_blockade_loss),
     CONTENT_RULE("siege.recovery",        siege_recovery),
@@ -760,6 +766,14 @@ content_parse_terrain(sim_content *content, tsv_table *table, u32 row, terrain_k
     kind->buildable = tsv_cell_yes(table, row, "buildable");
     kind->tile      = (u8)tile;
     kind->level     = (u8)level;
+    /* M10: terrain-types.tsv gives "enterable" and "burnable". A pack
+       without the columns gets the rule of M6: a unit can enter a terrain
+       with a cost, and every land terrain but sand burns. */
+    b32 land = kind->cost[MOVEMENT_FOOT] || kind->cost[MOVEMENT_CAVALRY] || kind->cost[MOVEMENT_SIEGE];
+    const char *enterable = tsv_cell(table, row, "enterable");
+    const char *burnable  = tsv_cell(table, row, "burnable");
+    kind->enterable = enterable[0] ? strcmp(enterable, "yes") == 0 : land || kind->cost[MOVEMENT_NAVY];
+    kind->burnable  = burnable[0] ? strcmp(burnable, "yes") == 0 : kind->cost[MOVEMENT_FOOT] && strcmp(key, "sand") != 0;
     return true;
 }
 
@@ -780,6 +794,64 @@ content_load_terrain(sim_content *content, tsv_table *table, u32 *bad_row)
     }
     content->terrain_count = table->row_count;
     return true;
+}
+
+/* movement_costs.tsv (M10, F-148): one row for each armament of
+   movement-costs.tsv. The table has one column for each terrain key of
+   terrain.tsv; 255 means that the armament cannot enter. Load it after
+   terrain.tsv. */
+internal b32
+content_load_armaments(sim_content *content, tsv_table *table, u32 *bad_row)
+{
+    content->armament_count = 0;
+    if (table->row_count > CONTENT_ARMAMENT_CAPACITY) { *bad_row = CONTENT_ARMAMENT_CAPACITY; return false; }
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        armament_kind *kind = content->armaments + row;
+        *kind = {};
+        u32 id = 0;
+        const char *key = tsv_cell(table, row, "key");
+        b32 good = tsv_cell_u32(table, row, "id", &id) && id == row && key[0] && strlen(key) < CONTENT_KEY_SIZE &&
+                   tsv_cell_u32(table, row, "move", &kind->move);
+        for (u32 terrain = 0; good && terrain < content->terrain_count; ++terrain)
+        {
+            u32 cost = 0;
+            good = tsv_cell_u32(table, row, content->terrains[terrain].key, &cost) && cost >= 1 && cost <= 255;
+            kind->cost[terrain] = cost == 255 ? (u8)0 : (u8)cost;
+        }
+        if (!good)
+        {
+            *bad_row = row;
+            content->armament_count = 0;
+            return false;
+        }
+        kind->id = (u8)id;
+        memcpy(kind->key, key, strlen(key) + 1);
+    }
+    content->armament_count = table->row_count;
+    return true;
+}
+
+internal u8
+content_find_armament(sim_content *content, const char *key)
+{
+    for (u32 index = 0; index < content->armament_count; ++index)
+    {
+        if (strcmp(content->armaments[index].key, key) == 0) return (u8)index;
+    }
+    return CONTENT_NO_ARMAMENT;
+}
+
+/* The armament of a cell of unit_types.tsv: a key of movement_costs.tsv,
+   "-" for none, or an empty cell (a pack without the column). */
+internal u8
+content_armament_cell(sim_content *content, tsv_table *table, u32 row, const char *column, b32 *bad)
+{
+    const char *cell = tsv_cell(table, row, column);
+    if (!cell[0] || strcmp(cell, "-") == 0) return CONTENT_NO_ARMAMENT;
+    u8 armament = content_find_armament(content, cell);
+    if (armament == CONTENT_NO_ARMAMENT) *bad = true;
+    return armament;
 }
 
 internal unit_grade
@@ -823,7 +895,10 @@ content_parse_unit_type(sim_content *content, tsv_table *table, u32 row, unit_ty
     kind->can_attack    = tsv_cell_yes(table, row, "can_attack");
     kind->counterattack = tsv_cell_yes(table, row, "counterattack");
     kind->transport     = tsv_cell_yes(table, row, "transport");
-    return true;
+    b32 bad = false;
+    kind->armament = content_armament_cell(content, table, row, "armament", &bad);   /* M10 */
+    kind->ship     = content_armament_cell(content, table, row, "ship", &bad);
+    return !bad;
 }
 
 internal b32

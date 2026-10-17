@@ -337,6 +337,10 @@ terrain.river	River	河
 terrain.sea	Sea	海
 terrain.cliff	Cliff	崖
 terrain.city	City	都市
+terrain.stream	Stream	川
+terrain.shore	Shore	岸
+terrain.port	Port	港
+terrain.gate	Gate	關所
 unit_menu.dismantle	Dismantle	撤除
 unit.pick_hint	Click the target hex on the Hex map.	M6: after a combat order
 unit.pick_cancel	Cancel the order	M6

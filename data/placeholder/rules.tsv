@@ -97,10 +97,16 @@ combat.capture_percent	50	assumed	Q-176: the chance to capture each officer of a
 combat.halberd_capture	20	assumed	Q-176: more chance with a halberd tactic (PK, manual p.34)
 combat.destroy_technique	50	assumed	Q-176: technique points for a destroyed unit (精妙 doubles)
 plot.base_success	50	assumed	Q-173: the chance of a plot; plus the difference of intellect
-fire.turns	3	assumed	Q-173: the turns of a fire; a swamp burns 1 turn
+fire.turns	3	assumed	Q-173: the turns of a fire for a pack without the fire.*_turns_* rules
 fire.damage_percent	10	assumed	Q-173: the soldiers that fire takes each turn
 fire.building_damage	200	assumed	Q-173: the durability that fire takes each turn from a building
-fire.extra_cost	4	assumed	Q-173: the movement cost to enter a burning hex
+fire.extra_cost	0	code	terrain-and-map.md: no added cost; fire.cost_multiplier gives the cost of a burning hex
+fire.cost_multiplier	4	code	terrain-and-map.md: to enter a burning hex costs 4 times the cost of the table
+fire.attack_turns_min	1	code	terrain-and-map.md: a fire from an attack lasts 1 to 3 turns at random (Q-198: which actions)
+fire.attack_turns_max	3	code	see fire.attack_turns_min
+fire.other_turns_min	1	code	terrain-and-map.md: a fire from another source (a plot, a trap) lasts 1 to 7 turns at random
+fire.other_turns_max	7	code	see fire.other_turns_min; 7 is also the cap of the fire count of a hex
+rockfall.return_percent	10	code	terrain-and-map.md: the chance at each check that a rockfall comes back on its empty site (Q-196: the interval; the engine checks each turn)
 build.durability_per_build	5	assumed	Q-174: the durability that 設置 and 修補 add for each point of the build value
 siege.blockade_loss	500	assumed	Q-175: the soldiers that a base loses each turn with an enemy within 2 hexes
 siege.recovery	100	assumed	Q-175: the durability that a base recovers each turn

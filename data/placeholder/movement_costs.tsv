@@ -1,0 +1,15 @@
+id	key	name_zh	stat_a	stat_b	move	grass	earth	sand	swamp	poison_spring	forest	stream	river	sea	waste	main_road	plank_road	ford	shallows	shore	cliff	city	port	gate	small_path	status
+# The 12 armaments of fixtures/map/movement-costs.tsv (code): the movement allowance (stat_c) and the cost to enter each terrain of terrain.tsv. 255 = the armament cannot enter.
+# stat_a and stat_b: probably attack and defence (Q-199); the engine does not read them. misc/make_map_pack.py writes this file from the spec fixture.
+0	sword	劍	60	60	20	5	5	5	8	12	6	255	255	255	6	4	6	4	5	255	255	4	4	4	6	code
+1	pike	槍	95	95	22	5	5	5	8	12	6	255	255	255	6	4	6	4	5	255	255	4	4	4	6	code
+2	halberd	戟	90	105	22	5	5	5	8	12	6	255	255	255	6	4	6	4	5	255	255	4	4	4	6	code
+3	crossbow	弩	85	90	22	5	5	5	8	12	6	255	255	255	6	4	6	4	5	255	255	4	4	4	6	code
+4	horse	軍馬	105	90	28	5	4	5	8	12	10	255	255	255	7	4	7	4	5	255	255	4	4	4	10	code
+5	ram	衝車	90	85	18	6	5	6	8	12	8	255	255	255	7	4	6	4	5	255	255	4	4	4	10	code
+6	tower	井闌	90	85	18	6	5	6	8	12	8	255	255	255	7	4	6	4	5	255	255	4	4	4	10	code
+7	catapult	投石	95	85	18	6	5	6	8	12	8	255	255	255	7	4	6	4	5	255	255	4	4	4	10	code
+8	wood_beast	木獸	100	85	18	6	5	6	8	12	8	255	255	255	7	4	6	4	5	255	255	4	4	4	10	code
+9	boat	走舸	75	75	16	255	255	255	255	255	255	255	4	4	255	255	255	255	255	255	255	255	255	255	255	code
+10	tower_ship	樓船	90	85	20	255	255	255	255	255	255	255	4	4	255	255	255	255	255	255	255	255	255	255	255	code
+11	battle_ship	鬥艦	100	95	20	255	255	255	255	255	255	255	4	4	255	255	255	255	255	255	255	255	255	255	255	code
