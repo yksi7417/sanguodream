@@ -1318,6 +1318,131 @@ demo_m8_rivals(ImGuiTestContext *ctx)
     IM_CHECK(!api->pending_event(e).active);
 }
 
+/* M9, playable: the title menu, a new game from the scenario 群雄割據 with
+   a chosen ruler and the settings of the start, a new officer, a research
+   of the ability chart, turns with 進行, a save and a load, and the
+   battle list and the information screen. */
+internal void
+demo_m9_playable(ImGuiTestContext *ctx)
+{
+    const char *milestone = "m9_playable";
+    demo_vars &v = ctx->GetVars<demo_vars>();
+    engine_api *api = &v.api;
+    void *e = api->engine;
+    IM_CHECK(demo_begin_video(ctx, milestone));
+
+    /* 標題 → 重新開始新遊戲 → 群雄割據. */
+    v.ui.show_title = true;
+    ctx->Yield(2);
+    ctx->SetRef("###Title");
+    ctx->SleepStandard();
+    ctx->ItemClick("###title_new");
+    IM_CHECK(v.ui.show_scenarios);
+    ctx->SetRef("###Scenarios");
+    ctx->ItemClick("###sc1");
+    IM_CHECK(v.ui.show_rulers && api->city_count(e) == 42);
+
+    /* 君主: the faction with the most cities; then the settings of the start. */
+    u8 player = demo_rival_faction(api);
+    IM_CHECK(player != ENGINE_NO_FACTION);
+    ctx->SetRef("###Rulers");
+    char item[64];
+    snprintf(item, sizeof(item), "###ruler%u", player);
+    ctx->ItemClick(item);
+    ctx->ItemClick("###rulers_ok");
+    IM_CHECK(v.ui.show_start_settings);
+    ctx->SetRef("###StartSettings");
+    ctx->ItemClick("###duel2");                              /* 單挑・舌戰: automatic */
+    ctx->ItemClick("###level1");
+    ctx->SleepStandard();
+    ctx->ItemClick("###start_ok");
+    IM_CHECK(v.ui.show_topbar && api->whose_turn(e) == player && api->settings(e).duel_mode == DUEL_MODE_AUTO);
+    engine_officer ruler = api->officer_by_id(e, api->force_ruler(e, player));
+    u8 capital = (u8)ruler.current_position;
+    v.ui.city.selected = capital;
+    for (u32 city = 0; city < api->city_count(e); ++city) if (api->city_at(e, city).owner_force_id == player) api->set_city_gold(e, (u8)city, 30000);
+    ctx->SleepStandard();
+
+    /* 項目 → 新武將: a strategist in the capital. */
+    ctx->SetRef("###TopBar");
+    ctx->ItemClick("###open_system");
+    ctx->SetRef("###Options");
+    ctx->ItemClick("###open_new_officer");
+    v.ui.game.city = capital;
+    ctx->SetRef("###NewOfficer");
+    ctx->ItemInputValue("###family", "\xE5\xBC\xB5");        /* 張 */
+    ctx->ItemInputValue("###given", "\xE4\xB8\x80");         /* 一 */
+    ctx->ItemClick("###type1");
+    ctx->ItemClick("###create_officer");
+    IM_CHECK(api->new_officer_count(e) == 1);
+    ctx->SleepStandard();
+    v.ui.show_new_officer = v.ui.show_options = false;
+
+    /* 能力表: research 統率+5 in the capital. */
+    ctx->SetRef("###TopBar");
+    ctx->ItemClick("###open_abilities");
+    ctx->SetRef("###Abilities");
+    ctx->ItemClick("chart_table/###research0");
+    IM_CHECK(api->faction_chart(e, player).job_row == 0);
+    ctx->SleepStandard();
+    v.ui.show_abilities = false;
+
+    /* 進行: three turns; the computer factions act between them. */
+    u32 turn = api->turn(e);
+    for (u32 step = 0; step < 3; ++step)
+    {
+        ctx->SetRef("###TopBar");
+        ctx->ItemClick("###proceed");
+        for (u32 guard = 0; guard < 20 && api->whose_turn(e) != player; ++guard) { ctx->ItemClick("###proceed"); }
+    }
+    IM_CHECK(api->turn(e) >= turn + 3 && api->whose_turn(e) == player);
+    ctx->SleepStandard();
+
+    /* 儲存 in slot 1 with a comment, then 載入 of the same slot. */
+    ctx->SetRef("###TopBar");
+    ctx->ItemClick("###open_save");
+    ctx->SetRef("###SaveLoad");
+    ctx->ItemClick("###slot0");
+    ctx->ItemInputValue("###comment", "M9 demo");
+    ctx->ItemClick("###save_ok");
+    IM_CHECK(api->save_slot(e, 0).used && strcmp(api->save_slot(e, 0).comment, "M9 demo") == 0);
+    u32 saved_turn = api->turn(e);
+    ctx->SetRef("###TopBar");
+    ctx->ItemClick("###proceed");
+    ctx->ItemClick("###open_load");
+    ctx->SetRef("###SaveLoad");
+    ctx->ItemClick("###slot0");
+    IM_CHECK(api->turn(e) == saved_turn && !v.ui.show_saveload);
+    ctx->SleepStandard();
+
+    /* 情報 and 決戰稱霸. */
+    ctx->SetRef("###TopBar");
+    ctx->ItemClick("###open_info");
+    IM_CHECK(v.ui.show_info);
+    v.ui.show_battles = true;
+    ctx->Yield(2);
+    IM_CHECK(api->battle_count(e) == 5);
+    ctx->SleepStandard();
+
+    IM_CHECK(demo_end_video(ctx));
+
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###TopBar", "topbar"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###History", "history"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Info", "info"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Battles", "battles"));
+    v.ui.show_abilities = v.ui.show_new_officer = true;
+    ui_open_saveload(&v.ui, api, true);
+    v.ui.show_title = v.ui.show_scenarios = v.ui.show_start_settings = true;
+    v.ui.game.start_loaded = false;
+    ctx->Yield(3);
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Abilities", "abilities"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###NewOfficer", "new_officer"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###SaveLoad", "save"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Title", "title"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Scenarios", "scenarios"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###StartSettings", "start_settings"));
+}
+
 internal void
 register_demo_tests(ImGuiTestEngine *e)
 {
@@ -1367,4 +1492,9 @@ register_demo_tests(ImGuiTestEngine *e)
     t->SetVarsDataType<demo_vars>();
     t->GuiFunc  = demo_gui;
     t->TestFunc = demo_m8_rivals;
+
+    t = IM_REGISTER_TEST(e, "demo", "m9_playable");
+    t->SetVarsDataType<demo_vars>();
+    t->GuiFunc  = demo_gui;
+    t->TestFunc = demo_m9_playable;
 }
