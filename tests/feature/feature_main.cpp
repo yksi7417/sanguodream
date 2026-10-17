@@ -31,6 +31,7 @@
 #include "march_tests.cpp"
 #include "combat_tests.cpp"
 #include "court_tests.cpp"
+#include "rivals_tests.cpp"
 #include "fixture_tests.cpp"
 
 int
@@ -90,6 +91,9 @@ main(int argc, char **argv)
     test_counts court_counts = {};
     feature_court_tests(&court_counts);
     failed |= test_report("feature/court", &court_counts);
+    test_counts rivals_counts = {};
+    feature_rivals_tests(&rivals_counts);
+    failed |= test_report("feature/rivals", &rivals_counts);
 
     char fixtures_dir[MAX_PATH];
     if (argc > 1)

@@ -109,7 +109,7 @@ unit_sim_load_name_index_tests(test_counts *counts)
 internal void
 unit_sim_tests(test_counts *counts)
 {
-    memory_arena arena = test_arena_create(Megabytes(2));
+    memory_arena arena = test_arena_create(Megabytes(8));
 
     sim_state *first  = PushStruct(&arena, sim_state);
     sim_state *second = PushStruct(&arena, sim_state);
