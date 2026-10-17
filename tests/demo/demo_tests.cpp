@@ -977,6 +977,178 @@ demo_m6_battle(ImGuiTestContext *ctx)
     IM_CHECK(demo_screenshot_panel(ctx, milestone, "Event ledger", "event_ledger"));
 }
 
+/* An active officer of the faction in the city that is not the ruler and
+   not one of the excluded ids. */
+internal u16
+demo_court_officer(engine_api *api, u8 force, u8 city, u16 exclude)
+{
+    for (u32 index = 0; index < api->officer_count(api->engine); ++index)
+    {
+        engine_officer officer = api->officer_at(api->engine, index);
+        if (officer.force_id == force && officer.status == 3 && officer.current_position == city && officer.officer_id != exclude) return officer.officer_id;
+    }
+    return ENGINE_NO_OFFICER;
+}
+
+/* M7, court: the Court panel (褒賞, 官職), the Diplomacy panel (親善), a
+   duel from the unit menu on its screen, and a debate on its screen. */
+internal void
+demo_m7_court(ImGuiTestContext *ctx)
+{
+    const char *milestone = "m7_court";
+    demo_vars &v = ctx->GetVars<demo_vars>();
+    engine_api *api = &v.api;
+    void *e = api->engine;
+    IM_CHECK(demo_begin_video(ctx, milestone));
+
+    IM_CHECK(demo_open_panel(ctx, "Simulation", &v.ui.show_sim));
+    IM_CHECK(demo_open_panel(ctx, "Event ledger", &v.ui.show_ledger));
+    ctx->SetRef("Simulation");
+    ctx->ItemClick("Load sample save");
+    ctx->ItemClick("Load city names");
+    ctx->Yield();
+    u8 player = api->whose_turn(e);
+    u8 city = demo_busiest_city_of_player(api);
+    IM_CHECK(player != ENGINE_NO_FACTION && city != ENGINE_NO_CITY);
+    v.ui.city.selected = city;
+    api->set_city_gold(e, city, 30000);
+
+    /* The Court panel: an officer, 褒賞, then 官職 (the editor gives the merit). */
+    u16 officer = demo_court_officer(api, player, city, ENGINE_NO_OFFICER);
+    IM_CHECK(officer != ENGINE_NO_OFFICER);
+    IM_CHECK(demo_open_panel(ctx, "###Court", &v.ui.show_court));
+    ctx->SetRef("###Court");
+    char item[64];
+    snprintf(item, sizeof(item), "###court_officer/###o%u", officer);
+    ctx->ComboClick(item);
+    ctx->SleepStandard();
+    u32 loyalty = api->officer_detail(e, officer).loyalty;
+    ctx->ItemClick("###reward");
+    IM_CHECK(api->officer_detail(e, officer).loyalty > loyalty);
+    engine_officer_detail detail = api->officer_detail(e, officer);
+    engine_officer record = api->officer_by_id(e, officer);
+    engine_officer_edit edit = {};
+    edit.loyalty = detail.loyalty; edit.ambition = detail.ambition; edit.justice = detail.justice; edit.personality = detail.personality;
+    edit.growth = detail.growth; edit.female = detail.female; edit.merit = 4000; edit.captor = ENGINE_NO_FACTION;
+    (void)record;
+    api->set_officer(e, officer, &edit);
+    ctx->ComboClick("###post/###p64");                       /* 主簿 */
+    ctx->ItemClick("###appoint");
+    IM_CHECK(api->officer_detail(e, officer).post == 64 && api->officer_detail(e, officer).soldier_cap == 6000);
+    ctx->SleepStandard();
+
+    /* The Diplomacy panel: 親善 with another faction. */
+    u8 other = ENGINE_NO_FACTION;
+    for (u32 index = 0; index < api->faction_count(e) && other == ENGINE_NO_FACTION; ++index)
+    {
+        engine_faction faction = api->faction_at(e, index);
+        if (faction.force_id != player && api->force_ruler(e, faction.force_id) != ENGINE_NO_OFFICER) other = faction.force_id;
+    }
+    IM_CHECK(other != ENGINE_NO_FACTION);
+    IM_CHECK(demo_open_panel(ctx, "###Diplomacy", &v.ui.show_diplomacy));
+    ctx->SetRef("###Diplomacy");
+    snprintf(item, sizeof(item), "factions/###f%u", other);
+    ctx->ItemClick(item);
+    u16 envoy = demo_court_officer(api, player, city, officer);
+    snprintf(item, sizeof(item), "###envoy/###o%u", envoy);
+    ctx->ComboClick(item);
+    u32 friendliness = api->diplomacy(e, player, other).friendliness;
+    ctx->ItemClick("###goodwill");
+    IM_CHECK(api->diplomacy(e, player, other).friendliness > friendliness);
+    ctx->SleepStandard();
+    v.ui.show_court = v.ui.show_diplomacy = false;
+
+    /* A duel: a sortie, an enemy unit next to it (the editor), 單挑 from the
+       unit menu, then the duel screen. */
+    api->set_city_resource(e, city, SIM_RESOURCE_WEAPONS, 0, 20000);
+    api->set_city_resource(e, city, SIM_RESOURCE_SOLDIERS, 0, 30000);
+    engine_sortie_order order = api->sortie_proposal(e, city, 1);
+    order.soldiers = 3000; order.grain = 3000;
+    IM_CHECK(api->command_sortie(e, &order).refusal == SIM_REFUSAL_NONE);
+    u32 unit_id = demo_unit_of(api, player);
+    order = api->sortie_proposal(e, city, 1);
+    order.soldiers = 3000; order.grain = 3000;
+    IM_CHECK(api->command_sortie(e, &order).refusal == SIM_REFUSAL_NONE);
+    u32 foe = ENGINE_NO_UNIT;
+    for (u32 id = 0; id < api->unit_count(e); ++id)
+    {
+        engine_unit other_unit = api->unit_at(e, id);
+        if (other_unit.id != ENGINE_NO_UNIT && other_unit.id != unit_id && other_unit.force_id == player) foe = id;
+    }
+    engine_unit unit = api->unit_at(e, unit_id);
+    hex_coord foe_hex = demo_free_neighbor(api, &unit, hex_make(unit.q, unit.r));
+    IM_CHECK(foe != ENGINE_NO_UNIT && api->set_unit_place(e, foe, other, foe_hex.q, foe_hex.r));
+    u16 foe_commander = api->unit_at(e, foe).officers[0];
+    engine_officer_detail foe_detail = api->officer_detail(e, foe_commander);
+    edit = {};
+    edit.loyalty = foe_detail.loyalty; edit.ambition = foe_detail.ambition; edit.justice = foe_detail.justice;
+    edit.personality = PERSONALITY_RECKLESS; edit.growth = foe_detail.growth; edit.female = foe_detail.female;
+    edit.merit = api->officer_by_id(e, foe_commander).merit; edit.captor = ENGINE_NO_FACTION;
+    api->set_officer(e, foe_commander, &edit);
+    v.ui.map.zoom = 8.0f;
+    IM_CHECK(demo_open_panel(ctx, "Hex map", &v.ui.show_map));
+    for (u32 attempt = 0; attempt < 6 && !api->duel_view(e).active; ++attempt)
+    {
+        if (attempt) demo_next_turn_of(ctx, api, player);
+        unit = api->unit_at(e, unit_id);
+        demo_unit_order(ctx, v, &unit, "###duel", false);
+        ctx->WindowFocus("//Hex map");
+        demo_click_cell(ctx, v, foe_hex);
+        ctx->Yield(2);
+    }
+    IM_CHECK(api->duel_view(e).active && v.ui.show_duel);
+    ctx->SetRef("###Duel");
+    ctx->ItemClick("###policy2");                            /* 重視鬥志 */
+    ctx->ItemClick("###duel_round");
+    ctx->ItemClick("###duel_round");
+    IM_CHECK(api->duel_view(e).round >= 1 || !api->duel_view(e).active);
+    ctx->SleepStandard();
+    ctx->ItemClick("###duel_auto");
+    IM_CHECK(!api->duel_view(e).active && api->duel_view(e).result != DUEL_RESULT_NONE);
+    ctx->SleepStandard();
+
+    /* A debate of two officers (the editor starts it), on its screen. */
+    u16 a = demo_court_officer(api, player, city, ENGINE_NO_OFFICER);
+    u16 b = demo_court_officer(api, player, city, a);
+    IM_CHECK(api->start_debate(e, a, b).refusal == SIM_REFUSAL_NONE);
+    ctx->Yield(2);
+    IM_CHECK(v.ui.show_debate);
+    ctx->SetRef("###Debate");
+    if (api->debate_view(e).active && !api->debate_view(e).finished)
+    {
+        if (api->debate_view(e).turn == 0) ctx->ItemClick("###card0");
+        else                               ctx->ItemClick("###debate_round");
+    }
+    ctx->SleepStandard();
+    if (api->debate_view(e).active && !api->debate_view(e).finished) ctx->ItemClick("###debate_auto");
+    IM_CHECK(api->debate_view(e).finished);
+    ctx->SleepStandard();
+    if (api->debate_view(e).winner == 0) ctx->ItemClick("###sympathy");
+    else                                 ctx->ItemClick("###debate_close");
+    IM_CHECK(!api->debate_view(e).active);
+    b32 rewarded = false, appointed = false, goodwill = false, duel = false, debate = false;
+    for (u32 index = 0; index < api->ledger_count(e); ++index)
+    {
+        sim_event_kind kind = api->ledger_at(e, index).kind;
+        rewarded  |= kind == SIM_EVENT_LOYALTY_CHANGED;
+        appointed |= kind == SIM_EVENT_POST_APPOINTED;
+        goodwill  |= kind == SIM_EVENT_FRIENDLINESS_CHANGED;
+        duel      |= kind == SIM_EVENT_DUEL_ENDED;
+        debate    |= kind == SIM_EVENT_DEBATE_ENDED;
+    }
+    IM_CHECK(rewarded && appointed && goodwill && duel && debate);   /* the ledger has each step */
+    v.ui.show_court = v.ui.show_diplomacy = true;
+    ctx->Yield(2);
+
+    IM_CHECK(demo_end_video(ctx));
+
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Court", "court"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Diplomacy", "diplomacy"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Duel", "duel"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Debate", "debate"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "Event ledger", "event_ledger"));
+}
+
 internal void
 register_demo_tests(ImGuiTestEngine *e)
 {
@@ -1016,4 +1188,9 @@ register_demo_tests(ImGuiTestEngine *e)
     t->SetVarsDataType<demo_vars>();
     t->GuiFunc  = demo_gui;
     t->TestFunc = demo_m6_battle;
+
+    t = IM_REGISTER_TEST(e, "demo", "m7_court");
+    t->SetVarsDataType<demo_vars>();
+    t->GuiFunc  = demo_gui;
+    t->TestFunc = demo_m7_court;
 }
