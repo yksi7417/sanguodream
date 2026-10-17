@@ -29,6 +29,7 @@ run_tests.bat --e2e
 | 13 | Calendar and turn: dates, the turn order and action points | code/sim/calendar.h, code/sim/turn.cpp, data/placeholder/rules.tsv | tests/unit/calendar_tests.cpp, turn_tests.cpp, tests/feature/turn_tests.cpp |
 | 14 | The develop command: facilities, slots, periods and refusals | code/sim/tables.h, content.h, develop.cpp, code/ui/ui_city.cpp, data/placeholder/facilities.tsv, cities.tsv | tests/unit/content_tests.cpp, develop_tests.cpp, tests/feature/develop_tests.cpp, tests/ui/ui_tests.cpp |
 | 15 | Economy: production, durability and the five city commands | code/sim/economy.cpp, city_commands.cpp, code/ui/ui_city_commands.cpp, ui_economy.cpp, data/placeholder/rules.tsv, weapons.tsv | tests/unit/economy_tests.cpp, tests/feature/economy_tests.cpp, city_command_tests.cpp, tests/ui/ui_tests.cpp |
+| 16 | Growth: research, merge, disasters and the end of the game | code/sim/research.cpp, merge.cpp, disasters.cpp, outcome.cpp, code/engine/engine_growth.cpp, code/ui/ui_growth.cpp, data/placeholder/techniques.tsv, disasters.tsv | tests/unit/growth_tests.cpp, tests/feature/growth_tests.cpp, tests/ui/ui_tests.cpp |
 
 You will see these conventions everywhere:
 - `internal` means `static`: the function is private to its translation

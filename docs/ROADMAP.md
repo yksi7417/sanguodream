@@ -207,10 +207,29 @@ Spec input: mechanics/{market,upkeep,tax,harvest}.md with a 12-month trace.
 - Tests: the fixture trace of one untouched city for 12 months matches within tolerance; a ui ledger filter test.
 - UI: ledger filters by settlement and resource; an economy summary panel.
 
-### M4 Recruitment and training
-Spec input: mechanics/{recruit,train,conscript}.md.
-- Engine: unit_types.tsv, troops as a resource with quality; training as a facility yield.
-- Tests: fixtures; a feature test that recruitment respects facility capacity.
+### M4 Growth: techniques, merge, disasters, the end of the game
+Status (2026-10-17): done (tutorial 16). The spec input was
+mechanics/research-techniques.md, cities-and-facilities.md,
+weapons-and-production.md, calendar-and-turn.md and skills.md.
+techniques.tsv has the 36 techniques with the documented costs. The
+research command keeps up to three officers busy for an assumed period
+(Q-161). The effects are flags; M4 applies the morale cap, the facility
+recovery, the strong weapons and the order loss. The merge command raises
+a facility to level 2 and 3 (Q-163). The PK facilities have the effects of
+the commands that exist (Q-164). disasters.tsv gives the locusts, the
+plague, the bandits and the good harvest as calendar events with assumed
+numbers (Q-162). The engine checks victory and defeat at the start of each
+turn (Q-165). The game setting "disasters" turns the rolls off. The demo
+is "demo/m4_growth". FEATURES.md marks F-007, F-008, F-023, F-024, F-028
+and F-040 to F-043 as built.
+The first plan of M4 named recruitment and training. M3 built the
+conscription per barracks and the train command. unit_types.tsv and the
+quality of troops move to M5 with the unit classes (F-080).
+
+Spec input: mechanics/research-techniques.md, cities-and-facilities.md, calendar-and-turn.md.
+- Engine: techniques.tsv and the research command; the merge; disasters.tsv as calendar events; victory and defeat.
+- API: `technique_kind_at`, `faction_techniques`, `command_research`, `command_merge`, `city_disasters`, `outcome`, `settings`.
+- Tests: feature tests for each refusal, effect and disaster; the random rolls start each disaster only in its months.
 
 ### M5 Movement and the map proper
 Spec input: formats/map.md (terrain per cell, roads, rivers), mechanics/movement.md (costs per movement class, ZOC, stack rules).
