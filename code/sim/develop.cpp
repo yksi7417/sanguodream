@@ -1,10 +1,10 @@
 /* The development area of a city and the develop command (開發;
    city-commands.md, cities-and-facilities.md). Included by sim.cpp.
 
-   PLACEHOLDER LAYOUT. The spec gives the slot count of each city but not
-   the shape of the slots (Q-145). Until it does, slot 0 to 5 are the ring
-   of hexes next to the city, slot 6 to 17 the second ring, and so on. The
-   city stands on a grid of the placeholder map. */
+   On the real map (M10) the slots are the 開發地 hexes of map\hexes.tsv
+   (Q-145 resolved). On the placeholder map, slot 0 to 5 are the ring of
+   hexes next to the city, slot 6 to 17 the second ring, and so on, and the
+   city stands on a grid. */
 
 #define SIM_SITE_GRID_COLUMNS 7
 #define SIM_SITE_GRID_STEP_COL 5
@@ -35,24 +35,46 @@ sim_city_slot_hex(u32 slot)
     return hex;
 }
 
-/* Lays out the slots of every city from the city table, all empty. */
+/* The hex of a slot: the slot of the real map (M10), else the spiral of
+   the placeholder layout. */
+internal hex_coord
+sim_site_slot_hex(sim_state *sim, u32 city_id, u32 slot_index)
+{
+    sim_map_layers *layers = &sim->map_layers;
+    if (layers->loaded && city_id < SAVE_CITY_COUNT && slot_index < layers->slot_count[city_id]) return layers->slot_hex[city_id][slot_index];
+    return hex_add(sim->sites[city_id].hex, sim_city_slot_hex(slot_index));
+}
+
+/* Lays out the slots of every city, all empty. On the real map (M10) the
+   city stands on its centre hex and the slots are the 開發地 of the map
+   (F-151: a slot in a port region belongs to the city of the port). On the
+   placeholder map the slot count comes from the city table. */
 internal void
 sim_init_sites(sim_state *sim)
 {
+    sim_map_layers *layers = &sim->map_layers;
     for (u32 city_id = 0; city_id < SAVE_CITY_COUNT; ++city_id)
     {
         sim_city_site *site = sim->sites + city_id;
-        hex_offset offset;
-        offset.col = (s32)(SIM_SITE_GRID_MARGIN + (city_id % SIM_SITE_GRID_COLUMNS) * SIM_SITE_GRID_STEP_COL);
-        offset.row = (s32)(SIM_SITE_GRID_MARGIN + (city_id / SIM_SITE_GRID_COLUMNS) * SIM_SITE_GRID_STEP_ROW);
-        site->hex = hex_from_offset(offset);
         u32 slots = city_id < sim->content.city_count ? sim->content.cities[city_id].slot_count : 0;
+        if (layers->loaded)
+        {
+            site->hex = layers->base_hex[city_id];
+            slots     = layers->slot_count[city_id];
+        }
+        else
+        {
+            hex_offset offset;
+            offset.col = (s32)(SIM_SITE_GRID_MARGIN + (city_id % SIM_SITE_GRID_COLUMNS) * SIM_SITE_GRID_STEP_COL);
+            offset.row = (s32)(SIM_SITE_GRID_MARGIN + (city_id / SIM_SITE_GRID_COLUMNS) * SIM_SITE_GRID_STEP_ROW);
+            site->hex = hex_from_offset(offset);
+        }
         site->slot_count = (u8)(slots < SIM_SLOT_CAPACITY ? slots : SIM_SLOT_CAPACITY);
         for (u32 slot_index = 0; slot_index < SIM_SLOT_CAPACITY; ++slot_index)
         {
             sim_slot *slot = site->slots + slot_index;
             *slot = {};
-            slot->hex      = hex_add(site->hex, sim_city_slot_hex(slot_index));
+            slot->hex      = sim_site_slot_hex(sim, city_id, slot_index);
             slot->state      = SIM_SLOT_EMPTY;
             slot->facility   = CONTENT_NO_FACILITY;
             slot->job_weapon = CONTENT_NO_WEAPON;

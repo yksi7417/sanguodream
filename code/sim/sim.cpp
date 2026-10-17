@@ -2,6 +2,7 @@
 #include "sim/save_format.cpp"
 #include "sim/scenario_format.cpp"
 #include "sim/content.cpp"
+#include "sim/map.cpp"
 
 internal void
 sim_init(sim_state *sim, memory_arena *arena, u64 seed)
@@ -68,8 +69,8 @@ sim_set_content(sim_state *sim, sim_content *content)
     sim_init_sites(sim);
 }
 
-/* The real map's size and terrain come from spec-src/spec/formats/ once the
-   scenario format is documented; until then callers pass a placeholder. */
+/* The size of the map: the size of map\hexes.tsv of the pack (M10), or the
+   size of the placeholder map that the caller gives. */
 internal void
 sim_init_map(sim_state *sim, memory_arena *arena, u32 width, u32 height, u8 default_cost)
 {
@@ -78,6 +79,15 @@ sim_init_map(sim_state *sim, memory_arena *arena, u32 width, u32 height, u8 defa
        cell, with room. */
     sim->scratch = arena_sub(arena, (u64)width * height * 128 + Kilobytes(64));
     sim->fire    = PushArray(arena, (u64)width * height, u8);   /* the turns of fire of each cell (M6) */
+    /* M10: the layers of the real map; map.cpp fills them when the pack has a map. */
+    sim_map_layers *layers = &sim->map_layers;
+    *layers = {};
+    layers->region = PushArray(arena, (u64)width * height, u8);
+    layers->trap   = PushArray(arena, (u64)width * height, u8);
+    layers->flags  = PushArray(arena, (u64)width * height, u8);
+    layers->height = PushArray(arena, (u64)width * height, u8);
+    for (u32 cell = 0; cell < width * height; ++cell) layers->region[cell] = SIM_MAP_NO_REGION;
+    for (u32 region = 0; region < SIM_MAP_REGION_CAPACITY; ++region) layers->base_city[region] = SIM_NO_CITY;
 }
 
 /* xorshift64*: small, fast, deterministic across compilers. */
@@ -664,6 +674,8 @@ sim_event_name(sim_event_kind kind)
         case SIM_EVENT_OFFICER_TRAINED:         return "officer_trained";
         case SIM_EVENT_HISTORY_FIRED:           return "history_fired";
         case SIM_EVENT_ENDING:                  return "ending";
+        case SIM_EVENT_BANDIT_SITE:             return "bandit_site";
+        case SIM_EVENT_ROCKFALL_RETURNED:       return "rockfall_returned";
         default:                                return "?";
     }
 }

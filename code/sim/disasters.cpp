@@ -82,6 +82,22 @@ sim_start_disaster(sim_state *sim, city_component *city, u32 disaster, u32 cause
     disaster_kind *kind = sim->content.disasters + disaster;
     b32 runs = kind->turns > 0 || kind->ends_at_order;
     sim_emit_city(sim, SIM_EVENT_DISASTER_STARTED, city, (s32)kind->turns, disaster, true, cause, events);
+    /* F-150 (M10): bandits come out of a bandit site of the city: an
+       empty site without fire, from up to 10 candidates. */
+    if (kind->low_order_only && sim->map_layers.loaded)
+    {
+        hex_coord sites[SIM_MAP_BANDIT_CANDIDATES];
+        u32 count = sim_map_bandit_sites(sim, city->city_id, sites, ArrayCount(sites));
+        if (count)
+        {
+            hex_coord site = sites[sim_random_below(sim, count)];
+            sim_event event = sim_event_make(sim, SIM_EVENT_BANDIT_SITE, cause);
+            event.subject = sim_city_entity(sim, city->city_id);
+            event.detail  = hex_map_index(&sim->map, site);
+            event.assumed = true;
+            sim_emit(events, event);
+        }
+    }
     if (kind->start_order_loss) sim_disaster_order_loss(sim, city, disaster, kind->start_order_loss, cause, events);
     if (!runs)
     {

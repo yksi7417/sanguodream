@@ -257,7 +257,7 @@ sim_is_critical(sim_state *sim, sim_unit *attacker, u32 action, sim_target *targ
 
 internal void sim_set_unit_state(sim_state *sim, u32 unit_id, sim_unit_state state, u32 turns, u32 cause, sim_event_sink *events);   /* field.cpp */
 internal void sim_trigger_trap(sim_state *sim, u32 building_id, u32 direction, u32 cause, sim_event_sink *events);                  /* field.cpp */
-internal void sim_start_fire(sim_state *sim, hex_coord hex, u32 cause, sim_event_sink *events);                                     /* field.cpp */
+/* sim_start_fire and sim_fire_turns: sim.h (field.cpp) */
 
 internal void
 sim_change_morale(sim_state *sim, u32 unit_id, s32 change, u32 cause, sim_event_sink *events)
@@ -910,7 +910,7 @@ sim_tactic_effect(sim_state *sim, u32 unit_id, tactic_kind *tactic, hex_coord to
             if (target_alive) sim_set_unit_state(sim, target_id, UNIT_STATE_CONFUSED, tactic->value, cause, events);
             break;
         case TACTIC_FIRE:
-            sim_start_fire(sim, to, cause, events);
+            sim_start_fire(sim, to, sim_fire_turns(sim, true), cause, events);   /* a fire from an attack: 1 to 3 turns */
             break;
         default:
             break;

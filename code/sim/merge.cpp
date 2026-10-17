@@ -136,7 +136,7 @@ sim_complete_merge(sim_state *sim, city_component *city, sim_slot *slot, u32 slo
         u32 level = slot->level + absorbed->level;
         slot->level = (u8)(level < SIM_MAX_FACILITY_LEVEL ? level : SIM_MAX_FACILITY_LEVEL);
         *absorbed = {};
-        absorbed->hex        = hex_add(site->hex, sim_city_slot_hex(absorbed_index));
+        absorbed->hex        = sim_site_slot_hex(sim, city->city_id, absorbed_index);
         absorbed->state      = SIM_SLOT_EMPTY;
         absorbed->facility   = CONTENT_NO_FACILITY;
         absorbed->job_weapon = CONTENT_NO_WEAPON;

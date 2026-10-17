@@ -180,6 +180,9 @@ enum sim_event_kind
     SIM_EVENT_OFFICER_TRAINED,      /* subject = the officer; faction; detail = the row; delta = the rise */
     SIM_EVENT_HISTORY_FIRED,        /* faction; detail = the row of history.tsv */
     SIM_EVENT_ENDING,               /* faction; detail = sim_ending_kind */
+    /* M10 */
+    SIM_EVENT_BANDIT_SITE,          /* subject = the city; detail = the cell of the bandit site that bandits use */
+    SIM_EVENT_ROCKFALL_RETURNED,    /* detail = the building of the rockfall */
     SIM_EVENT_COUNT
 };
 
@@ -799,9 +802,46 @@ struct sim_slot
 
 struct sim_city_site
 {
-    hex_coord hex;                                /* the city on the placeholder map */
+    hex_coord hex;                                /* the centre hex of the city */
     u8        slot_count;
     sim_slot  slots[SIM_SLOT_CAPACITY];
+};
+
+/* M10: the layers of the real map (formats/map-data.md) beside the generic
+   hex_map. The engine loads them from the folder map\ of the content pack
+   (map.cpp). Without that folder, loaded stays false and the engine makes
+   the placeholder map. The layers do not change during a game, so a save
+   does not hold them. */
+#define SIM_MAP_FLAG_SLOT      0x01u   /* byte 5: a development slot (開發地) */
+#define SIM_MAP_FLAG_UNKNOWN   0x02u   /* byte 6: the meaning is not known (Q-191) */
+#define SIM_MAP_FLAG_BANDIT    0x04u   /* byte 7: a bandit site */
+#define SIM_MAP_FLAG_FLOOD     0x08u   /* byte 8: the flood zone of a dike */
+#define SIM_MAP_FLAG_EVENT     0x10u   /* byte 10: an event site candidate */
+#define SIM_MAP_TRAP_NONE      0
+#define SIM_MAP_TRAP_DIKE      1
+#define SIM_MAP_TRAP_ROCKFALL  2
+#define SIM_MAP_REGION_CAPACITY 96     /* region ids 0 to 92 */
+#define SIM_MAP_NO_REGION      0xFF
+#define SIM_MAP_HEIGHT_STEP    16      /* the level of the renderer is the height / 16 */
+#define SIM_MAP_BANDIT_CANDIDATES 10   /* terrain-and-map.md: up to 10 bandit sites for each city */
+#define SIM_FIRE_MAX_TURNS     7       /* terrain-and-map.md: the fire count of a hex is 0 to 7 */
+
+enum sim_map_base_type { MAP_BASE_NONE, MAP_BASE_CITY, MAP_BASE_GATE, MAP_BASE_PORT };
+
+struct sim_map_layers
+{
+    b32       loaded;
+    u8       *region;                       /* each cell: the base (0 to 86) or the outer area (87 to 92) of the hex */
+    u8       *trap;                         /* each cell: SIM_MAP_TRAP_* */
+    u8       *flags;                        /* each cell: SIM_MAP_FLAG_* */
+    u8       *height;                       /* each cell: the height 0 to 255 of the terrain mesh */
+    u8        city_kind, port_kind, gate_kind, cliff_kind;   /* the terrain ids of the pack */
+    u8        base_type[SIM_MAP_REGION_CAPACITY];   /* sim_map_base_type, by region id */
+    u8        base_city[SIM_MAP_REGION_CAPACITY];   /* the city of the base (bases.tsv "city"); SIM_NO_CITY for none */
+    hex_coord base_hex[SIM_MAP_REGION_CAPACITY];    /* the position of the base: the centre of a city, the gate hex */
+    hex_coord slot_hex[SAVE_CITY_COUNT][SIM_SLOT_CAPACITY];   /* the slots of each city, in the order of the scan: x, then y */
+    u8        slot_count[SAVE_CITY_COUNT];
+    u32       gate_side_cliffs;             /* the side hexes of the gates that became cliff at the load (F-151) */
 };
 
 /* A unit on the map (military-units-and-tactics.md). The id of a unit is
@@ -993,7 +1033,7 @@ struct sim_base_state
     u8        force;                     /* SIM_NO_FORCE if none */
     u32       durability;
     u32       troops;
-    hex_coord hex;                       /* placeholder: near its owner city (Q-034) */
+    hex_coord hex;                       /* the base hex of the real map (M10); else near its owner city */
 };
 
 #define SIM_CORPS_CAPACITY 8             /* corps 0 is the corps of the ruler */
@@ -1017,7 +1057,9 @@ struct sim_emperor
     u8 city;                             /* the city of the emperor; its owner protects him */
 };
 
-#define SIM_RELIC_COUNT 7                /* one ruin and six temples (events.md) */
+#define SIM_RELIC_COUNT 12               /* the real map: 6 + 6 event sites (terrain-and-map.md, Q-193) */
+#define SIM_RELIC_PLACEHOLDER_COUNT 7    /* the placeholder map: one ruin and six temples (events.md) */
+#define SIM_RELIC_SITES_OF_A_KIND   6
 enum sim_relic_kind { RELIC_RUIN, RELIC_TEMPLE };
 
 struct sim_relic
@@ -1083,6 +1125,7 @@ struct sim_state
     sim_building   buildings[SIM_BUILDING_CAPACITY];
     u32            building_count;  /* the places of buildings[] in use */
     u8            *fire;            /* the turns of fire left on each cell of the map; 0 = no fire */
+    sim_map_layers map_layers;      /* M10: the real map; loaded = false on the placeholder map */
     sim_ruleset    ruleset;
     u32            technique_points[SIM_FORCE_CAPACITY];   /* 技巧P of each faction; the save field is not decoded */
     u64            techniques[SIM_FORCE_CAPACITY];         /* bit t: the faction has technique t (CONTENT_TECHNIQUE_CAPACITY = 64) */
@@ -1287,6 +1330,8 @@ internal sim_unit_values  sim_unit_values_of(sim_state *sim, u8 force, u8 unit_t
 internal u32              sim_unit_soldier_cap(sim_state *sim, u8 force);
 internal terrain_kind    *sim_terrain_at(sim_state *sim, hex_coord hex);
 internal u32              sim_entry_cost(sim_state *sim, u8 force, movement_class movement, hex_coord hex, u32 self);
+internal u32              sim_entry_cost_of(sim_state *sim, u8 force, movement_class movement, u8 unit_type, hex_coord hex, u32 self);   /* M10: the armament row */
+internal u32              sim_terrain_cost(sim_state *sim, movement_class movement, u8 unit_type, u8 terrain_id);   /* M10: no fire, no unit; 0 = cannot enter */
 internal b32              sim_in_enemy_zone(sim_state *sim, u8 force, hex_coord hex, u32 self);
 internal sim_reach        sim_unit_reach(sim_state *sim, u32 unit_id, memory_arena *scratch);
 internal u32              sim_reach_find(sim_reach *reach, hex_coord hex);
@@ -1319,6 +1364,25 @@ internal u32       sim_add_building(sim_state *sim, u8 kind, u8 force, hex_coord
 internal void      sim_run_field_turn(sim_state *sim, u32 cause, sim_event_sink *events);
 internal b32       sim_building_available(sim_state *sim, u8 force, u32 kind_id);
 internal b32       sim_can_place(sim_state *sim, building_kind *kind, hex_coord hex);
+internal u32       sim_fire_turns(sim_state *sim, b32 from_attack);   /* M10: a random count of fire turns */
+internal void      sim_start_fire(sim_state *sim, hex_coord hex, u32 turns, u32 cause, sim_event_sink *events);
+
+/* map.cpp: the real map of the content pack (M10, formats/map-data.md) */
+struct sim_map_load_result
+{
+    b32         ok;
+    const char *detail;   /* a static string: "ok" or the reason */
+    u32         line;     /* the line of the text with the problem, 1 = the first line */
+};
+internal b32                 sim_map_measure_hexes(const char *text, u32 *width, u32 *height);
+internal sim_map_load_result sim_map_load_hexes(sim_state *sim, const char *text);
+internal sim_map_load_result sim_map_load_bases(sim_state *sim, tsv_table *table);
+internal sim_map_load_result sim_map_finish(sim_state *sim);
+internal u32                 sim_map_cell(sim_state *sim, hex_coord hex);   /* U32_MAX off the map */
+internal u8                  sim_map_region_city(sim_state *sim, u8 region);   /* SIM_NO_CITY for an outer area */
+internal u32                 sim_map_slot_neighbours(sim_state *sim, u8 city_id, hex_coord hex);
+internal u32                 sim_map_bandit_sites(sim_state *sim, u8 city_id, hex_coord *out, u32 capacity);
+internal b32                 sim_map_in_flood(sim_state *sim, hex_coord dike, hex_coord hex);
 
 /* officers.cpp, diplomacy.cpp, duel.cpp, debate.cpp (M7) */
 internal void sim_apply_start_settings(sim_state *sim, sim_settings *before);   /* M9 */

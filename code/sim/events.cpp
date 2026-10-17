@@ -645,14 +645,51 @@ sim_trigger_event_command(sim_state *sim, sim_command command, sim_event_sink *e
     sim_event_handle(sim, sim->content.events + command.m8.value, &ctx, true, command.id, events);
 }
 
-/* PLACEHOLDER (Q-034): the ruin and the six temples stand on free hexes
-   that a hash of the map picks, far from the cities. */
+/* M10 (F-150): at the start the game picks 6 event sites (map byte 10)
+   for one kind and 6 for another kind at random. The engine makes the
+   first 6 temples and the next 6 ruins (assumed; Q-193 asks which is
+   which). */
+internal void
+sim_init_relics_on_map(sim_state *sim)
+{
+    hex_coord sites[64];
+    u32 count = 0;
+    sim_map_layers *layers = &sim->map_layers;
+    for (u32 x = 0; x < sim->map.width; ++x)
+    {
+        for (u32 y = 0; y < sim->map.height && count < ArrayCount(sites); ++y)
+        {
+            u32 cell = y * sim->map.width + x;
+            if (layers->flags[cell] & SIM_MAP_FLAG_EVENT) sites[count++] = hex_map_coord(&sim->map, cell);
+        }
+    }
+    u32 wanted = 2 * SIM_RELIC_SITES_OF_A_KIND < SIM_RELIC_COUNT ? 2 * SIM_RELIC_SITES_OF_A_KIND : SIM_RELIC_COUNT;
+    for (u32 placed = 0; placed < wanted && placed < count; ++placed)
+    {
+        u32 pick = placed + sim_random_below(sim, count - placed);   /* a partial shuffle: each site once */
+        hex_coord chosen = sites[pick];
+        sites[pick]   = sites[placed];
+        sites[placed] = chosen;
+        sim_relic *relic = sim->relics + placed;
+        relic->alive = true;
+        relic->kind  = (u8)(placed < SIM_RELIC_SITES_OF_A_KIND ? RELIC_TEMPLE : RELIC_RUIN);
+        relic->hex   = chosen;
+    }
+}
+
+/* PLACEHOLDER: on the placeholder map the ruin and the six temples stand
+   on free hexes that a hash of the map picks, far from the cities. */
 internal void
 sim_init_relics(sim_state *sim)
 {
+    if (sim->map_layers.loaded)
+    {
+        sim_init_relics_on_map(sim);
+        return;
+    }
     u32 placed = 0;
     u32 cells = (u32)sim->map.width * sim->map.height;
-    for (u32 step = 0; step < cells && placed < SIM_RELIC_COUNT; ++step)
+    for (u32 step = 0; step < cells && placed < SIM_RELIC_PLACEHOLDER_COUNT; ++step)
     {
         u32 cell = (step * 2654435761u + 12345u) % (cells ? cells : 1);
         hex_coord hex = hex_map_coord(&sim->map, cell);

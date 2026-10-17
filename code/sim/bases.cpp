@@ -94,7 +94,9 @@ sim_init_bases(sim_state *sim)
         base->force      = city ? city->owner_force_id : (u8)SIM_NO_FORCE;
         base->durability = kind->durability;
         base->troops     = base->force != SIM_NO_FORCE ? sim->content.rules.base_start_troops : 0;
-        base->hex        = sim_place_base(sim, kind);
+        /* M10: the real map gives the hex of each base (bases.tsv of the map). */
+        b32 on_map = sim->map_layers.loaded && kind->id < SIM_MAP_REGION_CAPACITY && sim->map_layers.base_type[kind->id] != MAP_BASE_NONE;
+        base->hex        = on_map ? sim->map_layers.base_hex[kind->id] : sim_place_base(sim, kind);
     }
 }
 

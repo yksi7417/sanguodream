@@ -46,6 +46,15 @@ sim_unit_at(sim_state *sim, hex_coord hex)
 internal u8
 sim_city_at(sim_state *sim, hex_coord hex)
 {
+    /* M10: on the real map a city covers its flower of 7 hexes of 都市. */
+    sim_map_layers *layers = &sim->map_layers;
+    if (layers->loaded)
+    {
+        u32 cell = sim_map_cell(sim, hex);
+        if (cell == U32_MAX || sim->map.kind[cell] != layers->city_kind) return SIM_NO_CITY;
+        u8 region = layers->region[cell];
+        return region < SAVE_CITY_COUNT && sim->city_index[region] != SIM_NO_CITY ? region : (u8)SIM_NO_CITY;
+    }
     for (u32 index = 0; index < sim->cities.count; ++index)
     {
         u8 city_id = sim->cities.data[index].city_id;
@@ -218,25 +227,52 @@ sim_terrain_at(sim_state *sim, hex_coord hex)
     return kind < sim->content.terrain_count ? sim->content.terrains + kind : 0;
 }
 
-/* The cost for a unit of the force to enter the hex, or 0 if it cannot. */
+/* The cost to enter a terrain, without fire and units; 0 if the unit
+   cannot enter. With movement_costs.tsv (M10, F-148) a unit type pays the
+   row of its armament on land and the row of its ship on 河 and 海
+   (terrain-and-map.md). Without the table, or for no unit type, the class
+   costs of terrain.tsv apply. */
 internal u32
-sim_entry_cost(sim_state *sim, u8 force, movement_class movement, hex_coord hex, u32 self)
+sim_terrain_cost(sim_state *sim, movement_class movement, u8 unit_type, u8 terrain_id)
 {
-    terrain_kind *terrain = sim_terrain_at(sim, hex);
-    if (!terrain) return 0;
+    if (terrain_id >= sim->content.terrain_count) return 0;
+    terrain_kind *terrain = sim->content.terrains + terrain_id;
+    b32 water = terrain->cost[MOVEMENT_NAVY] && !terrain->cost[MOVEMENT_FOOT];
+    unit_type_kind *type = sim_unit_type(sim, unit_type);
+    if (type && sim->content.armament_count && (type->armament != CONTENT_NO_ARMAMENT || type->ship != CONTENT_NO_ARMAMENT))
+    {
+        u8 row = water ? type->ship : type->armament;
+        return row < sim->content.armament_count ? sim->content.armaments[row].cost[terrain_id] : 0;
+    }
     /* A land unit on water is a 走舸 and pays the navy cost (manual p.12);
        a siege weapon cannot go on water (M6, assumed: Q-176). */
     if (!terrain->cost[movement] && (movement == MOVEMENT_FOOT || movement == MOVEMENT_CAVALRY) && terrain->cost[MOVEMENT_NAVY])
     {
         movement = MOVEMENT_NAVY;
     }
-    if (!terrain->cost[movement]) return 0;
+    return terrain->cost[movement];
+}
+
+/* The cost for a unit of the force to enter the hex, or 0 if it cannot.
+   self is the unit that moves; unit_type is CONTENT_NO_UNIT_TYPE for the
+   class costs only. */
+internal u32
+sim_entry_cost_of(sim_state *sim, u8 force, movement_class movement, u8 unit_type, hex_coord hex, u32 self)
+{
+    terrain_kind *terrain = sim_terrain_at(sim, hex);
+    if (!terrain) return 0;
+    u32 cost = sim_terrain_cost(sim, movement, unit_type, sim->map.kind[hex_map_index(&sim->map, hex)]);
+    if (!cost) return 0;
     if (terrain->needs_technique != CONTENT_NO_TECHNIQUE && !sim_has_technique(sim, force, terrain->needs_technique)) return 0;
     u32 other = sim_unit_at(sim, hex);
     if (other != SIM_NO_UNIT && other != self) return 0;
     u8 city_id = sim_city_at(sim, hex);
     if (city_id != SIM_NO_CITY && sim_find_city(sim, city_id)->owner_force_id != force) return 0;
-    if (sim_base_at(sim, hex) != SIM_NO_BASE) return 0;   /* M8: a port or a pass blocks the hex (assumed: no unit enters a base) */
+    /* M8: a port or a pass blocks the hex. M10: many routes pass through a
+       port or a pass (siege-and-bases.md), so a unit enters a base of its
+       own faction and stops there, as in an own city (assumed). */
+    u32 base = sim_base_at(sim, hex);
+    if (base != SIM_NO_BASE && sim->bases[base].force != force) return 0;
     /* A building blocks the hex, but a trap hides and does not (M6). */
     u32 building_id = sim_building_at(sim, hex);
     if (building_id != SIM_NO_BUILDING)
@@ -246,9 +282,20 @@ sim_entry_cost(sim_state *sim, u8 force, movement_class movement, hex_coord hex,
         b32 hidden = kind->type == BUILDING_SEED || kind->type == BUILDING_BALL || kind->natural;
         if (!hidden) return 0;
     }
-    u32 cost = terrain->cost[movement];
-    if (sim_hex_burns(sim, hex)) cost += sim->content.rules.fire_extra_cost;   /* fire.md: fire slows a march */
+    /* F-148: to enter a burning hex costs fire.cost_multiplier (4) times the
+       cost of the table; a pack without the rule adds fire.extra_cost. */
+    if (sim_hex_burns(sim, hex))
+    {
+        u32 multiplier = sim->content.rules.fire_cost_multiplier;
+        cost = cost * (multiplier ? multiplier : 1) + sim->content.rules.fire_extra_cost;
+    }
     return cost;
+}
+
+internal u32
+sim_entry_cost(sim_state *sim, u8 force, movement_class movement, hex_coord hex, u32 self)
+{
+    return sim_entry_cost_of(sim, force, movement, CONTENT_NO_UNIT_TYPE, hex, self);
 }
 
 /* True if an enemy unit or a complete enemy military building stands next
@@ -319,12 +366,13 @@ sim_unit_reach(sim_state *sim, u32 unit_id, memory_arena *scratch)
         {
             if (!values.ignores_zoc && sim_in_enemy_zone(sim, unit->force_id, here, unit_id)) continue;
             if (sim_city_at(sim, here) != SIM_NO_CITY) continue;
+            if (sim_base_at(sim, here) != SIM_NO_BASE) continue;   /* M10: an own port or pass (assumed) */
         }
         for (u32 d = 0; d < HEX_DIRECTION_COUNT; ++d)
         {
             hex_coord next = hex_neighbor(here, d);
             if (!hex_map_contains(&sim->map, next)) continue;
-            u32 cost = sim_entry_cost(sim, unit->force_id, type->movement, next, unit_id);
+            u32 cost = sim_entry_cost_of(sim, unit->force_id, type->movement, unit->unit_type, next, unit_id);
             if (!cost) continue;
             u32 next_index = hex_map_index(&sim->map, next);
             u32 total = current.cost + cost;
@@ -364,7 +412,9 @@ sim_emit_unit(sim_state *sim, sim_event_kind kind, u32 unit_id, u8 city_id, s32 
 
 /* ---- 出征 and 輸送 ----------------------------------------------------------- */
 
-/* The first free hex next to the city that the class can enter. */
+/* The first free hex next to the city that the class can enter. On the
+   real map the six neighbours of the centre are the city flower (M10), so
+   the search goes on to the ring of 12 hexes around the flower. */
 internal hex_coord
 sim_sortie_hex(sim_state *sim, u8 city_id, u8 force, movement_class movement, b32 *found)
 {
@@ -377,6 +427,21 @@ sim_sortie_hex(sim_state *sim, u8 city_id, u8 force, movement_class movement, b3
         {
             *found = true;
             return hex;
+        }
+    }
+    /* The ring at distance 2: start two steps in direction 4, then walk the
+       six sides (the directions of hex.h are in order around the hex). */
+    hex_coord hex = hex_neighbor(hex_neighbor(center, 4), 4);
+    for (u32 side = 0; side < HEX_DIRECTION_COUNT; ++side)
+    {
+        for (u32 step = 0; step < 2; ++step)
+        {
+            if (sim_entry_cost(sim, force, movement, hex, SIM_NO_UNIT) && sim_city_at(sim, hex) == SIM_NO_CITY)
+            {
+                *found = true;
+                return hex;
+            }
+            hex = hex_neighbor(hex, side);
         }
     }
     return center;

@@ -25,14 +25,29 @@ sim_set_unit_state(sim_state *sim, u32 unit_id, sim_unit_state state, u32 turns,
 
 /* ---- fire ----------------------------------------------------------------------- */
 
-/* Fire burns on land; water and sand do not burn; a swamp burns 1 turn
-   (manual p.17; the turns are assumed, Q-173). */
+/* The turns of a new fire (terrain-and-map.md, F-149): 1 to 3 at random
+   for a fire from an attack, 1 to 7 for another source (Q-198 asks which
+   action is which). A pack without these rules uses fire.turns. */
+internal u32
+sim_fire_turns(sim_state *sim, b32 from_attack)
+{
+    sim_rules *rules = &sim->content.rules;
+    u32 low  = from_attack ? rules->fire_attack_turns_min : rules->fire_other_turns_min;
+    u32 high = from_attack ? rules->fire_attack_turns_max : rules->fire_other_turns_max;
+    if (!high || high < low) return rules->fire_turns;
+    return low + sim_random_below(sim, high - low + 1);
+}
+
+/* A hex keeps a count of fire turns, 0 to 7 (F-149). A fire stays only on
+   a burnable terrain (the 12 terrains of terrain-and-map.md). On any other
+   terrain (河 and 海 too) a fire starts only on a hex with a unit. */
 internal void
-sim_start_fire(sim_state *sim, hex_coord hex, u32 cause, sim_event_sink *events)
+sim_start_fire(sim_state *sim, hex_coord hex, u32 turns, u32 cause, sim_event_sink *events)
 {
     terrain_kind *terrain = sim_terrain_at(sim, hex);
-    if (!terrain || !sim->fire || sim_hex_is_water(sim, hex) || strcmp(terrain->key, "sand") == 0 || !terrain->cost[MOVEMENT_FOOT]) return;
-    u32 turns = strcmp(terrain->key, "swamp") == 0 ? 1 : sim->content.rules.fire_turns;
+    if (!terrain || !sim->fire || !turns) return;
+    if (!terrain->burnable && sim_unit_at(sim, hex) == SIM_NO_UNIT) return;
+    if (turns > SIM_FIRE_MAX_TURNS) turns = SIM_FIRE_MAX_TURNS;
     u32 cell = hex_map_index(&sim->map, hex);
     if (sim->fire[cell] >= turns) return;
     sim->fire[cell] = (u8)turns;
@@ -117,14 +132,17 @@ sim_building_available(sim_state *sim, u8 force, u32 kind_id)
 
 /* The placement rules of manual p.16: no base and no building on the hex;
    no military facility within 2 hexes of a base or of another military
-   facility; no obstacle or trap within 2 hexes of a base. A fire ship needs
-   water; the others need land that a unit can enter. */
+   facility; no obstacle or trap within 2 hexes of a base. F-147 (M10): a
+   fire ship stands only on 河 and 海; a military facility, an obstacle or
+   a fire trap stands only on a terrain with "buildable" (草地, 土, 砂地
+   and 主徑 in facility-types.tsv). */
 internal b32
 sim_can_place(sim_state *sim, building_kind *kind, hex_coord hex)
 {
     terrain_kind *terrain = sim_terrain_at(sim, hex);
     if (!terrain || sim_building_at(sim, hex) != SIM_NO_BUILDING || sim_city_at(sim, hex) != SIM_NO_CITY || sim_unit_at(sim, hex) != SIM_NO_UNIT) return false;
-    if (kind->water ? !sim_hex_is_water(sim, hex) : !terrain->cost[MOVEMENT_FOOT]) return false;
+    if (sim_base_at(sim, hex) != SIM_NO_BASE) return false;
+    if (kind->water ? !sim_hex_is_water(sim, hex) : !terrain->buildable) return false;
     for (u32 index = 0; index < sim->cities.count; ++index)
     {
         if (hex_distance(sim->sites[sim->cities.data[index].city_id].hex, hex) <= 2) return false;
@@ -245,10 +263,15 @@ sim_trigger_trap(sim_state *sim, u32 building_id, u32 direction, u32 cause, sim_
     }
     else
     {
+        /* F-150 (M10): a dike of the real map floods its fixed zone, the
+           flood hexes of its region (map byte 8). Else a trap reaches its range. */
+        b32 flood_zone = kind->type == BUILDING_DIKE && sim->map_layers.loaded;
         for (u32 index = 0; index < sim->unit_count && count < 16; ++index)
         {
             sim_unit *unit = sim->units + index;
-            if (unit->alive && (u32)hex_distance(unit->hex, building->hex) <= kind->range_max) cells[count++] = unit->hex;
+            if (!unit->alive) continue;
+            b32 hit = flood_zone ? sim_map_in_flood(sim, building->hex, unit->hex) : (u32)hex_distance(unit->hex, building->hex) <= kind->range_max;
+            if (hit) cells[count++] = unit->hex;
         }
         cells[count < 16 ? count++ : 15] = building->hex;
     }
@@ -262,7 +285,7 @@ sim_trigger_trap(sim_state *sim, u32 building_id, u32 direction, u32 cause, sim_
             /* 業火種 can confuse the units in its range (manual p.34). */
             if (kind->type == BUILDING_SEED && kind->range_max > 1) sim_set_unit_state(sim, unit_id, UNIT_STATE_CONFUSED, 2, cause, events);
         }
-        if (kind->type != BUILDING_DIKE && kind->type != BUILDING_ROCKFALL) sim_start_fire(sim, cells[index], cause, events);
+        if (kind->type != BUILDING_DIKE && kind->type != BUILDING_ROCKFALL) sim_start_fire(sim, cells[index], sim_fire_turns(sim, false), cause, events);
     }
     if (kind->type == BUILDING_DIKE && building->city_id != SIM_NO_CITY)
     {
@@ -373,7 +396,7 @@ sim_use_plot(sim_state *sim, sim_command command, sim_event_sink *events)
     switch (plot->effect)
     {
         case PLOT_FIRE:
-            sim_start_fire(sim, order->to, command.id, events);
+            sim_start_fire(sim, order->to, sim_fire_turns(sim, false), command.id, events);
             if (sim_building_at(sim, order->to) != SIM_NO_BUILDING)
             {
                 u32 building = sim_building_at(sim, order->to);
@@ -450,8 +473,8 @@ sim_use_plot(sim_state *sim, sim_command command, sim_event_sink *events)
                 sim_hurt_unit(sim, ids[index], sim_combat_damage(sim, unit->soldiers, mine.intellect, theirs.defence, rules->combat_lightning_percent),
                               order->unit, false, command.id, events);
             }
-            sim_start_fire(sim, order->to, command.id, events);
-            for (u32 d = 0; d < HEX_DIRECTION_COUNT; ++d) sim_start_fire(sim, hex_neighbor(order->to, d), command.id, events);
+            sim_start_fire(sim, order->to, sim_fire_turns(sim, false), command.id, events);
+            for (u32 d = 0; d < HEX_DIRECTION_COUNT; ++d) sim_start_fire(sim, hex_neighbor(order->to, d), sim_fire_turns(sim, false), command.id, events);
             break;
         }
         default:
@@ -525,10 +548,15 @@ sim_run_fire(sim_state *sim, u32 cause, sim_event_sink *events)
             sim_hurt_building(sim, index, rules->fire_building_damage, 0, cause, events);
         }
     }
+    /* Each turn the count goes down by 1; at 0 the fire stops. On an empty
+       hex of a terrain that does not burn, the fire stops at once (F-149). */
     for (u32 cell = 0; cell < sim->map.width * sim->map.height; ++cell)
     {
         if (!sim->fire[cell]) continue;
-        sim->fire[cell]--;
+        hex_coord hex = hex_map_coord(&sim->map, cell);
+        terrain_kind *terrain = sim_terrain_at(sim, hex);
+        if (terrain && !terrain->burnable && sim_unit_at(sim, hex) == SIM_NO_UNIT) sim->fire[cell] = 0;
+        else                                                                       sim->fire[cell]--;
         if (!sim->fire[cell]) sim_emit_unit(sim, SIM_EVENT_FIRE_ENDED, cell, SIM_NO_CITY, 0, false, cause, events);
     }
 }
@@ -546,11 +574,22 @@ sim_run_buildings(sim_state *sim, u32 cause, sim_event_sink *events)
         building_kind *kind = sim->content.buildings + building->kind;
         if (kind->natural)
         {
-            if (!building->complete)
+            if (building->complete) continue;
+            /* F-150 (M10): a used rockfall leaves its site. If the site is
+               empty and does not burn, a new rockfall comes there with a
+               chance of rockfall.return_percent at each check (each turn;
+               Q-196 asks for the interval). A dike recovers slowly. */
+            if (kind->type == BUILDING_ROCKFALL && rules->rockfall_return_percent)
             {
-                building->durability = Minimum(kind->durability, building->durability + rules->natural_recovery);
-                building->complete = building->durability >= kind->durability;
+                if (sim_unit_at(sim, building->hex) != SIM_NO_UNIT || sim_hex_burns(sim, building->hex)) continue;
+                if (sim_random_below(sim, 100) >= rules->rockfall_return_percent) continue;
+                building->durability = kind->durability;
+                building->complete   = true;
+                sim_emit_unit(sim, SIM_EVENT_ROCKFALL_RETURNED, index, SIM_NO_CITY, 0, false, cause, events);
+                continue;
             }
+            building->durability = Minimum(kind->durability, building->durability + rules->natural_recovery);
+            building->complete = building->durability >= kind->durability;
             continue;
         }
         if (!building->complete) continue;
