@@ -8,6 +8,7 @@
 
 internal void ui_draw_city_command_buttons(ui_state *ui);   /* ui_city_commands.cpp */
 internal void ui_draw_growth_buttons(ui_state *ui);         /* ui_growth.cpp */
+internal void ui_draw_march_buttons(ui_state *ui);          /* ui_march.cpp */
 internal void ui_draw_city_disasters(ui_state *ui, engine_api *api, u8 city_id);
 
 internal const char *
@@ -142,6 +143,7 @@ ui_draw_city(ui_state *ui, engine_api *api)
         ui_draw_growth_buttons(ui);
         ImGui::SameLine();
         ui_draw_city_command_buttons(ui);
+        ui_draw_march_buttons(ui);
         ui_draw_city_disasters(ui, api, ui->city.selected);
 
         ImGuiTableFlags flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY;

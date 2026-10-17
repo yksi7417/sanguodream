@@ -22,6 +22,7 @@ ui_label(char *out, u32 out_size, ui_state *ui, const char *text_id, const char 
 #include "ui/ui_city_commands.cpp"
 #include "ui/ui_economy.cpp"
 #include "ui/ui_growth.cpp"
+#include "ui/ui_march.cpp"
 
 /* Writes an overlay colour for one cell of the terrain view, if it is on the map. */
 internal void
@@ -72,6 +73,18 @@ ui_init(ui_state *ui, text_catalog *text)
     ui->merge.absorber        = ENGINE_ANY_SLOT;
     ui->merge.absorbed        = ENGINE_ANY_SLOT;
     ui->show_techniques       = false;
+    ui->show_sortie           = false;
+    ui->show_transport        = false;
+    ui->sortie                = {};
+    ui->transport             = {};
+    ui->sortie.prepared_city    = ENGINE_NO_CITY;
+    ui->transport.prepared_city = ENGINE_NO_CITY;
+    ui->show_unit             = false;
+    ui->show_unit_menu        = false;
+    ui->show_minimap          = false;
+    ui->units                 = {};
+    ui->units.selected        = ENGINE_NO_UNIT;
+    ui->units.supply_target   = ENGINE_NO_UNIT;
     ui->ledger_city           = ENGINE_ANY_CITY;
     ui->ledger_resource       = ENGINE_ANY_RESOURCE;
     ui->text          = text;
@@ -111,6 +124,8 @@ ui_draw_menu_bar(ui_state *ui, engine_api *api, ui_frame_info *frame)
             ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.develop", "Develop"), 0, &ui->show_develop);
             ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.economy", "Economy"), 0, &ui->show_economy);
             ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.techniques", "Techniques"), 0, &ui->show_techniques);
+            ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.unit", "Unit"), 0, &ui->show_unit);
+            ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.minimap", "MiniMap"), 0, &ui->show_minimap);
             ImGui::MenuItem("Event ledger", 0, &ui->show_ledger);
             ImGui::MenuItem("Memory", 0, &ui->show_memory);
             ImGui::Separator();
@@ -348,6 +363,11 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->show_research)   ui_draw_research(ui, api);
     if (ui->show_merge)      ui_draw_merge(ui, api);
     if (ui->show_techniques) ui_draw_techniques(ui, api);
+    if (ui->show_sortie)     ui_draw_march_dialog(ui, api, false);
+    if (ui->show_transport)  ui_draw_march_dialog(ui, api, true);
+    if (ui->show_unit)       ui_draw_unit_panel(ui, api);
+    if (ui->show_unit_menu)  ui_draw_unit_menu(ui, api);
+    if (ui->show_minimap)    ui_draw_minimap(ui, api);
     for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind)
     {
         if (ui->show_command[kind]) ui_draw_city_command(ui, api, kind);

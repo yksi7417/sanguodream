@@ -124,7 +124,7 @@ ui_scene_push(ui_state *ui, engine_api *api, ui_frame_info *frame)
     rc->draw_grid     = ui->scene.grid;
     rc->terrain.width   = view.width;
     rc->terrain.height  = view.height;
-    rc->terrain.kind    = view.kind;
+    rc->terrain.kind    = view.tile ? view.tile : view.kind;   /* the renderer draws the atlas colour */
     rc->terrain.level   = view.level;
     rc->terrain.version = view.version;
 
@@ -135,20 +135,37 @@ ui_scene_push(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->map.has_from)    ui_scene_mark(overlay, view, ui->map.from, 0xB03CDCFFu);
     if (ui->map.has_to)      ui_scene_mark(overlay, view, ui->map.to,   0xB03C5AFFu);
 
-    /* placeholder models and units at fixed cells, until cities and units
-       have positions from the spec */
-    if (!cells) return;
-    for (u32 i = 0; i < 6; ++i)
+    /* The range of the selected unit: green; its hex cyan (ui/unit-commands.md). */
+    if (ui->units.selected != ENGINE_NO_UNIT)
     {
-        hex_offset o;
-        o.col = (s32)((3 + i * 6) % view.width);
-        o.row = (s32)((4 + i * 3) % view.height);
-        hex_coord h = hex_from_offset(o);
-        u32 index = (u32)o.row * view.width + (u32)o.col;
-        render_push_mesh(rc, 0, hex_world_center(h, terrain_level_y(view.level[index])), (f32)i * 0.7f, 1.0f, 0xFFFFFFFFu);
-        o.col = (s32)(((u32)o.col + 2) % view.width);
-        h = hex_from_offset(o);
-        index = (u32)o.row * view.width + (u32)o.col;
-        render_push_billboard(rc, 0, hex_world_center(h, terrain_level_y(view.level[index])), 1.0f, 1.6f, 0xFFFFFFFFu);
+        engine_reach_view reach = api->reachable(api->engine, ui->units.selected);
+        for (u32 index = 0; index < reach.count; ++index)
+        {
+            ui_scene_mark(overlay, view, reach.cells[index], index == 0 ? 0xB0E6DC3Cu : 0x7050F050u);
+        }
+    }
+
+    /* A placeholder model on each city and a billboard on each unit, in the
+       colour of the faction. The art comes from the player's install (M9). */
+    if (!cells) return;
+    for (u32 index = 0; index < api->city_count(api->engine); ++index)
+    {
+        engine_city city = api->city_at(api->engine, index);
+        engine_city_slots slots = api->city_slots(api->engine, city.city_id);
+        hex_coord h = hex_make(slots.q, slots.r);
+        hex_offset o = hex_to_offset(h);
+        if (o.col < 0 || o.row < 0 || (u32)o.col >= view.width || (u32)o.row >= view.height) continue;
+        u32 cell = (u32)o.row * view.width + (u32)o.col;
+        render_push_mesh(rc, 0, hex_world_center(h, terrain_level_y(view.level[cell])), 0.0f, 1.0f, ui_faction_rgba(city.owner_force_id));
+    }
+    for (u32 id = 0; id < api->unit_count(api->engine); ++id)
+    {
+        engine_unit unit = api->unit_at(api->engine, id);
+        if (unit.id == ENGINE_NO_UNIT) continue;
+        hex_coord h = hex_make(unit.q, unit.r);
+        hex_offset o = hex_to_offset(h);
+        if (o.col < 0 || o.row < 0 || (u32)o.col >= view.width || (u32)o.row >= view.height) continue;
+        u32 cell = (u32)o.row * view.width + (u32)o.col;
+        render_push_billboard(rc, 0, hex_world_center(h, terrain_level_y(view.level[cell])), 1.0f, 1.6f, ui_faction_rgba(unit.force_id));
     }
 }

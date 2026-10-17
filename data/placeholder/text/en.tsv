@@ -263,3 +263,77 @@ disaster.locusts	Locusts	蝗災
 disaster.plague	Plague	瘟疫
 disaster.bandits	Bandits	盜賊
 disaster.good_harvest	Good harvest	豐收
+refusal.no_unit	no such unit of this faction
+refusal.unit_acted	the unit acted in this turn
+refusal.unreachable	the hex is out of the move range
+refusal.no_room	no free hex next to the city
+refusal.no_soldiers	the number of soldiers is not possible
+refusal.no_weapons	not sufficient weapons
+refusal.not_adjacent	the unit is not next to the transport unit
+menu.unit	Unit	menu item and panel
+menu.minimap	Mini map	menu item and panel
+minimap.title	Mini map
+city.sortie	Sortie	button: opens 出征
+city.transport	Transport	button: opens 輸送
+sortie.title	Sortie	出征
+transport.title	Transport	輸送
+sortie.unit_type	Class	兵科
+sortie.auto	Auto formation	自動編制
+sortie.soldiers	Soldiers
+sortie.gold	Gold
+sortie.grain	Grain
+transport.destination	Destination
+unit.title	Unit	部隊
+unit.suffix	 unit	after the name of the commander
+unit.none	No unit is selected. Click a unit on the Hex map.
+unit.commander	Commander	主將
+unit.deputy	Deputy	副將
+unit.class	Class	兵科
+unit.attack	Attack
+unit.defence	Defence
+unit.intellect	Intellect
+unit.build	Build
+unit.move	Move
+unit.move_done	Move
+unit.supply	Supply	補給
+unit.supply_target	Unit to supply
+unit.menu	Orders	the unit command menu
+unit_menu.wait	Wait	待命
+unit_menu.attack	Attack	攻擊
+unit_menu.joint	Joint attack	齊攻
+unit_menu.tactic	Tactic	戰法
+unit_menu.duel	Duel	單挑
+unit_menu.plot	Plot	計略
+unit_menu.build	Build	設置
+unit_menu.repair	Repair	修補
+unit_menu.supply	Supply	補給
+unit_menu.retreat	Retreat	退卻
+unit_type.sword	Sword	劍兵
+unit_type.pike	Pike	槍兵
+unit_type.halberd	Halberd	戟兵
+unit_type.crossbow	Crossbow	弩兵
+unit_type.cavalry	Cavalry	騎兵
+unit_type.ram	Ram	衝車
+unit_type.wood_beast	Wood beast	木獸
+unit_type.tower	Tower	井闌
+unit_type.catapult	Catapult	投石
+unit_type.boat	Boat	走舸
+unit_type.tower_ship	Tower ship	樓船
+unit_type.battle_ship	Battle ship	鬥艦
+unit_type.transport	Transport	輸送隊
+terrain.grass	Grass	草地
+terrain.earth	Earth	土
+terrain.main_road	Main road	主徑
+terrain.waste	Waste	荒地
+terrain.sand	Sand	砂地
+terrain.ford	Ford	渡所
+terrain.swamp	Swamp	濕地
+terrain.forest	Forest	森林
+terrain.plank_road	Plank road	棧道
+terrain.small_path	Small path	小徑
+terrain.shallows	Shallows	淺灘
+terrain.poison_spring	Poison spring	毒泉
+terrain.river	River	河
+terrain.sea	Sea	海
+terrain.cliff	Cliff	崖
+terrain.city	City	都市

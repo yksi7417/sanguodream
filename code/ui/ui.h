@@ -33,6 +33,16 @@ struct ui_command_dialog
     int amount;                          /* merchant: the gold to spend or the grain to sell */
 };
 
+/* The 出征 and 輸送 dialogs (M5): the order that 決定 sends. */
+struct ui_march_dialog
+{
+    u8  city;
+    u8  prepared_city;                   /* ENGINE_NO_CITY: choose again */
+    engine_sortie_order order;
+    int soldiers, gold, grain;           /* ImGui writes ints */
+    int cargo[4];                        /* 輸送: pikes, halberds, crossbows, war horses */
+};
+
 struct ui_state
 {
     bool show_demo;
@@ -92,6 +102,21 @@ struct ui_state
         u16 officer;
     } merge;
     bool show_techniques;
+    /* M5: the 出征 and 輸送 dialogs, the selected unit, its menu and panel, the mini map */
+    bool show_sortie;
+    bool show_transport;
+    ui_march_dialog sortie;
+    ui_march_dialog transport;
+    bool show_unit;
+    bool show_unit_menu;
+    bool show_minimap;
+    struct
+    {
+        u32 selected;            /* ENGINE_NO_UNIT if none */
+        u32 supply_target;       /* the unit that 補給 gives to */
+        int supply_gold, supply_grain, supply_soldiers;
+        char message[96];        /* the result of the last unit command */
+    } units;
     u8   ledger_city;            /* the ledger filter: ENGINE_ANY_CITY or a city id */
     u8   ledger_resource;        /* the ledger filter: ENGINE_ANY_RESOURCE or a sim_resource */
     text_catalog *text;      /* the UI strings and the names; owned by the caller */

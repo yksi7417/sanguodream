@@ -103,6 +103,27 @@ global_variable ui_command_case ui_command_cases[] = {
     { "produce_decide_issues_one_command",   "produce_back_issues_nothing",   "###Produce",   "###open_produce",   UI_COMMAND_PRODUCE,   ENGINE_COMMAND_PRODUCE },
 };
 
+/* Moves the mouse to the center of a hex of the Hex map panel and clicks it. */
+internal void
+ui_test_click_cell(ImGuiTestContext *ctx, ui_test_vars &v, hex_coord cell)
+{
+    ctx->WindowFocus("//Hex map");   /* in front of the other panels, so that the click reaches the canvas */
+    ctx->Yield();
+    ImGuiWindow *canvas = ctx->WindowInfo("//Hex map/map_canvas").Window;
+    IM_CHECK(canvas != 0);
+    ctx->SetRef(canvas);
+    ImGuiTestItemInfo cells = ctx->ItemInfo("cells");
+    IM_CHECK(cells.ID != 0);
+    f32 zoom = v.ui.map.zoom;
+    hex_point origin;
+    origin.x = cells.RectFull.Min.x + zoom;
+    origin.y = cells.RectFull.Min.y + zoom;
+    hex_point center = hex_to_pixel(cell, zoom, origin);
+    ctx->MouseMoveToPos(ImVec2(center.x, center.y));
+    ctx->MouseClick(0);
+    ctx->Yield();
+}
+
 internal void
 register_ui_tests(ImGuiTestEngine *e)
 {
@@ -238,6 +259,7 @@ register_ui_tests(ImGuiTestEngine *e)
     {
         ui_test_vars &v = ctx->GetVars<ui_test_vars>();
         v.recorder.city_count = 4;
+        v.ui.show_map         = false;   /* the Hex map panel reads the cities for its overlay; this test counts the Cities panel */
         ctx->SetRef("###Cities");
         ctx->Yield(2);
         IM_CHECK(ctx->ItemExists("cities"));
@@ -492,6 +514,12 @@ register_ui_tests(ImGuiTestEngine *e)
         v.ui.show_research       = true;
         v.ui.show_merge          = true;
         v.ui.show_techniques     = true;
+        v.ui.show_sortie         = true;
+        v.ui.show_transport      = true;
+        v.ui.show_unit           = true;
+        v.ui.show_unit_menu      = true;
+        v.ui.show_minimap        = true;
+        v.ui.units.selected      = 0;
         for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind) v.ui.show_command[kind] = true;
         v.ui.ledger_city         = 1;
         v.ui.ledger_resource     = SIM_RESOURCE_GOLD;
@@ -528,6 +556,7 @@ register_ui_tests(ImGuiTestEngine *e)
     t->TestFunc = [](ImGuiTestContext *ctx)
     {
         ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.ui.show_map = false;   /* the Hex map panel reads the cities for its overlay; this test counts the table panels */
         ctx->SetRef("Simulation");
         recorder_reset(&v.recorder);
         ctx->ItemClick("Load sample save");
@@ -920,6 +949,178 @@ register_ui_tests(ImGuiTestEngine *e)
         recorder_reset(&v.recorder);
         ctx->Yield(2);
         IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_OUTCOME), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* ---- M5: sortie, transport, the units on the map, the menu, the mini map */
+
+    t = IM_REGISTER_TEST(e, "ui", "city_panel_opens_sortie_and_transport_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_city           = true;
+        ctx->SetRef("###City");
+        ctx->Yield();
+        ctx->ComboClick("###city_select/###c1");
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###open_sortie");
+        ctx->SetRef("###City");
+        ctx->ItemClick("###open_transport");
+        ctx->Yield();
+        IM_CHECK(v.ui.show_sortie && v.ui.sortie.city == 1 && v.ui.show_transport && v.ui.transport.city == 1);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "sortie_decide_issues_one_command_sortie");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_sortie         = true;
+        ctx->SetRef("###Sortie");
+        ctx->Yield(2);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_SORTIE_PROPOSAL), 1u);       /* the dialog starts from 自動編制 */
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_UNIT_VALUES), 1u);           /* it shows the values of the unit */
+        IM_CHECK_EQ(v.ui.sortie.order.officers[0], 100u);
+        ctx->ComboClick("###unit_type/###u4");
+        ctx->ComboClick("###officer2/###o101");
+        ctx->ItemInputValue("###soldiers", 2000);
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###decide");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_SORTIE), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        engine_sortie_order sent = v.recorder.last_sortie;
+        IM_CHECK(sent.city_id == 0 && sent.unit_type == 4 && sent.soldiers == 2000 && sent.officers[0] == 100 && sent.officers[1] == 101);
+        IM_CHECK(!v.ui.show_sortie);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "transport_decide_issues_one_command_transport");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_transport      = true;
+        ctx->SetRef("###Transport");
+        ctx->Yield(2);
+        ctx->ComboClick("###destination/###d1");
+        ctx->ItemInputValue("###grain", 800);
+        ctx->ItemInputValue("###cargo0", 300);
+        ctx->Yield();
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###decide");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_TRANSPORT), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        engine_sortie_order sent = v.recorder.last_sortie;
+        IM_CHECK(sent.city_id == 0 && sent.destination == 1 && sent.grain == 800 && sent.cargo[0] == 300 && sent.officers[0] == 100);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "map_click_selects_a_unit_and_moves_it_with_one_command");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        ctx->Yield();
+        recorder_reset(&v.recorder);
+        ui_test_click_cell(ctx, v, hex_make(1, 2));
+        IM_CHECK(v.ui.units.selected == 0 && v.ui.show_unit && !v.ui.show_unit_menu);   /* a click on an own unit selects it */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        ctx->Yield();
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_REACHABLE), 1u);                /* the map shows its range */
+        recorder_reset(&v.recorder);
+        ui_test_click_cell(ctx, v, hex_make(3, 2));
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_MOVE), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(v.recorder.last_unit_command.unit == 0 && v.recorder.last_unit_command.q == 3 && v.recorder.last_unit_command.r == 2);
+        IM_CHECK(v.ui.show_unit_menu);                                                    /* the command menu opens after the move */
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "unit_menu_wait_and_retreat_issue_one_command_each");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.units.selected      = 0;
+        v.ui.show_unit_menu      = true;
+        ctx->SetRef("###UnitMenu");
+        ctx->Yield(2);
+        ImGuiTestItemInfo attack = ctx->ItemInfo("###attack");
+        IM_CHECK(attack.ID != 0 && (attack.ItemFlags & ImGuiItemFlags_Disabled) != 0);   /* 攻擊 is grey until M6 */
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###wait");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_WAIT), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(!v.ui.show_unit_menu);
+        v.ui.show_unit_menu = true;
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->SetRef("###UnitMenu");
+        ctx->ItemClick("###retreat");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_RETREAT), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "transport_supply_issues_one_command_supply");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.units.selected      = 1;
+        v.ui.units.supply_target = ENGINE_NO_UNIT;
+        v.ui.show_unit           = true;
+        ctx->SetRef("###Unit");
+        ctx->Yield(2);
+        ctx->ComboClick("###supply_target/###s0");
+        ctx->ItemInputValue("###supply_gold", 200);
+        ctx->Yield();
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###supply");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_SUPPLY), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(v.recorder.last_unit_command.unit == 1 && v.recorder.last_unit_command.target_unit == 0 && v.recorder.last_unit_command.gold == 200);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "unit_panel_and_minimap_read_and_command_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.units.selected      = 0;
+        v.ui.show_unit           = true;
+        v.ui.show_minimap        = true;
+        recorder_reset(&v.recorder);
+        ctx->Yield(2);
+        ctx->SetRef("###MiniMap");
+        IM_CHECK(ctx->ItemExists("minimap"));
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_UNIT_AT), 2u);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 

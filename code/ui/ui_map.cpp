@@ -4,6 +4,10 @@
 
 #include <math.h>   /* cosf, sinf for the hexagon outline */
 
+/* ui_march.cpp: the units and cities on the map, and the clicks for a unit. */
+internal void ui_draw_map_units(ui_state *ui, engine_api *api, ImDrawList *draw, f32 cell, hex_point origin);
+internal b32  ui_unit_click(ui_state *ui, engine_api *api, hex_coord hex);
+
 internal void
 ui_map_init(ui_state *ui)
 {
@@ -85,6 +89,8 @@ ui_draw_map(ui_state *ui, engine_api *api)
             }
         }
 
+        ui_draw_map_units(ui, api, draw, cell, origin);
+
         /* Reserve the canvas so the child scrolls, and take clicks on it. */
         f32 canvas_w = cell * (1.7320508f * (f32)size.width + 2.0f);
         f32 canvas_h = cell * (1.5f * (f32)size.height + 2.0f);
@@ -95,7 +101,11 @@ ui_draw_map(ui_state *ui, engine_api *api)
             mouse.x = ImGui::GetIO().MousePos.x;
             mouse.y = ImGui::GetIO().MousePos.y;
             hex_coord picked = hex_from_pixel(mouse, cell, origin);
-            if (!ui->map.has_from || ui->map.has_to)
+            if (ui_unit_click(ui, api, picked))
+            {
+                /* the click selected, moved or opened the menu of a unit */
+            }
+            else if (!ui->map.has_from || ui->map.has_to)
             {
                 ui->map.from     = picked;
                 ui->map.has_from = true;
