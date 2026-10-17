@@ -31,6 +31,7 @@ run_tests.bat --e2e
 | 15 | Economy: production, durability and the five city commands | code/sim/economy.cpp, city_commands.cpp, code/ui/ui_city_commands.cpp, ui_economy.cpp, data/placeholder/rules.tsv, weapons.tsv | tests/unit/economy_tests.cpp, tests/feature/economy_tests.cpp, city_command_tests.cpp, tests/ui/ui_tests.cpp |
 | 16 | Growth: research, merge, disasters and the end of the game | code/sim/research.cpp, merge.cpp, disasters.cpp, outcome.cpp, code/engine/engine_growth.cpp, code/ui/ui_growth.cpp, data/placeholder/techniques.tsv, disasters.tsv | tests/unit/growth_tests.cpp, tests/feature/growth_tests.cpp, tests/ui/ui_tests.cpp |
 | 17 | March: terrain, units, the move range and the unit commands | code/sim/units.cpp, code/engine/engine_march.cpp, code/ui/ui_march.cpp, ui_map.cpp, ui_scene.cpp, data/placeholder/terrain.tsv, unit_types.tsv | tests/unit/march_tests.cpp, tests/feature/march_tests.cpp, tests/ui/ui_tests.cpp |
+| 18 | Battle: attacks, tactics, plots, fire, buildings and sieges | code/sim/combat.cpp, code/sim/field.cpp, code/engine/engine_combat.cpp, code/ui/ui_combat.cpp, data/placeholder/tactics.tsv, plots.tsv, buildings.tsv, critical_skills.tsv | tests/unit/combat_tests.cpp, tests/feature/combat_tests.cpp, tests/ui/ui_tests.cpp |
 
 You will see these conventions everywhere:
 - `internal` means `static`: the function is private to its translation
