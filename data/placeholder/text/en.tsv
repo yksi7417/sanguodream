@@ -746,3 +746,137 @@ item.art_of_war	Art of war	孫子兵法
 item.mengde	Mengde new book	孟德新書
 item.seal	Imperial seal	玉璽
 item.bronze_bird	Bronze bird	銅雀
+base.hu_guan	Hu Pass	壺關
+base.hulao	Hulao Pass	虎牢關
+base.tong	Tong Pass	潼關
+base.hangu	Hangu Pass	函谷關
+base.wu_guan	Wu Pass	武關
+base.yangping	Yangping Pass	陽平關
+base.jiange	Jiange	劍閣
+base.jiameng	Jiameng Pass	葭萌關
+base.fushui	Fushui Pass	涪水關
+base.mianzhu	Mianzhu Pass	綿竹關
+base.anping	Anping Port	安平港
+base.gaotang	Gaotang Port	高唐港
+base.xihe	Xihe Port	西河港
+base.baima	Baima Port	白馬港
+base.changyang	Changyang Port	昌陽港
+base.linji	Linji Port	臨濟港
+base.hailing	Hailing Port	海陵港
+base.jiangdu	Jiangdu Port	江都港
+base.ruxu	Ruxu Port	濡須港
+base.dunqiu	Dunqiu Port	頓丘港
+base.guandu	Guandu Port	官渡港
+base.mengjin	Mengjin Port	孟津港
+base.xiexian	Xiexian Port	解縣港
+base.xinfeng	Xinfeng Port	新豐港
+base.xiayang	Xiayang Port	夏陽港
+base.fangling	Fangling Port	房陵港
+base.wuhu	Wuhu Port	蕪湖港
+base.hulin	Hulin Port	虎林港
+base.qua	Qua Port	曲阿港
+base.gouzhang	Gouzhang Port	句章港
+base.wankou	Wankou Port	皖口港
+base.jiujiang	Jiujiang Port	九江港
+base.lukou	Lukou Port	陸口港
+base.poyang	Poyang Port	鄱陽港
+base.luling	Luling Port	廬陵港
+base.xiakou	Xiakou Port	夏口港
+base.huyang	Huyang Port	湖陽港
+base.zhonglu	Zhonglu Port	中廬港
+base.wulin	Wulin Port	烏林港
+base.hanjin	Hanjin Port	漢津港
+base.jiangjin	Jiangjin Port	江津港
+base.luoxian	Luoxian Port	羅縣港
+base.dongting	Dongting Port	洞庭港
+base.gongan	Gongan Port	公安港
+base.wuxian	Wuxian Port	巫縣港
+event.treason	Suspected treason	統一前謀反的嫌疑
+event.bronze_bird	Bronze bird terrace	銅雀台
+event.recommend_civil	Recommendation of a civil officer	推舉－文官
+event.recommend_military	Recommendation of a military officer	推舉－武官
+event.five_tigers	Five tiger generals	五虎將軍
+event.ruins	Ruins found	發現遺跡
+event.temple	Temple found	發現廟宇
+event.destroy_site	Ruins or temple destroyed	破壞遺跡、廟宇
+event.shao_accession	Accession of the young emperor	少帝即位
+event.xian_accession	Accession of emperor Xian	獻帝即位
+event.xian_death	Death of emperor Xian	獻帝駕崩
+event.visit_guanlu	Visit of Guan Lu	旅人訪問・管輅
+event.visit_xushao	Visit of Xu Shao	旅人訪問・許劭
+event.visit_huatuo	Visit of Hua Tuo	旅人訪問・華佗
+event.visit_yuji	Visit of Yu Ji	旅人訪問・于吉
+event.visit_miheng	Visit of Mi Heng	旅人訪問・禰衡
+event.visit_simahui_a	Visit of Sima Hui (pupils)	旅人訪問・司馬徽A
+event.visit_simahui_b	Visit of Sima Hui	旅人訪問・司馬徽B
+event.visit_huangchengyan	Visit of Huang Chengyan	旅人訪問・黃承彥
+event.spouse_help	Help of a spouse	夫婦的助力
+event.sworn_spirit	Spirit of sworn brothers	義兄弟之氣炎
+menu.ruler	Ruler	君主: 評定, 軍團, 軍師
+menu.bases	Bases	港關
+settings.ai	Computer factions act	game setting: the AI factions and the delegated corps give commands
+settings.events	Events	game setting: 事件
+ruler.title	Ruler	panel title: 君主
+ruler.emperor	Emperor	漢帝
+ruler.protector	Protector	the faction that holds the city of the emperor
+ruler.corps	Corps	軍團
+ruler.corps_number	No.	the number of the corps
+ruler.viceroy	Viceroy	都督
+ruler.cities	Cities	the cities of the corps
+ruler.policy	Policy	方針
+ruler.points	Action points	行動力 of the corps
+ruler.create	Create	軍團: new corps
+ruler.change	Change	軍團: reorganize the selected corps
+ruler.dissolve	Dissolve	軍團: dissolve the selected corps
+ruler.adviser	Adviser	軍師
+ruler.adviser_pick	New adviser	the officer to appoint as 軍師
+ruler.appoint_adviser	Appoint	appoint the 軍師
+ruler.no_advice	No advice. Appoint an adviser with intellect 70 or more.	軍師 needed
+ruler.council	Council	評定
+ruler.council_city	Council in	the city of the ruler
+emperor.0	none	no emperor
+emperor.1	Emperor Ling	靈帝
+emperor.2	Emperor Shao	少帝
+emperor.3	Emperor Xian	獻帝
+corps_policy.0	Delegate	委任
+corps_policy.1	Attack a faction	勢力攻略
+corps_policy.2	Attack a city	都市攻略
+corps_flag.0	Produce	生產
+corps_flag.1	Save gold	儲存金錢
+corps_flag.2	Save grain	儲存兵糧
+corps_flag.3	Conscript	補充士兵
+corps_flag.4	Recruit	人才
+corps_flag.5	Attack	攻擊
+corps_flag.6	Transport	輸送物資
+ai.patrol	Patrol	巡察
+ai.conscript	Conscript	徵兵
+ai.develop	Develop	開發
+ai.recruit	Recruit	登庸
+ai.train	Train	訓練
+ai.produce	Produce	生產
+ai.reward	Reward	褒賞
+ai.sortie	Sortie	出征
+ai.research	Research	研究
+ai.goodwill	Goodwill	親善
+bases.title	Bases	panel title: 港關
+bases.name	Name	the base
+bases.kind	Kind	pass or port
+bases.city	City	the owner city
+bases.faction	Faction	the faction that holds the base
+bases.durability	Durability	耐久
+bases.troops	Soldiers	兵力
+base_type.0	pass	關
+base_type.1	port	港
+event.title	Event	the dialog of an event that waits for a choice
+event.officer_a	Officer	the first officer of the event
+event.officer_b	Officer	the second officer of the event
+event_question.treason	The informer says that the viceroy plans a rebellion. Is it treason?	謀反的嫌疑
+event_question.visit_yuji	Yu Ji asks for the help of the city.	于吉
+event_choice.treason.0	It is a slander	the informer loses loyalty
+event_choice.treason.1	It is treason	the viceroy founds a faction
+event_choice.visit_yuji.0	Pay gold	the faction gains technique points
+event_choice.visit_yuji.1	Give soldiers	the city gains soldiers
+event_choice.visit_yuji.2	Arrest him	public order falls
+refusal.no_corps	no such corps, or no free place for a new one	沒有軍團
+refusal.ruler_absent	the ruler is not in the city	君主不在
+refusal.no_event	no event waits for this choice	沒有事件
