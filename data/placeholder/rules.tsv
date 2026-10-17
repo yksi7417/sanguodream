@@ -234,3 +234,22 @@ rumour.loyalty_loss	10	assumed	the loyalty that 流言 takes from the officers o
 skill.fame_percent	150	assumed	名聲 #80: the soldiers of a conscription, in percent
 skill.heart_attack_percent	15	documented	skills.md #22 心攻: 15 percent of the losses join the unit (manual)
 item.seal_technique	50	assumed	officers-and-relations.md, 玉璽: technique points every month; the amount is assumed (Q-177)
+base.gold	100	assumed	the gold that a base gives each month to its city of the same faction (bases-ports-and-passes.md: a base has income only with its city; Q-183)
+base.troop_cap	30000	assumed	the soldiers that a base holds (Q-183)
+base.caps_percent	150	assumed	擴展港關: the caps of a base in percent (Q-183)
+base.start_troops	3000	assumed	the soldiers of a base after a save loads; the save field is not decoded (Q-183)
+corps.commands	3	assumed	the commands of a delegated corps in each turn (knowledge/ai.md; Q-185)
+council.officers	6	documented	city-commands.md, 評定: up to 6 officers
+adviser.intellect	70	documented	factions-corps-and-posts.md: an adviser needs intellect 70 or more
+advice.per_intellect	20	assumed	the adviser shows one proposal for each 20 points of intellect (city-commands.md: a higher intellect gives better advice; Q-186)
+emperor.technique	50	assumed	the technique points of the faction that protects the Han emperor each month (calendar-and-turn.md; the amount is assumed, Q-186)
+emperor.loyalty	1	assumed	the loyalty that Han-respecting officers of the protector gain each month (officers-and-relations.md; Q-186)
+emperor.city	15	assumed	the city of the Han emperor after a save loads: 洛陽 (Q-186)
+event.experience	100	assumed	the experience that an event gives (events.md; Q-184)
+event.merit	500	assumed	the merit that an event gives when the book prints no number (Q-184)
+ai.urgency	20	assumed	the most that the urgency of a proposal adds to its priority (Q-185)
+ai.sortie_soldiers	5000	assumed	the soldiers of a unit that the AI sends out (Q-185)
+ai.sortie_reserve	10000	assumed	the soldiers that the AI keeps in the city after a sortie (Q-185)
+ai.goodwill_gold	8000	assumed	the gold that a city needs for an AI 親善 (Q-185)
+ai.commands	8	assumed	the most commands of an AI faction in one turn (knowledge/ai.md: a small set of options; Q-185)
+corps.ap_divisor	4	assumed	the action points of a delegated corps each turn: max(leadership, charm) of the viceroy divided by this (knowledge/ai.md; Q-185)

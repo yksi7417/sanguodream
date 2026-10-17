@@ -1,0 +1,26 @@
+id	key	name_zh	check	min_days	months	chance	p1	p2	p3	p4	p5	p6	names	status
+# The 21 generic events of events.md (guide book p.56 to p.83). One row for each event; the engine has one handler for each key.
+# check: quarter (day 1 of the months in months), month (day 1 of each month), search (after 探索人材), wait (after 待命 of a unit), none.
+# min_days: the days since the start. chance: percent at each check; most are assumed (Q-184). p1..p6: the numbers of the trigger and the effect, in the order of the handler (tutorial 20).
+# names: the Big5 hex of the officers that the event names (the traveller first), | between names.
+0	treason	統一前謀反的嫌疑	quarter	360	1|4|7|10	30	8	2	5	10	20	0	-	assumed
+1	bronze_bird	銅雀台	month	60	-	100	10	5	6	0	0	0	-	documented
+2	recommend_civil	推舉－文官	month	180	-	10	90	80	200	0	0	0	-	assumed
+3	recommend_military	推舉－武官	month	180	-	10	90	75	70	200	0	0	-	assumed
+4	five_tigers	五虎將軍	quarter	180	1|4|7|10	100	7	10	90	20000	2000	0	-	documented
+5	ruins	發現遺跡	wait	0	-	20	10000	80	100	0	0	0	-	assumed
+6	temple	發現廟宇	wait	0	-	20	1000	80	0	0	0	0	-	assumed
+7	destroy_site	破壞遺跡、廟宇	none	0	-	0	0	0	0	0	0	0	-	documented
+8	shao_accession	少帝即位	month	0	-	50	189	4	0	0	0	0	-	assumed
+9	xian_accession	獻帝即位	month	0	-	50	189	9	0	0	0	0	-	assumed
+10	xian_death	獻帝駕崩	month	0	-	100	234	4	0	0	0	0	-	documented
+11	visit_guanlu	旅人訪問・管輅	search	0	-	100	90	100	0	0	0	0	BADEE078	documented
+12	visit_xushao	旅人訪問・許劭	search	0	-	100	50	100	0	0	0	0	B35CCA6F	documented
+13	visit_huatuo	旅人訪問・華佗	search	0	-	100	90	100	0	0	0	0	B5D8A6EF	documented
+14	visit_yuji	旅人訪問・于吉	search	0	-	100	20000	90	1000	9000	1000	1000	A45FA64E	documented
+15	visit_miheng	旅人訪問・禰衡	search	0	-	100	70	9900	10	1	0	0	F2A5BFC5	documented
+16	visit_simahui_a	旅人訪問・司馬徽A	search	0	-	100	50	100	0	0	0	0	A571B0A8C0B2|BDD1B8AFAB47|C365B2CE|AE7DB166|BDD1B8AFA7A1|A656AED4|C1FAB743|A4A8C071|B6C0A4EBAD5E	documented
+17	visit_simahui_b	旅人訪問・司馬徽B	search	0	-	100	50	100	0	0	0	0	A571B0A8C0B2	documented
+18	visit_huangchengyan	旅人訪問・黃承彥	search	0	-	100	90	10000	100	0	0	0	B6C0A9D3ABDB	documented
+19	spouse_help	夫婦的助力	wait	0	-	50	0	0	0	0	0	0	-	assumed
+20	sworn_spirit	義兄弟之氣炎	wait	0	-	50	60	0	0	0	0	0	-	assumed
