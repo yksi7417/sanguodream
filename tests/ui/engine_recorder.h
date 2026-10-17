@@ -88,6 +88,21 @@ enum recorder_call_kind
     RECORDER_DIPLOMACY,
     RECORDER_DUEL_VIEW,
     RECORDER_DEBATE_VIEW,
+    RECORDER_BASE_COUNT,       /* M8 queries */
+    RECORDER_BASE_AT,
+    RECORDER_BASE_AT_HEX,
+    RECORDER_CORPS_AT,         /* arg = force | corps << 8 */
+    RECORDER_CITY_CORPS,
+    RECORDER_ADVISER,
+    RECORDER_ADVICE,
+    RECORDER_COUNCIL,          /* arg = force | city << 8 */
+    RECORDER_AI_PLAN,
+    RECORDER_EMPEROR,
+    RECORDER_RELIC_COUNT,
+    RECORDER_RELIC_AT,
+    RECORDER_EVENT_KIND_COUNT,
+    RECORDER_EVENT_KIND_AT,
+    RECORDER_PENDING_EVENT,
     RECORDER_END_TURN,        /* commands start here */
     RECORDER_ADVANCE_TURNS,
     RECORDER_LEDGER_CLEAR,
@@ -142,6 +157,13 @@ enum recorder_call_kind
     RECORDER_SET_ITEM_OWNER,
     RECORDER_SET_DIPLOMACY,
     RECORDER_SET_STAMINA,
+    RECORDER_COMMAND_CORPS,        /* arg = the sim_corps_action */
+    RECORDER_COMMAND_ADVISER,      /* arg = the officer */
+    RECORDER_COMMAND_COUNCIL,      /* arg = proposal | city << 8 */
+    RECORDER_COMMAND_EVENT_CHOICE, /* arg = the choice */
+    RECORDER_TRIGGER_EVENT,        /* arg = the event */
+    RECORDER_SET_EMPEROR,
+    RECORDER_SET_BASE,
     RECORDER_CALL_KIND_COUNT
 };
 
@@ -188,6 +210,8 @@ struct engine_recorder
     b32           duel_active;        /* M7: the duel_view and debate_view answers */
     b32           debate_active;
     engine_court_order last_court;    /* the order of the last command_court */
+    b32           pending_active;     /* M8: the pending_event answer */
+    sim_corps_order last_corps;       /* the order of the last command_corps */
 };
 
 internal void
@@ -1182,6 +1206,138 @@ internal void recorder_set_diplomacy(void *o, u8 a, u8 b, u32 friendliness, u8 r
 }
 internal void recorder_set_stamina(void *o, u16 officer_id, u8 stamina) { (void)stamina; recorder_record((engine_recorder *)o, RECORDER_SET_STAMINA, officer_id); }
 
+/* ---- M8: two bases, corps 1, an adviser, two council proposals, an emperor,
+   and a treason event when pending_active ---------------------------------- */
+internal u32 recorder_base_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_BASE_COUNT, 0); return 2; }
+internal engine_base recorder_base_at(void *o, u32 index)
+{
+    recorder_record((engine_recorder *)o, RECORDER_BASE_AT, index);
+    engine_base base = {};
+    base.id = ENGINE_NO_ROW;
+    base.force = ENGINE_NO_FACTION;
+    if (index >= 2) return base;
+    base.id = (u8)(42 + index * 10);
+    snprintf(base.key, sizeof(base.key), "%s", index ? "anping" : "hu_guan");
+    base.type = (u8)index;
+    base.owner_city = 0;
+    base.force = 1;
+    base.durability = base.durability_max = 1000;
+    base.troops = 3000;
+    base.troop_cap = 30000;
+    base.q = 4 + (s32)index;
+    base.r = 2;
+    return base;
+}
+internal u32 recorder_base_at_hex(void *o, s32 q, s32 r) { (void)q; (void)r; recorder_record((engine_recorder *)o, RECORDER_BASE_AT_HEX, 0); return ENGINE_NO_BASE; }
+internal engine_corps recorder_corps_at(void *o, u8 force, u8 corps)
+{
+    recorder_record((engine_recorder *)o, RECORDER_CORPS_AT, (u32)force | ((u32)corps << 8));
+    engine_corps view = {};
+    view.viceroy = ENGINE_NO_OFFICER;
+    view.transport_city = ENGINE_NO_CITY;
+    if (corps != 1) return view;
+    view.alive = true;
+    view.viceroy = 101;
+    view.flags = CORPS_FLAG_ALL;
+    view.city_count = 1;
+    view.action_points = 20;
+    return view;
+}
+internal u8  recorder_city_corps(void *o, u8 city) { recorder_record((engine_recorder *)o, RECORDER_CITY_CORPS, city); return 0; }
+internal u16 recorder_adviser(void *o, u8 force) { recorder_record((engine_recorder *)o, RECORDER_ADVISER, force); return 100; }
+internal engine_plan_view recorder_plan(u32 count)
+{
+    engine_plan_view view = {};
+    view.count = count;
+    for (u32 index = 0; index < count; ++index)
+    {
+        view.items[index].kind = (u8)(index ? SIM_COMMAND_TRAIN : SIM_COMMAND_PATROL);
+        view.items[index].city_id = 0;
+        view.items[index].officer = 100;
+        view.items[index].score = 80 - index * 20;
+        snprintf(view.items[index].key, sizeof(view.items[index].key), "%s", index ? "train" : "patrol");
+    }
+    return view;
+}
+internal engine_plan_view recorder_advice(void *o, u8 force) { recorder_record((engine_recorder *)o, RECORDER_ADVICE, force); return recorder_plan(1); }
+internal engine_plan_view recorder_council(void *o, u8 force, u8 city) { recorder_record((engine_recorder *)o, RECORDER_COUNCIL, (u32)force | ((u32)city << 8)); return recorder_plan(2); }
+internal engine_plan_view recorder_ai_plan(void *o, u8 force) { recorder_record((engine_recorder *)o, RECORDER_AI_PLAN, force); return recorder_plan(2); }
+internal engine_emperor recorder_emperor(void *o)
+{
+    recorder_record((engine_recorder *)o, RECORDER_EMPEROR, 0);
+    engine_emperor view = {};
+    view.who = EMPEROR_XIAN;
+    view.city = 0;
+    view.protector = 1;
+    return view;
+}
+internal u32 recorder_relic_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_RELIC_COUNT, 0); return 0; }
+internal engine_relic recorder_relic_at(void *o, u32 index) { recorder_record((engine_recorder *)o, RECORDER_RELIC_AT, index); engine_relic relic = {}; return relic; }
+internal u32 recorder_event_kind_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_EVENT_KIND_COUNT, 0); return 1; }
+internal engine_event_kind recorder_event_kind_at(void *o, u32 index)
+{
+    recorder_record((engine_recorder *)o, RECORDER_EVENT_KIND_AT, index);
+    engine_event_kind kind = {};
+    kind.id = (u8)index;
+    snprintf(kind.key, sizeof(kind.key), "treason");
+    kind.check = EVENT_CHECK_QUARTER;
+    kind.chance = 30;
+    return kind;
+}
+internal engine_pending_event recorder_pending_event(void *o)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_PENDING_EVENT, 0);
+    engine_pending_event view = {};
+    view.officer_a = view.officer_b = ENGINE_NO_OFFICER;
+    view.city = ENGINE_NO_CITY;
+    view.force = ENGINE_NO_FACTION;
+    if (!r->pending_active) return view;
+    view.active = true;
+    view.force = 1;
+    view.officer_a = 100;
+    view.officer_b = 101;
+    view.choices = 2;
+    return view;
+}
+internal engine_command_result recorder_command_corps(void *o, const sim_corps_order *order)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_COMMAND_CORPS, order->action);
+    r->last_corps = *order;
+    return recorder_unit_result(r);
+}
+internal engine_command_result recorder_command_adviser(void *o, u8 force, u16 officer)
+{
+    (void)force;
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_COMMAND_ADVISER, officer);
+    return recorder_unit_result(r);
+}
+internal engine_command_result recorder_command_council(void *o, u8 force, u8 city, u8 proposal)
+{
+    (void)force;
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_COMMAND_COUNCIL, (u32)proposal | ((u32)city << 8));
+    return recorder_unit_result(r);
+}
+internal engine_command_result recorder_command_event_choice(void *o, u8 choice)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_COMMAND_EVENT_CHOICE, choice);
+    r->pending_active = false;
+    return recorder_unit_result(r);
+}
+internal engine_command_result recorder_trigger_event(void *o, u8 event, u8 force, u8 city, u16 officer)
+{
+    (void)force; (void)city; (void)officer;
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_TRIGGER_EVENT, event);
+    return recorder_unit_result(r);
+}
+internal void recorder_set_emperor(void *o, u8 who, u8 city) { (void)city; recorder_record((engine_recorder *)o, RECORDER_SET_EMPEROR, who); }
+internal void recorder_set_base(void *o, u32 index, u8 force, u32 troops, u32 durability) { (void)force; (void)troops; (void)durability; recorder_record((engine_recorder *)o, RECORDER_SET_BASE, index); }
+
 /* The command kind of the recorder call of a city command. */
 internal recorder_call_kind
 recorder_call_of(engine_command_kind kind)
@@ -1336,6 +1492,28 @@ recorder_make_api(engine_recorder *r)
     api.set_item_owner        = recorder_set_item_owner;
     api.set_diplomacy         = recorder_set_diplomacy;
     api.set_stamina           = recorder_set_stamina;
+    api.base_count            = recorder_base_count;
+    api.base_at               = recorder_base_at;
+    api.base_at_hex           = recorder_base_at_hex;
+    api.corps_at              = recorder_corps_at;
+    api.city_corps            = recorder_city_corps;
+    api.adviser               = recorder_adviser;
+    api.advice                = recorder_advice;
+    api.council               = recorder_council;
+    api.ai_plan               = recorder_ai_plan;
+    api.emperor               = recorder_emperor;
+    api.relic_count           = recorder_relic_count;
+    api.relic_at              = recorder_relic_at;
+    api.event_kind_count      = recorder_event_kind_count;
+    api.event_kind_at         = recorder_event_kind_at;
+    api.pending_event         = recorder_pending_event;
+    api.command_corps         = recorder_command_corps;
+    api.command_adviser       = recorder_command_adviser;
+    api.command_council       = recorder_command_council;
+    api.command_event_choice  = recorder_command_event_choice;
+    api.trigger_event         = recorder_trigger_event;
+    api.set_emperor           = recorder_set_emperor;
+    api.set_base              = recorder_set_base;
     return api;
 }
 

@@ -519,6 +519,9 @@ register_ui_tests(ImGuiTestEngine *e)
         v.ui.show_unit           = true;
         v.ui.show_unit_menu      = true;
         v.ui.show_minimap        = true;
+        v.ui.show_ruler          = true;
+        v.ui.show_bases          = true;
+        v.recorder.pending_active = true;
         v.ui.units.selected      = 0;
         for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind) v.ui.show_command[kind] = true;
         v.ui.ledger_city         = 1;
@@ -1281,6 +1284,99 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_DEBATE_ACTION), 1u);
         IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_COMMAND_DEBATE_ACTION), (u32)(SIM_DEBATE_PLAY | (1 << 8)));
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "ruler_corps_create_and_dissolve_issue_one_command_corps_each");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_ruler          = true;
+        v.ui.ruler.viceroy       = 101;
+        v.ui.ruler.cities        = 1ull << 1;
+        ctx->SetRef("###Ruler");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###corps_create");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_CORPS), 1u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_COMMAND_CORPS), (u32)CORPS_CREATE);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(v.recorder.last_corps.viceroy == 101 && v.recorder.last_corps.cities == (1ull << 1) && v.recorder.last_corps.flags == CORPS_FLAG_ALL);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###corps_dissolve");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_COMMAND_CORPS), (u32)CORPS_DISSOLVE);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(v.recorder.last_corps.corps == 1);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "ruler_adviser_and_council_issue_one_command_each");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_ruler          = true;
+        v.ui.ruler.adviser       = 100;
+        ctx->SetRef("###Ruler");
+        ctx->Yield(2);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_ADVICE), 1u);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###appoint_adviser");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_ADVISER), 1u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_COMMAND_ADVISER), 100u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###council1");   /* the ruler (officer 100) stands in city 0 */
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_COUNCIL), 1u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_COMMAND_COUNCIL), 1u | (0u << 8));
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "event_dialog_choice_issues_one_command_event_choice");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count  = 3;
+        v.recorder.city_count     = 2;
+        v.recorder.pending_active = true;
+        ctx->Yield(2);
+        ctx->SetRef("###Event");
+        IM_CHECK(ctx->ItemExists("###choice0") && ctx->ItemExists("###choice1") && !ctx->ItemExists("###choice2"));
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###choice1");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_EVENT_CHOICE), 1u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_COMMAND_EVENT_CHOICE), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "bases_panel_and_minimap_read_bases_and_command_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_bases          = true;
+        v.ui.show_minimap        = true;
+        recorder_reset(&v.recorder);
+        ctx->Yield(2);
+        ctx->SetRef("###Bases");
+        IM_CHECK(ctx->ItemExists("bases_table"));
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_BASE_AT), 4u);   /* the table and the mini map */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
     t = IM_REGISTER_TEST(e, "ui", "hex_map_draws_buildings_and_fire_and_commands_nothing");

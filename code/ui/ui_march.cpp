@@ -522,6 +522,8 @@ ui_draw_map_units(ui_state *ui, engine_api *api, ImDrawList *draw, f32 cell, hex
 
 /* The whole map in a small panel (terrain-and-map.md, "Map display"):
    cities as large squares and units as diamonds, in the faction colours. */
+internal void ui_draw_minimap_bases(engine_api *api, ImDrawList *draw, ImVec2 base_pos, f32 cell);   /* ui_rivals.cpp */
+
 internal void
 ui_draw_minimap(ui_state *ui, engine_api *api)
 {
@@ -564,6 +566,7 @@ ui_draw_minimap(ui_state *ui, engine_api *api)
                 draw->AddRect(ImVec2(x - cell - 1.0f, y - cell - 1.0f), ImVec2(x + 2.0f * cell + 1.0f, y + 2.0f * cell + 1.0f), border, 0.0f, 0, 1.5f);
             }
         }
+        ui_draw_minimap_bases(api, draw, base, cell);
         for (u32 id = 0; id < api->unit_count(api->engine); ++id)
         {
             engine_unit unit = api->unit_at(api->engine, id);

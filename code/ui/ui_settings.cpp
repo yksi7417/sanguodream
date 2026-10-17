@@ -60,6 +60,17 @@ ui_draw_game_settings(ui_state *ui, engine_api *api)
         settings.disasters = disasters;
         api->set_settings(api->engine, settings);
     }
+    bool ai = settings.ai != 0, events = settings.events != 0;
+    if (ImGui::Checkbox(ui_label(label, sizeof(label), ui, "settings.ai", "ai"), &ai))
+    {
+        settings.ai = ai;
+        api->set_settings(api->engine, settings);
+    }
+    if (ImGui::Checkbox(ui_label(label, sizeof(label), ui, "settings.events", "events"), &events))
+    {
+        settings.events = events;
+        api->set_settings(api->engine, settings);
+    }
 }
 
 internal void

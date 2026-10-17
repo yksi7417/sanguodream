@@ -167,6 +167,18 @@ struct ui_state
         int gold;
         int months;
     } diplomacy;
+    /* M8: the Ruler panel (軍團, 軍師, 評定), the Bases panel, and the event dialog */
+    bool show_ruler;
+    bool show_bases;
+    struct
+    {
+        u16 viceroy;             /* 軍團: the 都督 of a new or changed corps */
+        u64 cities;              /* bit c: the city c goes to the corps */
+        u8  corps;               /* change, dissolve: the selected corps */
+        int policy;              /* sim_corps_policy */
+        u32 flags;               /* sim_corps_flag */
+        u16 adviser;             /* 軍師: the officer to appoint */
+    } ruler;
     u8   ledger_city;            /* the ledger filter: ENGINE_ANY_CITY or a city id */
     u8   ledger_resource;        /* the ledger filter: ENGINE_ANY_RESOURCE or a sim_resource */
     text_catalog *text;      /* the UI strings and the names; owned by the caller */

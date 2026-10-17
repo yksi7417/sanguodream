@@ -25,6 +25,7 @@ ui_label(char *out, u32 out_size, ui_state *ui, const char *text_id, const char 
 #include "ui/ui_march.cpp"
 #include "ui/ui_combat.cpp"
 #include "ui/ui_court.cpp"
+#include "ui/ui_rivals.cpp"
 
 /* Writes an overlay colour for one cell of the terrain view, if it is on the map. */
 internal void
@@ -103,6 +104,14 @@ ui_init(ui_state *ui, text_catalog *text)
     ui->diplomacy.envoy       = ENGINE_NO_OFFICER;
     ui->diplomacy.gold        = 1000;
     ui->diplomacy.months      = 6;
+    ui->show_ruler            = false;
+    ui->show_bases            = false;
+    ui->ruler.viceroy         = ENGINE_NO_OFFICER;
+    ui->ruler.adviser         = ENGINE_NO_OFFICER;
+    ui->ruler.cities          = 0;
+    ui->ruler.corps           = 1;
+    ui->ruler.policy          = CORPS_POLICY_DELEGATE;
+    ui->ruler.flags           = CORPS_FLAG_ALL;
     ui->ledger_city           = ENGINE_ANY_CITY;
     ui->ledger_resource       = ENGINE_ANY_RESOURCE;
     ui->text          = text;
@@ -146,6 +155,8 @@ ui_draw_menu_bar(ui_state *ui, engine_api *api, ui_frame_info *frame)
             ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.minimap", "MiniMap"), 0, &ui->show_minimap);
         ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.court", "Court"), 0, &ui->show_court);
         ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.diplomacy", "Diplomacy"), 0, &ui->show_diplomacy);
+        ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.ruler", "Ruler"), 0, &ui->show_ruler);
+        ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.bases", "Bases"), 0, &ui->show_bases);
             ImGui::MenuItem("Event ledger", 0, &ui->show_ledger);
             ImGui::MenuItem("Memory", 0, &ui->show_memory);
             ImGui::Separator();
@@ -392,6 +403,9 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->show_court)      ui_draw_court(ui, api);
     if (ui->show_diplomacy)  ui_draw_diplomacy(ui, api);
     ui_draw_mini_games(ui, api);   /* the duel and debate screens open when one runs */
+    if (ui->show_ruler)      ui_draw_ruler(ui, api);
+    if (ui->show_bases)      ui_draw_bases(ui, api);
+    ui_draw_event_dialog(ui, api);   /* opens while an event waits for a choice */
     for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind)
     {
         if (ui->show_command[kind]) ui_draw_city_command(ui, api, kind);
