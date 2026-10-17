@@ -551,6 +551,32 @@ struct ancient_officer
     b32  female;
 };
 
+/* M9: one row of history.tsv: a historical event of events.md as data. The
+   engine has one interpreter for the clauses (history.cpp). */
+#define CONTENT_HISTORY_CAPACITY 48
+#define CONTENT_HISTORY_NAMES    8
+#define CONTENT_HISTORY_TEXT     384
+struct history_kind
+{
+    u8   id;
+    char key[CONTENT_KEY_SIZE];       /* the text id is "history.<key>" */
+    u32  chance;                      /* percent at each check */
+    char conditions[CONTENT_HISTORY_TEXT];
+    char effects[CONTENT_HISTORY_TEXT];
+    u8   names[CONTENT_HISTORY_NAMES][OFFICER_FAMILY_NAME_SIZE + OFFICER_GIVEN_NAME_SIZE];
+    u8   name_sizes[CONTENT_HISTORY_NAMES];
+    u32  name_count;
+};
+
+/* M9: one row of portraits.tsv: the age of the second portrait. */
+#define CONTENT_PORTRAIT_CAPACITY 32
+struct portrait_kind
+{
+    u8 name[OFFICER_FAMILY_NAME_SIZE + OFFICER_GIVEN_NAME_SIZE];
+    u8 name_size;
+    u8 age;
+};
+
 /* The numbers of rules.tsv. A missing row leaves 0. */
 struct sim_rules
 {
@@ -735,6 +761,10 @@ struct sim_content
     u32            chart_count;
     ancient_officer ancients[CONTENT_ANCIENT_CAPACITY];
     u32            ancient_count;
+    history_kind   history[CONTENT_HISTORY_CAPACITY];
+    u32            history_count;
+    portrait_kind  portraits[CONTENT_PORTRAIT_CAPACITY];
+    u32            portrait_count;
     sim_rules      rules;
 };
 
@@ -767,6 +797,9 @@ internal b32 content_load_priorities(sim_content *content, tsv_table *table, u32
 internal u8  content_find_event(sim_content *content, const char *key);   /* CONTENT_EVENT_CAPACITY if none */
 internal b32 content_load_chart(sim_content *content, tsv_table *table, u32 *bad_row);      /* M9 */
 internal b32 content_load_ancients(sim_content *content, tsv_table *table, u32 *bad_row);
+internal b32 content_load_history(sim_content *content, tsv_table *table, u32 *bad_row);
+internal b32 content_load_portraits(sim_content *content, tsv_table *table, u32 *bad_row);
+internal b32 content_history_clauses_valid(const char *text, b32 effects, u32 name_count);
 
 internal facility_effect    content_effect_from_name(const char *name);
 internal facility_limit     content_limit_from_name(const char *name);

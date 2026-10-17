@@ -45,9 +45,31 @@ unit_ancient_table_tests(test_counts *counts, memory_arena *arena)
     TEST_CHECK(counts, tsv_parse(bad_text, arena, &bad) && !content_load_ancients(&content, &bad, &bad_row), "a name with an odd number of hex digits is a bad row");
 }
 
+#define UNIT_HISTORY_HEADER "id\tkey\tname_zh\tchance\tconditions\teffects\tnames_zh\tnames\tstatus\n"
+
+internal void
+unit_history_table_tests(test_counts *counts, memory_arena *arena)
+{
+    sim_content content = {};
+    tsv_table table = {};
+    u32 bad_row = 0;
+    char *text = content_test_text(arena, UNIT_HISTORY_HEADER
+                                   "0\tzhao_yun\tx\t100\tdays:30;ruler:@0;free:@1;order_ruler:100\tjoin:@1:100:4000\tx\tBC42B3C6|BBAFB6B3\tx\n"
+                                   "1\topening\tx\t100\tscenario:1;opening\t-\tx\t-\tx\n");
+    TEST_CHECK(counts, tsv_parse(text, arena, &table) && content_load_history(&content, &table, &bad_row) && content.history_count == 2 &&
+                       content.history[0].name_count == 2 && content.history[0].name_sizes[1] == 4 && content.history[0].names[1][0] == 0xBB &&
+                       strcmp(content.history[0].effects, "join:@1:100:4000") == 0 && content.history[1].name_count == 0,
+               "history.tsv: the clauses stay text for the interpreter; the names are Big5 bytes");
+    TEST_CHECK(counts, content_history_clauses_valid("rules:22|23;has:@1", false, 2) && !content_history_clauses_valid("dance:3", false, 2) &&
+                       !content_history_clauses_valid("has:@2", false, 2) && !content_history_clauses_valid("ruler:@0", true, 1) &&
+                       content_history_clauses_valid("-", true, 0) && !content_history_clauses_valid("-", false, 0),
+               "a clause must be a known condition or effect, and each @i an officer of the row");
+}
+
 internal void
 unit_playable_tests(test_counts *counts, memory_arena *arena)
 {
+    unit_history_table_tests(counts, arena);
     unit_chart_table_tests(counts, arena);
     unit_ancient_table_tests(counts, arena);
 }

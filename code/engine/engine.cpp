@@ -103,7 +103,7 @@ engine_load_content(engine *e, const char *folder)
     tsv_table tactics = {}, plots = {}, buildings = {}, criticals = {};
     tsv_table skills = {}, ranks = {}, posts = {}, items = {};
     tsv_table bases = {}, event_rows = {}, priorities = {};
-    tsv_table chart = {}, ancients = {};
+    tsv_table chart = {}, ancients = {}, history = {}, portraits = {};
     u32 bad_row = 0;
     if (!engine_read_table(e, folder, "facilities.tsv", &facilities))      status->detail = "facilities.tsv not found";
     else if (!engine_read_table(e, folder, "cities.tsv", &cities))         status->detail = "cities.tsv not found";
@@ -126,6 +126,8 @@ engine_load_content(engine *e, const char *folder)
     else if (!engine_read_table(e, folder, "ai_priorities.tsv", &priorities)) status->detail = "ai_priorities.tsv not found";
     else if (!engine_read_table(e, folder, "ability_chart.tsv", &chart))     status->detail = "ability_chart.tsv not found";
     else if (!engine_read_table(e, folder, "ancient_officers.tsv", &ancients)) status->detail = "ancient_officers.tsv not found";
+    else if (!engine_read_table(e, folder, "history.tsv", &history))       status->detail = "history.tsv not found";
+    else if (!engine_read_table(e, folder, "portraits.tsv", &portraits))   status->detail = "portraits.tsv not found";
     else if (!content_load_facilities(content, &facilities, &bad_row))    status->detail = "facilities.tsv has a bad row";
     else if (!content_load_cities(content, &cities, &bad_row))            status->detail = "cities.tsv has a bad row";
     else if (!content_load_rules(content, &rules, &bad_row))              status->detail = "rules.tsv has a bad row";
@@ -147,6 +149,8 @@ engine_load_content(engine *e, const char *folder)
     else if (!content_load_priorities(content, &priorities, &bad_row))    status->detail = "ai_priorities.tsv has a bad row";
     else if (!content_load_chart(content, &chart, &bad_row))              status->detail = "ability_chart.tsv has a bad row";
     else if (!content_load_ancients(content, &ancients, &bad_row))        status->detail = "ancient_officers.tsv has a bad row";
+    else if (!content_load_history(content, &history, &bad_row))          status->detail = "history.tsv has a bad row";
+    else if (!content_load_portraits(content, &portraits, &bad_row))      status->detail = "portraits.tsv has a bad row";
     else
     {
         status->loaded          = true;
@@ -171,6 +175,8 @@ engine_load_content(engine *e, const char *folder)
         status->priority_count  = content->priority_count;
         status->chart_count     = content->chart_count;
         status->ancient_count   = content->ancient_count;
+        status->history_count   = content->history_count;
+        status->portrait_count  = content->portrait_count;
         sim_set_content(e->sim, content);
     }
     arena_reset(&e->scratch);

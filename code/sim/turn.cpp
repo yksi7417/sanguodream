@@ -378,6 +378,7 @@ sim_run_calendar(sim_state *sim, u32 cause, sim_event_sink *events)
         sim_run_officers_month(sim, cause, events);   /* M7: loyalty, ranks, ceasefires */
         sim_run_emperor_month(sim, cause, events);    /* M8: the protector of the Han emperor */
         sim_run_events_month(sim, cause, events);     /* M8: the generic events */
+        sim_run_history_month(sim, cause, events);    /* M9: the historical events of history.tsv */
         sim_emit_hook(sim, SIM_EVENT_HOOK_BANDITS, cause, events);
     }
     if (calendar_starts_season(date))

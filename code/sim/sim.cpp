@@ -45,6 +45,8 @@ sim_init(sim_state *sim, memory_arena *arena, u64 seed)
     for (u32 force = 0; force < SIM_FORCE_CAPACITY; ++force) sim->adviser[force] = SIM_NO_OFFICER;   /* M8 */
     sim->pending = {};
     sim_reset_pk(sim);   /* M9 */
+    sim->scenario_number = SIM_NO_SCENARIO;
+    for (u32 row = 0; row < CONTENT_HISTORY_CAPACITY; ++row) sim->history_turn[row] = 0;
     sim->emperor = {};
     sim->ruleset.combat_damage = sim_rule_combat_damage;   /* the generic rule; a pack can set its own */
     sim->ruleset.loyalty_drift = sim_monthly_loyalty_loss;
@@ -254,6 +256,7 @@ sim_apply(sim_state *sim, sim_command command, sim_event_sink *events)
         case SIM_COMMAND_CREATE_OFFICER:   sim_create_officer_command(sim, command, events); break;
         case SIM_COMMAND_RESEARCH_ABILITY: sim_research_ability_command(sim, command, events); break;
         case SIM_COMMAND_TRAIN_OFFICER:    sim_train_officer_command(sim, command, events); break;
+        case SIM_COMMAND_TRIGGER_HISTORY:  sim_trigger_history_command(sim, command, events); break;
         case SIM_COMMAND_DEVELOP:
             sim_develop(sim, command, events);
             break;
@@ -352,6 +355,8 @@ sim_unload_world(sim_state *sim)
     }
     sim->pending = {};
     sim_reset_pk(sim);   /* M9 */
+    sim->scenario_number = SIM_NO_SCENARIO;
+    for (u32 row = 0; row < CONTENT_HISTORY_CAPACITY; ++row) sim->history_turn[row] = 0;
     for (u32 index = 0; index < CONTENT_EVENT_CAPACITY; ++index) sim->event_turn[index] = 0;
     for (u32 index = 0; index < CONTENT_BASE_COUNT; ++index) sim->bases[index] = {};
     for (u32 index = 0; index < SIM_RELIC_COUNT; ++index) sim->relics[index] = {};
@@ -479,6 +484,7 @@ sim_load_save(sim_state *sim, save_file *save, sim_command command, sim_event_si
     u8 player = sim_player_force(sim, &save->header);
     if (player != SIM_NO_FORCE) sim->turns.human[player] = true;
     sim_init_diplomacy(sim);                      /* M7: the save fields of diplomacy are not decoded (Q-180) */
+    sim->scenario_number = save->header.scenario_number;   /* M9: the history.tsv clause scenario */
     sim_init_emperor(sim);                        /* M8: the emperor, the bases and the ruins and temples */
     sim_update_ranks(sim, true, command.id, events);
     sim_init_bases(sim);
@@ -716,6 +722,7 @@ sim_command_name(sim_command_kind kind)
         case SIM_COMMAND_CREATE_OFFICER:  return "create_officer";
         case SIM_COMMAND_RESEARCH_ABILITY: return "research_ability";
         case SIM_COMMAND_TRAIN_OFFICER:   return "train_officer";
+        case SIM_COMMAND_TRIGGER_HISTORY: return "trigger_history";
         default:                          return "?";
     }
 }
@@ -809,3 +816,4 @@ sim_refusal_name(sim_refusal refusal)
 #include "sim/events.cpp"
 #include "sim/ai.cpp"
 #include "sim/pk.cpp"
+#include "sim/history.cpp"

@@ -36,6 +36,7 @@ engine_api_officer_detail(void *opaque, u16 officer_id)
     result.training_turns = officer->training_turns;   /* M9 */
     result.training_row   = officer->training_turns ? officer->training_row : (u8)ENGINE_NO_ROW;
     result.created        = officer->created;
+    result.portrait_stage = sim_portrait_stage(sim, officer);
     u8 acting = sim_whose_turn(sim);
     if (acting != SIM_NO_FORCE && sim_check_recruit_target(sim, acting, officer) == SIM_REFUSAL_NONE)
     {

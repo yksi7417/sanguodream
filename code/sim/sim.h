@@ -281,6 +281,7 @@ enum sim_command_kind
     SIM_COMMAND_CREATE_OFFICER,  /* 新武將: a start-menu and editor command */
     SIM_COMMAND_RESEARCH_ABILITY,/* 研究能力 (PK) */
     SIM_COMMAND_TRAIN_OFFICER,   /* 培育武將 (PK) */
+    SIM_COMMAND_TRIGGER_HISTORY, /* a test and editor command: a row of history.tsv fires now for a faction (m8: force, value = row) */
     SIM_COMMAND_COUNT
 };
 
@@ -979,6 +980,7 @@ struct sim_outcome
 {
     sim_outcome_kind kind;          /* SIM_OUTCOME_NONE while the game runs */
     u8               force_id;      /* the faction of the outcome */
+    u8               ending;        /* M9: sim_ending_kind of a victory */
     b32              lost[SIM_FORCE_CAPACITY];
 };
 
@@ -1109,6 +1111,8 @@ struct sim_state
     u8             ability_uses[SIM_FORCE_CAPACITY][CONTENT_CHART_CAPACITY];
     u32            ability_known[SIM_FORCE_CAPACITY];     /* bit r: the faction researched the row r once */
     sim_ability_job ability_job[SIM_FORCE_CAPACITY];
+    u8             scenario_number;                       /* the number of the save header; SIM_NO_SCENARIO if none */
+    u32            history_turn[CONTENT_HISTORY_CAPACITY]; /* sim turn + 1 when each historical event fired; 0 = not yet */
 };
 
 #define SIM_ENTITY_CAPACITY  4096
@@ -1412,6 +1416,16 @@ internal sim_check sim_check_train_officer(sim_state *sim, sim_pk_order *order);
 internal void      sim_train_officer_command(sim_state *sim, sim_command command, sim_event_sink *events);
 internal void      sim_progress_pk(sim_state *sim, u32 cause, sim_event_sink *events);
 internal void      sim_reset_pk(sim_state *sim);
+
+/* history.cpp (M9): the historical events, the endings, the portraits */
+#define SIM_NO_SCENARIO 0xFF
+enum sim_ending_kind { ENDING_NONE, ENDING_HAN, ENDING_CONQUEST, ENDING_PROSPERITY, ENDING_KIND_COUNT };   /* A 漢朝再興, B 外征繁榮, C 內政繁榮 */
+internal b32       sim_history_ready(sim_state *sim, u32 row, u8 force);
+internal void      sim_run_history_month(sim_state *sim, u32 cause, sim_event_sink *events);
+internal sim_check sim_check_trigger_history(sim_state *sim, sim_m8_order *order);
+internal void      sim_trigger_history_command(sim_state *sim, sim_command command, sim_event_sink *events);
+internal u8        sim_ending_for(sim_state *sim, u8 force);
+internal u8        sim_portrait_stage(sim_state *sim, officer_component *officer);
 
 /* outcome.cpp: victory and defeat (calendar-and-turn.md) */
 internal void sim_check_outcome(sim_state *sim, u32 cause, sim_event_sink *events);

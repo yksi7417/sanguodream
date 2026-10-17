@@ -321,9 +321,141 @@ feature_training_tests(test_counts *counts)
     engine_fixture_destroy(&setup.fixture);
 }
 
+/* ---- F-131: historical events, endings, portraits ---------------------------------------- */
+
+#define FEATURE_HISTORY_GUO_JIA       7
+#define FEATURE_HISTORY_ZHAO_YUN      16
+#define FEATURE_HISTORY_GUO_JIA_DEATH 18
+
+/* The officer whose family and given names are these Big5 bytes in hex. */
+internal u16
+feature_officer_named(engine_api *api, const char *hex)
+{
+    u8 bytes[16];
+    u32 size = 0;
+    for (const char *at = hex; at[0] && at[1] && size < sizeof(bytes); at += 2)
+    {
+        u32 high = (u32)(at[0] <= '9' ? at[0] - '0' : at[0] - 'A' + 10), low = (u32)(at[1] <= '9' ? at[1] - '0' : at[1] - 'A' + 10);
+        bytes[size++] = (u8)(high * 16 + low);
+    }
+    for (u32 index = 0; index < api->officer_count(api->engine); ++index)
+    {
+        engine_officer officer = api->officer_at(api->engine, index);
+        u8 full[16];
+        u32 used = 0;
+        for (u32 at = 0; at < OFFICER_FAMILY_NAME_SIZE && officer.family_name[at]; ++at) full[used++] = officer.family_name[at];
+        for (u32 at = 0; at < OFFICER_GIVEN_NAME_SIZE && officer.given_name[at]; ++at) full[used++] = officer.given_name[at];
+        if (used == size && memcmp(full, bytes, size) == 0) return officer.officer_id;
+    }
+    return ENGINE_NO_OFFICER;
+}
+
+/* The editor makes the officer a captive of the faction: an event can then make it join. */
+internal void
+feature_make_captive(engine_api *api, u16 officer, u8 force)
+{
+    engine_officer_edit edit = feature_edit_of(api, officer);
+    edit.captor = force;
+    api->set_officer(api->engine, officer, &edit);
+}
+
+internal void
+feature_history_tests(test_counts *counts)
+{
+    feature_city_setup setup;
+    feature_rivals_setup_init(&setup);
+    engine_api *api = setup.api;
+    void *e = api->engine;
+    u8 force = setup.force;
+    b32 all_found = api->history_count(e) == 40;
+    for (u32 row = 0; row < api->history_count(e); ++row) all_found &= api->history_at(e, row).names_found == api->history_at(e, row).name_count;
+    TEST_CHECK(counts, all_found && api->content_status(e).history_count == 40, "history.tsv has the 40 historical events, and the sample has each officer they name");
+
+    /* An editor trigger: 趙雲再會 makes 趙雲 join with merit 4000 and loyalty 100. */
+    u16 zhao_yun = feature_officer_named(api, "BBAFB6B3");
+    feature_make_captive(api, zhao_yun, force);
+    u32 mark = api->ledger_count(e);
+    engine_command_result fired = api->trigger_history(e, FEATURE_HISTORY_ZHAO_YUN, force);
+    engine_officer officer = {};
+    feature_officer_by_id(api, zhao_yun, &officer);
+    sim_event event = {};
+    TEST_CHECK(counts, fired.refusal == SIM_REFUSAL_NONE && officer.force_id == force && officer.status == OFFICER_STATUS_REGULAR_OFFICER && officer.merit >= 4000 &&
+                       api->officer_detail(e, zhao_yun).loyalty == 100 && feature_find_event(api, SIM_EVENT_HISTORY_FIRED, mark, &event) &&
+                       event.detail == FEATURE_HISTORY_ZHAO_YUN && api->history_at(e, FEATURE_HISTORY_ZHAO_YUN).fired_turn != 0,
+               "trigger_history 趙雲再會: the effects of the row run for the faction");
+    TEST_CHECK(counts, api->trigger_history(e, 99, force).refusal == SIM_REFUSAL_NO_EVENT, "refused: no such row");
+
+    /* The calendar: 郭嘉之死 fires in 207 when 郭嘉 serves a faction with 6 cities. */
+    u16 guo_jia = feature_officer_named(api, "B3A2B9C5");
+    feature_make_captive(api, guo_jia, force);
+    api->trigger_history(e, FEATURE_HISTORY_GUO_JIA, force);
+    feature_officer_by_id(api, guo_jia, &officer);
+    TEST_CHECK(counts, officer.force_id == force && !api->history_ready(e, FEATURE_HISTORY_GUO_JIA_DEATH, force),
+               "郭嘉 serves the faction; in 194 his death year has not come");
+    api->set_date(e, 207, 1, 21);
+    TEST_CHECK(counts, api->history_ready(e, FEATURE_HISTORY_GUO_JIA_DEATH, force), "given the year 207 and a faction of 6 cities, 郭嘉之死 is ready");
+    engine_settings settings = api->settings(e);
+    settings.events = true;
+    api->set_settings(e, settings);
+    mark = api->ledger_count(e);
+    for (u32 turn = 0; turn < 3 && api->date(e).month == 1; ++turn) feature_next_own_turn(api, force);
+    feature_officer_by_id(api, guo_jia, &officer);
+    b32 death_fired = false;
+    for (u32 index = mark; index < api->ledger_count(e); ++index)
+    {
+        sim_event each = api->ledger_at(e, index);
+        death_fired |= each.kind == SIM_EVENT_HISTORY_FIRED && each.detail == FEATURE_HISTORY_GUO_JIA_DEATH;
+    }
+    TEST_CHECK(counts, death_fired && officer.status == OFFICER_STATUS_DEAD, "on day 1 of the next month the calendar fires 郭嘉之死: 郭嘉 dies");
+
+    /* Portraits: 曹操 changes at 54. */
+    u16 cao_cao = feature_officer_named(api, "B1E4BEDE");
+    api->set_date(e, 200, 1, 1);
+    u8 young = api->officer_detail(e, cao_cao).portrait_stage;
+    api->set_date(e, 215, 1, 1);
+    TEST_CHECK(counts, cao_cao != ENGINE_NO_OFFICER && young == 0 && api->officer_detail(e, cao_cao).portrait_stage == 1,
+               "曹操 has his second portrait from the age of 54");
+    engine_fixture_destroy(&setup.fixture);
+}
+
+/* A unification by the editor: every city with an owner goes to the faction. */
+internal u8
+feature_unify(test_counts *counts, u32 public_order)
+{
+    feature_city_setup setup;
+    feature_rivals_setup_init(&setup);
+    engine_api *api = setup.api;
+    void *e = api->engine;
+    for (u32 city = 0; city < api->city_count(e); ++city)
+    {
+        if (api->city_at(e, city).owner_force_id == ENGINE_NO_FACTION && city != FEATURE_EMPEROR_CITY) continue;   /* 洛陽, the city of the emperor, is empty in the sample */
+        api->set_city_owner(e, (u8)city, setup.force);
+        api->set_city_resource(e, (u8)city, SIM_RESOURCE_PUBLIC_ORDER, 0, public_order);
+    }
+    u32 mark = api->ledger_count(e);
+    feature_next_turn(api);
+    engine_outcome outcome = api->outcome(e);
+    sim_event ending = {};
+    b32 emitted = feature_find_event(api, SIM_EVENT_ENDING, mark, &ending) && ending.detail == outcome.ending;
+    TEST_CHECK(counts, outcome.kind == SIM_OUTCOME_VICTORY && outcome.force_id == setup.force && emitted, "a unification is a victory with an ending in the ledger");
+    engine_fixture_destroy(&setup.fixture);
+    return outcome.ending;
+}
+
+internal void
+feature_ending_tests(test_counts *counts)
+{
+    u8 calm = feature_unify(counts, 100);
+    TEST_CHECK(counts, calm == ENDING_HAN, "the protector of the emperor with more than 15 cities at public order 100 receives the throne: ending A 漢朝再興");
+    u8 restless = feature_unify(counts, 50);
+    TEST_CHECK(counts, restless == ENDING_CONQUEST || restless == ENDING_PROSPERITY, "without the abdication the ruler takes the title: ending B or C by facilities and soldiers");
+}
+
 internal void
 feature_playable_tests(test_counts *counts)
 {
+    feature_history_tests(counts);
+    feature_ending_tests(counts);
     feature_save_load_tests(counts);
     feature_settings_tests(counts);
     feature_new_officer_tests(counts);

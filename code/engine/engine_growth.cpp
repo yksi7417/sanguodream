@@ -102,6 +102,7 @@ engine_api_outcome(void *opaque)
     result.kind     = (u8)sim->outcome.kind;
     result.force_id = sim->outcome.kind != SIM_OUTCOME_NONE ? sim->outcome.force_id : ENGINE_NO_FACTION;
     result.end_year = sim->content.rules.game_end_year;
+    result.ending   = sim->outcome.kind == SIM_OUTCOME_VICTORY ? sim->outcome.ending : (u8)ENDING_NONE;
     return result;
 }
 

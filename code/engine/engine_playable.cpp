@@ -133,9 +133,64 @@ engine_api_command_train_officer(void *opaque, u16 officer, u8 row)
     return engine_run_pk((engine *)opaque, SIM_COMMAND_TRAIN_OFFICER, order);
 }
 
+/* ---- the historical events ------------------------------------------------------------- */
+
+internal u32
+engine_api_history_count(void *opaque)
+{
+    return ((engine *)opaque)->sim->content.history_count;
+}
+
+internal engine_history_kind
+engine_api_history_at(void *opaque, u32 index)
+{
+    sim_state *sim = ((engine *)opaque)->sim;
+    engine_history_kind result = {};
+    result.id = ENGINE_NO_ROW;
+    if (index >= sim->content.history_count) return result;
+    history_kind *kind = sim->content.history + index;
+    result.id         = kind->id;
+    memcpy(result.key, kind->key, sizeof(result.key));
+    result.chance     = kind->chance;
+    result.fired_turn = sim->history_turn[index];
+    result.name_count = kind->name_count;
+    for (u32 name = 0; name < kind->name_count; ++name) result.names_found += sim_officer_by_name(sim, kind->names[name], kind->name_sizes[name]) != 0;
+    return result;
+}
+
+internal b32
+engine_api_history_ready(void *opaque, u32 row, u8 force_id)
+{
+    sim_state *sim = ((engine *)opaque)->sim;
+    return row < sim->content.history_count && !sim->history_turn[row] && sim_history_ready(sim, row, force_id);
+}
+
+internal engine_command_result
+engine_api_trigger_history(void *opaque, u32 row, u8 force_id)
+{
+    engine *e = (engine *)opaque;
+    engine_command_result result = {};
+    sim_m8_order order = {};
+    order.force = force_id;
+    order.value = (u8)Minimum(row, 255u);
+    order.city_id = SIM_NO_CITY;
+    order.officer = SIM_NO_OFFICER;
+    result.refusal = row > 255 ? SIM_REFUSAL_NO_EVENT : sim_check_trigger_history(e->sim, &order).refusal;
+    if (result.refusal != SIM_REFUSAL_NONE) return result;
+    sim_command command = sim_make_command(e->sim, SIM_COMMAND_TRIGGER_HISTORY);
+    command.m8 = order;
+    engine_run(e, command, 0);
+    result.command_id = command.id;
+    return result;
+}
+
 internal void
 engine_bind_playable_api(engine_api *api)
 {
+    api->history_count            = engine_api_history_count;
+    api->history_at               = engine_api_history_at;
+    api->history_ready            = engine_api_history_ready;
+    api->trigger_history          = engine_api_trigger_history;
     api->chart_count              = engine_api_chart_count;
     api->chart_row_at             = engine_api_chart_row_at;
     api->faction_chart            = engine_api_faction_chart;

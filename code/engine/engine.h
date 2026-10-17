@@ -347,6 +347,7 @@ struct engine_outcome
     u8  kind;               /* sim_outcome_kind; SIM_OUTCOME_NONE while the game runs */
     u8  force_id;           /* the faction of the outcome */
     u32 end_year;           /* the year of the defeat by time (351) */
+    u8  ending;             /* M9: sim_ending_kind of a victory */
 };
 
 /* ---- M5: the map, the unit classes and the units ------------------------- */
@@ -613,6 +614,16 @@ struct engine_faction_chart
     u32 turns_left;
 };
 
+struct engine_history_kind
+{
+    u8   id;                        /* ENGINE_NO_ROW */
+    char key[CONTENT_KEY_SIZE];     /* the text id is "history.<key>" */
+    u32  chance;
+    u32  fired_turn;                /* the sim turn + 1 when it fired; 0 = not yet */
+    u32  name_count;
+    u32  names_found;               /* the names of the row that the loaded game has */
+};
+
 struct engine_ancient
 {
     u8   id;                        /* ENGINE_NO_ROW */
@@ -829,6 +840,8 @@ struct engine_content_status
     u32         priority_count;
     u32         chart_count;      /* M9 */
     u32         ancient_count;
+    u32         history_count;
+    u32         portrait_count;
     const char *detail;           /* a static string: the file that did not load, or "ok" */
 };
 
@@ -1067,6 +1080,13 @@ typedef u32                  engine_new_officer_count_fn(void *engine);
 typedef engine_command_result engine_create_officer_fn(void *engine, const sim_new_officer_order *order);
 typedef engine_command_result engine_command_research_ability_fn(void *engine, u8 city_id, u8 row);
 typedef engine_command_result engine_command_train_officer_fn(void *engine, u16 officer, u8 row);
+/* M9 historical events (history.tsv). history_ready answers whether the row
+   fires for the faction at the next check; trigger_history is the editor
+   command that fires it now without its conditions. */
+typedef u32                  engine_history_count_fn(void *engine);
+typedef engine_history_kind  engine_history_at_fn(void *engine, u32 index);
+typedef b32                  engine_history_ready_fn(void *engine, u32 row, u8 force_id);
+typedef engine_command_result engine_trigger_history_fn(void *engine, u32 row, u8 force_id);
 /* A placeholder unit until M5: it only blocks the commands of enemy
    cities within 2 hexes. Returns ENGINE_NO_UNIT if there is no room. */
 typedef u32                 engine_place_unit_fn(void *engine, u8 force_id, s32 q, s32 r);
@@ -1251,6 +1271,11 @@ struct engine_api
     engine_create_officer_fn        *create_officer;
     engine_command_research_ability_fn *command_research_ability;
     engine_command_train_officer_fn *command_train_officer;
+    /* M9 historical events */
+    engine_history_count_fn         *history_count;
+    engine_history_at_fn            *history_at;
+    engine_history_ready_fn         *history_ready;
+    engine_trigger_history_fn       *trigger_history;
 };
 
 #define ENGINE_NO_BASE 0xFFFFFFFFu

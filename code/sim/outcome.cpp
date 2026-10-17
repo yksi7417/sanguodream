@@ -90,7 +90,9 @@ sim_check_outcome(sim_state *sim, u32 cause, sim_event_sink *events)
         {
             sim->outcome.kind     = SIM_OUTCOME_VICTORY;
             sim->outcome.force_id = (u8)force;
+            sim->outcome.ending   = sim_ending_for(sim, (u8)force);   /* M9: events.md, endings */
             sim_emit_outcome(sim, SIM_EVENT_GAME_WON, (u8)force, SIM_OUTCOME_VICTORY, cause, events);
+            sim_emit_outcome(sim, SIM_EVENT_ENDING, (u8)force, (sim_outcome_kind)sim->outcome.ending, cause, events);
             return;
         }
     }

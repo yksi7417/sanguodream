@@ -1501,3 +1501,129 @@ content_load_ancients(sim_content *content, tsv_table *table, u32 *bad_row)
     }
     return true;
 }
+/* ---- M9: the historical events and the portraits --------------------------------- */
+
+global_variable const char *content_history_conditions[] =
+{
+    "scenario", "opening", "start_before", "start_by", "start_from", "date_from", "days", "ruler", "faction_of", "ruler_family",
+    "rules", "rules_any", "not_rules", "cities", "cities_at_most", "rank", "rank_below", "free", "free_any", "serves", "has",
+    "unmarried", "captive", "in_other", "loyalty_below", "merit_at_least", "order_ruler", "order_ruler_below", "order_of",
+    "emperor_held", "emperor_is", "no_emperor", "dead", "death_year", "adviser", "officers", "age", "faction_cities",
+};
+
+global_variable const char *content_history_effects[] =
+{
+    "join", "defect", "merit", "merit_like", "loyalty", "loyalty_all", "order_all", "morale_all", "marry", "sworn", "dies",
+    "rank", "emperor", "friendliness_all", "friendliness_with", "raise", "adviser",
+};
+
+/* True if each clause names a known condition or effect, and each @i names
+   an officer of the row. "-" is no clause. */
+internal b32
+content_history_clauses_valid(const char *text, b32 effects, u32 name_count)
+{
+    if (strcmp(text, "-") == 0) return effects;   /* a dialogue has no effect; an event without conditions is a bad row */
+    const char **names = effects ? content_history_effects : content_history_conditions;
+    u32 count = effects ? ArrayCount(content_history_effects) : ArrayCount(content_history_conditions);
+    for (const char *at = text; *at;)
+    {
+        char name[32];
+        u32 size = 0;
+        while (*at && *at != ':' && *at != ';' && size < sizeof(name) - 1) name[size++] = *at++;
+        name[size] = 0;
+        if (content_find_name(names, count, name) == count) return false;
+        while (*at && *at != ';')
+        {
+            if (*at == '@')
+            {
+                u32 index = 0;
+                ++at;
+                if (*at < '0' || *at > '9') return false;
+                while (*at >= '0' && *at <= '9') index = index * 10 + (u32)(*at++ - '0');
+                if (index >= name_count) return false;
+                continue;
+            }
+            ++at;
+        }
+        if (*at == ';') ++at;
+    }
+    return true;
+}
+
+/* "A8E5ADB3|AE4CAB4AB1AC": the Big5 names of a row into fixed fields. */
+internal b32
+content_parse_names(const char *text, u8 (*names)[OFFICER_FAMILY_NAME_SIZE + OFFICER_GIVEN_NAME_SIZE], u8 *sizes, u32 capacity, u32 *count)
+{
+    *count = 0;
+    if (strcmp(text, "-") == 0) return true;
+    u32 size = 0;
+    for (const char *at = text;; ++at)
+    {
+        if (*at == '|' || *at == 0)
+        {
+            if (size == 0 || *count >= capacity) return false;
+            sizes[(*count)++] = (u8)size;
+            size = 0;
+            if (*at == 0) return true;
+            continue;
+        }
+        if (!at[1] || at[1] == '|' || *count >= capacity || size >= OFFICER_FAMILY_NAME_SIZE + OFFICER_GIVEN_NAME_SIZE) return false;
+        u32 high = content_hex_value(at[0]), low = content_hex_value(at[1]);
+        if (high > 15 || low > 15) return false;
+        names[*count][size++] = (u8)(high * 16 + low);
+        ++at;
+    }
+}
+
+internal b32
+content_load_history(sim_content *content, tsv_table *table, u32 *bad_row)
+{
+    content->history_count = 0;
+    if (table->row_count > CONTENT_HISTORY_CAPACITY) { *bad_row = CONTENT_HISTORY_CAPACITY; return false; }
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        history_kind *kind = content->history + row;
+        *kind = {};
+        u32 id = 0;
+        const char *key = tsv_cell(table, row, "key"), *conditions = tsv_cell(table, row, "conditions"), *effects = tsv_cell(table, row, "effects");
+        b32 bad = !tsv_cell_u32(table, row, "id", &id) || id != row || !key[0] || strlen(key) >= CONTENT_KEY_SIZE ||
+                  !tsv_cell_u32(table, row, "chance", &kind->chance) || kind->chance > 100 ||
+                  strlen(conditions) >= CONTENT_HISTORY_TEXT || strlen(effects) >= CONTENT_HISTORY_TEXT ||
+                  !content_parse_names(tsv_cell(table, row, "names"), kind->names, kind->name_sizes, CONTENT_HISTORY_NAMES, &kind->name_count);
+        if (!bad) bad = !content_history_clauses_valid(conditions, false, kind->name_count) || !content_history_clauses_valid(effects, true, kind->name_count);
+        if (bad) { *bad_row = row; content->history_count = 0; return false; }
+        kind->id = (u8)id;
+        memcpy(kind->key, key, strlen(key) + 1);
+        memcpy(kind->conditions, conditions, strlen(conditions) + 1);
+        memcpy(kind->effects, effects, strlen(effects) + 1);
+        content->history_count = row + 1;
+    }
+    return true;
+}
+
+internal b32
+content_load_portraits(sim_content *content, tsv_table *table, u32 *bad_row)
+{
+    content->portrait_count = 0;
+    if (table->row_count > CONTENT_PORTRAIT_CAPACITY) { *bad_row = CONTENT_PORTRAIT_CAPACITY; return false; }
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        portrait_kind *kind = content->portraits + row;
+        *kind = {};
+        u32 id = 0, age = 0, count = 0;
+        u8 names[1][OFFICER_FAMILY_NAME_SIZE + OFFICER_GIVEN_NAME_SIZE] = {};
+        u8 sizes[1] = {};
+        if (!tsv_cell_u32(table, row, "id", &id) || id != row || !tsv_cell_u32(table, row, "age", &age) || age == 0 || age > 120 ||
+            !content_parse_names(tsv_cell(table, row, "name"), names, sizes, 1, &count) || count != 1)
+        {
+            *bad_row = row;
+            content->portrait_count = 0;
+            return false;
+        }
+        memcpy(kind->name, names[0], sizeof(kind->name));
+        kind->name_size = sizes[0];
+        kind->age       = (u8)age;
+        content->portrait_count = row + 1;
+    }
+    return true;
+}
