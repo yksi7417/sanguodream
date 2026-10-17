@@ -486,9 +486,48 @@ feature_scenario_tests(test_counts *counts)
     engine_fixture_destroy(&fixture);
 }
 
+/* ---- the second content pack -------------------------------------------------------------- */
+
+internal void
+feature_civil_war_tests(test_counts *counts)
+{
+    engine_fixture fixture;
+    fixture.permanent = test_arena_create(Megabytes(8));
+    fixture.transient = test_arena_create(Megabytes(8));
+    engine_config config = engine_default_config();
+    config.read_entire_file = test_platform_read_entire_file;
+    config.content_folder   = HEXDOM_DATA_ROOT "\\civil_war";
+    fixture.backend = engine_create(&fixture.permanent, &fixture.transient, config);
+    fixture.api     = engine_make_api(fixture.backend);
+    engine_api *api = &fixture.api;
+    void *e = api->engine;
+    engine_content_status status = api->content_status(e);
+    TEST_CHECK(counts, status.loaded && api->unit_type_at(e, 1).move == 24 && api->unit_type_at(e, 4).move == 32 &&
+                       api->history_count(e) == 0 && api->event_kind_count(e) == 3 && api->ancient_count(e) == 0 && api->scenario_count(e) == 1,
+               "the Civil War pack loads with its own units, no historical events and one scenario");
+    engine_settings settings = api->settings(e);
+    settings.disasters = false;
+    api->set_settings(e, settings);
+    TEST_CHECK(counts, api->load_save(e, api->scenario_at(e, 0).file).status == ENGINE_LOAD_OK, "the same engine loads the sample save with the Civil War pack");
+    u8 city = feature_busiest_city(api);
+    u8 force = api->city_at(e, city).owner_force_id;
+    feature_play_as(api, force);
+    api->set_city_gold(e, city, 50000);
+    TEST_CHECK(counts, api->actions_left(e, force) <= 200, "the action points stop at 200, the cap of the pack");
+    api->set_actions(e, force, 200);
+    u16 ids[3];
+    feature_take_officers(api, city, ids, 1);
+    api->set_city_resource(e, city, SIM_RESOURCE_PUBLIC_ORDER, 0, 40);
+    TEST_CHECK(counts, api->command_patrol(e, city, ids).refusal == SIM_REFUSAL_NONE && api->city_economy(e, city).public_order > 40,
+               "a city command works the same with the other pack");
+    TEST_CHECK(counts, feature_next_own_turn(api, force), "the turns run with the AI of the other pack");
+    engine_fixture_destroy(&fixture);
+}
+
 internal void
 feature_playable_tests(test_counts *counts)
 {
+    feature_civil_war_tests(counts);
     feature_scenario_tests(counts);
     feature_history_tests(counts);
     feature_ending_tests(counts);
