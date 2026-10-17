@@ -198,7 +198,14 @@ internal u32
 sim_entry_cost(sim_state *sim, u8 force, movement_class movement, hex_coord hex, u32 self)
 {
     terrain_kind *terrain = sim_terrain_at(sim, hex);
-    if (!terrain || !terrain->cost[movement]) return 0;
+    if (!terrain) return 0;
+    /* A land unit on water is a 走舸 and pays the navy cost (manual p.12);
+       a siege weapon cannot go on water (M6, assumed: Q-176). */
+    if (!terrain->cost[movement] && (movement == MOVEMENT_FOOT || movement == MOVEMENT_CAVALRY) && terrain->cost[MOVEMENT_NAVY])
+    {
+        movement = MOVEMENT_NAVY;
+    }
+    if (!terrain->cost[movement]) return 0;
     if (terrain->needs_technique != CONTENT_NO_TECHNIQUE && !sim_has_technique(sim, force, terrain->needs_technique)) return 0;
     u32 other = sim_unit_at(sim, hex);
     if (other != SIM_NO_UNIT && other != self) return 0;

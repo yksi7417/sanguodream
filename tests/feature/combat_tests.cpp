@@ -392,9 +392,32 @@ feature_siege_tests(test_counts *counts)
     engine_fixture_destroy(&setup.fixture);
 }
 
+/* A land unit on a river becomes a 走舸 (manual p.12): it can enter the
+   water at the navy cost. */
+internal void
+feature_water_tests(test_counts *counts)
+{
+    feature_city_setup setup;
+    feature_march_setup(&setup);
+    engine_api *api = setup.api;
+    void *e = api->engine;
+    u32 unit_id = feature_sortie_unit(api, setup.city, 1);
+    hex_coord start = feature_unit_hex(api, unit_id);
+    u32 d = feature_corridor(api, start);
+    if (d >= HEX_DIRECTION_COUNT) { TEST_CHECK(counts, false, "a corridor for the water test"); engine_fixture_destroy(&setup.fixture); return; }
+    u8 river = feature_terrain_id(api, "river");
+    hex_coord first = feature_along(start, d, 1);
+    api->set_cell_terrain(e, first.q, first.r, river, 0);
+    u32 cost = 0;
+    TEST_CHECK(counts, feature_reaches(api, unit_id, first, &cost) && cost == api->terrain_kind_at(e, river).cost[MOVEMENT_NAVY],
+               "a pike unit enters a river at the navy cost: it is a boat on the water");
+    engine_fixture_destroy(&setup.fixture);
+}
+
 internal void
 feature_combat_tests(test_counts *counts)
 {
     feature_battle_tests(counts);
     feature_siege_tests(counts);
+    feature_water_tests(counts);
 }
