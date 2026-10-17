@@ -52,9 +52,10 @@ sim_hex_near_water(sim_state *sim, hex_coord hex)
     return false;
 }
 
-/* PLACEHOLDER (Q-034): the first free hex 2 to 4 hexes from the owner
-   city, the directions turned by the base number so that the bases of one
-   city spread; a port takes a hex next to water when one exists. */
+/* PLACEHOLDER (Q-034): the first free hex on the rings 2 to 8 around the
+   owner city. Each ring starts on a side that the base number turns, so
+   that the bases of one city spread; a port takes a hex next to water when
+   one exists. */
 internal hex_coord
 sim_place_base(sim_state *sim, base_kind *kind)
 {
@@ -62,22 +63,23 @@ sim_place_base(sim_state *sim, base_kind *kind)
     for (u32 pass = 0; pass < 2; ++pass)
     {
         b32 want_water = kind->type == BASE_PORT && pass == 0;
-        for (s32 distance = 2; distance <= 4; ++distance)
+        for (s32 distance = 2; distance <= 8; ++distance)
         {
-            for (u32 turn = 0; turn < HEX_DIRECTION_COUNT; ++turn)
+            u32 start = kind->id % HEX_DIRECTION_COUNT;
+            hex_coord hex = center;
+            for (s32 step = 0; step < distance; ++step) hex = hex_neighbor(hex, (start + 4) % HEX_DIRECTION_COUNT);
+            for (u32 side = 0; side < HEX_DIRECTION_COUNT; ++side)
             {
-                u32 direction = (turn + kind->id) % HEX_DIRECTION_COUNT;
-                hex_coord hex = center;
-                for (s32 step = 0; step < distance; ++step) hex = hex_neighbor(hex, direction);
-                if (!sim_base_hex_free(sim, hex)) continue;
-                if (want_water && !sim_hex_near_water(sim, hex)) continue;
-                return hex;
+                for (s32 step = 0; step < distance; ++step)
+                {
+                    if (sim_base_hex_free(sim, hex) && (!want_water || sim_hex_near_water(sim, hex))) return hex;
+                    hex = hex_neighbor(hex, (start + side) % HEX_DIRECTION_COUNT);
+                }
             }
         }
     }
     return center;
 }
-
 /* The bases after a save loads. */
 internal void
 sim_init_bases(sim_state *sim)

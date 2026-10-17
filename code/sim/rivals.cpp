@@ -43,7 +43,11 @@ sim_check_corps(sim_state *sim, sim_corps_order *order)
     {
         return sim_refuse(check, SIM_REFUSAL_NO_CORPS);
     }
-    if (order->action == CORPS_DISSOLVE) return check;
+    if (order->action == CORPS_DISSOLVE)
+    {
+        check.slot = order->corps;
+        return check;
+    }
     officer_component *viceroy = sim_find_officer(sim, order->viceroy);
     if (!viceroy || !sim_officer_is_active(viceroy) || viceroy->force_id != force || viceroy->status == OFFICER_STATUS_RULER)
     {
