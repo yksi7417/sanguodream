@@ -241,7 +241,7 @@ observed movement. The unit values use an assumed formula (Q-170). Sortie
 and transport take officers, soldiers, weapons, gold and grain out of a
 city. A unit moves within its range, stops in a zone of control, loses
 soldiers on a plank road or a poison spring, and eats grain. Wait,
-retreat (assumed: at once, Q-171) and supply complete the orders of M5.
+retreat (assumed: in the same turn, Q-171) and supply complete the orders of M5.
 The placeholder map comes from terrain.tsv with roads between the
 cities; the real map waits for Q-034. The Hex map panel, the scene and
 the mini map show the units and the cities in the faction colours. The
