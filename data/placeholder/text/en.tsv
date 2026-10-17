@@ -882,3 +882,161 @@ event_choice.visit_yuji.2	Arrest him	public order falls
 refusal.no_corps	no such corps, or no free place for a new one	沒有軍團
 refusal.ruler_absent	the ruler is not in the city	君主不在
 refusal.no_event	no event waits for this choice	沒有事件
+menu.title	Title	the title menu of the game
+menu.abilities	Abilities	能力表 (PK)
+title.title	hexdom	the title menu
+title.load	Load game	載入進度
+title.new	New game	重新開始新遊戲
+title.tutorial	Tutorial	遊戲教學; not in the clean room
+title.battle	Battle mode	決戰稱霸模式
+title.options	Options	項目: new officers, editor, settings
+title.quit	Quit	結束遊戲
+scenarios.title	Scenarios	劇本
+scenarios.unavailable	The clean room does not have this scenario file.	tooltip
+scenario_kind.0	save	a saved game
+scenario_kind.1	base	a scenario of the base game
+scenario_kind.2	PK	a Power Up Kit scenario
+scenario.sample_save	Warlords (saved game)	群雄割據 (存檔)
+scenario.warlords	Warlords	群雄割據
+scenario.lu_bu_campaign	The campaign against Lu Bu	呂布討伐戰
+scenario.yuan_succession	The Yuan succession	袁家之戰
+scenario.hanzhong	The battle for Hanzhong	漢中爭奪戰
+scenario.he_jin	The net around He Jin	何進包圍網
+scenario.power_broker	The power broker	局勢掌控者
+scenario.women_war	The war of women	女流之戰
+rulers.title	Rulers	choose up to 8 rulers
+rulers.ok	OK	決定
+start.title	Settings of the game	遊戲設定
+start.lifespan	Lifespan	壽命
+lifespan.0	none	無
+lifespan.1	historical	史實
+lifespan.2	long	長
+start.ability_change	Ability change	能力變動
+start.events	Events	事件
+start.female	Female officers	女武將
+start.strong_plots	Lightning and sorcery	落雷・妖術
+start.relations	Relations	血緣・關係
+start.duel	Duels and debates	單挑・舌戰
+duel_mode.0	manual	手動
+duel_mode.1	semi-automatic	半自動
+duel_mode.2	automatic	自動
+start.level	Level	遊戲等級
+start.ok	OK	決定
+topbar.title	Main map	the top bar
+topbar.points	Action points	行動力
+topbar.proceed	Proceed	進行: end the turn
+topbar.info	Information	情報
+topbar.ruler	Ruler	君主
+topbar.abilities	Abilities	能力表
+topbar.save	Save	儲存
+topbar.load	Load	載入
+topbar.system	System	system menu
+history.title	History	the history window
+saves.title	Save and load	儲存 / 載入
+saves.saving	Choose a slot to save.	save mode
+saves.loading	Choose a slot to load.	load mode
+saves.empty	empty	an empty slot
+saves.slot	Slot	slot number
+saves.comment	Comment	註解
+saves.ok	OK	決定
+saves.back	Back	返回
+save_status.0	saved	ENGINE_SAVE_OK
+save_status.1	no file writer	no writer
+save_status.2	no file reader	no reader
+save_status.3	no such slot	bad slot
+save_status.4	no game to save	no game
+save_status.5	not enough memory	no memory
+save_status.6	the file was not written	write failed
+save_status.7	the slot is empty	no file
+save_status.8	the file is not a save	bad file
+save_status.9	another version of the game wrote the file	other version
+save_status.10	another content pack wrote the file	other pack
+options.title	Options	項目
+options.new_officer	New officers	新武將
+options.editor	Editor	編輯
+options.settings	Settings	環境設定
+newcomer.title	New officer	新武將
+newcomer.count	New officers	the count of 8
+newcomer.family	Family name	姓
+newcomer.given	Given name	名
+newcomer.female	Female	性別
+newcomer.birth_year	Birth year	生年
+newcomer.city	City	the city where the officer appears
+newcomer.found_force	Found a faction	in an empty city
+newcomer.ancient	Ancient officer	古武將
+newcomer.none	none	no ancient officer
+newcomer.create	Create	登錄
+officer_type.0	all-round	萬能
+officer_type.1	strategist	軍師
+officer_type.2	general	將軍
+officer_type.3	common	凡才
+editor.title	Editor	編輯 (PK)
+editor.officer	Officer	武將
+editor.loyalty	Loyalty	忠誠
+editor.merit	Merit	功績
+editor.apply_officer	Apply to the officer	the officer fields
+editor.technique	Technique points	技巧P
+editor.apply_faction	Apply to the faction	the faction fields
+editor.gold	Gold	資金
+editor.order	Public order	治安
+editor.soldiers	Soldiers	兵力
+editor.apply_city	Apply to the city	the city fields
+editor.unit_soldiers	Unit soldiers	部隊兵力
+editor.unit_morale	Unit morale	部隊氣力
+editor.apply_unit	Apply to the unit	the unit fields
+battles.title	Battle mode	決戰稱霸模式
+battles.open	open	open at the start
+battles.locked	locked	a clear opens it
+battles.unavailable	The clean room has no data of this battle.	tooltip
+battle.hefei	Battle of Hefei	合肥之戰
+battle.nanjun	Battle of Nanjun	南郡之戰
+battle.chibi	Battle of Red Cliffs	赤壁之戰
+battle.yiling	Battle of Yiling	夷陵之戰
+battle.rebels	The punishment of the rebels	逆賊討伐戰
+abilities.title	Ability chart	能力表
+abilities.officer	Officer to train	培育武將
+abilities.name	Ability	the row
+abilities.zone	Zone	the zone of the chart
+abilities.uses	Uses	the uses left; * researched
+abilities.research	Research	研究能力
+abilities.train	Train	培育武將
+abilities.running	Research	the research that runs
+chart_zone.0	attack	攻擊
+chart_zone.1	plot	計略
+chart_zone.2	defence	防禦
+chart_zone.3	domestic	內政
+chart.leadership_5	Leadership +5	統率+5
+chart.force_5	Force +5	武力+5
+chart.intellect_5	Intellect +5	智力+5
+chart.politics_5	Politics +5	政治+5
+chart.charm_5	Charm +5	魅力+5
+chart.leadership_70	Leadership 70	統率70
+chart.intellect_80	Intellect 80	智力80
+chart.force_95	Force 95	武力95
+chart.pike_b	Pike B	槍兵B
+chart.pike_a	Pike A	槍兵A
+chart.cavalry_b	Cavalry B	騎兵B
+chart.cavalry_a	Cavalry A	騎兵A
+chart.navy_b	Navy B	水軍B
+chart.unyielding	Unyielding	不屈
+chart.fortify	Fortify	築城
+chart.iron_wall	Iron wall	鐵壁
+chart.cunning	Cunning	鬼謀
+chart.fame	Fame	名聲
+info.title	Information	情報
+info.rank	Rank	爵位
+info.cities	Cities	都市
+info.officers	Officers	武將
+info.corps	Corps	軍團
+info.technique	Technique points	技巧P
+info.units	Units	部隊
+info.open_officers	Officers	the officer list
+info.open_cities	Cities	the city list
+info.open_bases	Bases	the base list
+info.open_techniques	Techniques	技巧表
+ending.0	none	no ending
+ending.1	A: the Han restored	漢朝再興
+ending.2	B: prosperity by conquest	外征繁榮
+ending.3	C: prosperity at home	內政繁榮
+refusal.no_chart_row	no such ability of the chart	沒有能力
+refusal.no_uses	the ability has no use left	沒有次數
