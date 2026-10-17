@@ -381,6 +381,7 @@ sim_run_calendar(sim_state *sim, u32 cause, sim_event_sink *events)
     if (calendar_starts_month(date)) sim_roll_disasters(sim, date.month, cause, events);
     sim_run_production_turn(sim, cause, events);
     sim_run_units_turn(sim, cause, events);
+    sim_run_field_turn(sim, cause, events);
     sim_run_durability(sim, cause, events);
     sim_run_disasters_turn(sim, cause, events);
 }

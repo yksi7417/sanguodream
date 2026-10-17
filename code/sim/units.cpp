@@ -204,12 +204,23 @@ sim_entry_cost(sim_state *sim, u8 force, movement_class movement, hex_coord hex,
     if (other != SIM_NO_UNIT && other != self) return 0;
     u8 city_id = sim_city_at(sim, hex);
     if (city_id != SIM_NO_CITY && sim_find_city(sim, city_id)->owner_force_id != force) return 0;
-    return terrain->cost[movement];
+    /* A building blocks the hex, but a trap hides and does not (M6). */
+    u32 building_id = sim_building_at(sim, hex);
+    if (building_id != SIM_NO_BUILDING)
+    {
+        sim_building *building = sim->buildings + building_id;
+        building_kind *kind    = sim->content.buildings + building->kind;
+        b32 hidden = kind->type == BUILDING_SEED || kind->type == BUILDING_BALL || kind->natural;
+        if (!hidden) return 0;
+    }
+    u32 cost = terrain->cost[movement];
+    if (sim_hex_burns(sim, hex)) cost += sim->content.rules.fire_extra_cost;   /* fire.md: fire slows a march */
+    return cost;
 }
 
-/* True if an enemy unit stands next to the hex (manual p.14: a unit stops
-   next to an enemy unit). Every other force is an enemy until diplomacy
-   (M7). The military facilities come with M6. */
+/* True if an enemy unit or a complete enemy military building stands next
+   to the hex (manual p.14: a unit stops next to an enemy unit). Every other
+   force is an enemy until diplomacy (M7). */
 internal b32
 sim_in_enemy_zone(sim_state *sim, u8 force, hex_coord hex, u32 self)
 {
@@ -218,6 +229,14 @@ sim_in_enemy_zone(sim_state *sim, u8 force, hex_coord hex, u32 self)
         sim_unit *other = sim->units + index;
         if (!other->alive || index == self || other->force_id == force) continue;
         if (hex_distance(other->hex, hex) == 1) return true;
+    }
+    for (u32 index = 0; index < sim->building_count; ++index)
+    {
+        sim_building *building = sim->buildings + index;
+        if (!building->alive || !building->complete || building->force_id == SIM_NO_FORCE || building->force_id == force) continue;
+        building_type type = sim->content.buildings[building->kind].type;
+        b32 military = type == BUILDING_CAMP || type == BUILDING_TOWER || type == BUILDING_DRUM || type == BUILDING_MUSIC;
+        if (military && hex_distance(building->hex, hex) == 1) return true;
     }
     return false;
 }
@@ -540,6 +559,17 @@ sim_check_unit_common(sim_state *sim, sim_unit_order *order, sim_unit **unit_out
 internal sim_check
 sim_check_unit_order(sim_state *sim, sim_command_kind kind, sim_unit_order *order, memory_arena *scratch)
 {
+    switch (kind)   /* the orders of M6 have their own checks (combat.cpp, field.cpp) */
+    {
+        case SIM_COMMAND_ATTACK:       return sim_check_attack(sim, order);
+        case SIM_COMMAND_JOINT_ATTACK: return sim_check_joint_attack(sim, order);
+        case SIM_COMMAND_TACTIC:       return sim_check_tactic(sim, order);
+        case SIM_COMMAND_PLOT:         return sim_check_plot(sim, order);
+        case SIM_COMMAND_BUILD:
+        case SIM_COMMAND_REPAIR:
+        case SIM_COMMAND_DISMANTLE:    return sim_check_build(sim, kind, order);
+        default:                       break;
+    }
     sim_check check = {};
     check.slot = SIM_ANY_SLOT;
     sim_unit *unit = 0;

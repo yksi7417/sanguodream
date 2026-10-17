@@ -30,6 +30,9 @@ sim_init(sim_state *sim, memory_arena *arena, u64 seed)
     }
     sim->settings           = {};
     sim->settings.disasters = true;   /* a new game has disasters (game-setup-and-modes.md) */
+    sim->ruleset.combat_damage = sim_rule_combat_damage;   /* the generic rule; a pack can set its own */
+    sim->building_count = 0;
+    sim->fire           = 0;
     sim->outcome            = {};
     for (u32 index = 0; index < ArrayCount(sim->officer_index); ++index) sim->officer_index[index] = SIM_NO_OFFICER;
     for (u32 index = 0; index < ArrayCount(sim->city_index); ++index)    sim->city_index[index]    = SIM_NO_CITY;
@@ -55,6 +58,7 @@ sim_init_map(sim_state *sim, memory_arena *arena, u32 width, u32 height, u8 defa
     /* The working memory of a move range: six arrays and a heap for each
        cell, with room. */
     sim->scratch = arena_sub(arena, (u64)width * height * 128 + Kilobytes(64));
+    sim->fire    = PushArray(arena, (u64)width * height, u8);   /* the turns of fire of each cell (M6) */
 }
 
 /* xorshift64*: small, fast, deterministic across compilers. */
@@ -236,6 +240,13 @@ sim_apply(sim_state *sim, sim_command command, sim_event_sink *events)
             arena_reset(&sim->scratch);
             sim_unit_action(sim, command, &sim->scratch, events);
             break;
+        case SIM_COMMAND_ATTACK:       sim_attack(sim, command, events);       break;
+        case SIM_COMMAND_JOINT_ATTACK: sim_joint_attack(sim, command, events); break;
+        case SIM_COMMAND_TACTIC:       sim_use_tactic(sim, command, events);   break;
+        case SIM_COMMAND_PLOT:         sim_use_plot(sim, command, events);     break;
+        case SIM_COMMAND_BUILD:
+        case SIM_COMMAND_REPAIR:
+        case SIM_COMMAND_DISMANTLE:    sim_build(sim, command, events);        break;
         case SIM_COMMAND_LOAD_SAVE:
             InvalidCodePath;   /* needs its save: see sim_load_save */
             break;
@@ -281,6 +292,16 @@ sim_unload_world(sim_state *sim)
     }
     sim->outcome = {};
     sim_init_sites(sim);
+    /* The natural traps belong to the map and stay; the rest go (M6). */
+    for (u32 index = 0; index < sim->building_count; ++index)
+    {
+        sim_building *building = sim->buildings + index;
+        if (building->kind >= sim->content.building_count || !sim->content.buildings[building->kind].natural) building->alive = false;
+    }
+    if (sim->fire)
+    {
+        for (u32 cell = 0; cell < (u32)sim->map.width * sim->map.height; ++cell) sim->fire[cell] = 0;
+    }
 }
 
 internal b32
@@ -305,6 +326,7 @@ sim_add_city(sim_state *sim, city_component city)
         return false;
     }
     sim->city_index[city.city_id] = (u8)sim->cities.count;
+    if (!city.durability) city.durability = sim_city_durability_max(sim, &city);   /* a new base starts whole (M6) */
     table_add(&sim->cities, em_create(&sim->entities), city);
     return true;
 }
@@ -488,6 +510,29 @@ sim_event_name(sim_event_kind kind)
         case SIM_EVENT_UNIT_SUPPLIED:           return "unit_supplied";
         case SIM_EVENT_UNIT_GRAIN_EATEN:        return "unit_grain_eaten";
         case SIM_EVENT_UNIT_DESERTED:           return "unit_deserted";
+        case SIM_EVENT_UNIT_DAMAGED:            return "unit_damaged";
+        case SIM_EVENT_COUNTERATTACK:           return "counterattack";
+        case SIM_EVENT_CRITICAL_HIT:            return "critical_hit";
+        case SIM_EVENT_TACTIC_USED:             return "tactic_used";
+        case SIM_EVENT_PLOT_USED:               return "plot_used";
+        case SIM_EVENT_MORALE_CHANGED:          return "morale_changed";
+        case SIM_EVENT_UNIT_PUSHED:             return "unit_pushed";
+        case SIM_EVENT_UNIT_STATE:              return "unit_state";
+        case SIM_EVENT_UNIT_DESTROYED:          return "unit_destroyed";
+        case SIM_EVENT_OFFICER_CAPTURED:        return "officer_captured";
+        case SIM_EVENT_OFFICER_ESCAPED:         return "officer_escaped";
+        case SIM_EVENT_FIRE_STARTED:            return "fire_started";
+        case SIM_EVENT_FIRE_ENDED:              return "fire_ended";
+        case SIM_EVENT_BUILDING_STARTED:        return "building_started";
+        case SIM_EVENT_BUILDING_COMPLETED:      return "building_completed";
+        case SIM_EVENT_BUILDING_DAMAGED:        return "building_damaged";
+        case SIM_EVENT_BUILDING_DESTROYED:      return "building_destroyed";
+        case SIM_EVENT_TRAP_TRIGGERED:          return "trap_triggered";
+        case SIM_EVENT_BASE_DAMAGED:            return "base_damaged";
+        case SIM_EVENT_BASE_SOLDIERS_LOST:      return "base_soldiers_lost";
+        case SIM_EVENT_BASE_RECOVERED:          return "base_recovered";
+        case SIM_EVENT_BASE_CAPTURED:           return "base_captured";
+        case SIM_EVENT_UNIT_LOOT:               return "unit_loot";
         default:                                return "?";
     }
 }
@@ -517,6 +562,13 @@ sim_command_name(sim_command_kind kind)
         case SIM_COMMAND_WAIT:            return "wait";
         case SIM_COMMAND_RETREAT:         return "retreat";
         case SIM_COMMAND_SUPPLY:          return "supply";
+        case SIM_COMMAND_ATTACK:          return "attack";
+        case SIM_COMMAND_JOINT_ATTACK:    return "joint_attack";
+        case SIM_COMMAND_TACTIC:          return "tactic";
+        case SIM_COMMAND_PLOT:            return "plot";
+        case SIM_COMMAND_BUILD:           return "build";
+        case SIM_COMMAND_REPAIR:          return "repair";
+        case SIM_COMMAND_DISMANTLE:       return "dismantle";
         default:                          return "?";
     }
 }
@@ -560,6 +612,13 @@ sim_refusal_name(sim_refusal refusal)
         case SIM_REFUSAL_NO_SOLDIERS:           return "no_soldiers";
         case SIM_REFUSAL_NO_WEAPONS:            return "no_weapons";
         case SIM_REFUSAL_NOT_ADJACENT:          return "not_adjacent";
+        case SIM_REFUSAL_UNIT_CONFUSED:         return "unit_confused";
+        case SIM_REFUSAL_NO_TARGET:             return "no_target";
+        case SIM_REFUSAL_NO_MORALE:             return "no_morale";
+        case SIM_REFUSAL_NO_APTITUDE:           return "no_aptitude";
+        case SIM_REFUSAL_NO_PARTNER:            return "no_partner";
+        case SIM_REFUSAL_BAD_TERRAIN:           return "bad_terrain";
+        case SIM_REFUSAL_NOT_BUILDABLE:         return "not_buildable";
         default:                                return "?";
     }
 }
@@ -573,3 +632,5 @@ sim_refusal_name(sim_refusal refusal)
 #include "sim/disasters.cpp"
 #include "sim/outcome.cpp"
 #include "sim/units.cpp"
+#include "sim/combat.cpp"
+#include "sim/field.cpp"

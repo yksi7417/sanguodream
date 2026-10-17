@@ -99,6 +99,30 @@ enum sim_event_kind
     SIM_EVENT_UNIT_SUPPLIED,        /* detail = the unit that receives; delta = soldiers; the gold and grain move too */
     SIM_EVENT_UNIT_GRAIN_EATEN,     /* detail = unit; delta = grain out (negative); assumed */
     SIM_EVENT_UNIT_DESERTED,        /* detail = unit; delta = soldiers out (negative): the unit had no grain; assumed */
+    /* M6: combat. A unit event has detail = the unit that changes. */
+    SIM_EVENT_UNIT_DAMAGED,         /* detail = unit; delta = soldiers out (negative); assumed formula */
+    SIM_EVENT_COUNTERATTACK,        /* detail = the unit that counterattacks */
+    SIM_EVENT_CRITICAL_HIT,         /* detail = the attacking unit */
+    SIM_EVENT_TACTIC_USED,          /* detail = unit; delta = 1 success, 0 failure */
+    SIM_EVENT_PLOT_USED,            /* detail = unit; delta = 1 success, 0 failure */
+    SIM_EVENT_MORALE_CHANGED,       /* detail = unit; delta = morale in or out */
+    SIM_EVENT_UNIT_PUSHED,          /* detail = unit; delta = hexes */
+    SIM_EVENT_UNIT_STATE,           /* detail = unit; delta = the new sim_unit_state (0 = it ends) */
+    SIM_EVENT_UNIT_DESTROYED,       /* detail = unit */
+    SIM_EVENT_OFFICER_CAPTURED,     /* subject = officer; faction = the captor */
+    SIM_EVENT_OFFICER_ESCAPED,      /* subject = officer */
+    SIM_EVENT_FIRE_STARTED,         /* detail = the cell; delta = turns */
+    SIM_EVENT_FIRE_ENDED,           /* detail = the cell */
+    SIM_EVENT_BUILDING_STARTED,     /* detail = the building id; delta = the kind */
+    SIM_EVENT_BUILDING_COMPLETED,   /* detail = the building id */
+    SIM_EVENT_BUILDING_DAMAGED,     /* detail = the building id; delta = durability out (negative) */
+    SIM_EVENT_BUILDING_DESTROYED,   /* detail = the building id */
+    SIM_EVENT_TRAP_TRIGGERED,       /* detail = the building id */
+    SIM_EVENT_BASE_DAMAGED,         /* subject = city; delta = durability out (negative) */
+    SIM_EVENT_BASE_SOLDIERS_LOST,   /* subject = city; delta = soldiers out (negative) */
+    SIM_EVENT_BASE_RECOVERED,       /* subject = city; delta = durability in; assumed */
+    SIM_EVENT_BASE_CAPTURED,        /* subject = city; faction = the new owner; detail = the old owner */
+    SIM_EVENT_UNIT_LOOT,            /* detail = unit; delta = the amount; the loot of a destroyed facility */
     SIM_EVENT_COUNT
 };
 
@@ -168,6 +192,13 @@ enum sim_command_kind
     SIM_COMMAND_WAIT,            /* 待命 */
     SIM_COMMAND_RETREAT,         /* 退卻 */
     SIM_COMMAND_SUPPLY,          /* 補給: a transport unit gives to an adjacent unit */
+    SIM_COMMAND_ATTACK,          /* 攻擊 */
+    SIM_COMMAND_JOINT_ATTACK,    /* 齊攻 */
+    SIM_COMMAND_TACTIC,          /* 戰法 */
+    SIM_COMMAND_PLOT,            /* 計略 */
+    SIM_COMMAND_BUILD,           /* 設置 */
+    SIM_COMMAND_REPAIR,          /* 修補 */
+    SIM_COMMAND_DISMANTLE,       /* 撤除 */
     SIM_COMMAND_COUNT
 };
 
@@ -251,6 +282,7 @@ struct sim_unit_order
     u32       soldiers;                     /* supply */
     u32       gold;
     u32       grain;
+    u8        kind;                         /* tactic, plot: the row of its table; build: the row of buildings.tsv */
 };
 
 struct sim_command
@@ -305,6 +337,13 @@ enum sim_refusal
     SIM_REFUSAL_NO_SOLDIERS,           /* no soldiers, or more than the city has or the commander can lead */
     SIM_REFUSAL_NO_WEAPONS,            /* the city has fewer weapons than the unit needs */
     SIM_REFUSAL_NOT_ADJACENT,          /* supply: the target is not a unit of the faction next to the transport unit */
+    SIM_REFUSAL_UNIT_CONFUSED,         /* the unit is confused or under a false report */
+    SIM_REFUSAL_NO_TARGET,             /* no valid target at the hex, or out of range */
+    SIM_REFUSAL_NO_MORALE,             /* the unit has less morale than the tactic or the plot costs */
+    SIM_REFUSAL_NO_APTITUDE,           /* the class, the aptitude or the skill does not allow it */
+    SIM_REFUSAL_NO_PARTNER,            /* a joint attack needs two units or more */
+    SIM_REFUSAL_BAD_TERRAIN,           /* the terrain of the unit or of the hex does not allow it */
+    SIM_REFUSAL_NOT_BUILDABLE,         /* the building cannot stand on the hex */
     SIM_REFUSAL_COUNT
 };
 
@@ -376,7 +415,11 @@ struct city_component
     u32 trained_turn;                    /* sim turn + 1 of the last train */
     /* M4: the disasters that run in the city: turns left, 0 = none */
     u16 disaster_turns[CONTENT_DISASTER_CAPACITY];
+    /* M6: the durability of the base (siege-and-bases.md); the maximum is durability_maximum */
+    u32 durability;
 };
+
+#define SIM_STATUS_CAPTIVE 5   /* the status of a captive (assumed: status 5 of save-file.md, Q-176) */
 
 #define SIM_DISASTER_OPEN 0xFFFF         /* a disaster without a length: it ends by a rule (bandits) */
 #define SIM_JOB_RESEARCH  0xFE           /* officer_component.job_slot of an officer that researches */
@@ -442,6 +485,50 @@ struct sim_unit
     u8        destination;                        /* a transport unit: its city; SIM_NO_CITY */
     u32       moved_turn;                         /* sim turn + 1 of the last move; 0 = never */
     u32       acted_turn;                         /* sim turn + 1 of the last action (wait, supply) */
+    u8        state;                              /* sim_unit_state (plots-and-states.md) */
+    u8        state_turns;                        /* turns left of the state */
+};
+
+enum sim_unit_state
+{
+    UNIT_STATE_NONE,
+    UNIT_STATE_CONFUSED,        /* 混亂: the unit cannot act */
+    UNIT_STATE_FALSE_REPORT,    /* 偽報: the unit marches back to its home city by itself */
+    UNIT_STATE_COUNT
+};
+
+/* A building on the map (military-facilities-and-traps.md): a military
+   facility, an obstacle, a trap, or a natural trap of the map. */
+#define SIM_BUILDING_CAPACITY 256
+#define SIM_NO_BUILDING       0xFFFF
+struct sim_building
+{
+    b32       alive;
+    u8        kind;              /* the row of buildings.tsv */
+    u8        force_id;          /* SIM_NO_FORCE for a trap or a natural trap: any faction starts it */
+    hex_coord hex;
+    u32       durability;
+    b32       complete;          /* it works when its durability is full (manual p.16) */
+    u8        city_id;           /* a dike: the city that it floods; SIM_NO_CITY */
+};
+
+/* The input of the combat_damage rule hook (docs/ROADMAP.md, "Rule hooks"). */
+struct sim_combat_input
+{
+    u32 soldiers;                /* of the attacker */
+    u32 attack;
+    u32 defence;
+    u32 percent;                 /* the product of the multipliers: tactic, triangle, critical, buildings */
+};
+
+struct sim_state;
+typedef u32 sim_combat_damage_fn(sim_state *sim, sim_combat_input *input);
+
+/* The rule hooks of a content pack. Each pointer defaults to the generic
+   rule; a pack can set its own in code/sim/rules_<pack>.cpp. */
+struct sim_ruleset
+{
+    sim_combat_damage_fn *combat_damage;
 };
 
 /* The five values of a unit (military-units-and-tactics.md, "Unit values"). */
@@ -546,6 +633,10 @@ struct sim_state
     sim_unit       units[SIM_UNIT_CAPACITY];
     u32            unit_count;      /* the places of units[] in use, alive or dead */
     memory_arena   scratch;         /* the working memory of a search; reset before each use */
+    sim_building   buildings[SIM_BUILDING_CAPACITY];
+    u32            building_count;  /* the places of buildings[] in use */
+    u8            *fire;            /* the turns of fire left on each cell of the map; 0 = no fire */
+    sim_ruleset    ruleset;
     u32            technique_points[SIM_FORCE_CAPACITY];   /* 技巧P of each faction; the save field is not decoded */
     u64            techniques[SIM_FORCE_CAPACITY];         /* bit t: the faction has technique t (CONTENT_TECHNIQUE_CAPACITY = 64) */
     sim_research_job research[SIM_FORCE_CAPACITY];
@@ -737,6 +828,27 @@ internal void             sim_unit_action(sim_state *sim, sim_command command, m
 internal void             sim_run_units_turn(sim_state *sim, u32 cause, sim_event_sink *events);
 internal sim_sortie_order sim_sortie_proposal(sim_state *sim, u8 city_id, u8 unit_type);
 internal u32              sim_military_ap(sim_state *sim, city_component *city, u32 action_points);   /* city_commands.cpp */
+
+/* combat.cpp and field.cpp: combat, plots, fire, buildings, siege (M6) */
+internal u32       sim_rule_combat_damage(sim_state *sim, sim_combat_input *input);
+internal u32       sim_building_at(sim_state *sim, hex_coord hex);   /* SIM_NO_BUILDING if none */
+internal b32       sim_hex_is_water(sim_state *sim, hex_coord hex);
+internal b32       sim_hex_burns(sim_state *sim, hex_coord hex);
+internal u32       sim_city_durability_max(sim_state *sim, city_component *city);
+internal sim_check sim_check_attack(sim_state *sim, sim_unit_order *order);
+internal sim_check sim_check_joint_attack(sim_state *sim, sim_unit_order *order);
+internal sim_check sim_check_tactic(sim_state *sim, sim_unit_order *order);
+internal sim_check sim_check_plot(sim_state *sim, sim_unit_order *order);
+internal sim_check sim_check_build(sim_state *sim, sim_command_kind kind, sim_unit_order *order);
+internal void      sim_attack(sim_state *sim, sim_command command, sim_event_sink *events);
+internal void      sim_joint_attack(sim_state *sim, sim_command command, sim_event_sink *events);
+internal void      sim_use_tactic(sim_state *sim, sim_command command, sim_event_sink *events);
+internal void      sim_use_plot(sim_state *sim, sim_command command, sim_event_sink *events);
+internal void      sim_build(sim_state *sim, sim_command command, sim_event_sink *events);
+internal u32       sim_add_building(sim_state *sim, u8 kind, u8 force, hex_coord hex, u32 durability, u8 city_id);
+internal void      sim_run_field_turn(sim_state *sim, u32 cause, sim_event_sink *events);
+internal b32       sim_building_available(sim_state *sim, u8 force, u32 kind_id);
+internal b32       sim_can_place(sim_state *sim, building_kind *kind, hex_coord hex);
 
 /* outcome.cpp: victory and defeat (calendar-and-turn.md) */
 internal void sim_check_outcome(sim_state *sim, u32 cause, sim_event_sink *events);
