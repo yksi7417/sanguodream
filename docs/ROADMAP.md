@@ -376,6 +376,59 @@ Spec input: formats/map-data.md, mechanics/terrain-and-map.md, fixtures/map/*.ts
   - the land armament of a ship unit and the movement of the transport;
   - the sortie hex of a city flower.
 
+### M11 The saved game on the real map
+Status (2026-10-17): done (tutorial 23). The spec input was
+formats/save-file.md, fixtures/map/facility-types.tsv and the fixtures of
+play session 1 (spec 9aa9a7c). The save gives the building array at
+0x0008A3 and the troop unit array at 0x086B71. A loaded save puts its state on the map,
+and the player can find each city and unit. The demo is
+"demo/m11_save_map".
+
+- Engine:
+  - save_format reads the 16384 building records and the 54 troop unit
+    records. save_dump prints them with --buildings and --units.
+  - data/placeholder/save_types.tsv maps each facility type of a save to
+    a row of the pack. A row is a facility with its level, a building, a
+    natural trap, a temple or a ruin.
+  - code/sim/save_map.cpp puts each facility on its slot with its level,
+    and each military building and trap on its hex. It gives the
+    durability to each base and natural trap, and the owner to each gate
+    and port.
+  - The units that officers ride in go on the map with their leader,
+    deputies and troops. The save gives no hex, class or grain (Q-211).
+    The hex is the first free hex near the home base (assumed). The unit
+    has no class, and it does not eat.
+  - grain.soldiers is 40, the rate of fixtures/grain-consumption.tsv.
+- API: `hex_at` also gives the facility and its level, the building and
+  the unit of a hex.
+- UI:
+  - A row of the Cities panel, the city combo or a row of the new Units
+    panel selects a city or a unit. The camera frames it. The Hex
+    map panel scrolls to it.
+  - The scene draws a marker and the name over each city; the mini map
+    shows the names. The unit under the mouse shows its commander.
+  - A click in the scene opens the Hex info box. It shows the terrain,
+    the height, the region by name and the slot. It also shows the
+    facility and its level, the building, the unit and the sites.
+  - W and S move the view up and down the screen, A and D to the sides,
+    at every yaw. Q and Left turn the map counter-clockwise, E and Right
+    clockwise. Up and Down tilt; the clamp keeps the yaw.
+  - The City panel counts its facilities by kind and level.
+- Tests:
+  - unit: the building and unit records; the screen directions of the
+    keys at nine headings; the tilt clamp;
+  - feature: 柴桑 of sample.s11 has 12 of 12 slots in use. They hold:
+    - 5 markets of level 3 next to a mint;
+    - a fish market, a drill ground and a military farm;
+    - barracks and a smithy of level 3, and a shipyard. Also 53 units, 30
+    buildings, the bases; handlers for the three fixtures of session 1;
+  - ui: the keys, a city row and a unit row frame, the Hex info box, the
+    facility counts.
+- Open points for the analysis side:
+  - Q-211: the hex, the class and the grain of a unit;
+  - Q-212: building +2 and the empty record;
+  - Q-213: 軍屯農 in the check of 柴桑.
+
 ## 4. Playability
 The analysis repo's spec/knowledge/playability.md (mined from the video
 series) feeds this list. This list is the measure of the UI and the AI, not
