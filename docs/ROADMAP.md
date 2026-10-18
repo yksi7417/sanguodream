@@ -396,12 +396,15 @@ and the player can find each city and unit. The demo is
     9632e15): each gate and port has its own record at 0x08428D. Its owner
     (+9) and its soldiers (+10) come from there, not from building +2.
   - The units that officers ride in go on the map with their leader,
-    deputies and troops. The save gives no class or grain (Q-211).
-    Fix (2026-10-18, spec 7fff546): the hex comes from record +23 and +25.
-    The first free hex near the home base is only a fallback, and a unit
-    on 河 or 海 is a 走舸 (assumed). The unit array has 56 units, past
-    0x08803B (Q-216). The unit
-    has no class, and it does not eat.
+    deputies and troops. Fix (2026-10-18, spec 7fff546): the hex comes
+    from record +23 and +25. The first free hex near the home base is only
+    a fallback. The unit array has 56 units, past 0x08803B (Q-216). Fix
+    (2026-10-18, spec e60a738): the record also gives the morale, the gold,
+    the grain, the 混亂, the land class and the ship class. On water the
+    unit moves and fights as its ship. The unit eats its grain.
+  - The per-hex block of the save gives the fire of each hex and the 12
+    event sites (16 = temple, assumed; Q-205). The fix also does this part
+    of M14.
   - grain.soldiers is 40, the rate of fixtures/grain-consumption.tsv.
 - API: `hex_at` also gives the facility and its level, the building and
   the unit of a hex.

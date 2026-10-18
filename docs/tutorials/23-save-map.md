@@ -23,14 +23,20 @@ formats/save-file.md gives two arrays of the payload:
   bytes 14 to 17 the hex. Records 0 to 86 are the bases. Type 255 marks
   an empty record (observed; Q-212).
 - The troop unit array at 0x086B71 has records of 98 bytes. A record
-  gives the leader, two deputies and the troops. It also gives the hex at
-  +23 (x) and +25 (y). The array
+  gives the leader, two deputies and the troops. It gives the morale (+8),
+  the gold (+9), the grain (+13) and the state (+17, 1 = 混亂). It gives
+  the hex at +23 (x) and +25 (y). It gives the land armament (+36) and the
+  ship class (+41), two rows of movement-costs.tsv. The array
   goes on past the table at 0x08803B: sample.s11 has units in the records
   54 to 56. The engine reads 388 records (assumed, Q-216). An officer in a
   unit has the position 87 + the unit index.
 
-save_format reads both arrays. `save_dump --buildings --units` prints
-them.
+- The per-hex block is the last 160000 bytes of the payload: one u32 for
+  each hex, at the index x * 200 + y. The low bits are the turns of fire
+  left (1 to 7). The values 16 and 32 mark the two kinds of event site.
+
+save_format reads the arrays and the block. `save_dump --buildings
+--units --bases` prints the arrays.
 
 ## From a facility type to the pack
 save_types.tsv has one row for each facility type of the save. The type
@@ -46,15 +52,23 @@ sim_load_save_map runs at the end of sim_load_save, on the real map only:
    a port come from its own record at 0x08428D (tutorial 20).
 2. Each other record puts its facility on the slot of its hex, or its
    building on its hex. A dike or a rockfall record gives its durability
-   to the trap of the map. Temples and ruins of the save replace the random pick.
-3. Each unit that an officer rides in goes on the hex of its record. The
+   to the trap of the map.
+3. The per-hex block gives the fire count of each hex and the 12 event
+   sites. The event sites replace the random pick. The engine takes 16 as
+   a temple and 32 as a ruin (assumed, Q-205).
+4. Each unit that an officer rides in goes on the hex of its record. The
    unit id is the unit index, so the positions of the officers stay right.
    - The hex can be off the map, on a terrain that a unit cannot enter, or
      under another unit. Then the unit goes on the first free hex near the
      home base of its leader. The ledger counts these fallbacks.
-   - The save gives no class, grain or morale (Q-211). A unit on land has no
-     class. A unit on 河 or 海 is a 走舸 (assumed), so the movement rules use
-     its ship row and never a land row on water. The unit does not eat.
+   - The unit gets the morale, the gold, the grain and the 混亂 of its
+     record. The save gives no turns of 混亂, so the engine gives 1 turn
+     (assumed, Q-218). The unit eats its grain each turn.
+   - sim_save_unit_type finds the unit type of the land armament and of the
+     ship class. On 河 and 海 the unit moves and fights as its ship
+     (sim_unit_cost_type, sim_effective_type), on land as its land class.
+     The engine takes water from the terrain of the hex, not from +42,
+     because +42 disagrees with the terrain for four units (Q-217).
 
 The ledger gets one SIM_EVENT_SAVE_MAP_LOADED event with the counts: delta
 is the facilities, buildings and traps; detail is the units; subject is the

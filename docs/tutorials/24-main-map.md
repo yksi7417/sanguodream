@@ -61,8 +61,8 @@ ui_draw_unit_plate draws a plate over each unit:
 - The supply icon 糧 and the soldiers. unit_at gives grain_turns: the
   turns that the grain lasts at one grain for each grain.soldiers
   soldiers. ui_grain_colour makes the icon red below 3 turns, yellow below
-  10 and green from 10. The icon is grey when the save gives no grain
-  (Q-211).
+  10 and green from 10. The icon is grey when a unit has no known grain.
+  A unit of a save has the grain of its record (+13).
 
 The clean room assumes what 委 and the colours of the supply icon show
 (Q-215).
