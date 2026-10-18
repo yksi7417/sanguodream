@@ -927,6 +927,7 @@ internal engine_unit recorder_unit_at(void *o, u32 unit_id)
     unit.home_city = 0; unit.destination = ENGINE_NO_CITY;
     unit.values.move = 22; unit.values.aptitude = 2;
     unit.grain_turns = 120;          /* M12: 3000 grain at 25 each turn */
+    unit.ship_type   = ENGINE_NO_UNIT_TYPE;
     return unit;
 }
 internal u32 recorder_unit_at_hex(void *o, s32 q, s32 r)

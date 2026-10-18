@@ -184,7 +184,7 @@ enum sim_event_kind
     SIM_EVENT_BANDIT_SITE,          /* subject = the city; detail = the cell of the bandit site that bandits use */
     SIM_EVENT_ROCKFALL_RETURNED,    /* detail = the building of the rockfall */
     /* M11 */
-    SIM_EVENT_SAVE_MAP_LOADED,      /* delta = the facilities, buildings and traps of the save on the map; detail = the units; subject = the units on a fallback hex; assumed when a fallback or a 走舸 on water (Q-211) */
+    SIM_EVENT_SAVE_MAP_LOADED,      /* delta = the facilities, buildings and traps of the save on the map; detail = the units; subject = the units on a fallback hex; assumed when a fallback, an unknown land class or event sites (Q-205) */
     SIM_EVENT_COUNT
 };
 
@@ -876,7 +876,9 @@ struct sim_unit
     u8        state;                              /* sim_unit_state (plots-and-states.md) */
     u8        state_turns;                        /* turns left of the state */
     u16       aid_turns;                          /* M7: an aid unit of an ally; the turns left; 0 = not an aid unit */
-    b32       grain_unknown;                      /* M11: a unit of a save; the save gives no grain, so it does not eat (Q-211) */
+    b32       grain_unknown;                      /* M11: a unit without a known grain does not eat (a save now gives the grain) */
+    b32       has_ship;                           /* a unit of a save: it has its own ship class (record +41) */
+    u8        ship_type;                          /* the unit type of that ship; on water it moves and fights as it */
 };
 
 enum sim_unit_state

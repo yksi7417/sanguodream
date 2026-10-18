@@ -56,6 +56,7 @@ sim_effective_type(sim_state *sim, sim_unit *unit)
     unit_type_kind *type = sim_unit_type(sim, unit->unit_type);
     if (type && type->movement != MOVEMENT_NAVY && sim_hex_is_water(sim, unit->hex))
     {
+        if (unit->has_ship) return unit->ship_type;   /* the ship class of a unit of a save (record +41) */
         u8 boat = content_find_unit_type(&sim->content, "boat");
         if (boat != CONTENT_NO_UNIT_TYPE) return boat;
     }

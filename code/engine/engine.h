@@ -432,6 +432,7 @@ struct engine_unit
     u8  state;              /* M6: sim_unit_state */
     u8  state_turns;
     u32 grain_turns;        /* M12: the turns that the grain lasts at the rate of grain.soldiers (the supply icon) */
+    u8  ship_type;          /* the ship class of a unit of a save (record +41); ENGINE_NO_UNIT_TYPE = the ship row of unit_type */
 };
 
 #define ENGINE_GRAIN_TURNS_UNKNOWN U32_MAX         /* the save gives no grain for the unit (Q-211) */

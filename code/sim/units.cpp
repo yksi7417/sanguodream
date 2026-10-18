@@ -253,6 +253,16 @@ sim_terrain_cost(sim_state *sim, movement_class movement, u8 unit_type, u8 terra
     return terrain->cost[movement];
 }
 
+/* The unit type that pays to enter a hex. On 河 and 海 a unit of a save
+   with its own ship class (record +41) pays the row of that ship. Else the
+   unit type pays: its armament row on land and its ship row on water. */
+internal u8
+sim_unit_cost_type(sim_state *sim, sim_unit *unit, hex_coord hex)
+{
+    if (unit->has_ship && sim_hex_is_water(sim, hex)) return unit->ship_type;
+    return unit->unit_type;
+}
+
 /* The cost for a unit of the force to enter the hex, or 0 if it cannot.
    self is the unit that moves; unit_type is CONTENT_NO_UNIT_TYPE for the
    class costs only. */
@@ -372,7 +382,7 @@ sim_unit_reach(sim_state *sim, u32 unit_id, memory_arena *scratch)
         {
             hex_coord next = hex_neighbor(here, d);
             if (!hex_map_contains(&sim->map, next)) continue;
-            u32 cost = sim_entry_cost_of(sim, unit->force_id, type->movement, unit->unit_type, next, unit_id);
+            u32 cost = sim_entry_cost_of(sim, unit->force_id, type->movement, sim_unit_cost_type(sim, unit, next), next, unit_id);
             if (!cost) continue;
             u32 next_index = hex_map_index(&sim->map, next);
             u32 total = current.cost + cost;
