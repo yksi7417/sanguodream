@@ -224,6 +224,11 @@ engine_api_unit_at(void *opaque, u32 unit_id)
     result.values      = engine_values_view(sim_unit_values_of(sim, unit->force_id, unit->unit_type, unit->officers));
     result.state       = unit->state;
     result.state_turns = unit->state_turns;
+    /* M12: the supply icon of the plate. A unit eats one grain for each grain.soldiers soldiers each turn (units.cpp). */
+    u32 eaten = sim->content.rules.grain_soldiers ? unit->soldiers / sim->content.rules.grain_soldiers : 0;
+    if (unit->grain_unknown) result.grain_turns = ENGINE_GRAIN_TURNS_UNKNOWN;
+    else if (!eaten)         result.grain_turns = ENGINE_GRAIN_TURNS_ENDLESS;
+    else                     result.grain_turns = unit->grain / eaten;
     return result;
 }
 

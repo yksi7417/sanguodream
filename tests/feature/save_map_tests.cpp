@@ -120,5 +120,6 @@ feature_save_map_tests(test_counts *counts)
     feature_play_as(api, api->city_at(e, city).owner_force_id);
     feature_next_turn(api);
     TEST_CHECK(counts, api->unit_at(e, 0).soldiers == 6000, "a unit of the save does not starve: the save gives no grain (Q-211)");
+    TEST_CHECK(counts, api->unit_at(e, 0).grain_turns == ENGINE_GRAIN_TURNS_UNKNOWN, "M12: the supply icon of a unit of the save shows that its grain is not known");
     engine_fixture_destroy(&f);
 }

@@ -431,7 +431,11 @@ struct engine_unit
     engine_unit_values values;
     u8  state;              /* M6: sim_unit_state */
     u8  state_turns;
+    u32 grain_turns;        /* M12: the turns that the grain lasts at the rate of grain.soldiers (the supply icon) */
 };
+
+#define ENGINE_GRAIN_TURNS_UNKNOWN U32_MAX         /* the save gives no grain for the unit (Q-211) */
+#define ENGINE_GRAIN_TURNS_ENDLESS (U32_MAX - 1)   /* the unit has too few soldiers to eat */
 
 /* ---- M6: combat, plots, fire, buildings, siege -------------------------- */
 

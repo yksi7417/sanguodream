@@ -926,6 +926,7 @@ internal engine_unit recorder_unit_at(void *o, u32 unit_id)
     unit.soldiers = 1000; unit.gold = 500; unit.grain = 3000; unit.morale = 50;
     unit.home_city = 0; unit.destination = ENGINE_NO_CITY;
     unit.values.move = 22; unit.values.aptitude = 2;
+    unit.grain_turns = 120;          /* M12: 3000 grain at 25 each turn */
     return unit;
 }
 internal u32 recorder_unit_at_hex(void *o, s32 q, s32 r)

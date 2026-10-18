@@ -336,6 +336,9 @@ feature_move_tests(test_counts *counts)
     TEST_CHECK(counts, feature_find_event(api, SIM_EVENT_UNIT_GRAIN_EATEN, mark, &eaten) && eaten.delta == -25 && eaten.detail == unit_id && eaten.assumed,
                "each turn a unit of 1000 soldiers eats 25 grain (the rate of a city, observed; assumed for a unit)");
     TEST_CHECK(counts, !api->unit_at(e, unit_id).moved && !api->unit_at(e, unit_id).acted, "a new turn lets the unit move and act again");
+    engine_unit fed = api->unit_at(e, unit_id);
+    TEST_CHECK(counts, fed.grain_turns == fed.grain / 25 && fed.grain_turns != ENGINE_GRAIN_TURNS_UNKNOWN,
+               "M12: unit_at gives the turns that the grain lasts at 25 grain each turn (the supply icon)");
 
     /* 退卻: back to the home city with everything. */
     engine_city before = api->city_at(e, city);
