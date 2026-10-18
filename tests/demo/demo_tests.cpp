@@ -1723,7 +1723,7 @@ demo_m12_main_map(ImGuiTestContext *ctx)
     ctx->Yield(2);
     engine_unit unit = api->unit_at(e, unit_id);
     IM_CHECK(demo_camera_on(v, hex_make(unit.q, unit.r)));
-    IM_CHECK_EQ(unit.grain_turns, ENGINE_GRAIN_TURNS_UNKNOWN);   /* the save gives no grain: a grey supply icon */
+    IM_CHECK(unit.grain_turns != ENGINE_GRAIN_TURNS_UNKNOWN && unit.grain_turns == unit.grain / (unit.soldiers / 40));   /* the grain of the record */
     IM_CHECK_EQ(ui_unit_mark_of(&unit, api->city_corps(e, unit.home_city)), (u32)UI_UNIT_MARK_READY);   /* 未 */
     v.ui.show_units = false;
     ctx->SleepStandard();

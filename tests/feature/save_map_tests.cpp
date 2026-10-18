@@ -36,6 +36,24 @@ feature_count_facility(engine_api *api, u8 city, const char *key, u8 level)
     return found;
 }
 
+/* True if the unit type has the key; false for ENGINE_NO_UNIT_TYPE. */
+internal b32
+feature_type_is(engine_api *api, u8 type, const char *key)
+{
+    if (type == ENGINE_NO_UNIT_TYPE) return false;
+    return strcmp(api->unit_type_at(api->engine, type).key, key) == 0;
+}
+
+/* The hex of save coordinates x (the column) and y (the row). */
+internal hex_coord
+feature_save_hex(u32 x, u32 y)
+{
+    hex_offset offset;
+    offset.col = (s32)x;
+    offset.row = (s32)y;
+    return hex_from_offset(offset);
+}
+
 internal void
 feature_save_map_tests(test_counts *counts)
 {
@@ -119,8 +137,6 @@ feature_save_map_tests(test_counts *counts)
     /* The units of the save, on the hexes of their records (+23 x, +25 y). */
     u32 units = 0, on_water = 0;
     b32 units_ok = true, enterable = true, classes_ok = true;
-    u8 boat = ENGINE_NO_UNIT_TYPE;
-    for (u32 type = 0; type < api->unit_type_count(e); ++type) if (strcmp(api->unit_type_at(e, type).key, "boat") == 0) boat = (u8)type;
     for (u32 id = 0; id < api->unit_count(e); ++id)
     {
         engine_unit unit = api->unit_at(e, id);
@@ -136,14 +152,24 @@ feature_save_map_tests(test_counts *counts)
         if (!api->terrain_kind_at(e, hex.terrain).enterable) enterable = false;
         b32 water = hex.terrain == FEATURE_TERRAIN_RIVER || hex.terrain == FEATURE_TERRAIN_SEA;
         on_water += water;
-        if (unit.unit_type != (water ? boat : ENGINE_NO_UNIT_TYPE)) classes_ok = false;
+        if (unit.unit_type == ENGINE_NO_UNIT_TYPE) classes_ok = false;
     }
     engine_unit first = api->unit_at(e, 0);
     TEST_CHECK(counts, units == FEATURE_SAVE_UNITS && units_ok,
                "56 units stand on the map; each has its leader and the force of the leader, and the id of its officer position");
     TEST_CHECK(counts, enterable && on_water == FEATURE_SAVE_WATER_UNITS, "each unit stands on a terrain that a unit can enter; 12 stand on 河 or 海");
-    TEST_CHECK(counts, boat != ENGINE_NO_UNIT_TYPE && classes_ok,
-               "a unit on water is a 走舸 for the movement rules (assumed, Q-211); a unit on land has no class");
+    TEST_CHECK(counts, classes_ok, "each unit has the land class of its record (+36)");
+
+    /* The 部隊情報 screens of the game (spec b3ed57d): soldiers, morale, gold, grain, classes and 混亂. */
+    engine_unit yan_xing = api->unit_at(e, 12), jiang_qin = api->unit_at(e, 22);
+    TEST_CHECK(counts, yan_xing.soldiers == 3284 && yan_xing.morale == 100 && yan_xing.gold == 168 && yan_xing.grain == 6135 &&
+                       feature_type_is(api, yan_xing.unit_type, "cavalry") && feature_type_is(api, yan_xing.ship_type, "boat") &&
+                       yan_xing.state == UNIT_STATE_CONFUSED,
+               "unit 12 (閻行) at 49,67: 3284 soldiers, morale 100, gold 168, grain 6135, 軍馬 and 走舸, 混亂");
+    TEST_CHECK(counts, jiang_qin.soldiers == 1478 && jiang_qin.morale == 100 && jiang_qin.gold == 200 && jiang_qin.grain == 3944 &&
+                       feature_type_is(api, jiang_qin.unit_type, "halberd") && feature_type_is(api, jiang_qin.ship_type, "boat") &&
+                       jiang_qin.state == UNIT_STATE_CONFUSED,
+               "unit 22 (蔣欽) at 98,106: 1478 soldiers, morale 100, gold 200, grain 3944, 戟 and 走舸, 混亂");
     engine_unit sun_ce = api->unit_at(e, 16), zhou_tai = api->unit_at(e, 23);
     hex_offset sun_ce_hex = hex_to_offset(hex_make(sun_ce.q, sun_ce.r)), zhou_tai_hex = hex_to_offset(hex_make(zhou_tai.q, zhou_tai.r));
     TEST_CHECK(counts, sun_ce.officers[0] == 370 && sun_ce_hex.col == 135 && sun_ce_hex.row == 129 &&
@@ -152,6 +178,31 @@ feature_save_map_tests(test_counts *counts)
     TEST_CHECK(counts, zhou_tai.officers[0] == 242 && zhou_tai_hex.col == 134 && zhou_tai_hex.row == 128 &&
                        api->hex_at(e, zhou_tai.q, zhou_tai.r).terrain == FEATURE_TERRAIN_RIVER,
                "unit 23 (周泰, officer 242) stands at 134,128 on 河, as the game shows");
+    TEST_CHECK(counts, feature_type_is(api, sun_ce.unit_type, "pike") && feature_type_is(api, zhou_tai.unit_type, "halberd") &&
+                       feature_type_is(api, sun_ce.ship_type, "tower_ship") && feature_type_is(api, zhou_tai.ship_type, "tower_ship") &&
+                       sun_ce.state == UNIT_STATE_NONE && zhou_tai.state == UNIT_STATE_NONE,
+               "孫策 (槍) and 周泰 (戟) ride 樓船 on the river and are not in 混亂");
+
+    /* The per-hex block: the fire and the event sites (Q-200, Q-205). */
+    TEST_CHECK(counts, api->hex_at(e, zhou_tai.q, zhou_tai.r).fire_turns == 1, "the hex of 周泰 (134,128) burns with 1 turn left, as the player saw");
+    TEST_CHECK(counts, api->hex_at(e, yan_xing.q, yan_xing.r).fire_turns == 3 && api->hex_at(e, jiang_qin.q, jiang_qin.r).fire_turns == 4,
+               "49,67 burns with 3 turns and 98,106 with 4 turns");
+    u32 burning = 0;
+    for (u32 cell = 0; cell < 200 * 200; ++cell)
+    {
+        hex_coord hex = feature_save_hex(cell % 200, cell / 200);
+        burning += api->hex_at(e, hex.q, hex.r).fire_turns > 0;
+    }
+    u32 temples = 0, ruins = 0;
+    for (u32 index = 0; index < api->relic_count(e); ++index)
+    {
+        engine_relic relic = api->relic_at(e, index);
+        temples += relic.kind == RELIC_TEMPLE;
+        ruins   += relic.kind == RELIC_RUIN;
+    }
+    TEST_CHECK(counts, burning == 3, "exactly 3 hexes of the save burn");
+    TEST_CHECK(counts, api->relic_count(e) == 12 && temples == 6 && ruins == 6,
+               "the 12 event sites of the save load: 6 temples (mark 16, assumed) and 6 ruins (mark 32), Q-205");
     /* A move on the real map: the check and the move each build a reach of 40,000 cells. */
     feature_play_as(api, sun_ce.force_id);
     engine_reach_view reach = api->reachable(e, 16);
@@ -163,12 +214,15 @@ feature_save_map_tests(test_counts *counts)
     }
     TEST_CHECK(counts, reach.count > 1 && api->command_move(e, 16, goal.q, goal.r).refusal == SIM_REFUSAL_NONE &&
                        api->unit_at(e, 16).q == goal.q && api->unit_at(e, 16).r == goal.r,
-               "the 走舸 of 孫策 moves on the real map (the move gives back the scratch memory of its check)");
+               "the 樓船 of 孫策 moves on the real map (the move gives back the scratch memory of its check)");
     TEST_CHECK(counts, first.officers[0] == 158 && first.officers[1] == 552 && first.soldiers == 6000,
                "unit 0 has the leader 158, the deputy 552 and 6000 troops");
+    TEST_CHECK(counts, first.grain_turns == first.grain / (first.soldiers / 40) && first.grain_turns != ENGINE_GRAIN_TURNS_UNKNOWN,
+               "the supply icon of a unit of the save uses the grain of the record (+13)");
     feature_play_as(api, api->city_at(e, city).owner_force_id);
     feature_next_turn(api);
-    TEST_CHECK(counts, api->unit_at(e, 0).soldiers == 6000, "a unit of the save does not starve: the save gives no grain (Q-211)");
-    TEST_CHECK(counts, api->unit_at(e, 0).grain_turns == ENGINE_GRAIN_TURNS_UNKNOWN, "M12: the supply icon of a unit of the save shows that its grain is not known");
+    engine_unit fed = api->unit_at(e, 0);
+    TEST_CHECK(counts, fed.soldiers == 6000 && fed.grain < first.grain && (first.grain - fed.grain) % (6000 / 40) == 0,
+               "a unit of the save eats its grain: 150 each turn for 6000 soldiers");
     engine_fixture_destroy(&f);
 }

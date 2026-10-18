@@ -13,8 +13,11 @@ struct sim_save_map_counts
 {
     u32 facilities, buildings, naturals, relics, bases, units, skipped;
     u32 unit_fallbacks;   /* units whose hex of the save is off the map, not enterable or taken */
-    u32 ships;            /* units on 河 or 海 that get the 走舸 type (assumed, Q-211) */
+    u32 unknown_classes;  /* units whose land armament (+36) is no unit type of the pack */
+    u32 fires;            /* hexes that burn */
 };
+
+#define SIM_SAVE_CONFUSION_TURNS 1   /* the turns of 混亂 of a unit of a save: the save gives none (assumed, Q-211) */
 
 /* The city and the slot of a slot hex, or SIM_NO_CITY. */
 internal u8
@@ -169,13 +172,27 @@ sim_save_unit_hex(sim_state *sim, u16 home, u8 force, hex_coord *out)
     return false;
 }
 
+/* The unit type of a row of movement-costs.tsv: the land type with that
+   armament row (record +36), or the ship type with that ship row (record
+   +41). CONTENT_NO_UNIT_TYPE if no type has it. */
+internal u8
+sim_save_unit_type(sim_state *sim, u8 row, b32 ship)
+{
+    for (u32 index = 0; index < sim->content.unit_type_count; ++index)
+    {
+        unit_type_kind *kind = sim->content.unit_types + index;
+        if (kind->transport || (kind->movement == MOVEMENT_NAVY) != (ship != 0)) continue;
+        if ((ship ? kind->ship : kind->armament) == row) return (u8)index;
+    }
+    return CONTENT_NO_UNIT_TYPE;
+}
+
 /* The units of the save: each unit that an officer rides in (officer +98 =
    87 + the unit index). The record gives the leader, two deputies, the
-   troops and the hex. The unit id is the unit index, so the positions of
-   the officers stay right. The save gives no class, no grain and no
-   morale (Q-211): the unit does not eat, and a unit on land has no class.
-   ASSUMED (Q-211): a unit on 河 or 海 is a 走舸, so the movement rules use
-   a ship row for it and never a land row on water. */
+   troops, the morale, the gold, the grain, the state, the hex, the land
+   class (+36) and the ship class (+41). The unit id is the unit index, so
+   the positions of the officers stay right. On 河 and 海 the unit moves and
+   fights as its ship, on land as its land class (sim_unit_cost_type). */
 internal void
 sim_load_save_units(sim_state *sim, save_file *save, sim_save_map_counts *counts)
 {
@@ -205,14 +222,19 @@ sim_load_save_units(sim_state *sim, save_file *save, sim_save_map_counts *counts
         unit->alive         = true;
         unit->force_id      = leader->force_id;
         unit->hex           = hex;
-        unit->unit_type     = CONTENT_NO_UNIT_TYPE;
-        if (sim_hex_is_water(sim, hex))
-        {
-            unit->unit_type = content_find_unit_type(&sim->content, "boat");   /* 走舸 (assumed, Q-211) */
-            if (unit->unit_type != CONTENT_NO_UNIT_TYPE) counts->ships++;
-        }
+        unit->unit_type     = sim_save_unit_type(sim, record->armament, false);
+        unit->ship_type     = sim_save_unit_type(sim, record->ship, true);
+        unit->has_ship      = unit->ship_type != CONTENT_NO_UNIT_TYPE;
+        if (unit->unit_type == CONTENT_NO_UNIT_TYPE) counts->unknown_classes++;
         unit->soldiers      = record->troops;
-        unit->grain_unknown = true;
+        unit->morale        = record->morale;
+        unit->gold          = record->gold;
+        unit->grain         = record->grain;
+        if (record->state == SAVE_UNIT_STATE_CONFUSED)
+        {
+            unit->state       = UNIT_STATE_CONFUSED;
+            unit->state_turns = SIM_SAVE_CONFUSION_TURNS;   /* the save gives no turns (assumed, Q-211) */
+        }
         unit->home_city     = leader->base_location < SAVE_CITY_COUNT ? (u8)leader->base_location : (u8)SIM_NO_CITY;
         unit->destination   = SIM_NO_CITY;
         for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place)
@@ -222,6 +244,36 @@ sim_load_save_units(sim_state *sim, save_file *save, sim_save_map_counts *counts
         }
         if (index + 1 > sim->unit_count) sim->unit_count = index + 1;
         counts->units++;
+    }
+}
+
+/* The per-hex block (save-file.md, spec b3ed57d): the turns of fire left
+   go into the fire count of the hex, and the marks 16 and 32 are the
+   event sites. ASSUMED (Q-205): 16 is a temple and 32 a ruin. */
+internal void
+sim_load_save_hex_states(sim_state *sim, save_file *save, hex_coord *relic_hexes, u8 *relic_kinds, sim_save_map_counts *counts)
+{
+    for (u32 index = 0; index < save->hex_state_count; ++index)
+    {
+        u32 state = save->hex_states[index];
+        if (!state) continue;
+        hex_offset offset;
+        offset.col = (s32)(index / SAVE_HEX_SIDE);   /* x * 200 + y: column first */
+        offset.row = (s32)(index % SAVE_HEX_SIDE);
+        hex_coord hex = hex_from_offset(offset);
+        if (!hex_map_contains(&sim->map, hex)) continue;
+        u32 turns = state & SAVE_HEX_FIRE_MASK;
+        if (turns && sim->fire)
+        {
+            sim->fire[hex_map_index(&sim->map, hex)] = (u8)turns;
+            counts->fires++;
+        }
+        if ((state & (SAVE_HEX_SITE_LOW | SAVE_HEX_SITE_HIGH)) && counts->relics < SIM_RELIC_COUNT)
+        {
+            relic_hexes[counts->relics] = hex;
+            relic_kinds[counts->relics] = (u8)((state & SAVE_HEX_SITE_LOW) ? RELIC_TEMPLE : RELIC_RUIN);
+            counts->relics++;
+        }
     }
 }
 
@@ -241,6 +293,7 @@ sim_load_save_map(sim_state *sim, save_file *save, u32 cause, sim_event_sink *ev
         if (record->type == SAVE_BUILDING_EMPTY_TYPE) continue;
         sim_load_save_building(sim, record, relic_hexes, relic_kinds, &counts);
     }
+    if (save->hex_states) sim_load_save_hex_states(sim, save, relic_hexes, relic_kinds, &counts);
     /* The event sites of the save take the place of the random pick. */
     if (counts.relics)
     {
@@ -258,6 +311,7 @@ sim_load_save_map(sim_state *sim, save_file *save, u32 cause, sim_event_sink *ev
     event.delta   = (s32)(counts.facilities + counts.buildings + counts.naturals + counts.relics);
     event.detail  = counts.units;
     event.subject = counts.unit_fallbacks;
-    event.assumed = counts.unit_fallbacks > 0 || counts.ships > 0;   /* a fallback hex, or the 走舸 of a unit on water (Q-211) */
+    /* Assumed: a fallback hex, a land class that the pack lacks, or the kind of an event site (Q-205). */
+    event.assumed = counts.unit_fallbacks > 0 || counts.unknown_classes > 0 || counts.relics > 0;
     sim_emit(events, event);
 }
