@@ -341,9 +341,18 @@ enum unit_record_offset
     UNIT_DEPUTY_1 = 2,   /* u16 officer id */
     UNIT_DEPUTY_2 = 4,   /* u16 officer id */
     UNIT_TROOPS   = 6,   /* u16 */
+    UNIT_MORALE   = 8,   /* u8: 氣力 (spec b3ed57d) */
+    UNIT_GOLD     = 9,   /* u32 */
+    UNIT_GRAIN    = 13,  /* u32 */
+    UNIT_STATE    = 17,  /* u8: 1 = 混亂; the other values are open (Q-211) */
     UNIT_HEX_X    = 23,  /* u16: the hex x on the map axes of map-data.md (spec 7fff546, Q-211) */
-    UNIT_HEX_Y    = 25   /* u16: the hex y */
+    UNIT_HEX_Y    = 25,  /* u16: the hex y */
+    UNIT_ARMAMENT = 36,  /* u8: the land armament, a row of movement-costs.tsv (1 槍, 2 戟, 4 軍馬) */
+    UNIT_SHIP     = 41,  /* u8: the ship class, a row of movement-costs.tsv (9 走舸, 10 樓船, 11 鬥艦) */
+    UNIT_ON_WATER = 42   /* u8: 1 when the unit is on water as a ship (assumed in the spec) */
 };
+
+#define SAVE_UNIT_STATE_CONFUSED 1
 
 struct unit_record
 {
@@ -351,7 +360,21 @@ struct unit_record
     u16 officers[SAVE_UNIT_OFFICER_SLOTS];   /* [0] the leader; OFFICER_ID_NONE for an empty slot */
     u16 troops;
     u16 x, y;                                /* the hex: x the column, y the row */
+    u8  morale;
+    u32 gold, grain;
+    u8  state;                               /* SAVE_UNIT_STATE_CONFUSED or another value (open) */
+    u8  armament, ship;                      /* rows of movement-costs.tsv */
+    u8  on_water;
 };
+
+/* ---- the per-hex block (save-file.md, spec b3ed57d; Q-200, Q-205) ---------- */
+
+#define SAVE_HEX_SIDE        200                          /* the map is 200 x 200 hexes */
+#define SAVE_HEX_COUNT       (SAVE_HEX_SIDE * SAVE_HEX_SIDE)
+#define SAVE_HEX_RECORD_SIZE 4                            /* u32 for each hex, index x * 200 + y */
+#define SAVE_HEX_FIRE_MASK   0x07                         /* the turns of fire left, 1 to 7 */
+#define SAVE_HEX_SITE_LOW    16                           /* one kind of event site (temple or ruin, open: Q-205) */
+#define SAVE_HEX_SITE_HIGH   32                           /* the other kind */
 
 /* ---- gate and port record (save-file.md, spec 9632e15; Q-183) ------------- */
 
@@ -393,6 +416,8 @@ struct save_file
     u32             unit_count;
     base_record    *bases;           /* SAVE_BASE_RECORD_COUNT, index = base id - SAVE_BASE_FIRST_ID */
     u32             base_count;
+    u32            *hex_states;      /* SAVE_HEX_COUNT, index = x * SAVE_HEX_SIDE + y: the fire and the event sites */
+    u32             hex_state_count;
 };
 
 struct save_load_result

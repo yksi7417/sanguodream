@@ -290,6 +290,16 @@ test_build_save_file(u8 *file, memory_arena *arena)
     unit[2] = 0xFF; unit[3] = 0xFF; unit[4] = 0xFF; unit[5] = 0xFF;
     unit[6] = 0xB8; unit[7] = 0x0B;
     unit[23] = 135; unit[24] = 0; unit[25] = 129; unit[26] = 0;   /* the hex 135,129 (spec 7fff546) */
+    /* Spec b3ed57d: morale 100, gold 168, grain 6135, 混亂, 軍馬 (row 4) and 走舸 (row 9). */
+    unit[8] = 100;
+    unit[9] = 0xA8;
+    unit[13] = 0xF7; unit[14] = 0x17;
+    unit[17] = 1;
+    unit[36] = 4; unit[41] = 9; unit[42] = 1;
+    /* The per-hex block, the last 160000 bytes: 49,67 burns 3 turns; 10,20 is an event site (16). */
+    u8 *hex_block = payload + SAVE_PAYLOAD_LENGTH - 160000;
+    hex_block[4 * (49 * 200 + 67)] = 3;
+    hex_block[4 * (10 * 200 + 20)] = 16;
     /* Record 55 lies past 0x08803B: the array goes on (sample.s11 has units 54 to 56). */
     u8 *late = payload + 0x086B71 + 98 * 55;
     late[0] = 0xB5; late[1] = 0x01;   /* the leader 437 */
@@ -336,6 +346,14 @@ unit_save_load_tests(test_counts *counts)
                        save.units[5].officers[2] == OFFICER_ID_NONE && save.units[5].troops == 3000,
                "unit 5 is read from its slot; the array has 388 records up to the end of the table at 0x08803B (Q-216)");
     TEST_CHECK(counts, save.units[5].x == 135 && save.units[5].y == 129, "the hex of unit 5 is read from +23 x and +25 y");
+    TEST_CHECK(counts, save.units[5].morale == 100 && save.units[5].gold == 168 && save.units[5].grain == 6135 &&
+                       save.units[5].state == SAVE_UNIT_STATE_CONFUSED,
+               "unit 5: +8 morale, +9 gold, +13 grain and +17 the state (1 = 混亂)");
+    TEST_CHECK(counts, save.units[5].armament == 4 && save.units[5].ship == 9 && save.units[5].on_water == 1,
+               "unit 5: +36 the land armament, +41 the ship class, +42 the water flag");
+    TEST_CHECK(counts, save.hex_state_count == 40000 && (save.hex_states[49 * 200 + 67] & SAVE_HEX_FIRE_MASK) == 3 &&
+                       save.hex_states[10 * 200 + 20] == SAVE_HEX_SITE_LOW && save.hex_states[0] == 0,
+               "the per-hex block: index x * 200 + y; the low bits are the fire turns, 16 an event site");
     TEST_CHECK(counts, save.units[55].officers[0] == 437 && save.units[55].x == 91 && save.units[55].y == 46,
                "record 55 past 0x08803B is a unit record of the same stride");
     TEST_CHECK(counts, save.base_count == 45 && save.bases[30].id == 72 && save.bases[30].owner_force_id == 6 && save.bases[30].soldiers == 6266,
@@ -368,7 +386,7 @@ unit_save_load_tests(test_counts *counts)
     save_load(&arena, file, file_size, &save);
     u64 record_bytes = 1100 * sizeof(officer_record) + 42 * sizeof(city_record) + 50 * sizeof(item_record) +
                        SAVE_BUILDING_COUNT * sizeof(building_record) + SAVE_UNIT_CAPACITY * sizeof(unit_record) +   /* M11 */
-                       SAVE_BASE_RECORD_COUNT * sizeof(base_record);
+                       SAVE_BASE_RECORD_COUNT * sizeof(base_record) + SAVE_HEX_COUNT * sizeof(u32);
     TEST_CHECK(counts, arena.used - before_second_load < record_bytes + 64, "a load keeps the records, not the payload");
 
     memory_arena small = arena_sub(&arena, Megabytes(1));

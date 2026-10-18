@@ -189,7 +189,17 @@ save_decode_payload(const u8 *payload, save_file *out)
         unit->troops      = format_read_u16(record + UNIT_TROOPS);
         unit->x           = format_read_u16(record + UNIT_HEX_X);
         unit->y           = format_read_u16(record + UNIT_HEX_Y);
+        unit->morale      = record[UNIT_MORALE];
+        unit->gold        = format_read_u32(record + UNIT_GOLD);
+        unit->grain       = format_read_u32(record + UNIT_GRAIN);
+        unit->state       = record[UNIT_STATE];
+        unit->armament    = record[UNIT_ARMAMENT];
+        unit->ship        = record[UNIT_SHIP];
+        unit->on_water    = record[UNIT_ON_WATER];
     }
+    /* The per-hex block is the last 160000 bytes of the payload. */
+    const u8 *hexes = payload + SAVE_PAYLOAD_LENGTH - SAVE_HEX_COUNT * SAVE_HEX_RECORD_SIZE;
+    for (u32 index = 0; index < out->hex_state_count; ++index) out->hex_states[index] = format_read_u32(hexes + SAVE_HEX_RECORD_SIZE * index);
     for (u32 index = 0; index < out->base_count; ++index)
     {
         const u8 *record = payload + SAVE_PAYLOAD_BASE_ARRAY + SAVE_BASE_RECORD_SIZE * index;
@@ -205,7 +215,7 @@ save_decode_payload(const u8 *payload, save_file *out)
 #define SAVE_LOAD_ARENA_NEED (sizeof(officer_record) * SAVE_OFFICER_SLOTS + sizeof(city_record) * SAVE_CITY_COUNT + \
                               sizeof(item_record) * SAVE_ITEM_COUNT + sizeof(building_record) * SAVE_BUILDING_COUNT + \
                               sizeof(unit_record) * SAVE_UNIT_CAPACITY + sizeof(base_record) * SAVE_BASE_RECORD_COUNT + \
-                              SAVE_PAYLOAD_LENGTH + sizeof(inflate_state) + 8 * 16)
+                              sizeof(u32) * SAVE_HEX_COUNT + SAVE_PAYLOAD_LENGTH + sizeof(inflate_state) + 9 * 16)
 
 /* The loader rule of save-file.md: read the two lengths at 0x1B7, inflate
    the bytes from 0x1BF to the end of the file, check the inflated length
@@ -256,6 +266,8 @@ save_load(memory_arena *arena, const u8 *file, u64 file_size, save_file *out)
     out->units          = PushArray(arena, SAVE_UNIT_CAPACITY, unit_record);
     out->base_count     = SAVE_BASE_RECORD_COUNT;
     out->bases          = PushArray(arena, SAVE_BASE_RECORD_COUNT, base_record);
+    out->hex_state_count = SAVE_HEX_COUNT;
+    out->hex_states      = PushArray(arena, SAVE_HEX_COUNT, u32);
 
     u64 records_mark = arena->used;
     u8 *payload = (u8 *)arena_push_size(arena, SAVE_PAYLOAD_LENGTH, 1);
