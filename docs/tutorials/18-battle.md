@@ -101,9 +101,20 @@ These skills change the chance:
 
 A plot on an empty hex, 滅火 and 鎮靜 always work.
 
-A state lasts some turns. A confused unit cannot act. A unit under 偽報
-marches to its home city by itself. 沈著 and 明鏡 stop confusion; 規律 and
-明鏡 stop 偽報. A camp of the faction can end a state sooner.
+A unit in a state cannot move, retreat, supply, attack or use a plot; it
+can only wait. A unit under 偽報 marches to its home city by itself, and
+the state ends after its turns. 混亂 has no count of turns:
+- At the start of each turn the unit recovers by a chance. The chance in
+  percent is the highest 智力 of the unit.
+- The chance is at least confusion.recover_floor (20) and at most
+  confusion.recover_cap (90).
+- A small unit can panic. It has panic.soldiers (500) soldiers or fewer,
+  and an enemy unit next to it has panic.ratio (5) times its soldiers.
+  Then it confuses itself with panic.chance (30 percent).
+- The clean room assumes these numbers (Q-218).
+
+沈著 and 明鏡 stop confusion; 規律 and 明鏡 stop 偽報. A camp of the faction
+can end a state sooner, and 鎮靜 ends it in the same turn.
 
 ## Fire
 The array `sim->fire` keeps the turns of fire of each cell. Each turn a

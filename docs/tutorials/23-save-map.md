@@ -25,8 +25,10 @@ formats/save-file.md gives two arrays of the payload:
 - The troop unit array at 0x086B71 has records of 98 bytes. A record
   gives the leader, two deputies and the troops. It gives the morale (+8),
   the gold (+9), the grain (+13) and the state (+17, 1 = 混亂). It gives
-  the hex at +23 (x) and +25 (y). It gives the land armament (+36) and the
-  ship class (+41), two rows of movement-costs.tsv. The array
+  the task (+19) and the target base (+21). It gives the hex at +23 (x)
+  and +25 (y) and the land armament (+36), a row of movement-costs.tsv.
+  From +41 it holds a list of 11 entries of 5 bytes: a kind and a u32
+  count (Q-217). The array
   goes on past the table at 0x08803B: sample.s11 has units in the records
   54 to 56. The engine reads 388 records (assumed, Q-216). An officer in a
   unit has the position 87 + the unit index.
@@ -62,13 +64,18 @@ sim_load_save_map runs at the end of sim_load_save, on the real map only:
      under another unit. Then the unit goes on the first free hex near the
      home base of its leader. The ledger counts these fallbacks.
    - The unit gets the morale, the gold, the grain and the 混亂 of its
-     record. The save gives no turns of 混亂, so the engine gives 1 turn
-     (assumed, Q-218). The unit eats its grain each turn.
-   - sim_save_unit_type finds the unit type of the land armament and of the
-     ship class. On 河 and 海 the unit moves and fights as its ship
+     record. The save holds no turns of 混亂: the unit rolls its recovery
+     from its next turn (tutorial 18, Q-218). The unit eats its grain.
+   - A record with the land armament 0 and the kinds 1 to 11 in order is a
+     transport (輸送隊). Its list is its cargo, in the stocks of a city
+     (sim_save_equipment_stock). Its target city is its destination when
+     its task is 移動. The Unit panel shows the cargo in two rows.
+   - A battle unit gets the land type of its armament. The first entry of
+     its list is its ship. A count of 1 or more gives the ship type of the
+     kind, for example a 樓船, also on land. A count of 0 gives no ship, so the unit is
+     a 走舸 on water. On 河 and 海 the unit moves and fights as its ship
      (sim_unit_cost_type, sim_effective_type), on land as its land class.
-     The engine takes water from the terrain of the hex, not from +42,
-     because +42 disagrees with the terrain for four units (Q-217).
+     The terrain of the hex says what water is.
 
 The ledger gets one SIM_EVENT_SAVE_MAP_LOADED event with the counts: delta
 is the facilities, buildings and traps; detail is the units; subject is the

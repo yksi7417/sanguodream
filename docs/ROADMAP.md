@@ -401,7 +401,10 @@ and the player can find each city and unit. The demo is
     a fallback. The unit array has 56 units, past 0x08803B (Q-216). Fix
     (2026-10-18, spec e60a738): the record also gives the morale, the gold,
     the grain, the 混亂, the land class and the ship class. On water the
-    unit moves and fights as its ship. The unit eats its grain.
+    unit moves and fights as its ship. The unit eats its grain. Fix (spec
+    819d36f): the list of 11 entries at +41 gives the cargo of the six
+    transports and the ship of a battle unit (Q-217). 混亂 ends by a chance
+    each turn from 智力, and a small unit can panic (assumed, Q-218).
   - The per-hex block of the save gives the fire of each hex and the 12
     event sites (16 = temple, assumed; Q-205). The fix also does this part
     of M14.
