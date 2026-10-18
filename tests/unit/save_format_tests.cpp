@@ -306,10 +306,10 @@ test_build_save_file(u8 *file, memory_arena *arena)
     u8 *late = payload + 0x086B71 + 98 * 55;
     late[0] = 0xB5; late[1] = 0x01;   /* the leader 437 */
     late[23] = 91; late[25] = 46;
-    /* Record 55 is a transport: armament 0, the kinds 1 to 11 in order; 7568 槍 and 2 井闌; task 移動 to city 17. */
+    /* Record 55 is a transport: armament 0, the armament ids 1 to 11 in order; 7568 槍 and 2 木獸; task 移動 to city 17. */
     for (u32 entry = 0; entry < 11; ++entry) late[41 + 5 * entry] = (u8)(entry + 1);
     late[42] = 0x90; late[43] = 0x1D;                /* 7568 */
-    late[41 + 5 * 7 + 1] = 2;                        /* 井闌 */
+    late[41 + 5 * 7 + 1] = 2;                        /* 8 木獸 */
     late[19] = 1; late[21] = 17;
     /* The gate and port records at 0x08428D (spec 9632e15): record 30 is base 72 (皖口港). */
     u8 *port = payload + 0x08428D + 70 * 30;
@@ -356,12 +356,12 @@ unit_save_load_tests(test_counts *counts)
     TEST_CHECK(counts, save.units[5].morale == 100 && save.units[5].gold == 168 && save.units[5].grain == 6135 &&
                        save.units[5].state == SAVE_UNIT_STATE_CONFUSED,
                "unit 5: +8 morale, +9 gold, +13 grain and +17 the state (1 = 混亂)");
-    TEST_CHECK(counts, save.units[5].armament == 4 && save.units[5].equipment[0].kind == SAVE_EQUIPMENT_TOWER_SHIP && save.units[5].equipment[0].count == 1,
+    TEST_CHECK(counts, save.units[5].armament == 4 && save.units[5].equipment[0].kind == 10 && save.units[5].equipment[0].count == 1,   /* 10: the armament id of 樓船 */
                "unit 5: +36 the land armament; the first entry of the list at +41 is its ship (kind, u32 count)");
     TEST_CHECK(counts, save.units[5].task == 9 && save.units[5].target == 575, "unit 5: +19 the task and +21 the target");
-    TEST_CHECK(counts, save.units[55].armament == 0 && save.units[55].equipment[0].kind == SAVE_EQUIPMENT_PIKE && save.units[55].equipment[0].count == 7568 &&
-                       save.units[55].equipment[7].kind == SAVE_EQUIPMENT_TOWER && save.units[55].equipment[7].count == 2 &&
-                       save.units[55].equipment[10].kind == SAVE_EQUIPMENT_BATTLE_SHIP && save.units[55].task == SAVE_UNIT_TASK_MOVE && save.units[55].target == 17,
+    TEST_CHECK(counts, save.units[55].armament == 0 && save.units[55].equipment[0].kind == 1 && save.units[55].equipment[0].count == 7568 &&
+                       save.units[55].equipment[7].kind == 8 && save.units[55].equipment[7].count == 2 &&   /* 8: the armament id of 木獸 */
+                       save.units[55].equipment[10].kind == 11 && save.units[55].task == SAVE_UNIT_TASK_MOVE && save.units[55].target == 17,
                "a transport lists the kinds 1 to 11 with the counts of its cargo, and its target");
     TEST_CHECK(counts, save.hex_state_count == 40000 && (save.hex_states[49 * 200 + 67] & SAVE_HEX_FIRE_MASK) == 3 &&
                        save.hex_states[10 * 200 + 20] == SAVE_HEX_SITE_LOW && save.hex_states[0] == 0,

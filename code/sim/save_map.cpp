@@ -186,22 +186,23 @@ sim_save_unit_type(sim_state *sim, u8 row, b32 ship)
     return CONTENT_NO_UNIT_TYPE;
 }
 
-/* The city stock of each kind of the equipment list (weapons.tsv: 木獸
-   shares the stock of 衝車; a 走舸 has no stock). */
-global_variable const u8 sim_save_equipment_stock[SAVE_EQUIPMENT_BATTLE_SHIP + 1] = {
-    0xFF,                         /* none */
-    CITY_STOCK_SPEARS, CITY_STOCK_HALBERDS, CITY_STOCK_CROSSBOWS, CITY_STOCK_WAR_HORSES,
-    CITY_STOCK_BATTERING_RAMS,    /* 5 衝車 (assumed) */
-    CITY_STOCK_BATTERING_RAMS,    /* 6 木獸 */
-    CITY_STOCK_CATAPULTS,         /* 7 投石 (assumed) */
-    CITY_STOCK_SIEGE_TOWERS,      /* 8 井闌 */
-    0xFF,                         /* 9 走舸 (assumed) */
-    CITY_STOCK_SHIP_TYPE_1,       /* 10 樓船 */
-    CITY_STOCK_SHIP_TYPE_2,       /* 11 鬥艦 (assumed) */
-};
+/* The city stock of a kind of the equipment list. The kind is an armament
+   id of movement-costs.tsv (spec 84714de); the weapon of weapons.tsv with
+   the same key gives the stock. 劍 and 走舸 have no weapon, so no stock. */
+internal u8
+sim_save_armament_stock(sim_state *sim, u8 kind)
+{
+    if (kind >= sim->content.armament_count) return 0xFF;
+    const char *key = sim->content.armaments[kind].key;
+    for (u32 index = 0; index < sim->content.weapon_count; ++index)
+    {
+        if (strcmp(sim->content.weapons[index].key, key) == 0) return (u8)sim->content.weapons[index].stock;
+    }
+    return 0xFF;
+}
 
 /* A transport (輸送隊): the land armament is 0 and the list holds the
-   kinds 1 to 11 in order (save-file.md, Q-217). */
+   armament ids 1 to 11 in order (save-file.md, Q-217). */
 internal b32
 sim_save_unit_is_transport(unit_record *record)
 {
@@ -259,14 +260,14 @@ sim_load_save_units(sim_state *sim, save_file *save, sim_save_map_counts *counts
         {
             for (u32 entry = 0; entry < SAVE_UNIT_EQUIPMENT_COUNT; ++entry)
             {
-                u8 stock = sim_save_equipment_stock[record->equipment[entry].kind];
+                u8 stock = sim_save_armament_stock(sim, record->equipment[entry].kind);
                 if (stock < CITY_EQUIPMENT_STOCK_COUNT) unit->cargo[stock] += record->equipment[entry].count;
             }
             counts->transports++;
         }
-        else if (record->equipment[0].count && record->equipment[0].kind <= SAVE_EQUIPMENT_BATTLE_SHIP)
+        else if (record->equipment[0].count)
         {
-            unit->ship_type = sim_save_unit_type(sim, record->equipment[0].kind, true);   /* the ship row is the list kind (movement-costs.tsv) */
+            unit->ship_type = sim_save_unit_type(sim, record->equipment[0].kind, true);   /* the kind is the armament id of the ship */
         }
         unit->has_ship      = unit->ship_type != CONTENT_NO_UNIT_TYPE;
         if (unit->unit_type == CONTENT_NO_UNIT_TYPE) counts->unknown_classes++;

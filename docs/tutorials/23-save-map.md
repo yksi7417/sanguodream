@@ -67,9 +67,11 @@ sim_load_save_map runs at the end of sim_load_save, on the real map only:
      record. The save holds no turns of 混亂: the unit rolls its recovery
      from its next turn (tutorial 18, Q-218). The unit eats its grain.
    - A record with the land armament 0 and the kinds 1 to 11 in order is a
-     transport (輸送隊). Its list is its cargo, in the stocks of a city
-     (sim_save_equipment_stock). Its target city is its destination when
-     its task is 移動. The Unit panel shows the cargo in two rows.
+     transport (輸送隊). Its list is its cargo. The kind of each entry is an
+     armament id of movement-costs.tsv; the weapon with the same key gives
+     the stock of a city (sim_save_armament_stock). Its target city is its
+     destination when its task is 移動 (1). Any other task is no order. The
+     Unit panel shows the cargo in two rows.
    - A battle unit gets the land type of its armament. The first entry of
      its list is its ship. A count of 1 or more gives the ship type of the
      kind, for example a 樓船, also on land. A count of 0 gives no ship, so the unit is
