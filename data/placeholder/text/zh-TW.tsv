@@ -1090,3 +1090,22 @@ plate.ready	未
 plate.done	完
 plate.delegated	委
 plate.supply	糧
+hud.date	%u年 %u月 %u日
+season.spring	春
+season.summer	夏
+season.autumn	秋
+season.winter	冬
+hud.technique	技巧
+hud.full_map	地圖
+hud.info	情報
+hud.system	設定
+hud.tab_bases	據點
+hud.tab_officers	武將
+hud.tab_units	部隊
+hud.delegate	委任部隊行動
+hud.hex_info	此處情報
+hud.settings	環境設定
+hud.options	項目
+hud.debug	除錯面板 (F12)
+hud.to_title	返回開頭畫面
+hud.quit	結束遊戲

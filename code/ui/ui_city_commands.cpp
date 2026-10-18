@@ -256,8 +256,10 @@ ui_draw_city_command(ui_state *ui, engine_api *api, u32 kind)
     ui_command_dialog *dialog = ui->commands + kind;
     char title[128];
     ImGui::SetNextWindowSize(ImVec2(440, kind == UI_COMMAND_PRODUCE ? 420.0f : 300.0f), ImGuiCond_FirstUseEver);
+    ui_context_place(ui, 1);   /* the game mode: the dialog opens next to its entity */
     if (ImGui::Begin(ui_label(title, sizeof(title), ui, info->title_id, info->window), &ui->show_command[kind]))
     {
+        ui_context_track(ui);
         if (dialog->prepared_city != dialog->city) ui_command_reset_for_city(ui, api, kind);
         char city_name[96];
         ui_city_label(ui, api, dialog->city, city_name, sizeof(city_name));

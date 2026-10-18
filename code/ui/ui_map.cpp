@@ -96,8 +96,10 @@ internal void
 ui_draw_map(ui_state *ui, engine_api *api)
 {
     ImGui::SetNextWindowSize(ImVec2(640, 480), ImGuiCond_FirstUseEver);
+    ui_context_place(ui, 0);   /* the game mode: the dialog opens next to its entity */
     if (ImGui::Begin("Hex map", &ui->show_map))
     {
+        ui_context_track(ui);
         ui_map_handle_zoom_keys(ui);
         engine_map_size size = api->map_size(api->engine);
         ImGui::Text("%u x %u cells", size.width, size.height);

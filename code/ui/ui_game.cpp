@@ -9,16 +9,21 @@
    and screens of the game. Placeholder art: ImGui windows. The UI calls
    engine_api only. */
 
-/* The panels that the main map shows when a game starts. */
+/* The main map of a game: the game mode. The HUD and the list sit at the
+   top left and the mini map at the bottom right. Every other window opens
+   on demand (ui_context.cpp). */
 internal void
 ui_enter_game(ui_state *ui)
 {
     ui->show_title = ui->show_scenarios = ui->show_rulers = ui->show_start_settings = false;
-    ui->show_topbar  = true;
-    ui->show_history = true;
+    ui->hud_mode     = true;
+    ui->show_topbar  = false;   /* the HUD takes its place */
+    ui->show_history = false;
     ui->show_minimap = true;
-    ui->show_map     = true;
-    ui->show_city    = true;
+    ui->show_map = ui->show_city = ui->show_officers = ui->show_cities = ui->show_units = false;
+    ui->show_unit = ui->show_unit_menu = false;
+    ui->scene.has_pick = false;
+    ui->context = {};
 }
 
 internal void
@@ -246,7 +251,9 @@ ui_draw_saveload(ui_state *ui, engine_api *api)
 {
     char title[128], label[96];
     ImGui::SetNextWindowSize(ImVec2(620, 420), ImGuiCond_FirstUseEver);
+    ui_context_place(ui, 0);   /* the game mode: the dialog opens next to its entity */
     if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "saves.title", "SaveLoad"), &ui->show_saveload)) { ImGui::End(); return; }
+    ui_context_track(ui);
     void *e = api->engine;
     ImGui::TextUnformatted(text_get(ui->text, ui->game.saving ? "saves.saving" : "saves.loading"));
     for (u32 page = 0; page < ENGINE_SAVE_SLOTS / 8; ++page)
@@ -315,7 +322,9 @@ ui_draw_options(ui_state *ui, engine_api *api)
     (void)api;
     char title[128], label[96];
     ImGui::SetNextWindowSize(ImVec2(300, 160), ImGuiCond_FirstUseEver);
+    ui_context_place(ui, 0);   /* the game mode: the dialog opens next to its entity */
     if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "options.title", "Options"), &ui->show_options)) { ImGui::End(); return; }
+    ui_context_track(ui);
     if (ImGui::Button(ui_label(label, sizeof(label), ui, "options.new_officer", "open_new_officer"))) ui->show_new_officer = true;
     if (ImGui::Button(ui_label(label, sizeof(label), ui, "options.editor", "open_editor")))         ui->show_editor = true;
     if (ImGui::Button(ui_label(label, sizeof(label), ui, "options.settings", "open_settings")))     ui->show_settings = true;
@@ -549,7 +558,9 @@ ui_draw_info(ui_state *ui, engine_api *api)
 {
     char title[128], label[96];
     ImGui::SetNextWindowSize(ImVec2(460, 420), ImGuiCond_FirstUseEver);
+    ui_context_place(ui, 0);   /* the game mode: the dialog opens next to its entity */
     if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "info.title", "Info"), &ui->show_info)) { ImGui::End(); return; }
+    ui_context_track(ui);
     void *e = api->engine;
     u8 force = api->whose_turn(e);
     if (force == ENGINE_NO_FACTION) { ImGui::TextUnformatted(text_get(ui->text, "court.no_faction")); ImGui::End(); return; }

@@ -1092,3 +1092,22 @@ plate.ready	Ready	the unit plate: the unit has not acted in this turn (未)
 plate.done	Done	the unit plate: the unit acted in this turn (完)
 plate.delegated	Auto	the unit plate: the unit of a delegated corps (委)
 plate.supply	Food	the unit plate: the supply icon
+hud.date	%u-%u-%u	the HUD: the date, year month day
+season.spring	Spr	the HUD: the season
+season.summer	Sum	the HUD: the season
+season.autumn	Aut	the HUD: the season
+season.winter	Win	the HUD: the season
+hud.technique	Technique	the HUD: the technique points
+hud.full_map	Map	the HUD: opens the map of the whole continent
+hud.info	Info	the HUD: the faction information
+hud.system	Settings	the HUD: the system menu
+hud.tab_bases	Bases	the list: the cities, ports and passes of the player
+hud.tab_officers	Officers	the list: the officers of the player
+hud.tab_units	Units	the list: the units of the player
+hud.delegate	Run delegated orders	the map menu
+hud.hex_info	This hex	the map menu: the Hex info box of the clicked hex
+hud.settings	Environment	the system menu
+hud.options	Options	the system menu
+hud.debug	Debug panels (F12)	the system menu
+hud.to_title	Back to the title	the system menu
+hud.quit	Quit the game	the system menu

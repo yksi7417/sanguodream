@@ -15,6 +15,7 @@ ui_label(char *out, u32 out_size, ui_state *ui, const char *text_id, const char 
     return out;
 }
 
+#include "ui/ui_context.cpp"  /* the dialogs on demand of the game mode */
 #include "ui/ui_map.cpp"
 #include "ui/ui_world.cpp"   /* includes ui_table.cpp for its tables */
 #include "ui/ui_settings.cpp"
@@ -40,6 +41,7 @@ ui_scene_mark(u32 *overlay, engine_terrain_view view, hex_coord h, u32 rgba)
 #include "ui/ui_scene.cpp"
 #include "ui/ui_locate.cpp"   /* M11 */
 #include "ui/ui_minimap.cpp"  /* M12: the round mini map */
+#include "ui/ui_hud.cpp"      /* the HUD and the list of the game mode */
 
 internal void
 ui_init(ui_state *ui, text_catalog *text)
@@ -136,6 +138,10 @@ ui_init(ui_state *ui, text_catalog *text)
     ui->show_topbar = ui->show_history = ui->show_saveload = ui->show_options = false;
     ui->show_new_officer = ui->show_editor = ui->show_battles = ui->show_abilities = ui->show_info = false;
     ui->quit_requested = false;
+    ui->hud_mode          = false;   /* the debug layout; a game start turns on the game mode */
+    ui->show_debug_panels = false;
+    ui->hud_tab           = UI_HUD_TAB_BASES;
+    ui->context           = {};
     ui->ledger_city           = ENGINE_ANY_CITY;
     ui->ledger_resource       = ENGINE_ANY_RESOURCE;
     ui->text          = text;
@@ -567,15 +573,20 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
 {
     ui_apply_pending_locale(ui);
     if (!ui->show_map) ui->map.focused = false;   /* a closed panel takes no keys */
-    ui_draw_menu_bar(ui, api, frame);
-    if (ui->show_demo)   ImGui::ShowDemoWindow(&ui->show_demo);
-    if (ui->show_sim)    ui_draw_simulation(ui, api);
-    if (ui->show_scene)  ui_draw_scene_panel(ui, api);
+    /* The game mode hides the debug menu bar and the debug tools; F12 shows them. */
+    if (ui->hud_mode && ImGui::IsKeyPressed(ImGuiKey_F12, false)) ui->show_debug_panels = !ui->show_debug_panels;
+    bool tools = !ui->hud_mode || ui->show_debug_panels;
+    bool in_game = !ui->show_title && !ui->show_scenarios && !ui->show_rulers && !ui->show_start_settings;
+    if (tools) ui_draw_menu_bar(ui, api, frame);
+    if (tools && ui->show_demo)   ImGui::ShowDemoWindow(&ui->show_demo);
+    if (tools && ui->show_sim)    ui_draw_simulation(ui, api);
+    if (tools && ui->show_scene)  ui_draw_scene_panel(ui, api);
+    if (ui->hud_mode && in_game)  ui_draw_hud(ui, api);
     if (ui->show_map)    ui_draw_map(ui, api);
     if (ui->show_officers) ui_draw_officers(ui, api);
     if (ui->show_cities) ui_draw_cities(ui, api);
-    if (ui->show_ledger) ui_draw_ledger(ui, api);
-    if (ui->show_memory) ui_draw_memory(ui, api, frame);
+    if (tools && ui->show_ledger) ui_draw_ledger(ui, api);
+    if (tools && ui->show_memory) ui_draw_memory(ui, api, frame);
     if (ui->show_settings) ui_draw_settings(ui, api);
     if (ui->show_city)    ui_draw_city(ui, api);
     if (ui->show_develop) ui_draw_develop(ui, api);
@@ -602,6 +613,8 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     {
         if (ui->show_command[kind]) ui_draw_city_command(ui, api, kind);
     }
+    if (ui->hud_mode) ui_draw_hud_menus(ui, api);   /* the map menu and the system menu */
+    ui_context_update(ui, api);                     /* a right click outside a dialog closes it */
 
     /* The scene goes last: by now ImGui knows which windows want the mouse,
        and the panels above may have changed the camera or the selection. */
@@ -611,6 +624,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
         ImVec2 display = ImGui::GetIO().DisplaySize;
         ui_scene_handle_mouse(ui, api, frame->render ? frame->render->viewport_width : display.x,
                               frame->render ? frame->render->viewport_height : display.y);
+        if (ui->hud_mode && in_game) ui_hud_scene_clicks(ui, api);   /* the dialogs at the clicked city, unit or map */
         ui_scene_handle_keys(ui, frame->dt_seconds);
         ui_follow_selection(ui, api);   /* M11: a picked city or unit moves the camera */
         ui_draw_scene_labels(ui, api);  /* M11: the plates of the bases and the units, the slots */

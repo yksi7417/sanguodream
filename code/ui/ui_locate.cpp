@@ -154,8 +154,10 @@ ui_draw_hex_info_box(ui_state *ui, engine_api *api)
     char title[128];
     bool open = true;
     ImGui::SetNextWindowSize(ImVec2(300, 0), ImGuiCond_FirstUseEver);
+    ui_context_place(ui, 0);   /* the game mode: the dialog opens next to its entity */
     if (ImGui::Begin(ui_label(title, sizeof(title), ui, "hexinfo.title", "HexInfo"), &open, ImGuiWindowFlags_AlwaysAutoResize))
     {
+        ui_context_track(ui);
         ui_draw_hex_lines(ui, api, ui->scene.pick);
     }
     ImGui::End();

@@ -15,6 +15,7 @@
 #define UI_MINIMAP_UNIT_HALF   2.5f    /* px: half the diagonal of a unit diamond */
 #define UI_MINIMAP_ROAD_KIND   2       /* the road table: a road hex */
 #define UI_MINIMAP_ROAD_END    1       /* the road table: a base hex that a road goes into */
+#define UI_MINIMAP_MARGIN      8.0f    /* px from the bottom right corner of the screen in the game mode */
 
 /* Where the disc is on the screen and how the map fits in it. */
 struct ui_minimap_frame
@@ -256,6 +257,11 @@ ui_draw_minimap(ui_state *ui, engine_api *api)
 {
     char title[128];
     ImGui::SetNextWindowSize(ImVec2(300, 320), ImGuiCond_FirstUseEver);
+    if (ui->hud_mode)   /* the game mode: at the bottom right when it appears (main-map.md: 1376, 740, 302, 272) */
+    {
+        ImVec2 display = ImGui::GetIO().DisplaySize;
+        ImGui::SetNextWindowPos(ImVec2(display.x - UI_MINIMAP_MARGIN, display.y - UI_MINIMAP_MARGIN), ImGuiCond_Appearing, ImVec2(1.0f, 1.0f));
+    }
     if (ImGui::Begin(ui_label(title, sizeof(title), ui, "minimap.title", "MiniMap"), &ui->show_minimap,
                      ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
     {

@@ -126,8 +126,10 @@ ui_draw_march_dialog(ui_state *ui, engine_api *api, b32 transport)
     const char *title_id = transport ? "transport.title" : "sortie.title";
     char title[128];
     ImGui::SetNextWindowSize(ImVec2(480, 440), ImGuiCond_FirstUseEver);
+    ui_context_place(ui, 1);   /* the game mode: the dialog opens next to its entity */
     if (ImGui::Begin(ui_label(title, sizeof(title), ui, title_id, transport ? "Transport" : "Sortie"), show))
     {
+        ui_context_track(ui);
         if (dialog->prepared_city != dialog->city) ui_march_reset(api, dialog, transport);
         dialog->order.city_id = dialog->city;
         char city_name[96], label[96];
@@ -305,8 +307,10 @@ ui_draw_unit_panel(ui_state *ui, engine_api *api)
 {
     char title[128];
     ImGui::SetNextWindowSize(ImVec2(300, 380), ImGuiCond_FirstUseEver);
+    ui_context_place(ui, 1);   /* the game mode: the dialog opens next to its entity */
     if (ImGui::Begin(ui_label(title, sizeof(title), ui, "unit.title", "Unit"), &ui->show_unit))
     {
+        ui_context_track(ui);
         engine_unit unit = api->unit_at(api->engine, ui->units.selected);
         if (unit.id == ENGINE_NO_UNIT)
         {
@@ -419,8 +423,10 @@ ui_draw_unit_menu(ui_state *ui, engine_api *api)
 {
     char title[128];
     ImGui::SetNextWindowSize(ImVec2(150, 370), ImGuiCond_FirstUseEver);
+    ui_context_place(ui, 0);   /* the game mode: the dialog opens next to its entity */
     if (ImGui::Begin(ui_label(title, sizeof(title), ui, "unit.menu", "UnitMenu"), &ui->show_unit_menu))
     {
+        ui_context_track(ui);
         engine_unit unit = api->unit_at(api->engine, ui->units.selected);
         if (unit.id == ENGINE_NO_UNIT)
         {

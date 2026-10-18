@@ -1,0 +1,132 @@
+/* The dialogs on demand of the game mode (main-map.md, screen-flow.md, and
+   the choice of the user): a click on a city, a unit or the empty map, or
+   a button of the HUD, opens one dialog next to the cursor. The close
+   button of the dialog, or a right click outside it, closes it. A dialog
+   also closes when its work is done: a command of a City dialog, or the
+   action of the unit. Only one dialog is open at a time. Included by
+   ui.cpp before the panels; it calls engine_api only. */
+
+#define UI_CONTEXT_OFFSET       14.0f    /* px from the cursor to the first window */
+#define UI_CONTEXT_SECOND_X     330.0f   /* px from the first window to the second (a command dialog) */
+#define UI_CONTEXT_CLICK_SLACK  16.0f    /* px of mouse travel: more is a camera drag, not a click */
+
+/* A right click: the button went up, and the mouse did not drag. */
+internal bool
+ui_right_clicked(void)
+{
+    ImGuiIO &io = ImGui::GetIO();
+    return ImGui::IsMouseReleased(ImGuiMouseButton_Right) &&
+           io.MouseDragMaxDistanceSqr[ImGuiMouseButton_Right] < UI_CONTEXT_CLICK_SLACK * UI_CONTEXT_CLICK_SLACK;
+}
+
+/* The show flag of the main window of a dialog; 0 for a menu that the HUD draws. */
+internal bool *
+ui_context_flag(ui_state *ui, u8 kind)
+{
+    switch (kind)
+    {
+        case UI_CONTEXT_CITY:      return &ui->show_city;
+        case UI_CONTEXT_UNIT:      return &ui->show_unit;
+        case UI_CONTEXT_HEX:       return &ui->scene.has_pick;
+        case UI_CONTEXT_INFO:      return &ui->show_info;
+        case UI_CONTEXT_FULL_MAP:  return &ui->show_map;
+        case UI_CONTEXT_SAVELOAD:  return &ui->show_saveload;
+        case UI_CONTEXT_SETTINGS:  return &ui->show_settings;
+        case UI_CONTEXT_OPTIONS:   return &ui->show_options;
+        default:                   return 0;
+    }
+}
+
+/* Closes the dialog and the windows that it opened. */
+internal void
+ui_context_close(ui_state *ui)
+{
+    switch (ui->context.kind)
+    {
+        case UI_CONTEXT_CITY:
+            ui->show_city = ui->show_develop = ui->show_research = ui->show_merge = false;
+            ui->show_sortie = ui->show_transport = false;
+            for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind) ui->show_command[kind] = false;
+            break;
+        case UI_CONTEXT_UNIT:
+            ui->show_unit = ui->show_unit_menu = ui->show_actions = false;
+            ui->combat.pick = UI_PICK_NONE;
+            break;
+        default:
+        {
+            bool *flag = ui_context_flag(ui, ui->context.kind);
+            if (flag) *flag = false;
+        } break;
+    }
+    ui->context.kind = UI_CONTEXT_NONE;
+}
+
+/* Opens a dialog at the point (the cursor or a button). A second open of
+   the same kind moves it to the new point and keeps its windows. */
+internal void
+ui_context_open(ui_state *ui, engine_api *api, u8 kind, f32 x, f32 y)
+{
+    if (ui->context.kind != kind) ui_context_close(ui);
+    ui->context.kind        = kind;
+    ui->context.x           = x;
+    ui->context.y           = y;
+    ui->context.place_frame = ImGui::GetFrameCount();
+    ui->context.ledger_mark = api->ledger_count(api->engine);
+    ui->context.unit_acted  = api->unit_at(api->engine, ui->units.selected).acted;
+    bool *flag = ui_context_flag(ui, kind);
+    if (flag) *flag = true;
+}
+
+/* Before the Begin of a window of the dialog: the window goes next to the
+   anchor when it appears, and in the frame after an open. slot 0 is the
+   first window, slot 1 a second one beside it. The pivot keeps the window
+   on the screen near the right and the bottom edges. */
+internal void
+ui_context_place(ui_state *ui, u32 slot)
+{
+    if (!ui->hud_mode || ui->context.kind == UI_CONTEXT_NONE) return;
+    ImGuiIO &io = ImGui::GetIO();
+    bool right  = ui->context.x > io.DisplaySize.x * 0.6f;
+    bool bottom = ui->context.y > io.DisplaySize.y * 0.6f;
+    f32 shift = UI_CONTEXT_OFFSET + (f32)slot * UI_CONTEXT_SECOND_X;
+    ImVec2 at(ui->context.x + (right ? -shift : shift), ui->context.y + (bottom ? -UI_CONTEXT_OFFSET : UI_CONTEXT_OFFSET));
+    ImGuiCond cond = ImGui::GetFrameCount() == ui->context.place_frame + 1 ? ImGuiCond_Always : ImGuiCond_Appearing;
+    ImGui::SetNextWindowPos(at, cond, ImVec2(right ? 1.0f : 0.0f, bottom ? 1.0f : 0.0f));
+}
+
+/* Inside a window of the dialog: the mouse over it keeps the dialog open
+   on a right click. */
+internal void
+ui_context_track(ui_state *ui)
+{
+    if (ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows | ImGuiHoveredFlags_AllowWhenBlockedByActiveItem)) ui->context.hovered = true;
+}
+
+/* After the panels of a frame: a right click outside the dialog closes it,
+   and so does the end of its work. The scene then does not use the click. */
+internal void
+ui_context_update(ui_state *ui, engine_api *api)
+{
+    ui->context.consumed = false;
+    if (ui->hud_mode && ui->context.kind != UI_CONTEXT_NONE)
+    {
+        bool *flag = ui_context_flag(ui, ui->context.kind);
+        bool just_opened = ImGui::GetFrameCount() <= ui->context.place_frame;
+        if (flag && !*flag) ui->context.kind = UI_CONTEXT_NONE;   /* the close button */
+        else if (!just_opened && ui_right_clicked() && !ui->context.hovered)
+        {
+            ui_context_close(ui);
+            ui->context.consumed = true;
+        }
+        else if (ui->context.kind == UI_CONTEXT_CITY && api->ledger_count(api->engine) != ui->context.ledger_mark)
+        {
+            ui_context_close(ui);   /* a command of the city ran */
+        }
+        else if (ui->context.kind == UI_CONTEXT_UNIT)
+        {
+            engine_unit unit = api->unit_at(api->engine, ui->units.selected);
+            if (unit.id == ENGINE_NO_UNIT || (unit.acted && !ui->context.unit_acted)) ui_context_close(ui);   /* the unit acted */
+        }
+    }
+    ui->context.hovered = false;
+}

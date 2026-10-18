@@ -117,8 +117,11 @@ ui_scene_handle_mouse(ui_state *ui, engine_api *api, f32 viewport_width, f32 vie
     {
         if (!ui->map.has_from || ui->map.has_to) { ui->map.from = ui->scene.hover; ui->map.has_from = true; ui->map.has_to = false; }
         else                                     { ui->map.to = ui->scene.hover; ui->map.has_to = true; }
-        ui->scene.pick     = ui->scene.hover;   /* M11: the Hex info box shows the hex */
-        ui->scene.has_pick = true;
+        if (!ui->hud_mode)                      /* the game mode opens the Hex info box from the map menu */
+        {
+            ui->scene.pick     = ui->scene.hover;   /* M11: the Hex info box shows the hex */
+            ui->scene.has_pick = true;
+        }
     }
 }
 

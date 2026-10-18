@@ -197,8 +197,10 @@ ui_draw_city(ui_state *ui, engine_api *api)
 {
     char title[128];
     ImGui::SetNextWindowSize(ImVec2(440, 420), ImGuiCond_FirstUseEver);
+    ui_context_place(ui, 0);   /* the game mode: the dialog opens next to its entity */
     if (ImGui::Begin(ui_label(title, sizeof(title), ui, "city.title", "City"), &ui->show_city))
     {
+        ui_context_track(ui);
         if (api->city_count(api->engine) == 0)
         {
             ImGui::TextWrapped("%s", text_get(ui->text, "city.none"));
@@ -378,8 +380,10 @@ ui_draw_develop(ui_state *ui, engine_api *api)
 {
     char title[128];
     ImGui::SetNextWindowSize(ImVec2(420, 300), ImGuiCond_FirstUseEver);
+    ui_context_place(ui, 1);   /* the game mode: the dialog opens next to its entity */
     if (ImGui::Begin(ui_label(title, sizeof(title), ui, "develop.title", "Develop"), &ui->show_develop))
     {
+        ui_context_track(ui);
         if (ui->develop.prepared_city != ui->develop.city) ui_develop_reset_for_city(ui, api);
         char city_name[96];
         ui_city_label(ui, api, ui->develop.city, city_name, sizeof(city_name));

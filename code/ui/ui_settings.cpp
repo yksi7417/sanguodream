@@ -91,8 +91,10 @@ ui_draw_settings(ui_state *ui, engine_api *api)
 {
     char title[128];
     ImGui::SetNextWindowSize(ImVec2(420, 200), ImGuiCond_FirstUseEver);
+    ui_context_place(ui, 0);   /* the game mode: the dialog opens next to its entity */
     if (ImGui::Begin(ui_label(title, sizeof(title), ui, "settings.title", "Settings"), &ui->show_settings))
     {
+        ui_context_track(ui);
         ui_draw_game_settings(ui, api);
         if (ui->text)
         {

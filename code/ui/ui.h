@@ -13,6 +13,26 @@
 #include "render/terrain_mesh.h"   /* terrain_level_y: the scene places models on the cell tops */
 #include "text/text.h"
 
+/* The dialogs on demand of the game mode (ui_context.cpp): only one is open. */
+enum ui_context_kind
+{
+    UI_CONTEXT_NONE,
+    UI_CONTEXT_CITY,          /* the City panel and the command dialogs that it opens */
+    UI_CONTEXT_UNIT,          /* the Unit panel and the unit command menu */
+    UI_CONTEXT_MAP_MENU,      /* a right click on the empty map: 進行, 情報, 儲存, 載入 */
+    UI_CONTEXT_SYSTEM_MENU,   /* the settings button of the HUD */
+    UI_CONTEXT_HEX,           /* the Hex info box of one hex */
+    UI_CONTEXT_INFO,          /* 情報: the faction information */
+    UI_CONTEXT_FULL_MAP,      /* 中地圖: the Hex map panel of the whole map */
+    UI_CONTEXT_SAVELOAD,
+    UI_CONTEXT_SETTINGS,
+    UI_CONTEXT_OPTIONS,
+    UI_CONTEXT_COUNT
+};
+
+/* The tabs of the list panel of the HUD (main-map.md, "List panel"). */
+enum ui_hud_tab { UI_HUD_TAB_BASES, UI_HUD_TAB_OFFICERS, UI_HUD_TAB_UNITS, UI_HUD_TAB_COUNT };
+
 /* The five city command dialogs of M3 (ui/city-commands.md). */
 enum ui_city_command
 {
@@ -272,6 +292,23 @@ struct ui_state
     bool show_abilities;
     bool show_info;
     bool quit_requested;         /* 結束遊戲: the platform closes the window */
+    /* The game mode (main-map.md): the HUD at the top left with the list of
+       the bases, officers and units, the mini map at the bottom right, and
+       one dialog on demand at the entity that the player clicks. */
+    bool hud_mode;
+    bool show_debug_panels;      /* in the game mode: the debug menu bar and tools (F12) */
+    int  hud_tab;                /* ui_hud_tab */
+    struct
+    {
+        u8        kind;          /* ui_context_kind */
+        f32       x, y;          /* the anchor: the cursor or the button that opened the dialog */
+        int       place_frame;   /* the ImGui frame of the open; the windows move to the anchor after it */
+        bool      hovered;       /* the mouse is over a window of the dialog in this frame */
+        bool      consumed;      /* this right click closed the dialog: the scene does not use it */
+        u32       ledger_mark;   /* the ledger count at the open: a new event closes a City dialog */
+        bool      unit_acted;    /* the selected unit had acted at the open */
+        hex_coord hex;           /* the map menu: the hex of the right click */
+    } context;
     struct
     {
         u64  rulers;             /* bit f: the player plays the faction f */

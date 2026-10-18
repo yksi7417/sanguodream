@@ -142,8 +142,10 @@ ui_draw_actions(ui_state *ui, engine_api *api)
 {
     char title[128];
     ImGui::SetNextWindowSize(ImVec2(280, 320), ImGuiCond_FirstUseEver);
+    ui_context_place(ui, 1);   /* the game mode: the dialog opens next to its entity */
     if (ImGui::Begin(ui_label(title, sizeof(title), ui, "actions.title", "Actions"), &ui->show_actions))
     {
+        ui_context_track(ui);
         void *e = api->engine;
         engine_unit unit = api->unit_at(e, ui->units.selected);
         if (unit.id == ENGINE_NO_UNIT)

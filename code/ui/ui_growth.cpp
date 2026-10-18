@@ -157,8 +157,10 @@ ui_draw_research(ui_state *ui, engine_api *api)
 {
     char title[128];
     ImGui::SetNextWindowSize(ImVec2(760, 460), ImGuiCond_FirstUseEver);
+    ui_context_place(ui, 1);   /* the game mode: the dialog opens next to its entity */
     if (ImGui::Begin(ui_label(title, sizeof(title), ui, "research.title", "Research"), &ui->show_research))
     {
+        ui_context_track(ui);
         if (ui->research.prepared_city != ui->research.city) ui_research_reset_for_city(ui, api);
         char city_name[96];
         ui_city_label(ui, api, ui->research.city, city_name, sizeof(city_name));
@@ -248,8 +250,10 @@ ui_draw_merge(ui_state *ui, engine_api *api)
 {
     char title[128];
     ImGui::SetNextWindowSize(ImVec2(460, 320), ImGuiCond_FirstUseEver);
+    ui_context_place(ui, 1);   /* the game mode: the dialog opens next to its entity */
     if (ImGui::Begin(ui_label(title, sizeof(title), ui, "merge.title", "Merge"), &ui->show_merge))
     {
+        ui_context_track(ui);
         if (ui->merge.prepared_city != ui->merge.city)
         {
             u16 first = ENGINE_NO_OFFICER;
