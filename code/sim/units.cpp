@@ -744,8 +744,13 @@ internal void
 sim_move_unit(sim_state *sim, sim_command command, memory_arena *scratch, sim_event_sink *events)
 {
     sim_unit_order *order = &command.unit;
+    u64 mark = scratch->used;
     sim_check check = sim_check_unit_order(sim, SIM_COMMAND_MOVE, order, scratch);
     if (check.refusal != SIM_REFUSAL_NONE) return;
+    /* The check built a reach of its own. On the real map one reach takes
+       most of the scratch arena, so give its memory back before the move
+       builds the reach of the path. */
+    scratch->used = mark;
     sim_reach reach = sim_unit_reach(sim, order->unit, scratch);
     u32 place = sim_reach_find(&reach, order->to);
     u32 path[SIM_UNIT_PATH_CAPACITY];
