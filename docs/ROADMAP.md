@@ -472,6 +472,107 @@ three items that M11 left open. The demo is "demo/m12_main_map".
   - Q-214: the angle, the time and the repeat delay of one press of Q;
   - Q-215: what 委 and the supply icon show.
 
+### The goal of M13 to M17
+M0 to M12 built the rules from the manual and the real map from the
+game files. The goal from here is a game that is fun to play. Three
+things stand between the engine and that goal:
+- the rules the clean room assumed (Q-141 to Q-216) are not verified
+  against the original, so the game can feel wrong in ways no test sees;
+- a turn of play still needs the debug panels; the game screens of the
+  original are not all there;
+- the AI does not yet give a player a reason to come back.
+
+Each milestone below keeps the four parts: spec input, api, tests, what
+you see. The analysis side runs the experiments of
+spec/experiments/ab-testing-plan.md in step with M13 and M15.
+
+### M13 Fidelity: replay the original's saves
+The clean room loads a save of the original, runs one command, and must
+reach the state of the next save of the original. This is the A/B test
+at the level of one action.
+- Spec input: save pairs in spec/fixtures/saves/pairs/<rule>/ (before,
+  after, the command, the values on screen), one folder per resolved
+  question. The analysis side makes them with its driver.
+- API: `replay_pair(before, command, after)` in a test build only: it
+  loads `before`, runs `command`, loads `after` with the save loader
+  and diffs the two states field by field. A diff report names each
+  field that differs, with the rule that owns it.
+- Tests: feature: one replay test per pair folder, generated from the
+  folder list; a pair with no handler fails. The unit of measure is the
+  count of fields that differ. The milestone is done when the pairs of
+  the economy, the city commands and movement replay with zero
+  differences in the fields that the spec marks verified.
+- What you see: a "Fidelity" panel that lists the pairs, the fields that
+  differ and the Q-id of each; the demo m13 replays one pair.
+
+### M14 A turn without the debug panels
+Every command of one turn runs from the game screens, as in the
+original's city, unit and map menus. The per-hex state of a save loads
+too.
+- Spec input: ui/city-commands.md, ui/unit-commands.md and
+  ui/main-map.md (context menus and messages). Also formats/save-file.md
+  for the per-hex block (fire turns, temple and ruin sites) and for the
+  unit class, grain and morale (Q-211 when answered).
+- API: the commands that the game screens still lack; `hex_state_at`
+  gives the fire turns and the event site of a hex.
+- Tests: ui: one test per menu item that asserts the api command it
+  sends; feature: fire and the 12 event sites load from sample.s11 (周泰's
+  hex burns); e2e: a scripted turn from the save with the debug panels
+  hidden.
+- What you see: the player plays a turn with the game screens only. The
+  option `show_debug_panels` hides the ImGui tools. The demo m14 plays
+  one turn of 柴桑 from the save.
+
+### M15 An opponent worth playing
+The AI factions of the original act on the map with a visible purpose:
+they build, recruit, march and take cities. The clean room measures
+its AI against the original over a year of play.
+- Spec input: knowledge/ai.md claims turned into rules by the analysis
+  side (Q-ids on the order of AI actions, the targets it picks, when it
+  attacks); a "year log" of the original: the saves of 12 months from
+  one start, for the distribution tests.
+- API: `ai_explain(faction)` gives the scored options of the last AI
+  turn, for the "why did the AI do that" view of section 4.
+- Tests: feature: the AI takes a free city within N turns, defends a
+  city under attack, does not starve its units; a statistics test runs
+  12 months from a save 20 times and compares the soldiers, the gold
+  and the city count of each faction with the year log of the original
+  (ranges, not exact values, because the random numbers differ).
+- What you see: the AI view on the map; the demo m15 shows one AI
+  faction taking a city.
+
+### M16 The content of the player's own copy
+The game reads the names, the messages, the portraits and the music
+from the player's own install at run time, and ships generated
+portraits as the fallback pack.
+- Spec input: formats/ for the message and portrait files of the
+  original (the analysis side documents the layout, not the art);
+  docs/ASSETS.md for the generated portraits and their prompt.
+- API: `content_source` reports which pack gave each asset.
+- Tests: feature: the loader reads the message file of the install and
+  the fallback pack gives the same keys; ui: the officer panel shows a
+  portrait from each source.
+- What you see: the real faces and the real messages when the player
+  points the game at the install; the generated faces otherwise.
+
+### M17 Feel: a first hour that holds
+The first hour of a new game feels like the original: speed, messages,
+sound hooks, and the tutorial of the first turns.
+- Spec input: ui/screen-flow.md, knowledge/playability.md, the capture
+  of a first hour of the original (frame timings, message order).
+- API: none new; the engine exposes timing hooks for the UI.
+- Tests: ui: the message order of the first turn matches the capture;
+  e2e: the first hour script runs at cinematic speed without a stall;
+  the demo m17 is that first hour.
+- What you see: a new game from a scenario start, played with the game
+  screens, from the title to the first war.
+
+### Release R1 Playtest build
+After M17: a zip with the exe, the DLL and the fallback pack, a one-page
+start guide, and the 32 save slots. Two players play the same scenario
+in the original and in hexdom for one hour each, with the log of
+section 5 of the analysis plan.
+
 ## 4. Playability
 The analysis repo's spec/knowledge/playability.md (mined from the video
 series) feeds this list. This list is the measure of the UI and the AI, not
