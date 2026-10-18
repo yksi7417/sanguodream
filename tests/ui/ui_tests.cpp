@@ -140,6 +140,16 @@ ui_test_click_cell(ImGuiTestContext *ctx, ui_test_vars &v, hex_coord cell)
     ctx->Yield();
 }
 
+/* M12: the signed angle from one heading to the next, in one turn. */
+internal f32
+ui_test_turn_between(f32 from, f32 to)
+{
+    f32 turn = to - from;
+    while (turn >  RENDER_PI) turn -= 2.0f * RENDER_PI;
+    while (turn < -RENDER_PI) turn += 2.0f * RENDER_PI;
+    return turn;
+}
+
 internal void
 register_ui_tests(ImGuiTestEngine *e)
 {
@@ -1896,8 +1906,9 @@ register_ui_tests(ImGuiTestEngine *e)
     };
 
     /* M11: the keys of the scene. W moves the view up the screen and S back,
-       Q turns the map counter-clockwise and E clockwise, Up tilts toward
-       top down and Down back; the keys command nothing. */
+       Q and Left turn the view one step clockwise and E and Right one step
+       counter-clockwise (M12), Up tilts toward top down and Down back; the
+       keys command nothing. */
     t = IM_REGISTER_TEST(e, "ui", "scene_keys_move_turn_and_tilt_and_command_nothing");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;
@@ -1919,12 +1930,18 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->KeyDown(ImGuiKey_S); ctx->Yield(4); ctx->KeyUp(ImGuiKey_S); ctx->Yield();
         IM_CHECK_LT(v3_dot(v3_sub(v.ui.scene.cam.target, after_w.target), ahead), 0.0f);   /* S: back */
         f32 yaw = v.ui.scene.cam.yaw, pitch = v.ui.scene.cam.pitch;
-        ctx->KeyDown(ImGuiKey_Q); ctx->Yield(3); ctx->KeyUp(ImGuiKey_Q); ctx->Yield();
-        IM_CHECK_LT(v.ui.scene.cam.yaw, yaw);                             /* Q: clockwise on the screen (ui/main-map.md, render_tests.cpp) */
+        /* M12: one press turns one step of 60 degrees; the animation ends after CAMERA_TURN_STEP_SECONDS. */
+        ctx->KeyDown(ImGuiKey_Q); ctx->Yield(3); ctx->KeyUp(ImGuiKey_Q); ctx->Yield(30);
+        IM_CHECK(fabsf(ui_test_turn_between(yaw, v.ui.scene.cam.yaw) + CAMERA_TURN_STEP) < 1e-4f);   /* Q: clockwise on the screen (ui/main-map.md) */
         IM_CHECK_EQ(v.ui.scene.cam.pitch, pitch);
         yaw = v.ui.scene.cam.yaw;
-        ctx->KeyDown(ImGuiKey_E); ctx->Yield(3); ctx->KeyUp(ImGuiKey_E); ctx->Yield();
-        IM_CHECK_GT(v.ui.scene.cam.yaw, yaw);                             /* E: counter-clockwise */
+        ctx->KeyDown(ImGuiKey_E); ctx->Yield(3); ctx->KeyUp(ImGuiKey_E); ctx->Yield(30);
+        IM_CHECK(fabsf(ui_test_turn_between(yaw, v.ui.scene.cam.yaw) - CAMERA_TURN_STEP) < 1e-4f);   /* E: counter-clockwise */
+        yaw = v.ui.scene.cam.yaw;
+        ctx->KeyDown(ImGuiKey_LeftArrow); ctx->Yield(3); ctx->KeyUp(ImGuiKey_LeftArrow); ctx->Yield(30);
+        IM_CHECK(fabsf(ui_test_turn_between(yaw, v.ui.scene.cam.yaw) + CAMERA_TURN_STEP) < 1e-4f);   /* Left: as Q */
+        ctx->KeyDown(ImGuiKey_RightArrow); ctx->Yield(3); ctx->KeyUp(ImGuiKey_RightArrow); ctx->Yield(30);
+        IM_CHECK(fabsf(ui_test_turn_between(yaw, v.ui.scene.cam.yaw)) < 1e-4f);                      /* Right: as E, back */
         yaw = v.ui.scene.cam.yaw;
         ctx->KeyDown(ImGuiKey_DownArrow); ctx->Yield(3); ctx->KeyUp(ImGuiKey_DownArrow); ctx->Yield();
         IM_CHECK_LT(v.ui.scene.cam.pitch, pitch);                         /* Down: toward the horizon */

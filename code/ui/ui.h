@@ -142,6 +142,7 @@ struct ui_state
         bool      frame_city;    /* a list asked to frame ui->city.selected, also when it did not change */
         bool      frame_unit;    /* a list asked to frame ui->units.selected */
         bool      headless;      /* the scene input, the labels and the frames run without a render target (the M11 ui tests) */
+        camera_turn_step turn;   /* M12: the step turn of Q, E, Left and Right */
     } scene;
     bool show_units;             /* M11: the Units panel, a list of the units to frame */
     bool show_settings;

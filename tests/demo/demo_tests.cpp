@@ -1551,6 +1551,16 @@ demo_m10_map(ImGuiTestContext *ctx)
     IM_CHECK(demo_screenshot_panel(ctx, milestone, "Simulation", "simulation"));
 }
 
+/* M12: the signed angle from one heading to the next, in one turn. */
+internal f32
+demo_turn_between(f32 from, f32 to)
+{
+    f32 turn = to - from;
+    while (turn >  RENDER_PI) turn -= 2.0f * RENDER_PI;
+    while (turn < -RENDER_PI) turn += 2.0f * RENDER_PI;
+    return turn;
+}
+
 /* True if the camera looks at the hex (the target is over its centre). */
 internal bool
 demo_camera_on(demo_vars &v, hex_coord hex)
@@ -1618,8 +1628,8 @@ demo_m11_save_map(ImGuiTestContext *ctx)
     ctx->KeyDown(ImGuiKey_W); ctx->SleepStandard(); ctx->KeyUp(ImGuiKey_W);
     IM_CHECK_GT(v3_dot(v3_sub(v.ui.scene.cam.target, before.target), ahead), 0.0f);
     f32 yaw = v.ui.scene.cam.yaw, pitch = v.ui.scene.cam.pitch;
-    ctx->KeyDown(ImGuiKey_Q); ctx->SleepStandard(); ctx->KeyUp(ImGuiKey_Q);
-    IM_CHECK_LT(v.ui.scene.cam.yaw, yaw);
+    ctx->KeyPress(ImGuiKey_Q); ctx->SleepStandard();   /* M12: one press is one step */
+    IM_CHECK(fabsf(demo_turn_between(yaw, v.ui.scene.cam.yaw) + CAMERA_TURN_STEP) < 1e-3f);
     ctx->KeyDown(ImGuiKey_UpArrow); ctx->SleepStandard(); ctx->KeyUp(ImGuiKey_UpArrow);
     IM_CHECK_GT(v.ui.scene.cam.pitch, pitch);
     ctx->SleepStandard();
