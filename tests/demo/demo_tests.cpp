@@ -11,6 +11,7 @@
 
 #define DEMO_ENGINE_ARENA_SIZE Megabytes(48)
 #define DEMO_M10_NAME          "m10_map"
+#define DEMO_M11_NAME          "m11_save_map"
 
 /* build\demos, with no last backslash. demo_player.cpp sets it. */
 global_variable char g_demo_output_dir[MAX_PATH];
@@ -45,7 +46,7 @@ demo_gui(ImGuiTestContext *ctx)
         config.save_folder      = "demo_saves";
         /* The walkthroughs of M0 to M9 play on the placeholder board that
            they were made for; the walkthrough of M10 shows the real map. */
-        config.use_pack_map     = strcmp(ctx->Test->Name, DEMO_M10_NAME) == 0;
+        config.use_pack_map     = strcmp(ctx->Test->Name, DEMO_M10_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M11_NAME) == 0;
         v.backend = engine_create(&v.permanent, &v.transient, config);
         v.api     = engine_make_api(v.backend);
         text_catalog_init(&v.text, arena_sub(&v.permanent, Megabytes(4)), test_platform_read_entire_file,
@@ -1550,6 +1551,105 @@ demo_m10_map(ImGuiTestContext *ctx)
     IM_CHECK(demo_screenshot_panel(ctx, milestone, "Simulation", "simulation"));
 }
 
+/* True if the camera looks at the hex (the target is over its centre). */
+internal bool
+demo_camera_on(demo_vars &v, hex_coord hex)
+{
+    v3 center = hex_world_center(hex, 0.0f);
+    return fabsf(v.ui.scene.cam.target.x - center.x) < 0.01f && fabsf(v.ui.scene.cam.target.z - center.z) < 0.01f;
+}
+
+/* M11, the sample save on the real map: a row of the Cities panel frames
+   柴桑 and the City panel counts its 12 facilities; a row of the Units
+   panel frames a unit of the save; W, Q and Up move, turn and tilt the
+   view; the Hex info box tells what the mint hex of 柴桑 is. */
+internal void
+demo_m11_save_map(ImGuiTestContext *ctx)
+{
+    const char *milestone = DEMO_M11_NAME;
+    demo_vars &v = ctx->GetVars<demo_vars>();
+    engine_api *api = &v.api;
+    void *e = api->engine;
+    IM_CHECK(api->map_info(e).real_map);
+    IM_CHECK(demo_begin_video(ctx, milestone));
+
+    IM_CHECK(demo_open_panel(ctx, "Scene", &v.ui.show_scene));
+    IM_CHECK(demo_open_panel(ctx, "Simulation", &v.ui.show_sim));
+    ctx->SetRef("Simulation");
+    ctx->ItemClick("Load sample save");
+    ctx->Yield();
+    IM_CHECK_EQ(api->city_count(e), 42u);
+    ctx->SleepStandard();
+
+    /* 柴桑 from the city list. */
+    IM_CHECK(demo_open_panel(ctx, "###Cities", &v.ui.show_cities));
+    ctx->SetRef("###Cities");
+    ctx->ItemClick("**/26##city_row");
+    ctx->Yield(2);
+    engine_city_slots chaisang = api->city_slots(e, 26);
+    IM_CHECK_EQ(v.ui.city.selected, 26);
+    IM_CHECK(demo_camera_on(v, hex_make(chaisang.q, chaisang.r)));
+    IM_CHECK(chaisang.used == 12 && chaisang.slot_count == 12);
+    IM_CHECK(demo_open_panel(ctx, "###City", &v.ui.show_city));
+    ctx->SleepStandard();
+    ctx->SleepStandard();
+
+    /* A unit of the save from the Units panel. */
+    u32 unit_id = ENGINE_NO_UNIT;
+    for (u32 id = 0; id < api->unit_count(e) && unit_id == ENGINE_NO_UNIT; ++id) if (api->unit_at(e, id).id != ENGINE_NO_UNIT) unit_id = id;
+    IM_CHECK(unit_id != ENGINE_NO_UNIT);
+    IM_CHECK(demo_open_panel(ctx, "###Units", &v.ui.show_units));
+    char row[32];
+    snprintf(row, sizeof(row), "**/###unit%u", unit_id);
+    ctx->SetRef("###Units");
+    ctx->ItemClick(row);
+    ctx->Yield(2);
+    engine_unit unit = api->unit_at(e, unit_id);
+    IM_CHECK_EQ(v.ui.units.selected, unit_id);
+    IM_CHECK(demo_camera_on(v, hex_make(unit.q, unit.r)));
+    ctx->SleepStandard();
+
+    /* The keys: W up the screen, Q counter-clockwise, Up toward top down. */
+    ImGui::FocusWindow(0);
+    ctx->Yield();
+    camera before = v.ui.scene.cam;
+    v3 ahead, side;
+    camera_ground_axes(&before, &ahead, &side);
+    ctx->KeyDown(ImGuiKey_W); ctx->SleepStandard(); ctx->KeyUp(ImGuiKey_W);
+    IM_CHECK_GT(v3_dot(v3_sub(v.ui.scene.cam.target, before.target), ahead), 0.0f);
+    f32 yaw = v.ui.scene.cam.yaw, pitch = v.ui.scene.cam.pitch;
+    ctx->KeyDown(ImGuiKey_Q); ctx->SleepStandard(); ctx->KeyUp(ImGuiKey_Q);
+    IM_CHECK_GT(v.ui.scene.cam.yaw, yaw);
+    ctx->KeyDown(ImGuiKey_UpArrow); ctx->SleepStandard(); ctx->KeyUp(ImGuiKey_UpArrow);
+    IM_CHECK_GT(v.ui.scene.cam.pitch, pitch);
+    ctx->SleepStandard();
+
+    /* Back to 柴桑, and the Hex info box of its mint. */
+    ctx->SetRef("###Cities");
+    ctx->ItemClick("**/26##city_row");
+    ctx->Yield(2);
+    hex_coord mint = {};
+    for (u32 slot = 0; slot < chaisang.slot_count; ++slot)
+    {
+        engine_facility facility = api->facility_at(e, 26, (u8)slot);
+        if (strcmp(api->facility_kind_at(e, facility.facility).key, "mint") == 0) mint = hex_make(facility.q, facility.r);
+    }
+    v.ui.scene.pick     = mint;
+    v.ui.scene.has_pick = true;
+    ctx->Yield(2);
+    IM_CHECK(ctx->WindowInfo("//###HexInfo").Window != 0);
+    engine_hex data = api->hex_at(e, mint.q, mint.r);
+    IM_CHECK(data.slot_city == 26 && data.facility != ENGINE_NO_FACILITY);
+    ctx->SleepStandard();
+    ctx->SleepStandard();
+
+    IM_CHECK(demo_end_video(ctx));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###City", "city"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Units", "units"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###HexInfo", "hex_info"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Cities", "cities"));
+}
+
 internal void
 register_demo_tests(ImGuiTestEngine *e)
 {
@@ -1609,4 +1709,9 @@ register_demo_tests(ImGuiTestEngine *e)
     t->SetVarsDataType<demo_vars>();
     t->GuiFunc  = demo_gui;
     t->TestFunc = demo_m10_map;
+
+    t = IM_REGISTER_TEST(e, "demo", DEMO_M11_NAME);
+    t->SetVarsDataType<demo_vars>();
+    t->GuiFunc  = demo_gui;
+    t->TestFunc = demo_m11_save_map;
 }
