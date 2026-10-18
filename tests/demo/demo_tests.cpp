@@ -1330,6 +1330,16 @@ demo_m8_rivals(ImGuiTestContext *ctx)
    a chosen ruler and the settings of the start, a new officer, a research
    of the ability chart, turns with 進行, a save and a load, and the
    battle list and the information screen. */
+/* The walkthrough of M9 records the top bar of M9. A game start now turns
+   on the game mode (M14, demo m14), so the walkthrough goes back to the
+   layout of M9 after the start and after the load. */
+internal void
+demo_m9_layout(demo_vars &v)
+{
+    v.ui.hud_mode    = false;
+    v.ui.show_topbar = v.ui.show_history = true;
+}
+
 internal void
 demo_m9_playable(ImGuiTestContext *ctx)
 {
@@ -1364,7 +1374,8 @@ demo_m9_playable(ImGuiTestContext *ctx)
     ctx->ItemClick("###level1");
     ctx->SleepStandard();
     ctx->ItemClick("###start_ok");
-    IM_CHECK(v.ui.show_topbar && api->whose_turn(e) == player && api->settings(e).duel_mode == DUEL_MODE_AUTO);
+    IM_CHECK(v.ui.hud_mode && api->whose_turn(e) == player && api->settings(e).duel_mode == DUEL_MODE_AUTO);
+    demo_m9_layout(v);
     engine_officer ruler = api->officer_by_id(e, api->force_ruler(e, player));
     u8 capital = (u8)ruler.current_position;
     v.ui.city.selected = capital;
@@ -1421,6 +1432,7 @@ demo_m9_playable(ImGuiTestContext *ctx)
     ctx->SetRef("###SaveLoad");
     ctx->ItemClick("###slot0");
     IM_CHECK(api->turn(e) == saved_turn && !v.ui.show_saveload);
+    demo_m9_layout(v);
     ctx->SleepStandard();
 
     /* 情報 and 決戰稱霸. */
