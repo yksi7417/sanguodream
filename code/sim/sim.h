@@ -1460,6 +1460,7 @@ internal u8        sim_emperor_protector(sim_state *sim);
 internal void      sim_run_emperor_month(sim_state *sim, u32 cause, sim_event_sink *events);
 internal void      sim_set_emperor(sim_state *sim, u8 who, u32 cause, sim_event_sink *events);
 internal void      sim_init_bases(sim_state *sim);
+internal void      sim_load_save_base_records(sim_state *sim, save_file *save);   /* the gate and port records of a save (Q-183) */
 internal u32       sim_base_at(sim_state *sim, hex_coord hex);   /* SIM_NO_BASE if none */
 internal void      sim_hurt_base(sim_state *sim, u32 index, u32 soldiers, u32 durability, u32 attacker_id, u32 cause, sim_event_sink *events);
 internal u32       sim_base_troop_cap(sim_state *sim, u8 force);

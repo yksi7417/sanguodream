@@ -243,7 +243,7 @@ item.seal_technique	50	assumed	officers-and-relations.md, 玉璽: technique poin
 base.gold	100	assumed	the gold that a base gives each month to its city of the same faction (bases-ports-and-passes.md: a base has income only with its city; Q-183)
 base.troop_cap	30000	assumed	the soldiers that a base holds (Q-183)
 base.caps_percent	150	assumed	擴展港關: the caps of a base in percent (Q-183)
-base.start_troops	3000	assumed	the soldiers of a base after a save loads; the save field is not decoded (Q-183)
+base.start_troops	3000	assumed	the soldiers of an owned base in a new game from a scenario; a save gives its own (record +10 at 0x08428D, Q-183)
 corps.commands	3	assumed	the commands of a delegated corps in each turn (knowledge/ai.md; Q-185)
 council.officers	6	documented	city-commands.md, 評定: up to 6 officers
 adviser.intellect	70	documented	factions-corps-and-posts.md: an adviser needs intellect 70 or more

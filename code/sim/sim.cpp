@@ -498,6 +498,7 @@ sim_load_save(sim_state *sim, save_file *save, sim_command command, sim_event_si
     sim_init_emperor(sim);                        /* M8: the emperor, the bases and the ruins and temples */
     sim_update_ranks(sim, true, command.id, events);
     sim_init_bases(sim);
+    sim_load_save_base_records(sim, save);   /* the owner and the soldiers of each gate and port of a save */
     sim_init_relics(sim);
     sim_load_save_map(sim, save, command.id, events);   /* M11: the facilities, the bases and the units of the save */
 

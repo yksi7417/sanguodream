@@ -488,34 +488,39 @@ feature_base_tests(test_counts *counts)
     TEST_CHECK(counts, api->base_count(e) == 45 && api->content_status(e).base_count == 45 && first.id == 42 && first.type == BASE_PASS &&
                        port.id == 52 && port.type == BASE_PORT && first.durability == first.durability_max && first.durability > 0,
                "bases.tsv has the 10 passes (42 .. 51) and the 35 ports (52 .. 86) with full durability");
-    b32 placed = true, owned = true;
+    b32 placed = true, empty_free = true;
     for (u32 index = 0; index < api->base_count(e); ++index)
     {
         engine_base base = api->base_at(e, index);
-        engine_city owner = api->city_at(e, base.owner_city);
         placed &= api->base_at_hex(e, base.q, base.r) == index;
         for (u32 city = 0; city < api->city_count(e); ++city)
         {
             engine_city_slots site = api->city_slots(e, (u8)city);
             placed &= !(site.q == base.q && site.r == base.r);
         }
-        owned &= base.force == owner.owner_force_id;
+        if (base.force == ENGINE_NO_FACTION) empty_free &= base.troops == 0;
     }
-    TEST_CHECK(counts, placed && owned, "each base has its own hex, not on a city, and starts with the owner of its city (assumed, Q-183)");
+    TEST_CHECK(counts, placed && empty_free, "each base has its own hex, not on a city; a base with no owner has no soldiers");
+    engine_base hukou = api->base_at(e, 72 - CONTENT_FIRST_BASE);
+    TEST_CHECK(counts, hukou.troops == 6266 && hukou.force != ENGINE_NO_FACTION,
+               "the owner and the soldiers of a base come from its record in the save (皖口港 6266; Q-183)");
 
     /* The gold of the bases goes into the monthly income of their city. */
     u32 index = 0;
-    while (index < api->base_count(e) && api->base_at(e, index).force == ENGINE_NO_FACTION) ++index;
+    while (index < api->base_count(e) &&
+           (api->base_at(e, index).force == ENGINE_NO_FACTION ||
+            api->base_at(e, index).force != api->city_at(e, api->base_at(e, index).owner_city).owner_force_id)) ++index;
     engine_base base = api->base_at(e, index);
+    u8 city_owner = api->city_at(e, base.owner_city).owner_force_id;
     u32 same = 0;
     for (u32 other = 0; other < api->base_count(e); ++other)
     {
         engine_base row = api->base_at(e, other);
-        same += row.owner_city == base.owner_city && row.force == base.force;
+        same += row.owner_city == base.owner_city && row.force == city_owner;
     }
-    TEST_CHECK(counts, api->city_income_forecast(e, base.owner_city).amounts.gold_bases == same * FEATURE_BASE_GOLD,
+    TEST_CHECK(counts, index < api->base_count(e) && api->city_income_forecast(e, base.owner_city).amounts.gold_bases == same * FEATURE_BASE_GOLD,
                "a city gets 100 gold each month for each of its bases with the same owner (assumed)");
-    api->set_base(e, index, (u8)(base.force == 1 ? 2 : 1), 1000, base.durability_max);
+    api->set_base(e, index, (u8)(city_owner == 1 ? 2 : 1), 1000, base.durability_max);
     TEST_CHECK(counts, api->city_income_forecast(e, base.owner_city).amounts.gold_bases == (same - 1) * FEATURE_BASE_GOLD,
                "a base of another faction gives its city no gold");
 

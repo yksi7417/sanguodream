@@ -80,7 +80,11 @@ sim_place_base(sim_state *sim, base_kind *kind)
     }
     return center;
 }
-/* The bases after a save loads. */
+/* The bases after a save or a scenario loads. The owner is the owner of
+   the city of the base, and the soldiers are base.start_troops (assumed,
+   Q-183). A save then gives the owner and the soldiers of each base
+   (sim_load_save_base_records), so base.start_troops stays only for a new
+   game from a scenario. */
 internal void
 sim_init_bases(sim_state *sim)
 {
@@ -97,6 +101,25 @@ sim_init_bases(sim_state *sim)
         /* M10: the real map gives the hex of each base (bases.tsv of the map). */
         b32 on_map = sim->map_layers.loaded && kind->id < SIM_MAP_REGION_CAPACITY && sim->map_layers.base_type[kind->id] != MAP_BASE_NONE;
         base->hex        = on_map ? sim->map_layers.base_hex[kind->id] : sim_place_base(sim, kind);
+    }
+}
+
+/* The gate and port records of a save (save-file.md, 0x08428D; spec
+   9632e15): +9 the owner force (255 = no owner) and +10 the soldiers. A
+   scenario gives no records, and its bases keep the values of
+   sim_init_bases. */
+internal void
+sim_load_save_base_records(sim_state *sim, save_file *save)
+{
+    if (!save->bases) return;
+    for (u32 index = 0; index < sim->content.base_count; ++index)
+    {
+        base_kind *kind = sim->content.bases + index;
+        if (kind->id < SAVE_BASE_FIRST_ID || (u32)(kind->id - SAVE_BASE_FIRST_ID) >= save->base_count) continue;
+        base_record *record = save->bases + (u32)(kind->id - SAVE_BASE_FIRST_ID);
+        sim_base_state *base = sim->bases + index;
+        base->force  = record->owner_force_id == SAVE_BASE_NO_OWNER ? (u8)SIM_NO_FORCE : record->owner_force_id;
+        base->troops = base->force == SIM_NO_FORCE ? 0 : record->soldiers;
     }
 }
 

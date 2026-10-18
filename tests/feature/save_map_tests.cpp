@@ -97,6 +97,22 @@ feature_save_map_tests(test_counts *counts)
         if (kind.natural) { dikes += strcmp(kind.key, "dike") == 0; rockfalls += strcmp(kind.key, "rockfall") == 0; }
         else buildings++;
     }
+    /* The gate and port records of the save (0x08428D, spec 9632e15): the owner and the soldiers. */
+    engine_base hukou = api->base_at(e, 72 - CONTENT_FIRST_BASE), lukou = api->base_at(e, 74 - CONTENT_FIRST_BASE);
+    engine_base poyang = api->base_at(e, 75 - CONTENT_FIRST_BASE), huguan = api->base_at(e, 42 - CONTENT_FIRST_BASE);
+    TEST_CHECK(counts, hukou.id == 72 && hukou.troops == 6266, "皖口港 (base 72) has the 6266 soldiers that the game shows");
+    TEST_CHECK(counts, lukou.id == 74 && lukou.troops == 100, "陸口港 (base 74) has the 100 soldiers of its name plate in the game");
+    TEST_CHECK(counts, poyang.id == 75 && poyang.force == ENGINE_NO_FACTION && poyang.troops == 0, "鄱陽港 (base 75) has no owner and no soldiers");
+    TEST_CHECK(counts, huguan.id == 42 && huguan.troops == 14534, "壺關 (base 42) has 14534 soldiers");
+    u32 at_default = 0, without_owner = 0;
+    for (u32 index = 0; index < api->base_count(e); ++index)
+    {
+        engine_base base = api->base_at(e, index);
+        at_default    += base.troops == 3000;
+        without_owner += base.force == ENGINE_NO_FACTION;
+    }
+    TEST_CHECK(counts, at_default == 3 && without_owner == 8,
+               "the soldiers come from the records: only bases 53, 55 and 61 have 3000 in the save; 8 bases have no owner");
     TEST_CHECK(counts, bases_ok && buildings == FEATURE_SAVE_BUILDINGS && dikes == 4 && rockfalls == 18,
                "each base has its durability from the save; 30 military buildings and traps stand on their hexes; 4 dikes and 18 rockfalls stay");
 

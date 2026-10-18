@@ -32,9 +32,10 @@ sim_slot_at(sim_state *sim, hex_coord hex, u32 *slot_index)
     return SIM_NO_CITY;
 }
 
-/* Records 0..86: the durability of each base; the owner of each gate and
-   port. The owner of a city stays that of the city record: the byte +2
-   of a city disagrees with it in 20 of 42 cities of sample.s11 (Q-212). */
+/* Records 0..86: the durability of each base. The owner of a city stays
+   that of the city record: the byte +2 of a city disagrees with it in 20
+   of 42 cities of sample.s11 (Q-212). The owner of a gate or a port comes
+   from its own record at 0x08428D (sim_load_save_base_records). */
 internal void
 sim_load_save_bases(sim_state *sim, save_file *save, sim_save_map_counts *counts)
 {
@@ -52,7 +53,6 @@ sim_load_save_bases(sim_state *sim, save_file *save, sim_save_map_counts *counts
         {
             if (sim->content.bases[base].id != index || !sim->bases[base].exists) continue;
             sim->bases[base].durability = record->durability;
-            sim->bases[base].force      = record->owner_force_id == OFFICER_FORCE_NONE ? (u8)SIM_NO_FORCE : record->owner_force_id;
             counts->bases++;
         }
     }
