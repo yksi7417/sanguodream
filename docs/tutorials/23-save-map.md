@@ -22,9 +22,12 @@ formats/save-file.md gives two arrays of the payload:
   is the facility type, byte 2 the owner, bytes 3 and 4 the durability,
   bytes 14 to 17 the hex. Records 0 to 86 are the bases. Type 255 marks
   an empty record (observed; Q-212).
-- The troop unit array at 0x086B71 has records of 98 bytes: the leader,
-  two deputies and the troops. The array has 54 records before the next
-  table. An officer in a unit has the position 87 + the unit index.
+- The troop unit array at 0x086B71 has records of 98 bytes. A record
+  gives the leader, two deputies and the troops. It also gives the hex at
+  +23 (x) and +25 (y). The array
+  goes on past the table at 0x08803B: sample.s11 has units in the records
+  54 to 56. The engine reads 388 records (assumed, Q-216). An officer in a
+  unit has the position 87 + the unit index.
 
 save_format reads both arrays. `save_dump --buildings --units` prints
 them.
@@ -43,12 +46,18 @@ sim_load_save_map runs at the end of sim_load_save, on the real map only:
 2. Each other record puts its facility on the slot of its hex, or its
    building on its hex. A dike or a rockfall record gives its durability
    to the trap of the map. Temples and ruins of the save replace the random pick.
-3. Each unit that an officer rides in goes on the map. The unit id is the
-   unit index, so the positions of the officers stay right. The save
-   gives no hex: the unit goes on the first free hex near the home base
-   of its leader (assumed, Q-211). It has no class, and it does not eat.
+3. Each unit that an officer rides in goes on the hex of its record. The
+   unit id is the unit index, so the positions of the officers stay right.
+   - The hex can be off the map, on a terrain that a unit cannot enter, or
+     under another unit. Then the unit goes on the first free hex near the
+     home base of its leader. The ledger counts these fallbacks.
+   - The save gives no class, grain or morale (Q-211). A unit on land has no
+     class. A unit on 河 or 海 is a 走舸 (assumed), so the movement rules use
+     its ship row and never a land row on water. The unit does not eat.
 
-The ledger gets one SIM_EVENT_SAVE_MAP_LOADED event with the counts.
+The ledger gets one SIM_EVENT_SAVE_MAP_LOADED event with the counts: delta
+is the facilities, buildings and traps; detail is the units; subject is the
+fallbacks. In sample.s11 all 56 units stand on their hexes, 12 on water.
 
 ## Find a city or a unit
 - ui_frame_city and ui_frame_unit select the city or the unit. The next

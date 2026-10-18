@@ -395,8 +395,11 @@ and the player can find each city and unit. The demo is
     durability to each base and natural trap, and the owner to each gate
     and port.
   - The units that officers ride in go on the map with their leader,
-    deputies and troops. The save gives no hex, class or grain (Q-211).
-    The hex is the first free hex near the home base (assumed). The unit
+    deputies and troops. The save gives no class or grain (Q-211).
+    Fix (2026-10-18, spec 7fff546): the hex comes from record +23 and +25.
+    The first free hex near the home base is only a fallback, and a unit
+    on 河 or 海 is a 走舸 (assumed). The unit array has 56 units, past
+    0x08803B (Q-216). The unit
     has no class, and it does not eat.
   - grain.soldiers is 40, the rate of fixtures/grain-consumption.tsv.
 - API: `hex_at` also gives the facility and its level, the building and
