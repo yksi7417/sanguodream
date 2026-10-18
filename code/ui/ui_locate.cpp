@@ -194,6 +194,96 @@ ui_scene_screen(engine_api *api, m4 view_projection, hex_coord hex, f32 lift, f3
            *x >= 0.0f && *y >= 0.0f && *x <= io.DisplaySize.x && *y <= io.DisplaySize.y;
 }
 
+/* The first UTF-8 character of a text. */
+internal void
+ui_first_character(const char *text, char *out, u32 out_size)
+{
+    u32 length = text[0] ? 1 : 0;
+    while (text[length] && (text[length] & 0xC0) == 0x80) length++;
+    snprintf(out, out_size, "%.*s", (int)length, text);
+}
+
+/* ---- M12: the unit plates (ui/main-map.md, "Map labels") ----------------------------- */
+
+#define UI_PLATE_GRAIN_LOW_TURNS   3    /* the supply icon is red below this (assumed, Q-215) */
+#define UI_PLATE_GRAIN_SAFE_TURNS  10   /* the supply icon is green from this (assumed, Q-215) */
+#define UI_PLATE_PAD               2.0f
+
+enum ui_unit_mark { UI_UNIT_MARK_READY, UI_UNIT_MARK_DONE, UI_UNIT_MARK_DELEGATED, UI_UNIT_MARK_COUNT };
+
+/* The status mark of a unit: 完 after it acted in this turn, 委 when its
+   home city is in a delegated corps (not corps 0), else 未. The meaning of
+   委 and the order of the marks are assumed (Q-215). */
+internal u32
+ui_unit_mark_of(engine_unit *unit, u8 corps)
+{
+    if (unit->acted) return UI_UNIT_MARK_DONE;
+    if (corps != 0)  return UI_UNIT_MARK_DELEGATED;
+    return UI_UNIT_MARK_READY;
+}
+
+/* The colour of the supply icon from the turns that the grain lasts:
+   green, yellow, red, or grey when the grain is not known (assumed, Q-215). */
+internal ImU32
+ui_grain_colour(u32 grain_turns)
+{
+    if (grain_turns == ENGINE_GRAIN_TURNS_UNKNOWN) return IM_COL32(130, 130, 130, 255);
+    if (grain_turns < UI_PLATE_GRAIN_LOW_TURNS)    return IM_COL32(220, 50, 40, 255);
+    if (grain_turns < UI_PLATE_GRAIN_SAFE_TURNS)   return IM_COL32(230, 190, 40, 255);
+    return IM_COL32(60, 180, 70, 255);
+}
+
+/* A unit plate: the portrait of the commander, the unit name and the
+   status mark on the first row, the supply icon and the soldiers on the
+   second. The clean room has no officer pictures: a square in the faction
+   colour with the first character of the commander's name stands in for
+   the portrait. */
+internal void
+ui_draw_unit_plate(ui_state *ui, engine_api *api, ImDrawList *draw, f32 x, f32 y, engine_unit *unit, bool selected)
+{
+    engine_officer commander = api->officer_by_id(api->engine, unit->officers[0]);
+    char name[UI_NAME_SIZE * 2] = "?";
+    if (commander.officer_id != ENGINE_NO_OFFICER) ui_officer_name(ui, &commander, name, sizeof(name));
+    char label[UI_NAME_SIZE * 4], initial[16], soldiers[16];
+    ui_unit_label(ui, api, unit, label, sizeof(label));
+    ui_first_character(name, initial, sizeof(initial));
+    snprintf(soldiers, sizeof(soldiers), "%u", unit->soldiers);
+    u32 mark = ui_unit_mark_of(unit, api->city_corps(api->engine, unit->home_city));
+    const char *mark_ids[UI_UNIT_MARK_COUNT] = { "plate.ready", "plate.done", "plate.delegated" };
+    ImU32 mark_colours[UI_UNIT_MARK_COUNT] = { IM_COL32(40, 160, 60, 255), IM_COL32(120, 120, 120, 255), IM_COL32(50, 100, 220, 255) };
+    const char *mark_text   = text_get(ui->text, mark_ids[mark]);
+    const char *supply_text = text_get(ui->text, "plate.supply");
+
+    f32 pad = UI_PLATE_PAD, line = ImGui::GetTextLineHeight();
+    f32 portrait = line * 2.0f + pad;
+    ImVec2 label_size = ImGui::CalcTextSize(label), mark_size = ImGui::CalcTextSize(mark_text);
+    ImVec2 supply_size = ImGui::CalcTextSize(supply_text), soldier_size = ImGui::CalcTextSize(soldiers);
+    f32 first_row  = label_size.x + pad * 3.0f + mark_size.x + pad * 2.0f;
+    f32 second_row = supply_size.x + pad * 4.0f + soldier_size.x;
+    f32 width  = portrait + pad * 4.0f + (first_row > second_row ? first_row : second_row);
+    f32 height = portrait + pad * 2.0f;
+    ImVec2 top(x - width * 0.5f, y - height - 4.0f), bottom(x + width * 0.5f, y - 4.0f);
+    ImU32 faction = ui_faction_color(unit->force_id), white = IM_COL32(255, 255, 255, 255);
+    draw->AddRectFilled(top, bottom, IM_COL32(0, 0, 0, 170), 3.0f);
+    draw->AddRect(top, bottom, selected ? IM_COL32(255, 230, 60, 255) : faction, 3.0f, 0, selected ? 2.0f : 1.0f);
+
+    ImVec2 face_top(top.x + pad, top.y + pad), face_bottom(top.x + pad + portrait, top.y + pad + portrait);
+    draw->AddRectFilled(face_top, face_bottom, faction, 2.0f);
+    ImVec2 initial_size = ImGui::CalcTextSize(initial);
+    draw->AddText(ImVec2((face_top.x + face_bottom.x - initial_size.x) * 0.5f, (face_top.y + face_bottom.y - initial_size.y) * 0.5f), white, initial);
+
+    f32 text_x = face_bottom.x + pad * 2.0f;
+    draw->AddText(ImVec2(text_x, top.y + pad), white, label);
+    ImVec2 mark_top(bottom.x - pad * 3.0f - mark_size.x, top.y + pad);
+    draw->AddRectFilled(mark_top, ImVec2(bottom.x - pad, mark_top.y + line), mark_colours[mark], 2.0f);
+    draw->AddText(ImVec2(mark_top.x + pad, mark_top.y), white, mark_text);
+
+    f32 second = top.y + pad * 2.0f + line;
+    draw->AddRectFilled(ImVec2(text_x, second), ImVec2(text_x + supply_size.x + pad * 2.0f, second + line), ui_grain_colour(unit->grain_turns), 2.0f);
+    draw->AddText(ImVec2(text_x + pad, second), white, supply_text);
+    draw->AddText(ImVec2(text_x + supply_size.x + pad * 4.0f, second), white, soldiers);
+}
+
 /* A glyph on each slot of a city in view: the first character of the
    facility and its level, or a ring for a free slot. */
 internal void
@@ -211,11 +301,9 @@ ui_draw_slot_glyphs(ui_state *ui, engine_api *api, m4 view_projection, ImDrawLis
             continue;
         }
         engine_facility_kind kind = api->facility_kind_at(api->engine, facility.facility);
-        const char *name = ui_text_with_key(ui, "facility", kind.key);
-        u32 length = 1;
-        while (name[length] && (name[length] & 0xC0) == 0x80) length++;   /* the first UTF-8 character */
-        char glyph[16];
-        snprintf(glyph, sizeof(glyph), "%.*s%u", (int)length, name, facility.level);
+        char initial[16], glyph[24];
+        ui_first_character(ui_text_with_key(ui, "facility", kind.key), initial, sizeof(initial));
+        snprintf(glyph, sizeof(glyph), "%s%u", initial, facility.level);
         ImVec2 size = ImGui::CalcTextSize(glyph);
         draw->AddRectFilled(ImVec2(x - size.x * 0.5f - 2.0f, y - size.y * 0.5f), ImVec2(x + size.x * 0.5f + 2.0f, y + size.y * 0.5f),
                             facility.state == SIM_SLOT_BUILT ? IM_COL32(40, 60, 120, 220) : IM_COL32(90, 90, 90, 220), 2.0f);
@@ -262,9 +350,7 @@ ui_draw_scene_labels(ui_state *ui, engine_api *api)
         engine_unit unit = api->unit_at(api->engine, id);
         f32 x = 0.0f, y = 0.0f;
         if (unit.id == ENGINE_NO_UNIT || !ui_scene_screen(api, view_projection, hex_make(unit.q, unit.r), UI_LABEL_LIFT, &x, &y)) continue;
-        char name[UI_NAME_SIZE * 4];
-        ui_unit_label(ui, api, &unit, name, sizeof(name));
-        ui_draw_plate(draw, x, y, name, unit.soldiers, (f32)unit.morale / 100.0f, ui_faction_color(unit.force_id), unit.id == ui->units.selected);
+        ui_draw_unit_plate(ui, api, draw, x, y, &unit, unit.id == ui->units.selected);   /* M12 */
     }
     if (ui->scene.has_hover && !io.WantCaptureMouse)
     {

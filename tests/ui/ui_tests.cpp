@@ -2000,6 +2000,72 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
+    /* M12: a click on the round mini map moves the camera to that point.
+       The centre of the disc is the centre of the map; at yaw 0 the right
+       of the disc is east. The distance and the heading stay. */
+    t = IM_REGISTER_TEST(e, "ui", "minimap_click_moves_the_camera_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.ui.show_minimap = true;
+        ctx->Yield(2);
+        ctx->SetRef("###MiniMap");
+        ImGuiTestItemInfo disc = ctx->ItemInfo("minimap");
+        IM_CHECK(disc.ID != 0);
+        v.ui.scene.cam.yaw    = 0.0f;
+        v.ui.scene.cam.target = hex_world_center(hex_make(0, 0), 0.0f);
+        f32 distance = v.ui.scene.cam.distance;
+        recorder_reset(&v.recorder);
+        ctx->ItemClick(disc.ID);
+        ctx->Yield();
+        hex_offset first = { 0, 0 }, last = { 7, 5 };   /* the 8 x 6 map of the recorder */
+        v3 low = hex_world_center(hex_from_offset(first), 0.0f), high = hex_world_center(hex_from_offset(last), 0.0f);
+        f32 middle_x = (low.x + high.x) * 0.5f, middle_z = (low.z + high.z) * 0.5f;
+        v3 centred = v.ui.scene.cam.target;
+        IM_CHECK(fabsf(centred.x - middle_x) < 1.5f && fabsf(centred.z - middle_z) < 1.5f);
+        IM_CHECK_EQ(v.ui.scene.cam.distance, distance);
+        IM_CHECK_EQ(v.ui.scene.cam.yaw, 0.0f);
+        ImVec2 centre = disc.RectFull.GetCenter();
+        f32 radius = disc.RectFull.GetWidth() * 0.5f - UI_MINIMAP_RING_WIDTH;
+        ctx->WindowFocus("//###MiniMap");
+        ctx->MouseMoveToPos(ImVec2(centre.x + radius * 0.7f, centre.y));
+        ctx->MouseClick(0);
+        ctx->Yield();
+        IM_CHECK_GT(v.ui.scene.cam.target.x, centred.x + 1.0f);   /* east */
+        IM_CHECK_LT(fabsf(v.ui.scene.cam.target.z - centred.z), 1.5f);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_TERRAIN_KIND_AT), 1u);   /* the road kinds */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* M12: each unit plate asks for the commander (the portrait and the
+       name) and for the corps of the home city (委); the marks and the
+       supply colours follow the unit. The plates command nothing. */
+    t = IM_REGISTER_TEST(e, "ui", "unit_plates_read_the_commander_and_the_corps_and_command_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.ui.scene.headless = true;
+        ui_frame_unit(&v.ui, 0);   /* the camera looks at unit 0, so its plate is on the screen */
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_CITY_CORPS), 1u);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_OFFICER_BY_ID), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        engine_unit unit = {};
+        IM_CHECK_EQ(ui_unit_mark_of(&unit, 0), (u32)UI_UNIT_MARK_READY);       /* 未 */
+        IM_CHECK_EQ(ui_unit_mark_of(&unit, 2), (u32)UI_UNIT_MARK_DELEGATED);   /* 委 */
+        unit.acted = true;
+        IM_CHECK_EQ(ui_unit_mark_of(&unit, 2), (u32)UI_UNIT_MARK_DONE);        /* 完 */
+        IM_CHECK(ui_grain_colour(ENGINE_GRAIN_TURNS_UNKNOWN) != ui_grain_colour(20));
+        IM_CHECK(ui_grain_colour(1) != ui_grain_colour(5) && ui_grain_colour(5) != ui_grain_colour(20));
+        IM_CHECK_EQ(ui_grain_colour(ENGINE_GRAIN_TURNS_ENDLESS), ui_grain_colour(20));
+    };
+
     /* M11: the status bar shows the hex under the mouse (ui/main-map.md). */
     t = IM_REGISTER_TEST(e, "ui", "status_bar_reads_the_hex_under_the_mouse_and_commands_nothing");
     t->SetVarsDataType<ui_test_vars>();

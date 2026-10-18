@@ -1088,3 +1088,7 @@ compass.north	N	the compass of the mini map
 compass.east	E	the compass of the mini map
 compass.south	S	the compass of the mini map
 compass.west	W	the compass of the mini map
+plate.ready	Ready	the unit plate: the unit has not acted in this turn (未)
+plate.done	Done	the unit plate: the unit acted in this turn (完)
+plate.delegated	Auto	the unit plate: the unit of a delegated corps (委)
+plate.supply	Food	the unit plate: the supply icon
