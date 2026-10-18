@@ -302,6 +302,51 @@ ui_unit_click(ui_state *ui, engine_api *api, hex_coord hex)
     return false;
 }
 
+/* The name of the weapon of a city stock: the last row of weapons.tsv with
+   that stock (木獸 for the stock of 衝車 and 木獸). */
+internal const char *
+ui_stock_name(ui_state *ui, engine_api *api, u32 stock)
+{
+    const char *name = "-";
+    for (u32 index = 0; index < api->weapon_kind_count(api->engine); ++index)
+    {
+        engine_weapon_kind kind = api->weapon_kind_at(api->engine, index);
+        if (kind.id != ENGINE_NO_WEAPON && kind.stock == stock) name = ui_text_with_key(ui, "weapon", kind.key);
+    }
+    return name;
+}
+
+/* The cargo of a transport as the 部隊情報 screen shows it (Q-217): a row
+   of 槍 戟 弩 軍馬 and a row of 木獸 井闌 樓船, and the other stocks when the
+   unit carries them. */
+internal void
+ui_draw_unit_cargo(ui_state *ui, engine_api *api, engine_unit *unit)
+{
+    const u32 rows[2][3] = { { CITY_STOCK_SPEARS, CITY_STOCK_HALBERDS, CITY_STOCK_CROSSBOWS },
+                             { CITY_STOCK_BATTERING_RAMS, CITY_STOCK_SIEGE_TOWERS, CITY_STOCK_SHIP_TYPE_1 } };
+    if (!ImGui::BeginTable("unit_cargo", 4, ImGuiTableFlags_SizingFixedFit)) return;
+    for (u32 row = 0; row < 2; ++row)
+    {
+        ImGui::TableNextRow();
+        for (u32 cell = 0; cell < 3; ++cell)
+        {
+            ImGui::TableNextColumn();
+            ImGui::Text("%s %u", ui_stock_name(ui, api, rows[row][cell]), unit->cargo[rows[row][cell]]);
+        }
+        ImGui::TableNextColumn();
+        if (row == 0) ImGui::Text("%s %u", ui_stock_name(ui, api, CITY_STOCK_WAR_HORSES), unit->cargo[CITY_STOCK_WAR_HORSES]);
+    }
+    const u32 others[3] = { CITY_STOCK_CATAPULTS, CITY_STOCK_SHIP_TYPE_2, CITY_STOCK_SHIP_TYPE_3 };
+    for (u32 index = 0; index < 3; ++index)
+    {
+        if (!unit->cargo[others[index]]) continue;
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::Text("%s %u", ui_stock_name(ui, api, others[index]), unit->cargo[others[index]]);
+    }
+    ImGui::EndTable();
+}
+
 internal void
 ui_draw_unit_panel(ui_state *ui, engine_api *api)
 {
@@ -336,11 +381,14 @@ ui_draw_unit_panel(ui_state *ui, engine_api *api)
         ImGui::Text("%s: %s (%s)", text_get(ui->text, "unit.class"), type.id == ENGINE_NO_UNIT_TYPE ? "-" : ui_text_with_key(ui, "unit_type", type.key),
                     ui_grade_text(unit.values.aptitude));
         ui_draw_unit_values(ui, &unit.values);
+        if (type.transport) ui_draw_unit_cargo(ui, api, &unit);
         if (unit.state)
         {
             char state_id[32];
             snprintf(state_id, sizeof(state_id), "unit.state_%u", unit.state);
-            ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "%s (%u)", text_get(ui->text, state_id), unit.state_turns);
+            /* 混亂 ends by a chance each turn (Q-218): it has no count of turns to show. */
+            if (unit.state == UNIT_STATE_CONFUSED) ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "%s", text_get(ui->text, state_id));
+            else ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "%s (%u)", text_get(ui->text, state_id), unit.state_turns);
         }
         if (ui->combat.pick != UI_PICK_NONE)
         {

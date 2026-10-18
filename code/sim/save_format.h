@@ -345,14 +345,42 @@ enum unit_record_offset
     UNIT_GOLD     = 9,   /* u32 */
     UNIT_GRAIN    = 13,  /* u32 */
     UNIT_STATE    = 17,  /* u8: 1 = 混亂; the other values are open (Q-211) */
+    UNIT_TASK     = 19,  /* u16: the task 任務; 1 = 移動 (spec 819d36f); the other codes are open */
+    UNIT_TARGET   = 21,  /* u16: the target 對象 as a base id 0..86 when the task targets a base */
     UNIT_HEX_X    = 23,  /* u16: the hex x on the map axes of map-data.md (spec 7fff546, Q-211) */
     UNIT_HEX_Y    = 25,  /* u16: the hex y */
-    UNIT_ARMAMENT = 36,  /* u8: the land armament, a row of movement-costs.tsv (1 槍, 2 戟, 4 軍馬) */
-    UNIT_SHIP     = 41,  /* u8: the ship class, a row of movement-costs.tsv (9 走舸, 10 樓船, 11 鬥艦) */
-    UNIT_ON_WATER = 42   /* u8: 1 when the unit is on water as a ship (assumed in the spec) */
+    UNIT_ARMAMENT = 36,  /* u8: the land armament, a row of movement-costs.tsv (1 槍, 2 戟, 4 軍馬); 0 for a transport */
+    UNIT_EQUIPMENT = 41  /* SAVE_UNIT_EQUIPMENT_COUNT entries: u8 kind, u32 count (Q-217) */
 };
 
-#define SAVE_UNIT_STATE_CONFUSED 1
+#define SAVE_UNIT_STATE_CONFUSED  1
+#define SAVE_UNIT_TASK_MOVE       1     /* 任務 移動 */
+#define SAVE_UNIT_EQUIPMENT_COUNT 11
+#define SAVE_UNIT_EQUIPMENT_SIZE  5     /* u8 kind, u32 count */
+
+/* The kinds of the equipment list (save-file.md, unit row). The screens
+   verify 1 to 4, 6, 8 and 10; 5, 7, 9 and 11 are the assumed rest. */
+enum save_equipment_kind
+{
+    SAVE_EQUIPMENT_NONE        = 0,
+    SAVE_EQUIPMENT_PIKE        = 1,    /* 槍 */
+    SAVE_EQUIPMENT_HALBERD     = 2,    /* 戟 */
+    SAVE_EQUIPMENT_CROSSBOW    = 3,    /* 弩 */
+    SAVE_EQUIPMENT_HORSE       = 4,    /* 軍馬 */
+    SAVE_EQUIPMENT_RAM         = 5,    /* 衝車 (assumed) */
+    SAVE_EQUIPMENT_WOOD_BEAST  = 6,    /* 木獸 */
+    SAVE_EQUIPMENT_CATAPULT    = 7,    /* 投石 (assumed) */
+    SAVE_EQUIPMENT_TOWER       = 8,    /* 井闌 */
+    SAVE_EQUIPMENT_BOAT        = 9,    /* 走舸 (assumed) */
+    SAVE_EQUIPMENT_TOWER_SHIP  = 10,   /* 樓船 */
+    SAVE_EQUIPMENT_BATTLE_SHIP = 11    /* 鬥艦 (assumed) */
+};
+
+struct unit_equipment
+{
+    u8  kind;     /* save_equipment_kind */
+    u32 count;
+};
 
 struct unit_record
 {
@@ -363,8 +391,9 @@ struct unit_record
     u8  morale;
     u32 gold, grain;
     u8  state;                               /* SAVE_UNIT_STATE_CONFUSED or another value (open) */
-    u8  armament, ship;                      /* rows of movement-costs.tsv */
-    u8  on_water;
+    u16 task, target;                        /* 任務 and 對象 */
+    u8  armament;                            /* a row of movement-costs.tsv; 0 for a transport */
+    unit_equipment equipment[SAVE_UNIT_EQUIPMENT_COUNT];   /* a transport: its cargo; a battle unit: [0] its ship */
 };
 
 /* ---- the per-hex block (save-file.md, spec b3ed57d; Q-200, Q-205) ---------- */

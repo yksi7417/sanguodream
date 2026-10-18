@@ -295,7 +295,9 @@ test_build_save_file(u8 *file, memory_arena *arena)
     unit[9] = 0xA8;
     unit[13] = 0xF7; unit[14] = 0x17;
     unit[17] = 1;
-    unit[36] = 4; unit[41] = 9; unit[42] = 1;
+    unit[36] = 4;
+    unit[41] = 10; unit[42] = 1;                    /* the first entry: a 樓船, count 1 (Q-217) */
+    unit[19] = 9;  unit[21] = 0x3F; unit[22] = 0x02;   /* task 9, target 575 */
     /* The per-hex block, the last 160000 bytes: 49,67 burns 3 turns; 10,20 is an event site (16). */
     u8 *hex_block = payload + SAVE_PAYLOAD_LENGTH - 160000;
     hex_block[4 * (49 * 200 + 67)] = 3;
@@ -304,6 +306,11 @@ test_build_save_file(u8 *file, memory_arena *arena)
     u8 *late = payload + 0x086B71 + 98 * 55;
     late[0] = 0xB5; late[1] = 0x01;   /* the leader 437 */
     late[23] = 91; late[25] = 46;
+    /* Record 55 is a transport: armament 0, the kinds 1 to 11 in order; 7568 槍 and 2 井闌; task 移動 to city 17. */
+    for (u32 entry = 0; entry < 11; ++entry) late[41 + 5 * entry] = (u8)(entry + 1);
+    late[42] = 0x90; late[43] = 0x1D;                /* 7568 */
+    late[41 + 5 * 7 + 1] = 2;                        /* 井闌 */
+    late[19] = 1; late[21] = 17;
     /* The gate and port records at 0x08428D (spec 9632e15): record 30 is base 72 (皖口港). */
     u8 *port = payload + 0x08428D + 70 * 30;
     port[9] = 6; port[10] = 0x7A; port[11] = 0x18;   /* owner 6, 6266 soldiers */
@@ -349,8 +356,13 @@ unit_save_load_tests(test_counts *counts)
     TEST_CHECK(counts, save.units[5].morale == 100 && save.units[5].gold == 168 && save.units[5].grain == 6135 &&
                        save.units[5].state == SAVE_UNIT_STATE_CONFUSED,
                "unit 5: +8 morale, +9 gold, +13 grain and +17 the state (1 = 混亂)");
-    TEST_CHECK(counts, save.units[5].armament == 4 && save.units[5].ship == 9 && save.units[5].on_water == 1,
-               "unit 5: +36 the land armament, +41 the ship class, +42 the water flag");
+    TEST_CHECK(counts, save.units[5].armament == 4 && save.units[5].equipment[0].kind == SAVE_EQUIPMENT_TOWER_SHIP && save.units[5].equipment[0].count == 1,
+               "unit 5: +36 the land armament; the first entry of the list at +41 is its ship (kind, u32 count)");
+    TEST_CHECK(counts, save.units[5].task == 9 && save.units[5].target == 575, "unit 5: +19 the task and +21 the target");
+    TEST_CHECK(counts, save.units[55].armament == 0 && save.units[55].equipment[0].kind == SAVE_EQUIPMENT_PIKE && save.units[55].equipment[0].count == 7568 &&
+                       save.units[55].equipment[7].kind == SAVE_EQUIPMENT_TOWER && save.units[55].equipment[7].count == 2 &&
+                       save.units[55].equipment[10].kind == SAVE_EQUIPMENT_BATTLE_SHIP && save.units[55].task == SAVE_UNIT_TASK_MOVE && save.units[55].target == 17,
+               "a transport lists the kinds 1 to 11 with the counts of its cargo, and its target");
     TEST_CHECK(counts, save.hex_state_count == 40000 && (save.hex_states[49 * 200 + 67] & SAVE_HEX_FIRE_MASK) == 3 &&
                        save.hex_states[10 * 200 + 20] == SAVE_HEX_SITE_LOW && save.hex_states[0] == 0,
                "the per-hex block: index x * 200 + y; the low bits are the fire turns, 16 an event site");

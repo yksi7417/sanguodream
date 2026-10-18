@@ -14,10 +14,9 @@ struct sim_save_map_counts
     u32 facilities, buildings, naturals, relics, bases, units, skipped;
     u32 unit_fallbacks;   /* units whose hex of the save is off the map, not enterable or taken */
     u32 unknown_classes;  /* units whose land armament (+36) is no unit type of the pack */
+    u32 transports;       /* units whose list is the cargo of a transport */
     u32 fires;            /* hexes that burn */
 };
-
-#define SIM_SAVE_CONFUSION_TURNS 1   /* the turns of 混亂 of a unit of a save: the save gives none (assumed, Q-211) */
 
 /* The city and the slot of a slot hex, or SIM_NO_CITY. */
 internal u8
@@ -187,12 +186,43 @@ sim_save_unit_type(sim_state *sim, u8 row, b32 ship)
     return CONTENT_NO_UNIT_TYPE;
 }
 
+/* The city stock of each kind of the equipment list (weapons.tsv: 木獸
+   shares the stock of 衝車; a 走舸 has no stock). */
+global_variable const u8 sim_save_equipment_stock[SAVE_EQUIPMENT_BATTLE_SHIP + 1] = {
+    0xFF,                         /* none */
+    CITY_STOCK_SPEARS, CITY_STOCK_HALBERDS, CITY_STOCK_CROSSBOWS, CITY_STOCK_WAR_HORSES,
+    CITY_STOCK_BATTERING_RAMS,    /* 5 衝車 (assumed) */
+    CITY_STOCK_BATTERING_RAMS,    /* 6 木獸 */
+    CITY_STOCK_CATAPULTS,         /* 7 投石 (assumed) */
+    CITY_STOCK_SIEGE_TOWERS,      /* 8 井闌 */
+    0xFF,                         /* 9 走舸 (assumed) */
+    CITY_STOCK_SHIP_TYPE_1,       /* 10 樓船 */
+    CITY_STOCK_SHIP_TYPE_2,       /* 11 鬥艦 (assumed) */
+};
+
+/* A transport (輸送隊): the land armament is 0 and the list holds the
+   kinds 1 to 11 in order (save-file.md, Q-217). */
+internal b32
+sim_save_unit_is_transport(unit_record *record)
+{
+    if (record->armament != 0) return false;
+    for (u32 entry = 0; entry < SAVE_UNIT_EQUIPMENT_COUNT; ++entry)
+    {
+        if (record->equipment[entry].kind != entry + 1) return false;
+    }
+    return true;
+}
+
 /* The units of the save: each unit that an officer rides in (officer +98 =
    87 + the unit index). The record gives the leader, two deputies, the
-   troops, the morale, the gold, the grain, the state, the hex, the land
-   class (+36) and the ship class (+41). The unit id is the unit index, so
-   the positions of the officers stay right. On 河 and 海 the unit moves and
-   fights as its ship, on land as its land class (sim_unit_cost_type). */
+   troops, the morale, the gold, the grain, the state, the task, the target,
+   the hex, the land class (+36) and the equipment list (+41). The unit id
+   is the unit index, so the positions of the officers stay right.
+   - A transport carries the cargo of its list. Its target city is its
+     destination when its task is 移動.
+   - A battle unit owns the ship of its first entry when the count is 1 or
+     more (a 樓船). Without one it is a 走舸 on water. On 河 and 海 it moves
+     and fights as its ship, on land as its land class (sim_unit_cost_type). */
 internal void
 sim_load_save_units(sim_state *sim, save_file *save, sim_save_map_counts *counts)
 {
@@ -222,8 +252,22 @@ sim_load_save_units(sim_state *sim, save_file *save, sim_save_map_counts *counts
         unit->alive         = true;
         unit->force_id      = leader->force_id;
         unit->hex           = hex;
-        unit->unit_type     = sim_save_unit_type(sim, record->armament, false);
-        unit->ship_type     = sim_save_unit_type(sim, record->ship, true);
+        b32 transport = sim_save_unit_is_transport(record);
+        unit->unit_type     = transport ? content_find_unit_type(&sim->content, "transport") : sim_save_unit_type(sim, record->armament, false);
+        unit->ship_type     = CONTENT_NO_UNIT_TYPE;
+        if (transport)
+        {
+            for (u32 entry = 0; entry < SAVE_UNIT_EQUIPMENT_COUNT; ++entry)
+            {
+                u8 stock = sim_save_equipment_stock[record->equipment[entry].kind];
+                if (stock < CITY_EQUIPMENT_STOCK_COUNT) unit->cargo[stock] += record->equipment[entry].count;
+            }
+            counts->transports++;
+        }
+        else if (record->equipment[0].count && record->equipment[0].kind <= SAVE_EQUIPMENT_BATTLE_SHIP)
+        {
+            unit->ship_type = sim_save_unit_type(sim, record->equipment[0].kind, true);   /* the ship row is the list kind (movement-costs.tsv) */
+        }
         unit->has_ship      = unit->ship_type != CONTENT_NO_UNIT_TYPE;
         if (unit->unit_type == CONTENT_NO_UNIT_TYPE) counts->unknown_classes++;
         unit->soldiers      = record->troops;
@@ -233,10 +277,11 @@ sim_load_save_units(sim_state *sim, save_file *save, sim_save_map_counts *counts
         if (record->state == SAVE_UNIT_STATE_CONFUSED)
         {
             unit->state       = UNIT_STATE_CONFUSED;
-            unit->state_turns = SIM_SAVE_CONFUSION_TURNS;   /* the save gives no turns (assumed, Q-211) */
+            unit->state_turns = 0;   /* no count: the unit rolls its recovery from its next turn (Q-218) */
         }
         unit->home_city     = leader->base_location < SAVE_CITY_COUNT ? (u8)leader->base_location : (u8)SIM_NO_CITY;
         unit->destination   = SIM_NO_CITY;
+        if (record->task == SAVE_UNIT_TASK_MOVE && record->target < SAVE_CITY_COUNT) unit->destination = (u8)record->target;   /* a city; a gate or port target is not kept */
         for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place)
         {
             u16 officer = place < SAVE_UNIT_OFFICER_SLOTS ? record->officers[place] : OFFICER_ID_NONE;

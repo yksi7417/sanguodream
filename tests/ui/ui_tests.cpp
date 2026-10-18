@@ -2043,6 +2043,29 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
+    /* Q-217: the Unit panel of a transport shows its cargo in two rows (槍 戟
+       弩 軍馬; 木獸 井闌 樓船) and asks for the weapon names; it commands nothing. */
+    t = IM_REGISTER_TEST(e, "ui", "unit_panel_shows_the_cargo_of_a_transport_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.ui.units.selected = 1;   /* the transport of the recorder */
+        v.ui.show_unit      = true;
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_WEAPON_KIND_AT), 7u);   /* the names of the seven cells */
+        v.ui.units.selected = 0;   /* a battle unit: no cargo */
+        ctx->Yield();
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_WEAPON_KIND_AT), 0u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
     /* The game mode: the HUD at the top left shows the date, the points and
        the list; the debug menu bar hides until F12. The HUD commands nothing. */
     t = IM_REGISTER_TEST(e, "ui", "hud_shows_the_status_and_the_list_and_commands_nothing");

@@ -163,13 +163,37 @@ feature_save_map_tests(test_counts *counts)
     /* The 部隊情報 screens of the game (spec b3ed57d): soldiers, morale, gold, grain, classes and 混亂. */
     engine_unit yan_xing = api->unit_at(e, 12), jiang_qin = api->unit_at(e, 22);
     TEST_CHECK(counts, yan_xing.soldiers == 3284 && yan_xing.morale == 100 && yan_xing.gold == 168 && yan_xing.grain == 6135 &&
-                       feature_type_is(api, yan_xing.unit_type, "cavalry") && feature_type_is(api, yan_xing.ship_type, "boat") &&
+                       feature_type_is(api, yan_xing.unit_type, "cavalry") && yan_xing.ship_type == ENGINE_NO_UNIT_TYPE &&
                        yan_xing.state == UNIT_STATE_CONFUSED,
                "unit 12 (閻行) at 49,67: 3284 soldiers, morale 100, gold 168, grain 6135, 軍馬 and 走舸, 混亂");
     TEST_CHECK(counts, jiang_qin.soldiers == 1478 && jiang_qin.morale == 100 && jiang_qin.gold == 200 && jiang_qin.grain == 3944 &&
-                       feature_type_is(api, jiang_qin.unit_type, "halberd") && feature_type_is(api, jiang_qin.ship_type, "boat") &&
+                       feature_type_is(api, jiang_qin.unit_type, "halberd") && jiang_qin.ship_type == ENGINE_NO_UNIT_TYPE &&
                        jiang_qin.state == UNIT_STATE_CONFUSED,
                "unit 22 (蔣欽) at 98,106: 1478 soldiers, morale 100, gold 200, grain 3944, 戟 and 走舸, 混亂");
+
+    /* The equipment list (Q-217): the two transports of the player's screens and their cargo. */
+    engine_unit du_ji = api->unit_at(e, 52), lu_meng = api->unit_at(e, 27);
+    hex_offset du_ji_hex = hex_to_offset(hex_make(du_ji.q, du_ji.r)), lu_meng_hex = hex_to_offset(hex_make(lu_meng.q, lu_meng.r));
+    TEST_CHECK(counts, feature_type_is(api, du_ji.unit_type, "transport") && du_ji_hex.col == 69 && du_ji_hex.row == 98 &&
+                       du_ji.soldiers == 6589 && du_ji.morale == 98 && du_ji.gold == 18556 && du_ji.grain == 91145,
+               "unit 52 (杜畿) is a transport at 69,98: 6589 soldiers, morale 98, gold 18556, grain 91145");
+    TEST_CHECK(counts, du_ji.cargo[CITY_STOCK_SPEARS] == 7568 && du_ji.cargo[CITY_STOCK_HALBERDS] == 4999 && du_ji.cargo[CITY_STOCK_CROSSBOWS] == 1559 &&
+                       du_ji.cargo[CITY_STOCK_WAR_HORSES] == 0 && du_ji.cargo[CITY_STOCK_BATTERING_RAMS] == 2 && du_ji.cargo[CITY_STOCK_SIEGE_TOWERS] == 2 &&
+                       du_ji.destination == 17,
+               "杜畿 carries 7568 槍, 4999 戟, 1559 弩, 2 木獸 and 2 井闌, and moves to 長安 (17)");
+    TEST_CHECK(counts, feature_type_is(api, lu_meng.unit_type, "transport") && lu_meng_hex.col == 115 && lu_meng_hex.row == 136 &&
+                       lu_meng.soldiers == 14113 && lu_meng.morale == 92 && lu_meng.gold == 6064 && lu_meng.grain == 50835 &&
+                       lu_meng.cargo[CITY_STOCK_CROSSBOWS] == 2120 && lu_meng.cargo[CITY_STOCK_SHIP_TYPE_1] == 5 && lu_meng.cargo[CITY_STOCK_SPEARS] == 0 &&
+                       lu_meng.destination == 26,
+               "unit 27 (呂蒙) is a transport at 115,136: 14113 soldiers, morale 92, gold 6064, grain 50835, 2120 弩 and 5 樓船, to 柴桑");
+    u32 transports = 0;
+    for (u32 id = 0; id < api->unit_count(e); ++id) transports += api->unit_at(e, id).id != ENGINE_NO_UNIT && feature_type_is(api, api->unit_at(e, id).unit_type, "transport");
+    TEST_CHECK(counts, transports == 6, "the six units 13, 27, 31, 42, 52 and 53 are transports");
+    TEST_CHECK(counts, feature_type_is(api, api->unit_at(e, 16).ship_type, "tower_ship") && feature_type_is(api, api->unit_at(e, 21).ship_type, "tower_ship") &&
+                       feature_type_is(api, api->unit_at(e, 23).ship_type, "tower_ship") && api->unit_at(e, 12).ship_type == ENGINE_NO_UNIT_TYPE &&
+                       api->unit_at(e, 22).ship_type == ENGINE_NO_UNIT_TYPE,
+               "the units 16, 21 and 23 own a 樓船 (21 also on land); 12 and 22 own no ship and are a 走舸 on water");
+
     engine_unit sun_ce = api->unit_at(e, 16), zhou_tai = api->unit_at(e, 23);
     hex_offset sun_ce_hex = hex_to_offset(hex_make(sun_ce.q, sun_ce.r)), zhou_tai_hex = hex_to_offset(hex_make(zhou_tai.q, zhou_tai.r));
     TEST_CHECK(counts, sun_ce.officers[0] == 370 && sun_ce_hex.col == 135 && sun_ce_hex.row == 129 &&
@@ -203,6 +227,20 @@ feature_save_map_tests(test_counts *counts)
     TEST_CHECK(counts, burning == 3, "exactly 3 hexes of the save burn");
     TEST_CHECK(counts, api->relic_count(e) == 12 && temples == 6 && ruins == 6,
                "the 12 event sites of the save load: 6 temples (mark 16, assumed) and 6 ruins (mark 32), Q-205");
+
+    /* 混亂 (Q-218): unit 12 stays confused at the load and cannot move, attack or use a plot. */
+    feature_play_as(api, yan_xing.force_id);
+    hex_coord beside = hex_neighbor(hex_make(yan_xing.q, yan_xing.r), 0);
+    engine_command order = {};
+    order.unit = 12; order.q = beside.q; order.r = beside.r; order.row = 0;
+    order.kind = ENGINE_COMMAND_MOVE;
+    b32 move_refused = api->can_issue(e, &order).refusal == SIM_REFUSAL_UNIT_CONFUSED;
+    order.kind = ENGINE_COMMAND_ATTACK;
+    b32 attack_refused = api->can_issue(e, &order).refusal == SIM_REFUSAL_UNIT_CONFUSED;
+    order.kind = ENGINE_COMMAND_PLOT;
+    b32 plot_refused = api->can_issue(e, &order).refusal == SIM_REFUSAL_UNIT_CONFUSED;
+    TEST_CHECK(counts, api->unit_at(e, 12).state == UNIT_STATE_CONFUSED && move_refused && attack_refused && plot_refused,
+               "a unit in 混亂 refuses a move, an attack and a plot");
     /* A move on the real map: the check and the move each build a reach of 40,000 cells. */
     feature_play_as(api, sun_ce.force_id);
     engine_reach_view reach = api->reachable(e, 16);

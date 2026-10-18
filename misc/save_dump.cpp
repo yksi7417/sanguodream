@@ -291,6 +291,18 @@ dump_unit(json_writer *json, unit_record *unit)
     json_uint(json, "troops", unit->troops);
     json_uint(json, "x", unit->x);
     json_uint(json, "y", unit->y);
+    json_uint(json, "task", unit->task);
+    json_uint(json, "target", unit->target);
+    json_uint(json, "armament", unit->armament);
+    json_open(json, "equipment", '[');
+    for (u32 entry = 0; entry < SAVE_UNIT_EQUIPMENT_COUNT; ++entry)
+    {
+        json_open(json, 0, '{');
+        json_uint(json, "kind", unit->equipment[entry].kind);
+        json_uint(json, "count", unit->equipment[entry].count);
+        json_close(json, '}');
+    }
+    json_close(json, ']');
     json_close(json, '}');
 }
 

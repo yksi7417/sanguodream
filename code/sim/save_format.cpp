@@ -193,9 +193,15 @@ save_decode_payload(const u8 *payload, save_file *out)
         unit->gold        = format_read_u32(record + UNIT_GOLD);
         unit->grain       = format_read_u32(record + UNIT_GRAIN);
         unit->state       = record[UNIT_STATE];
+        unit->task        = format_read_u16(record + UNIT_TASK);
+        unit->target      = format_read_u16(record + UNIT_TARGET);
         unit->armament    = record[UNIT_ARMAMENT];
-        unit->ship        = record[UNIT_SHIP];
-        unit->on_water    = record[UNIT_ON_WATER];
+        for (u32 entry = 0; entry < SAVE_UNIT_EQUIPMENT_COUNT; ++entry)
+        {
+            const u8 *item = record + UNIT_EQUIPMENT + SAVE_UNIT_EQUIPMENT_SIZE * entry;
+            unit->equipment[entry].kind  = item[0];
+            unit->equipment[entry].count = format_read_u32(item + 1);
+        }
     }
     /* The per-hex block is the last 160000 bytes of the payload. */
     const u8 *hexes = payload + SAVE_PAYLOAD_LENGTH - SAVE_HEX_COUNT * SAVE_HEX_RECORD_SIZE;
