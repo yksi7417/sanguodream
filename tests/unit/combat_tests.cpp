@@ -160,9 +160,114 @@ unit_triangle_and_pattern_tests(test_counts *counts)
                "the patterns: one hex, the front three, the six around, a splash of seven, and a line to the target");
 }
 
+/* The turns until unit 0 recovers from 混亂, with the PRNG seeded. */
+internal u32
+unit_confusion_turns(sim_state *sim, u64 seed)
+{
+    sim_event buffer[16];
+    sim_event_sink sink = { buffer, 0, ArrayCount(buffer) };
+    sim->rng = seed;
+    sim->units[0].state = UNIT_STATE_CONFUSED;
+    sim->units[0].state_turns = 0;
+    for (u32 turn = 1; turn <= 50; ++turn)
+    {
+        sink.count = 0;
+        sim_run_states(sim, 0, &sink);
+        if (sim->units[0].state == UNIT_STATE_NONE) return turn;
+    }
+    return 50;
+}
+
+/* Q-218 (knowledge/combat.md, "Confusion"; the rules are assumed): a unit
+   in 混亂 recovers by a chance each turn, the highest 智力 of the unit
+   between the floor and the cap. A small unit next to a large enemy can
+   panic. */
+internal void
+unit_confusion_tests(test_counts *counts, memory_arena *arena)
+{
+    sim_state *sim = unit_march_world(arena);
+    sim_rules *rules = &sim->content.rules;
+    rules->confusion_recover_floor = 20;
+    rules->confusion_recover_cap   = 90;
+    sim->unit_count = 1;
+    sim_unit *unit = sim->units;
+    *unit = {};
+    hex_offset at = { 5, 5 };
+    unit->alive = true; unit->force_id = 0; unit->hex = hex_from_offset(at); unit->unit_type = 0; unit->soldiers = 3000;
+    unit->officers[0] = 0; unit->officers[1] = SIM_NO_OFFICER; unit->officers[2] = SIM_NO_OFFICER;
+    officer_component *commander = sim_find_officer(sim, 0);
+
+    commander->intelligence = 90;
+    u32 quick = 0, high_total = 0;
+    for (u64 seed = 1; seed <= 100; ++seed)
+    {
+        u32 turns = unit_confusion_turns(sim, seed * 7919);
+        quick += turns <= 2;
+        high_total += turns;
+    }
+    commander->intelligence = 30;
+    u32 slow = 0, low_total = 0;
+    for (u64 seed = 1; seed <= 100; ++seed)
+    {
+        u32 turns = unit_confusion_turns(sim, seed * 7919);
+        slow += turns >= 3;
+        low_total += turns;
+    }
+    TEST_CHECK(counts, quick >= 90, "a unit with 智力 90 recovers from 混亂 within 2 turns in most seeds (90 percent each turn)");
+    TEST_CHECK(counts, low_total > 2 * high_total && slow >= 30, "a unit with 智力 30 takes longer: often 3 turns or more");
+    commander->intelligence = 5;
+    u32 floor_chance = sim_confusion_recover_chance(sim, unit);
+    commander->intelligence = 99;
+    TEST_CHECK(counts, floor_chance == 20 && sim_confusion_recover_chance(sim, unit) == 90, "the chance stays between confusion.recover_floor and confusion.recover_cap");
+
+    /* 偽報 still counts down its turns. */
+    sim->rng = 1;
+    unit->state = UNIT_STATE_FALSE_REPORT;
+    unit->state_turns = 2;
+    sim_event buffer[16];
+    sim_event_sink sink = { buffer, 0, ArrayCount(buffer) };
+    sim_run_states(sim, 0, &sink);
+    b32 still = unit->state == UNIT_STATE_FALSE_REPORT;
+    sink.count = 0;
+    sim_run_states(sim, 0, &sink);
+    TEST_CHECK(counts, still && unit->state == UNIT_STATE_NONE, "偽報 ends after its turns");
+
+    /* The panic: 400 soldiers next to an enemy of 5000 (5 times or more). */
+    rules->panic_soldiers = 500;
+    rules->panic_ratio    = 5;
+    rules->panic_chance   = 100;
+    unit->soldiers = 400;
+    sim->unit_count = 2;
+    sim->units[1] = {};
+    sim->units[1].alive = true; sim->units[1].force_id = 1; sim->units[1].hex = hex_neighbor(unit->hex, 0);
+    sim->units[1].unit_type = 0; sim->units[1].soldiers = 5000;
+    sim->units[1].officers[0] = 1; sim->units[1].officers[1] = SIM_NO_OFFICER; sim->units[1].officers[2] = SIM_NO_OFFICER;
+    sink.count = 0;
+    sim_run_states(sim, 0, &sink);
+    b32 panicked = unit->state == UNIT_STATE_CONFUSED;
+    unit->state = UNIT_STATE_NONE;
+    sim->units[1].soldiers = 1500;   /* less than 5 times */
+    sink.count = 0;
+    sim_run_states(sim, 0, &sink);
+    b32 calm_small_enemy = unit->state == UNIT_STATE_NONE;
+    sim->units[1].soldiers = 5000;
+    unit->soldiers = 600;            /* more than panic.soldiers */
+    sink.count = 0;
+    sim_run_states(sim, 0, &sink);
+    b32 calm_large_unit = unit->state == UNIT_STATE_NONE;
+    TEST_CHECK(counts, panicked && calm_small_enemy && calm_large_unit,
+               "a unit of 500 soldiers or fewer next to an enemy of 5 times its soldiers can confuse itself; a smaller enemy or a larger unit does not");
+    rules->panic_chance = 0;
+    unit->soldiers = 400;
+    sink.count = 0;
+    sim_run_states(sim, 0, &sink);
+    TEST_CHECK(counts, unit->state == UNIT_STATE_NONE, "panic.chance 0 turns the panic off");
+}
+
 internal void
 unit_combat_tests(test_counts *counts, memory_arena *arena)
 {
+    unit_confusion_tests(counts, arena);
     unit_tactic_table_tests(counts, arena);
     unit_plot_table_tests(counts, arena);
     unit_building_table_tests(counts, arena);

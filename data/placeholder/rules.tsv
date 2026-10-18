@@ -118,6 +118,11 @@ combat.ambush_percent	130	assumed	Q-173: the damage of an ambush (with the intel
 combat.lightning_percent	150	assumed	Q-173: the damage of a lightning
 maze.confuse_chance	30	assumed	Q-174: the chance that a stone maze confuses an adjacent enemy unit each turn
 camp.recover_chance	30	assumed	Q-174: the chance each turn that a unit in the range of an own camp recovers from a state (PK)
+confusion.recover_floor	20	assumed	Q-218: the lowest chance in percent that a unit in 混亂 recovers at the start of a turn; the chance is the highest 智力 of the unit
+confusion.recover_cap	90	assumed	Q-218: the highest chance in percent that a unit in 混亂 recovers at the start of a turn
+panic.soldiers	500	assumed	Q-218: a unit with this many soldiers or fewer can panic (the claim says approximately 500)
+panic.ratio	5	assumed	Q-218: the panic needs an adjacent enemy unit with this many times the soldiers
+panic.chance	30	assumed	Q-218: the chance in percent that such a unit confuses itself at the start of a turn
 natural.recovery	50	assumed	Q-174: the durability that a natural trap recovers each turn
 loot.percent	50	assumed	Q-175: the loot of a destroyed facility, as a percent of its cost
 ap.dismantle	10	documented	city-commands.md, 撤除 costs 10 AP

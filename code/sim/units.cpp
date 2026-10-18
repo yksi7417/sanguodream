@@ -686,6 +686,8 @@ sim_check_unit_order(sim_state *sim, sim_command_kind kind, sim_unit_order *orde
     sim_unit *unit = 0;
     sim_refusal refusal = sim_check_unit_common(sim, order, &unit);
     if (refusal != SIM_REFUSAL_NONE) return sim_refuse(check, refusal);
+    /* A unit in 混亂 or 偽報 cannot act (plots-and-states.md); it can only wait. */
+    if (kind != SIM_COMMAND_WAIT && unit->state != UNIT_STATE_NONE) return sim_refuse(check, SIM_REFUSAL_UNIT_CONFUSED);
     switch (kind)
     {
         case SIM_COMMAND_MOVE:

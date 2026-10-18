@@ -508,8 +508,44 @@ sim_false_report_march(sim_state *sim, u32 unit_id, u32 cause, sim_event_sink *e
     }
 }
 
-/* The states count down; a unit in the range of an own camp can recover
-   sooner (PK, manual p.34; the chance is assumed). */
+/* The chance in percent that a unit in 混亂 recovers at the start of a
+   turn: the highest 智力 of its officers, at least confusion.recover_floor
+   and at most confusion.recover_cap (assumed, Q-218; knowledge/combat.md,
+   "Confusion": high 智力 recovers in 1 to 2 turns, low in 3 or more). */
+internal u32
+sim_confusion_recover_chance(sim_state *sim, sim_unit *unit)
+{
+    sim_rules *rules = &sim->content.rules;
+    u32 chance = sim_unit_ability(sim, unit->officers, SIM_ABILITY_INTELLECT);
+    if (chance < rules->confusion_recover_floor) chance = rules->confusion_recover_floor;
+    if (rules->confusion_recover_cap && chance > rules->confusion_recover_cap) chance = rules->confusion_recover_cap;
+    return chance;
+}
+
+/* The panic (assumed, Q-218): a unit with panic.soldiers soldiers or fewer
+   next to an enemy unit with panic.ratio times its soldiers can confuse
+   itself at the start of a turn, with panic.chance. */
+internal b32
+sim_unit_panics(sim_state *sim, u32 unit_id)
+{
+    sim_rules *rules = &sim->content.rules;
+    sim_unit *unit = sim->units + unit_id;
+    if (!rules->panic_chance || !unit->soldiers || unit->soldiers > rules->panic_soldiers || unit->state != UNIT_STATE_NONE) return false;
+    b32 threat = false;
+    for (u32 index = 0; index < sim->unit_count && !threat; ++index)
+    {
+        sim_unit *other = sim->units + index;
+        if (!other->alive || index == unit_id || hex_distance(other->hex, unit->hex) != 1 || !sim_at_war(sim, unit->force_id, other->force_id)) continue;
+        threat = (u64)other->soldiers >= (u64)unit->soldiers * rules->panic_ratio;
+    }
+    return threat && sim_random_below(sim, 100) < rules->panic_chance;
+}
+
+/* At the start of each turn: 混亂 ends by a chance from the 智力 of the
+   unit (Q-218); 偽報 counts down its turns. A unit in the range of an own
+   camp can recover sooner (PK, manual p.34; the chance is assumed). 鎮靜
+   still cures at once (sim_use_plot). Then a small unit next to a large
+   enemy can panic. */
 internal void
 sim_run_states(sim_state *sim, u32 cause, sim_event_sink *events)
 {
@@ -521,13 +557,26 @@ sim_run_states(sim_state *sim, u32 cause, sim_event_sink *events)
         if (!unit->alive) continue;
         b32 camp = sim_building_bonus(sim, unit->force_id, unit->hex, BUILDING_CAMP) > 0 &&
                    sim_random_below(sim, 100) < sim->content.rules.camp_recover_chance;
-        if (unit->state_turns > 0) unit->state_turns--;
-        if (unit->state_turns == 0 || camp)
+        b32 recovered = camp;
+        if (unit->state == UNIT_STATE_CONFUSED)
+        {
+            if (!recovered) recovered = sim_random_below(sim, 100) < sim_confusion_recover_chance(sim, unit);
+        }
+        else
+        {
+            if (unit->state_turns > 0) unit->state_turns--;
+            recovered = recovered || unit->state_turns == 0;
+        }
+        if (recovered)
         {
             unit->state = UNIT_STATE_NONE;
             unit->state_turns = 0;
             sim_emit_unit(sim, SIM_EVENT_UNIT_STATE, index, SIM_NO_CITY, 0, false, cause, events);
         }
+    }
+    for (u32 index = 0; index < sim->unit_count; ++index)
+    {
+        if (sim->units[index].alive && sim_unit_panics(sim, index)) sim_set_unit_state(sim, index, UNIT_STATE_CONFUSED, 0, cause, events);
     }
 }
 

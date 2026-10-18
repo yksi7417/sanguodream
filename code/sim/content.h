@@ -721,6 +721,8 @@ struct sim_rules
     u32 skill_insight, skill_strategist, skill_feint, skill_calm, skill_mirror, skill_discipline, skill_music;
     u32 combat_collision_percent, combat_ambush_percent, combat_lightning_percent, combat_technique_percent;
     u32 maze_confuse_chance, camp_recover_chance, natural_recovery, loot_percent, ap_dismantle, dismantle_technique;
+    u32 confusion_recover_floor, confusion_recover_cap;     /* the recovery from 混亂 each turn (assumed, Q-218) */
+    u32 panic_soldiers, panic_ratio, panic_chance;          /* a small unit next to a large enemy confuses itself (assumed, Q-218) */
     u32 siege_ladder_percent, siege_defence_percent, siege_wall_percent;
     u32 skill_ambush_critical, skill_long_plot, skill_surprise, skill_sweep, skill_awe, skill_archer;
     /* M7: officers, personnel, posts, duel, debate, diplomacy, faction plots */
