@@ -39,6 +39,7 @@ ui_scene_mark(u32 *overlay, engine_terrain_view view, hex_coord h, u32 rgba)
 
 #include "ui/ui_scene.cpp"
 #include "ui/ui_locate.cpp"   /* M11 */
+#include "ui/ui_minimap.cpp"  /* M12: the round mini map */
 
 internal void
 ui_init(ui_state *ui, text_catalog *text)
