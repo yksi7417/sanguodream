@@ -438,6 +438,36 @@ and the player can find each city and unit. The demo is
   - Q-212: building +2 and the empty record;
   - Q-213: 軍屯農 in the check of 柴桑.
 
+### M12 The main map of the original
+Status (2026-10-18): done (tutorial 24). The spec input was ui/main-map.md
+(spec 02a4bad): "Mini map", "Map labels" and "Camera". M12 closes the
+three items that M11 left open. The demo is "demo/m12_main_map".
+
+- UI:
+  - The mini map is a round map of the whole continent in a compass ring.
+    The map and the ring turn with the camera. Each city is a square in
+    the colour of its owner; the roads (主徑) are lines. A white frame
+    shows the ground of the main view. A click or a drag on the disc moves
+    the camera there. The code moved to code/ui/ui_minimap.cpp.
+  - Each unit has a plate: a portrait, the unit name, a status mark (未,
+    完 or 委), a supply icon 糧 and the soldiers. The clean room has no
+    officer pictures. A square in the faction colour with the first
+    character of the commander's name stands in for the portrait.
+  - One press of Q or Left turns the view 60 degrees clockwise; E and
+    Right turn it counter-clockwise. The step has an animation of 0.25 s
+    and stops on the grid of 60 degrees. A held key repeats the step
+    every 0.5 s.
+- API: `unit_at` also gives grain_turns, the turns that the grain lasts.
+- Tests:
+  - unit: one step, six steps, a step from a free yaw, a held key and a
+    press during the animation. Also the mini map axes at nine yaws;
+  - feature: grain_turns of a new unit and of a unit of the save;
+  - ui: the keys turn one step; a click on the mini map moves the
+    camera; the unit plates read the commander and the corps.
+- Open points for the analysis side:
+  - Q-214: the angle, the time and the repeat delay of one press of Q;
+  - Q-215: what 委 and the supply icon show.
+
 ## 4. Playability
 The analysis repo's spec/knowledge/playability.md (mined from the video
 series) feeds this list. This list is the measure of the UI and the AI, not
