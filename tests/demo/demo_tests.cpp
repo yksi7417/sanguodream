@@ -12,6 +12,7 @@
 #define DEMO_ENGINE_ARENA_SIZE Megabytes(48)
 #define DEMO_M10_NAME          "m10_map"
 #define DEMO_M11_NAME          "m11_save_map"
+#define DEMO_M12_NAME          "m12_main_map"
 
 /* build\demos, with no last backslash. demo_player.cpp sets it. */
 global_variable char g_demo_output_dir[MAX_PATH];
@@ -46,7 +47,8 @@ demo_gui(ImGuiTestContext *ctx)
         config.save_folder      = "demo_saves";
         /* The walkthroughs of M0 to M9 play on the placeholder board that
            they were made for; the walkthrough of M10 shows the real map. */
-        config.use_pack_map     = strcmp(ctx->Test->Name, DEMO_M10_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M11_NAME) == 0;
+        config.use_pack_map     = strcmp(ctx->Test->Name, DEMO_M10_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M11_NAME) == 0 ||
+                                  strcmp(ctx->Test->Name, DEMO_M12_NAME) == 0;
         v.backend = engine_create(&v.permanent, &v.transient, config);
         v.api     = engine_make_api(v.backend);
         text_catalog_init(&v.text, arena_sub(&v.permanent, Megabytes(4)), test_platform_read_entire_file,
@@ -1660,6 +1662,82 @@ demo_m11_save_map(ImGuiTestContext *ctx)
     IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Cities", "cities"));
 }
 
+/* M12, the main map of the original: the round mini map with the faction
+   squares, the roads and the compass ring; a click on it moves the camera;
+   the unit plates; Q, E and the arrows turn the view by steps of 60
+   degrees, and a held key repeats the step. */
+internal void
+demo_m12_main_map(ImGuiTestContext *ctx)
+{
+    const char *milestone = DEMO_M12_NAME;
+    demo_vars &v = ctx->GetVars<demo_vars>();
+    engine_api *api = &v.api;
+    void *e = api->engine;
+    IM_CHECK(api->map_info(e).real_map);
+    IM_CHECK(demo_begin_video(ctx, milestone));
+
+    IM_CHECK(demo_open_panel(ctx, "Simulation", &v.ui.show_sim));
+    ctx->SetRef("Simulation");
+    ctx->ItemClick("Load sample save");
+    ctx->Yield();
+    IM_CHECK_EQ(api->city_count(e), 42u);
+    v.ui.show_sim = false;
+
+    /* The round mini map: a click moves the camera there; the distance stays. */
+    IM_CHECK(demo_open_panel(ctx, "###MiniMap", &v.ui.show_minimap));
+    ctx->WindowResize("//###MiniMap", ImVec2(340, 370));
+    ctx->Yield(2);
+    ctx->SetRef("###MiniMap");
+    ImGuiTestItemInfo disc = ctx->ItemInfo("minimap");
+    IM_CHECK(disc.ID != 0);
+    ctx->SleepStandard();
+    camera before = v.ui.scene.cam;
+    ImVec2 centre = disc.RectFull.GetCenter();
+    f32 radius = disc.RectFull.GetWidth() * 0.5f - UI_MINIMAP_RING_WIDTH;
+    ctx->MouseMoveToPos(ImVec2(centre.x - radius * 0.4f, centre.y + radius * 0.3f));
+    ctx->MouseClick(0);
+    ctx->Yield();
+    IM_CHECK(v3_length(v3_sub(v.ui.scene.cam.target, before.target)) > 10.0f);
+    IM_CHECK_EQ(v.ui.scene.cam.distance, before.distance);
+    ctx->SleepStandard();
+
+    /* A unit plate: frame a unit of the save from the Units panel. */
+    u32 unit_id = ENGINE_NO_UNIT;
+    for (u32 id = 0; id < api->unit_count(e) && unit_id == ENGINE_NO_UNIT; ++id) if (api->unit_at(e, id).id != ENGINE_NO_UNIT) unit_id = id;
+    IM_CHECK(unit_id != ENGINE_NO_UNIT);
+    IM_CHECK(demo_open_panel(ctx, "###Units", &v.ui.show_units));
+    char row[32];
+    snprintf(row, sizeof(row), "**/###unit%u", unit_id);
+    ctx->SetRef("###Units");
+    ctx->ItemClick(row);
+    ctx->Yield(2);
+    engine_unit unit = api->unit_at(e, unit_id);
+    IM_CHECK(demo_camera_on(v, hex_make(unit.q, unit.r)));
+    IM_CHECK_EQ(unit.grain_turns, ENGINE_GRAIN_TURNS_UNKNOWN);   /* the save gives no grain: a grey supply icon */
+    IM_CHECK_EQ(ui_unit_mark_of(&unit, api->city_corps(e, unit.home_city)), (u32)UI_UNIT_MARK_READY);   /* 未 */
+    v.ui.show_units = false;
+    ctx->SleepStandard();
+
+    /* The step turn: Q one step clockwise, E and Right back, a held Left repeats. */
+    ImGui::FocusWindow(0);
+    ctx->Yield();
+    f32 yaw = v.ui.scene.cam.yaw;
+    ctx->KeyPress(ImGuiKey_Q); ctx->SleepStandard();
+    IM_CHECK(fabsf(demo_turn_between(yaw, v.ui.scene.cam.yaw) + CAMERA_TURN_STEP) < 1e-3f);
+    ctx->KeyPress(ImGuiKey_E); ctx->SleepStandard();
+    ctx->KeyPress(ImGuiKey_RightArrow); ctx->SleepStandard();
+    IM_CHECK(fabsf(demo_turn_between(yaw, v.ui.scene.cam.yaw) - CAMERA_TURN_STEP) < 1e-3f);
+    yaw = v.ui.scene.cam.yaw;
+    ctx->KeyDown(ImGuiKey_LeftArrow); ctx->Sleep(1.2f); ctx->KeyUp(ImGuiKey_LeftArrow);
+    ctx->SleepStandard();
+    IM_CHECK(v.ui.scene.turn.remaining == 0.0f);
+    IM_CHECK_GE(fabsf(demo_turn_between(yaw, v.ui.scene.cam.yaw)), 2.0f * CAMERA_TURN_STEP - 1e-3f);   /* two steps or more */
+    ctx->SleepStandard();
+
+    IM_CHECK(demo_end_video(ctx));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###MiniMap", "minimap"));
+}
+
 internal void
 register_demo_tests(ImGuiTestEngine *e)
 {
@@ -1724,4 +1802,9 @@ register_demo_tests(ImGuiTestEngine *e)
     t->SetVarsDataType<demo_vars>();
     t->GuiFunc  = demo_gui;
     t->TestFunc = demo_m11_save_map;
+
+    t = IM_REGISTER_TEST(e, "demo", DEMO_M12_NAME);
+    t->SetVarsDataType<demo_vars>();
+    t->GuiFunc  = demo_gui;
+    t->TestFunc = demo_m12_main_map;
 }
