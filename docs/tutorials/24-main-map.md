@@ -1,7 +1,7 @@
-# 24 Main map: the round mini map, the unit plates and the step turn
+# 24 Main map: the round mini map, the unit plates and the turn
 
 Files: code/ui/ui_minimap.cpp, code/ui/ui_locate.cpp (the unit plates),
-code/render/render.h (the step turn and the mini map axes),
+code/render/render.h (the mini map axes), code/ui/ui_scene.cpp (the turn),
 code/engine/engine_march.cpp (grain_turns). Tests:
 tests/unit/render_tests.cpp, tests/feature/march_tests.cpp,
 tests/feature/save_map_tests.cpp, the M12 tests in tests/ui/ui_tests.cpp,
@@ -12,23 +12,16 @@ This tutorial covers milestone M12. It closes three items of
 ui/main-map.md that M11 left open:
 - the round mini map;
 - the full unit plates;
-- the step turn of Q and E.
+- the turn of Q and E.
 
-## The step turn
-The camera keeps a camera_turn_step in ui->scene.turn. Each frame,
-ui_scene_handle_keys gives camera_turn_update the key that is down:
-- -1 for Q or Left (clockwise on the screen), +1 for E or Right, 0 for
-  none.
-- A new press starts a step. camera_step_target gives the next yaw on
-  the grid of 60 degrees in that direction. A yaw off the grid (after a
-  mouse orbit) goes to the next grid line.
-- The animation turns one step in CAMERA_TURN_STEP_SECONDS (0.25 s). At
-  the end, the yaw goes exactly onto the grid, so the hex grid lines up.
-- A held key starts the next step after CAMERA_TURN_REPEAT_SECONDS
-  (0.5 s). A press during the animation adds one more step.
-
-The spec estimates 30 to 45 degrees for each press. The clean room
-assumes the three values (Q-214).
+## The turn
+M12 first turned the view one step of 60 degrees for each press. The
+user found the step too large and chose a smooth turn. Now
+ui_scene_handle_keys turns the view while Q or Left (clockwise on the
+screen), or E or Right (counter-clockwise), is down. The speed is
+UI_SCENE_KEY_TURN_SPEED, 90 degrees each second. The view stops when the
+key goes up. The original turns by steps of 30 to 45 degrees (the
+estimate of the spec, Q-214).
 
 ## The round mini map
 ui_minimap.cpp draws the panel. ui_minimap_fit puts the centre of the map
@@ -68,9 +61,9 @@ The clean room assumes what 委 and the colours of the supply icon show
 (Q-215).
 
 ## Tests to read
-- unit/render: "a press turns the view one step of 60 degrees clockwise",
-  "six presses make a full turn", "a key held for 1.2 s turns three
-  steps", and the mini map axes at nine headings.
+- unit/render: the mini map axes at nine headings.
+- ui: "scene_keys_move_turn_and_tilt_and_command_nothing" checks the smooth
+  turn.
 - feature/march: unit_at gives the turns that the grain lasts.
 - feature/save_map: a unit of the save has no known grain.
 - ui: "minimap_click_moves_the_camera_and_commands_nothing" and

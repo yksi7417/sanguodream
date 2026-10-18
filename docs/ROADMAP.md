@@ -460,16 +460,14 @@ three items that M11 left open. The demo is "demo/m12_main_map".
     完 or 委), a supply icon 糧 and the soldiers. The clean room has no
     officer pictures. A square in the faction colour with the first
     character of the commander's name stands in for the portrait.
-  - One press of Q or Left turns the view 60 degrees clockwise; E and
-    Right turn it counter-clockwise. The step has an animation of 0.25 s
-    and stops on the grid of 60 degrees. A held key repeats the step
-    every 0.5 s.
+  - One press of Q or Left turned the view 60 degrees clockwise. The
+    user then chose a smooth turn (2026-10-18). Q, E and the arrows now
+    turn the view while the key is down, 90 degrees each second.
 - API: `unit_at` also gives grain_turns, the turns that the grain lasts.
 - Tests:
-  - unit: one step, six steps, a step from a free yaw, a held key and a
-    press during the animation. Also the mini map axes at nine yaws;
+  - unit: the mini map axes at nine yaws;
   - feature: grain_turns of a new unit and of a unit of the save;
-  - ui: the keys turn one step; a click on the mini map moves the
+  - ui: the keys turn the view; a click on the mini map moves the
     camera; the unit plates read the commander and the corps.
 - Open points for the analysis side:
   - Q-214: the angle, the time and the repeat delay of one press of Q;
@@ -525,6 +523,11 @@ too.
 - What you see: the player plays a turn with the game screens only. The
   option `show_debug_panels` hides the ImGui tools. The demo m14 plays
   one turn of 柴桑 from the save.
+- Status (2026-10-18): the main screen works (tutorial 25, the demo
+  "demo/m14_game_screens"). The game mode shows only the HUD with the list
+  at the top left and the mini map at the bottom right. Every other window
+  opens on demand next to its entity and closes again. The menu items of
+  the unit and city commands that still lack an api stay open work.
 
 ### M15 An opponent worth playing
 The AI factions of the original act on the map with a visible purpose:
