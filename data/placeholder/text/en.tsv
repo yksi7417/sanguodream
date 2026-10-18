@@ -1052,3 +1052,28 @@ cities.all	All cities	check box: list every city, not only the cities of the pla
 table.filter	filter	hint in the filter box of a table
 city.not_yours	This city is not yours. It takes no command from you.	the City panel for a city of another force
 settings.font_size	Font size	slider, pixels
+menu.units	Units	menu item and panel: the list of the units
+units.title	Units	title of the Units panel
+units.unit	Unit	column: the unit and its commander
+units.force	Force	column: the faction of the unit
+units.soldiers	Soldiers	column: the soldiers of the unit
+hexinfo.title	Hex	title of the Hex info box
+hexinfo.off_map	Not on the map	the hex is off the map
+hexinfo.terrain	Terrain	label
+hexinfo.height	Height	label: 0 to 255
+hexinfo.region	Region	label: the city, gate or port of the hex
+hexinfo.city	City	label: the city that stands on the hex
+hexinfo.base	Base	label: the gate or the port on the hex
+hexinfo.slot	Slot	label: the slot of a city
+hexinfo.facility	Facility	label: the facility on the slot
+hexinfo.building	Building	label: a military facility, a trap or a natural trap
+hexinfo.unit	Unit	label: the unit on the hex
+hexinfo.dike	Dike	a site of the map
+hexinfo.rockfall	Rockfall site	a site of the map
+hexinfo.bandit	Bandit site	a site of the map
+hexinfo.event	Event site	a site of the map
+hexinfo.flood	Flood zone	a hex that the dike floods
+hexinfo.fire	Fire, turns	label: the turns of fire that remain
+hexinfo.outer	Outer area	a region of mountains and water without a base
+city.facility_counts	Facilities	the facilities of the city by kind and level
+city.slots_used	Slots used	slots with a built facility or one under construction / slots

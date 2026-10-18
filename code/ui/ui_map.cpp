@@ -7,6 +7,7 @@
 /* ui_march.cpp: the units and cities on the map, and the clicks for a unit. */
 internal void ui_draw_map_units(ui_state *ui, engine_api *api, ImDrawList *draw, f32 cell, hex_point origin);
 internal b32  ui_unit_click(ui_state *ui, engine_api *api, hex_coord hex);
+internal void ui_draw_hex_lines(ui_state *ui, engine_api *api, hex_coord hex);   /* ui_locate.cpp (M11) */
 
 #define UI_MAP_ZOOM_MIN         4.0f
 #define UI_MAP_ZOOM_MAX         30.0f
@@ -116,17 +117,11 @@ ui_draw_map(ui_state *ui, engine_api *api)
             else                     ImGui::Text("to (%d, %d): path cost %u", ui->map.to.q, ui->map.to.r, cost);
         }
 
-        /* M10: the data of the picked hex (formats/map-data.md). */
-        if (ui->map.has_from)
+        /* M10, M11: what the picked hex is (the lines of the Hex info box). */
+        if (ui->map.has_from && ImGui::TreeNodeEx("hex_lines", ImGuiTreeNodeFlags_DefaultOpen, "%s", text_get(ui->text, "hexinfo.title")))
         {
-            engine_hex hex = api->hex_at(api->engine, ui->map.from.q, ui->map.from.r);
-            hex_offset o = hex_to_offset(ui->map.from);
-            if (hex.on_map)
-            {
-                ImGui::Text("hex x %d y %d: terrain %u, height %u, region %u%s%s%s%s%s", o.col, o.row, hex.terrain, hex.height, hex.region,
-                            hex.slot ? ", slot" : "", hex.trap == 1 ? ", dike" : hex.trap == 2 ? ", rockfall site" : "",
-                            hex.bandit_site ? ", bandit site" : "", hex.flood ? ", flood zone" : "", hex.event_site ? ", event site" : "");
-            }
+            ui_draw_hex_lines(ui, api, ui->map.from);
+            ImGui::TreePop();
         }
         if (ui->map.has_city)
         {
@@ -139,6 +134,16 @@ ui_draw_map(ui_state *ui, engine_api *api)
         ui_map_handle_scroll_keys(ui);
         ImDrawList *draw = ImGui::GetWindowDrawList();
         f32 cell = ui->map.zoom;
+        /* M11: a framed city or unit: put its hex in the middle of the canvas. */
+        if (ui->map.scroll_request)
+        {
+            hex_point zero = { cell, cell };
+            hex_point at = hex_to_pixel(ui->map.scroll_to, cell, zero);
+            ImVec2 view = ImGui::GetContentRegionAvail();
+            ImGui::SetScrollX(Maximum(0.0f, at.x - view.x * 0.5f));
+            ImGui::SetScrollY(Maximum(0.0f, at.y - view.y * 0.5f));
+            ui->map.scroll_request = false;
+        }
         hex_point origin;
         origin.x = ImGui::GetCursorScreenPos().x + cell;
         origin.y = ImGui::GetCursorScreenPos().y + cell;

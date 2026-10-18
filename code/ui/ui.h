@@ -134,7 +134,16 @@ struct ui_state
         bool      has_hover;
         hex_coord hover;
         camera    cam;
+        /* M11 */
+        bool      has_pick;      /* a left click picked a hex: the Hex info box shows it */
+        hex_coord pick;
+        u8        framed_city;   /* the last city that the camera framed; a new ui->city.selected frames again */
+        u32       framed_unit;
+        bool      frame_city;    /* a list asked to frame ui->city.selected, also when it did not change */
+        bool      frame_unit;    /* a list asked to frame ui->units.selected */
+        bool      headless;      /* the scene input, the labels and the frames run without a render target (the M11 ui tests) */
     } scene;
+    bool show_units;             /* M11: the Units panel, a list of the units to frame */
     bool show_settings;
     bool show_city;
     bool show_develop;
@@ -304,6 +313,8 @@ struct ui_state
         bool      focused;       /* the Hex map panel has the keyboard: W A S D scroll it, PageUp and PageDown zoom it */
         bool      has_city;      /* M10: a click on a city hex selects the city; its slots show on the map and the scene */
         u8        city;
+        bool      scroll_request; /* M11: the canvas scrolls to scroll_to in the next frame */
+        hex_coord scroll_to;
     } map;
 };
 

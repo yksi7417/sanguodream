@@ -38,6 +38,7 @@ ui_scene_mark(u32 *overlay, engine_terrain_view view, hex_coord h, u32 rgba)
 }
 
 #include "ui/ui_scene.cpp"
+#include "ui/ui_locate.cpp"   /* M11 */
 
 internal void
 ui_init(ui_state *ui, text_catalog *text)
@@ -92,6 +93,7 @@ ui_init(ui_state *ui, text_catalog *text)
     ui->show_unit             = false;
     ui->show_unit_menu        = false;
     ui->show_minimap          = false;
+    ui->show_units            = false;   /* M11 */
     ui->units                 = {};
     ui->units.selected        = ENGINE_NO_UNIT;
     ui->units.supply_target   = ENGINE_NO_UNIT;
@@ -173,6 +175,7 @@ ui_draw_menu_bar(ui_state *ui, engine_api *api, ui_frame_info *frame)
             ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.economy", "Economy"), 0, &ui->show_economy);
             ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.techniques", "Techniques"), 0, &ui->show_techniques);
             ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.unit", "Unit"), 0, &ui->show_unit);
+            ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.units", "Units"), 0, &ui->show_units);
             ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.minimap", "MiniMap"), 0, &ui->show_minimap);
         ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.court", "Court"), 0, &ui->show_court);
         ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.diplomacy", "Diplomacy"), 0, &ui->show_diplomacy);
@@ -584,6 +587,8 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->show_unit)       ui_draw_unit_panel(ui, api);
     if (ui->show_unit_menu)  ui_draw_unit_menu(ui, api);
     if (ui->show_minimap)    ui_draw_minimap(ui, api);
+    if (ui->show_units)      ui_draw_units_panel(ui, api);   /* M11 */
+    ui_draw_hex_info_box(ui, api);                           /* M11: opens after a pick in the scene */
     if (ui->show_actions)    ui_draw_actions(ui, api);
     if (ui->show_court)      ui_draw_court(ui, api);
     if (ui->show_diplomacy)  ui_draw_diplomacy(ui, api);
@@ -599,11 +604,15 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
 
     /* The scene goes last: by now ImGui knows which windows want the mouse,
        and the panels above may have changed the camera or the selection. */
-    if (ui->scene.enabled && frame->render)
+    if (ui->scene.enabled && (frame->render || ui->scene.headless))
     {
         if (!ui->scene.initialized) ui_scene_reset_camera(ui, api);
-        ui_scene_handle_mouse(ui, api, frame->render->viewport_width, frame->render->viewport_height);
+        ImVec2 display = ImGui::GetIO().DisplaySize;
+        ui_scene_handle_mouse(ui, api, frame->render ? frame->render->viewport_width : display.x,
+                              frame->render ? frame->render->viewport_height : display.y);
         ui_scene_handle_keys(ui, frame->dt_seconds);
+        ui_follow_selection(ui, api);   /* M11: a picked city or unit moves the camera */
+        ui_draw_scene_labels(ui, api);  /* M11: the names of the cities, the unit under the mouse */
     }
     ui_scene_push(ui, api, frame);
 }

@@ -570,6 +570,14 @@ ui_draw_minimap(ui_state *ui, engine_api *api)
             ImVec2 corner = ui_minimap_point(base, o.col, o.row, cell);
             f32 x = corner.x, y = corner.y;
             draw->AddRectFilled(ImVec2(x - cell, y - cell), ImVec2(x + 2.0f * cell, y + 2.0f * cell), ui_faction_color(city.owner_force_id));
+            /* M11: the name of the city when the cells are large enough, and always for the selected city. */
+            if (cell >= 1.6f || city.city_id == ui->city.selected)
+            {
+                char name[UI_NAME_SIZE * 2];
+                ui_city_label(ui, api, city.city_id, name, sizeof(name));
+                ImU32 colour = city.city_id == ui->city.selected ? IM_COL32(255, 230, 60, 255) : IM_COL32(255, 255, 255, 220);
+                draw->AddText(ImVec2(x + 2.5f * cell, y - cell), colour, name);
+            }
             /* M7 (diplomacy.md, manual p.8): an ally in blue, a ceasefire in yellow, a hostile faction in red. */
             u8 acting = api->whose_turn(api->engine);
             if (acting != ENGINE_NO_FACTION && city.owner_force_id != ENGINE_NO_FACTION && city.owner_force_id != acting)

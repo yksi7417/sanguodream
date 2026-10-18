@@ -75,6 +75,9 @@ ui_force_owns_a_city(engine_api *api, u8 force)
 
 /* While the panels list only the cities of the player, the City panel
    shows one of them: a city of another force goes to the first own city. */
+internal void ui_frame_city(ui_state *ui, u8 city_id);                                     /* ui_locate.cpp (M11) */
+internal void ui_draw_city_facility_counts(ui_state *ui, engine_api *api, u8 city_id);     /* ui_locate.cpp (M11) */
+
 internal void
 ui_city_keep_selection(ui_state *ui, engine_api *api, engine_city *city)
 {
@@ -111,7 +114,7 @@ ui_draw_city_combo(ui_state *ui, engine_api *api)
             ui_city_label(ui, api, city.city_id, name, sizeof(name));
             snprintf(label, sizeof(label), "%s###c%u", name, city.city_id);
             bool selected = city.city_id == ui->city.selected;
-            if (ImGui::Selectable(label, selected)) ui->city.selected = city.city_id;
+            if (ImGui::Selectable(label, selected)) ui_frame_city(ui, city.city_id);
         }
         ImGui::EndCombo();
     }
@@ -249,6 +252,7 @@ ui_draw_city(ui_state *ui, engine_api *api)
             }
             ImGui::EndTable();
         }
+        ui_draw_city_facility_counts(ui, api, ui->city.selected);   /* M11: the counts of the city information screen */
     }
     ImGui::End();
 }

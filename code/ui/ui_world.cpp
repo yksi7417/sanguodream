@@ -295,11 +295,17 @@ ui_draw_officers(ui_state *ui, engine_api *api)
     ImGui::End();
 }
 
+internal void ui_frame_city(ui_state *ui, u8 city_id);   /* ui_locate.cpp (M11) */
+
 internal void
 ui_draw_city_row(ui_state *ui, engine_api *api, engine_city *city, engine_city_name *name)
 {
     ImGui::TableNextRow();
-    ImGui::TableNextColumn(); ImGui::Text("%u", city->city_id);
+    ImGui::TableNextColumn();
+    /* M11: a click on the row selects the city, and the camera frames it. */
+    char id_label[32];
+    snprintf(id_label, sizeof(id_label), "%u##city_row", city->city_id);
+    if (ImGui::Selectable(id_label, city->city_id == ui->city.selected, ImGuiSelectableFlags_SpanAllColumns)) ui_frame_city(ui, city->city_id);
     ImGui::TableNextColumn();
     if (name->city_id == ENGINE_NO_CITY) ImGui::TextUnformatted("-");
     else                                 ui_name_cell(ui, name->name, sizeof(name->name));
