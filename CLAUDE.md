@@ -27,6 +27,20 @@ decompilation of it.
   offsets, structs that mirror a binary layout, decompiler-style names.
 - Style: see .claude/rules/handmade.md. It overrides the generic C++
   guidance from the ECC rules under .claude/rules/ecc/.
+- Documents, commit messages and comments are Simplified Technical
+  English (.claude/rules/ste-writing.md). Write it right the first time,
+  so that no check-and-fix loop is necessary:
+  - Keep each sentence under 20 words. Put one fact in each sentence.
+  - Do not join clauses with a semicolon, a colon, or a parenthesis.
+    Make a second sentence.
+  - Do not write "which", "could", "would", "should", "may", "once",
+    "ensure", "e.g.", "etc." or "via". Use "that", "can", "must",
+    "after", "make sure", "for example", a list, and "through".
+  - Say who does the action: "The loader reads", not "is read".
+  - Do not use a verb in -ing.
+  - Before a commit, run `python -X utf8 -I misc\ste_check.py -v FILE`
+    one time. The `-X utf8` flag stops a crash on Chinese text in the
+    report.
 
 ## Documents
 - docs/ROADMAP.md            layers, content packs, rule hooks, milestones
