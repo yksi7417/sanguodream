@@ -536,6 +536,7 @@ d3d11_ensure_terrain(d3d11_renderer *r, render_terrain *terrain, memory_arena *s
     u32 n = 0;
     for (u32 c = 0; c < cells; ++c)
     {
+        if (terrain->grid && !terrain->grid[c]) continue;   /* M11: no grid on cliffs (ui/main-map.md) */
         u32 base = c * TERRAIN_VERTS_PER_CELL;
         for (u32 k = 0; k < 6; ++k) { lines[n++] = base + 1 + k; lines[n++] = base + 1 + (k + 1) % 6; }
     }

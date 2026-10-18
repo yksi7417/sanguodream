@@ -382,6 +382,7 @@ struct render_terrain
     const u8 *kind;        /* per cell, row-major by offset: atlas tile index */
     const u8 *level;       /* per cell: height in steps of TERRAIN_STEP */
     u32  version;          /* bumped by the DLL when kind or level change */
+    const u8 *grid;        /* M11: per cell, 1 = draw the grid outline; 0 (no pointer) = every cell */
 };
 
 struct render_mesh_instance

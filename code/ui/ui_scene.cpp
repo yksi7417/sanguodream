@@ -175,6 +175,12 @@ ui_scene_push(ui_state *ui, engine_api *api, ui_frame_info *frame)
     rc->terrain.kind    = view.tile ? view.tile : view.kind;   /* the renderer draws the atlas colour */
     rc->terrain.level   = view.level;
     rc->terrain.version = view.version;
+    /* M11: the grid only on terrain that a unit can enter; cliffs and mountains show none (ui/main-map.md). */
+    u8 *grid = PushArray(frame->frame_arena, (view.width * view.height) ? view.width * view.height : 1, u8);
+    b32 enterable[256] = {};
+    for (u32 kind = 0; kind < api->terrain_kind_count(api->engine) && kind < 256; ++kind) enterable[kind] = api->terrain_kind_at(api->engine, kind).enterable;
+    for (u32 cell = 0; cell < view.width * view.height && view.kind; ++cell) grid[cell] = (u8)(enterable[view.kind[cell]] ? 1 : 0);
+    rc->terrain.grid = grid;
 
     u32 cells = view.width * view.height;
     u32 *overlay = PushArray(frame->frame_arena, cells ? cells : 1, u32);
