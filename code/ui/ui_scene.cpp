@@ -13,6 +13,8 @@
 #define UI_SCENE_DRAG_SPEED  0.008f
 #define UI_SCENE_PAN_SPEED   0.05f
 #define UI_SCENE_KEY_PAN_SPEED 0.6f   /* of the camera distance each second while W, A, S or D is down */
+#define UI_SCENE_KEY_TURN_SPEED (90.0f * RENDER_PI / 180.0f)   /* radians each second while Q, E, Left or Right is down */
+#define UI_SCENE_KEY_TILT_SPEED (45.0f * RENDER_PI / 180.0f)   /* radians each second while Up or Down is down */
 
 internal void
 ui_scene_init(ui_state *ui)
@@ -21,6 +23,12 @@ ui_scene_init(ui_state *ui)
     ui->scene.grid        = true;
     ui->scene.initialized = false;
     ui->scene.has_hover   = false;
+    ui->scene.has_pick    = false;      /* M11 */
+    ui->scene.framed_city = 0;          /* the selection of ui_init: no frame at the start */
+    ui->scene.framed_unit = ENGINE_NO_UNIT;
+    ui->scene.frame_city  = false;
+    ui->scene.frame_unit  = false;
+    ui->scene.headless    = false;
 }
 
 internal void
@@ -64,8 +72,10 @@ ui_draw_scene_panel(ui_state *ui, engine_api *api)
                     (f64)(ui->scene.cam.yaw * 180.0f / RENDER_PI), (f64)(ui->scene.cam.pitch * 180.0f / RENDER_PI), (f64)ui->scene.cam.distance);
         if (ui->scene.has_hover) ImGui::Text("under the mouse: (%d, %d)", ui->scene.hover.q, ui->scene.hover.r);
         else                     ImGui::Text("under the mouse: nothing");
-        ImGui::TextWrapped("Right drag orbits, middle drag pans, wheel zooms, left click picks. "
-                           "W A S D pan, PageUp and PageDown zoom (the Hex map panel takes the keys while it has the focus).");
+        ImGui::TextWrapped("Right drag orbits, middle drag pans, wheel zooms, left click picks and shows the hex. "
+                           "W and S move the view up and down the screen, A and D to the left and right. "
+                           "Q and Left turn the map counter-clockwise, E and Right clockwise; Up and Down tilt. "
+                           "PageUp and PageDown zoom (the Hex map panel takes the keys while it has the focus).");
     }
     ImGui::End();
 }
@@ -107,11 +117,20 @@ ui_scene_handle_mouse(ui_state *ui, engine_api *api, f32 viewport_width, f32 vie
     {
         if (!ui->map.has_from || ui->map.has_to) { ui->map.from = ui->scene.hover; ui->map.has_from = true; ui->map.has_to = false; }
         else                                     { ui->map.to = ui->scene.hover; ui->map.has_to = true; }
+        ui->scene.pick     = ui->scene.hover;   /* M11: the Hex info box shows the hex */
+        ui->scene.has_pick = true;
     }
 }
 
 /* The keys move the camera when no text box and not the Hex map panel
-   take them: W, A, S and D pan; PageUp and PageDown zoom. */
+   take them (terrain-and-map.md, "Map display"; M11):
+   - W and S move the view up and down the screen, A and D to the left and
+     to the right, at every heading (camera_pan);
+   - Q and Left turn the map counter-clockwise, E and Right clockwise;
+   - Up tilts toward the top-down view, Down toward the horizon; the clamp
+     keeps the view above the ground and the heading stays;
+   - PageUp and PageDown zoom.
+   The arrow keys do nothing while the keyboard moves the focus of a panel. */
 internal void
 ui_scene_handle_keys(ui_state *ui, f32 dt_seconds)
 {
@@ -124,6 +143,14 @@ ui_scene_handle_keys(ui_state *ui, f32 dt_seconds)
     if (ImGui::IsKeyDown(ImGuiKey_D)) right   += step;
     if (ImGui::IsKeyDown(ImGuiKey_A)) right   -= step;
     if (right != 0.0f || forward != 0.0f) camera_pan(&ui->scene.cam, right, forward);
+    b32 arrows = !io.NavActive;
+    f32 turn = 0.0f, tilt = 0.0f;
+    if (ImGui::IsKeyDown(ImGuiKey_Q) || (arrows && ImGui::IsKeyDown(ImGuiKey_LeftArrow)))  turn += UI_SCENE_KEY_TURN_SPEED * dt_seconds;
+    if (ImGui::IsKeyDown(ImGuiKey_E) || (arrows && ImGui::IsKeyDown(ImGuiKey_RightArrow))) turn -= UI_SCENE_KEY_TURN_SPEED * dt_seconds;
+    if (arrows && ImGui::IsKeyDown(ImGuiKey_UpArrow))   tilt += UI_SCENE_KEY_TILT_SPEED * dt_seconds;
+    if (arrows && ImGui::IsKeyDown(ImGuiKey_DownArrow)) tilt -= UI_SCENE_KEY_TILT_SPEED * dt_seconds;
+    if (turn != 0.0f) camera_turn(&ui->scene.cam, turn);
+    if (tilt != 0.0f) camera_tilt(&ui->scene.cam, tilt);
     if (ImGui::IsKeyPressed(ImGuiKey_PageUp))   camera_zoom(&ui->scene.cam, 1.0f / UI_SCENE_ZOOM_STEP);
     if (ImGui::IsKeyPressed(ImGuiKey_PageDown)) camera_zoom(&ui->scene.cam, UI_SCENE_ZOOM_STEP);
 }

@@ -223,14 +223,46 @@ camera_zoom(camera *c, f32 factor)
     camera_clamp(c);
 }
 
+/* The two directions of the ground plane as the camera sees them: forward
+   goes away from the eye (up the screen), right goes to the right of the
+   screen. The eye sits at target + (-sin yaw, -, +cos yaw) (camera_eye),
+   so the view looks along (sin yaw, -cos yaw). */
+internal void
+camera_ground_axes(camera *c, v3 *forward, v3 *right)
+{
+    f32 s = sinf(c->yaw), k = cosf(c->yaw);
+    *forward = v3_make(s, 0.0f, -k);
+    *right   = v3_make(k, 0.0f, s);
+}
+
 /* Moves the target in the ground plane, in the camera's own left/right and
-   forward/back directions (so a drag feels the same at every yaw). */
+   forward/back directions (so a drag and the keys feel the same at every
+   yaw). M11: forward moves up the screen. */
 internal void
 camera_pan(camera *c, f32 right, f32 forward)
 {
-    f32 s = sinf(c->yaw), k = cosf(c->yaw);
-    c->target.x += right * k - forward * s;
-    c->target.z += right * s + forward * k;
+    v3 ahead, side;
+    camera_ground_axes(c, &ahead, &side);
+    c->target.x += right * side.x + forward * ahead.x;
+    c->target.z += right * side.z + forward * ahead.z;
+}
+
+/* Turns the view around the target. A positive angle turns the map counter-
+   clockwise on the screen (render_tests.cpp checks the direction). The
+   pitch does not change. */
+internal void
+camera_turn(camera *c, f32 counter_clockwise)
+{
+    camera_orbit(c, counter_clockwise, 0.0f);
+}
+
+/* Tilts the view: a positive angle goes toward the top-down view. The
+   clamp of camera_clamp keeps the eye above the ground and short of top
+   down; the yaw does not change. */
+internal void
+camera_tilt(camera *c, f32 toward_top_down)
+{
+    camera_orbit(c, 0.0f, toward_top_down);
 }
 
 internal v3

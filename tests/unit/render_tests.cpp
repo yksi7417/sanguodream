@@ -100,6 +100,47 @@ unit_render_tests(test_counts *counts)
     camera_pan(&panned, 1.0f, 0.0f);
     TEST_CHECK(counts, near_f32(panned.target.x, 0.0f, 1e-5f) && near_f32(panned.target.z, 1.0f, 1e-5f), "pan right at yaw 90 degrees moves along +Z");
 
+    /* M11: the keys move and turn the view as the screen shows it. At each
+       yaw, a pan forward moves the target up the screen and a pan right
+       moves it to the right; a positive turn rotates the map counter-
+       clockwise; a tilt keeps the heading. */
+    b32 forward_up = true, right_right = true, turn_ccw = true;
+    for (s32 step = -4; step <= 4; ++step)
+    {
+        camera view = camera_default(0.0f, 0.0f);
+        view.yaw = (f32)step * 0.7f;
+        camera_clamp(&view);
+        m4 view_vp = camera_view_projection(&view, vw, vh);
+        f32 cx = 0, cy = 0, fx = 0, fy = 0, right_x = 0, right_y = 0;
+        v3 ahead, side;
+        camera_ground_axes(&view, &ahead, &side);
+        camera_project(view_vp, view.target, vw, vh, &cx, &cy);
+        camera_project(view_vp, v3_add(view.target, ahead), vw, vh, &fx, &fy);
+        camera_project(view_vp, v3_add(view.target, side), vw, vh, &right_x, &right_y);
+        if (!(fy < cy - 1.0f && fabsf(fx - cx) < 1.0f)) forward_up = false;
+        if (!(right_x > cx + 1.0f && fabsf(right_y - cy) < 1.0f)) right_right = false;
+        v3 east = v3_add(view.target, v3_make(3.0f, 0.0f, 0.0f));
+        f32 ex = 0, ey = 0, tx = 0, ty = 0;
+        camera_project(view_vp, east, vw, vh, &ex, &ey);
+        camera_turn(&view, 0.2f);
+        m4 turned = camera_view_projection(&view, vw, vh);
+        camera_project(turned, east, vw, vh, &tx, &ty);
+        /* screen y grows down: flip it, then the cross product is positive for a counter-clockwise turn */
+        f32 before_x = ex - cx, before_y = cy - ey, after_x = tx - cx, after_y = cy - ty;
+        if (before_x * after_y - before_y * after_x <= 0.0f) turn_ccw = false;
+    }
+    TEST_CHECK(counts, forward_up, "a pan forward (W) moves the view up the screen at every yaw");
+    TEST_CHECK(counts, right_right, "a pan right (D) moves the view to the right of the screen at every yaw");
+    TEST_CHECK(counts, turn_ccw, "a positive turn (Q, left arrow) rotates the map counter-clockwise on the screen");
+    camera tilted = camera_default(0.0f, 0.0f);
+    tilted.yaw = 1.0f;
+    for (u32 step = 0; step < 50; ++step) camera_tilt(&tilted, 0.1f);
+    b32 top_clamped = near_f32(tilted.pitch, CAMERA_PITCH_MAX, 1e-5f) && near_f32(tilted.yaw, 1.0f, 1e-5f);
+    for (u32 step = 0; step < 50; ++step) camera_tilt(&tilted, -0.1f);
+    TEST_CHECK(counts, top_clamped && near_f32(tilted.pitch, CAMERA_PITCH_MIN, 1e-5f) && near_f32(tilted.yaw, 1.0f, 1e-5f) &&
+                       CAMERA_PITCH_MIN > 0.0f && CAMERA_PITCH_MAX < RENDER_PI * 0.5f,
+               "a tilt stops above the ground and short of top down, and keeps the heading");
+
     /* the command buffer */
     memory_arena arena = test_arena_create(Megabytes(2));
     render_commands *rc = render_commands_begin(&arena, vw, vh);
