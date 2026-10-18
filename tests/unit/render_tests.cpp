@@ -141,39 +141,6 @@ unit_render_tests(test_counts *counts)
                        CAMERA_PITCH_MIN > 0.0f && CAMERA_PITCH_MAX < RENDER_PI * 0.5f,
                "a tilt stops above the ground and short of top down, and keeps the heading");
 
-    /* M12: one press of Q or E turns the view by one step of 60 degrees,
-       over CAMERA_TURN_STEP_SECONDS; a held key repeats the step. */
-    f32 frame_seconds = 1.0f / 60.0f;
-    camera stepped = camera_default(0.0f, 0.0f);
-    camera_turn_step turning = {};
-    camera_turn_update(&stepped, &turning, -1, frame_seconds);
-    for (u32 frame = 0; frame < 5; ++frame) camera_turn_update(&stepped, &turning, 0, frame_seconds);
-    b32 halfway = stepped.yaw < -0.01f && stepped.yaw > -CAMERA_TURN_STEP + 0.01f;
-    for (u32 frame = 0; frame < 60; ++frame) camera_turn_update(&stepped, &turning, 0, frame_seconds);
-    TEST_CHECK(counts, halfway && near_f32(stepped.yaw, -CAMERA_TURN_STEP, 1e-5f) && turning.remaining == 0.0f,
-               "a press turns the view one step of 60 degrees clockwise, animated over several frames");
-    for (u32 press = 0; press < 5; ++press)
-    {
-        camera_turn_update(&stepped, &turning, -1, frame_seconds);
-        for (u32 frame = 0; frame < 60; ++frame) camera_turn_update(&stepped, &turning, 0, frame_seconds);
-    }
-    TEST_CHECK(counts, near_f32(stepped.yaw, 0.0f, 1e-5f), "six presses make a full turn");
-    stepped.yaw = 10.0f * RENDER_PI / 180.0f;
-    camera_turn_update(&stepped, &turning, 1, frame_seconds);
-    for (u32 frame = 0; frame < 60; ++frame) camera_turn_update(&stepped, &turning, 0, frame_seconds);
-    TEST_CHECK(counts, near_f32(stepped.yaw, CAMERA_TURN_STEP, 1e-5f), "a step from a free heading stops on the grid of 60 degrees");
-    stepped.yaw = 0.0f;
-    for (u32 frame = 0; frame < 72; ++frame) camera_turn_update(&stepped, &turning, 1, frame_seconds);   /* 1.2 s held */
-    for (u32 frame = 0; frame < 60; ++frame) camera_turn_update(&stepped, &turning, 0, frame_seconds);
-    TEST_CHECK(counts, near_f32(fabsf(stepped.yaw), RENDER_PI, 1e-4f), "a key held for 1.2 s turns three steps (one now, then one each repeat delay)");
-    camera queued = camera_default(0.0f, 0.0f);
-    camera_turn_step queue = {};
-    camera_turn_update(&queued, &queue, 1, frame_seconds);
-    camera_turn_update(&queued, &queue, 0, frame_seconds);
-    camera_turn_update(&queued, &queue, 1, frame_seconds);   /* a second press during the animation */
-    for (u32 frame = 0; frame < 90; ++frame) camera_turn_update(&queued, &queue, 0, frame_seconds);
-    TEST_CHECK(counts, near_f32(queued.yaw, 2.0f * CAMERA_TURN_STEP, 1e-5f), "a press during the animation adds one more step");
-
     /* M12: the mini map turns with the view. The forward direction of the
        camera is up on the mini map at every yaw, and the inverse gives the
        ground point back. */

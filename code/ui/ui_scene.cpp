@@ -13,6 +13,7 @@
 #define UI_SCENE_DRAG_SPEED  0.008f
 #define UI_SCENE_PAN_SPEED   0.05f
 #define UI_SCENE_KEY_PAN_SPEED 0.6f   /* of the camera distance each second while W, A, S or D is down */
+#define UI_SCENE_KEY_TURN_SPEED (90.0f * RENDER_PI / 180.0f)   /* radians each second while Q, E, Left or Right is down */
 #define UI_SCENE_KEY_TILT_SPEED (45.0f * RENDER_PI / 180.0f)   /* radians each second while Up or Down is down */
 
 internal void
@@ -28,7 +29,6 @@ ui_scene_init(ui_state *ui)
     ui->scene.frame_city  = false;
     ui->scene.frame_unit  = false;
     ui->scene.headless    = false;
-    ui->scene.turn        = {};         /* M12 */
 }
 
 internal void
@@ -74,7 +74,7 @@ ui_draw_scene_panel(ui_state *ui, engine_api *api)
         else                     ImGui::Text("under the mouse: nothing");
         ImGui::TextWrapped("Right drag orbits, middle drag pans, wheel zooms, left click picks and shows the hex. "
                            "W and S move the view up and down the screen, A and D to the left and right. "
-                           "Q and Left turn the view 60 degrees clockwise, E and Right counter-clockwise; Up and Down tilt. "
+                           "Q and Left turn the view clockwise, E and Right counter-clockwise; Up and Down tilt. "
                            "PageUp and PageDown zoom (the Hex map panel takes the keys while it has the focus).");
     }
     ImGui::End();
@@ -127,9 +127,9 @@ ui_scene_handle_mouse(ui_state *ui, engine_api *api, f32 viewport_width, f32 vie
    - W and S move the view up and down the screen, A and D to the left and
      to the right, at every heading (camera_pan);
    - Q and Left turn the view clockwise on the screen, E and Right
-     counter-clockwise, as the original does (ui/main-map.md). M12: one
-     press turns one step of 60 degrees with an animation, and a held key
-     repeats the step (camera_turn_update; Q-214);
+     counter-clockwise, as the original does (ui/main-map.md). The view
+     turns smoothly while the key is down (the choice of the user; the
+     original turns by steps, Q-214);
    - Up tilts toward the top-down view, Down toward the horizon; the clamp
      keeps the view above the ground and the heading stays;
    - PageUp and PageDown zoom.
@@ -138,11 +138,7 @@ internal void
 ui_scene_handle_keys(ui_state *ui, f32 dt_seconds)
 {
     ImGuiIO &io = ImGui::GetIO();
-    if (io.WantTextInput || ui->map.focused)
-    {
-        camera_turn_update(&ui->scene.cam, &ui->scene.turn, 0, dt_seconds);   /* a started step ends on the grid */
-        return;
-    }
+    if (io.WantTextInput || ui->map.focused) return;
     f32 step = UI_SCENE_KEY_PAN_SPEED * ui->scene.cam.distance * dt_seconds;
     f32 right = 0.0f, forward = 0.0f;
     if (ImGui::IsKeyDown(ImGuiKey_W)) forward += step;
@@ -151,13 +147,12 @@ ui_scene_handle_keys(ui_state *ui, f32 dt_seconds)
     if (ImGui::IsKeyDown(ImGuiKey_A)) right   -= step;
     if (right != 0.0f || forward != 0.0f) camera_pan(&ui->scene.cam, right, forward);
     b32 arrows = !io.NavActive;
-    s32 direction = 0;
-    f32 tilt = 0.0f;
-    if (ImGui::IsKeyDown(ImGuiKey_Q) || (arrows && ImGui::IsKeyDown(ImGuiKey_LeftArrow)))  direction -= 1;
-    if (ImGui::IsKeyDown(ImGuiKey_E) || (arrows && ImGui::IsKeyDown(ImGuiKey_RightArrow))) direction += 1;
+    f32 turn = 0.0f, tilt = 0.0f;
+    if (ImGui::IsKeyDown(ImGuiKey_Q) || (arrows && ImGui::IsKeyDown(ImGuiKey_LeftArrow)))  turn -= UI_SCENE_KEY_TURN_SPEED * dt_seconds;
+    if (ImGui::IsKeyDown(ImGuiKey_E) || (arrows && ImGui::IsKeyDown(ImGuiKey_RightArrow))) turn += UI_SCENE_KEY_TURN_SPEED * dt_seconds;
     if (arrows && ImGui::IsKeyDown(ImGuiKey_UpArrow))   tilt += UI_SCENE_KEY_TILT_SPEED * dt_seconds;
     if (arrows && ImGui::IsKeyDown(ImGuiKey_DownArrow)) tilt -= UI_SCENE_KEY_TILT_SPEED * dt_seconds;
-    camera_turn_update(&ui->scene.cam, &ui->scene.turn, direction, dt_seconds);
+    if (turn != 0.0f) camera_turn(&ui->scene.cam, turn);
     if (tilt != 0.0f) camera_tilt(&ui->scene.cam, tilt);
     if (ImGui::IsKeyPressed(ImGuiKey_PageUp))   camera_zoom(&ui->scene.cam, 1.0f / UI_SCENE_ZOOM_STEP);
     if (ImGui::IsKeyPressed(ImGuiKey_PageDown)) camera_zoom(&ui->scene.cam, UI_SCENE_ZOOM_STEP);

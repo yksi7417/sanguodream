@@ -1630,8 +1630,8 @@ demo_m11_save_map(ImGuiTestContext *ctx)
     ctx->KeyDown(ImGuiKey_W); ctx->SleepStandard(); ctx->KeyUp(ImGuiKey_W);
     IM_CHECK_GT(v3_dot(v3_sub(v.ui.scene.cam.target, before.target), ahead), 0.0f);
     f32 yaw = v.ui.scene.cam.yaw, pitch = v.ui.scene.cam.pitch;
-    ctx->KeyPress(ImGuiKey_Q); ctx->SleepStandard();   /* M12: one press is one step */
-    IM_CHECK(fabsf(demo_turn_between(yaw, v.ui.scene.cam.yaw) + CAMERA_TURN_STEP) < 1e-3f);
+    ctx->KeyDown(ImGuiKey_Q); ctx->SleepStandard(); ctx->KeyUp(ImGuiKey_Q);
+    IM_CHECK_LT(demo_turn_between(yaw, v.ui.scene.cam.yaw), 0.0f);   /* clockwise on the screen */
     ctx->KeyDown(ImGuiKey_UpArrow); ctx->SleepStandard(); ctx->KeyUp(ImGuiKey_UpArrow);
     IM_CHECK_GT(v.ui.scene.cam.pitch, pitch);
     ctx->SleepStandard();
@@ -1728,20 +1728,15 @@ demo_m12_main_map(ImGuiTestContext *ctx)
     v.ui.show_units = false;
     ctx->SleepStandard();
 
-    /* The step turn: Q one step clockwise, E and Right back, a held Left repeats. */
+    /* The smooth turn: Q clockwise and E counter-clockwise while the key is down. */
     ImGui::FocusWindow(0);
     ctx->Yield();
     f32 yaw = v.ui.scene.cam.yaw;
-    ctx->KeyPress(ImGuiKey_Q); ctx->SleepStandard();
-    IM_CHECK(fabsf(demo_turn_between(yaw, v.ui.scene.cam.yaw) + CAMERA_TURN_STEP) < 1e-3f);
-    ctx->KeyPress(ImGuiKey_E); ctx->SleepStandard();
-    ctx->KeyPress(ImGuiKey_RightArrow); ctx->SleepStandard();
-    IM_CHECK(fabsf(demo_turn_between(yaw, v.ui.scene.cam.yaw) - CAMERA_TURN_STEP) < 1e-3f);
+    ctx->KeyDown(ImGuiKey_Q); ctx->Sleep(0.8f); ctx->KeyUp(ImGuiKey_Q);
+    IM_CHECK_LT(demo_turn_between(yaw, v.ui.scene.cam.yaw), 0.0f);
     yaw = v.ui.scene.cam.yaw;
-    ctx->KeyDown(ImGuiKey_LeftArrow); ctx->Sleep(1.2f); ctx->KeyUp(ImGuiKey_LeftArrow);
-    ctx->SleepStandard();
-    IM_CHECK(v.ui.scene.turn.remaining == 0.0f);
-    IM_CHECK_GE(fabsf(demo_turn_between(yaw, v.ui.scene.cam.yaw)), 2.0f * CAMERA_TURN_STEP - 1e-3f);   /* two steps or more */
+    ctx->KeyDown(ImGuiKey_RightArrow); ctx->Sleep(0.8f); ctx->KeyUp(ImGuiKey_RightArrow);
+    IM_CHECK_GT(demo_turn_between(yaw, v.ui.scene.cam.yaw), 0.0f);
     ctx->SleepStandard();
 
     IM_CHECK(demo_end_video(ctx));
