@@ -1609,7 +1609,7 @@ demo_m11_save_map(ImGuiTestContext *ctx)
     IM_CHECK(demo_camera_on(v, hex_make(unit.q, unit.r)));
     ctx->SleepStandard();
 
-    /* The keys: W up the screen, Q counter-clockwise, Up toward top down. */
+    /* The keys: W up the screen, Q clockwise (ui/main-map.md), Up toward top down. */
     ImGui::FocusWindow(0);
     ctx->Yield();
     camera before = v.ui.scene.cam;
@@ -1619,7 +1619,7 @@ demo_m11_save_map(ImGuiTestContext *ctx)
     IM_CHECK_GT(v3_dot(v3_sub(v.ui.scene.cam.target, before.target), ahead), 0.0f);
     f32 yaw = v.ui.scene.cam.yaw, pitch = v.ui.scene.cam.pitch;
     ctx->KeyDown(ImGuiKey_Q); ctx->SleepStandard(); ctx->KeyUp(ImGuiKey_Q);
-    IM_CHECK_GT(v.ui.scene.cam.yaw, yaw);
+    IM_CHECK_LT(v.ui.scene.cam.yaw, yaw);
     ctx->KeyDown(ImGuiKey_UpArrow); ctx->SleepStandard(); ctx->KeyUp(ImGuiKey_UpArrow);
     IM_CHECK_GT(v.ui.scene.cam.pitch, pitch);
     ctx->SleepStandard();

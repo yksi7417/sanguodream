@@ -1920,11 +1920,11 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_LT(v3_dot(v3_sub(v.ui.scene.cam.target, after_w.target), ahead), 0.0f);   /* S: back */
         f32 yaw = v.ui.scene.cam.yaw, pitch = v.ui.scene.cam.pitch;
         ctx->KeyDown(ImGuiKey_Q); ctx->Yield(3); ctx->KeyUp(ImGuiKey_Q); ctx->Yield();
-        IM_CHECK_GT(v.ui.scene.cam.yaw, yaw);                             /* Q: counter-clockwise (render_tests.cpp) */
+        IM_CHECK_LT(v.ui.scene.cam.yaw, yaw);                             /* Q: clockwise on the screen (ui/main-map.md, render_tests.cpp) */
         IM_CHECK_EQ(v.ui.scene.cam.pitch, pitch);
         yaw = v.ui.scene.cam.yaw;
         ctx->KeyDown(ImGuiKey_E); ctx->Yield(3); ctx->KeyUp(ImGuiKey_E); ctx->Yield();
-        IM_CHECK_LT(v.ui.scene.cam.yaw, yaw);                             /* E: clockwise */
+        IM_CHECK_GT(v.ui.scene.cam.yaw, yaw);                             /* E: counter-clockwise */
         yaw = v.ui.scene.cam.yaw;
         ctx->KeyDown(ImGuiKey_DownArrow); ctx->Yield(3); ctx->KeyUp(ImGuiKey_DownArrow); ctx->Yield();
         IM_CHECK_LT(v.ui.scene.cam.pitch, pitch);                         /* Down: toward the horizon */

@@ -74,7 +74,7 @@ ui_draw_scene_panel(ui_state *ui, engine_api *api)
         else                     ImGui::Text("under the mouse: nothing");
         ImGui::TextWrapped("Right drag orbits, middle drag pans, wheel zooms, left click picks and shows the hex. "
                            "W and S move the view up and down the screen, A and D to the left and right. "
-                           "Q and Left turn the map counter-clockwise, E and Right clockwise; Up and Down tilt. "
+                           "Q and Left turn the view clockwise, E and Right counter-clockwise; Up and Down tilt. "
                            "PageUp and PageDown zoom (the Hex map panel takes the keys while it has the focus).");
     }
     ImGui::End();
@@ -126,7 +126,8 @@ ui_scene_handle_mouse(ui_state *ui, engine_api *api, f32 viewport_width, f32 vie
    take them (terrain-and-map.md, "Map display"; M11):
    - W and S move the view up and down the screen, A and D to the left and
      to the right, at every heading (camera_pan);
-   - Q and Left turn the map counter-clockwise, E and Right clockwise;
+   - Q and Left turn the view clockwise on the screen, E and Right
+     counter-clockwise, as the original does (ui/main-map.md);
    - Up tilts toward the top-down view, Down toward the horizon; the clamp
      keeps the view above the ground and the heading stays;
    - PageUp and PageDown zoom.
@@ -145,8 +146,8 @@ ui_scene_handle_keys(ui_state *ui, f32 dt_seconds)
     if (right != 0.0f || forward != 0.0f) camera_pan(&ui->scene.cam, right, forward);
     b32 arrows = !io.NavActive;
     f32 turn = 0.0f, tilt = 0.0f;
-    if (ImGui::IsKeyDown(ImGuiKey_Q) || (arrows && ImGui::IsKeyDown(ImGuiKey_LeftArrow)))  turn += UI_SCENE_KEY_TURN_SPEED * dt_seconds;
-    if (ImGui::IsKeyDown(ImGuiKey_E) || (arrows && ImGui::IsKeyDown(ImGuiKey_RightArrow))) turn -= UI_SCENE_KEY_TURN_SPEED * dt_seconds;
+    if (ImGui::IsKeyDown(ImGuiKey_Q) || (arrows && ImGui::IsKeyDown(ImGuiKey_LeftArrow)))  turn -= UI_SCENE_KEY_TURN_SPEED * dt_seconds;
+    if (ImGui::IsKeyDown(ImGuiKey_E) || (arrows && ImGui::IsKeyDown(ImGuiKey_RightArrow))) turn += UI_SCENE_KEY_TURN_SPEED * dt_seconds;
     if (arrows && ImGui::IsKeyDown(ImGuiKey_UpArrow))   tilt += UI_SCENE_KEY_TILT_SPEED * dt_seconds;
     if (arrows && ImGui::IsKeyDown(ImGuiKey_DownArrow)) tilt -= UI_SCENE_KEY_TILT_SPEED * dt_seconds;
     if (turn != 0.0f) camera_turn(&ui->scene.cam, turn);
