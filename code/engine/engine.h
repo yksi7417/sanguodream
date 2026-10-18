@@ -956,6 +956,14 @@ struct engine_hex
     u8  fire_turns;            /* 0 to 7 */
     u8  city_id;               /* the city that stands on the hex; ENGINE_NO_CITY */
     u32 base_id;               /* the port or the gate on the hex; ENGINE_NO_BASE */
+    /* M11: what stands on the hex */
+    u8  slot_city;             /* a slot: its city; ENGINE_NO_CITY */
+    u8  slot_index;            /* a slot: its index in the city */
+    u8  facility;              /* the facility on the slot (facilities.tsv); ENGINE_NO_FACILITY */
+    u8  facility_level;        /* 1 to 3; 0 without a facility */
+    u32 building_id;           /* a building, a trap or a natural trap; ENGINE_NO_BUILDING */
+    u8  building_kind;         /* the row of buildings.tsv; ENGINE_NO_ROW without a building */
+    u32 unit_id;               /* the unit on the hex; ENGINE_NO_UNIT */
 };
 
 /* One row of movement_costs.tsv. */

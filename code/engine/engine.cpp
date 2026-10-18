@@ -117,6 +117,8 @@ engine_load_content(engine *e, const char *folder)
     u32 bad_row = 0;
     tsv_table armaments = {};   /* M10: movement_costs.tsv is optional; without it the class costs of terrain.tsv apply */
     b32 has_armaments = engine_read_table(e, folder, "movement_costs.tsv", &armaments);
+    tsv_table save_types = {};  /* M11: save_types.tsv is optional; without it a save puts nothing on the map */
+    b32 has_save_types = engine_read_table(e, folder, "save_types.tsv", &save_types);
     if (!engine_read_table(e, folder, "facilities.tsv", &facilities))      status->detail = "facilities.tsv not found";
     else if (!engine_read_table(e, folder, "cities.tsv", &cities))         status->detail = "cities.tsv not found";
     else if (!engine_read_table(e, folder, "rules.tsv", &rules))           status->detail = "rules.tsv not found";
@@ -152,6 +154,7 @@ engine_load_content(engine *e, const char *folder)
     else if (!content_load_tactics(content, &tactics, &bad_row))          status->detail = "tactics.tsv has a bad row";
     else if (!content_load_plots(content, &plots, &bad_row))              status->detail = "plots.tsv has a bad row";
     else if (!content_load_buildings(content, &buildings, &bad_row))      status->detail = "buildings.tsv has a bad row";
+    else if (has_save_types && !content_load_save_types(content, &save_types, &bad_row)) status->detail = "save_types.tsv has a bad row";
     else if (!content_load_criticals(content, &criticals, &bad_row))      status->detail = "critical_skills.tsv has a bad row";
     else if (!content_load_skills(content, &skills, &bad_row))            status->detail = "skills.tsv has a bad row";
     else if (!content_load_ranks(content, &ranks, &bad_row))              status->detail = "ranks.tsv has a bad row";

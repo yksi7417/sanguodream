@@ -183,6 +183,8 @@ enum sim_event_kind
     /* M10 */
     SIM_EVENT_BANDIT_SITE,          /* subject = the city; detail = the cell of the bandit site that bandits use */
     SIM_EVENT_ROCKFALL_RETURNED,    /* detail = the building of the rockfall */
+    /* M11 */
+    SIM_EVENT_SAVE_MAP_LOADED,      /* delta = the facilities, buildings and traps of the save on the map; detail = the units; assumed when units (Q-211) */
     SIM_EVENT_COUNT
 };
 
@@ -874,6 +876,7 @@ struct sim_unit
     u8        state;                              /* sim_unit_state (plots-and-states.md) */
     u8        state_turns;                        /* turns left of the state */
     u16       aid_turns;                          /* M7: an aid unit of an ally; the turns left; 0 = not an aid unit */
+    b32       grain_unknown;                      /* M11: a unit of a save; the save gives no grain, so it does not eat (Q-211) */
 };
 
 enum sim_unit_state
@@ -1383,6 +1386,9 @@ internal u8                  sim_map_region_city(sim_state *sim, u8 region);   /
 internal u32                 sim_map_slot_neighbours(sim_state *sim, u8 city_id, hex_coord hex);
 internal u32                 sim_map_bandit_sites(sim_state *sim, u8 city_id, hex_coord *out, u32 capacity);
 internal b32                 sim_map_in_flood(sim_state *sim, hex_coord dike, hex_coord hex);
+
+/* save_map.cpp: the state of a save on the real map (M11) */
+internal void                sim_load_save_map(sim_state *sim, save_file *save, u32 cause, sim_event_sink *events);
 
 /* officers.cpp, diplomacy.cpp, duel.cpp, debate.cpp (M7) */
 internal void sim_apply_start_settings(sim_state *sim, sim_settings *before);   /* M9 */

@@ -12,7 +12,7 @@ city.grain_cap	1000000	documented	manual p.25
 city.gold_income	100	assumed	Q-021: the initial gold income of a city
 city.grain_income	500	assumed	Q-021: the initial grain income of a city
 officer.salary	10	assumed	Q-027: the gold of one officer each month
-grain.soldiers	100	assumed	Q-119: one grain each turn for this number of soldiers
+grain.soldiers	40	observed	calendar-and-turn.md, fixtures/grain-consumption.tsv: one grain each turn for 40 soldiers (26 cities of session 1; units use the same rate, assumed)
 # M3 economy: the city commands, the production and the durability.
 ap.patrol	20	documented	city-commands.md, 巡察
 ap.conscript	20	documented	city-commands.md, 徵兵

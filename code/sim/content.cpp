@@ -842,6 +842,48 @@ content_find_armament(sim_content *content, const char *key)
     return CONTENT_NO_ARMAMENT;
 }
 
+/* save_types.tsv (M11): one row for each facility type of the building
+   array of a save. Load it after facilities.tsv and buildings.tsv: a row
+   names a key of one of them. Types without a row stay SAVE_TYPE_NONE. */
+internal b32
+content_load_save_types(sim_content *content, tsv_table *table, u32 *bad_row)
+{
+    local_persist const char *kind_names[SAVE_TYPE_KIND_COUNT] = { "none", "base", "facility", "building", "natural", "temple", "ruin" };
+    for (u32 type = 0; type < CONTENT_SAVE_TYPE_COUNT; ++type) content->save_types[type] = {};
+    content->has_save_types = false;
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        u32 type = 0, level = 0;
+        const char *key = tsv_cell(table, row, "key");
+        u32 kind = content_find_name(kind_names, SAVE_TYPE_KIND_COUNT, tsv_cell(table, row, "kind"));
+        b32 good = tsv_cell_u32(table, row, "save_type", &type) && type < CONTENT_SAVE_TYPE_COUNT && kind < SAVE_TYPE_KIND_COUNT &&
+                   tsv_cell_u32(table, row, "level", &level) && level <= 3;
+        save_type entry = {};
+        entry.kind  = (u8)kind;
+        entry.level = (u8)level;
+        if (good && kind == SAVE_TYPE_FACILITY)
+        {
+            entry.row = CONTENT_NO_FACILITY;
+            for (u32 index = 0; index < content->facility_count; ++index) if (strcmp(content->facilities[index].key, key) == 0) entry.row = (u8)index;
+            good = entry.row != CONTENT_NO_FACILITY && level >= 1;
+        }
+        if (good && (kind == SAVE_TYPE_BUILDING || kind == SAVE_TYPE_NATURAL))
+        {
+            entry.row = CONTENT_NO_BUILDING;
+            for (u32 index = 0; index < content->building_count; ++index) if (strcmp(content->buildings[index].key, key) == 0) entry.row = (u8)index;
+            good = entry.row != CONTENT_NO_BUILDING;
+        }
+        if (!good)
+        {
+            *bad_row = row;
+            return false;
+        }
+        content->save_types[type] = entry;
+    }
+    content->has_save_types = true;
+    return true;
+}
+
 /* The armament of a cell of unit_types.tsv: a key of movement_costs.tsv,
    "-" for none, or an empty cell (a pack without the column). */
 internal u8

@@ -499,6 +499,7 @@ sim_load_save(sim_state *sim, save_file *save, sim_command command, sim_event_si
     sim_update_ranks(sim, true, command.id, events);
     sim_init_bases(sim);
     sim_init_relics(sim);
+    sim_load_save_map(sim, save, command.id, events);   /* M11: the facilities, the bases and the units of the save */
 
     sim_event event = sim_event_make(sim, SIM_EVENT_SAVE_LOADED, command.id);
     event.delta = (s32)sim->officers.count;
@@ -676,6 +677,7 @@ sim_event_name(sim_event_kind kind)
         case SIM_EVENT_ENDING:                  return "ending";
         case SIM_EVENT_BANDIT_SITE:             return "bandit_site";
         case SIM_EVENT_ROCKFALL_RETURNED:       return "rockfall_returned";
+        case SIM_EVENT_SAVE_MAP_LOADED:         return "save_map_loaded";
         default:                                return "?";
     }
 }
@@ -829,3 +831,4 @@ sim_refusal_name(sim_refusal refusal)
 #include "sim/ai.cpp"
 #include "sim/pk.cpp"
 #include "sim/history.cpp"
+#include "sim/save_map.cpp"

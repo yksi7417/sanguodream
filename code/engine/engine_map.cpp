@@ -121,6 +121,11 @@ engine_api_hex_at(void *opaque, s32 q, s32 r)
     result.region_city = ENGINE_NO_CITY;
     result.city_id     = ENGINE_NO_CITY;
     result.base_id     = ENGINE_NO_BASE;
+    result.slot_city   = ENGINE_NO_CITY;
+    result.facility    = ENGINE_NO_FACILITY;
+    result.building_id = ENGINE_NO_BUILDING;
+    result.building_kind = ENGINE_NO_ROW;
+    result.unit_id     = ENGINE_NO_UNIT;
     hex_coord hex = hex_make(q, r);
     if (!hex_map_contains(&sim->map, hex)) return result;
     u32 cell = hex_map_index(&sim->map, hex);
@@ -130,6 +135,24 @@ engine_api_hex_at(void *opaque, s32 q, s32 r)
     result.city_id    = sim_city_at(sim, hex);
     u32 base = sim_base_at(sim, hex);
     if (base != SIM_NO_BASE) result.base_id = sim->content.bases[base].id;
+    /* M11: the facility, the building and the unit on the hex. */
+    u32 building = sim_building_at(sim, hex);
+    if (building != SIM_NO_BUILDING) { result.building_id = building; result.building_kind = sim->buildings[building].kind; }
+    u32 unit = sim_unit_at(sim, hex);
+    if (unit != SIM_NO_UNIT) result.unit_id = unit;
+    u32 slot_index = 0;
+    u8 slot_city = sim_slot_at(sim, hex, &slot_index);
+    if (slot_city != SIM_NO_CITY)
+    {
+        sim_slot *slot = sim->sites[slot_city].slots + slot_index;
+        result.slot_city  = slot_city;
+        result.slot_index = (u8)slot_index;
+        if (slot->state != SIM_SLOT_EMPTY && slot->facility < sim->content.facility_count)
+        {
+            result.facility       = slot->facility;
+            result.facility_level = slot->level;
+        }
+    }
     sim_map_layers *layers = &sim->map_layers;
     if (!layers->loaded) return result;
     u8 flags = layers->flags[cell];

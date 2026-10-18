@@ -89,6 +89,14 @@ sim_city_governor(sim_state *sim, u8 city_id)
 {
     city_component *city = sim_find_city(sim, city_id);
     if (!city) return SIM_NO_OFFICER;
+    /* M11: the city record of a save names its governor (太守; save-file.md,
+       cross-checked with the officers). If that officer is active, of the
+       owner and in the city, the governor is that officer. */
+    officer_component *named = sim_find_officer(sim, city->commanding_officer_id);
+    if (named && sim_officer_is_active(named) && named->force_id == city->owner_force_id && named->base_location == city_id)
+    {
+        return named->officer_id;
+    }
     officer_component *best = 0;
     for (u32 index = 0; index < sim->officers.count; ++index)
     {

@@ -810,7 +810,7 @@ sim_run_units_turn(sim_state *sim, u32 cause, sim_event_sink *events)
     for (u32 unit_id = 0; unit_id < sim->unit_count; ++unit_id)
     {
         sim_unit *unit = sim->units + unit_id;
-        if (!unit->alive || !unit->soldiers) continue;
+        if (!unit->alive || !unit->soldiers || unit->grain_unknown) continue;
         u32 needed = unit->soldiers / rules->grain_soldiers;
         u32 eaten  = needed < unit->grain ? needed : unit->grain;
         unit->grain -= eaten;

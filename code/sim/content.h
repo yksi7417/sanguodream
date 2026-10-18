@@ -251,6 +251,29 @@ struct terrain_kind
 #define CONTENT_ARMAMENT_CAPACITY 16
 #define CONTENT_NO_ARMAMENT       0xFF
 
+/* One row of save_types.tsv (M11): what a facility type of the building
+   array of a save (formats/save-file.md, fixtures/map/facility-types.tsv)
+   is in the pack. */
+#define CONTENT_SAVE_TYPE_COUNT 256
+enum save_type_kind
+{
+    SAVE_TYPE_NONE,       /* the pack has nothing for it; the load skips it */
+    SAVE_TYPE_BASE,       /* a city, a gate or a port: records 0..86 */
+    SAVE_TYPE_FACILITY,   /* a domestic facility on a slot: row of facilities.tsv and level */
+    SAVE_TYPE_BUILDING,   /* a military facility, an obstacle or a trap: row of buildings.tsv */
+    SAVE_TYPE_NATURAL,    /* a dike or a rockfall of the map: row of buildings.tsv */
+    SAVE_TYPE_TEMPLE,     /* an event site with a temple */
+    SAVE_TYPE_RUIN,       /* an event site with a ruin */
+    SAVE_TYPE_KIND_COUNT
+};
+
+struct save_type
+{
+    u8 kind;    /* save_type_kind */
+    u8 row;     /* the row of facilities.tsv or buildings.tsv */
+    u8 level;   /* a facility: 1, 2 or 3 */
+};
+
 struct armament_kind
 {
     u8   id;
@@ -754,6 +777,8 @@ struct sim_content
     u32            terrain_count;
     armament_kind  armaments[CONTENT_ARMAMENT_CAPACITY];   /* M10: movement_costs.tsv; none for a pack without it */
     u32            armament_count;
+    save_type      save_types[CONTENT_SAVE_TYPE_COUNT];   /* M11: save_types.tsv; all SAVE_TYPE_NONE without it */
+    b32            has_save_types;
     unit_type_kind unit_types[CONTENT_UNIT_TYPE_CAPACITY];
     u32            unit_type_count;
     tactic_kind    tactics[CONTENT_TACTIC_CAPACITY];
