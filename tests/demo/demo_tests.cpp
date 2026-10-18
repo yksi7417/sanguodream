@@ -1683,6 +1683,16 @@ demo_m12_main_map(ImGuiTestContext *ctx)
     IM_CHECK_EQ(api->city_count(e), 42u);
     v.ui.show_sim = false;
 
+    /* The gate and port records of the save (0x08428D): 皖口港 shows its 6266
+       soldiers on its plate and in the Bases panel, as the game does. */
+    engine_base hukou = api->base_at(e, 72 - CONTENT_FIRST_BASE);
+    IM_CHECK_EQ(hukou.troops, 6266u);
+    IM_CHECK(demo_open_panel(ctx, "###Bases", &v.ui.show_bases));
+    ui_frame_hex(&v.ui, api, hex_make(hukou.q, hukou.r));
+    ctx->Yield(2);
+    IM_CHECK(demo_camera_on(v, hex_make(hukou.q, hukou.r)));
+    ctx->SleepStandard();
+
     /* The round mini map: a click moves the camera there; the distance stays. */
     IM_CHECK(demo_open_panel(ctx, "###MiniMap", &v.ui.show_minimap));
     ctx->WindowResize("//###MiniMap", ImVec2(340, 370));
@@ -1736,6 +1746,7 @@ demo_m12_main_map(ImGuiTestContext *ctx)
 
     IM_CHECK(demo_end_video(ctx));
     IM_CHECK(demo_screenshot_panel(ctx, milestone, "###MiniMap", "minimap"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Bases", "bases"));
 }
 
 internal void
