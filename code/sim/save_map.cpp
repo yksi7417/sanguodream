@@ -12,6 +12,8 @@
 struct sim_save_map_counts
 {
     u32 facilities, buildings, naturals, relics, bases, units, skipped;
+    u32 unit_fallbacks;   /* units whose hex of the save is off the map, not enterable or taken */
+    u32 ships;            /* units on 河 or 海 that get the 走舸 type (assumed, Q-211) */
 };
 
 /* The city and the slot of a slot hex, or SIM_NO_CITY. */
@@ -121,8 +123,26 @@ sim_home_base_hex(sim_state *sim, u16 location, hex_coord *out)
     return false;
 }
 
-/* ASSUMED (Q-211): the save gives no hex for a unit. The engine puts it on
-   the first free hex around the home base of its leader, ring by ring. */
+/* The hex of the unit record (+23 x, +25 y; spec 7fff546), if it is on the
+   map, a unit can enter its terrain and no other unit stands there. */
+internal b32
+sim_save_unit_record_hex(sim_state *sim, unit_record *record, hex_coord *out)
+{
+    hex_offset offset;
+    offset.col = (s32)record->x;
+    offset.row = (s32)record->y;
+    hex_coord hex = hex_from_offset(offset);
+    u32 cell = sim_map_cell(sim, hex);
+    if (cell == U32_MAX) return false;
+    terrain_kind *terrain = sim_terrain_at(sim, hex);
+    if (!terrain || !terrain->enterable || sim_unit_at(sim, hex) != SIM_NO_UNIT) return false;
+    *out = hex;
+    return true;
+}
+
+/* The fallback when the hex of the record does not work (ASSUMED, the old
+   M11 rule): the first free hex around the home base of the leader, ring
+   by ring. */
 internal b32
 sim_save_unit_hex(sim_state *sim, u16 home, u8 force, hex_coord *out)
 {
@@ -150,11 +170,12 @@ sim_save_unit_hex(sim_state *sim, u16 home, u8 force, hex_coord *out)
 }
 
 /* The units of the save: each unit that an officer rides in (officer +98 =
-   87 + the unit index). The record gives the leader, two deputies and the
-   troops. The unit id is the unit index, so the positions of the officers
-   stay right. The save gives no hex, no class, no grain and no morale
-   (Q-211): the unit has no class, it does not eat, and its hex is
-   assumed. */
+   87 + the unit index). The record gives the leader, two deputies, the
+   troops and the hex. The unit id is the unit index, so the positions of
+   the officers stay right. The save gives no class, no grain and no
+   morale (Q-211): the unit does not eat, and a unit on land has no class.
+   ASSUMED (Q-211): a unit on 河 or 海 is a 走舸, so the movement rules use
+   a ship row for it and never a land row on water. */
 internal void
 sim_load_save_units(sim_state *sim, save_file *save, sim_save_map_counts *counts)
 {
@@ -173,13 +194,23 @@ sim_load_save_units(sim_state *sim, save_file *save, sim_save_map_counts *counts
         unit_record *record = save->units + index;
         officer_component *leader = sim_find_officer(sim, record->officers[0]);
         hex_coord hex = {};
-        if (!leader || !sim_save_unit_hex(sim, leader->base_location, leader->force_id, &hex)) { counts->skipped++; continue; }
+        if (!leader) { counts->skipped++; continue; }
+        if (!sim_save_unit_record_hex(sim, record, &hex))
+        {
+            if (!sim_save_unit_hex(sim, leader->base_location, leader->force_id, &hex)) { counts->skipped++; continue; }
+            counts->unit_fallbacks++;
+        }
         sim_unit *unit = sim->units + index;
         *unit = {};
         unit->alive         = true;
         unit->force_id      = leader->force_id;
         unit->hex           = hex;
         unit->unit_type     = CONTENT_NO_UNIT_TYPE;
+        if (sim_hex_is_water(sim, hex))
+        {
+            unit->unit_type = content_find_unit_type(&sim->content, "boat");   /* 走舸 (assumed, Q-211) */
+            if (unit->unit_type != CONTENT_NO_UNIT_TYPE) counts->ships++;
+        }
         unit->soldiers      = record->troops;
         unit->grain_unknown = true;
         unit->home_city     = leader->base_location < SAVE_CITY_COUNT ? (u8)leader->base_location : (u8)SIM_NO_CITY;
@@ -226,6 +257,7 @@ sim_load_save_map(sim_state *sim, save_file *save, u32 cause, sim_event_sink *ev
     sim_event event = sim_event_make(sim, SIM_EVENT_SAVE_MAP_LOADED, cause);
     event.delta   = (s32)(counts.facilities + counts.buildings + counts.naturals + counts.relics);
     event.detail  = counts.units;
-    event.assumed = counts.units > 0;   /* the hexes of the units (Q-211) */
+    event.subject = counts.unit_fallbacks;
+    event.assumed = counts.unit_fallbacks > 0 || counts.ships > 0;   /* a fallback hex, or the 走舸 of a unit on water (Q-211) */
     sim_emit(events, event);
 }

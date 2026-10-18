@@ -184,7 +184,7 @@ enum sim_event_kind
     SIM_EVENT_BANDIT_SITE,          /* subject = the city; detail = the cell of the bandit site that bandits use */
     SIM_EVENT_ROCKFALL_RETURNED,    /* detail = the building of the rockfall */
     /* M11 */
-    SIM_EVENT_SAVE_MAP_LOADED,      /* delta = the facilities, buildings and traps of the save on the map; detail = the units; assumed when units (Q-211) */
+    SIM_EVENT_SAVE_MAP_LOADED,      /* delta = the facilities, buildings and traps of the save on the map; detail = the units; subject = the units on a fallback hex; assumed when a fallback or a 走舸 on water (Q-211) */
     SIM_EVENT_COUNT
 };
 
