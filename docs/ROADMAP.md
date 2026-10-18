@@ -379,7 +379,7 @@ Spec input: formats/map-data.md, mechanics/terrain-and-map.md, fixtures/map/*.ts
 ### M11 The saved game on the real map
 Status (2026-10-17): done (tutorial 23). The spec input was
 formats/save-file.md, fixtures/map/facility-types.tsv and the fixtures of
-play session 1 (spec 9aa9a7c). The save gives the building array at
+play session 1 (spec 9aa9a7c), and ui/main-map.md (spec 02a4bad). The save gives the building array at
 0x0008A3 and the troop unit array at 0x086B71. A loaded save puts its state on the map,
 and the player can find each city and unit. The demo is
 "demo/m11_save_map".
@@ -405,14 +405,23 @@ and the player can find each city and unit. The demo is
   - A row of the Cities panel, the city combo or a row of the new Units
     panel selects a city or a unit. The camera frames it. The Hex
     map panel scrolls to it.
-  - The scene draws a marker and the name over each city; the mini map
-    shows the names. The unit under the mouse shows its commander.
+  - The scene draws a plate over each city, gate, port and unit. The
+    plate shows the name, the soldiers and a thin bar. Near the camera,
+    each slot of a city shows a glyph of its facility and level, or a ring
+    when it is free. The unit under the mouse shows its commander.
+  - The status bar at the bottom centre shows the hex under the mouse
+    (ui/main-map.md). It gives the terrain and the base that owns it, and
+    the coordinates x,y. It also gives the kinds that the player can place.
+  - The grid lines show only on terrain that a unit can enter.
+  - The mini map shows the city names, a white frame of the main view
+    and a compass ring 北東南西 that turns with the camera.
   - A click in the scene opens the Hex info box. It shows the terrain,
     the height, the region by name and the slot. It also shows the
     facility and its level, the building, the unit and the sites.
   - W and S move the view up and down the screen, A and D to the sides,
-    at every yaw. Q and Left turn the map counter-clockwise, E and Right
-    clockwise. Up and Down tilt; the clamp keeps the yaw.
+    at every yaw. Q and Left turn the view clockwise on the screen, E and
+    Right counter-clockwise, as the original does (ui/main-map.md). Up and
+    Down tilt; the clamp keeps the yaw.
   - The City panel counts its facilities by kind and level.
 - Tests:
   - unit: the building and unit records; the screen directions of the
@@ -423,7 +432,7 @@ and the player can find each city and unit. The demo is
     - barracks and a smithy of level 3, and a shipyard. Also 53 units, 30
     buildings, the bases; handlers for the three fixtures of session 1;
   - ui: the keys, a city row and a unit row frame, the Hex info box, the
-    facility counts.
+    status bar, the facility counts.
 - Open points for the analysis side:
   - Q-211: the hex, the class and the grain of a unit;
   - Q-212: building +2 and the empty record;

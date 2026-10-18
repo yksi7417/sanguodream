@@ -1,7 +1,8 @@
 # 23 Save map: the state of a save on the real map, and how to find it
 
 Files: code/sim/save_format.h, save_format.cpp, code/sim/save_map.cpp,
-code/render/render.h (the camera), code/ui/ui_locate.cpp, ui_scene.cpp,
+code/render/render.h (the camera, the grid mask), code/d3d11_renderer.h,
+code/ui/ui_locate.cpp, ui_scene.cpp, ui_march.cpp (the mini map),
 data/placeholder/save_types.tsv, misc/save_dump.cpp. Tests:
 tests/unit/save_format_tests.cpp, tests/unit/render_tests.cpp,
 tests/feature/save_map_tests.cpp, the session 1 handlers of
@@ -54,15 +55,39 @@ The ledger gets one SIM_EVENT_SAVE_MAP_LOADED event with the counts.
   frame, ui_follow_selection moves the camera target to its hex and sets
   the distance. A new selection from any other panel also frames it.
 - The Hex map panel scrolls its canvas to the same hex.
-- ui_draw_scene_labels projects the centre of each city to the screen and
-  draws a marker and the name on the background draw list.
+- ui_draw_scene_labels projects each city, gate, port and unit to the
+  screen with ui_scene_screen. ui_draw_plate draws a plate there on the
+  background draw list: the name, the soldiers and a thin bar. The bar of
+  a base is its durability; the bar of a unit is its morale.
+- When the camera distance is less than UI_PLATE_SLOT_DISTANCE,
+  ui_draw_slot_glyphs draws each slot of a city. A built slot shows the
+  first character of its facility and its level. A free slot shows a ring.
+- The mini map draws a white frame round the main view and a compass ring.
+  camera_ground_axes turns the four labels 北, 東, 南 and 西 with the yaw.
+
+## The status bar
+ui/main-map.md gives a bar at the bottom centre of the map view. It shows
+the hex under the mouse, with no click. ui_draw_status_bar calls hex_at and
+terrain_kind_at for the hover hex and shows three fields:
+- 地形: the terrain and the base that owns its region;
+- 座標: x,y, the column and the row;
+- 設置: what the player can place. A buildable hex with no city or base
+  takes 軍事設施, 陣 and 陷阱. A water hex takes a fire ship.
+
+## The grid
+ui_scene.cpp fills a mask with one byte for each cell: 1 when a unit can
+enter the terrain. render_terrain.grid points to it. The renderer draws
+the grid outline only on the cells with 1, so cliffs and mountains show no
+grid. With no mask, every cell gets the grid.
 
 ## The keys of the scene
 camera_ground_axes gives the forward and the right directions on the
 ground. The eye sits behind the target, so forward is (sin yaw, -cos yaw).
-W and S pan along forward, A and D along right, at every yaw. Q and
-Left call camera_turn with a positive angle: the map turns counter-
-clockwise on the screen. Up and Down call camera_tilt; the clamp keeps
+W and S pan along forward, A and D along right, at every yaw. A positive
+angle to camera_turn turns the map counter-clockwise on the screen. Q and
+Left give a negative angle, so the view turns clockwise; E and Right give a
+positive angle. ui/main-map.md gives these keys as the keys of the original.
+Up and Down call camera_tilt; the clamp keeps
 the pitch between 30 and 75 degrees, and the yaw does not change. The
 unit test checks each direction with camera_project at nine headings.
 
@@ -82,5 +107,6 @@ ui->scene.headless to run them without a window.
   information screen; 53 units; 30 buildings; the bases.
 - unit/render: "a pan forward (W) moves the view up the screen at every
   yaw" and the turn and tilt checks.
-- ui: "scene_keys_move_turn_and_tilt_and_command_nothing" and the frame
-  tests.
+- ui: "scene_keys_move_turn_and_tilt_and_command_nothing",
+  "status_bar_reads_the_hex_under_the_mouse_and_commands_nothing" and the
+  frame tests.
