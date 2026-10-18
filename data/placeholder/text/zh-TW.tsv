@@ -1075,3 +1075,14 @@ hexinfo.fire	火災
 hexinfo.outer	地圖外圍
 city.facility_counts	設施
 city.slots_used	開發地
+statusbar.terrain	地形
+statusbar.coords	座標
+statusbar.place	設置
+place.military	軍事設施
+place.camp	陣
+place.trap	陷阱
+place.fire_ship	火船
+compass.north	北
+compass.east	東
+compass.south	南
+compass.west	西

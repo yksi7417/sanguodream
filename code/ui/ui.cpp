@@ -612,7 +612,8 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
                               frame->render ? frame->render->viewport_height : display.y);
         ui_scene_handle_keys(ui, frame->dt_seconds);
         ui_follow_selection(ui, api);   /* M11: a picked city or unit moves the camera */
-        ui_draw_scene_labels(ui, api);  /* M11: the names of the cities, the unit under the mouse */
+        ui_draw_scene_labels(ui, api);  /* M11: the plates of the bases and the units, the slots */
     }
+    ui_draw_status_bar(ui, api);        /* M11: the terrain, the coordinates and what can stand on the hex under the mouse */
     ui_scene_push(ui, api, frame);
 }

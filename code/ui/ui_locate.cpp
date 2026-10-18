@@ -162,37 +162,109 @@ ui_draw_hex_info_box(ui_state *ui, engine_api *api)
     if (!open) ui->scene.has_pick = false;
 }
 
-/* ---- the names over the cities, the units under the mouse ---------------------------- */
+/* ---- the plates over the bases and the units (ui/main-map.md) -------------------------- */
 
-/* A marker and the name of each city over its flower, and the name of the
-   unit under the mouse. They draw on the background, under the panels. */
+#define UI_PLATE_SLOT_DISTANCE 60.0f   /* the slots draw when the camera is nearer than this */
+
+/* A plate: the name, a number (the soldiers) and a thin bar (a fraction,
+   the durability of a base). It sits on the background, under the panels. */
+internal void
+ui_draw_plate(ImDrawList *draw, f32 x, f32 y, const char *name, u32 number, f32 fraction, ImU32 colour, bool selected)
+{
+    char line[UI_NAME_SIZE * 2 + 16];
+    snprintf(line, sizeof(line), "%s %u", name, number);
+    ImVec2 size = ImGui::CalcTextSize(line);
+    ImVec2 top(x - size.x * 0.5f - 4.0f, y - size.y - 10.0f);
+    ImVec2 bottom(x + size.x * 0.5f + 4.0f, y - 4.0f);
+    draw->AddRectFilled(top, bottom, IM_COL32(0, 0, 0, 170), 3.0f);
+    draw->AddRect(top, bottom, selected ? IM_COL32(255, 230, 60, 255) : colour, 3.0f, 0, selected ? 2.0f : 1.0f);
+    draw->AddText(ImVec2(top.x + 4.0f, top.y + 1.0f), IM_COL32(255, 255, 255, 255), line);
+    f32 clamped = fraction < 0.0f ? 0.0f : (fraction > 1.0f ? 1.0f : fraction);
+    draw->AddRectFilled(ImVec2(top.x + 2.0f, bottom.y - 4.0f), ImVec2(top.x + 2.0f + (bottom.x - top.x - 4.0f) * clamped, bottom.y - 2.0f), colour);
+}
+
+/* The screen point over a hex, or false when it is off the screen. */
+internal bool
+ui_scene_screen(engine_api *api, m4 view_projection, hex_coord hex, f32 lift, f32 *x, f32 *y)
+{
+    ImGuiIO &io = ImGui::GetIO();
+    v3 above = ui_hex_world(api, hex);
+    above.y += lift;
+    return camera_project(view_projection, above, io.DisplaySize.x, io.DisplaySize.y, x, y) &&
+           *x >= 0.0f && *y >= 0.0f && *x <= io.DisplaySize.x && *y <= io.DisplaySize.y;
+}
+
+/* A glyph on each slot of a city in view: the first character of the
+   facility and its level, or a ring for a free slot. */
+internal void
+ui_draw_slot_glyphs(ui_state *ui, engine_api *api, m4 view_projection, ImDrawList *draw, u8 city_id)
+{
+    engine_city_slots site = api->city_slots(api->engine, city_id);
+    for (u32 slot = 0; slot < site.slot_count; ++slot)
+    {
+        engine_facility facility = api->facility_at(api->engine, city_id, (u8)slot);
+        f32 x = 0.0f, y = 0.0f;
+        if (facility.city_id == ENGINE_NO_CITY || !ui_scene_screen(api, view_projection, hex_make(facility.q, facility.r), 0.3f, &x, &y)) continue;
+        if (facility.facility == ENGINE_NO_FACILITY)
+        {
+            draw->AddCircle(ImVec2(x, y), 4.0f, IM_COL32(230, 230, 230, 200), 0, 1.5f);
+            continue;
+        }
+        engine_facility_kind kind = api->facility_kind_at(api->engine, facility.facility);
+        const char *name = ui_text_with_key(ui, "facility", kind.key);
+        u32 length = 1;
+        while (name[length] && (name[length] & 0xC0) == 0x80) length++;   /* the first UTF-8 character */
+        char glyph[16];
+        snprintf(glyph, sizeof(glyph), "%.*s%u", (int)length, name, facility.level);
+        ImVec2 size = ImGui::CalcTextSize(glyph);
+        draw->AddRectFilled(ImVec2(x - size.x * 0.5f - 2.0f, y - size.y * 0.5f), ImVec2(x + size.x * 0.5f + 2.0f, y + size.y * 0.5f),
+                            facility.state == SIM_SLOT_BUILT ? IM_COL32(40, 60, 120, 220) : IM_COL32(90, 90, 90, 220), 2.0f);
+        draw->AddText(ImVec2(x - size.x * 0.5f, y - size.y * 0.5f), IM_COL32(255, 255, 255, 255), glyph);
+    }
+}
+
+/* The plates of the cities, the gates, the ports and the units, the slots
+   of the cities near the camera, and the commander of the unit under the
+   mouse (ui/main-map.md: the name plates and the slot clusters). */
 internal void
 ui_draw_scene_labels(ui_state *ui, engine_api *api)
 {
     if (!ui->scene.enabled || !ui->scene.initialized) return;
     ImGuiIO &io = ImGui::GetIO();
-    f32 width = io.DisplaySize.x, height = io.DisplaySize.y;
-    if (width <= 0.0f || height <= 0.0f) return;
-    m4 view_projection = camera_view_projection(&ui->scene.cam, width, height);
+    if (io.DisplaySize.x <= 0.0f || io.DisplaySize.y <= 0.0f) return;
+    m4 view_projection = camera_view_projection(&ui->scene.cam, io.DisplaySize.x, io.DisplaySize.y);
     ImDrawList *draw = ImGui::GetBackgroundDrawList();
+    bool close_up = ui->scene.cam.distance < UI_PLATE_SLOT_DISTANCE;
     for (u32 index = 0; index < api->city_count(api->engine); ++index)
     {
         engine_city city = api->city_at(api->engine, index);
         engine_city_slots site = api->city_slots(api->engine, city.city_id);
         if (site.city_id == ENGINE_NO_CITY) continue;
-        v3 above = ui_hex_world(api, hex_make(site.q, site.r));
-        above.y += UI_LABEL_LIFT;
+        if (close_up) ui_draw_slot_glyphs(ui, api, view_projection, draw, city.city_id);
         f32 x = 0.0f, y = 0.0f;
-        if (!camera_project(view_projection, above, width, height, &x, &y) || x < 0.0f || y < 0.0f || x > width || y > height) continue;
+        if (!ui_scene_screen(api, view_projection, hex_make(site.q, site.r), UI_LABEL_LIFT, &x, &y)) continue;
         char name[UI_NAME_SIZE * 2];
         ui_city_label(ui, api, city.city_id, name, sizeof(name));
-        ImVec2 size = ImGui::CalcTextSize(name);
-        bool selected = city.city_id == ui->city.selected;
-        draw->AddCircleFilled(ImVec2(x, y), selected ? 7.0f : 5.0f, ui_faction_color(city.owner_force_id));
-        draw->AddCircle(ImVec2(x, y), selected ? 8.0f : 6.0f, IM_COL32(255, 255, 255, 230), 0, selected ? 2.5f : 1.5f);
-        ImVec2 text(x - size.x * 0.5f, y - 10.0f - size.y);
-        draw->AddRectFilled(ImVec2(text.x - 3.0f, text.y - 1.0f), ImVec2(text.x + size.x + 3.0f, text.y + size.y + 1.0f), IM_COL32(0, 0, 0, 150), 3.0f);
-        draw->AddText(text, selected ? IM_COL32(255, 230, 60, 255) : IM_COL32(255, 255, 255, 255), name);
+        engine_city_siege siege = api->city_siege(api->engine, city.city_id);
+        f32 fraction = siege.durability_max ? (f32)siege.durability / (f32)siege.durability_max : 1.0f;
+        ui_draw_plate(draw, x, y, name, city.troops, fraction, ui_faction_color(city.owner_force_id), city.city_id == ui->city.selected);
+    }
+    for (u32 index = 0; index < api->base_count(api->engine); ++index)
+    {
+        engine_base base = api->base_at(api->engine, index);
+        f32 x = 0.0f, y = 0.0f;
+        if (base.id == ENGINE_NO_ROW || !ui_scene_screen(api, view_projection, hex_make(base.q, base.r), UI_LABEL_LIFT, &x, &y)) continue;
+        f32 fraction = base.durability_max ? (f32)base.durability / (f32)base.durability_max : 1.0f;
+        ui_draw_plate(draw, x, y, ui_text_with_key(ui, "base", base.key), base.troops, fraction, ui_faction_color(base.force), false);
+    }
+    for (u32 id = 0; id < api->unit_count(api->engine); ++id)
+    {
+        engine_unit unit = api->unit_at(api->engine, id);
+        f32 x = 0.0f, y = 0.0f;
+        if (unit.id == ENGINE_NO_UNIT || !ui_scene_screen(api, view_projection, hex_make(unit.q, unit.r), UI_LABEL_LIFT, &x, &y)) continue;
+        char name[UI_NAME_SIZE * 4];
+        ui_unit_label(ui, api, &unit, name, sizeof(name));
+        ui_draw_plate(draw, x, y, name, unit.soldiers, (f32)unit.morale / 100.0f, ui_faction_color(unit.force_id), unit.id == ui->units.selected);
     }
     if (ui->scene.has_hover && !io.WantCaptureMouse)
     {
@@ -206,6 +278,40 @@ ui_draw_scene_labels(ui_state *ui, engine_api *api)
             ImGui::SetTooltip("%s\n%s  %u", name, force, unit.soldiers);
         }
     }
+}
+
+/* The status bar at the bottom centre of the map view (ui/main-map.md):
+   the terrain with the owning base, the coordinates x,y, and what the
+   terrain lets a player place. It shows the hex under the mouse. */
+internal void
+ui_draw_status_bar(ui_state *ui, engine_api *api)
+{
+    if (!ui->scene.enabled || !ui->scene.has_hover) return;
+    engine_hex data = api->hex_at(api->engine, ui->scene.hover.q, ui->scene.hover.r);
+    if (!data.on_map) return;
+    engine_terrain_kind terrain = api->terrain_kind_at(api->engine, data.terrain);
+    char owner[UI_NAME_SIZE * 2];
+    ui_region_name(ui, api, data.region, owner, sizeof(owner));
+    char place[128];
+    b32 water = terrain.cost[MOVEMENT_NAVY] && !terrain.cost[MOVEMENT_FOOT];
+    if (terrain.buildable && data.city_id == ENGINE_NO_CITY && data.base_id == ENGINE_NO_BASE)
+    {
+        snprintf(place, sizeof(place), "%s / %s / %s", text_get(ui->text, "place.military"), text_get(ui->text, "place.camp"), text_get(ui->text, "place.trap"));
+    }
+    else if (water) snprintf(place, sizeof(place), "%s", text_get(ui->text, "place.fire_ship"));
+    else            snprintf(place, sizeof(place), "-");
+    hex_offset o = hex_to_offset(ui->scene.hover);
+    ImGuiIO &io = ImGui::GetIO();
+    ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y - 8.0f), ImGuiCond_Always, ImVec2(0.5f, 1.0f));
+    ImGui::SetNextWindowBgAlpha(0.75f);
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoInputs |
+                             ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoSavedSettings;
+    if (ImGui::Begin("###StatusBar", 0, flags))
+    {
+        ImGui::Text("%s: %s (%s)    %s: %d,%d    %s: %s", text_get(ui->text, "statusbar.terrain"), ui_text_with_key(ui, "terrain", terrain.key), owner,
+                    text_get(ui->text, "statusbar.coords"), o.col, o.row, text_get(ui->text, "statusbar.place"), place);
+    }
+    ImGui::End();
 }
 
 /* ---- the Units panel --------------------------------------------------------------------- */

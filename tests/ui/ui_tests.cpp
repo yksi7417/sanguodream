@@ -1983,6 +1983,25 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
+    /* M11: the status bar shows the hex under the mouse (ui/main-map.md). */
+    t = IM_REGISTER_TEST(e, "ui", "status_bar_reads_the_hex_under_the_mouse_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        hex_offset cell = { 3, 2 };
+        v.ui.scene.hover     = hex_from_offset(cell);
+        v.ui.scene.has_hover = true;   /* without a render target the scene keeps the hover */
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK(ctx->WindowInfo("//###StatusBar").Window != 0);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_HEX_AT), 3u | (2u << 16));
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_TERRAIN_KIND_AT), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
     /* M11: a picked hex opens the Hex info box, which asks hex_at for it. */
     t = IM_REGISTER_TEST(e, "ui", "hex_info_box_reads_the_picked_hex_and_commands_nothing");
     t->SetVarsDataType<ui_test_vars>();

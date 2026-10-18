@@ -589,6 +589,27 @@ ui_draw_minimap(ui_state *ui, engine_api *api)
             }
         }
         ui_draw_minimap_bases(api, draw, base, cell);
+        /* M11 (ui/main-map.md): the frame of the main view, and the compass that turns with the camera. */
+        camera *eye = &ui->scene.cam;
+        hex_offset centre_offset = hex_to_offset(hex_from_world(eye->target));
+        ImVec2 middle = ui_minimap_point(base, centre_offset.col, centre_offset.row, cell);
+        f32 frame_half = eye->distance * 0.6f * cell;
+        draw->AddRect(ImVec2(middle.x - frame_half, middle.y - frame_half * 0.7f), ImVec2(middle.x + frame_half, middle.y + frame_half * 0.7f),
+                      IM_COL32(255, 255, 255, 230), 0.0f, 0, 1.5f);
+        v3 ahead, side;
+        camera_ground_axes(eye, &ahead, &side);
+        ImVec2 ring(base.x + 28.0f, base.y + 28.0f);
+        draw->AddCircle(ring, 20.0f, IM_COL32(255, 255, 255, 200), 0, 1.5f);
+        const char *labels[4] = { text_get(ui->text, "compass.north"), text_get(ui->text, "compass.east"), text_get(ui->text, "compass.south"), text_get(ui->text, "compass.west") };
+        f32 world[4][2] = { { 0.0f, -1.0f }, { 1.0f, 0.0f }, { 0.0f, 1.0f }, { -1.0f, 0.0f } };   /* x east, z south */
+        for (u32 index = 0; index < 4; ++index)
+        {
+            f32 screen_x = world[index][0] * side.x + world[index][1] * side.z;
+            f32 screen_y = -(world[index][0] * ahead.x + world[index][1] * ahead.z);
+            ImVec2 label_size = ImGui::CalcTextSize(labels[index]);
+            draw->AddText(ImVec2(ring.x + screen_x * 20.0f - label_size.x * 0.5f, ring.y + screen_y * 20.0f - label_size.y * 0.5f),
+                          IM_COL32(255, 255, 255, 255), labels[index]);
+        }
         for (u32 id = 0; id < api->unit_count(api->engine); ++id)
         {
             engine_unit unit = api->unit_at(api->engine, id);

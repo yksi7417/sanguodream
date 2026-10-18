@@ -1077,3 +1077,14 @@ hexinfo.fire	Fire, turns	label: the turns of fire that remain
 hexinfo.outer	Outer area	a region of mountains and water without a base
 city.facility_counts	Facilities	the facilities of the city by kind and level
 city.slots_used	Slots used	slots with a built facility or one under construction / slots
+statusbar.terrain	Terrain	the status bar: the terrain and the owning base
+statusbar.coords	Coordinates	the status bar: x,y
+statusbar.place	Place	the status bar: what can stand on the hex
+place.military	Military facility	the status bar
+place.camp	Camp	the status bar
+place.trap	Trap	the status bar
+place.fire_ship	Fire ship	the status bar, on river and sea
+compass.north	N	the compass of the mini map
+compass.east	E	the compass of the mini map
+compass.south	S	the compass of the mini map
+compass.west	W	the compass of the mini map
