@@ -392,8 +392,9 @@ and the player can find each city and unit. The demo is
     natural trap, a temple or a ruin.
   - code/sim/save_map.cpp puts each facility on its slot with its level,
     and each military building and trap on its hex. It gives the
-    durability to each base and natural trap, and the owner to each gate
-    and port.
+    durability to each base and natural trap. Fix (2026-10-18, spec
+    9632e15): each gate and port has its own record at 0x08428D. Its owner
+    (+9) and its soldiers (+10) come from there, not from building +2.
   - The units that officers ride in go on the map with their leader,
     deputies and troops. The save gives no class or grain (Q-211).
     Fix (2026-10-18, spec 7fff546): the hex comes from record +23 and +25.

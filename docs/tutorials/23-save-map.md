@@ -41,8 +41,9 @@ pack without the table puts nothing on the map.
 
 ## The load (save_map.cpp)
 sim_load_save_map runs at the end of sim_load_save, on the real map only:
-1. Records 0 to 86 give the durability of each base and the owner of each
-   gate and port. The owner of a city stays that of the city record.
+1. Records 0 to 86 give the durability of each base. The owner of a city
+   stays that of the city record. The owner and the soldiers of a gate or
+   a port come from its own record at 0x08428D (tutorial 20).
 2. Each other record puts its facility on the slot of its hex, or its
    building on its hex. A dike or a rockfall record gives its durability
    to the trap of the map. Temples and ruins of the save replace the random pick.

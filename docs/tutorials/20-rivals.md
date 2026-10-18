@@ -112,8 +112,11 @@ command `trigger_event` fires an event now, without its date and chance.
 ## The ports and passes
 The engine places each base near its owner city. It takes the first free
 hex of the rings 2 to 8. A port takes a hex next to water. The places are placeholders
-(Q-034). A base starts with the owner of its city and base.start_troops
-soldiers. Its rules are:
+(Q-034). In a new game from a scenario, a base starts with the owner of
+its city and base.start_troops soldiers (assumed, Q-183). A save gives
+its own owner and soldiers in the gate and port record at 0x08428D. The
+owner is at +9 (255 = none), and the soldiers are at +10
+(sim_load_save_base_records). Its rules are:
 - a unit cannot enter its hex;
 - a city gets base.gold each month for each base with the same owner;
 - an attack takes soldiers and durability, and a base without either
