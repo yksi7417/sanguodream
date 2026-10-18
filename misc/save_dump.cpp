@@ -5,13 +5,15 @@
    analysis side.
 
    Usage: save_dump.exe <file.s11> [--all-slots] [--utf8-names]
-                        [--name-index <Scenario.s11>] [--buildings] [--units]
+                        [--name-index <Scenario.s11>] [--buildings] [--units] [--bases]
      --all-slots   also print the empty officer slots (all name bytes zero)
      --buildings   also print the building array (M11); without --all-slots
                    only the records with a type other than 255 or a hex
      --units       also print the troop unit array (M11) with the hex of
                    each unit; without --all-slots only the records with a
                    leader
+     --bases       also print the gate and port records at 0x08428D: the
+                   base id, the owner force (255 = none) and the soldiers
      --utf8-names  also print each name as UTF-8 through Windows code page
                    950. That code page is the operating system's Big5 table,
                    not a mapping from the spec; use it only to read the
@@ -344,7 +346,7 @@ main(int argc, char **argv)
 {
     const char *path = 0;
     const char *name_index_path = 0;
-    b32 all_slots = false, buildings = false, units = false;
+    b32 all_slots = false, buildings = false, units = false, bases = false;
     b32 usage_error = false;
     for (int index = 1; index < argc; ++index)
     {
@@ -352,6 +354,7 @@ main(int argc, char **argv)
         else if (strcmp(argv[index], "--utf8-names") == 0) g_utf8_names = true;
         else if (strcmp(argv[index], "--buildings") == 0)  buildings = true;
         else if (strcmp(argv[index], "--units") == 0)      units = true;
+        else if (strcmp(argv[index], "--bases") == 0)      bases = true;
         else if (strcmp(argv[index], "--name-index") == 0)
         {
             if (index + 1 < argc) name_index_path = argv[++index];
@@ -361,7 +364,7 @@ main(int argc, char **argv)
     }
     if (!path || usage_error)
     {
-        fprintf(stderr, "usage: save_dump <file.s11> [--all-slots] [--utf8-names] [--name-index <Scenario.s11>] [--buildings] [--units]\n");
+        fprintf(stderr, "usage: save_dump <file.s11> [--all-slots] [--utf8-names] [--name-index <Scenario.s11>] [--buildings] [--units] [--bases]\n");
         return 2;
     }
 
@@ -435,6 +438,19 @@ main(int argc, char **argv)
         {
             if (!all_slots && save.units[index].officers[0] == OFFICER_ID_NONE) continue;   /* the free records */
             dump_unit(&json, save.units + index);
+        }
+        json_close(&json, ']');
+    }
+    if (bases)
+    {
+        json_open(&json, "bases", '[');
+        for (u32 index = 0; index < save.base_count; ++index)
+        {
+            json_open(&json, 0, '{');
+            json_uint(&json, "id", save.bases[index].id);
+            json_uint(&json, "owner_force", save.bases[index].owner_force_id);
+            json_uint(&json, "soldiers", save.bases[index].soldiers);
+            json_close(&json, '}');
         }
         json_close(&json, ']');
     }

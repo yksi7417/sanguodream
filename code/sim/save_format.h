@@ -87,7 +87,8 @@ enum save_payload_offset
     SAVE_PAYLOAD_UNIT_ARRAY                    = 0x086B71,   /* M11: the troop unit array, 98 bytes a record */
     SAVE_PAYLOAD_AFTER_UNIT_ARRAY              = 0x08803B,   /* the next table of the payload */
     SAVE_PAYLOAD_ITEM_ARRAY                    = 0x07F0E8,
-    SAVE_PAYLOAD_CITY_ARRAY                    = 0x0830FF
+    SAVE_PAYLOAD_CITY_ARRAY                    = 0x0830FF,
+    SAVE_PAYLOAD_BASE_ARRAY                    = 0x08428D    /* the gate and port records, 70 bytes a record (spec 9632e15) */
 };
 
 #define SAVE_OFFICER_RECORD_SIZE  203
@@ -352,6 +353,26 @@ struct unit_record
     u16 x, y;                                /* the hex: x the column, y the row */
 };
 
+/* ---- gate and port record (save-file.md, spec 9632e15; Q-183) ------------- */
+
+#define SAVE_BASE_RECORD_SIZE   70
+#define SAVE_BASE_RECORD_COUNT  45      /* record k is base 42 + k: gates 42..51, ports 52..86 */
+#define SAVE_BASE_FIRST_ID      42
+#define SAVE_BASE_NO_OWNER      255     /* +9: no owner; the other fields are then 0 */
+
+enum base_record_offset
+{
+    BASE_OWNER_FORCE = 9,    /* u8 */
+    BASE_SOLDIERS    = 10    /* u16. +14 and +18 are perhaps the gold and the grain: not verified, not read */
+};
+
+struct base_record
+{
+    u8  id;                  /* the base id, 42..86 */
+    u8  owner_force_id;      /* SAVE_BASE_NO_OWNER for none */
+    u16 soldiers;
+};
+
 struct save_file
 {
     save_header     header;
@@ -370,6 +391,8 @@ struct save_file
     u32             building_count;
     unit_record    *units;           /* M11: SAVE_UNIT_CAPACITY, index = unit index */
     u32             unit_count;
+    base_record    *bases;           /* SAVE_BASE_RECORD_COUNT, index = base id - SAVE_BASE_FIRST_ID */
+    u32             base_count;
 };
 
 struct save_load_result

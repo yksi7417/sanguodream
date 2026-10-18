@@ -294,6 +294,11 @@ test_build_save_file(u8 *file, memory_arena *arena)
     u8 *late = payload + 0x086B71 + 98 * 55;
     late[0] = 0xB5; late[1] = 0x01;   /* the leader 437 */
     late[23] = 91; late[25] = 46;
+    /* The gate and port records at 0x08428D (spec 9632e15): record 30 is base 72 (皖口港). */
+    u8 *port = payload + 0x08428D + 70 * 30;
+    port[9] = 6; port[10] = 0x7A; port[11] = 0x18;   /* owner 6, 6266 soldiers */
+    u8 *free_port = payload + 0x08428D + 70 * 33;
+    free_port[9] = 255;                              /* base 75: no owner */
 
     u64 stream_size = test_zlib_store(payload, payload_length, file + 0x1BF);
     test_build_save_header(file, payload_length, (u32)stream_size);
@@ -333,6 +338,10 @@ unit_save_load_tests(test_counts *counts)
     TEST_CHECK(counts, save.units[5].x == 135 && save.units[5].y == 129, "the hex of unit 5 is read from +23 x and +25 y");
     TEST_CHECK(counts, save.units[55].officers[0] == 437 && save.units[55].x == 91 && save.units[55].y == 46,
                "record 55 past 0x08803B is a unit record of the same stride");
+    TEST_CHECK(counts, save.base_count == 45 && save.bases[30].id == 72 && save.bases[30].owner_force_id == 6 && save.bases[30].soldiers == 6266,
+               "the base record of 皖口港 (base 72) gives the owner at +9 and the soldiers at +10");
+    TEST_CHECK(counts, save.bases[0].id == 42 && save.bases[33].id == 75 && save.bases[33].owner_force_id == SAVE_BASE_NO_OWNER,
+               "record k of the base array is base 42 + k; 255 at +9 is no owner");
 
     u64 used_after_load = arena.used;
     TEST_CHECK(counts, save_load(&arena, file, 0x100, &save).status == SAVE_LOAD_FILE_TOO_SMALL, "a file shorter than the header is refused");
@@ -358,7 +367,8 @@ unit_save_load_tests(test_counts *counts)
     u64 before_second_load = arena.used;
     save_load(&arena, file, file_size, &save);
     u64 record_bytes = 1100 * sizeof(officer_record) + 42 * sizeof(city_record) + 50 * sizeof(item_record) +
-                       SAVE_BUILDING_COUNT * sizeof(building_record) + SAVE_UNIT_CAPACITY * sizeof(unit_record);   /* M11 */
+                       SAVE_BUILDING_COUNT * sizeof(building_record) + SAVE_UNIT_CAPACITY * sizeof(unit_record) +   /* M11 */
+                       SAVE_BASE_RECORD_COUNT * sizeof(base_record);
     TEST_CHECK(counts, arena.used - before_second_load < record_bytes + 64, "a load keeps the records, not the payload");
 
     memory_arena small = arena_sub(&arena, Megabytes(1));

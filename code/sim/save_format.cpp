@@ -190,13 +190,22 @@ save_decode_payload(const u8 *payload, save_file *out)
         unit->x           = format_read_u16(record + UNIT_HEX_X);
         unit->y           = format_read_u16(record + UNIT_HEX_Y);
     }
+    for (u32 index = 0; index < out->base_count; ++index)
+    {
+        const u8 *record = payload + SAVE_PAYLOAD_BASE_ARRAY + SAVE_BASE_RECORD_SIZE * index;
+        base_record *base = out->bases + index;
+        base->id             = (u8)(SAVE_BASE_FIRST_ID + index);
+        base->owner_force_id = record[BASE_OWNER_FORCE];
+        base->soldiers       = format_read_u16(record + BASE_SOLDIERS);
+    }
 }
 
 /* The most arena memory save_load uses at one time: the records, the
    payload and the decoder state, each with 16 bytes for its alignment. */
 #define SAVE_LOAD_ARENA_NEED (sizeof(officer_record) * SAVE_OFFICER_SLOTS + sizeof(city_record) * SAVE_CITY_COUNT + \
                               sizeof(item_record) * SAVE_ITEM_COUNT + sizeof(building_record) * SAVE_BUILDING_COUNT + \
-                              sizeof(unit_record) * SAVE_UNIT_CAPACITY + SAVE_PAYLOAD_LENGTH + sizeof(inflate_state) + 7 * 16)
+                              sizeof(unit_record) * SAVE_UNIT_CAPACITY + sizeof(base_record) * SAVE_BASE_RECORD_COUNT + \
+                              SAVE_PAYLOAD_LENGTH + sizeof(inflate_state) + 8 * 16)
 
 /* The loader rule of save-file.md: read the two lengths at 0x1B7, inflate
    the bytes from 0x1BF to the end of the file, check the inflated length
@@ -245,6 +254,8 @@ save_load(memory_arena *arena, const u8 *file, u64 file_size, save_file *out)
     out->unit_count     = SAVE_UNIT_CAPACITY;
     out->buildings      = PushArray(arena, SAVE_BUILDING_COUNT, building_record);
     out->units          = PushArray(arena, SAVE_UNIT_CAPACITY, unit_record);
+    out->base_count     = SAVE_BASE_RECORD_COUNT;
+    out->bases          = PushArray(arena, SAVE_BASE_RECORD_COUNT, base_record);
 
     u64 records_mark = arena->used;
     u8 *payload = (u8 *)arena_push_size(arena, SAVE_PAYLOAD_LENGTH, 1);
