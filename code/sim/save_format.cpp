@@ -166,12 +166,35 @@ save_decode_payload(const u8 *payload, save_file *out)
     {
         item_decode(payload + SAVE_PAYLOAD_ITEM_ARRAY + SAVE_ITEM_RECORD_SIZE * item, (u8)item, out->items + item);
     }
+    /* M11: the building array and the troop unit array. */
+    for (u32 index = 0; index < out->building_count; ++index)
+    {
+        const u8 *record = payload + SAVE_PAYLOAD_BUILDING_ARRAY + SAVE_BUILDING_RECORD_SIZE * index;
+        building_record *building = out->buildings + index;
+        building->index          = (u16)index;
+        building->type           = record[BUILDING_TYPE];
+        building->owner_force_id = record[BUILDING_OWNER_FORCE];
+        building->durability     = format_read_u16(record + BUILDING_DURABILITY);
+        building->x              = format_read_u16(record + BUILDING_X);
+        building->y              = format_read_u16(record + BUILDING_Y);
+    }
+    for (u32 index = 0; index < out->unit_count; ++index)
+    {
+        const u8 *record = payload + SAVE_PAYLOAD_UNIT_ARRAY + SAVE_UNIT_RECORD_SIZE * index;
+        unit_record *unit = out->units + index;
+        unit->index       = (u8)index;
+        unit->officers[0] = format_read_u16(record + UNIT_LEADER);
+        unit->officers[1] = format_read_u16(record + UNIT_DEPUTY_1);
+        unit->officers[2] = format_read_u16(record + UNIT_DEPUTY_2);
+        unit->troops      = format_read_u16(record + UNIT_TROOPS);
+    }
 }
 
 /* The most arena memory save_load uses at one time: the records, the
    payload and the decoder state, each with 16 bytes for its alignment. */
 #define SAVE_LOAD_ARENA_NEED (sizeof(officer_record) * SAVE_OFFICER_SLOTS + sizeof(city_record) * SAVE_CITY_COUNT + \
-                              sizeof(item_record) * SAVE_ITEM_COUNT + SAVE_PAYLOAD_LENGTH + sizeof(inflate_state) + 5 * 16)
+                              sizeof(item_record) * SAVE_ITEM_COUNT + sizeof(building_record) * SAVE_BUILDING_COUNT + \
+                              sizeof(unit_record) * SAVE_UNIT_CAPACITY + SAVE_PAYLOAD_LENGTH + sizeof(inflate_state) + 7 * 16)
 
 /* The loader rule of save-file.md: read the two lengths at 0x1B7, inflate
    the bytes from 0x1BF to the end of the file, check the inflated length
@@ -216,6 +239,10 @@ save_load(memory_arena *arena, const u8 *file, u64 file_size, save_file *out)
     out->officers = PushArray(arena, SAVE_OFFICER_SLOTS, officer_record);
     out->cities   = PushArray(arena, SAVE_CITY_COUNT, city_record);
     out->items    = PushArray(arena, SAVE_ITEM_COUNT, item_record);
+    out->building_count = SAVE_BUILDING_COUNT;   /* M11 */
+    out->unit_count     = SAVE_UNIT_CAPACITY;
+    out->buildings      = PushArray(arena, SAVE_BUILDING_COUNT, building_record);
+    out->units          = PushArray(arena, SAVE_UNIT_CAPACITY, unit_record);
 
     u64 records_mark = arena->used;
     u8 *payload = (u8 *)arena_push_size(arena, SAVE_PAYLOAD_LENGTH, 1);

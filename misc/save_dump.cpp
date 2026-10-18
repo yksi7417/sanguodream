@@ -5,8 +5,11 @@
    analysis side.
 
    Usage: save_dump.exe <file.s11> [--all-slots] [--utf8-names]
-                        [--name-index <Scenario.s11>]
+                        [--name-index <Scenario.s11>] [--buildings] [--units]
      --all-slots   also print the empty officer slots (all name bytes zero)
+     --buildings   also print the building array (M11); without --all-slots
+                   only the records with a type other than 255 or a hex
+     --units       also print the troop unit array (M11)
      --utf8-names  also print each name as UTF-8 through Windows code page
                    950. That code page is the operating system's Big5 table,
                    not a mapping from the spec; use it only to read the
@@ -260,6 +263,31 @@ dump_item(json_writer *json, item_record *item)
     json_close(json, '}');
 }
 
+internal void
+dump_building(json_writer *json, building_record *building)
+{
+    json_open(json, 0, '{');
+    json_uint(json, "index", building->index);
+    json_uint(json, "type", building->type);
+    json_uint(json, "owner_force", building->owner_force_id);
+    json_uint(json, "durability", building->durability);
+    json_uint(json, "x", building->x);
+    json_uint(json, "y", building->y);
+    json_close(json, '}');
+}
+
+internal void
+dump_unit(json_writer *json, unit_record *unit)
+{
+    json_open(json, 0, '{');
+    json_uint(json, "index", unit->index);
+    json_uint(json, "leader", unit->officers[0]);
+    json_uint(json, "deputy_1", unit->officers[1]);
+    json_uint(json, "deputy_2", unit->officers[2]);
+    json_uint(json, "troops", unit->troops);
+    json_close(json, '}');
+}
+
 /* ---- cross-checks (save-file.md, City record) --------------------------- */
 
 /* For every city with a commander: the commander has status ruler, viceroy
@@ -312,12 +340,14 @@ main(int argc, char **argv)
 {
     const char *path = 0;
     const char *name_index_path = 0;
-    b32 all_slots = false;
+    b32 all_slots = false, buildings = false, units = false;
     b32 usage_error = false;
     for (int index = 1; index < argc; ++index)
     {
         if (strcmp(argv[index], "--all-slots") == 0)       all_slots = true;
         else if (strcmp(argv[index], "--utf8-names") == 0) g_utf8_names = true;
+        else if (strcmp(argv[index], "--buildings") == 0)  buildings = true;
+        else if (strcmp(argv[index], "--units") == 0)      units = true;
         else if (strcmp(argv[index], "--name-index") == 0)
         {
             if (index + 1 < argc) name_index_path = argv[++index];
@@ -327,7 +357,7 @@ main(int argc, char **argv)
     }
     if (!path || usage_error)
     {
-        fprintf(stderr, "usage: save_dump <file.s11> [--all-slots] [--utf8-names] [--name-index <Scenario.s11>]\n");
+        fprintf(stderr, "usage: save_dump <file.s11> [--all-slots] [--utf8-names] [--name-index <Scenario.s11>] [--buildings] [--units]\n");
         return 2;
     }
 
@@ -383,6 +413,23 @@ main(int argc, char **argv)
     json_open(&json, "items", '[');
     for (u32 item = 0; item < save.item_count; ++item) dump_item(&json, save.items + item);
     json_close(&json, ']');
+    if (buildings)
+    {
+        json_open(&json, "buildings", '[');
+        for (u32 index = 0; index < save.building_count; ++index)
+        {
+            building_record *building = save.buildings + index;
+            if (!all_slots && building->type == 255 && building->x == 0 && building->y == 0) continue;
+            dump_building(&json, building);
+        }
+        json_close(&json, ']');
+    }
+    if (units)
+    {
+        json_open(&json, "units", '[');
+        for (u32 index = 0; index < save.unit_count; ++index) dump_unit(&json, save.units + index);
+        json_close(&json, ']');
+    }
     printf("\n}\n");
 
     u32 failures = save_cross_check(&save);

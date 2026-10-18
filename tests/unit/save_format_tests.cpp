@@ -279,6 +279,16 @@ test_build_save_file(u8 *file, memory_arena *arena)
     test_put_u32(city, 16, 5000);
     payload[0x07F0E8 + 53] = 0x57;   /* item 0: owner 343 = 0x0157 */
     payload[0x07F0E8 + 54] = 0x01;
+    /* M11: building record 87 is a mint (type 38) with 1000 durability on (122, 142). */
+    u8 *building = payload + 0x0008A3 + 18 * 87;
+    building[1] = 38;  building[2] = 255;
+    building[3] = 0xE8; building[4] = 0x03;
+    building[14] = 122; building[16] = 142;
+    /* M11: unit 5 has the leader 343, no deputies and 3000 troops. */
+    u8 *unit = payload + 0x086B71 + 98 * 5;
+    unit[0] = 0x57; unit[1] = 0x01;
+    unit[2] = 0xFF; unit[3] = 0xFF; unit[4] = 0xFF; unit[5] = 0xFF;
+    unit[6] = 0xB8; unit[7] = 0x0B;
 
     u64 stream_size = test_zlib_store(payload, payload_length, file + 0x1BF);
     test_build_save_header(file, payload_length, (u32)stream_size);
@@ -309,6 +319,12 @@ unit_save_load_tests(test_counts *counts)
     TEST_CHECK(counts, save.cities[36].id == 36 && save.cities[36].commanding_officer_id == 343 &&
                        save.cities[36].owner_force_id == 10 && save.cities[36].gold == 5000, "city 36 is read from its slot");
     TEST_CHECK(counts, save.items[0].owner_officer_id == 343, "item 0 is read from its slot");
+    TEST_CHECK(counts, save.building_count == 16384 && save.buildings[87].type == 38 && save.buildings[87].owner_force_id == 255 &&
+                       save.buildings[87].durability == 1000 && save.buildings[87].x == 122 && save.buildings[87].y == 142,
+               "building record 87 is read from its slot (M11)");
+    TEST_CHECK(counts, save.unit_count == 54 && save.units[5].officers[0] == 343 && save.units[5].officers[1] == OFFICER_ID_NONE &&
+                       save.units[5].officers[2] == OFFICER_ID_NONE && save.units[5].troops == 3000,
+               "unit 5 is read from its slot; the array has 54 records before the next table (M11)");
 
     u64 used_after_load = arena.used;
     TEST_CHECK(counts, save_load(&arena, file, 0x100, &save).status == SAVE_LOAD_FILE_TOO_SMALL, "a file shorter than the header is refused");
@@ -333,7 +349,8 @@ unit_save_load_tests(test_counts *counts)
 
     u64 before_second_load = arena.used;
     save_load(&arena, file, file_size, &save);
-    u64 record_bytes = 1100 * sizeof(officer_record) + 42 * sizeof(city_record) + 50 * sizeof(item_record);
+    u64 record_bytes = 1100 * sizeof(officer_record) + 42 * sizeof(city_record) + 50 * sizeof(item_record) +
+                       SAVE_BUILDING_COUNT * sizeof(building_record) + SAVE_UNIT_CAPACITY * sizeof(unit_record);   /* M11 */
     TEST_CHECK(counts, arena.used - before_second_load < record_bytes + 64, "a load keeps the records, not the payload");
 
     memory_arena small = arena_sub(&arena, Megabytes(1));

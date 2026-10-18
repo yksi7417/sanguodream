@@ -82,7 +82,10 @@ enum save_payload_offset
     SAVE_PAYLOAD_SCENARIO_START_YEAR           = 0x000001,   /* u16 */
     SAVE_PAYLOAD_SCENARIO_START_MONTH          = 0x000003,   /* u8 */
     SAVE_PAYLOAD_SCENARIO_START_TEN_DAY_PERIOD = 0x000004,   /* u8 */
+    SAVE_PAYLOAD_BUILDING_ARRAY                = 0x0008A3,   /* M11: 16384 records of 18 bytes */
     SAVE_PAYLOAD_OFFICER_ARRAY                 = 0x0488A4,
+    SAVE_PAYLOAD_UNIT_ARRAY                    = 0x086B71,   /* M11: the troop unit array, 98 bytes a record */
+    SAVE_PAYLOAD_AFTER_UNIT_ARRAY              = 0x08803B,   /* the next table of the payload */
     SAVE_PAYLOAD_ITEM_ARRAY                    = 0x07F0E8,
     SAVE_PAYLOAD_CITY_ARRAY                    = 0x0830FF
 };
@@ -298,6 +301,50 @@ enum save_load_status
     SAVE_LOAD_STATUS_COUNT
 };
 
+/* ---- building record and troop unit record (save-file.md, M11) ------------ */
+
+#define SAVE_BUILDING_RECORD_SIZE 18
+#define SAVE_BUILDING_COUNT       16384
+#define SAVE_BUILDING_BASE_COUNT  87      /* records 0..86: the bases in region order */
+#define SAVE_UNIT_RECORD_SIZE     98
+/* The unit array ends where the next table starts: 54 records. */
+#define SAVE_UNIT_CAPACITY        ((SAVE_PAYLOAD_AFTER_UNIT_ARRAY - SAVE_PAYLOAD_UNIT_ARRAY) / SAVE_UNIT_RECORD_SIZE)
+#define SAVE_UNIT_OFFICER_SLOTS   3       /* the leader and two deputies */
+#define SAVE_UNIT_LOCATION_BASE   87      /* officer +98: 87 + the unit index */
+
+enum building_record_offset
+{
+    BUILDING_TYPE        = 1,    /* u8: 0 city, 1 gate, 2 port, then the facility types of facility-types.tsv */
+    BUILDING_OWNER_FORCE = 2,    /* u8 */
+    BUILDING_DURABILITY  = 3,    /* u16 */
+    BUILDING_X           = 14,   /* u16 */
+    BUILDING_Y           = 16    /* u16 */
+};
+
+struct building_record
+{
+    u16 index;
+    u8  type;
+    u8  owner_force_id;
+    u16 durability;
+    u16 x, y;
+};
+
+enum unit_record_offset
+{
+    UNIT_LEADER   = 0,   /* u16 officer id */
+    UNIT_DEPUTY_1 = 2,   /* u16 officer id */
+    UNIT_DEPUTY_2 = 4,   /* u16 officer id */
+    UNIT_TROOPS   = 6    /* u16 */
+};
+
+struct unit_record
+{
+    u8  index;
+    u16 officers[SAVE_UNIT_OFFICER_SLOTS];   /* [0] the leader; OFFICER_ID_NONE for an empty slot */
+    u16 troops;
+};
+
 struct save_file
 {
     save_header     header;
@@ -312,6 +359,10 @@ struct save_file
     u32             city_count;
     item_record    *items;           /* SAVE_ITEM_COUNT, index = item id */
     u32             item_count;
+    building_record *buildings;      /* M11: SAVE_BUILDING_COUNT, every record, empty ones too */
+    u32             building_count;
+    unit_record    *units;           /* M11: SAVE_UNIT_CAPACITY, index = unit index */
+    u32             unit_count;
 };
 
 struct save_load_result
