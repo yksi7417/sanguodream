@@ -13,6 +13,7 @@
 #define DEMO_M10_NAME          "m10_map"
 #define DEMO_M11_NAME          "m11_save_map"
 #define DEMO_M12_NAME          "m12_main_map"
+#define DEMO_M14_NAME          "m14_game_screens"
 
 /* build\demos, with no last backslash. demo_player.cpp sets it. */
 global_variable char g_demo_output_dir[MAX_PATH];
@@ -48,7 +49,7 @@ demo_gui(ImGuiTestContext *ctx)
         /* The walkthroughs of M0 to M9 play on the placeholder board that
            they were made for; the walkthrough of M10 shows the real map. */
         config.use_pack_map     = strcmp(ctx->Test->Name, DEMO_M10_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M11_NAME) == 0 ||
-                                  strcmp(ctx->Test->Name, DEMO_M12_NAME) == 0;
+                                  strcmp(ctx->Test->Name, DEMO_M12_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M14_NAME) == 0;
         v.backend = engine_create(&v.permanent, &v.transient, config);
         v.api     = engine_make_api(v.backend);
         text_catalog_init(&v.text, arena_sub(&v.permanent, Megabytes(4)), test_platform_read_entire_file,
@@ -1744,6 +1745,105 @@ demo_m12_main_map(ImGuiTestContext *ctx)
     IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Bases", "bases"));
 }
 
+/* M14 (the game screens; the request of the user, main-map.md and
+   screen-flow.md): the game mode shows only the HUD and the list at the
+   top left and the mini map at the bottom right. A click on 柴桑 in the
+   list frames it, and a right click opens its City dialog next to the
+   cursor. 巡察 runs and the dialog closes. A right click on the empty map
+   opens the map menu, and 進行 ends the turn. Q turns the view smoothly. */
+internal void
+demo_m14_game_screens(ImGuiTestContext *ctx)
+{
+    const char *milestone = DEMO_M14_NAME;
+    demo_vars &v = ctx->GetVars<demo_vars>();
+    engine_api *api = &v.api;
+    void *e = api->engine;
+    IM_CHECK(api->map_info(e).real_map);
+    IM_CHECK(demo_open_panel(ctx, "Simulation", &v.ui.show_sim));
+    ctx->SetRef("Simulation");
+    ctx->ItemClick("Load sample save");
+    ctx->Yield();
+    IM_CHECK_EQ(api->city_count(e), 42u);
+    ui_enter_game(&v.ui);   /* as a load from the title */
+    ctx->Yield(2);
+    IM_CHECK(demo_begin_video(ctx, milestone));
+    IM_CHECK(ctx->WindowInfo("//###HUD").Window != 0 && v.ui.show_minimap);
+    ImGuiWindow *bar = ctx->WindowInfo("//##MainMenuBar", ImGuiTestOpFlags_NoError).Window;
+    IM_CHECK(bar == 0 || !bar->Active);   /* no debug panels */
+    u8 force = api->whose_turn(e);
+    IM_CHECK_EQ(api->city_at(e, 26).owner_force_id, force);
+    ctx->SleepStandard();
+
+    /* 柴桑 from the list: a click frames it, a right click opens its dialog. */
+    engine_city_slots chaisang = api->city_slots(e, 26);
+    ctx->SetRef("//###HUD");
+    ctx->ItemClick("**/###hud_row0_26");
+    ctx->Yield(2);
+    IM_CHECK(demo_camera_on(v, hex_make(chaisang.q, chaisang.r)));
+    ctx->SleepStandard();
+    ctx->ItemClick("**/###hud_row0_26", ImGuiMouseButton_Right);
+    ctx->Yield(2);
+    IM_CHECK(v.ui.show_city && v.ui.context.kind == UI_CONTEXT_CITY);
+    ctx->SleepStandard();
+
+    /* 巡察: the command runs, and the dialog closes after it. */
+    ctx->SetRef("###City");
+    ctx->ItemClick("###open_patrol");
+    ctx->Yield();
+    IM_CHECK(v.ui.show_command[UI_COMMAND_PATROL]);
+    ctx->SleepStandard();
+    u32 ledger = api->ledger_count(e);
+    ctx->SetRef("###Patrol");
+    ctx->ItemClick("###decide");
+    ctx->Yield(2);
+    IM_CHECK(api->ledger_count(e) > ledger && !v.ui.show_city && v.ui.context.kind == UI_CONTEXT_NONE);
+    ctx->SleepStandard();
+
+    /* A right click on an empty hex near 柴桑 opens the map menu; 進行 ends the turn. */
+    ImVec2 display = ImGui::GetIO().DisplaySize;
+    m4 view_projection = camera_view_projection(&v.ui.scene.cam, display.x, display.y);
+    hex_offset centre = hex_to_offset(hex_make(chaisang.q, chaisang.r));
+    ImVec2 empty(0.0f, 0.0f);
+    for (s32 step = 0; step < 13 * 9 && empty.x == 0.0f; ++step)
+    {
+        hex_offset cell = { centre.col + step % 13 - 6, centre.row + step / 13 - 4 };
+        hex_coord hex = hex_from_offset(cell);
+        engine_hex data = api->hex_at(e, hex.q, hex.r);
+        f32 x = 0.0f, y = 0.0f;
+        if (data.on_map && data.city_id == ENGINE_NO_CITY && data.unit_id == ENGINE_NO_UNIT && data.base_id == ENGINE_NO_BASE &&
+            camera_project(view_projection, hex_world_center(hex, 0.0f), display.x, display.y, &x, &y) &&
+            x > display.x * 0.35f && x < display.x * 0.75f && y > display.y * 0.15f && y < display.y * 0.6f)
+        {
+            empty = ImVec2(x, y);
+        }
+    }
+    IM_CHECK(empty.x != 0.0f);
+    ctx->MouseMoveToPos(empty);
+    ctx->MouseClick(ImGuiMouseButton_Right);
+    ctx->Yield(2);
+    IM_CHECK_EQ(v.ui.context.kind, (u8)UI_CONTEXT_MAP_MENU);
+    ctx->SleepStandard();
+    u32 turn = api->turn(e);
+    ctx->SetRef("//###MapMenu");
+    ctx->ItemClick("###proceed");
+    ctx->Yield(2);
+    IM_CHECK(api->turn(e) != turn || api->whose_turn(e) != force);
+    IM_CHECK_EQ(v.ui.context.kind, (u8)UI_CONTEXT_NONE);
+    ctx->SleepStandard();
+
+    /* Q turns the view smoothly while it is down. */
+    ImGui::FocusWindow(0);
+    ctx->Yield();
+    f32 yaw = v.ui.scene.cam.yaw;
+    ctx->KeyDown(ImGuiKey_Q); ctx->Sleep(0.8f); ctx->KeyUp(ImGuiKey_Q);
+    IM_CHECK_LT(demo_turn_between(yaw, v.ui.scene.cam.yaw), 0.0f);
+    ctx->SleepStandard();
+
+    IM_CHECK(demo_end_video(ctx));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###HUD", "hud"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###MiniMap", "minimap"));
+}
+
 internal void
 register_demo_tests(ImGuiTestEngine *e)
 {
@@ -1813,4 +1913,9 @@ register_demo_tests(ImGuiTestEngine *e)
     t->SetVarsDataType<demo_vars>();
     t->GuiFunc  = demo_gui;
     t->TestFunc = demo_m12_main_map;
+
+    t = IM_REGISTER_TEST(e, "demo", DEMO_M14_NAME);
+    t->SetVarsDataType<demo_vars>();
+    t->GuiFunc  = demo_gui;
+    t->TestFunc = demo_m14_game_screens;
 }

@@ -1446,7 +1446,7 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->ItemClick("###start_ok");
         ctx->Yield(2);
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_SET_SETTINGS), 1u);
-        IM_CHECK(v.recorder.settings.difficulty == DIFFICULTY_HARD && v.ui.show_topbar && v.ui.show_history && !v.ui.show_title);
+        IM_CHECK(v.recorder.settings.difficulty == DIFFICULTY_HARD && v.ui.hud_mode && v.ui.show_minimap && !v.ui.show_title);   /* the game mode */
     };
 
     t = IM_REGISTER_TEST(e, "ui", "topbar_proceed_issues_one_end_turn");
@@ -1517,7 +1517,7 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOAD_GAME), 1u);
         IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_LOAD_GAME), 1u);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
-        IM_CHECK(v.ui.show_topbar && !v.ui.show_saveload);
+        IM_CHECK(v.ui.hud_mode && !v.ui.show_saveload);   /* the load starts the game mode */
     };
 
     t = IM_REGISTER_TEST(e, "ui", "new_officer_dialog_issues_one_create_officer");
@@ -2040,6 +2040,128 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_GT(v.ui.scene.cam.target.x, centred.x + 1.0f);   /* east */
         IM_CHECK_LT(fabsf(v.ui.scene.cam.target.z - centred.z), 1.5f);
         IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_TERRAIN_KIND_AT), 1u);   /* the road kinds */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* The game mode: the HUD at the top left shows the date, the points and
+       the list; the debug menu bar hides until F12. The HUD commands nothing. */
+    t = IM_REGISTER_TEST(e, "ui", "hud_shows_the_status_and_the_list_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.hud_mode            = true;
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK(ctx->WindowInfo("//###HUD").Window != 0);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_ACTIONS_LEFT), 1u);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_TECHNIQUE_POINTS), 1u);
+        ImGuiWindow *bar = ctx->WindowInfo("//##MainMenuBar", ImGuiTestOpFlags_NoError).Window;
+        IM_CHECK(bar == 0 || !bar->Active);                                   /* no debug menu bar */
+        ctx->SetRef("//###HUD");
+        IM_CHECK(ctx->ItemInfo("**/###hud_row0_0", ImGuiTestOpFlags_NoError).ID != 0);   /* city 0: its officers can act */
+        IM_CHECK(ctx->ItemInfo("**/###hud_row0_1", ImGuiTestOpFlags_NoError).ID != 0);   /* city 1: grey */
+        ctx->KeyPress(ImGuiKey_F12);
+        ctx->Yield(2);
+        IM_CHECK(v.ui.show_debug_panels);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* The game mode: a click on a row of the list frames the city; a right
+       click opens its dialog; a right click outside the dialog closes it. */
+    t = IM_REGISTER_TEST(e, "ui", "hud_row_frames_and_right_click_opens_and_closes_the_city_dialog");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.hud_mode            = true;
+        v.ui.scene.headless      = true;   /* the camera follows the list */
+        v.ui.show_city           = false;
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->SetRef("//###HUD");
+        ImGuiTestItemInfo row = ctx->ItemInfo("**/###hud_row0_1");
+        IM_CHECK(row.ID != 0);
+        ctx->ItemClick(row.ID);
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.city.selected, 1);
+        v3 expected = hex_world_center(hex_make(3, 1), v.ui.scene.cam.target.y);   /* the scripted centre of city 1 */
+        IM_CHECK(fabsf(v.ui.scene.cam.target.x - expected.x) < 1e-3f && fabsf(v.ui.scene.cam.target.z - expected.z) < 1e-3f);
+        IM_CHECK(!v.ui.show_city);                                            /* a left click only frames */
+        ctx->ItemClick(row.ID, ImGuiMouseButton_Right);
+        ctx->Yield(2);
+        IM_CHECK(v.ui.show_city && v.ui.context.kind == UI_CONTEXT_CITY);
+        ImVec2 display = ImGui::GetIO().DisplaySize;
+        ctx->MouseMoveToPos(ImVec2(display.x * 0.8f, display.y * 0.5f));   /* the empty map */
+        ctx->MouseClick(ImGuiMouseButton_Right);
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.show_city && v.ui.context.kind == UI_CONTEXT_NONE);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* The game mode: 進行 of the map menu ends the turn with one command and closes the menu. */
+    t = IM_REGISTER_TEST(e, "ui", "map_menu_proceed_issues_one_end_turn");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.ui.hud_mode = true;
+        ctx->Yield();
+        ui_context_open(&v.ui, &v.api, UI_CONTEXT_MAP_MENU, 400.0f, 300.0f);
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->SetRef("//###MapMenu");
+        ctx->ItemClick("###proceed");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_END_TURN), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK_EQ(v.ui.context.kind, (u8)UI_CONTEXT_NONE);
+    };
+
+    /* The game mode: a right click on a city of the scene opens the City
+       dialog; a right click on the empty map opens the map menu. */
+    t = IM_REGISTER_TEST(e, "ui", "scene_right_click_opens_the_city_dialog_or_the_map_menu");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.city_count = 2;
+        v.ui.hud_mode         = true;
+        v.ui.scene.headless   = true;
+        v.ui.show_city        = false;
+        v.ui.show_map         = false;
+        v.ui.show_officers    = v.ui.show_cities = false;   /* nothing covers the map */
+        ctx->Yield(2);
+        hex_offset city_cell = { RECORDER_CITY_COL, RECORDER_CITY_ROW };
+        ui_frame_hex(&v.ui, &v.api, hex_from_offset(city_cell));   /* the city hex is at the centre of the screen */
+        v.ui.scene.cam.target.y = 0.0f;                            /* the pick meets the ground plane */
+        v.ui.scene.framed_city = v.ui.city.selected;
+        ctx->Yield(3);
+        recorder_reset(&v.recorder);
+        ImVec2 display = ImGui::GetIO().DisplaySize;
+        ImVec2 centre(display.x * 0.5f, display.y * 0.5f);
+        ctx->MouseMoveToPos(centre);
+        ctx->MouseClick(ImGuiMouseButton_Right);
+        ctx->Yield(2);
+        IM_CHECK(v.ui.context.kind == UI_CONTEXT_CITY && v.ui.show_city && v.ui.city.selected == 0);
+        ctx->MouseMoveToPos(ImVec2(display.x * 0.1f, display.y * 0.9f));
+        ctx->MouseClick(ImGuiMouseButton_Right);                             /* outside: closes, and opens nothing */
+        ctx->Yield(2);
+        IM_CHECK(v.ui.context.kind == UI_CONTEXT_NONE && !v.ui.show_city);
+        ctx->MouseMoveToPos(ImVec2(centre.x + 60.0f, centre.y));             /* a hex of the map without a city */
+        ctx->MouseClick(ImGuiMouseButton_Right);                             /* the empty map: the map menu */
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.context.kind, (u8)UI_CONTEXT_MAP_MENU);
+        IM_CHECK(ctx->WindowInfo("//###MapMenu").Window != 0);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
