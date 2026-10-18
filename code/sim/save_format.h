@@ -307,8 +307,12 @@ enum save_load_status
 #define SAVE_BUILDING_COUNT       16384
 #define SAVE_BUILDING_BASE_COUNT  87      /* records 0..86: the bases in region order */
 #define SAVE_UNIT_RECORD_SIZE     98
-/* The unit array ends where the next table starts: 54 records. */
-#define SAVE_UNIT_CAPACITY        ((SAVE_PAYLOAD_AFTER_UNIT_ARRAY - SAVE_PAYLOAD_UNIT_ARRAY) / SAVE_UNIT_RECORD_SIZE)
+/* The unit array does not end at 0x08803B: in sample.s11 the records 54 to
+   56 hold units at the same stride (spec 7fff546 counts 56 units). The spec
+   gives no end. The engine reads the records that fit before the end of
+   the 98 x 334 table at 0x08803B, 388 records (assumed, Q-216). */
+#define SAVE_UNIT_TABLE_RECORDS   334
+#define SAVE_UNIT_CAPACITY        ((SAVE_PAYLOAD_AFTER_UNIT_ARRAY + SAVE_UNIT_RECORD_SIZE * SAVE_UNIT_TABLE_RECORDS - SAVE_PAYLOAD_UNIT_ARRAY) / SAVE_UNIT_RECORD_SIZE)
 #define SAVE_UNIT_OFFICER_SLOTS   3       /* the leader and two deputies */
 #define SAVE_UNIT_LOCATION_BASE   87      /* officer +98: 87 + the unit index */
 
@@ -335,7 +339,9 @@ enum unit_record_offset
     UNIT_LEADER   = 0,   /* u16 officer id */
     UNIT_DEPUTY_1 = 2,   /* u16 officer id */
     UNIT_DEPUTY_2 = 4,   /* u16 officer id */
-    UNIT_TROOPS   = 6    /* u16 */
+    UNIT_TROOPS   = 6,   /* u16 */
+    UNIT_HEX_X    = 23,  /* u16: the hex x on the map axes of map-data.md (spec 7fff546, Q-211) */
+    UNIT_HEX_Y    = 25   /* u16: the hex y */
 };
 
 struct unit_record
@@ -343,6 +349,7 @@ struct unit_record
     u8  index;
     u16 officers[SAVE_UNIT_OFFICER_SLOTS];   /* [0] the leader; OFFICER_ID_NONE for an empty slot */
     u16 troops;
+    u16 x, y;                                /* the hex: x the column, y the row */
 };
 
 struct save_file

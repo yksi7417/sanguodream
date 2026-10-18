@@ -9,7 +9,9 @@
      --all-slots   also print the empty officer slots (all name bytes zero)
      --buildings   also print the building array (M11); without --all-slots
                    only the records with a type other than 255 or a hex
-     --units       also print the troop unit array (M11)
+     --units       also print the troop unit array (M11) with the hex of
+                   each unit; without --all-slots only the records with a
+                   leader
      --utf8-names  also print each name as UTF-8 through Windows code page
                    950. That code page is the operating system's Big5 table,
                    not a mapping from the spec; use it only to read the
@@ -285,6 +287,8 @@ dump_unit(json_writer *json, unit_record *unit)
     json_uint(json, "deputy_1", unit->officers[1]);
     json_uint(json, "deputy_2", unit->officers[2]);
     json_uint(json, "troops", unit->troops);
+    json_uint(json, "x", unit->x);
+    json_uint(json, "y", unit->y);
     json_close(json, '}');
 }
 
@@ -427,7 +431,11 @@ main(int argc, char **argv)
     if (units)
     {
         json_open(&json, "units", '[');
-        for (u32 index = 0; index < save.unit_count; ++index) dump_unit(&json, save.units + index);
+        for (u32 index = 0; index < save.unit_count; ++index)
+        {
+            if (!all_slots && save.units[index].officers[0] == OFFICER_ID_NONE) continue;   /* the free records */
+            dump_unit(&json, save.units + index);
+        }
         json_close(&json, ']');
     }
     printf("\n}\n");

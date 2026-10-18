@@ -187,6 +187,8 @@ save_decode_payload(const u8 *payload, save_file *out)
         unit->officers[1] = format_read_u16(record + UNIT_DEPUTY_1);
         unit->officers[2] = format_read_u16(record + UNIT_DEPUTY_2);
         unit->troops      = format_read_u16(record + UNIT_TROOPS);
+        unit->x           = format_read_u16(record + UNIT_HEX_X);
+        unit->y           = format_read_u16(record + UNIT_HEX_Y);
     }
 }
 

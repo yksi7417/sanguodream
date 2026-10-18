@@ -289,6 +289,11 @@ test_build_save_file(u8 *file, memory_arena *arena)
     unit[0] = 0x57; unit[1] = 0x01;
     unit[2] = 0xFF; unit[3] = 0xFF; unit[4] = 0xFF; unit[5] = 0xFF;
     unit[6] = 0xB8; unit[7] = 0x0B;
+    unit[23] = 135; unit[24] = 0; unit[25] = 129; unit[26] = 0;   /* the hex 135,129 (spec 7fff546) */
+    /* Record 55 lies past 0x08803B: the array goes on (sample.s11 has units 54 to 56). */
+    u8 *late = payload + 0x086B71 + 98 * 55;
+    late[0] = 0xB5; late[1] = 0x01;   /* the leader 437 */
+    late[23] = 91; late[25] = 46;
 
     u64 stream_size = test_zlib_store(payload, payload_length, file + 0x1BF);
     test_build_save_header(file, payload_length, (u32)stream_size);
@@ -322,9 +327,12 @@ unit_save_load_tests(test_counts *counts)
     TEST_CHECK(counts, save.building_count == 16384 && save.buildings[87].type == 38 && save.buildings[87].owner_force_id == 255 &&
                        save.buildings[87].durability == 1000 && save.buildings[87].x == 122 && save.buildings[87].y == 142,
                "building record 87 is read from its slot (M11)");
-    TEST_CHECK(counts, save.unit_count == 54 && save.units[5].officers[0] == 343 && save.units[5].officers[1] == OFFICER_ID_NONE &&
+    TEST_CHECK(counts, save.unit_count == 388 && save.units[5].officers[0] == 343 && save.units[5].officers[1] == OFFICER_ID_NONE &&
                        save.units[5].officers[2] == OFFICER_ID_NONE && save.units[5].troops == 3000,
-               "unit 5 is read from its slot; the array has 54 records before the next table (M11)");
+               "unit 5 is read from its slot; the array has 388 records up to the end of the table at 0x08803B (Q-216)");
+    TEST_CHECK(counts, save.units[5].x == 135 && save.units[5].y == 129, "the hex of unit 5 is read from +23 x and +25 y");
+    TEST_CHECK(counts, save.units[55].officers[0] == 437 && save.units[55].x == 91 && save.units[55].y == 46,
+               "record 55 past 0x08803B is a unit record of the same stride");
 
     u64 used_after_load = arena.used;
     TEST_CHECK(counts, save_load(&arena, file, 0x100, &save).status == SAVE_LOAD_FILE_TOO_SMALL, "a file shorter than the header is refused");
