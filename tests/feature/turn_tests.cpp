@@ -4,7 +4,7 @@
    10 and grain.soldiers 100 (both assumed). */
 
 #define FEATURE_SALARY         10
-#define FEATURE_GRAIN_SOLDIERS 100
+#define FEATURE_GRAIN_SOLDIERS 40    /* grain.soldiers, observed (fixtures/grain-consumption.tsv) */
 /* The header of sample.s11 names the player's ruler with the Big5 bytes
    BC42 AAED (劉表; save_dump.exe prints player_ruler_name_big5_hex). */
 global_variable const u8 feature_player_family[] = { 0xBC, 0x42 };
@@ -264,7 +264,7 @@ feature_turn_order_sample_tests(test_counts *counts)
     TEST_CHECK(counts, (s64)after.gold - (s64)before.gold == (s64)slots.gold_income - (s64)salaries,
                "on day 1 the city gains its gold income and pays the salaries of its officers");
     TEST_CHECK(counts, (s64)after.food - (s64)before.food == (s64)slots.grain_income - (s64)(before.troops / FEATURE_GRAIN_SOLDIERS),
-               "at a season start the city gains its grain income, and each turn it eats one grain for each 100 soldiers");
+               "at a season start the city gains its grain income, and each turn it eats one grain for each 40 soldiers");
     sim_event income = {}, grain = {}, eaten = {}, paid = {};
     TEST_CHECK(counts, feature_find_event(api, SIM_EVENT_GOLD_INCOME, mark, &income) && income.assumed &&
                        feature_find_event(api, SIM_EVENT_SALARIES_PAID, mark, &paid) && paid.assumed && paid.delta < 0,

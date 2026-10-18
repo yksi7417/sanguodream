@@ -333,8 +333,8 @@ feature_move_tests(test_counts *counts)
     mark = api->ledger_count(e);
     feature_next_own_turn(api, force);
     sim_event eaten = {};
-    TEST_CHECK(counts, feature_find_event(api, SIM_EVENT_UNIT_GRAIN_EATEN, mark, &eaten) && eaten.delta == -10 && eaten.detail == unit_id && eaten.assumed,
-               "each turn a unit of 1000 soldiers eats 10 grain (assumed, as a city)");
+    TEST_CHECK(counts, feature_find_event(api, SIM_EVENT_UNIT_GRAIN_EATEN, mark, &eaten) && eaten.delta == -25 && eaten.detail == unit_id && eaten.assumed,
+               "each turn a unit of 1000 soldiers eats 25 grain (the rate of a city, observed; assumed for a unit)");
     TEST_CHECK(counts, !api->unit_at(e, unit_id).moved && !api->unit_at(e, unit_id).acted, "a new turn lets the unit move and act again");
 
     /* 退卻: back to the home city with everything. */

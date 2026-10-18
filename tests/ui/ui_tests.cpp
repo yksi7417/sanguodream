@@ -627,7 +627,7 @@ register_ui_tests(ImGuiTestEngine *e)
         recorder_reset(&v.recorder);
         ctx->Yield();
         IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_CITY_SLOTS), 1u);
-        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_FACILITY_AT), (u32)RECORDER_SLOTS);   /* one call per slot */
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_FACILITY_AT), 2u * RECORDER_SLOTS);   /* each slot for its row and for the counts (M11) */
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
         ctx->ComboClick("###city_select/###c1");
         ctx->Yield();
@@ -1892,6 +1892,130 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->KeyUp(ImGuiKey_D);
         ctx->Yield();
         IM_CHECK_GT(canvas->Scroll.x, 0.0f);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* M11: the keys of the scene. W moves the view up the screen and S back,
+       Q turns the map counter-clockwise and E clockwise, Up tilts toward
+       top down and Down back; the keys command nothing. */
+    t = IM_REGISTER_TEST(e, "ui", "scene_keys_move_turn_and_tilt_and_command_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.ui.scene.headless = true;
+        ctx->Yield(2);
+        ImGui::FocusWindow(0);   /* no panel takes the keys */
+        ctx->Yield();
+        recorder_reset(&v.recorder);
+        camera start = v.ui.scene.cam;
+        v3 ahead, side;
+        camera_ground_axes(&start, &ahead, &side);
+        ctx->KeyDown(ImGuiKey_W); ctx->Yield(4); ctx->KeyUp(ImGuiKey_W); ctx->Yield();
+        v3 moved = v3_sub(v.ui.scene.cam.target, start.target);
+        IM_CHECK_GT(v3_dot(moved, ahead), 0.0f);                          /* W: up the screen */
+        camera after_w = v.ui.scene.cam;
+        ctx->KeyDown(ImGuiKey_S); ctx->Yield(4); ctx->KeyUp(ImGuiKey_S); ctx->Yield();
+        IM_CHECK_LT(v3_dot(v3_sub(v.ui.scene.cam.target, after_w.target), ahead), 0.0f);   /* S: back */
+        f32 yaw = v.ui.scene.cam.yaw, pitch = v.ui.scene.cam.pitch;
+        ctx->KeyDown(ImGuiKey_Q); ctx->Yield(3); ctx->KeyUp(ImGuiKey_Q); ctx->Yield();
+        IM_CHECK_GT(v.ui.scene.cam.yaw, yaw);                             /* Q: counter-clockwise (render_tests.cpp) */
+        IM_CHECK_EQ(v.ui.scene.cam.pitch, pitch);
+        yaw = v.ui.scene.cam.yaw;
+        ctx->KeyDown(ImGuiKey_E); ctx->Yield(3); ctx->KeyUp(ImGuiKey_E); ctx->Yield();
+        IM_CHECK_LT(v.ui.scene.cam.yaw, yaw);                             /* E: clockwise */
+        yaw = v.ui.scene.cam.yaw;
+        ctx->KeyDown(ImGuiKey_DownArrow); ctx->Yield(3); ctx->KeyUp(ImGuiKey_DownArrow); ctx->Yield();
+        IM_CHECK_LT(v.ui.scene.cam.pitch, pitch);                         /* Down: toward the horizon */
+        IM_CHECK_EQ(v.ui.scene.cam.yaw, yaw);                             /* a tilt keeps the heading */
+        pitch = v.ui.scene.cam.pitch;
+        ctx->KeyDown(ImGuiKey_UpArrow); ctx->Yield(3); ctx->KeyUp(ImGuiKey_UpArrow); ctx->Yield();
+        IM_CHECK_GT(v.ui.scene.cam.pitch, pitch);                         /* Up: toward top down */
+        IM_CHECK_LE(v.ui.scene.cam.pitch, CAMERA_PITCH_MAX);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* M11: a row of the Cities panel selects the city and the camera frames
+       its centre; the names of the cities draw from queries only. */
+    t = IM_REGISTER_TEST(e, "ui", "cities_row_frames_the_city_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.city_count = 2;
+        v.ui.scene.headless   = true;
+        v.ui.show_cities      = true;
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->SetRef("###Cities");
+        ctx->ItemClick("**/1##city_row");
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.city.selected, 1);
+        v3 expected = hex_world_center(hex_make(3, 1), v.ui.scene.cam.target.y);   /* the scripted centre of city 1 */
+        IM_CHECK(fabsf(v.ui.scene.cam.target.x - expected.x) < 1e-3f && fabsf(v.ui.scene.cam.target.z - expected.z) < 1e-3f);
+        IM_CHECK_EQ(v.ui.scene.cam.distance, UI_FRAME_DISTANCE);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_CITY_SLOTS), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* M11: the Units panel lists the units; a row frames the unit. */
+    t = IM_REGISTER_TEST(e, "ui", "units_panel_frames_a_unit_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.ui.scene.headless = true;
+        v.ui.show_units     = true;
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->SetRef("###Units");
+        ImGuiTestItemInfo row = ctx->ItemInfo("**/###unit1", ImGuiTestOpFlags_NoError);
+        IM_CHECK(row.ID != 0);
+        ctx->ItemClick(row.ID);
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.units.selected, 1u);
+        v3 expected = hex_world_center(hex_make(1, 3), v.ui.scene.cam.target.y);   /* the scripted hex of unit 1 */
+        IM_CHECK(fabsf(v.ui.scene.cam.target.x - expected.x) < 1e-3f && fabsf(v.ui.scene.cam.target.z - expected.z) < 1e-3f);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_UNIT_AT), 2u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* M11: a picked hex opens the Hex info box, which asks hex_at for it. */
+    t = IM_REGISTER_TEST(e, "ui", "hex_info_box_reads_the_picked_hex_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        hex_offset city_cell = { RECORDER_CITY_COL, RECORDER_CITY_ROW };
+        v.ui.scene.pick     = hex_from_offset(city_cell);
+        v.ui.scene.has_pick = true;
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK(ctx->WindowInfo("//###HexInfo").Window != 0);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_HEX_AT), (u32)RECORDER_CITY_COL | ((u32)RECORDER_CITY_ROW << 16));
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_TERRAIN_KIND_AT), 1u);   /* the name of the terrain */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* M11: the City panel counts the built facilities by kind and level (都市情報). */
+    t = IM_REGISTER_TEST(e, "ui", "city_panel_counts_facilities_by_kind_and_level");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.city_count = 2;
+        v.ui.show_city = true;
+        ctx->Yield(2);
+        ui_facility_count rows[UI_FACILITY_COUNT_CAPACITY];
+        u32 count = ui_count_facilities(&v.api, 0, rows, ArrayCount(rows));
+        IM_CHECK_EQ(count, 1u);                                           /* the recorder has two markets of level 1 */
+        IM_CHECK(rows[0].facility == 0 && rows[0].level == 1 && rows[0].count == 2);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 

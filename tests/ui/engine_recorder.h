@@ -560,6 +560,8 @@ internal engine_city_slots recorder_city_slots(void *o, u8 city_id)
     slots.city_id = city_id < r->city_count ? city_id : ENGINE_NO_CITY;
     slots.slot_count = slots.city_id == ENGINE_NO_CITY ? 0 : RECORDER_SLOTS;
     slots.gold_income = 100; slots.grain_income = 500; slots.governor_id = 100;
+    slots.q = (s32)city_id * 2 + 1;   /* M11: each city has its own centre, so a frame is visible */
+    slots.r = 1;
     return slots;
 }
 internal engine_facility recorder_facility_at(void *o, u8 city_id, u8 slot)
@@ -1498,6 +1500,11 @@ internal engine_hex recorder_hex_at(void *o, s32 q, s32 r)
     hex.region_city = ENGINE_NO_CITY;
     hex.city_id     = offset.col == RECORDER_CITY_COL && offset.row == RECORDER_CITY_ROW ? 0 : ENGINE_NO_CITY;
     hex.base_id     = ENGINE_NO_BASE;
+    hex.slot_city   = ENGINE_NO_CITY;    /* M11: nothing stands on the scripted hexes */
+    hex.facility    = ENGINE_NO_FACILITY;
+    hex.building_id = ENGINE_NO_BUILDING;
+    hex.building_kind = ENGINE_NO_ROW;
+    hex.unit_id     = ENGINE_NO_UNIT;
     return hex;
 }
 internal u32 recorder_armament_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_ARMAMENT_COUNT, 0); return 0; }

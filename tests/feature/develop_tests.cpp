@@ -213,9 +213,15 @@ feature_city_table_tests(test_counts *counts, engine_api *api)
                             (officer.merit == best.merit && officer.officer_id < best.officer_id)))))));
             if (better) { expected = officer.officer_id; best = officer; }
         }
+        /* M11: the governor that the city record names (太守) comes first. */
+        engine_officer named = api->officer_by_id(e, info.commanding_officer_id);
+        if (named.officer_id != ENGINE_NO_OFFICER && named.status <= 3 && named.force_id == info.owner_force_id && named.base_location == city)
+        {
+            expected = named.officer_id;
+        }
         if (api->city_slots(e, (u8)city).governor_id != expected) governors_agree = false;
     }
-    TEST_CHECK(counts, governors_agree, "the governor of each city follows the selection rule");
+    TEST_CHECK(counts, governors_agree, "the governor of each city is the one of the city record, else it follows the selection rule");
 }
 
 /* Every refusal reason, one at a time. */

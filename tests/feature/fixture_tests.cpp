@@ -283,8 +283,98 @@ fixture_map_facility_types(tsv_table *table, engine_api *api, test_counts *count
     printf("  PENDING %u rows: bases, domestic facilities (on slots only), natural traps and the 淺灘 trap have no build rule of their own\n", pending);
 }
 
+/* ---- the fixtures of play session 1 (spec 9aa9a7c; experiments/session-1-economy.md) -------- */
+
+/* grain-consumption.tsv: each turn a city loses its soldiers / 40 in grain
+   (calendar-and-turn.md, observed). The handler sets the soldiers of the
+   row on a city of the sample save and reads the forecast of the turn. */
+internal void
+fixture_grain_consumption(tsv_table *table, engine_api *api, test_counts *counts)
+{
+    void *e = api->engine;
+    api->load_save(e, SAMPLE_SAVE_RELATIVE_PATH);
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        u32 city = 0, troops = 0, consumed = 0;
+        b32 parsed = tsv_cell_u32(table, row, "city_id", &city) && tsv_cell_u32(table, row, "troops", &troops) &&
+                     tsv_cell_u32(table, row, "consumed", &consumed);
+        api->set_city_resource(e, (u8)city, SIM_RESOURCE_SOLDIERS, 0, troops);
+        engine_income_forecast forecast = api->city_income_forecast(e, (u8)city);
+        char name[128];
+        snprintf(name, sizeof(name), "grain-consumption row %u: city %u with %u soldiers eats %u grain in a turn", row, city, troops, consumed);
+        TEST_CHECK(counts, parsed && forecast.city_id == city && forecast.amounts.grain_per_turn == consumed, name);
+    }
+}
+
+/* patrol.tsv: one patrol of session 1. The handler checks the documented
+   costs (20 action points, 100 gold) and the merit (+50) through
+   can_issue. The rise of public order, the technique points and the
+   experience have one observation and no formula (Q-152, Q-158): pending. */
+internal void
+fixture_patrol(tsv_table *table, engine_api *api, test_counts *counts)
+{
+    void *e = api->engine;
+    api->load_save(e, SAMPLE_SAVE_RELATIVE_PATH);
+    u8 city = feature_busiest_city(api);
+    u8 force = api->city_at(e, city).owner_force_id;
+    feature_play_as(api, force);
+    api->set_city_gold(e, city, 50000);
+    api->set_actions(e, force, 255);
+    api->set_city_resource(e, city, SIM_RESOURCE_PUBLIC_ORDER, 0, 50);
+    u16 ids[SIM_DEVELOP_OFFICERS];
+    feature_take_officers(api, city, ids, 1);
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        u32 ap_cost = 0, gold_cost = 0, merit = 0;
+        b32 parsed = tsv_cell_u32(table, row, "ap_cost", &ap_cost) && tsv_cell_u32(table, row, "gold_cost", &gold_cost) &&
+                     tsv_cell_u32(table, row, "merit_gain", &merit);
+        engine_command command = feature_city_command(ENGINE_COMMAND_PATROL, city, ids[0]);
+        engine_check check = api->can_issue(e, &command);
+        engine_officer before = {}, after = {};
+        feature_officer_by_id(api, ids[0], &before);
+        api->command_patrol(e, city, ids);
+        feature_officer_by_id(api, ids[0], &after);
+        char name[128];
+        snprintf(name, sizeof(name), "patrol row %u: %u action points, %u gold, %u merit", row, ap_cost, gold_cost, merit);
+        TEST_CHECK(counts, parsed && check.refusal == SIM_REFUSAL_NONE && check.action_points == ap_cost && check.gold == gold_cost &&
+                           after.merit == before.merit + merit, name);
+    }
+    printf("  PENDING %u rows x public order gain, technique points, leadership experience: one observation, no formula (Q-152, Q-158)\n",
+           table->row_count);
+}
+
+/* action-points.tsv: the action points of the forces. The patrol row
+   checks the cost of 20 points. The recovery of a turn has no formula
+   (Q-019): pending. */
+internal void
+fixture_action_points(tsv_table *table, engine_api *api, test_counts *counts)
+{
+    void *e = api->engine;
+    api->load_save(e, SAMPLE_SAVE_RELATIVE_PATH);
+    u8 city = feature_busiest_city(api);
+    feature_play_as(api, api->city_at(e, city).owner_force_id);
+    u16 ids[SIM_DEVELOP_OFFICERS];
+    feature_take_officers(api, city, ids, 1);
+    engine_command command = feature_city_command(ENGINE_COMMAND_PATROL, city, ids[0]);
+    u32 patrol_cost = api->can_issue(e, &command).action_points;
+    u32 pending = 0;
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        if (strcmp(tsv_cell(table, row, "event"), "patrol") != 0) { pending++; continue; }
+        u32 before = 0, after = 0;
+        b32 parsed = tsv_cell_u32(table, row, "ap_before", &before) && tsv_cell_u32(table, row, "ap_after", &after);
+        char name[128];
+        snprintf(name, sizeof(name), "action-points row %u: a patrol takes %u action points", row, before - after);
+        TEST_CHECK(counts, parsed && before - after == patrol_cost, name);
+    }
+    printf("  PENDING %u rows: the recovery of the action points in a turn (Q-019)\n", pending);
+}
+
 global_variable fixture_handler g_fixture_handlers[] = {
     { "unit-values-guidebook", fixture_unit_values_guidebook },
+    { "grain-consumption",     fixture_grain_consumption },
+    { "patrol",                fixture_patrol },
+    { "action-points",         fixture_action_points },
     { "map/hexes",             fixture_map_hexes },
     { "map/bases",             fixture_map_bases },
     { "map/slots",             fixture_map_slots },
