@@ -131,7 +131,7 @@ unit_render_tests(test_counts *counts)
     }
     TEST_CHECK(counts, forward_up, "a pan forward (W) moves the view up the screen at every yaw");
     TEST_CHECK(counts, right_right, "a pan right (D) moves the view to the right of the screen at every yaw");
-    TEST_CHECK(counts, turn_ccw, "a positive turn (Q, left arrow) rotates the map counter-clockwise on the screen");
+    TEST_CHECK(counts, turn_ccw, "a positive turn (E, right arrow) rotates the map counter-clockwise on the screen");
     camera tilted = camera_default(0.0f, 0.0f);
     tilted.yaw = 1.0f;
     for (u32 step = 0; step < 50; ++step) camera_tilt(&tilted, 0.1f);
@@ -140,6 +140,67 @@ unit_render_tests(test_counts *counts)
     TEST_CHECK(counts, top_clamped && near_f32(tilted.pitch, CAMERA_PITCH_MIN, 1e-5f) && near_f32(tilted.yaw, 1.0f, 1e-5f) &&
                        CAMERA_PITCH_MIN > 0.0f && CAMERA_PITCH_MAX < RENDER_PI * 0.5f,
                "a tilt stops above the ground and short of top down, and keeps the heading");
+
+    /* M12: one press of Q or E turns the view by one step of 60 degrees,
+       over CAMERA_TURN_STEP_SECONDS; a held key repeats the step. */
+    f32 frame_seconds = 1.0f / 60.0f;
+    camera stepped = camera_default(0.0f, 0.0f);
+    camera_turn_step turning = {};
+    camera_turn_update(&stepped, &turning, -1, frame_seconds);
+    for (u32 frame = 0; frame < 5; ++frame) camera_turn_update(&stepped, &turning, 0, frame_seconds);
+    b32 halfway = stepped.yaw < -0.01f && stepped.yaw > -CAMERA_TURN_STEP + 0.01f;
+    for (u32 frame = 0; frame < 60; ++frame) camera_turn_update(&stepped, &turning, 0, frame_seconds);
+    TEST_CHECK(counts, halfway && near_f32(stepped.yaw, -CAMERA_TURN_STEP, 1e-5f) && turning.remaining == 0.0f,
+               "a press turns the view one step of 60 degrees clockwise, animated over several frames");
+    for (u32 press = 0; press < 5; ++press)
+    {
+        camera_turn_update(&stepped, &turning, -1, frame_seconds);
+        for (u32 frame = 0; frame < 60; ++frame) camera_turn_update(&stepped, &turning, 0, frame_seconds);
+    }
+    TEST_CHECK(counts, near_f32(stepped.yaw, 0.0f, 1e-5f), "six presses make a full turn");
+    stepped.yaw = 10.0f * RENDER_PI / 180.0f;
+    camera_turn_update(&stepped, &turning, 1, frame_seconds);
+    for (u32 frame = 0; frame < 60; ++frame) camera_turn_update(&stepped, &turning, 0, frame_seconds);
+    TEST_CHECK(counts, near_f32(stepped.yaw, CAMERA_TURN_STEP, 1e-5f), "a step from a free heading stops on the grid of 60 degrees");
+    stepped.yaw = 0.0f;
+    for (u32 frame = 0; frame < 72; ++frame) camera_turn_update(&stepped, &turning, 1, frame_seconds);   /* 1.2 s held */
+    for (u32 frame = 0; frame < 60; ++frame) camera_turn_update(&stepped, &turning, 0, frame_seconds);
+    TEST_CHECK(counts, near_f32(fabsf(stepped.yaw), RENDER_PI, 1e-4f), "a key held for 1.2 s turns three steps (one now, then one each repeat delay)");
+    camera queued = camera_default(0.0f, 0.0f);
+    camera_turn_step queue = {};
+    camera_turn_update(&queued, &queue, 1, frame_seconds);
+    camera_turn_update(&queued, &queue, 0, frame_seconds);
+    camera_turn_update(&queued, &queue, 1, frame_seconds);   /* a second press during the animation */
+    for (u32 frame = 0; frame < 90; ++frame) camera_turn_update(&queued, &queue, 0, frame_seconds);
+    TEST_CHECK(counts, near_f32(queued.yaw, 2.0f * CAMERA_TURN_STEP, 1e-5f), "a press during the animation adds one more step");
+
+    /* M12: the mini map turns with the view. The forward direction of the
+       camera is up on the mini map at every yaw, and the inverse gives the
+       ground point back. */
+    b32 minimap_up = true, minimap_back = true;
+    for (s32 step = -4; step <= 4; ++step)
+    {
+        camera view = camera_default(0.0f, 0.0f);
+        view.yaw = (f32)step * 0.7f;
+        camera_clamp(&view);
+        v3 ahead, side;
+        camera_ground_axes(&view, &ahead, &side);
+        f32 mx = 0, my = 0;
+        camera_ground_to_minimap(&view, ahead.x, ahead.z, &mx, &my);
+        if (!near_f32(mx, 0.0f, 1e-5f) || !near_f32(my, -1.0f, 1e-5f)) minimap_up = false;
+        camera_ground_to_minimap(&view, side.x, side.z, &mx, &my);
+        if (!near_f32(mx, 1.0f, 1e-5f) || !near_f32(my, 0.0f, 1e-5f)) minimap_up = false;
+        f32 dx = 0, dz = 0;
+        camera_ground_to_minimap(&view, 3.0f, -2.0f, &mx, &my);
+        camera_minimap_to_ground(&view, mx, my, &dx, &dz);
+        if (!near_f32(dx, 3.0f, 1e-4f) || !near_f32(dz, -2.0f, 1e-4f)) minimap_back = false;
+    }
+    camera north_up = camera_default(0.0f, 0.0f);
+    f32 north_x = 0, north_y = 0;
+    camera_ground_to_minimap(&north_up, 0.0f, -1.0f, &north_x, &north_y);
+    TEST_CHECK(counts, minimap_up && near_f32(north_x, 0.0f, 1e-5f) && near_f32(north_y, -1.0f, 1e-5f),
+               "the forward direction is up and the right direction is right on the mini map; at yaw 0 north is up");
+    TEST_CHECK(counts, minimap_back, "a mini map point goes back to its ground point at every yaw");
 
     /* the command buffer */
     memory_arena arena = test_arena_create(Megabytes(2));

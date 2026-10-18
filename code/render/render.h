@@ -265,6 +265,92 @@ camera_tilt(camera *c, f32 toward_top_down)
     camera_orbit(c, 0.0f, toward_top_down);
 }
 
+/* ---- M12: the step turn of Q and E (ui/main-map.md, "Camera"; Q-214) ---- */
+
+#define CAMERA_TURN_STEP            (60.0f * RENDER_PI / 180.0f)   /* one press; six presses make a full turn */
+#define CAMERA_TURN_STEP_SECONDS    0.25f   /* the animation of one step */
+#define CAMERA_TURN_REPEAT_SECONDS  0.5f    /* a held key starts the next step after this time */
+#define CAMERA_TURN_GRID_TOLERANCE  1e-3f   /* of a step: a heading this near the grid is on it */
+
+/* The state of the step turn between frames. */
+struct camera_turn_step
+{
+    f32 remaining;   /* the angle that the animation still turns; positive = counter-clockwise */
+    f32 held;        /* the seconds since the last step started while the key stays down */
+    s32 direction;   /* the key of the last frame: -1 clockwise, +1 counter-clockwise, 0 none */
+};
+
+/* The next heading on the grid of steps in the direction. A heading off
+   the grid (after a mouse orbit) goes to the next grid line, so the hex
+   grid lines up again after each step. */
+internal f32
+camera_step_target(f32 yaw, s32 direction)
+{
+    f32 steps = yaw / CAMERA_TURN_STEP;
+    f32 grid  = direction > 0 ? floorf(steps + CAMERA_TURN_GRID_TOLERANCE) + 1.0f
+                              : ceilf(steps - CAMERA_TURN_GRID_TOLERANCE) - 1.0f;
+    return grid * CAMERA_TURN_STEP;
+}
+
+/* Each frame: direction is the key that is down (-1 Q or Left, +1 E or
+   Right, 0 none). A new press starts a step; a held key starts the next
+   step after CAMERA_TURN_REPEAT_SECONDS. The animation turns the camera at
+   one step for each CAMERA_TURN_STEP_SECONDS and stops on the grid. */
+internal void
+camera_turn_update(camera *c, camera_turn_step *step, s32 direction, f32 dt_seconds)
+{
+    if (direction != 0)
+    {
+        if (direction != step->direction || step->held >= CAMERA_TURN_REPEAT_SECONDS)
+        {
+            f32 goal = camera_step_target(c->yaw + step->remaining, direction);
+            step->remaining = goal - c->yaw;
+            step->held      = 0.0f;
+        }
+        step->held += dt_seconds;
+    }
+    else
+    {
+        step->held = 0.0f;
+    }
+    step->direction = direction;
+    if (step->remaining == 0.0f) return;
+    f32 speed = CAMERA_TURN_STEP / CAMERA_TURN_STEP_SECONDS * dt_seconds;
+    f32 turn  = fabsf(step->remaining) <= speed ? step->remaining : (step->remaining > 0.0f ? speed : -speed);
+    camera_turn(c, turn);
+    step->remaining -= turn;
+    if (fabsf(step->remaining) < 1e-6f)
+    {
+        step->remaining = 0.0f;
+        c->yaw = roundf(c->yaw / CAMERA_TURN_STEP) * CAMERA_TURN_STEP;
+        camera_clamp(c);
+    }
+}
+
+/* ---- M12: the mini map turns with the view (ui/main-map.md, "Mini map") -- */
+
+/* A ground offset (dx east, dz south, from the centre of the mini map) to
+   an offset on the mini map (x right, y down). The forward direction of
+   the camera is up, so the mini map shows the heading of the main view. */
+internal void
+camera_ground_to_minimap(camera *c, f32 dx, f32 dz, f32 *mx, f32 *my)
+{
+    v3 ahead, side;
+    camera_ground_axes(c, &ahead, &side);
+    *mx = dx * side.x + dz * side.z;
+    *my = -(dx * ahead.x + dz * ahead.z);
+}
+
+/* The inverse of camera_ground_to_minimap: the two axes are orthonormal. */
+internal void
+camera_minimap_to_ground(camera *c, f32 mx, f32 my, f32 *dx, f32 *dz)
+{
+    v3 ahead, side;
+    camera_ground_axes(c, &ahead, &side);
+    *dx = mx * side.x - my * ahead.x;
+    *dz = mx * side.z - my * ahead.z;
+}
+
 internal v3
 camera_eye(camera *c)
 {
