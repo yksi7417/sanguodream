@@ -102,7 +102,34 @@ Plan, in order:
    tutorial, the Status block and this entry.
 
 ## M15 An opponent worth playing
-Status: planned.
+Status: in progress (2026-10-19).
+
+Survey of 2026-10-19:
+- The spec has no "year log" of the original. The statistics test of the
+  roadmap has no input. knowledge/ai.md gives only unverified claims.
+- The M8 planner (code/sim/ai.cpp) scores city proposals from
+  ai_priorities.tsv. Units march to the nearest city of a faction at war.
+- A city without an owner is no target of the march. sim_hostile lets an
+  attack take it, but no AI unit goes there.
+- No AI unit reacts to an enemy unit next to its city. No AI unit looks at
+  its grain.
+- The engine keeps no record of the options of the last AI turn.
+
+Plan, in order:
+1. Feature tests first, in tests/feature/ai_tests.cpp:
+   - ai_explain gives the scored options of the last AI turn;
+   - a free city falls to the AI within 6 turns;
+   - a city under attack sorties a unit against the enemy;
+   - a unit with low grain goes home and keeps its soldiers.
+2. sim: the goal of each AI unit (defend, take a free city, attack a city,
+   go home for grain), with a score. The row "defend" with the condition
+   enemy_near in ai_priorities.tsv. The record of the last AI turn for each
+   faction. The rules ai.free_city_bonus, ai.defend_bonus and
+   ai.grain_margin_turns (assumed, Q-185).
+3. engine_api: `ai_explain(faction)` and the test command `set_unit_grain`.
+4. UI: the AI panel of the debug menu, and the goal lines of the AI view
+   on the map. ui tests through the recorder.
+5. The demo "demo/m15_ai", tutorial 28, the Status block and this entry.
 
 ## M16 The content of the player's own copy
 Status: planned.
