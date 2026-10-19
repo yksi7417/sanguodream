@@ -2491,6 +2491,57 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(v.api.ledger_count(v.api.engine), 0u);
     };
 
+    /* M14: a scripted turn of 柴桑 from sample.s11 with the game screens
+       only. The debug panels stay hidden. 都市 then 巡察 runs the command,
+       and 進行 of the map menu ends the turn. */
+    t = IM_REGISTER_TEST(e, "e2e", "a_turn_of_chaisang_runs_from_the_game_screens");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->VarsConstructor = [](void *vars) { ((ui_test_vars *)vars)->use_real_engine = true; };
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        engine_api *api = &v.api;
+        void *e = api->engine;
+        ctx->SetRef("Simulation");
+        ctx->ItemClick("Load sample save");
+        ctx->Yield();
+        IM_CHECK_EQ(api->city_count(e), 42u);
+        ui_enter_game(&v.ui);   /* as a load from the title */
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.show_debug_panels);
+        u8 force = api->whose_turn(e);
+        const u8 chaisang = 26;
+        engine_city before = api->city_at(e, chaisang);
+        IM_CHECK(before.city_id == chaisang && before.owner_force_id == force);
+
+        v.ui.city.selected = chaisang;
+        ui_context_open(&v.ui, api, UI_CONTEXT_CITY, 300.0f, 200.0f);
+        ctx->Yield(2);
+        ctx->SetRef("//###City");
+        ctx->ItemClick("###menu_city");
+        ctx->Yield();
+        ctx->ItemClick("###base_patrol");
+        ctx->Yield();
+        IM_CHECK(v.ui.show_command[UI_COMMAND_PATROL] && v.ui.commands[UI_COMMAND_PATROL].city == chaisang);
+        u32 actions = api->actions_left(e, force);
+        ctx->SetRef("//###Patrol");
+        ctx->ItemClick("###decide");
+        ctx->Yield(2);
+        IM_CHECK_LT(api->actions_left(e, force), actions);                   /* the patrol ran */
+        IM_CHECK_EQ(v.ui.context.kind, (u8)UI_CONTEXT_NONE);                 /* and the City dialog closed */
+
+        u32 turn = api->turn(e);
+        ui_context_open(&v.ui, api, UI_CONTEXT_MAP_MENU, 400.0f, 300.0f);
+        ctx->Yield(2);
+        ctx->SetRef("//###MapMenu");
+        ctx->ItemClick("###proceed");
+        ctx->Yield(2);
+        IM_CHECK(api->turn(e) != turn || api->whose_turn(e) != force);
+        ImGuiWindow *bar = ctx->WindowInfo("//##MainMenuBar", ImGuiTestOpFlags_NoError).Window;
+        IM_CHECK(!v.ui.show_debug_panels && (bar == 0 || !bar->Active));     /* no debug panel in the whole turn */
+    };
+
     t = IM_REGISTER_TEST(e, "e2e", "load_sample_save_and_city_names_fill_the_panels");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;
