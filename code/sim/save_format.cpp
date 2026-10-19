@@ -214,6 +214,19 @@ save_decode_payload(const u8 *payload, save_file *out)
         base->owner_force_id = record[BASE_OWNER_FORCE];
         base->soldiers       = format_read_u16(record + BASE_SOLDIERS);
     }
+    for (u32 index = 0; index < out->force_count; ++index)
+    {
+        const u8 *table_a = payload + SAVE_PAYLOAD_FORCE_TABLE_A + SAVE_FORCE_TABLE_A_RECORD_SIZE * index;
+        const u8 *table_b = payload + SAVE_PAYLOAD_FORCE_TABLE_B + SAVE_FORCE_TABLE_B_RECORD_SIZE * index;
+        save_force_record *force = out->forces + index;
+        force->id                = (u8)index;
+        force->ruler             = format_read_u16(table_a + FORCE_A_RULER);
+        force->has_action_points = index < SAVE_FORCE_ACTION_POINT_FORCES;
+        force->action_points     = force->has_action_points ? table_a[FORCE_A_ACTION_POINTS] : 0;
+        force->technique_points  = table_b[FORCE_B_TECHNIQUE_POINTS];
+        force->research          = table_b[FORCE_B_RESEARCH];
+        force->research_turns    = table_b[FORCE_B_RESEARCH_TURNS];
+    }
 }
 
 /* The most arena memory save_load uses at one time: the records, the
@@ -221,7 +234,8 @@ save_decode_payload(const u8 *payload, save_file *out)
 #define SAVE_LOAD_ARENA_NEED (sizeof(officer_record) * SAVE_OFFICER_SLOTS + sizeof(city_record) * SAVE_CITY_COUNT + \
                               sizeof(item_record) * SAVE_ITEM_COUNT + sizeof(building_record) * SAVE_BUILDING_COUNT + \
                               sizeof(unit_record) * SAVE_UNIT_CAPACITY + sizeof(base_record) * SAVE_BASE_RECORD_COUNT + \
-                              sizeof(u32) * SAVE_HEX_COUNT + SAVE_PAYLOAD_LENGTH + sizeof(inflate_state) + 9 * 16)
+                              sizeof(u32) * SAVE_HEX_COUNT + sizeof(save_force_record) * SAVE_FORCE_COUNT + \
+                              SAVE_PAYLOAD_LENGTH + sizeof(inflate_state) + 10 * 16)
 
 /* The loader rule of save-file.md: read the two lengths at 0x1B7, inflate
    the bytes from 0x1BF to the end of the file, check the inflated length
@@ -274,6 +288,8 @@ save_load(memory_arena *arena, const u8 *file, u64 file_size, save_file *out)
     out->bases          = PushArray(arena, SAVE_BASE_RECORD_COUNT, base_record);
     out->hex_state_count = SAVE_HEX_COUNT;
     out->hex_states      = PushArray(arena, SAVE_HEX_COUNT, u32);
+    out->force_count     = SAVE_FORCE_COUNT;   /* M13 */
+    out->forces          = PushArray(arena, SAVE_FORCE_COUNT, save_force_record);
 
     u64 records_mark = arena->used;
     u8 *payload = (u8 *)arena_push_size(arena, SAVE_PAYLOAD_LENGTH, 1);
