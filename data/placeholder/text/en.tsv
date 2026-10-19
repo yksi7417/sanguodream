@@ -1111,3 +1111,26 @@ hud.options	Options	the system menu
 hud.debug	Debug panels (F12)	the system menu
 hud.to_title	Back to the title	the system menu
 hud.quit	Quit the game	the system menu
+menu.fidelity	Fidelity	menu item: the replay of the save pairs (M13)
+fidelity.title	Fidelity	panel title: the replay of the save pairs
+fidelity.help	Each pair is a save of the original before one command and a save after it. Replay loads the first save, runs the command and compares the result with the second save. The replay replaces the game. A mark * shows a field that the spec confirms.	the help line of the Fidelity panel
+fidelity.pair	Pair	column: the rule and the number of a pair
+fidelity.command	Command	column: the command of a pair
+fidelity.questions	Questions	column: the Q-ids of a pair
+fidelity.replay	Replay	button: replay the pair
+fidelity.end_turn	End turn	command: 進行
+fidelity.develop	Develop	command: 開發
+fidelity.conscript	Conscript	command: 徵兵
+fidelity.patrol	Patrol	command: 巡察
+fidelity.train	Train	command: 訓練
+fidelity.no_handler	No handler	the engine cannot replay the command
+fidelity.summary	%u fields, %u differ, %u of them confirmed	the counts of a replay: fields, differences, confirmed differences
+fidelity.field	Field	column: the field of the save dump
+fidelity.before	Before	column: the value in the first save
+fidelity.replayed	Replay	column: the value after the command in the engine
+fidelity.original	Original	column: the value in the second save
+fidelity.rule	Rule	column: the rule that owns the field
+fidelity.status.1	The engine has no handler for this command.	replay status
+fidelity.status.2	The second save does not load.	replay status
+fidelity.status.3	The first save does not load.	replay status
+fidelity.status.4	The engine refused the command.	replay status

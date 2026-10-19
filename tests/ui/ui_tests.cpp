@@ -1412,6 +1412,34 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
+    /* M13: the Fidelity panel lists the pairs; Replay sends one replay_pair with the two saves of the row. */
+    t = IM_REGISTER_TEST(e, "ui", "fidelity_panel_replays_the_pair_of_the_row");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_fidelity       = true;
+        recorder_reset(&v.recorder);
+        ctx->Yield(2);
+        ctx->SetRef("###Fidelity");
+        IM_CHECK(ctx->ItemExists("fidelity_pairs/###replay1"));
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_REPLAY_PAIR_AT), 2u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("fidelity_pairs/###replay0");
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_REPLAY_PAIR), 1u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_REPLAY_PAIR), (u32)ENGINE_REPLAY_DEVELOP);
+        IM_CHECK_STR_EQ(v.recorder.last_replay_before, "pairs\\develop\\001\\before.s11");
+        IM_CHECK_STR_EQ(v.recorder.last_replay_after, "pairs\\develop\\001\\after.s11");
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(ctx->ItemExists("fidelity_diffs"));
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_REPLAY_DIFF_AT), 1u);
+    };
+
     t = IM_REGISTER_TEST(e, "ui", "title_new_game_flow_loads_chooses_rulers_and_sets_settings");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;

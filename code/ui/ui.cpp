@@ -27,6 +27,7 @@ ui_label(char *out, u32 out_size, ui_state *ui, const char *text_id, const char 
 #include "ui/ui_combat.cpp"
 #include "ui/ui_court.cpp"
 #include "ui/ui_rivals.cpp"
+#include "ui/ui_fidelity.cpp"  /* M13 */
 #include "ui/ui_game.cpp"
 
 /* Writes an overlay colour for one cell of the terrain view, if it is on the map. */
@@ -118,6 +119,7 @@ ui_init(ui_state *ui, text_catalog *text)
     ui->diplomacy.months      = 6;
     ui->show_ruler            = false;
     ui->show_bases            = false;
+    ui->show_fidelity         = false;   /* M13 */
     ui->ruler.viceroy         = ENGINE_NO_OFFICER;
     ui->ruler.adviser         = ENGINE_NO_OFFICER;
     ui->ruler.cities          = 0;
@@ -188,6 +190,7 @@ ui_draw_menu_bar(ui_state *ui, engine_api *api, ui_frame_info *frame)
         ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.diplomacy", "Diplomacy"), 0, &ui->show_diplomacy);
         ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.ruler", "Ruler"), 0, &ui->show_ruler);
         ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.bases", "Bases"), 0, &ui->show_bases);
+        ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.fidelity", "Fidelity"), 0, &ui->show_fidelity);
         ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.title", "TitleMenu"), 0, &ui->show_title);
         ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.abilities", "AbilitiesMenu"), 0, &ui->show_abilities);
             ImGui::MenuItem("Event ledger", 0, &ui->show_ledger);
@@ -607,6 +610,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     ui_draw_mini_games(ui, api);   /* the duel and debate screens open when one runs */
     if (ui->show_ruler)      ui_draw_ruler(ui, api);
     if (ui->show_bases)      ui_draw_bases(ui, api);
+    if (ui->show_fidelity)   ui_draw_fidelity(ui, api);   /* M13 */
     ui_draw_event_dialog(ui, api);   /* opens while an event waits for a choice */
     ui_draw_game_screens(ui, api);   /* M9: the title, the scenario list, the top bar and the other game screens */
     for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind)

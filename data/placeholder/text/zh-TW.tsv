@@ -1109,3 +1109,26 @@ hud.options	項目
 hud.debug	除錯面板 (F12)
 hud.to_title	返回開頭畫面
 hud.quit	結束遊戲
+menu.fidelity	重現
+fidelity.title	重現
+fidelity.help	每一組是原作在一個指令前後的兩個存檔。重現讀入前一個存檔，執行指令，再和後一個存檔比較。重現會取代目前的遊戲。* 表示規格已確認的欄位。
+fidelity.pair	組
+fidelity.command	指令
+fidelity.questions	問題
+fidelity.replay	重現
+fidelity.end_turn	進行
+fidelity.develop	開發
+fidelity.conscript	徵兵
+fidelity.patrol	巡察
+fidelity.train	訓練
+fidelity.no_handler	無法重現
+fidelity.summary	%u 個欄位，%u 個不同，其中 %u 個已確認
+fidelity.field	欄位
+fidelity.before	之前
+fidelity.replayed	重現
+fidelity.original	原作
+fidelity.rule	規則
+fidelity.status.1	引擎無法重現這個指令。
+fidelity.status.2	後一個存檔無法讀入。
+fidelity.status.3	前一個存檔無法讀入。
+fidelity.status.4	引擎拒絕了這個指令。

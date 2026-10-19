@@ -291,7 +291,14 @@ struct ui_state
     bool show_battles;
     bool show_abilities;
     bool show_info;
-    bool quit_requested;         /* 結束遊戲: the platform closes the window */
+    bool show_fidelity;          /* M13: the replay of the save pairs of the original */
+    struct
+    {
+        bool                 has_report;   /* a replay ran from the panel */
+        u32                  pair;         /* the row of the last replay */
+        engine_replay_report report;
+    } fidelity;
+    bool quit_requested;        /* 結束遊戲: the platform closes the window */
     /* The game mode (main-map.md): the HUD at the top left with the list of
        the bases, officers and units, the mini map at the bottom right, and
        one dialog on demand at the entity that the player clicks. */
