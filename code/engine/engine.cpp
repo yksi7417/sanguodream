@@ -40,6 +40,13 @@ struct engine
     u32                replay_pair_count;
     engine_replay_diff *replay_diffs;                       /* M13: the differences of the last replay */
     u32                replay_diff_count;
+    /* M16: the install folder of the player (engine_content.cpp) */
+    char                    install_folder[ENGINE_PATH_SIZE];
+    engine_install_scenario install_scenarios[ENGINE_INSTALL_SCENARIO_CAPACITY];
+    u32                     install_scenario_count;
+    u32                     install_message_files;
+    u8                      names_source;                     /* engine_source_kind of the last name index */
+    char                    names_path[ENGINE_PATH_SIZE];
 };
 
 internal engine_config
@@ -611,6 +618,8 @@ engine_api_load_name_index(void *opaque, const char *path)
     sim_command command = sim_make_command(e->sim, SIM_COMMAND_LOAD_NAME_INDEX);
     sim_load_name_index(e->sim, names, command, &sink);
     engine_ledger_append(e, &sink);
+    e->names_source = ENGINE_SOURCE_PACK;   /* M16: set_install_folder changes it to the install */
+    snprintf(e->names_path, sizeof(e->names_path), "%s", path);
     result.status     = ENGINE_LOAD_OK;
     result.command_id = command.id;
     return result;
@@ -1278,6 +1287,7 @@ engine_api_set_city_resource(void *opaque, u8 city_id, u8 resource, u32 index, u
 #include "engine/engine_saves.cpp"
 #include "engine/engine_playable.cpp"
 #include "engine/engine_replay.cpp"     /* M13 */
+#include "engine/engine_content.cpp"    /* M16 */
 
 internal engine_api
 engine_make_api(engine *e)
@@ -1350,5 +1360,6 @@ engine_make_api(engine *e)
     engine_bind_playable_api(&api);
     engine_bind_map_api(&api);
     engine_bind_replay_api(&api);
+    engine_bind_content_api(&api);
     return api;
 }

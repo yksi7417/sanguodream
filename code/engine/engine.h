@@ -1350,6 +1350,72 @@ struct engine_ai_explain
 typedef engine_ai_explain engine_ai_explain_fn(void *engine, u8 force_id);
 typedef void              engine_set_unit_grain_fn(void *engine, u32 unit_id, u32 grain);   /* test command; the grain of the unit becomes known */
 
+/* ---- M16: the content of the player's own copy ---------------------------
+   The player can name the folder of an install of the original. The engine
+   then reads the files of formats/scenario-file.md from media\scenario of
+   the install. The spec has no layout of the message, portrait and music
+   files ("Asset formats are out of scope", formats/binary-identity.md).
+   For these assets the engine only reports the files of the install that
+   it found. content_source says which source gave each asset. */
+enum engine_asset_kind
+{
+    ENGINE_ASSET_CITY_NAMES,     /* the names of the cities, gates and ports: a name index */
+    ENGINE_ASSET_SCENARIOS,      /* the list of the scenarios of a new game */
+    ENGINE_ASSET_MESSAGES,       /* the texts of the game: text/<locale>.tsv of the pack */
+    ENGINE_ASSET_PORTRAITS,      /* the faces of the officers */
+    ENGINE_ASSET_MUSIC,
+    ENGINE_ASSET_KIND_COUNT
+};
+
+enum engine_source_kind
+{
+    ENGINE_SOURCE_NONE,          /* no source gives the asset */
+    ENGINE_SOURCE_PACK,          /* the content pack, or a file of the pack folder that the player chose */
+    ENGINE_SOURCE_INSTALL,       /* the install folder of the player */
+    ENGINE_SOURCE_KIND_COUNT
+};
+
+#define ENGINE_PATH_SIZE 260
+
+struct engine_content_source
+{
+    u8          asset;           /* engine_asset_kind; ENGINE_ASSET_KIND_COUNT for a kind out of range */
+    u8          source;          /* engine_source_kind */
+    u32         count;           /* the entries that the source gave: names, scenarios; 0 if unknown */
+    u32         install_files;   /* the files of this asset that the engine found in the install */
+    const char *detail;          /* a static string: why the asset has this source */
+    char        path[ENGINE_PATH_SIZE];   /* the file that gave the asset; "" if none or many */
+};
+
+/* One scenario file of the install, with its header (scenario-file.md). */
+#define ENGINE_INSTALL_SCENARIO_CAPACITY 14     /* SCEN000..013.s11 */
+struct engine_install_scenario
+{
+    u8   number;                 /* the scenario number; ENGINE_NO_ROW for an index out of range */
+    u16  year;
+    u8   month;
+    u8   title[SCENARIO_TITLE_MAX_SIZE];   /* Big5 up to the NUL */
+    char file[ENGINE_PATH_SIZE]; /* for load_scenario */
+};
+
+struct engine_install_result
+{
+    b32         found;           /* the folder has a name index or a scenario file */
+    b32         names_loaded;    /* Scenario.s11 of the install loaded as the city names */
+    u32         scenario_count;
+    u32         command_id;      /* the command of the name load; 0 if no names loaded */
+    const char *detail;          /* a static string */
+};
+
+/* Names the install folder, or clears it with "". A folder without a name
+   index and without a scenario file is refused and changes nothing. The
+   names of Scenario.s11 load as one command, as with load_name_index. */
+typedef engine_install_result   engine_set_install_folder_fn(void *engine, const char *folder);
+typedef const char             *engine_install_folder_fn(void *engine);   /* "" if none */
+typedef engine_content_source   engine_content_source_fn(void *engine, u8 asset);
+typedef u32                     engine_install_scenario_count_fn(void *engine);
+typedef engine_install_scenario engine_install_scenario_at_fn(void *engine, u32 index);
+
 struct engine_api
 {
     void *engine;
@@ -1558,6 +1624,12 @@ struct engine_api
     /* M15 */
     engine_ai_explain_fn            *ai_explain;
     engine_set_unit_grain_fn        *set_unit_grain;
+    /* M16 */
+    engine_set_install_folder_fn     *set_install_folder;
+    engine_install_folder_fn         *install_folder;
+    engine_content_source_fn         *content_source;
+    engine_install_scenario_count_fn *install_scenario_count;
+    engine_install_scenario_at_fn    *install_scenario_at;
 };
 
 #define ENGINE_NO_BASE 0xFFFFFFFFu
