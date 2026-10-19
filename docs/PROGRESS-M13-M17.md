@@ -167,7 +167,44 @@ Plan, in order:
 5. The demo "demo/m15_ai", tutorial 28, the Status block and this entry.
 
 ## M16 The content of the player's own copy
-Status: planned.
+Status: done (2026-10-19, tutorial 29, demo "demo/m16_content"). The
+commits of this task are:
+- 712573c feat: read the names and scenarios of the install of the player
+- 426c309 feat: add the Content panel and the portrait source of the officer view
+- the commit that writes this entry (the demo, tutorial 29 and the status)
+
+Tests after a clean rebuild: unit 669 of 669, feature 42306 of
+42306
+(41423 fixture rows, 31 content source checks), ui 124 of 124.
+`run_tests.bat --demo` records all 17 demos, "demo/m16_content" too.
+
+What M16 builds:
+- set_install_folder reads Scenario.s11 and SCEN000..013.s11 of
+  media\scenario of the install (formats/scenario-file.md).
+- content_source gives the source of the city names, the scenarios, the
+  messages, the portraits and the music.
+- The Content panel of the debug menu names the install folder. It lists
+  the sources and the scenarios of the install, with a Start button.
+- The officer view of the Court panel frames the portrait and names its
+  source.
+
+Not done in this run:
+- The generated portraits of data/civil_war/Portraits.zip are on the
+  branch feat/default-portraits. The run tried a merge into master. The
+  permission check of the unattended run refused it. The owner of the
+  repository decides the merge. After the merge, the portrait source of
+  the archive can be "pack".
+
+Open points for the analysis side. The run did not append them to
+spec-src/spec/QUESTIONS.md, for the reason of M13. Copy them by hand:
+1. The layout of the message tables media\msg\S11MSG00..03.s11: the keys,
+   the character set and the order. The roadmap feature test "the loader
+   reads the message file of the install" waits for it.
+2. The layout of the portraits in media\face, and the map from the
+   portrait number of the officer record (+53) to a picture.
+3. The files of the music, their format and the event of each track.
+4. The map from SCEN000..013 to the scenario keys of scenarios.tsv. Q-189
+   covers the PK scenarios.
 
 ## M17 Feel: a first hour that holds
 Status: planned.

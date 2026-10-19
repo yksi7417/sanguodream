@@ -1,11 +1,8 @@
 /* Feature tests of the install folder and content_source (M16), through
    engine_api with the real engine.
 
-   The test makes a small install folder in build\test_install. It copies
-   the two scenario files of spec-src/spec/fixtures/scenarios into
-   media\scenario, the folder of formats/binary-identity.md. It also writes
-   a short file media\msg\S11MSG00.s11. The engine only finds that file. It
-   does not decode it, because the spec has no layout of the message files.
+   The test makes a small install folder, build\test_install, with
+   test_make_install_folder of tests/test_files.h.
 
    Expected values come from formats/scenario-file.md: SCEN002 is scenario
    number 2, it starts in the year 194 in month 6, and its title is 群雄割據. */
@@ -14,44 +11,6 @@
 
 /* The Big5 bytes of 群雄割據, as in tests/unit/scenario_format_tests.cpp. */
 global_variable const u8 content_scen002_title[] = { 0xB8, 0x73, 0xB6, 0xAF, 0xB3, 0xCE, 0xBE, 0xDA };
-
-/* Makes <exe dir>\test_install with the copies. Writes the absolute path of
-   the folder to out. Returns false if a copy failed. */
-internal b32
-content_make_test_install(char *out, u32 out_size)
-{
-    char exe_dir[MAX_PATH];
-    test_exe_dir(exe_dir, MAX_PATH);
-    snprintf(out, out_size, "%s\\%s", exe_dir, CONTENT_TEST_INSTALL_FOLDER);
-
-    char folder[MAX_PATH];
-    CreateDirectoryA(out, 0);
-    snprintf(folder, MAX_PATH, "%s\\media", out);
-    CreateDirectoryA(folder, 0);
-    snprintf(folder, MAX_PATH, "%s\\media\\scenario", out);
-    CreateDirectoryA(folder, 0);
-    snprintf(folder, MAX_PATH, "%s\\media\\msg", out);
-    CreateDirectoryA(folder, 0);
-
-    static const char *files[] = { "Scenario.s11", "SCEN002.s11" };
-    for (u32 index = 0; index < ArrayCount(files); ++index)
-    {
-        char source[MAX_PATH], target[MAX_PATH];
-        char relative[64];
-        snprintf(relative, sizeof(relative), "scenarios\\%s", files[index]);
-        test_fixture_path(source, MAX_PATH, relative);
-        snprintf(target, MAX_PATH, "%s\\media\\scenario\\%s", out, files[index]);
-        if (!CopyFileA(source, target, FALSE)) return false;
-    }
-
-    char message[MAX_PATH];
-    snprintf(message, MAX_PATH, "%s\\media\\msg\\S11MSG00.s11", out);
-    FILE *file = fopen(message, "wb");
-    if (!file) return false;
-    fputs("not a message table", file);
-    fclose(file);
-    return true;
-}
 
 internal b32
 content_title_is_scen002(const u8 *title)
@@ -116,7 +75,7 @@ internal void
 feature_content_source_install_tests(test_counts *counts)
 {
     char install[MAX_PATH];
-    TEST_CHECK(counts, content_make_test_install(install, MAX_PATH), "the test makes an install folder");
+    TEST_CHECK(counts, test_make_install_folder(CONTENT_TEST_INSTALL_FOLDER, install, MAX_PATH), "the test makes an install folder");
 
     engine_fixture f;
     engine_fixture_init(&f, 1, 64);

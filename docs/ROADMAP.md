@@ -678,6 +678,51 @@ its AI against the original over a year of play.
   faction taking a city.
 
 ### M16 The content of the player's own copy
+Status (2026-10-19): done (tutorial 29). The spec input was
+formats/scenario-file.md and formats/binary-identity.md. The spec has no
+layout of the message, portrait and music files ("Asset formats are out of
+scope"). Thus M16 reads the names and the scenarios of the install, and it
+reports the other assets. The demo is "demo/m16_content".
+
+- Engine:
+  - set_install_folder reads media\scenario of the install. Scenario.s11
+    loads as the city names, with one command. SCEN000..013.s11 give the
+    scenario list with the number, the start date and the title.
+  - The engine refuses a folder without these files, and the refusal
+    changes nothing. An empty folder clears the install.
+  - The engine counts the message files S11MSG00..03.s11. It does not
+    decode them.
+- API: `content_source(asset)` gives the source of the city names, the
+  scenarios, the messages, the portraits and the music. The other new
+  functions are `set_install_folder`, `install_folder`,
+  `install_scenario_count` and `install_scenario_at`.
+- Tests:
+  - feature: the sources without an install. A test install has the two
+    scenario files of the spec. It gives the names and one scenario, and
+    a game starts from that scenario. Clear gives the pack again;
+  - ui: Set and Clear of the Content panel send one set_install_folder
+    each. Start sends one load_scenario. The officer view has one portrait
+    frame for each source and commands nothing;
+  - demo: "demo/m16_content".
+- UI: the Content panel of the debug menu shows the source of each asset
+  and the scenarios of the install. The officer view of the Court panel
+  frames the portrait and names its source. No source gives a picture
+  yet, so the frame shows the first character of the name.
+- Not done in this run: the generated portraits of
+  data/civil_war/Portraits.zip are on the branch feat/default-portraits.
+  The unattended run did not get the permission to merge that branch. The
+  owner of the repository decides the merge.
+- Open points for the analysis side (not yet in QUESTIONS.md: an
+  unattended run does not commit to the spec repository):
+  - the layout of the message tables media\msg\S11MSG00..03.s11: the
+    keys, the character set and the order. The feature test "the loader
+    reads the message file of the install" waits for it;
+  - the layout of the portraits in media\face, and the map from the
+    portrait number of the officer record (+53) to a picture;
+  - the files of the music, their format and the event of each track;
+  - the map from SCEN000..013 to the scenario keys of scenarios.tsv
+    (Q-189 covers the PK scenarios).
+
 The game reads the names, the messages, the portraits and the music
 from the player's own install at run time, and ships generated
 portraits as the fallback pack.

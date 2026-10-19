@@ -111,4 +111,46 @@ internal PLATFORM_WRITE_ENTIRE_FILE(test_platform_write_entire_file)
     return ok;
 }
 
+/* M16: makes <exe dir>\<name>, a small install folder for the tests of the
+   install of the player. It copies the two scenario files of
+   spec-src/spec/fixtures/scenarios into media\scenario, the folder of
+   formats/binary-identity.md. It also writes a short file
+   media\msg\S11MSG00.s11. The engine only finds that file. The spec has no
+   layout of the message files. Writes the absolute path of the folder to
+   out. Returns false if a copy failed. */
+internal b32
+test_make_install_folder(const char *name, char *out, u32 out_size)
+{
+    char exe_dir[MAX_PATH];
+    test_exe_dir(exe_dir, MAX_PATH);
+    snprintf(out, out_size, "%s\\%s", exe_dir, name);
+
+    char folder[MAX_PATH];
+    CreateDirectoryA(out, 0);
+    snprintf(folder, MAX_PATH, "%s\\media", out);
+    CreateDirectoryA(folder, 0);
+    snprintf(folder, MAX_PATH, "%s\\media\\scenario", out);
+    CreateDirectoryA(folder, 0);
+    snprintf(folder, MAX_PATH, "%s\\media\\msg", out);
+    CreateDirectoryA(folder, 0);
+
+    static const char *files[] = { "Scenario.s11", "SCEN002.s11" };
+    for (u32 index = 0; index < ArrayCount(files); ++index)
+    {
+        char source[MAX_PATH], target[MAX_PATH], relative[64];
+        snprintf(relative, sizeof(relative), "scenarios\\%s", files[index]);
+        test_fixture_path(source, MAX_PATH, relative);
+        snprintf(target, MAX_PATH, "%s\\media\\scenario\\%s", out, files[index]);
+        if (!CopyFileA(source, target, FALSE)) return false;
+    }
+
+    char message[MAX_PATH];
+    snprintf(message, MAX_PATH, "%s\\media\\msg\\S11MSG00.s11", out);
+    FILE *file = fopen(message, "wb");
+    if (!file) return false;
+    fputs("not a message table", file);
+    fclose(file);
+    return true;
+}
+
 #endif /* TEST_FILES_H */

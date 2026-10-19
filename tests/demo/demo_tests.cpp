@@ -16,6 +16,7 @@
 #define DEMO_M13_NAME          "m13_replay"
 #define DEMO_M14_NAME          "m14_game_screens"
 #define DEMO_M15_NAME          "m15_ai"
+#define DEMO_M16_NAME          "m16_content"
 
 /* build\demos, with no last backslash. demo_player.cpp sets it. */
 global_variable char g_demo_output_dir[MAX_PATH];
@@ -2029,6 +2030,66 @@ demo_m15_ai(ImGuiTestContext *ctx)
     IM_CHECK(demo_screenshot_panel(ctx, milestone, "###AI", "ai"));
 }
 
+/* M16: the player names an install folder in the Content panel. The city
+   names and the scenario list then come from the install. Start begins a
+   game from the scenario of the install. The officer view of the Court
+   panel shows the source of the portrait. The install is a test folder with
+   the two scenario files of the spec (test_make_install_folder). */
+internal void
+demo_m16_content(ImGuiTestContext *ctx)
+{
+    const char *milestone = DEMO_M16_NAME;
+    demo_vars &v = ctx->GetVars<demo_vars>();
+    engine_api *api = &v.api;
+    void *e = api->engine;
+    char install[MAX_PATH];
+    IM_CHECK(test_make_install_folder("demo_install", install, MAX_PATH));
+    IM_CHECK_EQ(api->content_source(e, ENGINE_ASSET_SCENARIOS).source, (u8)ENGINE_SOURCE_PACK);
+    IM_CHECK(demo_begin_video(ctx, milestone));
+
+    IM_CHECK(demo_open_panel(ctx, "###Content", &v.ui.show_content));
+    ctx->WindowResize("//###Content", ImVec2(760, 460));
+    ctx->Yield(2);
+    ctx->SleepStandard();
+    ctx->SetRef("###Content");
+    ctx->ItemInputValue("###install_folder", install);
+    ctx->ItemClick("###set_install");
+    ctx->Yield(2);
+    IM_CHECK(v.ui.content.has_result && v.ui.content.result.found && v.ui.content.result.names_loaded);
+    IM_CHECK_EQ(v.ui.content.result.scenario_count, 1u);
+    IM_CHECK_EQ(api->content_source(e, ENGINE_ASSET_CITY_NAMES).source, (u8)ENGINE_SOURCE_INSTALL);
+    IM_CHECK_EQ(api->content_source(e, ENGINE_ASSET_SCENARIOS).source, (u8)ENGINE_SOURCE_INSTALL);
+    IM_CHECK_EQ(api->content_source(e, ENGINE_ASSET_MESSAGES).install_files, 1u);
+    IM_CHECK(ctx->ItemExists("install_scenarios/###start0"));
+    ctx->SleepStandard();
+
+    ctx->ItemClick("install_scenarios/###start0");
+    ctx->Yield(2);
+    IM_CHECK_EQ(api->city_count(e), 42u);
+    u8 player = 0;   /* the force of 曹操 in SCEN002 (formats/scenario-file.md) */
+    api->set_faction_human(e, player, true);
+    for (u32 step = 0; step < 300 && api->whose_turn(e) != player; ++step) api->end_turn(e);
+    IM_CHECK_EQ(api->whose_turn(e), player);
+    u16 ruler = api->force_ruler(e, player);
+    IM_CHECK(ruler != ENGINE_NO_OFFICER);
+    ctx->SleepStandard();
+
+    IM_CHECK(demo_open_panel(ctx, "###Court", &v.ui.show_court));
+    ctx->SetRef("###Court");
+    char item[64];
+    snprintf(item, sizeof(item), "###court_officer/###o%u", ruler);
+    ctx->ComboClick(item);
+    ctx->Yield(2);
+    IM_CHECK_EQ(v.ui.court.officer, ruler);
+    IM_CHECK(ctx->ItemExists("###portrait_0"));   /* no source gives a picture: the first character */
+    ctx->SleepStandard();
+    ctx->SleepStandard();
+
+    IM_CHECK(demo_end_video(ctx));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Content", "content"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Court", "court"));
+}
+
 internal void
 register_demo_tests(ImGuiTestEngine *e)
 {
@@ -2113,4 +2174,9 @@ register_demo_tests(ImGuiTestEngine *e)
     t->SetVarsDataType<demo_vars>();
     t->GuiFunc  = demo_gui;
     t->TestFunc = demo_m15_ai;
+
+    t = IM_REGISTER_TEST(e, "demo", DEMO_M16_NAME);
+    t->SetVarsDataType<demo_vars>();
+    t->GuiFunc  = demo_gui;
+    t->TestFunc = demo_m16_content;
 }
