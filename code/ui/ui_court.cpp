@@ -102,6 +102,14 @@ ui_draw_officer_state(ui_state *ui, engine_api *api, u16 officer_id)
     engine_officer_detail detail = api->officer_detail(api->engine, officer_id);
     engine_officer officer = api->officer_by_id(api->engine, officer_id);
     if (detail.officer_id == ENGINE_NO_OFFICER) return;
+    ImTextureID face = ui_officer_portrait(ui, &officer);
+    if (face)
+    {
+        f32 width = ImGui::GetTextLineHeightWithSpacing() * UI_PORTRAIT_LINES * 4.0f / 5.0f;
+        ImGui::Image(face, ImVec2(width, width * 5.0f / 4.0f));
+        ImGui::SameLine();
+    }
+    ImGui::BeginGroup();
     char text[64], post[96] = "-";
     ImGui::Text("%s %u   %s %u   %s %u", text_get(ui->text, "court.loyalty"), detail.loyalty, text_get(ui->text, "court.merit"), officer.merit,
                 text_get(ui->text, "court.age"), detail.age);
@@ -131,6 +139,7 @@ ui_draw_officer_state(ui_state *ui, engine_api *api, u16 officer_id)
         ImGui::SameLine();
         ImGui::TextUnformatted(names);
     }
+    ImGui::EndGroup();
 }
 
 internal void

@@ -26,6 +26,7 @@
 
 #include "base.h"
 #include "win32_window.h"
+#include "win32_portraits.h"
 #include "ecs/ecs.h"
 #include "ecs/ecs.cpp"
 #include "sim/sim.h"
@@ -181,6 +182,13 @@ demo_capture_screen(ImGuiID viewport_id, int x, int y, int width, int height, un
     return win32_read_back_buffer((win32_window *)user_data, x, y, width, height, pixels) != 0;
 }
 
+/* The log of the portrait decoder goes to the console. */
+internal void
+demo_log(const char *message)
+{
+    printf("%s\n", message);
+}
+
 internal void
 demo_print_test_names(ImGuiTestEngine *engine)
 {
@@ -244,6 +252,16 @@ main(int argc, char **argv)
     ui_font_result fonts = ui_fonts_load(font_data_dir, HEXDOM_CONTENT_PACK, HEXDOM_FONT_DEFAULT_PIXELS);
     printf("%s\n", fonts.message);
 
+    /* The default portraits, as in the game window. */
+    char portrait_path[MAX_PATH], portrait_message[MAX_PATH + 128];
+    snprintf(portrait_path, MAX_PATH, "%s\\%s", exe_dir, HEXDOM_PORTRAIT_ARCHIVE);
+    if (win32_portraits_open(&g_win32_portraits, window.device, portrait_path, demo_log, portrait_message, sizeof(portrait_message)))
+    {
+        g_demo_portraits        = &g_win32_portraits.list;
+        g_demo_portrait_texture = win32_portrait_texture;
+    }
+    printf("%s\n", portrait_message);
+
     test_io.ConfigRunSpeed            = ImGuiTestRunSpeed_Cinematic;
     /* A cinematic walkthrough takes about one minute; the default watchdog stops a test at 60 s. */
     test_io.ConfigWatchdogWarning     = 120.0f;
@@ -275,6 +293,7 @@ main(int argc, char **argv)
             ImGuiTestEngine_AbortCurrentTest(engine);
         }
         win32_begin_frame(&window);
+        win32_portraits_begin_frame(&g_win32_portraits);
         arena_reset(&frame_arena);
         ImVec2 display = ImGui::GetIO().DisplaySize;
         g_demo_render = render_commands_begin(&frame_arena, display.x, display.y);
@@ -292,6 +311,7 @@ main(int argc, char **argv)
     printf("%s %d/%d demo (%u frames)\n", success ? "PASS" : "FAIL", passed, tested, frames);
 
     ImGuiTestEngine_Stop(engine);
+    win32_portraits_close(&g_win32_portraits);
     win32_close_window(&window);
     ImGui::DestroyContext();
     ImGuiTestEngine_DestroyContext(engine);

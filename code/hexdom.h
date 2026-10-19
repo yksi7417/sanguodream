@@ -37,6 +37,20 @@ typedef PLATFORM_WRITE_ENTIRE_FILE(platform_write_entire_file);
 #define PLATFORM_LOG(name) void name(const char *message)
 typedef PLATFORM_LOG(platform_log);
 
+/* The default portraits (docs/ASSETS.md): a zip archive of JPEG files. The
+   path is relative to the folder of the executable. Each content pack uses
+   these portraits. The archive is not in git. If the file is absent, the
+   UI shows the first character of the name in place of a portrait. */
+#define HEXDOM_PORTRAIT_ARCHIVE "..\\data\\civil_war\\Portraits.zip"
+
+struct portrait_list;   /* render/portraits.h */
+
+/* The texture of a picture of the portrait list, as an ImTextureID. The
+   platform decodes a picture when the game first asks for it. Zero if the
+   picture is not ready in this frame or does not decode. */
+#define PLATFORM_PORTRAIT_TEXTURE(name) u64 name(u32 picture)
+typedef PLATFORM_PORTRAIT_TEXTURE(platform_portrait_texture);
+
 typedef void *imgui_alloc_fn(size_t size, void *user);
 typedef void  imgui_free_fn(void *ptr, void *user);
 
@@ -48,6 +62,8 @@ struct platform_api
     imgui_alloc_fn            *imgui_alloc;      /* ImGui allocates through the exe's */
     imgui_free_fn             *imgui_free;       /* heap so a DLL reload never frees   */
     void                      *imgui_alloc_user; /* memory the exe still owns          */
+    const portrait_list       *portraits;        /* the default portraits; zero without the archive */
+    platform_portrait_texture *portrait_texture;
 };
 
 struct render_commands;

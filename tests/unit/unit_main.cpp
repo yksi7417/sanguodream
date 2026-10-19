@@ -13,6 +13,9 @@
 #include "render/render.h"
 #include "render/terrain_mesh.h"
 #include "render/png.h"
+#include "render/zip.h"
+#include "render/jpeg.h"
+#include "render/portraits.h"
 #include "text/text.h"
 #include "text/text.cpp"
 
@@ -28,6 +31,9 @@
 #include "render_tests.cpp"
 #include "terrain_mesh_tests.cpp"
 #include "png_tests.cpp"
+#include "zip_tests.cpp"
+#include "jpeg_tests.cpp"
+#include "portraits_tests.cpp"
 #include "text_tests.cpp"
 #include "calendar_tests.cpp"
 #include "content_tests.cpp"
@@ -87,6 +93,18 @@ main(void)
     test_counts png = {};
     unit_png_tests(&png);
     failed |= test_report("unit/png", &png);
+
+    test_counts zip = {};
+    unit_zip_tests(&zip);
+    failed |= test_report("unit/zip", &zip);
+
+    test_counts jpeg = {};
+    unit_jpeg_tests(&jpeg);
+    failed |= test_report("unit/jpeg", &jpeg);
+
+    test_counts portraits = {};
+    unit_portraits_tests(&portraits);
+    failed |= test_report("unit/portraits", &portraits);
 
     test_counts text = {};
     unit_text_tests(&text);

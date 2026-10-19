@@ -410,6 +410,24 @@ inflate_deflate_blocks(inflate_state *state)
     return INFLATE_OK;
 }
 
+/* Inflates raw deflate data into dest, with no zlib header and no trailer.
+   A member of a zip archive has this form. scratch holds the decoder state. */
+internal inflate_result
+raw_inflate(memory_arena *scratch, const u8 *source, u64 source_size, u8 *dest, u64 dest_capacity)
+{
+    inflate_result result = {};
+    inflate_state *state = PushStruct(scratch, inflate_state);
+    state->source        = source;
+    state->source_size   = source_size;
+    state->dest          = dest;
+    state->dest_capacity = dest_capacity;
+
+    result.status        = inflate_deflate_blocks(state);
+    result.bytes_written = state->dest_position;
+    result.bytes_read    = state->source_position;
+    return result;
+}
+
 #define ZLIB_METHOD_DEFLATE   8
 #define ZLIB_MAX_WINDOW_INFO  7      /* window of 2^(7+8) = 32 KB */
 #define ZLIB_FLAG_DICTIONARY  0x20
