@@ -102,7 +102,42 @@ Plan, in order:
    tutorial, the Status block and this entry.
 
 ## M15 An opponent worth playing
-Status: in progress (2026-10-19).
+Status: done (2026-10-19, tutorial 28, demo "demo/m15_ai"). The commits
+of this task are:
+- fda9931 docs: record the survey and the plan of M15
+- 201e25c feat: give the AI unit goals and a record of each AI turn
+- 04fb3ca feat: add the AI panel and the goal lines of the AI view
+- 6653f77 feat: let the AI march on the real map after the first months
+- 8797636 test: add the demo m15_ai and keep the older demos green
+- 859752b docs: add tutorial 28 on the AI view and the M15 status
+- the commit that writes this entry
+
+Tests after a rebuild: unit 669 of 669, feature 42275 of 42275 (41423
+fixture rows, 21 AI checks), ui 121 of 121. The window smoke run passes.
+`run_tests.bat --demo` records all 16 demos, "demo/m15_ai" too. The
+replay of economy-turn/001 keeps 334 confirmed differences.
+
+Changes to the behaviour of M8 and to older tests, for M15:
+- ai_priorities.tsv has 12 rows. The planner tests of M8 expect 12 rows,
+  and their city checks skip the two new sortie rows.
+- The rule ai.target_hexes (30) replaces the reach of 12 hexes of M8.
+- An AI unit next to a target attacks it and stays. The enemy unit of the
+  demo m6_battle stays in its place again.
+- The demo m12_main_map turns the AI off before the load.
+
+Open points for the analysis side. The run did not append them to
+spec-src/spec/QUESTIONS.md, for the reason of M13. Copy them by hand:
+1. A year log of the original: the saves of 12 months from one start.
+   The roadmap test compares the soldiers, the gold and the cities of
+   each faction with it.
+2. The month of the first AI attack when the player does nothing. The
+   claim of knowledge/ai.md gives 5 to 6 months. The clean room uses 5.
+3. Does the original AI take a free city, and how fast?
+4. The distance of an enemy unit that makes an AI city send a unit out.
+5. Does an AI unit go home for grain? The naval claim says that AI ships
+   starve.
+6. The order of the AI actions in a turn and the choice of the targets
+   (Q-113, Q-140, Q-185).
 
 Survey of 2026-10-19:
 - The spec has no "year log" of the original. The statistics test of the
