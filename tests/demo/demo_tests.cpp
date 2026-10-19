@@ -13,6 +13,7 @@
 #define DEMO_M10_NAME          "m10_map"
 #define DEMO_M11_NAME          "m11_save_map"
 #define DEMO_M12_NAME          "m12_main_map"
+#define DEMO_M13_NAME          "m13_replay"
 #define DEMO_M14_NAME          "m14_game_screens"
 
 /* build\demos, with no last backslash. demo_player.cpp sets it. */
@@ -49,7 +50,8 @@ demo_gui(ImGuiTestContext *ctx)
         /* The walkthroughs of M0 to M9 play on the placeholder board that
            they were made for; the walkthrough of M10 shows the real map. */
         config.use_pack_map     = strcmp(ctx->Test->Name, DEMO_M10_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M11_NAME) == 0 ||
-                                  strcmp(ctx->Test->Name, DEMO_M12_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M14_NAME) == 0;
+                                  strcmp(ctx->Test->Name, DEMO_M12_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M13_NAME) == 0 ||
+                                  strcmp(ctx->Test->Name, DEMO_M14_NAME) == 0;
         v.backend = engine_create(&v.permanent, &v.transient, config);
         v.api     = engine_make_api(v.backend);
         text_catalog_init(&v.text, arena_sub(&v.permanent, Megabytes(4)), test_platform_read_entire_file,
@@ -1856,6 +1858,45 @@ demo_m14_game_screens(ImGuiTestContext *ctx)
     IM_CHECK(demo_screenshot_panel(ctx, milestone, "###MiniMap", "minimap"));
 }
 
+/* M13 (the replay of the save pairs; tutorial 26): the Fidelity panel lists
+   the pairs of the spec. Replay on conscript/001 loads the save of the
+   original before 徵兵 in 江陵, runs 徵兵 with the same three officers and
+   compares the result with the save after it. The gold, the merit and the
+   acted flags match. The troops and the public order differ (Q-153, Q-152). */
+internal void
+demo_m13_replay(ImGuiTestContext *ctx)
+{
+    const char *milestone = DEMO_M13_NAME;
+    demo_vars &v = ctx->GetVars<demo_vars>();
+    engine_api *api = &v.api;
+    void *e = api->engine;
+    IM_CHECK_EQ(api->replay_pair_count(e), 3u);
+    engine_replay_pair pair = api->replay_pair_at(e, 0);
+    IM_CHECK_STR_EQ(pair.rule, "conscript");
+    IM_CHECK(demo_begin_video(ctx, milestone));
+
+    IM_CHECK(demo_open_panel(ctx, "###Fidelity", &v.ui.show_fidelity));
+    ctx->WindowResize("//###Fidelity", ImVec2(760, 560));
+    ctx->Yield(2);
+    ctx->SleepStandard();
+    ctx->SetRef("###Fidelity");
+    ctx->ItemClick("fidelity_pairs/###replay0");
+    ctx->Yield(2);
+    IM_CHECK(v.ui.fidelity.has_report);
+    IM_CHECK_EQ(v.ui.fidelity.report.status, (u8)ENGINE_REPLAY_OK);
+    IM_CHECK_GT(v.ui.fidelity.report.fields, 5000u);
+    IM_CHECK_LE(v.ui.fidelity.report.differ_verified, 2u);
+    engine_city jiangling = api->city_at(e, pair.command.city_id);
+    IM_CHECK_EQ(jiangling.city_id, pair.command.city_id);
+    IM_CHECK_EQ(jiangling.gold, 11874u);   /* the gold of the save after 徵兵: 300 less */
+    IM_CHECK(ctx->ItemExists("fidelity_diffs"));
+    ctx->SleepStandard();
+    ctx->SleepStandard();
+
+    IM_CHECK(demo_end_video(ctx));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Fidelity", "fidelity"));
+}
+
 internal void
 register_demo_tests(ImGuiTestEngine *e)
 {
@@ -1925,6 +1966,11 @@ register_demo_tests(ImGuiTestEngine *e)
     t->SetVarsDataType<demo_vars>();
     t->GuiFunc  = demo_gui;
     t->TestFunc = demo_m12_main_map;
+
+    t = IM_REGISTER_TEST(e, "demo", DEMO_M13_NAME);
+    t->SetVarsDataType<demo_vars>();
+    t->GuiFunc  = demo_gui;
+    t->TestFunc = demo_m13_replay;
 
     t = IM_REGISTER_TEST(e, "demo", DEMO_M14_NAME);
     t->SetVarsDataType<demo_vars>();

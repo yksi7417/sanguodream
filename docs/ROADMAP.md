@@ -491,6 +491,60 @@ you see. The analysis side runs the experiments of
 spec/experiments/ab-testing-plan.md in step with M13 and M15.
 
 ### M13 Fidelity: replay the original's saves
+Status (2026-10-19): done (tutorial 26). The spec input was the three
+save pairs of spec/fixtures/saves/pairs (conscript/001, develop/001,
+economy-turn/001; spec 84714de), saves/README.md and
+experiments/ab-testing-plan.md. The demo is "demo/m13_replay".
+
+- Engine:
+  - Fix: the city record has the troops at +16 and the gold at +20 (the
+    spec correction of 2026-10-17). The first pair showed the swap.
+  - save_format reads the two per-force tables. Table A at 0x082E49 gives
+    the ruler and the action points. Table B at 0x0807A9 gives the
+    technique points and the research with its turns.
+  - sim_resume_save loads a save in the middle of the player's turn. No
+    AI acts. The action points, the technique points and the acted flags
+    come from the save.
+  - code/engine/engine_replay.cpp runs a pair: it loads the second save
+    and the first save, runs the command with the AI on, and compares
+    5884 fields. Each difference names its rule and its Q-id.
+  - misc/make_pair_index.py writes data/placeholder/pairs.tsv from the
+    pair folders of the spec.
+- API: `replay_pair(before, command, after)`, `replay_pair_count`,
+  `replay_pair_at` and `replay_diff_at`.
+- Tests:
+  - unit: the two per-force tables and the record of force 46;
+  - feature: a pair folder without a row or a handler fails. Each pair
+    replays. The confirmed differences of each pair stay at or below the
+    measured count: conscript 2, develop 1, economy turn 334;
+  - ui: the Replay button of a row sends one replay_pair;
+  - demo: "demo/m13_replay".
+- UI: the Fidelity panel of the debug menu lists the pairs, replays one,
+  and shows each field that differs with the rule and the Q-id.
+- The gold, the merit, the acted flags and the officers of the develop
+  and conscript commands replay with zero differences. The replays do not
+  reach the goal of zero confirmed differences. The spec has no rule for
+  the fields that differ. The spec also has no movement pair.
+- Open points for the analysis side (not yet in QUESTIONS.md: an
+  unattended run does not commit to the spec repository):
+  - Q-153: one 徵兵 in 江陵 by 3 officers gave 3439 soldiers. The clean
+    room gives 3570.
+  - Q-152 and Q-154: the same 徵兵 took 10 public order, and city +84 fell
+    by 9. The clean room takes 5 public order. The loader does not
+    decode city +84.
+  - Q-158: the 徵兵 gave 5 technique points, and the 開發 gave none at the
+    order. The clean room gives 10 for each.
+  - The merit of 開發: the original gives no merit at the order, but 徵兵
+    gives 50 at the order. When does the officer of 開發 get the merit?
+  - pair.json does not name the officers and the slot of a command. The
+    index takes the officers from diff.json, and the engine takes the
+    first free slot.
+  - economy-turn/001 runs the AI of 13 factions. The differences are
+    mostly AI choices (M15). A 進行 on the first day of a month can show
+    the income (Q-151).
+  - No pair for movement yet (Q-167 to Q-171).
+  - Q-202: the record of force 46 of table A ends inside the city array.
+
 The clean room loads a save of the original, runs one command, and must
 reach the state of the next save of the original. This is the A/B test
 at the level of one action.

@@ -69,7 +69,7 @@ ui_draw_fidelity_report(ui_state *ui, engine_api *api)
     if (!ImGui::BeginTable("fidelity_diffs", 6, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY,
                            ImVec2(0, ImGui::GetTextLineHeightWithSpacing() * 14))) return;
     ImGui::TableSetupScrollFreeze(0, 1);
-    ImGui::TableSetupColumn(text_get(ui->text, "fidelity.field"));
+    ImGui::TableSetupColumn(text_get(ui->text, "fidelity.field"), ImGuiTableColumnFlags_WidthStretch, 3.0f);
     ImGui::TableSetupColumn(text_get(ui->text, "fidelity.before"));
     ImGui::TableSetupColumn(text_get(ui->text, "fidelity.replayed"));
     ImGui::TableSetupColumn(text_get(ui->text, "fidelity.original"));

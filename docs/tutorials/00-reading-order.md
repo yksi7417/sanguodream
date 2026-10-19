@@ -39,6 +39,7 @@ run_tests.bat --e2e
 | 23 | Save map: the state of a save on the real map, the frame of a city or a unit, the hex info and the keys | code/sim/save_map.cpp, save_format, code/render/render.h, code/ui/ui_locate.cpp, ui_scene.cpp, data/placeholder/save_types.tsv | tests/unit/save_format_tests.cpp, render_tests.cpp, tests/feature/save_map_tests.cpp, tests/ui/ui_tests.cpp |
 | 25 | Game screens: the HUD, the list and the dialogs on demand | code/ui/ui_hud.cpp, code/ui/ui_context.cpp, code/ui/ui_game.cpp | tests/ui/ui_tests.cpp, tests/demo/demo_tests.cpp |
 | 24 | Main map: the round mini map, the unit plates and the turn | code/ui/ui_minimap.cpp, code/ui/ui_locate.cpp, code/render/render.h, code/engine/engine_march.cpp | tests/unit/render_tests.cpp, tests/feature/march_tests.cpp, save_map_tests.cpp, tests/ui/ui_tests.cpp |
+| 26 | Replay: the save pairs of the original, the load in the middle of a turn and the Fidelity panel | code/engine/engine_replay.cpp, code/sim/sim.cpp (sim_resume_save), save_format (the per-force tables), code/ui/ui_fidelity.cpp, misc/make_pair_index.py, data/placeholder/pairs.tsv | tests/unit/save_format_tests.cpp, tests/feature/replay_tests.cpp, tests/ui/ui_tests.cpp, tests/demo/demo_tests.cpp |
 
 You will see these conventions everywhere:
 - `internal` means `static`: the function is private to its translation

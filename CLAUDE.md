@@ -98,6 +98,9 @@ decompilation of it.
 - misc/gif_encode.cpp    the GIF encoder of demo_player.exe without ffmpeg
 - misc/make_map_pack.py  copies the map fixtures of the spec into the pack
                          (run it after a spec update; tutorial 22)
+- misc/make_pair_index.py  writes data/placeholder/pairs.tsv from the save
+                         pairs of the spec (run it after a spec update;
+                         tutorial 26)
 - data/placeholder/      the content pack: text/<locale>.tsv (UI strings),
                          names/<locale>.tsv (names by Big5 hex)
 - data/placeholder/map/  the real map (M10): hexes.tsv and bases.tsv of
