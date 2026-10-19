@@ -98,6 +98,55 @@ struct ui_command_case
     engine_command_kind engine_kind;
 };
 
+/* M14: one item of the base command menu of the game mode
+   (city-commands.md, "Base command menu"): the main item, the submenu
+   item, and the dialog that the item opens. An item without an api is
+   grey. */
+enum ui_base_menu_expect
+{
+    UI_EXPECT_DEVELOP,
+    UI_EXPECT_MERGE,
+    UI_EXPECT_COMMAND,     /* show_command[ui_kind] */
+    UI_EXPECT_RESEARCH,
+    UI_EXPECT_SORTIE,
+    UI_EXPECT_TRANSPORT,
+    UI_EXPECT_COURT,
+    UI_EXPECT_DIPLOMACY,
+    UI_EXPECT_RULER,
+    UI_EXPECT_GREY
+};
+
+struct ui_base_menu_case
+{
+    const char *test;
+    const char *menu;      /* the main item; the same as item for a main item without a submenu */
+    const char *item;
+    u32         expect;    /* ui_base_menu_expect */
+    u32         ui_kind;   /* UI_EXPECT_COMMAND: the ui_command_kind */
+};
+
+global_variable ui_base_menu_case ui_base_menu_cases[] = {
+    { "base_menu_city_develop_opens_its_dialog",     "###menu_city",      "###base_develop",   UI_EXPECT_DEVELOP,   0 },
+    { "base_menu_city_merge_opens_its_dialog",       "###menu_city",      "###base_merge",     UI_EXPECT_MERGE,     0 },
+    { "base_menu_city_conscript_opens_its_dialog",   "###menu_city",      "###base_conscript", UI_EXPECT_COMMAND,   UI_COMMAND_CONSCRIPT },
+    { "base_menu_city_produce_opens_its_dialog",     "###menu_city",      "###base_produce",   UI_EXPECT_COMMAND,   UI_COMMAND_PRODUCE },
+    { "base_menu_city_patrol_opens_its_dialog",      "###menu_city",      "###base_patrol",    UI_EXPECT_COMMAND,   UI_COMMAND_PATROL },
+    { "base_menu_city_merchant_opens_its_dialog",    "###menu_city",      "###base_merchant",  UI_EXPECT_COMMAND,   UI_COMMAND_MERCHANT },
+    { "base_menu_city_research_opens_its_dialog",    "###menu_city",      "###base_research",  UI_EXPECT_RESEARCH,  0 },
+    { "base_menu_military_train_opens_its_dialog",   "###menu_military",  "###base_train",     UI_EXPECT_COMMAND,   UI_COMMAND_TRAIN },
+    { "base_menu_military_sortie_opens_its_dialog",  "###menu_military",  "###base_sortie",    UI_EXPECT_SORTIE,    0 },
+    { "base_menu_military_transport_opens_its_dialog", "###menu_military", "###base_transport", UI_EXPECT_TRANSPORT, 0 },
+    { "base_menu_people_move_is_grey",               "###menu_people",    "###base_move",      UI_EXPECT_GREY,      0 },
+    { "base_menu_people_summon_is_grey",             "###menu_people",    "###base_summon",    UI_EXPECT_GREY,      0 },
+    { "base_menu_people_search_opens_the_court",     "###menu_people",    "###base_search",    UI_EXPECT_COURT,     0 },
+    { "base_menu_people_recruit_opens_the_court",    "###menu_people",    "###base_recruit",   UI_EXPECT_COURT,     0 },
+    { "base_menu_people_reward_opens_the_court",     "###menu_people",    "###base_reward",    UI_EXPECT_COURT,     0 },
+    { "base_menu_people_give_opens_the_court",       "###menu_people",    "###base_give",      UI_EXPECT_COURT,     0 },
+    { "base_menu_diplomacy_opens_its_panel",         "###menu_diplomacy", "###menu_diplomacy", UI_EXPECT_DIPLOMACY, 0 },
+    { "base_menu_plot_opens_the_diplomacy_panel",    "###menu_plot",      "###menu_plot",      UI_EXPECT_DIPLOMACY, 0 },
+    { "base_menu_ruler_opens_its_panel",             "###menu_ruler",     "###menu_ruler",     UI_EXPECT_RULER,     0 },
+};
+
 global_variable ui_command_case ui_command_cases[] = {
     { "patrol_decide_issues_one_command",    "patrol_back_issues_nothing",    "###Patrol",    "###open_patrol",    UI_COMMAND_PATROL,    ENGINE_COMMAND_PATROL },
     { "conscript_decide_issues_one_command", "conscript_back_issues_nothing", "###Conscript", "###open_conscript", UI_COMMAND_CONSCRIPT, ENGINE_COMMAND_CONSCRIPT },
@@ -1412,6 +1461,134 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
+    /* M13: the Fidelity panel lists the pairs; Replay sends one replay_pair with the two saves of the row. */
+    t = IM_REGISTER_TEST(e, "ui", "fidelity_panel_replays_the_pair_of_the_row");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_fidelity       = true;
+        recorder_reset(&v.recorder);
+        ctx->Yield(2);
+        ctx->SetRef("###Fidelity");
+        IM_CHECK(ctx->ItemExists("fidelity_pairs/###replay1"));
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_REPLAY_PAIR_AT), 2u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("fidelity_pairs/###replay0");
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_REPLAY_PAIR), 1u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_REPLAY_PAIR), (u32)ENGINE_REPLAY_DEVELOP);
+        IM_CHECK_STR_EQ(v.recorder.last_replay_before, "pairs\\develop\\001\\before.s11");
+        IM_CHECK_STR_EQ(v.recorder.last_replay_after, "pairs\\develop\\001\\after.s11");
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(ctx->ItemExists("fidelity_diffs"));
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_REPLAY_DIFF_AT), 1u);
+    };
+
+    /* M15: the AI panel reads the record of the last AI turn of the chosen
+       faction. It shows one row for each option and commands nothing. */
+    t = IM_REGISTER_TEST(e, "ui", "ai_panel_reads_the_record_of_the_faction");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_ai             = true;
+        v.ui.ai.faction          = 2;
+        recorder_reset(&v.recorder);
+        ctx->Yield(2);
+        ctx->SetRef("###AI");
+        IM_CHECK(ctx->ItemExists("ai_options"));
+        IM_CHECK(ctx->ItemExists("ai_options/###ai_option0"));
+        IM_CHECK(ctx->ItemExists("ai_options/###ai_option2"));
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_AI_EXPLAIN), 1u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_AI_EXPLAIN), 2u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* M15: a row of the AI panel frames its unit or its city; it commands nothing. */
+    t = IM_REGISTER_TEST(e, "ui", "ai_panel_row_frames_the_unit_or_the_city");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_ai             = true;
+        v.ui.ai.faction          = 2;
+        ctx->Yield(2);
+        ctx->SetRef("###AI");
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("ai_options/###ai_option1");
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.units.selected, 3u);
+        ctx->ItemClick("ai_options/###ai_option0");
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.city.selected, (u8)27);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* M14: in the game mode the City dialog shows the base command menu.
+       Each item opens the dialog of its command for the selected city, or
+       it is grey. Opening a dialog commands nothing. */
+    for (u32 index = 0; index < ArrayCount(ui_base_menu_cases); ++index)
+    {
+        t = IM_REGISTER_TEST(e, "ui", ui_base_menu_cases[index].test);
+        t->SetVarsDataType<ui_test_vars>();
+        t->GuiFunc    = ui_test_gui;
+        t->ArgVariant = (int)index;
+        t->TestFunc   = [](ImGuiTestContext *ctx)
+        {
+            ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+            ui_base_menu_case *test_case = ui_base_menu_cases + ctx->Test->ArgVariant;
+            v.recorder.officer_count = 3;
+            v.recorder.city_count    = 2;
+            v.ui.hud_mode            = true;
+            v.ui.city.selected       = 1;
+            ctx->Yield();
+            ui_context_open(&v.ui, &v.api, UI_CONTEXT_CITY, 300.0f, 200.0f);
+            ctx->Yield(2);
+            recorder_reset(&v.recorder);
+            ctx->SetRef("//###City");
+            IM_CHECK(!ctx->ItemExists("###open_develop"));                     /* the game mode has no flat buttons */
+            if (strcmp(test_case->menu, test_case->item) != 0)
+            {
+                ctx->ItemClick(test_case->menu);
+                ctx->Yield();
+                IM_CHECK_EQ(v.ui.city.menu, (u8)(1 + (strstr(test_case->menu, "military") ? 1 : strstr(test_case->menu, "people") ? 2 : 0)));
+            }
+            if (test_case->expect == UI_EXPECT_GREY)
+            {
+                IM_CHECK((ctx->ItemInfo(test_case->item).ItemFlags & ImGuiItemFlags_Disabled) != 0);
+                IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+                return;
+            }
+            ctx->ItemClick(test_case->item);
+            ctx->Yield();
+            switch (test_case->expect)
+            {
+                case UI_EXPECT_DEVELOP:   IM_CHECK(v.ui.show_develop && v.ui.develop.city == 1); break;
+                case UI_EXPECT_MERGE:     IM_CHECK(v.ui.show_merge && v.ui.merge.city == 1); break;
+                case UI_EXPECT_COMMAND:   IM_CHECK(v.ui.show_command[test_case->ui_kind] && v.ui.commands[test_case->ui_kind].city == 1); break;
+                case UI_EXPECT_RESEARCH:  IM_CHECK(v.ui.show_research && v.ui.research.city == 1); break;
+                case UI_EXPECT_SORTIE:    IM_CHECK(v.ui.show_sortie && v.ui.sortie.city == 1); break;
+                case UI_EXPECT_TRANSPORT: IM_CHECK(v.ui.show_transport && v.ui.transport.city == 1); break;
+                case UI_EXPECT_COURT:     IM_CHECK(v.ui.show_court); break;
+                case UI_EXPECT_DIPLOMACY: IM_CHECK(v.ui.show_diplomacy); break;
+                case UI_EXPECT_RULER:     IM_CHECK(v.ui.show_ruler); break;
+                default:                  IM_CHECK(false); break;
+            }
+            IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        };
+    }
+
     t = IM_REGISTER_TEST(e, "ui", "title_new_game_flow_loads_chooses_rulers_and_sets_settings");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;
@@ -2358,6 +2535,57 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->ItemClick("Clear");
         ctx->Yield();
         IM_CHECK_EQ(v.api.ledger_count(v.api.engine), 0u);
+    };
+
+    /* M14: a scripted turn of 柴桑 from sample.s11 with the game screens
+       only. The debug panels stay hidden. 都市 then 巡察 runs the command,
+       and 進行 of the map menu ends the turn. */
+    t = IM_REGISTER_TEST(e, "e2e", "a_turn_of_chaisang_runs_from_the_game_screens");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->VarsConstructor = [](void *vars) { ((ui_test_vars *)vars)->use_real_engine = true; };
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        engine_api *api = &v.api;
+        void *e = api->engine;
+        ctx->SetRef("Simulation");
+        ctx->ItemClick("Load sample save");
+        ctx->Yield();
+        IM_CHECK_EQ(api->city_count(e), 42u);
+        ui_enter_game(&v.ui);   /* as a load from the title */
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.show_debug_panels);
+        u8 force = api->whose_turn(e);
+        const u8 chaisang = 26;
+        engine_city before = api->city_at(e, chaisang);
+        IM_CHECK(before.city_id == chaisang && before.owner_force_id == force);
+
+        v.ui.city.selected = chaisang;
+        ui_context_open(&v.ui, api, UI_CONTEXT_CITY, 300.0f, 200.0f);
+        ctx->Yield(2);
+        ctx->SetRef("//###City");
+        ctx->ItemClick("###menu_city");
+        ctx->Yield();
+        ctx->ItemClick("###base_patrol");
+        ctx->Yield();
+        IM_CHECK(v.ui.show_command[UI_COMMAND_PATROL] && v.ui.commands[UI_COMMAND_PATROL].city == chaisang);
+        u32 actions = api->actions_left(e, force);
+        ctx->SetRef("//###Patrol");
+        ctx->ItemClick("###decide");
+        ctx->Yield(2);
+        IM_CHECK_LT(api->actions_left(e, force), actions);                   /* the patrol ran */
+        IM_CHECK_EQ(v.ui.context.kind, (u8)UI_CONTEXT_NONE);                 /* and the City dialog closed */
+
+        u32 turn = api->turn(e);
+        ui_context_open(&v.ui, api, UI_CONTEXT_MAP_MENU, 400.0f, 300.0f);
+        ctx->Yield(2);
+        ctx->SetRef("//###MapMenu");
+        ctx->ItemClick("###proceed");
+        ctx->Yield(2);
+        IM_CHECK(api->turn(e) != turn || api->whose_turn(e) != force);
+        ImGuiWindow *bar = ctx->WindowInfo("//##MainMenuBar", ImGuiTestOpFlags_NoError).Window;
+        IM_CHECK(!v.ui.show_debug_panels && (bar == 0 || !bar->Active));     /* no debug panel in the whole turn */
     };
 
     t = IM_REGISTER_TEST(e, "e2e", "load_sample_save_and_city_names_fill_the_panels");

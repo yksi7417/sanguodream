@@ -858,6 +858,8 @@ ai.reward	Reward	褒賞
 ai.sortie	Sortie	出征
 ai.research	Research	研究
 ai.goodwill	Goodwill	親善
+ai.defend	Defend	出征 of the row defend (M15)
+ai.take_free	Take a free city	出征 of the row take_free (M15)
 bases.title	Bases	panel title: 港關
 bases.name	Name	the base
 bases.kind	Kind	pass or port

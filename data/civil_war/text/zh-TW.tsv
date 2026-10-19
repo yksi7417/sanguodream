@@ -856,6 +856,8 @@ ai.reward	褒賞
 ai.sortie	出征
 ai.research	研究
 ai.goodwill	親善
+ai.defend	防衛
+ai.take_free	佔領空城
 bases.title	港關
 bases.name	名稱
 bases.kind	種類

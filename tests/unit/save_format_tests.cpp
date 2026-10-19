@@ -143,8 +143,8 @@ unit_save_city_tests(test_counts *counts)
     test_put_u16(record, 9, 442);              /* +9  commanding officer id */
     record[11] = 9;                            /* +11 owner force id */
     test_put_u32(record, 12, 150000);          /* +12 capacity constant */
-    test_put_u32(record, 16, 82767);           /* +16 gold */
-    test_put_u32(record, 20, 45395);           /* +20 troops */
+    test_put_u32(record, 16, 45395);           /* +16 troops (spec correction 2026-10-17) */
+    test_put_u32(record, 20, 82767);           /* +20 gold */
     test_put_u32(record, 24, 233450);          /* +24 food */
     u32 stocks[10] = { 10288, 9884, 4294, 399, 1, 2, 3, 4, 0, 0 };
     for (u32 stock = 0; stock < 10; ++stock) test_put_u32(record, 32 + 4 * stock, stocks[stock]);   /* +32 equipment */
@@ -157,7 +157,7 @@ unit_save_city_tests(test_counts *counts)
     TEST_CHECK(counts, city.id == 36 && city.flags == 0x11, "city id and +0 flags");
     TEST_CHECK(counts, city.commanding_officer_id == 442 && city.owner_force_id == 9, "city +9 commander and +11 owner");
     TEST_CHECK(counts, city.capacity_constant == 150000, "city +12 capacity constant");
-    TEST_CHECK(counts, city.gold == 82767 && city.troops == 45395 && city.food == 233450, "city +16 gold, +20 troops, +24 food");
+    TEST_CHECK(counts, city.gold == 82767 && city.troops == 45395 && city.food == 233450, "city +16 troops, +20 gold, +24 food");
     TEST_CHECK(counts, city.equipment_stocks[CITY_STOCK_SPEARS] == 10288 && city.equipment_stocks[CITY_STOCK_WAR_HORSES] == 399 &&
                        city.equipment_stocks[CITY_STOCK_CATAPULTS] == 3 && city.equipment_stocks[CITY_STOCK_SHIP_TYPE_3] == 0,
                "city +32 equipment stocks in spec order");
@@ -276,7 +276,7 @@ test_build_save_file(u8 *file, memory_arena *arena)
     u8 *city = payload + 0x0830FF + 107 * 36;
     test_put_u16(city, 9, 343);
     city[11] = 10;
-    test_put_u32(city, 16, 5000);
+    test_put_u32(city, 20, 5000);   /* +20 gold */
     payload[0x07F0E8 + 53] = 0x57;   /* item 0: owner 343 = 0x0157 */
     payload[0x07F0E8 + 54] = 0x01;
     /* M11: building record 87 is a mint (type 38) with 1000 durability on (122, 142). */
@@ -316,6 +316,12 @@ test_build_save_file(u8 *file, memory_arena *arena)
     port[9] = 6; port[10] = 0x7A; port[11] = 0x18;   /* owner 6, 6266 soldiers */
     u8 *free_port = payload + 0x08428D + 70 * 33;
     free_port[9] = 255;                              /* base 75: no owner */
+    /* M13: the per-force tables. Force 6 has the ruler 636 and 62 action points (table A),
+       23 technique points and the research 3 with 9 turns left (table B). */
+    u8 *force_a = payload + 0x082E49 + 15 * 6;
+    force_a[0] = 0x7C; force_a[1] = 0x02; force_a[12] = 62;
+    u8 *force_b = payload + 0x0807A9 + 213 * 6;
+    force_b[0] = 23; force_b[6] = 3; force_b[7] = 9;
 
     u64 stream_size = test_zlib_store(payload, payload_length, file + 0x1BF);
     test_build_save_header(file, payload_length, (u32)stream_size);
@@ -372,6 +378,12 @@ unit_save_load_tests(test_counts *counts)
                "the base record of 皖口港 (base 72) gives the owner at +9 and the soldiers at +10");
     TEST_CHECK(counts, save.bases[0].id == 42 && save.bases[33].id == 75 && save.bases[33].owner_force_id == SAVE_BASE_NO_OWNER,
                "record k of the base array is base 42 + k; 255 at +9 is no owner");
+    TEST_CHECK(counts, save.force_count == 47 && save.forces[6].id == 6 && save.forces[6].ruler == 636 && save.forces[6].action_points == 62,
+               "table A of force 6: +0 the ruler and +12 the action points (M13)");
+    TEST_CHECK(counts, save.forces[6].technique_points == 23 && save.forces[6].research == 3 && save.forces[6].research_turns == 9,
+               "table B of force 6: +0 the technique points, +6 the research and +7 its turns (M13)");
+    TEST_CHECK(counts, save.forces[45].has_action_points && !save.forces[46].has_action_points,
+               "the action points of force 46 lie inside the city array: the loader does not read them (Q-202)");
 
     u64 used_after_load = arena.used;
     TEST_CHECK(counts, save_load(&arena, file, 0x100, &save).status == SAVE_LOAD_FILE_TOO_SMALL, "a file shorter than the header is refused");
@@ -398,8 +410,9 @@ unit_save_load_tests(test_counts *counts)
     save_load(&arena, file, file_size, &save);
     u64 record_bytes = 1100 * sizeof(officer_record) + 42 * sizeof(city_record) + 50 * sizeof(item_record) +
                        SAVE_BUILDING_COUNT * sizeof(building_record) + SAVE_UNIT_CAPACITY * sizeof(unit_record) +   /* M11 */
-                       SAVE_BASE_RECORD_COUNT * sizeof(base_record) + SAVE_HEX_COUNT * sizeof(u32);
-    TEST_CHECK(counts, arena.used - before_second_load < record_bytes + 64, "a load keeps the records, not the payload");
+                       SAVE_BASE_RECORD_COUNT * sizeof(base_record) + SAVE_HEX_COUNT * sizeof(u32) +
+                       SAVE_FORCE_COUNT * sizeof(save_force_record);   /* M13 */
+    TEST_CHECK(counts, arena.used - before_second_load < record_bytes + 80, "a load keeps the records, not the payload");
 
     memory_arena small = arena_sub(&arena, Megabytes(1));
     TEST_CHECK(counts, save_load(&small, file, file_size, &save).status == SAVE_LOAD_OUT_OF_MEMORY && small.used == 0,

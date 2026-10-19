@@ -168,6 +168,8 @@ ui_city_button(ui_state *ui, const char *text_id, const char *stable_id, sim_ref
 /* The command buttons of the City panel: only for a city of the faction
    that acts. Each button asks can_issue with a trial order, so that a
    command the action points or the gold do not allow is grey. */
+internal void ui_draw_base_menu(ui_state *ui, engine_api *api, u16 first_officer);   /* ui_base_menu.cpp */
+
 internal void
 ui_draw_city_buttons(ui_state *ui, engine_api *api, engine_city *city)
 {
@@ -179,6 +181,12 @@ ui_draw_city_buttons(ui_state *ui, engine_api *api, engine_city *city)
     }
     u16 first_officer = ENGINE_NO_OFFICER;
     ui_free_officers(api, ui->city.selected, &first_officer, 1);
+    if (ui->hud_mode)
+    {
+        ui_draw_base_menu(ui, api, first_officer);   /* M14: the menu of the original (ui_base_menu.cpp) */
+        if (ui->command_message[0]) ImGui::TextUnformatted(ui->command_message);
+        return;
+    }
     if (ui_city_button(ui, "city.develop", "open_develop",
                        ui_probe_city_command(api, ui->city.selected, ENGINE_COMMAND_DEVELOP, first_officer)))
     {

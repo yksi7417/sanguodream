@@ -126,6 +126,10 @@ enum recorder_call_kind
     RECORDER_ARMAMENT_AT,
     RECORDER_MOVE_COST,
     RECORDER_BANDIT_SITES,         /* arg = the city */
+    RECORDER_REPLAY_PAIR_COUNT,    /* M13 */
+    RECORDER_REPLAY_PAIR_AT,       /* arg = the row */
+    RECORDER_REPLAY_DIFF_AT,       /* arg = the index */
+    RECORDER_AI_EXPLAIN,           /* M15: arg = the faction */
     RECORDER_END_TURN,        /* commands start here */
     RECORDER_ADVANCE_TURNS,
     RECORDER_LEDGER_CLEAR,
@@ -195,6 +199,8 @@ enum recorder_call_kind
     RECORDER_TRIGGER_HISTORY,      /* arg = the row */
     RECORDER_LOAD_SCENARIO,
     RECORDER_START_FIRE,           /* M10: arg = the turns */
+    RECORDER_REPLAY_PAIR,          /* M13: arg = the command kind */
+    RECORDER_SET_UNIT_GRAIN,       /* M15: arg = the unit */
     RECORDER_CALL_KIND_COUNT
 };
 
@@ -246,6 +252,8 @@ struct engine_recorder
     sim_corps_order last_corps;       /* the order of the last command_corps */
     char          last_save_comment[ENGINE_SAVE_COMMENT_SIZE];   /* M9: the comment of the last save_game */
     sim_new_officer_order last_newcomer;   /* the order of the last create_officer */
+    char          last_replay_before[RECORDER_MAX_PATH];   /* M13: the paths of the last replay_pair */
+    char          last_replay_after[RECORDER_MAX_PATH];
 };
 
 internal void
@@ -1535,6 +1543,79 @@ internal void recorder_start_fire(void *o, s32 q, s32 r, u32 turns)
     recorder_record((engine_recorder *)o, RECORDER_START_FIRE, turns);
 }
 
+/* M13: two scripted pairs; a replay answers one difference. */
+internal u32 recorder_replay_pair_count(void *o)
+{
+    recorder_record((engine_recorder *)o, RECORDER_REPLAY_PAIR_COUNT, 0);
+    return 2;
+}
+internal engine_replay_pair recorder_replay_pair_at(void *o, u32 index)
+{
+    recorder_record((engine_recorder *)o, RECORDER_REPLAY_PAIR_AT, index);
+    engine_replay_pair pair = {};
+    snprintf(pair.rule, sizeof(pair.rule), "%s", index == 0 ? "develop" : "conscript");
+    pair.number = 1;
+    snprintf(pair.folder, sizeof(pair.folder), "pairs\\%s\\001", pair.rule);
+    snprintf(pair.q_ids, sizeof(pair.q_ids), "Q-153");
+    pair.command.kind    = (u8)(index == 0 ? ENGINE_REPLAY_DEVELOP : ENGINE_REPLAY_CONSCRIPT);
+    pair.command.city_id = 27;
+    for (u32 place = 0; place < SIM_DEVELOP_OFFICERS; ++place) pair.command.officers[place] = ENGINE_NO_OFFICER;
+    return pair;
+}
+internal engine_replay_report recorder_replay_pair(void *o, const char *before, const engine_replay_command *command, const char *after)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_REPLAY_PAIR, command ? command->kind : 0);
+    snprintf(r->last_replay_before, sizeof(r->last_replay_before), "%s", before ? before : "");
+    snprintf(r->last_replay_after, sizeof(r->last_replay_after), "%s", after ? after : "");
+    engine_replay_report report = {};
+    report.fields = 10;
+    report.differ = report.differ_verified = report.diff_count = 1;
+    return report;
+}
+/* M15: a scripted record of an AI turn of faction 2. The first option is
+   the chosen patrol of city 27; the second is the chosen march of unit 3
+   to the free city 5 at hex (10, 12); the third is a goal that the unit
+   did not choose. */
+internal engine_ai_explain recorder_ai_explain(void *o, u8 force)
+{
+    recorder_record((engine_recorder *)o, RECORDER_AI_EXPLAIN, force);
+    engine_ai_explain explain = {};
+    explain.faction = force;
+    if (force != 2) return explain;
+    explain.turn  = 4;
+    explain.count = 3;
+    engine_ai_option *patrol = explain.options;
+    patrol->goal = AI_GOAL_CITY_COMMAND; patrol->kind = SIM_COMMAND_PATROL; patrol->city_id = 27; patrol->chosen = true;
+    patrol->unit = ENGINE_NO_UNIT; patrol->officer = 101; patrol->score = 80;
+    snprintf(patrol->key, sizeof(patrol->key), "patrol");
+    engine_ai_option *take = explain.options + 1;
+    take->goal = AI_GOAL_TAKE_FREE_CITY; take->kind = SIM_COMMAND_MOVE; take->city_id = 5; take->chosen = true;
+    take->unit = 3; take->officer = 102; take->score = 240; take->q = 10; take->r = 12;
+    engine_ai_option *attack = explain.options + 2;
+    *attack = *take;
+    attack->goal = AI_GOAL_ATTACK_CITY; attack->city_id = 6; attack->chosen = false; attack->score = 180; attack->q = 14; attack->r = 9;
+    return explain;
+}
+internal void recorder_set_unit_grain(void *o, u32 unit_id, u32 grain)
+{
+    (void)grain;
+    recorder_record((engine_recorder *)o, RECORDER_SET_UNIT_GRAIN, unit_id);
+}
+
+internal engine_replay_diff recorder_replay_diff_at(void *o, u32 index)
+{
+    recorder_record((engine_recorder *)o, RECORDER_REPLAY_DIFF_AT, index);
+    engine_replay_diff diff = {};
+    snprintf(diff.path, sizeof(diff.path), "cities[30].troops");
+    diff.field = ENGINE_REPLAY_CITY_TROOPS;
+    diff.verified = true;
+    diff.before = 12365; diff.replayed = 15935; diff.original = 15804;
+    diff.rule = "conscription";
+    diff.q_id = "Q-153";
+    return diff;
+}
+
 internal engine_command_result recorder_create_officer(void *o, const sim_new_officer_order *order)
 {
     engine_recorder *r = (engine_recorder *)o;
@@ -1777,6 +1858,12 @@ recorder_make_api(engine_recorder *r)
     api.move_cost             = recorder_move_cost;
     api.bandit_sites          = recorder_bandit_sites;
     api.start_fire            = recorder_start_fire;
+    api.replay_pair_count     = recorder_replay_pair_count;   /* M13 */
+    api.replay_pair_at        = recorder_replay_pair_at;
+    api.replay_pair           = recorder_replay_pair;
+    api.replay_diff_at        = recorder_replay_diff_at;
+    api.ai_explain            = recorder_ai_explain;      /* M15 */
+    api.set_unit_grain        = recorder_set_unit_grain;
     return api;
 }
 

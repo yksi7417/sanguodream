@@ -88,6 +88,8 @@ enum save_payload_offset
     SAVE_PAYLOAD_AFTER_UNIT_ARRAY              = 0x08803B,   /* the next table of the payload */
     SAVE_PAYLOAD_ITEM_ARRAY                    = 0x07F0E8,
     SAVE_PAYLOAD_CITY_ARRAY                    = 0x0830FF,
+    SAVE_PAYLOAD_FORCE_TABLE_B                 = 0x0807A9,   /* M13: 213 bytes a force */
+    SAVE_PAYLOAD_FORCE_TABLE_A                 = 0x082E49,   /* M13: 15 bytes a force */
     SAVE_PAYLOAD_BASE_ARRAY                    = 0x08428D    /* the gate and port records, 70 bytes a record (spec 9632e15) */
 };
 
@@ -217,8 +219,8 @@ enum save_city_offset
     SAVE_CITY_COMMANDING_OFFICER_ID   = 9,    /* u16 */
     SAVE_CITY_OWNER_FORCE_ID          = 11,   /* u8 */
     SAVE_CITY_CAPACITY_CONSTANT       = 12,   /* u32 */
-    SAVE_CITY_GOLD                    = 16,   /* u32 */
-    SAVE_CITY_TROOPS                  = 20,   /* u32 */
+    SAVE_CITY_TROOPS                  = 16,   /* u32; the spec swapped +16 and +20 on 2026-10-17 */
+    SAVE_CITY_GOLD                    = 20,   /* u32 */
     SAVE_CITY_FOOD                    = 24,   /* u32 */
     SAVE_CITY_EQUIPMENT_STOCKS        = 32,   /* 10 x u32 */
     SAVE_CITY_LARGE_CITY_FLAG         = 77,   /* u8, hypothesis */
@@ -407,6 +409,37 @@ struct base_record
     u16 soldiers;
 };
 
+/* ---- the per-force tables (save-file.md, payload map; Q-202) --------------- */
+
+#define SAVE_FORCE_COUNT                47       /* one record for each force id */
+#define SAVE_FORCE_TABLE_A_RECORD_SIZE  15
+#define SAVE_FORCE_TABLE_B_RECORD_SIZE  213
+#define SAVE_FORCE_NO_RESEARCH          255
+/* Record 46 of table A ends 11 bytes inside the city array, so one of the
+   two bases is off (Q-202). The loader reads the action points of the
+   forces before it only. */
+#define SAVE_FORCE_ACTION_POINT_FORCES  46
+
+enum force_table_offset
+{
+    FORCE_A_RULER            = 0,    /* u16 officer id */
+    FORCE_A_ACTION_POINTS    = 12,   /* u8: 行動力 */
+    FORCE_B_TECHNIQUE_POINTS = 0,    /* u8: 技巧P */
+    FORCE_B_RESEARCH         = 6,    /* u8: the technique under research; SAVE_FORCE_NO_RESEARCH for none */
+    FORCE_B_RESEARCH_TURNS   = 7     /* u8: the turns that remain */
+};
+
+struct save_force_record
+{
+    u8  id;
+    u16 ruler;
+    u8  action_points;
+    b32 has_action_points;   /* false for force 46 (Q-202) */
+    u8  technique_points;
+    u8  research;
+    u8  research_turns;
+};
+
 struct save_file
 {
     save_header     header;
@@ -429,6 +462,8 @@ struct save_file
     u32             base_count;
     u32            *hex_states;      /* SAVE_HEX_COUNT, index = x * SAVE_HEX_SIDE + y: the fire and the event sites */
     u32             hex_state_count;
+    save_force_record   *forces;          /* M13: SAVE_FORCE_COUNT, index = force id */
+    u32             force_count;
 };
 
 struct save_load_result

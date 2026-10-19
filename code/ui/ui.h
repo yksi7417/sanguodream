@@ -173,6 +173,7 @@ struct ui_state
     struct
     {
         u8 selected;             /* the city id that the City panel shows */
+        u8 menu;                 /* M14: the open submenu of the base command menu (ui_base_menu) */
     } city;
     /* the filter and the sort of the big tables (ui_table.cpp) */
     ui_table_view officers_view;
@@ -291,7 +292,19 @@ struct ui_state
     bool show_battles;
     bool show_abilities;
     bool show_info;
-    bool quit_requested;         /* 結束遊戲: the platform closes the window */
+    bool show_fidelity;          /* M13: the replay of the save pairs of the original */
+    struct
+    {
+        bool                 has_report;   /* a replay ran from the panel */
+        u32                  pair;         /* the row of the last replay */
+        engine_replay_report report;
+    } fidelity;
+    bool show_ai;                /* M15: the AI view: the options of the last AI turn of a faction */
+    struct
+    {
+        u8 faction;              /* the faction of the view; ENGINE_NO_FACTION takes the first AI faction */
+    } ai;
+    bool quit_requested;        /* 結束遊戲: the platform closes the window */
     /* The game mode (main-map.md): the HUD at the top left with the list of
        the bases, officers and units, the mini map at the bottom right, and
        one dialog on demand at the entity that the player clicks. */

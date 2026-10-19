@@ -36,6 +36,10 @@ struct engine
     engine_battle    battles[ENGINE_BATTLE_CAPACITY];       /* M9: battles.tsv */
     u32              battle_count;
     engine_map_info  map_info;                              /* M10: what engine_create loaded as the map */
+    engine_replay_pair replay_pairs[ENGINE_REPLAY_PAIR_CAPACITY];   /* M13: pairs.tsv */
+    u32                replay_pair_count;
+    engine_replay_diff *replay_diffs;                       /* M13: the differences of the last replay */
+    u32                replay_diff_count;
 };
 
 internal engine_config
@@ -202,6 +206,7 @@ internal void engine_content_terrain(engine *e);   /* engine_march.cpp */
 internal void engine_place_natural_traps(engine *e);   /* engine_combat.cpp */
 internal void engine_load_scenarios(engine *e, const char *folder);   /* engine_playable.cpp */
 internal void engine_load_battles(engine *e, const char *folder);
+internal void engine_load_replay_pairs(engine *e, const char *folder);   /* engine_replay.cpp */
 internal char *engine_read_map_text(engine *e, const char *folder, u32 *width, u32 *height);   /* engine_map.cpp */
 internal b32   engine_load_pack_map(engine *e, const char *folder, const char *hexes_text);
 
@@ -256,6 +261,8 @@ engine_create(memory_arena *permanent, memory_arena *transient, engine_config co
     if (e->content.loaded) engine_place_natural_traps(e);
     engine_load_scenarios(e, config.content_folder);   /* M9: the scenario list (engine_playable.cpp) */
     engine_load_battles(e, config.content_folder);
+    e->replay_diffs = PushArray(permanent, ENGINE_REPLAY_DIFF_CAPACITY, engine_replay_diff);   /* M13 */
+    engine_load_replay_pairs(e, config.content_folder);
     return e;
 }
 
@@ -1270,6 +1277,7 @@ engine_api_set_city_resource(void *opaque, u8 city_id, u8 resource, u32 index, u
 #include "engine/engine_rivals.cpp"
 #include "engine/engine_saves.cpp"
 #include "engine/engine_playable.cpp"
+#include "engine/engine_replay.cpp"     /* M13 */
 
 internal engine_api
 engine_make_api(engine *e)
@@ -1341,5 +1349,6 @@ engine_make_api(engine *e)
     engine_bind_saves_api(&api);
     engine_bind_playable_api(&api);
     engine_bind_map_api(&api);
+    engine_bind_replay_api(&api);
     return api;
 }

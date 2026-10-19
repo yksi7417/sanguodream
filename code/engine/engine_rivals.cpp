@@ -100,26 +100,8 @@ engine_proposal_of(sim_state *sim, sim_proposal *proposal)
     result.city_id = ENGINE_NO_CITY;
     result.officer = ENGINE_NO_OFFICER;
     if (proposal->row < sim->content.priority_count) memcpy(result.key, sim->content.priorities[proposal->row].key, sizeof(result.key));
-    switch (command->kind)
-    {
-        case SIM_COMMAND_PATROL:
-        case SIM_COMMAND_CONSCRIPT:
-        case SIM_COMMAND_TRAIN:
-        case SIM_COMMAND_MERCHANT:
-        case SIM_COMMAND_PRODUCE:  result.city_id = command->city.city_id;     result.officer = command->city.officers[0];     break;
-        case SIM_COMMAND_DEVELOP:  result.city_id = command->develop.city_id;  result.officer = command->develop.officers[0];  break;
-        case SIM_COMMAND_RESEARCH: result.city_id = command->research.city_id; result.officer = command->research.officers[0]; break;
-        case SIM_COMMAND_SORTIE:
-        case SIM_COMMAND_TRANSPORT: result.city_id = command->sortie.city_id;  result.officer = command->sortie.officers[0];   break;
-        default:
-        {
-            if (command->kind >= SIM_COMMAND_SEARCH && command->kind <= SIM_COMMAND_FACTION_PLOT)
-            {
-                result.city_id = command->court.city_id;
-                result.officer = command->court.officer;
-            }
-        } break;
-    }
+    sim_command_place(command, &result.city_id, &result.officer);
+    if (result.city_id == SIM_NO_CITY) result.city_id = ENGINE_NO_CITY;
     if (result.officer == SIM_NO_OFFICER) result.officer = ENGINE_NO_OFFICER;
     return result;
 }
@@ -170,6 +152,34 @@ engine_api_ai_plan(void *opaque, u8 force_id)
     if (force_id < SIM_FORCE_CAPACITY) sim_plan_faction(sim, force_id, SIM_NO_CITY, 0xFF, CORPS_FLAG_ALL, plan);
     engine_plan_view view = engine_plan_view_of(sim, plan, SIM_REFUSAL_NONE);
     return view;
+}
+
+/* M15: the scored options of the last AI turn of the faction. */
+internal engine_ai_explain
+engine_api_ai_explain(void *opaque, u8 force_id)
+{
+    sim_state *sim = ((engine *)opaque)->sim;
+    engine_ai_explain result = {};
+    result.faction = force_id;
+    sim_ai_record *record = force_id < SIM_FORCE_CAPACITY ? sim_ai_record_of(sim, force_id) : 0;
+    if (!record) return result;
+    result.turn = record->turn;
+    for (u32 index = 0; index < record->count && result.count < ENGINE_AI_OPTION_CAPACITY; ++index)
+    {
+        sim_ai_option *option = record->options + index;
+        engine_ai_option *out = result.options + result.count++;
+        out->goal    = option->goal;
+        out->kind    = option->kind;
+        out->city_id = option->city_id == SIM_NO_CITY ? (u8)ENGINE_NO_CITY : option->city_id;
+        out->chosen  = option->chosen;
+        out->unit    = option->unit == SIM_NO_UNIT ? ENGINE_NO_UNIT : option->unit;
+        out->officer = option->officer == SIM_NO_OFFICER ? (u16)ENGINE_NO_OFFICER : option->officer;
+        out->score   = option->score;
+        out->q       = option->target.q;
+        out->r       = option->target.r;
+        if (option->row < sim->content.priority_count) memcpy(out->key, sim->content.priorities[option->row].key, sizeof(out->key));
+    }
+    return result;
 }
 
 /* ---- the emperor and the relics --------------------------------------------------------- */
@@ -359,6 +369,7 @@ engine_bind_rivals_api(engine_api *api)
     api->advice               = engine_api_advice;
     api->council              = engine_api_council;
     api->ai_plan              = engine_api_ai_plan;
+    api->ai_explain           = engine_api_ai_explain;
     api->emperor              = engine_api_emperor;
     api->relic_count          = engine_api_relic_count;
     api->relic_at             = engine_api_relic_at;

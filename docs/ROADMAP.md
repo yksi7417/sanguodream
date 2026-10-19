@@ -491,6 +491,60 @@ you see. The analysis side runs the experiments of
 spec/experiments/ab-testing-plan.md in step with M13 and M15.
 
 ### M13 Fidelity: replay the original's saves
+Status (2026-10-19): done (tutorial 26). The spec input was the three
+save pairs of spec/fixtures/saves/pairs (conscript/001, develop/001,
+economy-turn/001; spec 84714de), saves/README.md and
+experiments/ab-testing-plan.md. The demo is "demo/m13_replay".
+
+- Engine:
+  - Fix: the city record has the troops at +16 and the gold at +20 (the
+    spec correction of 2026-10-17). The first pair showed the swap.
+  - save_format reads the two per-force tables. Table A at 0x082E49 gives
+    the ruler and the action points. Table B at 0x0807A9 gives the
+    technique points and the research with its turns.
+  - sim_resume_save loads a save in the middle of the player's turn. No
+    AI acts. The action points, the technique points and the acted flags
+    come from the save.
+  - code/engine/engine_replay.cpp runs a pair: it loads the second save
+    and the first save, runs the command with the AI on, and compares
+    5884 fields. Each difference names its rule and its Q-id.
+  - misc/make_pair_index.py writes data/placeholder/pairs.tsv from the
+    pair folders of the spec.
+- API: `replay_pair(before, command, after)`, `replay_pair_count`,
+  `replay_pair_at` and `replay_diff_at`.
+- Tests:
+  - unit: the two per-force tables and the record of force 46;
+  - feature: a pair folder without a row or a handler fails. Each pair
+    replays. The confirmed differences of each pair stay at or below the
+    measured count: conscript 2, develop 1, economy turn 334;
+  - ui: the Replay button of a row sends one replay_pair;
+  - demo: "demo/m13_replay".
+- UI: the Fidelity panel of the debug menu lists the pairs, replays one,
+  and shows each field that differs with the rule and the Q-id.
+- The gold, the merit, the acted flags and the officers of the develop
+  and conscript commands replay with zero differences. The replays do not
+  reach the goal of zero confirmed differences. The spec has no rule for
+  the fields that differ. The spec also has no movement pair.
+- Open points for the analysis side (not yet in QUESTIONS.md: an
+  unattended run does not commit to the spec repository):
+  - Q-153: one 徵兵 in 江陵 by 3 officers gave 3439 soldiers. The clean
+    room gives 3570.
+  - Q-152 and Q-154: the same 徵兵 took 10 public order, and city +84 fell
+    by 9. The clean room takes 5 public order. The loader does not
+    decode city +84.
+  - Q-158: the 徵兵 gave 5 technique points, and the 開發 gave none at the
+    order. The clean room gives 10 for each.
+  - The merit of 開發: the original gives no merit at the order, but 徵兵
+    gives 50 at the order. When does the officer of 開發 get the merit?
+  - pair.json does not name the officers and the slot of a command. The
+    index takes the officers from diff.json, and the engine takes the
+    first free slot.
+  - economy-turn/001 runs the AI of 13 factions. The differences are
+    mostly AI choices (M15). A 進行 on the first day of a month can show
+    the income (Q-151).
+  - No pair for movement yet (Q-167 to Q-171).
+  - Q-202: the record of force 46 of table A ends inside the city array.
+
 The clean room loads a save of the original, runs one command, and must
 reach the state of the next save of the original. This is the A/B test
 at the level of one action.
@@ -510,6 +564,31 @@ at the level of one action.
   differ and the Q-id of each; the demo m13 replays one pair.
 
 ### M14 A turn without the debug panels
+Status (2026-10-19): done (tutorials 25 and 27). The spec input was
+ui/city-commands.md, ui/unit-commands.md and ui/main-map.md, and the
+per-hex block of formats/save-file.md. The demo is
+"demo/m14_game_screens".
+
+- UI:
+  - In the game mode the City dialog shows the base command menu: 都市,
+    軍事, 人材, 外交, 計略 and 君主. The first three open the submenus of
+    city-commands.md. Each item opens the dialog of its command.
+  - 移動 and 召喚 are grey: the engine has no command for them.
+  - The debug layout keeps the flat buttons of the City panel.
+- API: hex_at gives the fire turns and the event site of a hex. This is
+  the `hex_state_at` of the plan. The M11 fix loads the per-hex block.
+- Tests:
+  - ui: one test for each of the 19 items of the base command menu;
+  - feature: the fire of 周泰's hex and the 12 event sites of sample.s11
+    (save_map_tests.cpp, M11 fix);
+  - e2e: a turn of 柴桑 from sample.s11 with the debug panels hidden;
+  - demo: "demo/m14_game_screens" runs 巡察 through 都市 and ends the turn.
+- Open points for the analysis side:
+  - 移動 and 召喚: mechanics/city-commands.md gives 20 action points and
+    "turns: yes", but no travel time;
+  - the submenus of 外交, 計略 and 君主 (not observed);
+  - the port menu without 都市: the clean room has no port dialog yet.
+
 Every command of one turn runs from the game screens, as in the
 original's city, unit and map menus. The per-hex state of a save loads
 too.
@@ -533,6 +612,54 @@ too.
   the unit and city commands that still lack an api stay open work.
 
 ### M15 An opponent worth playing
+Status (2026-10-19): done (tutorial 28). The spec input was
+knowledge/ai.md and the replay of economy-turn/001 (M13). The spec has no
+year log yet, so M15 has no statistics test. The demo is
+"demo/m15_ai".
+
+- Engine:
+  - Each AI unit scores four goals and takes the best score:
+    - defend an own city;
+    - take a free city;
+    - attack a city of an enemy;
+    - go home when its grain does not last.
+  - A unit in contact fights and stays.
+  - ai_priorities.tsv has two new rows that send a unit out of a city.
+    The row "defend" acts on an enemy unit near the city. The row
+    "take_free" acts on a free city within ai.target_hexes.
+  - ai.target_hexes is 30, because no city of the real map has a
+    neighbour within 12 hexes.
+  - ai.attack_after_months stops each sortie but defence in the first 5
+    months of a scenario (knowledge/ai.md). The replay of
+    economy-turn/001 keeps its 334 confirmed differences.
+  - The sim keeps a record of the scored options of the last AI turn of
+    each faction. The clean room assumes all goals, scores and rules
+    (Q-185).
+- API: `ai_explain(faction)`; the test command `set_unit_grain`.
+- Tests:
+  - feature: the record of ai_explain after an AI turn. A free city falls
+    within 6 turns, but not in the first 5 months. A city under attack
+    sends a unit that hits the enemy. A unit with grain for one turn goes
+    home without desertion. The planner tests of M8 expect 12 rows;
+  - ui: the AI panel reads the record of its faction, and a row frames
+    its unit or its city. Neither commands anything;
+  - demo: "demo/m15_ai" on the real map.
+- UI: the AI panel of the debug menu lists the options with a mark on
+  each chosen one. The scene draws a line from each unit of the faction
+  to its goal.
+- Open points for the analysis side (not yet in QUESTIONS.md: an
+  unattended run does not commit to the spec repository):
+  - a year log of the original: the saves of 12 months from one start,
+    with the soldiers, the gold and the cities of each faction;
+  - the month of the first AI attack when the player does nothing (the
+    claim gives 5 to 6 months);
+  - does the original AI take a free city, and how fast;
+  - the distance of an enemy unit that makes an AI city send a unit;
+  - does an AI unit go home for grain (the naval claim says that AI
+    ships starve);
+  - the order of the AI actions in a turn and the choice of the targets
+    (Q-113, Q-140, Q-185).
+
 The AI factions of the original act on the map with a visible purpose:
 they build, recruit, march and take cities. The clean room measures
 its AI against the original over a year of play.

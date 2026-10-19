@@ -1109,6 +1109,45 @@ struct sim_plan
     u32          count;
 };
 
+/* M15: the goal of one option of an AI turn. A city proposal has the goal
+   AI_GOAL_CITY_COMMAND. A unit has one of the four goals of a march. */
+enum sim_ai_goal
+{
+    AI_GOAL_CITY_COMMAND,           /* a row of ai_priorities.tsv */
+    AI_GOAL_DEFEND,                 /* an enemy unit stands near an own city */
+    AI_GOAL_TAKE_FREE_CITY,         /* a city without an owner */
+    AI_GOAL_ATTACK_CITY,            /* a city of a faction at war */
+    AI_GOAL_RESUPPLY,               /* the grain does not last: go into an own city */
+    AI_GOAL_COUNT
+};
+
+/* One scored option of an AI turn: what the AI did (chosen) and what it
+   did not do. */
+struct sim_ai_option
+{
+    u8        goal;                 /* sim_ai_goal */
+    u8        kind;                 /* sim_command_kind: the command of a city proposal, SIM_COMMAND_MOVE for a unit */
+    u8        city_id;              /* the city of the command, or the target city of the unit; SIM_NO_CITY */
+    u8        row;                  /* the row of ai_priorities.tsv; 0xFF for a unit */
+    b32       chosen;
+    u16       unit;                 /* SIM_NO_UNIT for a city proposal */
+    u16       officer;              /* the first officer of the command, or SIM_NO_OFFICER */
+    u32       score;
+    hex_coord target;               /* the hex that the unit goes to */
+};
+
+/* The options of the last AI turn of one faction (ai_explain). The sim
+   keeps the records of the last SIM_AI_RECORD_CAPACITY faction turns. */
+#define SIM_AI_OPTION_CAPACITY 32
+#define SIM_AI_RECORD_CAPACITY 64
+struct sim_ai_record
+{
+    u8            force;
+    u32           turn;             /* sim turn + 1 of the record; 0 = the place is free */
+    u32           count;
+    sim_ai_option options[SIM_AI_OPTION_CAPACITY];
+};
+
 struct sim_state
 {
     u64            rng;             /* seeded PRNG state; the only randomness source */
@@ -1161,6 +1200,8 @@ struct sim_state
     sim_ability_job ability_job[SIM_FORCE_CAPACITY];
     u8             scenario_number;                       /* the number of the save header; SIM_NO_SCENARIO if none */
     u32            history_turn[CONTENT_HISTORY_CAPACITY]; /* sim turn + 1 when each historical event fired; 0 = not yet */
+    /* M15 */
+    sim_ai_record  ai_records[SIM_AI_RECORD_CAPACITY];
 };
 
 #define SIM_ENTITY_CAPACITY  4096
@@ -1181,6 +1222,7 @@ internal sim_command sim_make_command(sim_state *sim, sim_command_kind kind);
 internal void        sim_apply(sim_state *sim, sim_command command, sim_event_sink *events);
 internal void        sim_advance_turn(sim_state *sim, u32 cause, sim_event_sink *events);
 internal b32         sim_load_save(sim_state *sim, save_file *save, sim_command command, sim_event_sink *events);
+internal b32         sim_resume_save(sim_state *sim, save_file *save, sim_command command, sim_event_sink *events);   /* M13: the replay of a save pair */
 internal void        sim_unload_world(sim_state *sim);
 internal b32         sim_add_officer(sim_state *sim, officer_component officer);   /* false if full or the id is taken */
 internal b32         sim_add_city(sim_state *sim, city_component city);
@@ -1477,6 +1519,7 @@ internal sim_check sim_check_trigger_event(sim_state *sim, sim_m8_order *order);
 internal void      sim_trigger_event_command(sim_state *sim, sim_command command, sim_event_sink *events);
 internal void      sim_resolve_event(sim_state *sim, u8 choice, u32 cause, sim_event_sink *events);
 internal void      sim_plan_faction(sim_state *sim, u8 force, u8 city_filter, u8 corps_filter, u32 flags, sim_plan *plan);
+internal sim_ai_record *sim_ai_record_of(sim_state *sim, u8 force);   /* M15: the last AI turn of the faction, or 0 */
 internal void      sim_run_ai_faction(sim_state *sim, u8 force, u32 cause, sim_event_sink *events);
 internal void      sim_run_delegated_corps(sim_state *sim, u8 force, u32 cause, sim_event_sink *events);
 

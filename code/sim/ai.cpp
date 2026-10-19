@@ -51,6 +51,29 @@ sim_ai_court_order(city_component *city, u16 officer)
     return order;
 }
 
+/* M15: the months from the start date of the scenario to the date of the game. */
+internal u32
+sim_ai_months_played(sim_state *sim)
+{
+    s32 start = (s32)sim->turns.start_date.year * 12 + sim->turns.start_date.month;
+    s32 now   = (s32)sim->turns.date.year * 12 + sim->turns.date.month;
+    return now > start ? (u32)(now - start) : 0;
+}
+
+/* M15: a city without an owner within ai.target_hexes of the city. */
+internal b32
+sim_ai_free_city_near(sim_state *sim, city_component *city)
+{
+    hex_coord from = sim->sites[city->city_id].hex;
+    for (u32 index = 0; index < sim->cities.count; ++index)
+    {
+        city_component *other = sim->cities.data + index;
+        if (other->owner_force_id != SIM_NO_FORCE) continue;
+        if ((u32)hex_distance(sim->sites[other->city_id].hex, from) <= sim->content.rules.ai_target_hexes) return true;
+    }
+    return false;
+}
+
 /* The urgency of a condition, 0 .. ai.urgency, and whether it holds. */
 internal b32
 sim_ai_condition(sim_state *sim, city_component *city, ai_priority *row, u32 *urgency)
@@ -102,11 +125,18 @@ sim_ai_condition(sim_state *sim, city_component *city, ai_priority *row, u32 *ur
         case AI_TROOPS_ABOVE:    return city->troops > row->threshold;
         case AI_TECHNIQUE_ABOVE: return sim->technique_points[city->owner_force_id] >= row->threshold;
         case AI_GOLD_ABOVE:      return city->gold > row->threshold;
+        case AI_ENEMY_NEAR:
+            /* M15: an enemy unit within enemy.block_hexes of the city; full urgency. */
+            if (!sim_enemy_near(sim, city)) return false;
+            *urgency = scale;
+            return true;
+        case AI_FREE_CITY_NEAR:  return sim_ai_free_city_near(sim, city);
         default:                 return false;
     }
 }
 
-/* The nearest hostile city of the force, or SIM_NO_CITY. */
+/* The nearest hostile city of the force, or SIM_NO_CITY. M15: a city
+   without an owner is a target too. */
 internal u8
 sim_ai_target_city(sim_state *sim, u8 force, hex_coord from, u32 max_distance)
 {
@@ -115,7 +145,7 @@ sim_ai_target_city(sim_state *sim, u8 force, hex_coord from, u32 max_distance)
     for (u32 index = 0; index < sim->cities.count; ++index)
     {
         city_component *other = sim->cities.data + index;
-        if (!sim_at_war(sim, force, other->owner_force_id)) continue;
+        if (!sim_hostile(sim, force, other->owner_force_id)) continue;
         s32 distance = hex_distance(sim->sites[other->city_id].hex, from);
         if ((u32)distance <= max_distance && distance < best_distance) { best = other->city_id; best_distance = distance; }
     }
@@ -232,7 +262,12 @@ sim_ai_command_for(sim_state *sim, city_component *city, ai_priority *row)
         case SIM_COMMAND_SORTIE:
         {
             sim_rules *rules = &sim->content.rules;
-            if (sim_ai_target_city(sim, city->owner_force_id, sim->sites[city->city_id].hex, 12) == SIM_NO_CITY) return command;
+            /* The row "defend" sends the unit against the enemy near the city; the other rows need a target city. */
+            if (row->condition != AI_ENEMY_NEAR &&
+                sim_ai_target_city(sim, city->owner_force_id, sim->sites[city->city_id].hex, rules->ai_target_hexes) == SIM_NO_CITY) return command;
+            /* M15: no march on a city in the first months of the game (knowledge/ai.md: the AI armies
+               arrive 5 to 6 months after the start; assumed, Q-185). Only the defence does not wait. */
+            if (row->condition != AI_ENEMY_NEAR && sim_ai_months_played(sim) < rules->ai_attack_after_months) return command;
             u8 pike = content_find_unit_type(&sim->content, "pike");
             if (pike == CONTENT_NO_UNIT_TYPE || city->troops <= rules->ai_sortie_reserve) return command;
             sim_sortie_order order = sim_sortie_proposal(sim, city->city_id, pike);
@@ -315,70 +350,325 @@ sim_plan_faction(sim_state *sim, u8 force, u8 city_filter, u8 corps_filter, u32 
     }
 }
 
+/* ---- the record of an AI turn (M15, ai_explain) ----------------------------------- */
+
+/* The city and the first officer of a command, for a front end. */
+internal void
+sim_command_place(sim_command *command, u8 *city_id, u16 *officer)
+{
+    *city_id = SIM_NO_CITY;
+    *officer = SIM_NO_OFFICER;
+    switch (command->kind)
+    {
+        case SIM_COMMAND_PATROL:
+        case SIM_COMMAND_CONSCRIPT:
+        case SIM_COMMAND_TRAIN:
+        case SIM_COMMAND_MERCHANT:
+        case SIM_COMMAND_PRODUCE:   *city_id = command->city.city_id;     *officer = command->city.officers[0];     break;
+        case SIM_COMMAND_DEVELOP:   *city_id = command->develop.city_id;  *officer = command->develop.officers[0];  break;
+        case SIM_COMMAND_RESEARCH:  *city_id = command->research.city_id; *officer = command->research.officers[0]; break;
+        case SIM_COMMAND_SORTIE:
+        case SIM_COMMAND_TRANSPORT: *city_id = command->sortie.city_id;   *officer = command->sortie.officers[0];   break;
+        default:
+        {
+            if (command->kind >= SIM_COMMAND_SEARCH && command->kind <= SIM_COMMAND_FACTION_PLOT)
+            {
+                *city_id = command->court.city_id;
+                *officer = command->court.officer;
+            }
+        } break;
+    }
+}
+
+/* The record of the last AI turn of the faction, or 0. */
+internal sim_ai_record *
+sim_ai_record_of(sim_state *sim, u8 force)
+{
+    for (u32 index = 0; index < SIM_AI_RECORD_CAPACITY; ++index)
+    {
+        sim_ai_record *record = sim->ai_records + index;
+        if (record->turn && record->force == force) return record;
+    }
+    return 0;
+}
+
+/* An empty record for a new turn of the faction: its old place, else the
+   oldest place. */
+internal sim_ai_record *
+sim_ai_record_start(sim_state *sim, u8 force)
+{
+    sim_ai_record *record = sim_ai_record_of(sim, force);
+    if (!record)
+    {
+        record = sim->ai_records;
+        for (u32 index = 1; index < SIM_AI_RECORD_CAPACITY; ++index)
+        {
+            if (sim->ai_records[index].turn < record->turn) record = sim->ai_records + index;
+        }
+    }
+    record->force = force;
+    record->turn  = sim->turn + 1;
+    record->count = 0;
+    return record;
+}
+
+internal void
+sim_ai_record_put(sim_ai_record *record, sim_ai_option option)
+{
+    if (record && record->count < SIM_AI_OPTION_CAPACITY) record->options[record->count++] = option;
+}
+
+internal sim_ai_option
+sim_ai_option_of(sim_proposal *proposal, b32 chosen)
+{
+    sim_ai_option option = {};
+    option.goal   = AI_GOAL_CITY_COMMAND;
+    option.kind   = (u8)proposal->command.kind;
+    option.row    = proposal->row;
+    option.unit   = SIM_NO_UNIT;
+    option.score  = proposal->score;
+    option.chosen = chosen;
+    sim_command_place(&proposal->command, &option.city_id, &option.officer);
+    return option;
+}
+
+/* ---- the goals of an AI unit (M15) ------------------------------------------------- */
+
+/* A goal loses one point of score for each hex to its target, up to this
+   distance (assumed, Q-185). */
+#define SIM_AI_DISTANCE_SCALE 200
+
+struct sim_ai_choice
+{
+    b32       found;
+    u8        city_id;
+    hex_coord target;
+    u32       score;
+};
+
+internal u32
+sim_ai_distance_score(u32 bonus, s32 distance)
+{
+    return bonus + SIM_AI_DISTANCE_SCALE - Minimum((u32)distance, (u32)SIM_AI_DISTANCE_SCALE);
+}
+
+/* The turns that the grain of a unit lasts; U32_MAX if the unit eats
+   nothing or the save gives no grain. */
+internal u32
+sim_unit_grain_turns(sim_state *sim, sim_unit *unit)
+{
+    u32 eaten = sim->content.rules.grain_soldiers ? unit->soldiers / sim->content.rules.grain_soldiers : 0;
+    if (unit->grain_unknown || !eaten) return U32_MAX;
+    return unit->grain / eaten;
+}
+
+/* The enemy unit nearest to the city within enemy.block_hexes, or SIM_NO_UNIT. */
+internal u32
+sim_ai_nearest_enemy(sim_state *sim, city_component *city)
+{
+    hex_coord centre = sim->sites[city->city_id].hex;
+    u32 best = SIM_NO_UNIT;
+    s32 best_distance = (s32)sim->content.rules.enemy_block_hexes + 1;
+    for (u32 index = 0; index < sim->unit_count; ++index)
+    {
+        sim_unit *unit = sim->units + index;
+        if (!unit->alive || !sim_at_war(sim, unit->force_id, city->owner_force_id)) continue;
+        s32 distance = hex_distance(unit->hex, centre);
+        if (distance < best_distance) { best = index; best_distance = distance; }
+    }
+    return best;
+}
+
+internal void
+sim_ai_keep(sim_ai_choice *choice, u8 city_id, hex_coord target, u32 score)
+{
+    if (choice->found && choice->score >= score) return;
+    choice->found   = true;
+    choice->city_id = city_id;
+    choice->target  = target;
+    choice->score   = score;
+}
+
+/* The best target of each goal of the unit (assumed scores, Q-185):
+   - defend: an enemy unit near an own city within ai.defend_hexes;
+   - take a free city: a city without an owner;
+   - attack a city: a city of a faction at war;
+   - resupply: the nearest own city, only if the grain does not last the
+     march there and ai.grain_margin_turns more. */
+internal void
+sim_ai_unit_goals(sim_state *sim, u32 unit_id, sim_ai_choice *choices)
+{
+    sim_rules *rules = &sim->content.rules;
+    sim_unit *unit = sim->units + unit_id;
+    for (u32 goal = 0; goal < AI_GOAL_COUNT; ++goal) choices[goal] = {};
+    for (u32 index = 0; index < sim->cities.count; ++index)
+    {
+        city_component *city = sim->cities.data + index;
+        hex_coord hex = sim->sites[city->city_id].hex;
+        s32 distance = hex_distance(hex, unit->hex);
+        if (city->owner_force_id == unit->force_id)
+        {
+            sim_ai_keep(choices + AI_GOAL_RESUPPLY, city->city_id, hex, sim_ai_distance_score(rules->ai_resupply_score, distance));
+            u32 enemy = (u32)distance <= rules->ai_defend_hexes ? sim_ai_nearest_enemy(sim, city) : SIM_NO_UNIT;
+            if (enemy != SIM_NO_UNIT)
+            {
+                hex_coord at = sim->units[enemy].hex;
+                sim_ai_keep(choices + AI_GOAL_DEFEND, city->city_id, at, sim_ai_distance_score(rules->ai_defend_bonus, hex_distance(at, unit->hex)));
+            }
+        }
+        else if (city->owner_force_id == SIM_NO_FORCE)
+        {
+            sim_ai_keep(choices + AI_GOAL_TAKE_FREE_CITY, city->city_id, hex, sim_ai_distance_score(rules->ai_free_city_bonus, distance));
+        }
+        else if (sim_at_war(sim, unit->force_id, city->owner_force_id))
+        {
+            sim_ai_keep(choices + AI_GOAL_ATTACK_CITY, city->city_id, hex, sim_ai_distance_score(0, distance));
+        }
+    }
+    sim_ai_choice *home = choices + AI_GOAL_RESUPPLY;
+    if (home->found)
+    {
+        u32 march      = Maximum(rules->ai_march_hexes, 1u);
+        u32 turns_home = ((u32)hex_distance(home->target, unit->hex) + march - 1) / march;
+        if (sim_unit_grain_turns(sim, unit) > turns_home + rules->ai_grain_margin_turns) home->found = false;
+    }
+}
+
+/* Moves the unit to the reachable hex nearest to the goal. An own city at
+   the end takes the unit in. */
+internal b32
+sim_ai_march(sim_state *sim, u32 unit_id, hex_coord goal, sim_event_sink *events)
+{
+    arena_reset(&sim->scratch);
+    sim_reach reach = sim_unit_reach(sim, unit_id, &sim->scratch);
+    u32 best = 0;
+    for (u32 index = 1; index < reach.count; ++index)
+    {
+        if (hex_distance(reach.cells[index], goal) < hex_distance(reach.cells[best], goal)) best = index;
+    }
+    if (!best) return false;
+    sim_command move = sim_make_command(sim, SIM_COMMAND_MOVE);
+    move.unit.unit = (u16)unit_id;
+    move.unit.to   = reach.cells[best];
+    sim_apply(sim, move, events);
+    return true;
+}
+
+/* Attacks the hex if it can; returns true after an attack. */
+internal b32
+sim_ai_attack(sim_state *sim, u32 unit_id, hex_coord hex, sim_event_sink *events)
+{
+    sim_command attack = sim_make_command(sim, SIM_COMMAND_ATTACK);
+    attack.unit.unit = (u16)unit_id;
+    attack.unit.to   = hex;
+    if (sim_check_attack(sim, &attack.unit).refusal != SIM_REFUSAL_NONE) return false;
+    sim_apply(sim, attack, events);
+    return true;
+}
+
+/* Attacks the first target next to the unit; returns true after an attack. */
+internal b32
+sim_ai_attack_beside(sim_state *sim, u32 unit_id, sim_event_sink *events)
+{
+    for (u32 d = 0; d < HEX_DIRECTION_COUNT; ++d)
+    {
+        if (sim_ai_attack(sim, unit_id, hex_neighbor(sim->units[unit_id].hex, d), events)) return true;
+    }
+    return false;
+}
+
 /* ---- the turn of a computer faction ------------------------------------------------- */
 
-/* A unit of the AI: attack what stands next to it, else march toward the
-   nearest hostile city and attack after the move. */
+/* The units of the AI: each takes its goal with the best score. A unit
+   next to a target attacks it and stays. Else it marches toward its goal
+   and attacks after the move. A defender attacks its enemy first. The
+   record gets the chosen goal of each unit, then the other goals. */
 internal u32
-sim_ai_units(sim_state *sim, u8 force, u32 cause, sim_event_sink *events)
+sim_ai_units(sim_state *sim, u8 force, sim_ai_record *record, sim_event_sink *events)
 {
     u32 issued = 0;
+    sim_ai_option others[SIM_AI_OPTION_CAPACITY];
+    u32 other_count = 0;
     for (u32 unit_id = 0; unit_id < sim->unit_count; ++unit_id)
     {
         sim_unit *unit = sim->units + unit_id;
         if (!unit->alive || unit->force_id != force || unit->aid_turns || !sim_unit_type(sim, unit->unit_type) || unit->acted_turn == sim->turn + 1) continue;
-        u8 target_city = sim_ai_target_city(sim, force, unit->hex, 1000);
-        if (unit->moved_turn != sim->turn + 1 && target_city != SIM_NO_CITY)
+        sim_ai_choice choices[AI_GOAL_COUNT];
+        sim_ai_unit_goals(sim, unit_id, choices);
+        u32 best = AI_GOAL_COUNT;
+        for (u32 goal = AI_GOAL_DEFEND; goal < AI_GOAL_COUNT; ++goal)
         {
-            arena_reset(&sim->scratch);
-            sim_reach reach = sim_unit_reach(sim, unit_id, &sim->scratch);
-            hex_coord goal = sim->sites[target_city].hex;
-            u32 best = 0;
-            for (u32 index = 1; index < reach.count; ++index)
-            {
-                if (hex_distance(reach.cells[index], goal) < hex_distance(reach.cells[best], goal)) best = index;
-            }
-            if (best)
-            {
-                sim_command move = sim_make_command(sim, SIM_COMMAND_MOVE);
-                move.unit.unit = (u16)unit_id;
-                move.unit.to   = reach.cells[best];
-                sim_apply(sim, move, events);
-                issued++;
-            }
+            if (choices[goal].found && (best == AI_GOAL_COUNT || choices[goal].score > choices[best].score)) best = goal;
         }
+        for (u32 goal = AI_GOAL_DEFEND; goal < AI_GOAL_COUNT; ++goal)
+        {
+            if (!choices[goal].found) continue;
+            sim_ai_option option = {};
+            option.goal    = (u8)goal;
+            option.kind    = SIM_COMMAND_MOVE;
+            option.city_id = choices[goal].city_id;
+            option.row     = 0xFF;
+            option.chosen  = goal == best;
+            option.unit    = (u16)unit_id;
+            option.officer = unit->officers[0];
+            option.score   = choices[goal].score;
+            option.target  = choices[goal].target;
+            if (option.chosen) sim_ai_record_put(record, option);
+            else if (other_count < ArrayCount(others)) others[other_count++] = option;
+        }
+        if (best == AI_GOAL_COUNT) continue;
+        /* A unit in contact fights where it stands; only a unit without grain leaves the fight. */
+        if (best == AI_GOAL_DEFEND && sim_ai_attack(sim, unit_id, choices[best].target, events)) { issued++; continue; }
+        if (best != AI_GOAL_RESUPPLY && sim_ai_attack_beside(sim, unit_id, events)) { issued++; continue; }
+        if (unit->moved_turn != sim->turn + 1 && sim_ai_march(sim, unit_id, choices[best].target, events)) issued++;
         if (!unit->alive) continue;
-        for (u32 d = 0; d < HEX_DIRECTION_COUNT; ++d)
-        {
-            sim_command attack = sim_make_command(sim, SIM_COMMAND_ATTACK);
-            attack.unit.unit = (u16)unit_id;
-            attack.unit.to   = hex_neighbor(unit->hex, d);
-            if (sim_check_attack(sim, &attack.unit).refusal != SIM_REFUSAL_NONE) continue;
-            sim_apply(sim, attack, events);
-            issued++;
-            break;
-        }
+        if (best == AI_GOAL_DEFEND && sim_ai_attack(sim, unit_id, choices[best].target, events)) { issued++; continue; }
+        if (sim_ai_attack_beside(sim, unit_id, events)) issued++;
     }
-    (void)cause;
+    for (u32 index = 0; index < other_count; ++index) sim_ai_record_put(record, others[index]);
     return issued;
 }
 
-/* Runs a plan: the best proposal, then a new plan, up to the budget. */
+/* Runs a plan: the best proposal, then a new plan, up to the budget. The
+   record gets each chosen proposal; *first keeps the first plan. */
 internal u32
-sim_ai_run_plan(sim_state *sim, u8 force, u8 corps_filter, u32 flags, u32 budget, sim_event_sink *events)
+sim_ai_run_plan(sim_state *sim, u8 force, u8 corps_filter, u32 flags, u32 budget, sim_ai_record *record, sim_plan *first,
+                sim_event_sink *events)
 {
     u32 issued = 0;
+    if (first) first->count = 0;
     for (u32 step = 0; step < budget; ++step)
     {
         sim_plan plan;
         sim_plan_faction(sim, force, SIM_NO_CITY, corps_filter, flags, &plan);
         if (!plan.count) break;
+        if (first && step == 0) *first = plan;
+        sim_ai_record_put(record, sim_ai_option_of(plan.items, true));
         sim_command command = plan.items[0].command;
         command.id = sim->next_command_id++;
         sim_apply(sim, command, events);
         issued++;
     }
     return issued;
+}
+
+/* The proposals of the first plan that the AI did not choose, the highest
+   score first, after the chosen options. */
+internal void
+sim_ai_record_unchosen(sim_ai_record *record, sim_plan *first)
+{
+    u32 chosen_count = record->count;
+    for (u32 index = 0; index < first->count; ++index)
+    {
+        sim_ai_option option = sim_ai_option_of(first->items + index, false);
+        b32 done = false;
+        for (u32 earlier = 0; earlier < chosen_count && !done; ++earlier)
+        {
+            sim_ai_option *chosen = record->options + earlier;
+            done = chosen->goal == AI_GOAL_CITY_COMMAND && chosen->kind == option.kind && chosen->city_id == option.city_id && chosen->row == option.row;
+        }
+        if (!done) sim_ai_record_put(record, option);
+    }
 }
 
 /* The turn of a computer faction: its cities, then its units. */
@@ -389,8 +679,11 @@ sim_run_ai_faction(sim_state *sim, u8 force, u32 cause, sim_event_sink *events)
     /* 遊戲等級 (assumed, Q-187): half, the same, 1.5 times or 2 times the commands. */
     static const u32 percent[DIFFICULTY_COUNT] = { 50, 100, 150, 200 };
     u32 budget = Maximum(1u, sim_percent_of(sim->content.rules.ai_commands, percent[Minimum((u32)sim->settings.difficulty, (u32)DIFFICULTY_COUNT - 1)]));
-    u32 issued = sim_ai_run_plan(sim, force, 0xFF, CORPS_FLAG_ALL, budget, events);
-    issued += sim_ai_units(sim, force, cause, events);
+    sim_ai_record *record = sim_ai_record_start(sim, force);
+    sim_plan first;
+    u32 issued = sim_ai_run_plan(sim, force, 0xFF, CORPS_FLAG_ALL, budget, record, &first, events);
+    issued += sim_ai_units(sim, force, record, events);
+    sim_ai_record_unchosen(record, &first);
     if (sim->pending.active && sim->pending.force == force) sim->pending.active = false;   /* the AI takes the first choice */
     sim_event planned = sim_event_make(sim, SIM_EVENT_AI_PLANNED, cause);
     planned.faction = force;
@@ -415,7 +708,7 @@ sim_run_delegated_corps(sim_state *sim, u8 force, u32 cause, sim_event_sink *eve
         sim->corps_ap[force][index] = Minimum(sim->corps_ap[force][index] + gain, sim->content.rules.ap_cap);
         u32 saved = sim->turns.action_points[force];
         sim->turns.action_points[force] = sim->corps_ap[force][index];
-        sim_ai_run_plan(sim, force, (u8)index, corps->flags, sim->content.rules.corps_commands, events);
+        sim_ai_run_plan(sim, force, (u8)index, corps->flags, sim->content.rules.corps_commands, 0, 0, events);
         sim->corps_ap[force][index] = sim->turns.action_points[force];
         sim->turns.action_points[force] = saved;
     }

@@ -541,7 +541,9 @@ struct event_kind
 enum ai_condition
 {
     AI_ORDER_BELOW, AI_TROOPS_BELOW_PERCENT, AI_FREE_SLOT, AI_FREE_OFFICER, AI_MORALE_BELOW, AI_WEAPONS_BELOW_TROOPS,
-    AI_LOYALTY_BELOW, AI_TROOPS_ABOVE, AI_TECHNIQUE_ABOVE, AI_GOLD_ABOVE, AI_CONDITION_COUNT
+    AI_LOYALTY_BELOW, AI_TROOPS_ABOVE, AI_TECHNIQUE_ABOVE, AI_GOLD_ABOVE,
+    AI_ENEMY_NEAR, AI_FREE_CITY_NEAR,   /* M15 */
+    AI_CONDITION_COUNT
 };
 
 /* One row of ai_priorities.tsv: a kind of proposal of the AI planner. */
@@ -757,6 +759,7 @@ struct sim_rules
     u32 emperor_technique, emperor_loyalty, emperor_city;
     u32 event_experience, event_merit;
     u32 ai_urgency, ai_sortie_soldiers, ai_sortie_reserve, ai_goodwill_gold, ai_commands, corps_ap_divisor;
+    u32 ai_target_hexes, ai_free_city_bonus, ai_defend_bonus, ai_defend_hexes, ai_march_hexes, ai_grain_margin_turns, ai_resupply_score, ai_attack_after_months;   /* M15 */
     /* M9 */
     u32 lifespan_long_years, new_officer_max, new_officer_high, new_officer_normal, new_officer_low;
     u32 train_ap, train_turns, ability_research_ap, ability_research_gold, scenario_public_order;
