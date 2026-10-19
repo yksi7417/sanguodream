@@ -1800,9 +1800,14 @@ demo_m14_game_screens(ImGuiTestContext *ctx)
     IM_CHECK(v.ui.show_city && v.ui.context.kind == UI_CONTEXT_CITY);
     ctx->SleepStandard();
 
-    /* 巡察: the command runs, and the dialog closes after it. */
+    /* 都市 then 巡察 in the base command menu: the command runs, and the
+       dialog closes after it. */
     ctx->SetRef("###City");
-    ctx->ItemClick("###open_patrol");
+    ctx->ItemClick("###menu_city");
+    ctx->Yield();
+    IM_CHECK(ctx->ItemExists("###base_develop") && ctx->ItemExists("###base_research"));
+    ctx->SleepStandard();
+    ctx->ItemClick("###base_patrol");
     ctx->Yield();
     IM_CHECK(v.ui.show_command[UI_COMMAND_PATROL]);
     ctx->SleepStandard();

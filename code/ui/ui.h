@@ -173,6 +173,7 @@ struct ui_state
     struct
     {
         u8 selected;             /* the city id that the City panel shows */
+        u8 menu;                 /* M14: the open submenu of the base command menu (ui_base_menu) */
     } city;
     /* the filter and the sort of the big tables (ui_table.cpp) */
     ui_table_view officers_view;

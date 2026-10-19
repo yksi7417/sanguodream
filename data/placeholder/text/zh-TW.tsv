@@ -1132,3 +1132,16 @@ fidelity.status.1	引擎無法重現這個指令。
 fidelity.status.2	後一個存檔無法讀入。
 fidelity.status.3	前一個存檔無法讀入。
 fidelity.status.4	引擎拒絕了這個指令。
+base_menu.city	都市
+base_menu.military	軍事
+base_menu.people	人材
+base_menu.diplomacy	外交
+base_menu.plot	計略
+base_menu.ruler	君主
+base_menu.move	移動
+base_menu.summon	召喚
+base_menu.search	探索人材
+base_menu.recruit	登庸武將
+base_menu.reward	褒賞
+base_menu.give	授與沒收
+base_menu.no_api	引擎尚無這個指令。

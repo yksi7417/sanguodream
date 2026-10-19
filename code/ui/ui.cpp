@@ -28,6 +28,7 @@ ui_label(char *out, u32 out_size, ui_state *ui, const char *text_id, const char 
 #include "ui/ui_court.cpp"
 #include "ui/ui_rivals.cpp"
 #include "ui/ui_fidelity.cpp"  /* M13 */
+#include "ui/ui_base_menu.cpp" /* M14: the base command menu of the game mode */
 #include "ui/ui_game.cpp"
 
 /* Writes an overlay colour for one cell of the terrain view, if it is on the map. */

@@ -1134,3 +1134,16 @@ fidelity.status.1	The engine has no handler for this command.	replay status
 fidelity.status.2	The second save does not load.	replay status
 fidelity.status.3	The first save does not load.	replay status
 fidelity.status.4	The engine refused the command.	replay status
+base_menu.city	City	base command menu (M14): 都市
+base_menu.military	Military	base command menu: 軍事
+base_menu.people	People	base command menu: 人材
+base_menu.diplomacy	Diplomacy	base command menu: 外交
+base_menu.plot	Plot	base command menu: 計略
+base_menu.ruler	Ruler	base command menu: 君主
+base_menu.move	Move	人材 submenu: 移動
+base_menu.summon	Summon	人材 submenu: 召喚
+base_menu.search	Search	人材 submenu: 探索人材
+base_menu.recruit	Recruit	人材 submenu: 登庸武將
+base_menu.reward	Reward	人材 submenu: 褒賞
+base_menu.give	Give and take	人材 submenu: 授與沒收
+base_menu.no_api	The engine has no command for this item yet.	tooltip of a grey item without an api
