@@ -564,6 +564,31 @@ at the level of one action.
   differ and the Q-id of each; the demo m13 replays one pair.
 
 ### M14 A turn without the debug panels
+Status (2026-10-19): done (tutorials 25 and 27). The spec input was
+ui/city-commands.md, ui/unit-commands.md and ui/main-map.md, and the
+per-hex block of formats/save-file.md. The demo is
+"demo/m14_game_screens".
+
+- UI:
+  - In the game mode the City dialog shows the base command menu: 都市,
+    軍事, 人材, 外交, 計略 and 君主. The first three open the submenus of
+    city-commands.md. Each item opens the dialog of its command.
+  - 移動 and 召喚 are grey: the engine has no command for them.
+  - The debug layout keeps the flat buttons of the City panel.
+- API: hex_at gives the fire turns and the event site of a hex. This is
+  the `hex_state_at` of the plan. The M11 fix loads the per-hex block.
+- Tests:
+  - ui: one test for each of the 19 items of the base command menu;
+  - feature: the fire of 周泰's hex and the 12 event sites of sample.s11
+    (save_map_tests.cpp, M11 fix);
+  - e2e: a turn of 柴桑 from sample.s11 with the debug panels hidden;
+  - demo: "demo/m14_game_screens" runs 巡察 through 都市 and ends the turn.
+- Open points for the analysis side:
+  - 移動 and 召喚: mechanics/city-commands.md gives 20 action points and
+    "turns: yes", but no travel time;
+  - the submenus of 外交, 計略 and 君主 (not observed);
+  - the port menu without 都市: the clean room has no port dialog yet.
+
 Every command of one turn runs from the game screens, as in the
 original's city, unit and map menus. The per-hex state of a save loads
 too.

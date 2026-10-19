@@ -57,7 +57,25 @@ Other notes:
   change.
 
 ## M14 A turn without the debug panels
-Status: in progress (started 2026-10-19).
+Status: done (2026-10-19, tutorials 25 and 27, demo
+"demo/m14_game_screens"). The commits of this task are:
+- c7ea72e docs: record the survey and the plan of M14
+- f5d09a0 feat: show the base command menu of the original in the game mode
+- 3cc440a test: play a turn of the save from the game screens only
+- the commit that writes this entry (tutorial 27 and the status)
+
+Tests after a clean rebuild: unit 669 of 669, feature 42254 of 42254, ui
+119 of 119. The ui count has 19 tests of the base command menu and 4 e2e
+tests. The window smoke run passes. `run_tests.bat --demo` records all 16 demos.
+
+Open points for the analysis side:
+1. 移動 and 召喚: mechanics/city-commands.md gives 20 action points and
+   "turns: yes", but no travel time. The two items stay grey.
+2. The spec did not observe the submenus of 外交, 計略 and 君主. The items
+   open the Diplomacy panel and the Ruler panel.
+3. The port menu has no 都市. The clean room has no port dialog yet.
+
+The text below is the survey and the plan of the start of M14.
 
 Tutorial 25 and the demo "demo/m14_game_screens" did a part before this
 task. They give the game mode with the HUD, the list and the mini map.
