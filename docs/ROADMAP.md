@@ -576,6 +576,29 @@ sound hooks, and the tutorial of the first turns.
 - What you see: a new game from a scenario start, played with the game
   screens, from the title to the first war.
 
+### Track G: graphics and animation (G1 to G6)
+docs/GRAPHICS.md is the full plan. docs/art/GEMINI-PROMPTS.md has the
+prompts for the art. The sim stays instant. A director in the UI replays
+the events of each command as a short scene on the map. A skip or the
+setting "off" shows the end state without delay.
+- G1 The show system: new events for each step of a move and for each
+  attack, the director, the timeline and the settings. The placeholder
+  figure walks hex by hex. Procedural effects show the attacks.
+- G2 Units: painted squads of figures in four views, banners in the
+  faction colour, siege weapons, transports and ships. The importer
+  misc/art_import.py and the atlas pages.
+- G3 Combat: melee, arrows, counterattacks, critical hits, and a scene
+  for each tactic of mechanics/military-units-and-tactics.md.
+- G4 Bases, buildings and terrain: 3D meshes for cities, gates and
+  ports in three states of damage, the facilities, and terrain textures.
+- G5 Siege, plots, fire and traps: the fall of a base with the change
+  of banners, every plot, fire that spreads, and the traps.
+- G6 Polish: the camera on the turns of the AI, the sound keys, and the
+  times from the answers of the analysis side.
+
+The track starts after M17. R1 ships with each G milestone that has its
+status "done". G1 to G3 are the minimum for a playtest.
+
 ### Release R1 Playtest build
 After M17: a zip with the exe, the DLL and the fallback pack, a one-page
 start guide, and the 32 save slots. Two players play the same scenario

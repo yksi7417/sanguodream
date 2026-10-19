@@ -47,6 +47,8 @@ decompilation of it.
 - docs/tutorials/            one tutorial per module, each tied to its tests;
                              start at 00-reading-order.md
 - docs/ASSETS.md             fonts and other assets, with their licences
+- docs/GRAPHICS.md           the plan for the art and the animation (G1-G6)
+- docs/art/GEMINI-PROMPTS.md the prompts that make the art with Gemini
 
 ## Build and run
 - build.bat         builds build\hexdom.dll, build\win32_hexdom.exe, the
