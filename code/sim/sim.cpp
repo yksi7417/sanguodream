@@ -454,7 +454,7 @@ sim_player_force(sim_state *sim, save_header *header)
    Returns false, and changes nothing, when the entities or the tables
    cannot hold the new world. */
 internal b32
-sim_load_save(sim_state *sim, save_file *save, sim_command command, sim_event_sink *events)
+sim_load_save_world(sim_state *sim, save_file *save, sim_command command, sim_event_sink *events)
 {
     u32 officers_needed = 0;
     for (u32 slot = 0; slot < save->officer_slot_count; ++slot)
@@ -505,7 +505,50 @@ sim_load_save(sim_state *sim, save_file *save, sim_command command, sim_event_si
     sim_event event = sim_event_make(sim, SIM_EVENT_SAVE_LOADED, command.id);
     event.delta = (s32)sim->officers.count;
     sim_emit(events, event);
+    return true;
+}
+
+/* The load of a new game from a save: the world, then the start of a turn.
+   The AI factions before the player act, and every faction recovers its
+   action points. */
+internal b32
+sim_load_save(sim_state *sim, save_file *save, sim_command command, sim_event_sink *events)
+{
+    if (!sim_load_save_world(sim, save, command, events)) return false;
     sim_start_turn(sim, command.id, events);
+    return true;
+}
+
+/* M13: the load of a save in the middle of the player's turn, for the
+   replay of a save pair. The original saves while the player acts, so the
+   factions before the player already acted. This load runs no AI and
+   recovers no action points. It takes from the save:
+   - the action points and the technique points of each force (Q-202);
+   - the acted flag of each officer (officer +148 bit 0).
+   The acting faction is the first human faction of the order. */
+internal b32
+sim_resume_save(sim_state *sim, save_file *save, sim_command command, sim_event_sink *events)
+{
+    if (!sim_load_save_world(sim, save, command, events)) return false;
+    sim_turn_state *turns = &sim->turns;
+    sim_compute_turn_order(sim);
+    turns->acting = 0;
+    while (turns->acting < turns->order_count && !turns->human[turns->order[turns->acting].force_id]) turns->acting++;
+    if (turns->acting == turns->order_count) turns->acting = 0;
+    for (u32 index = 0; index < save->force_count && index < SIM_FORCE_CAPACITY; ++index)
+    {
+        save_force_record *force = save->forces + index;
+        if (force->has_action_points) turns->action_points[index] = force->action_points;
+        sim->technique_points[index] = force->technique_points;
+    }
+    for (u32 index = 0; index < sim->officers.count; ++index)
+    {
+        officer_component *officer = sim->officers.data + index;
+        if (officer->officer_id < save->officer_slot_count && save->officers[officer->officer_id].has_acted_this_turn)
+        {
+            officer->acted_turn = sim->turn + 1;
+        }
+    }
     return true;
 }
 

@@ -1223,6 +1223,105 @@ typedef void                 engine_start_fire_fn(void *engine, s32 q, s32 r, u3
    cities within 2 hexes. Returns ENGINE_NO_UNIT if there is no room. */
 typedef u32                 engine_place_unit_fn(void *engine, u8 force_id, s32 q, s32 r);
 
+/* ---- M13 the replay of the save pairs of the original ------------------- */
+
+/* A save pair of spec/fixtures/saves/pairs: a save of the original before
+   one command and a save after it. replay_pair loads the first save in the
+   middle of the player's turn, runs the command and compares the state
+   field by field with the second save. The replay replaces the game. It is
+   a tool for the tests and the Fidelity panel. */
+#define ENGINE_REPLAY_PAIR_CAPACITY 64
+#define ENGINE_REPLAY_DIFF_CAPACITY 2048
+#define ENGINE_REPLAY_PATH_SIZE     160
+
+enum engine_replay_command_kind
+{
+    ENGINE_REPLAY_NO_COMMAND,   /* the engine has no handler for the command of the pair */
+    ENGINE_REPLAY_END_TURN,     /* 進行 */
+    ENGINE_REPLAY_DEVELOP,      /* 開發 in the first free slot */
+    ENGINE_REPLAY_CONSCRIPT,    /* 徵兵 */
+    ENGINE_REPLAY_PATROL,       /* 巡察 */
+    ENGINE_REPLAY_TRAIN,        /* 訓練 */
+    ENGINE_REPLAY_COMMAND_COUNT
+};
+
+struct engine_replay_command
+{
+    u8  kind;        /* engine_replay_command_kind */
+    u8  city_id;
+    u8  facility;    /* ENGINE_REPLAY_DEVELOP: the row of facilities.tsv */
+    u16 officers[SIM_DEVELOP_OFFICERS];   /* ENGINE_NO_OFFICER for an empty place */
+};
+
+/* A row of pairs.tsv of the content pack. */
+struct engine_replay_pair
+{
+    char rule[32];
+    u32  number;
+    char folder[ENGINE_REPLAY_PATH_SIZE];   /* relative to the executable; holds before.s11 and after.s11 */
+    char q_ids[64];
+    engine_replay_command command;
+};
+
+enum engine_replay_status
+{
+    ENGINE_REPLAY_OK,
+    ENGINE_REPLAY_NO_HANDLER,       /* the command kind is ENGINE_REPLAY_NO_COMMAND */
+    ENGINE_REPLAY_BAD_AFTER,        /* the second save does not load */
+    ENGINE_REPLAY_BAD_BEFORE,       /* the first save does not load */
+    ENGINE_REPLAY_REFUSED,          /* the engine refused the command; see refusal */
+    ENGINE_REPLAY_STATUS_COUNT
+};
+
+/* The fields that a replay compares. The names follow the JSON of the
+   save dump of the spec, for example cities[30].gold. */
+enum engine_replay_field
+{
+    ENGINE_REPLAY_CITY_OWNER,
+    ENGINE_REPLAY_CITY_COMMANDER,
+    ENGINE_REPLAY_CITY_GOLD,
+    ENGINE_REPLAY_CITY_TROOPS,
+    ENGINE_REPLAY_CITY_FOOD,
+    ENGINE_REPLAY_CITY_PUBLIC_ORDER,
+    ENGINE_REPLAY_CITY_EQUIPMENT,       /* one field for each of the 10 stocks */
+    ENGINE_REPLAY_OFFICER_FORCE,
+    ENGINE_REPLAY_OFFICER_LOCATION,
+    ENGINE_REPLAY_OFFICER_POSITION,
+    ENGINE_REPLAY_OFFICER_STATUS,
+    ENGINE_REPLAY_OFFICER_MERIT,
+    ENGINE_REPLAY_OFFICER_ACTED,
+    ENGINE_REPLAY_FORCE_ACTION_POINTS,
+    ENGINE_REPLAY_FORCE_TECHNIQUE_POINTS,
+    ENGINE_REPLAY_FIELD_COUNT
+};
+
+struct engine_replay_report
+{
+    u8  status;            /* engine_replay_status */
+    u8  refusal;           /* sim_refusal when status is ENGINE_REPLAY_REFUSED */
+    u32 fields;            /* the fields compared */
+    u32 differ;            /* the fields where the replay and the original differ */
+    u32 differ_verified;   /* of these, the fields that the spec marks confirmed */
+    u32 diff_count;        /* the differences that diff_at gives, at most ENGINE_REPLAY_DIFF_CAPACITY */
+};
+
+struct engine_replay_diff
+{
+    char        path[48];    /* for example officers[636].merit */
+    u8          field;       /* engine_replay_field */
+    b32         verified;    /* the spec marks the field confirmed */
+    s64         before;      /* the value in the first save */
+    s64         replayed;    /* the value after the command in the engine */
+    s64         original;    /* the value in the second save */
+    const char *rule;        /* the rule that owns the field */
+    const char *q_id;        /* the open question of the rule, or "" */
+};
+
+typedef u32                  engine_replay_pair_count_fn(void *engine);
+typedef engine_replay_pair   engine_replay_pair_at_fn(void *engine, u32 index);
+typedef engine_replay_report engine_replay_pair_fn(void *engine, const char *before, const engine_replay_command *command, const char *after);
+typedef engine_replay_diff   engine_replay_diff_at_fn(void *engine, u32 index);   /* index < report.diff_count of the last replay */
+
 struct engine_api
 {
     void *engine;
@@ -1423,6 +1522,11 @@ struct engine_api
     engine_move_cost_fn             *move_cost;
     engine_bandit_sites_fn          *bandit_sites;
     engine_start_fire_fn            *start_fire;
+    /* M13 */
+    engine_replay_pair_count_fn     *replay_pair_count;
+    engine_replay_pair_at_fn        *replay_pair_at;
+    engine_replay_pair_fn           *replay_pair;
+    engine_replay_diff_at_fn        *replay_diff_at;
 };
 
 #define ENGINE_NO_BASE 0xFFFFFFFFu

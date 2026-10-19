@@ -35,6 +35,7 @@
 #include "playable_tests.cpp"
 #include "map_tests.cpp"
 #include "save_map_tests.cpp"
+#include "replay_tests.cpp"
 #include "fixture_tests.cpp"
 
 int
@@ -106,6 +107,9 @@ main(int argc, char **argv)
     test_counts save_map_counts = {};
     feature_save_map_tests(&save_map_counts);
     failed |= test_report("feature/save_map", &save_map_counts);
+    test_counts replay_counts = {};
+    feature_replay_tests(&replay_counts);
+    failed |= test_report("feature/replay", &replay_counts);
 
     char fixtures_dir[MAX_PATH];
     if (argc > 1)

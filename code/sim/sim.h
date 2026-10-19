@@ -1181,6 +1181,7 @@ internal sim_command sim_make_command(sim_state *sim, sim_command_kind kind);
 internal void        sim_apply(sim_state *sim, sim_command command, sim_event_sink *events);
 internal void        sim_advance_turn(sim_state *sim, u32 cause, sim_event_sink *events);
 internal b32         sim_load_save(sim_state *sim, save_file *save, sim_command command, sim_event_sink *events);
+internal b32         sim_resume_save(sim_state *sim, save_file *save, sim_command command, sim_event_sink *events);   /* M13: the replay of a save pair */
 internal void        sim_unload_world(sim_state *sim);
 internal b32         sim_add_officer(sim_state *sim, officer_component officer);   /* false if full or the id is taken */
 internal b32         sim_add_city(sim_state *sim, city_component city);

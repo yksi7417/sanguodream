@@ -1,0 +1,7 @@
+id	rule	number	command	city	facility	officers	q_ids	folder
+# The save pairs of spec/fixtures/saves/pairs (M13). misc/make_pair_index.py writes this file from pair.json and diff.json.
+# command: end_turn, develop, conscript, patrol or train; - if the engine has no handler. city and facility: the ids of bases.tsv and facilities.tsv.
+# officers: the officers whose acted flag rises in diff.json (assumed: pair.json does not name them). folder: relative to the executable.
+0	conscript	1	conscript	30	-	636,808,811	Q-153,Q-158	..\spec-src\spec\fixtures\saves\pairs\conscript\001
+1	develop	1	develop	27	0	139	Q-146,Q-158	..\spec-src\spec\fixtures\saves\pairs\develop\001
+2	economy-turn	1	end_turn	-	-	-	Q-146,Q-148,Q-149,Q-150,Q-151,Q-152	..\spec-src\spec\fixtures\saves\pairs\economy-turn\001
