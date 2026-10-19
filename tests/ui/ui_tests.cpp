@@ -1535,6 +1535,92 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
+    /* M16: the Content panel lists the source of each asset. Set sends one
+       set_install_folder with the typed folder; Clear sends one with "". */
+    t = IM_REGISTER_TEST(e, "ui", "content_panel_sets_and_clears_the_install_folder");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_content        = true;
+        recorder_reset(&v.recorder);
+        ctx->Yield(2);
+        ctx->SetRef("###Content");
+        IM_CHECK(ctx->ItemExists("###set_install") && ctx->ItemExists("###clear_install"));
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_CONTENT_SOURCE), (u32)ENGINE_ASSET_KIND_COUNT);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        ctx->ItemInputValue("###install_folder", "D:/San11WPK");
+        ctx->Yield();
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###set_install");
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_SET_INSTALL_FOLDER), 1u);
+        IM_CHECK_STR_EQ(v.recorder.last_install_folder, "D:/San11WPK");
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###clear_install");
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_SET_INSTALL_FOLDER), 1u);
+        IM_CHECK_STR_EQ(v.recorder.last_install_folder, "");
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+    };
+
+    /* M16: a scenario of the install has a Start button that sends one
+       load_scenario with the file of the row. */
+    t = IM_REGISTER_TEST(e, "ui", "content_panel_starts_a_scenario_of_the_install");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_content        = true;
+        recorder_reset(&v.recorder);
+        ctx->Yield(2);
+        ctx->SetRef("###Content");
+        IM_CHECK(ctx->ItemExists("install_scenarios/###start0"));
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_INSTALL_SCENARIO_AT), 1u);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("install_scenarios/###start0");
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOAD_SCENARIO), 1u);
+        IM_CHECK_STR_EQ(v.recorder.last_scenario_path, RECORDER_INSTALL_SCENARIO_FILE);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+    };
+
+    /* M16: the officer view of the Court panel shows the portrait of the
+       source that content_source gives. Each source has its own frame. The
+       view commands nothing. */
+    t = IM_REGISTER_TEST(e, "ui", "officer_view_shows_a_portrait_of_each_source");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_court          = true;
+        v.ui.court.officer       = 101;
+        ctx->SetRef("###Court");
+        for (u8 source = 0; source < ENGINE_SOURCE_KIND_COUNT; ++source)
+        {
+            v.recorder.portrait_source = source;
+            ctx->Yield(2);
+            recorder_reset(&v.recorder);
+            ctx->Yield(2);
+            char item[32];
+            snprintf(item, sizeof(item), "###portrait_%u", source);
+            IM_CHECK(ctx->ItemExists(item));
+            IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_CONTENT_SOURCE), 1u);
+            IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_CONTENT_SOURCE), (u32)ENGINE_ASSET_PORTRAITS);
+            IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        }
+    };
+
     /* M14: in the game mode the City dialog shows the base command menu.
        Each item opens the dialog of its command for the selected city, or
        it is grey. Opening a dialog commands nothing. */

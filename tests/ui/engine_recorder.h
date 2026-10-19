@@ -130,6 +130,10 @@ enum recorder_call_kind
     RECORDER_REPLAY_PAIR_AT,       /* arg = the row */
     RECORDER_REPLAY_DIFF_AT,       /* arg = the index */
     RECORDER_AI_EXPLAIN,           /* M15: arg = the faction */
+    RECORDER_INSTALL_FOLDER,       /* M16 */
+    RECORDER_CONTENT_SOURCE,       /* arg = the asset kind */
+    RECORDER_INSTALL_SCENARIO_COUNT,
+    RECORDER_INSTALL_SCENARIO_AT,  /* arg = the index */
     RECORDER_END_TURN,        /* commands start here */
     RECORDER_ADVANCE_TURNS,
     RECORDER_LEDGER_CLEAR,
@@ -201,6 +205,7 @@ enum recorder_call_kind
     RECORDER_START_FIRE,           /* M10: arg = the turns */
     RECORDER_REPLAY_PAIR,          /* M13: arg = the command kind */
     RECORDER_SET_UNIT_GRAIN,       /* M15: arg = the unit */
+    RECORDER_SET_INSTALL_FOLDER,   /* M16: it loads the names of the install as a command */
     RECORDER_CALL_KIND_COUNT
 };
 
@@ -254,6 +259,9 @@ struct engine_recorder
     sim_new_officer_order last_newcomer;   /* the order of the last create_officer */
     char          last_replay_before[RECORDER_MAX_PATH];   /* M13: the paths of the last replay_pair */
     char          last_replay_after[RECORDER_MAX_PATH];
+    char          last_install_folder[RECORDER_MAX_PATH];   /* M16: the folder of the last set_install_folder */
+    char          last_scenario_path[RECORDER_MAX_PATH];    /* the path of the last load_scenario */
+    u8            portrait_source;    /* script the source of content_source(ENGINE_ASSET_PORTRAITS) */
 };
 
 internal void
@@ -1597,6 +1605,57 @@ internal engine_ai_explain recorder_ai_explain(void *o, u8 force)
     attack->goal = AI_GOAL_ATTACK_CITY; attack->city_id = 6; attack->chosen = false; attack->score = 180; attack->q = 14; attack->r = 9;
     return explain;
 }
+/* M16: one scripted scenario of the install, the SCEN002 of the spec. The
+   portrait source is scripted; each other asset comes from the pack. */
+#define RECORDER_INSTALL_SCENARIO_FILE "install\\media\\scenario\\SCEN002.s11"
+internal engine_install_result recorder_set_install_folder(void *o, const char *folder)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_SET_INSTALL_FOLDER, 0);
+    snprintf(r->last_install_folder, RECORDER_MAX_PATH, "%s", folder ? folder : "");
+    engine_install_result result = {};
+    result.found          = r->last_install_folder[0] != 0;
+    result.names_loaded   = result.found;
+    result.scenario_count = result.found ? 1 : 0;
+    result.detail         = "ok";
+    return result;
+}
+internal const char *recorder_install_folder(void *o)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_INSTALL_FOLDER, 0);
+    return r->last_install_folder;
+}
+internal engine_content_source recorder_content_source(void *o, u8 asset)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_CONTENT_SOURCE, asset);
+    engine_content_source source = {};
+    source.asset  = asset;
+    source.source = asset == ENGINE_ASSET_PORTRAITS ? r->portrait_source : (u8)ENGINE_SOURCE_PACK;
+    source.count  = 1;
+    source.detail = "scripted";
+    return source;
+}
+internal u32 recorder_install_scenario_count(void *o)
+{
+    recorder_record((engine_recorder *)o, RECORDER_INSTALL_SCENARIO_COUNT, 0);
+    return 1;
+}
+internal engine_install_scenario recorder_install_scenario_at(void *o, u32 index)
+{
+    recorder_record((engine_recorder *)o, RECORDER_INSTALL_SCENARIO_AT, index);
+    engine_install_scenario scenario = {};
+    scenario.number = ENGINE_NO_ROW;
+    if (index != 0) return scenario;
+    static const u8 title[] = { 0xB8, 0x73, 0xB6, 0xAF, 0xB3, 0xCE, 0xBE, 0xDA };   /* the Big5 bytes of the SCEN002 title */
+    scenario.number = 2;
+    scenario.year   = 194;
+    scenario.month  = 6;
+    memcpy(scenario.title, title, sizeof(title));
+    snprintf(scenario.file, sizeof(scenario.file), "%s", RECORDER_INSTALL_SCENARIO_FILE);
+    return scenario;
+}
 internal void recorder_set_unit_grain(void *o, u32 unit_id, u32 grain)
 {
     (void)grain;
@@ -1644,8 +1703,9 @@ internal engine_command_result recorder_trigger_history(void *o, u32 row, u8 for
 }
 internal engine_load_result recorder_load_scenario(void *o, const char *path)
 {
-    (void)path;
-    recorder_record((engine_recorder *)o, RECORDER_LOAD_SCENARIO, 0);
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_LOAD_SCENARIO, 0);
+    snprintf(r->last_scenario_path, RECORDER_MAX_PATH, "%s", path ? path : "");
     engine_load_result result = {};
     result.status = ENGINE_LOAD_OK;
     result.detail = "ok";
@@ -1864,6 +1924,11 @@ recorder_make_api(engine_recorder *r)
     api.replay_diff_at        = recorder_replay_diff_at;
     api.ai_explain            = recorder_ai_explain;      /* M15 */
     api.set_unit_grain        = recorder_set_unit_grain;
+    api.set_install_folder     = recorder_set_install_folder;   /* M16 */
+    api.install_folder         = recorder_install_folder;
+    api.content_source         = recorder_content_source;
+    api.install_scenario_count = recorder_install_scenario_count;
+    api.install_scenario_at    = recorder_install_scenario_at;
     return api;
 }
 

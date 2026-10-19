@@ -304,6 +304,13 @@ struct ui_state
     {
         u8 faction;              /* the faction of the view; ENGINE_NO_FACTION takes the first AI faction */
     } ai;
+    bool show_content;           /* M16: the install folder and the source of each asset */
+    struct
+    {
+        char                  folder[ENGINE_PATH_SIZE];   /* the folder that the player types */
+        bool                  has_result;
+        engine_install_result result;                     /* the answer of the last Set or Clear */
+    } content;
     bool quit_requested;        /* 結束遊戲: the platform closes the window */
     /* The game mode (main-map.md): the HUD at the top left with the list of
        the bases, officers and units, the mini map at the bottom right, and

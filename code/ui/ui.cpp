@@ -25,6 +25,7 @@ ui_label(char *out, u32 out_size, ui_state *ui, const char *text_id, const char 
 #include "ui/ui_growth.cpp"
 #include "ui/ui_march.cpp"
 #include "ui/ui_combat.cpp"
+#include "ui/ui_content.cpp"  /* M16: before ui_court.cpp, for the portrait of the officer view */
 #include "ui/ui_court.cpp"
 #include "ui/ui_rivals.cpp"
 #include "ui/ui_fidelity.cpp"  /* M13 */
@@ -123,6 +124,7 @@ ui_init(ui_state *ui, text_catalog *text)
     ui->show_bases            = false;
     ui->show_fidelity         = false;   /* M13 */
     ui->show_ai               = false;   /* M15 */
+    ui->show_content          = false;   /* M16 */
     ui->ai.faction            = ENGINE_NO_FACTION;
     ui->ruler.viceroy         = ENGINE_NO_OFFICER;
     ui->ruler.adviser         = ENGINE_NO_OFFICER;
@@ -196,6 +198,7 @@ ui_draw_menu_bar(ui_state *ui, engine_api *api, ui_frame_info *frame)
         ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.bases", "Bases"), 0, &ui->show_bases);
         ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.fidelity", "Fidelity"), 0, &ui->show_fidelity);
         ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.ai", "AI"), 0, &ui->show_ai);
+        ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.content", "Content"), 0, &ui->show_content);
         ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.title", "TitleMenu"), 0, &ui->show_title);
         ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.abilities", "AbilitiesMenu"), 0, &ui->show_abilities);
             ImGui::MenuItem("Event ledger", 0, &ui->show_ledger);
@@ -617,6 +620,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->show_bases)      ui_draw_bases(ui, api);
     if (ui->show_fidelity)   ui_draw_fidelity(ui, api);   /* M13 */
     if (ui->show_ai)         ui_draw_ai(ui, api);         /* M15 */
+    if (ui->show_content)    ui_draw_content(ui, api);    /* M16 */
     ui_draw_event_dialog(ui, api);   /* opens while an event waits for a choice */
     ui_draw_game_screens(ui, api);   /* M9: the title, the scenario list, the top bar and the other game screens */
     for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind)

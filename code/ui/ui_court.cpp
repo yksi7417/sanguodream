@@ -102,6 +102,7 @@ ui_draw_officer_state(ui_state *ui, engine_api *api, u16 officer_id)
     engine_officer_detail detail = api->officer_detail(api->engine, officer_id);
     engine_officer officer = api->officer_by_id(api->engine, officer_id);
     if (detail.officer_id == ENGINE_NO_OFFICER) return;
+    ui_draw_officer_portrait(ui, api, officer_id);   /* M16 */
     char text[64], post[96] = "-";
     ImGui::Text("%s %u   %s %u   %s %u", text_get(ui->text, "court.loyalty"), detail.loyalty, text_get(ui->text, "court.merit"), officer.merit,
                 text_get(ui->text, "court.age"), detail.age);

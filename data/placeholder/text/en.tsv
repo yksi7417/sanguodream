@@ -1166,3 +1166,27 @@ aiview.goal.1	Defend	goal: an enemy unit near an own city
 aiview.goal.2	Take a free city	goal: a city without an owner
 aiview.goal.3	Attack a city	goal: a city of a faction at war
 aiview.goal.4	Go home for grain	goal: the grain does not last
+menu.content	Content	menu: the Content panel
+content.title	Content	panel title: the install folder and the source of each asset
+content.help	Type the folder of your own install of the game and press Set. The game then reads the city names and the scenarios of the install. The messages, the portraits and the music stay with the content pack, because their file layout is not known yet.	the help line of the Content panel
+content.folder	Install folder	input: the folder of the install
+content.set	Set	button: use the typed install folder
+content.clear	Clear	button: forget the install folder
+content.asset	Asset	column: the kind of asset
+content.source	Source	column: the source of the asset
+content.count	Entries	column: the entries that the source gave
+content.install_files	Install files	column: the files found in the install
+content.detail	Why	column: why the asset has this source
+content.number	No.	column: the scenario number
+content.scenario	Scenario	column: the scenario title
+content.start_date	Start	column: the start year and month
+content.start	Start	button: start a new game from the scenario
+content.portrait	Portrait	label: the source of the portrait
+content.asset.0	City names	asset: the names of the cities, gates and ports
+content.asset.1	Scenarios	asset: the scenario list
+content.asset.2	Messages	asset: the texts of the game
+content.asset.3	Portraits	asset: the faces of the officers
+content.asset.4	Music	asset: the music
+content.source.0	None	source: nothing gives the asset
+content.source.1	Content pack	source: the content pack
+content.source.2	Install	source: the install folder of the player
