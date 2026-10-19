@@ -291,6 +291,16 @@ engine_api_set_unit(void *opaque, u32 unit_id, u32 soldiers, u32 morale)
     unit->morale   = morale;
 }
 
+/* M15: a test command; the grain of the unit becomes known. */
+internal void
+engine_api_set_unit_grain(void *opaque, u32 unit_id, u32 grain)
+{
+    sim_unit *unit = sim_find_unit(((engine *)opaque)->sim, unit_id);
+    if (!unit) return;
+    unit->grain         = grain;
+    unit->grain_unknown = false;
+}
+
 /* An editor command: puts the unit on a free hex, for the faction. */
 internal b32
 engine_api_set_unit_place(void *opaque, u32 unit_id, u8 force_id, s32 q, s32 r)
@@ -340,5 +350,6 @@ engine_bind_combat_api(engine_api *api)
     api->place_building       = engine_api_place_building;
     api->set_unit             = engine_api_set_unit;
     api->set_unit_place       = engine_api_set_unit_place;
+    api->set_unit_grain       = engine_api_set_unit_grain;
     api->set_city_durability  = engine_api_set_city_durability;
 }

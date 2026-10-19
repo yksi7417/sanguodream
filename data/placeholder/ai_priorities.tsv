@@ -11,3 +11,5 @@ id	key	command	priority	condition	threshold	status
 7	sortie	sortie	25	troops_above	15000	assumed
 8	research	research	20	technique_above	1000	assumed
 9	goodwill	diplomacy	10	gold_above	8000	assumed
+10	defend	sortie	70	enemy_near	0	assumed
+11	take_free	sortie	65	free_city_near	0	assumed

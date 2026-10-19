@@ -129,6 +129,7 @@ enum recorder_call_kind
     RECORDER_REPLAY_PAIR_COUNT,    /* M13 */
     RECORDER_REPLAY_PAIR_AT,       /* arg = the row */
     RECORDER_REPLAY_DIFF_AT,       /* arg = the index */
+    RECORDER_AI_EXPLAIN,           /* M15: arg = the faction */
     RECORDER_END_TURN,        /* commands start here */
     RECORDER_ADVANCE_TURNS,
     RECORDER_LEDGER_CLEAR,
@@ -199,6 +200,7 @@ enum recorder_call_kind
     RECORDER_LOAD_SCENARIO,
     RECORDER_START_FIRE,           /* M10: arg = the turns */
     RECORDER_REPLAY_PAIR,          /* M13: arg = the command kind */
+    RECORDER_SET_UNIT_GRAIN,       /* M15: arg = the unit */
     RECORDER_CALL_KIND_COUNT
 };
 
@@ -1571,6 +1573,36 @@ internal engine_replay_report recorder_replay_pair(void *o, const char *before, 
     report.differ = report.differ_verified = report.diff_count = 1;
     return report;
 }
+/* M15: a scripted record of an AI turn of faction 2. The first option is
+   the chosen patrol of city 27; the second is the chosen march of unit 3
+   to the free city 5 at hex (10, 12); the third is a goal that the unit
+   did not choose. */
+internal engine_ai_explain recorder_ai_explain(void *o, u8 force)
+{
+    recorder_record((engine_recorder *)o, RECORDER_AI_EXPLAIN, force);
+    engine_ai_explain explain = {};
+    explain.faction = force;
+    if (force != 2) return explain;
+    explain.turn  = 4;
+    explain.count = 3;
+    engine_ai_option *patrol = explain.options;
+    patrol->goal = AI_GOAL_CITY_COMMAND; patrol->kind = SIM_COMMAND_PATROL; patrol->city_id = 27; patrol->chosen = true;
+    patrol->unit = ENGINE_NO_UNIT; patrol->officer = 101; patrol->score = 80;
+    snprintf(patrol->key, sizeof(patrol->key), "patrol");
+    engine_ai_option *take = explain.options + 1;
+    take->goal = AI_GOAL_TAKE_FREE_CITY; take->kind = SIM_COMMAND_MOVE; take->city_id = 5; take->chosen = true;
+    take->unit = 3; take->officer = 102; take->score = 240; take->q = 10; take->r = 12;
+    engine_ai_option *attack = explain.options + 2;
+    *attack = *take;
+    attack->goal = AI_GOAL_ATTACK_CITY; attack->city_id = 6; attack->chosen = false; attack->score = 180; attack->q = 14; attack->r = 9;
+    return explain;
+}
+internal void recorder_set_unit_grain(void *o, u32 unit_id, u32 grain)
+{
+    (void)grain;
+    recorder_record((engine_recorder *)o, RECORDER_SET_UNIT_GRAIN, unit_id);
+}
+
 internal engine_replay_diff recorder_replay_diff_at(void *o, u32 index)
 {
     recorder_record((engine_recorder *)o, RECORDER_REPLAY_DIFF_AT, index);
@@ -1830,6 +1862,8 @@ recorder_make_api(engine_recorder *r)
     api.replay_pair_at        = recorder_replay_pair_at;
     api.replay_pair           = recorder_replay_pair;
     api.replay_diff_at        = recorder_replay_diff_at;
+    api.ai_explain            = recorder_ai_explain;      /* M15 */
+    api.set_unit_grain        = recorder_set_unit_grain;
     return api;
 }
 

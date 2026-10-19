@@ -57,11 +57,16 @@ feature_calm_faction(engine_api *api, u8 force)
     }
 }
 
-/* The first proposal of the plan for the city, or 0. */
+/* The first proposal of the plan for the city, or 0. M15: the sorties of
+   the rows defend and take_free depend on the units and free cities near
+   the city, so the city tests of M8 skip them. */
 internal engine_proposal *
 feature_first_for_city(engine_plan_view *view, u8 city)
 {
-    for (u32 index = 0; index < view->count; ++index) if (view->items[index].city_id == city) return view->items + index;
+    for (u32 index = 0; index < view->count; ++index)
+    {
+        if (view->items[index].city_id == city && view->items[index].kind != SIM_COMMAND_SORTIE) return view->items + index;
+    }
     return 0;
 }
 
@@ -160,7 +165,7 @@ feature_ai_plan_tests(test_counts *counts)
     engine_api *api = setup.api;
     void *e = api->engine;
     u8 city = setup.city, force = setup.force;
-    TEST_CHECK(counts, api->content_status(e).priority_count == 10, "ai_priorities.tsv has the 10 rows of the planner");
+    TEST_CHECK(counts, api->content_status(e).priority_count == 12, "ai_priorities.tsv has the 12 rows of the planner (M15 adds defend and take_free)");
 
     feature_calm_faction(api, force);
     api->set_city_resource(e, city, SIM_RESOURCE_PUBLIC_ORDER, 0, 0);

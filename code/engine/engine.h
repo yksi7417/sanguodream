@@ -1322,6 +1322,34 @@ typedef engine_replay_pair   engine_replay_pair_at_fn(void *engine, u32 index);
 typedef engine_replay_report engine_replay_pair_fn(void *engine, const char *before, const engine_replay_command *command, const char *after);
 typedef engine_replay_diff   engine_replay_diff_at_fn(void *engine, u32 index);   /* index < report.diff_count of the last replay */
 
+/* M15: one scored option of the last AI turn of a faction (ai_explain).
+   A city option is a proposal of ai_priorities.tsv; a unit option is a
+   goal of its march (sim_ai_goal). */
+struct engine_ai_option
+{
+    u8   goal;                      /* sim_ai_goal */
+    u8   kind;                      /* sim_command_kind: the command of a city option, SIM_COMMAND_MOVE for a unit */
+    u8   city_id;                   /* the city of the command, or the target city of the unit; ENGINE_NO_CITY */
+    b32  chosen;                    /* the AI did this option */
+    u32  unit;                      /* ENGINE_NO_UNIT for a city option */
+    u16  officer;                   /* the first officer of the command or of the unit; ENGINE_NO_OFFICER */
+    u32  score;
+    s32  q, r;                      /* the hex that the unit goes to */
+    char key[CONTENT_KEY_SIZE];     /* the key of ai_priorities.tsv; empty for a unit */
+};
+
+#define ENGINE_AI_OPTION_CAPACITY 32
+struct engine_ai_explain
+{
+    u8               faction;
+    u32              turn;          /* the game turn of the record + 1; 0 if the faction had no AI turn */
+    u32              count;         /* the chosen options in the order of the turn, then the others by score */
+    engine_ai_option options[ENGINE_AI_OPTION_CAPACITY];
+};
+
+typedef engine_ai_explain engine_ai_explain_fn(void *engine, u8 force_id);
+typedef void              engine_set_unit_grain_fn(void *engine, u32 unit_id, u32 grain);   /* test command; the grain of the unit becomes known */
+
 struct engine_api
 {
     void *engine;
@@ -1527,6 +1555,9 @@ struct engine_api
     engine_replay_pair_at_fn        *replay_pair_at;
     engine_replay_pair_fn           *replay_pair;
     engine_replay_diff_at_fn        *replay_diff_at;
+    /* M15 */
+    engine_ai_explain_fn            *ai_explain;
+    engine_set_unit_grain_fn        *set_unit_grain;
 };
 
 #define ENGINE_NO_BASE 0xFFFFFFFFu
