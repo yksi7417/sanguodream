@@ -612,6 +612,54 @@ too.
   the unit and city commands that still lack an api stay open work.
 
 ### M15 An opponent worth playing
+Status (2026-10-19): done (tutorial 28). The spec input was
+knowledge/ai.md and the replay of economy-turn/001 (M13). The spec has no
+year log yet, so M15 has no statistics test. The demo is
+"demo/m15_ai".
+
+- Engine:
+  - Each AI unit scores four goals and takes the best score:
+    - defend an own city;
+    - take a free city;
+    - attack a city of an enemy;
+    - go home when its grain does not last.
+  - A unit in contact fights and stays.
+  - ai_priorities.tsv has two new rows that send a unit out of a city.
+    The row "defend" acts on an enemy unit near the city. The row
+    "take_free" acts on a free city within ai.target_hexes.
+  - ai.target_hexes is 30, because no city of the real map has a
+    neighbour within 12 hexes.
+  - ai.attack_after_months stops each sortie but defence in the first 5
+    months of a scenario (knowledge/ai.md). The replay of
+    economy-turn/001 keeps its 334 confirmed differences.
+  - The sim keeps a record of the scored options of the last AI turn of
+    each faction. The clean room assumes all goals, scores and rules
+    (Q-185).
+- API: `ai_explain(faction)`; the test command `set_unit_grain`.
+- Tests:
+  - feature: the record of ai_explain after an AI turn. A free city falls
+    within 6 turns, but not in the first 5 months. A city under attack
+    sends a unit that hits the enemy. A unit with grain for one turn goes
+    home without desertion. The planner tests of M8 expect 12 rows;
+  - ui: the AI panel reads the record of its faction, and a row frames
+    its unit or its city. Neither commands anything;
+  - demo: "demo/m15_ai" on the real map.
+- UI: the AI panel of the debug menu lists the options with a mark on
+  each chosen one. The scene draws a line from each unit of the faction
+  to its goal.
+- Open points for the analysis side (not yet in QUESTIONS.md: an
+  unattended run does not commit to the spec repository):
+  - a year log of the original: the saves of 12 months from one start,
+    with the soldiers, the gold and the cities of each faction;
+  - the month of the first AI attack when the player does nothing (the
+    claim gives 5 to 6 months);
+  - does the original AI take a free city, and how fast;
+  - the distance of an enemy unit that makes an AI city send a unit;
+  - does an AI unit go home for grain (the naval claim says that AI
+    ships starve);
+  - the order of the AI actions in a turn and the choice of the targets
+    (Q-113, Q-140, Q-185).
+
 The AI factions of the original act on the map with a visible purpose:
 they build, recruit, march and take cities. The clean room measures
 its AI against the original over a year of play.

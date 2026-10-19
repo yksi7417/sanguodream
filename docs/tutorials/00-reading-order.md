@@ -41,6 +41,7 @@ run_tests.bat --e2e
 | 24 | Main map: the round mini map, the unit plates and the turn | code/ui/ui_minimap.cpp, code/ui/ui_locate.cpp, code/render/render.h, code/engine/engine_march.cpp | tests/unit/render_tests.cpp, tests/feature/march_tests.cpp, save_map_tests.cpp, tests/ui/ui_tests.cpp |
 | 26 | Replay: the save pairs of the original, the load in the middle of a turn and the Fidelity panel | code/engine/engine_replay.cpp, code/sim/sim.cpp (sim_resume_save), save_format (the per-force tables), code/ui/ui_fidelity.cpp, misc/make_pair_index.py, data/placeholder/pairs.tsv | tests/unit/save_format_tests.cpp, tests/feature/replay_tests.cpp, tests/ui/ui_tests.cpp, tests/demo/demo_tests.cpp |
 | 27 | Base menu: the base command menu of the game mode and a turn from the game screens | code/ui/ui_base_menu.cpp, code/ui/ui_city.cpp | tests/ui/ui_tests.cpp, tests/demo/demo_tests.cpp |
+| 28 | AI view: the goals of the AI units, the record of an AI turn and the AI panel | code/sim/ai.cpp, code/engine/engine_rivals.cpp, code/ui/ui_ai.cpp, data/placeholder/ai_priorities.tsv, rules.tsv | tests/feature/ai_tests.cpp, rivals_tests.cpp, tests/ui/ui_tests.cpp, tests/demo/demo_tests.cpp |
 
 You will see these conventions everywhere:
 - `internal` means `static`: the function is private to its translation
