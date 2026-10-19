@@ -454,6 +454,7 @@ global_variable content_rule_field content_rule_fields[] = {
     CONTENT_RULE("ai.target_hexes", ai_target_hexes), CONTENT_RULE("ai.free_city_bonus", ai_free_city_bonus),
     CONTENT_RULE("ai.defend_bonus", ai_defend_bonus), CONTENT_RULE("ai.defend_hexes", ai_defend_hexes), CONTENT_RULE("ai.march_hexes", ai_march_hexes),
     CONTENT_RULE("ai.grain_margin_turns", ai_grain_margin_turns), CONTENT_RULE("ai.resupply_score", ai_resupply_score),
+    CONTENT_RULE("ai.attack_after_months", ai_attack_after_months),
     CONTENT_RULE("lifespan.long_years", lifespan_long_years), CONTENT_RULE("new_officer.max", new_officer_max),
     CONTENT_RULE("new_officer.high", new_officer_high), CONTENT_RULE("new_officer.normal", new_officer_normal), CONTENT_RULE("new_officer.low", new_officer_low),
     CONTENT_RULE("train.ap", train_ap), CONTENT_RULE("train.turns", train_turns),

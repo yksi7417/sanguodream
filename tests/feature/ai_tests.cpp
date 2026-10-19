@@ -8,6 +8,7 @@
 
 #define FEATURE_AI_FREE_CITY_TURNS 6
 #define FEATURE_AI_RESUPPLY_TURNS  3
+#define FEATURE_AI_MONTHS_LATER    6   /* past ai.attack_after_months */
 
 /* The hex of a city: the centre of its flower. */
 internal hex_coord
@@ -195,6 +196,16 @@ feature_ai_free_city_tests(test_counts *counts)
     feature_ai_arm_city(api, home, force, human);
     feature_turn_on(api, true, false);
 
+    /* The sample is in the first months of its scenario: the AI does not march on a city yet. */
+    feature_next_own_turn(api, human);
+    engine_ai_explain early = api->ai_explain(e, force);
+    TEST_CHECK(counts, early.turn > 0 && !feature_ai_key(&early, "take_free") && !feature_ai_key(&early, "sortie") &&
+                       api->city_at(e, target).owner_force_id == ENGINE_NO_FACTION,
+               "in the first 5 months after the start of the scenario the AI sends no unit against a city (assumed rule ai.attack_after_months)");
+    engine_date today = api->date(e);
+    u32 later = (u32)today.month - 1 + FEATURE_AI_MONTHS_LATER;
+    api->set_date(e, (u16)(today.year + later / 12), (u8)(later % 12 + 1), 1);
+
     u32 mark = api->ledger_count(e);
     u32 turns = 0;
     b32 aimed = false, took_out = false;
@@ -209,7 +220,7 @@ feature_ai_free_city_tests(test_counts *counts)
         took_out |= take && take->kind == SIM_COMMAND_SORTIE && take->city_id == home;
         turns++;
     }
-    TEST_CHECK(counts, took_out, "given a free city within 12 hexes, the AI sends a unit out of its city (row take_free, priority 65)");
+    TEST_CHECK(counts, took_out, "given a free city within 30 hexes, the AI sends a unit out of its city (row take_free, priority 65)");
     u8 owner = api->city_at(e, target).owner_force_id;
     sim_event captured = {};
     TEST_CHECK(counts, owner != ENGINE_NO_FACTION && owner != human && feature_find_city_event(api, target, SIM_EVENT_BASE_CAPTURED, mark, &captured),

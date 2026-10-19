@@ -51,6 +51,15 @@ sim_ai_court_order(city_component *city, u16 officer)
     return order;
 }
 
+/* M15: the months from the start date of the scenario to the date of the game. */
+internal u32
+sim_ai_months_played(sim_state *sim)
+{
+    s32 start = (s32)sim->turns.start_date.year * 12 + sim->turns.start_date.month;
+    s32 now   = (s32)sim->turns.date.year * 12 + sim->turns.date.month;
+    return now > start ? (u32)(now - start) : 0;
+}
+
 /* M15: a city without an owner within ai.target_hexes of the city. */
 internal b32
 sim_ai_free_city_near(sim_state *sim, city_component *city)
@@ -256,6 +265,9 @@ sim_ai_command_for(sim_state *sim, city_component *city, ai_priority *row)
             /* The row "defend" sends the unit against the enemy near the city; the other rows need a target city. */
             if (row->condition != AI_ENEMY_NEAR &&
                 sim_ai_target_city(sim, city->owner_force_id, sim->sites[city->city_id].hex, rules->ai_target_hexes) == SIM_NO_CITY) return command;
+            /* M15: no march on a city in the first months of the game (knowledge/ai.md: the AI armies
+               arrive 5 to 6 months after the start; assumed, Q-185). Only the defence does not wait. */
+            if (row->condition != AI_ENEMY_NEAR && sim_ai_months_played(sim) < rules->ai_attack_after_months) return command;
             u8 pike = content_find_unit_type(&sim->content, "pike");
             if (pike == CONTENT_NO_UNIT_TYPE || city->troops <= rules->ai_sortie_reserve) return command;
             sim_sortie_order order = sim_sortie_proposal(sim, city->city_id, pike);
