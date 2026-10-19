@@ -566,12 +566,23 @@ sim_ai_attack(sim_state *sim, u32 unit_id, hex_coord hex, sim_event_sink *events
     return true;
 }
 
+/* Attacks the first target next to the unit; returns true after an attack. */
+internal b32
+sim_ai_attack_beside(sim_state *sim, u32 unit_id, sim_event_sink *events)
+{
+    for (u32 d = 0; d < HEX_DIRECTION_COUNT; ++d)
+    {
+        if (sim_ai_attack(sim, unit_id, hex_neighbor(sim->units[unit_id].hex, d), events)) return true;
+    }
+    return false;
+}
+
 /* ---- the turn of a computer faction ------------------------------------------------- */
 
-/* The units of the AI: each takes its goal with the best score, marches
-   toward it and attacks after the move. A defender attacks its enemy
-   first. The record gets the chosen goal of each unit, then the other
-   goals. */
+/* The units of the AI: each takes its goal with the best score. A unit
+   next to a target attacks it and stays. Else it marches toward its goal
+   and attacks after the move. A defender attacks its enemy first. The
+   record gets the chosen goal of each unit, then the other goals. */
 internal u32
 sim_ai_units(sim_state *sim, u8 force, sim_ai_record *record, sim_event_sink *events)
 {
@@ -606,13 +617,13 @@ sim_ai_units(sim_state *sim, u8 force, sim_ai_record *record, sim_event_sink *ev
             else if (other_count < ArrayCount(others)) others[other_count++] = option;
         }
         if (best == AI_GOAL_COUNT) continue;
+        /* A unit in contact fights where it stands; only a unit without grain leaves the fight. */
+        if (best == AI_GOAL_DEFEND && sim_ai_attack(sim, unit_id, choices[best].target, events)) { issued++; continue; }
+        if (best != AI_GOAL_RESUPPLY && sim_ai_attack_beside(sim, unit_id, events)) { issued++; continue; }
         if (unit->moved_turn != sim->turn + 1 && sim_ai_march(sim, unit_id, choices[best].target, events)) issued++;
         if (!unit->alive) continue;
         if (best == AI_GOAL_DEFEND && sim_ai_attack(sim, unit_id, choices[best].target, events)) { issued++; continue; }
-        for (u32 d = 0; d < HEX_DIRECTION_COUNT; ++d)
-        {
-            if (sim_ai_attack(sim, unit_id, hex_neighbor(unit->hex, d), events)) { issued++; break; }
-        }
+        if (sim_ai_attack_beside(sim, unit_id, events)) issued++;
     }
     for (u32 index = 0; index < other_count; ++index) sim_ai_record_put(record, others[index]);
     return issued;

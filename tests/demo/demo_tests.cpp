@@ -15,6 +15,7 @@
 #define DEMO_M12_NAME          "m12_main_map"
 #define DEMO_M13_NAME          "m13_replay"
 #define DEMO_M14_NAME          "m14_game_screens"
+#define DEMO_M15_NAME          "m15_ai"
 
 /* build\demos, with no last backslash. demo_player.cpp sets it. */
 global_variable char g_demo_output_dir[MAX_PATH];
@@ -51,7 +52,7 @@ demo_gui(ImGuiTestContext *ctx)
            they were made for; the walkthrough of M10 shows the real map. */
         config.use_pack_map     = strcmp(ctx->Test->Name, DEMO_M10_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M11_NAME) == 0 ||
                                   strcmp(ctx->Test->Name, DEMO_M12_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M13_NAME) == 0 ||
-                                  strcmp(ctx->Test->Name, DEMO_M14_NAME) == 0;
+                                  strcmp(ctx->Test->Name, DEMO_M14_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M15_NAME) == 0;
         v.backend = engine_create(&v.permanent, &v.transient, config);
         v.api     = engine_make_api(v.backend);
         text_catalog_init(&v.text, arena_sub(&v.permanent, Megabytes(4)), test_platform_read_entire_file,
@@ -1690,6 +1691,11 @@ demo_m12_main_map(ImGuiTestContext *ctx)
     void *e = api->engine;
     IM_CHECK(api->map_info(e).real_map);
     IM_CHECK(demo_begin_video(ctx, milestone));
+    /* M15: the AI of the factions before the player moves their units. The
+       walkthrough shows the units of the save as they are, so the AI is off. */
+    engine_settings settings = api->settings(e);
+    settings.ai = false;
+    api->set_settings(e, settings);
 
     IM_CHECK(demo_open_panel(ctx, "Simulation", &v.ui.show_sim));
     ctx->SetRef("Simulation");
@@ -1902,6 +1908,127 @@ demo_m13_replay(ImGuiTestContext *ctx)
     IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Fidelity", "fidelity"));
 }
 
+/* M15: the turns of the game until the human faction acts again. */
+internal void
+demo_next_own_turn(engine_api *api, u8 human)
+{
+    s64 before = api->date(api->engine).days_since_start;
+    for (u32 step = 0; step < 300 && api->date(api->engine).days_since_start == before; ++step) api->end_turn(api->engine);
+    for (u32 step = 0; step < 300 && api->whose_turn(api->engine) != human; ++step) api->end_turn(api->engine);
+}
+
+/* M15: the AI faction, its city with a free officer, and the nearest city
+   of a third owner. The demo makes that city free. */
+internal b32
+demo_ai_pick(engine_api *api, u8 human, u8 *force_out, u8 *home_out, u8 *target_out)
+{
+    void *e = api->engine;
+    s32 best = 0x7FFFFFFF;
+    for (u32 home = 0; home < api->city_count(e); ++home)
+    {
+        engine_city own = api->city_at(e, home);
+        if (own.owner_force_id == ENGINE_NO_FACTION || own.owner_force_id == human) continue;
+        b32 officer = false;
+        for (u32 index = 0; index < api->officer_count(e) && !officer; ++index)
+        {
+            engine_officer candidate = api->officer_at(e, index);
+            officer = candidate.status <= 3 && candidate.status != OFFICER_STATUS_RULER && candidate.force_id == own.owner_force_id &&
+                      candidate.current_position == home;
+        }
+        if (!officer) continue;
+        engine_city_slots from = api->city_slots(e, (u8)home);
+        for (u32 target = 0; target < api->city_count(e); ++target)
+        {
+            engine_city other = api->city_at(e, target);
+            if (other.owner_force_id == own.owner_force_id || other.owner_force_id == human) continue;
+            engine_city_slots to = api->city_slots(e, (u8)target);
+            s32 distance = hex_distance(hex_make(from.q, from.r), hex_make(to.q, to.r));
+            if (distance >= best) continue;
+            best = distance;
+            *force_out = own.owner_force_id; *home_out = (u8)home; *target_out = (u8)target;
+        }
+    }
+    return best != 0x7FFFFFFF;
+}
+
+/* M15 (an opponent worth playing; tutorial 28): on the real map, a city
+   next to an AI faction becomes free and empty, 6 months after the start
+   of the scenario. The AI sends a unit out (row take_free), the unit
+   marches, and the city falls. The AI panel shows the scored options of
+   each AI turn, and the scene draws a line from the unit to its goal. */
+internal void
+demo_m15_ai(ImGuiTestContext *ctx)
+{
+    const char *milestone = DEMO_M15_NAME;
+    demo_vars &v = ctx->GetVars<demo_vars>();
+    engine_api *api = &v.api;
+    void *e = api->engine;
+    IM_CHECK(api->map_info(e).real_map);
+    IM_CHECK(demo_open_panel(ctx, "Simulation", &v.ui.show_sim));
+    ctx->SetRef("Simulation");
+    ctx->ItemClick("Load sample save");
+    ctx->ItemClick("Load city names");
+    ctx->Yield();
+    v.ui.show_sim = false;
+    IM_CHECK_EQ(api->city_count(e), 42u);
+
+    u8 human = api->whose_turn(e), force = ENGINE_NO_FACTION, home = ENGINE_NO_CITY, target = ENGINE_NO_CITY;
+    api->set_faction_human(e, human, true);
+    IM_CHECK(demo_ai_pick(api, human, &force, &home, &target));
+    api->set_city_owner(e, target, ENGINE_NO_FACTION);
+    api->set_city_resource(e, target, SIM_RESOURCE_SOLDIERS, 0, 0);
+    api->set_city_resource(e, home, SIM_RESOURCE_SOLDIERS, 0, 30000);
+    api->set_city_resource(e, home, SIM_RESOURCE_GRAIN, 0, 100000);
+    api->set_city_resource(e, home, SIM_RESOURCE_WEAPONS, 0, 30000);
+    engine_settings settings = api->settings(e);
+    settings.ai     = true;
+    settings.events = false;
+    api->set_settings(e, settings);
+    engine_date today = api->date(e);
+    u32 later = (u32)today.month - 1 + 6;   /* past ai.attack_after_months */
+    api->set_date(e, (u16)(today.year + later / 12), (u8)(later % 12 + 1), 1);
+    v.ui.ai.faction = force;
+
+    IM_CHECK(demo_begin_video(ctx, milestone));
+    IM_CHECK(demo_open_panel(ctx, "Scene", &v.ui.show_scene));
+    ui_frame_city(&v.ui, target);
+    ctx->Yield(2);
+    IM_CHECK(demo_open_panel(ctx, "###AI", &v.ui.show_ai));
+    ctx->WindowResize("//###AI", ImVec2(620, 420));
+    ctx->SleepStandard();
+
+    /* The AI turns until the free city falls. */
+    b32 sent = false, marched = false;
+    for (u32 turn = 0; turn < 12 && api->city_at(e, target).owner_force_id == ENGINE_NO_FACTION; ++turn)
+    {
+        api->set_actions(e, force, 255);
+        demo_next_own_turn(api, human);
+        ctx->Yield(2);
+        engine_ai_explain explain = api->ai_explain(e, force);
+        for (u32 index = 0; index < explain.count; ++index)
+        {
+            engine_ai_option *option = explain.options + index;
+            if (!option->chosen) continue;
+            sent    |= option->goal == AI_GOAL_CITY_COMMAND && strcmp(option->key, "take_free") == 0 && option->city_id == home;
+            marched |= option->goal == AI_GOAL_TAKE_FREE_CITY && option->city_id == target;
+        }
+        ctx->SetRef("###AI");
+        IM_CHECK(ctx->ItemExists("ai_options"));
+        ctx->SleepStandard();
+    }
+    IM_CHECK(sent);
+    IM_CHECK(marched);
+    IM_CHECK_NE(api->city_at(e, target).owner_force_id, (u8)ENGINE_NO_FACTION);
+    IM_CHECK_NE(api->city_at(e, target).owner_force_id, human);
+    ui_frame_city(&v.ui, target);
+    ctx->Yield(2);
+    ctx->SleepStandard();
+    ctx->SleepStandard();
+
+    IM_CHECK(demo_end_video(ctx));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###AI", "ai"));
+}
+
 internal void
 register_demo_tests(ImGuiTestEngine *e)
 {
@@ -1981,4 +2108,9 @@ register_demo_tests(ImGuiTestEngine *e)
     t->SetVarsDataType<demo_vars>();
     t->GuiFunc  = demo_gui;
     t->TestFunc = demo_m14_game_screens;
+
+    t = IM_REGISTER_TEST(e, "demo", DEMO_M15_NAME);
+    t->SetVarsDataType<demo_vars>();
+    t->GuiFunc  = demo_gui;
+    t->TestFunc = demo_m15_ai;
 }
