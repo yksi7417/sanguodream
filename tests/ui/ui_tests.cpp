@@ -1489,6 +1489,52 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_REPLAY_DIFF_AT), 1u);
     };
 
+    /* M15: the AI panel reads the record of the last AI turn of the chosen
+       faction. It shows one row for each option and commands nothing. */
+    t = IM_REGISTER_TEST(e, "ui", "ai_panel_reads_the_record_of_the_faction");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_ai             = true;
+        v.ui.ai.faction          = 2;
+        recorder_reset(&v.recorder);
+        ctx->Yield(2);
+        ctx->SetRef("###AI");
+        IM_CHECK(ctx->ItemExists("ai_options"));
+        IM_CHECK(ctx->ItemExists("ai_options/###ai_option0"));
+        IM_CHECK(ctx->ItemExists("ai_options/###ai_option2"));
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_AI_EXPLAIN), 1u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_AI_EXPLAIN), 2u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* M15: a row of the AI panel frames its unit or its city; it commands nothing. */
+    t = IM_REGISTER_TEST(e, "ui", "ai_panel_row_frames_the_unit_or_the_city");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_ai             = true;
+        v.ui.ai.faction          = 2;
+        ctx->Yield(2);
+        ctx->SetRef("###AI");
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("ai_options/###ai_option1");
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.units.selected, 3u);
+        ctx->ItemClick("ai_options/###ai_option0");
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.city.selected, (u8)27);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
     /* M14: in the game mode the City dialog shows the base command menu.
        Each item opens the dialog of its command for the selected city, or
        it is grey. Opening a dialog commands nothing. */

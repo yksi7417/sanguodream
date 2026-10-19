@@ -860,6 +860,8 @@ ai.reward	褒賞
 ai.sortie	出征
 ai.research	研究
 ai.goodwill	親善
+ai.defend	防衛
+ai.take_free	佔領空城
 bases.title	港關
 bases.name	名稱
 bases.kind	種類
@@ -1145,3 +1147,20 @@ base_menu.recruit	登庸武將
 base_menu.reward	褒賞
 base_menu.give	授與沒收
 base_menu.no_api	引擎尚無這個指令。
+menu.ai	AI
+aiview.title	AI
+aiview.help	下表列出電腦勢力上一回合的選項。* 表示 AI 選擇的選項。地圖上的線把該勢力的每個部隊連到它的目標。
+aiview.faction	勢力
+aiview.no_record	這個勢力還沒有 AI 回合。
+aiview.summary	%u 個選項
+aiview.goal	目標
+aiview.command	指令
+aiview.target	對象
+aiview.officer	武將
+aiview.score	分數
+aiview.march	行軍
+aiview.goal.0	都市指令
+aiview.goal.1	防衛
+aiview.goal.2	佔領空城
+aiview.goal.3	攻城
+aiview.goal.4	回城補給

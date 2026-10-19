@@ -862,6 +862,8 @@ ai.reward	Reward	褒賞
 ai.sortie	Sortie	出征
 ai.research	Research	研究
 ai.goodwill	Goodwill	親善
+ai.defend	Defend	出征 of the row defend (M15)
+ai.take_free	Take a free city	出征 of the row take_free (M15)
 bases.title	Bases	panel title: 港關
 bases.name	Name	the base
 bases.kind	Kind	pass or port
@@ -1147,3 +1149,20 @@ base_menu.recruit	Recruit	人材 submenu: 登庸武將
 base_menu.reward	Reward	人材 submenu: 褒賞
 base_menu.give	Give and take	人材 submenu: 授與沒收
 base_menu.no_api	The engine has no command for this item yet.	tooltip of a grey item without an api
+menu.ai	AI	menu item: the AI view (M15)
+aiview.title	AI	panel title: the options of the last AI turn
+aiview.help	The table lists the options of the last turn of a computer faction. A mark * shows an option that the AI chose. In the map, a line joins each unit of the faction to its goal.	the help line of the AI panel
+aiview.faction	Faction	combo: the computer faction of the view
+aiview.no_record	This faction had no AI turn yet.	the AI panel without a record
+aiview.summary	%u options	the count of the options of the record
+aiview.goal	Goal	column: the goal of an option
+aiview.command	Command	column: the command of an option
+aiview.target	Target	column: the city of the command or of the goal
+aiview.officer	Officer	column: the first officer of the command or of the unit
+aiview.score	Score	column: the score of an option
+aiview.march	March	the command of a unit option
+aiview.goal.0	City command	goal: a row of ai_priorities.tsv
+aiview.goal.1	Defend	goal: an enemy unit near an own city
+aiview.goal.2	Take a free city	goal: a city without an owner
+aiview.goal.3	Attack a city	goal: a city of a faction at war
+aiview.goal.4	Go home for grain	goal: the grain does not last

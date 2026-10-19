@@ -299,6 +299,11 @@ struct ui_state
         u32                  pair;         /* the row of the last replay */
         engine_replay_report report;
     } fidelity;
+    bool show_ai;                /* M15: the AI view: the options of the last AI turn of a faction */
+    struct
+    {
+        u8 faction;              /* the faction of the view; ENGINE_NO_FACTION takes the first AI faction */
+    } ai;
     bool quit_requested;        /* 結束遊戲: the platform closes the window */
     /* The game mode (main-map.md): the HUD at the top left with the list of
        the bases, officers and units, the mini map at the bottom right, and

@@ -44,6 +44,7 @@ ui_scene_mark(u32 *overlay, engine_terrain_view view, hex_coord h, u32 rgba)
 #include "ui/ui_locate.cpp"   /* M11 */
 #include "ui/ui_minimap.cpp"  /* M12: the round mini map */
 #include "ui/ui_hud.cpp"      /* the HUD and the list of the game mode */
+#include "ui/ui_ai.cpp"       /* M15: needs ui_locate.cpp */
 
 internal void
 ui_init(ui_state *ui, text_catalog *text)
@@ -121,6 +122,8 @@ ui_init(ui_state *ui, text_catalog *text)
     ui->show_ruler            = false;
     ui->show_bases            = false;
     ui->show_fidelity         = false;   /* M13 */
+    ui->show_ai               = false;   /* M15 */
+    ui->ai.faction            = ENGINE_NO_FACTION;
     ui->ruler.viceroy         = ENGINE_NO_OFFICER;
     ui->ruler.adviser         = ENGINE_NO_OFFICER;
     ui->ruler.cities          = 0;
@@ -192,6 +195,7 @@ ui_draw_menu_bar(ui_state *ui, engine_api *api, ui_frame_info *frame)
         ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.ruler", "Ruler"), 0, &ui->show_ruler);
         ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.bases", "Bases"), 0, &ui->show_bases);
         ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.fidelity", "Fidelity"), 0, &ui->show_fidelity);
+        ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.ai", "AI"), 0, &ui->show_ai);
         ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.title", "TitleMenu"), 0, &ui->show_title);
         ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.abilities", "AbilitiesMenu"), 0, &ui->show_abilities);
             ImGui::MenuItem("Event ledger", 0, &ui->show_ledger);
@@ -612,6 +616,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->show_ruler)      ui_draw_ruler(ui, api);
     if (ui->show_bases)      ui_draw_bases(ui, api);
     if (ui->show_fidelity)   ui_draw_fidelity(ui, api);   /* M13 */
+    if (ui->show_ai)         ui_draw_ai(ui, api);         /* M15 */
     ui_draw_event_dialog(ui, api);   /* opens while an event waits for a choice */
     ui_draw_game_screens(ui, api);   /* M9: the title, the scenario list, the top bar and the other game screens */
     for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind)
@@ -633,6 +638,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
         ui_scene_handle_keys(ui, frame->dt_seconds);
         ui_follow_selection(ui, api);   /* M11: a picked city or unit moves the camera */
         ui_draw_scene_labels(ui, api);  /* M11: the plates of the bases and the units, the slots */
+        if (ui->show_ai) ui_draw_ai_lines(ui, api);   /* M15: each unit of the AI view to its goal */
     }
     ui_draw_status_bar(ui, api);        /* M11: the terrain, the coordinates and what can stand on the hex under the mouse */
     ui_scene_push(ui, api, frame);
