@@ -57,7 +57,31 @@ Other notes:
   change.
 
 ## M14 A turn without the debug panels
-Status: planned.
+Status: in progress (started 2026-10-19).
+
+Tutorial 25 and the demo "demo/m14_game_screens" did a part before this
+task. They give the game mode with the HUD, the list and the mini map.
+They also give the dialogs on demand, the map menu and the system menu. The M11 fix loads the per-hex
+block (the fire and the 12 event sites), and hex_at gives fire_turns and
+event_site. Thus `hex_state_at` of the roadmap is hex_at.
+
+Survey of 2026-10-19 against ui/city-commands.md and ui/unit-commands.md:
+- The City dialog is a flat panel of buttons. The original has the base
+  command menu: 都市, 軍事, 人材, 外交, 計略 and 君主, each with a
+  submenu. A port menu has no 都市.
+- 召喚 (summon) and 移動 (an officer to another base) have no api.
+- The unit command menu matches unit-commands.md (9 items for a combat
+  unit, 7 for a transport).
+
+Plan, in order:
+1. code/ui/ui_base_menu.cpp: the base command menu with the submenus of
+   city-commands.md. Each item opens the dialog of its command. An item
+   without an api is grey. ui tests: one for each item.
+2. The e2e test: a scripted turn of 柴桑 from sample.s11 with the debug
+   panels hidden.
+3. 召喚 and 移動 only if the spec gives their rules. Otherwise a question.
+4. Extend the demo m14_game_screens (one demo for each milestone), the
+   tutorial, the Status block and this entry.
 
 ## M15 An opponent worth playing
 Status: planned.
