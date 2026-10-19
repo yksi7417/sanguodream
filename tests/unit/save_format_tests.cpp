@@ -143,8 +143,8 @@ unit_save_city_tests(test_counts *counts)
     test_put_u16(record, 9, 442);              /* +9  commanding officer id */
     record[11] = 9;                            /* +11 owner force id */
     test_put_u32(record, 12, 150000);          /* +12 capacity constant */
-    test_put_u32(record, 16, 82767);           /* +16 gold */
-    test_put_u32(record, 20, 45395);           /* +20 troops */
+    test_put_u32(record, 16, 45395);           /* +16 troops (spec correction 2026-10-17) */
+    test_put_u32(record, 20, 82767);           /* +20 gold */
     test_put_u32(record, 24, 233450);          /* +24 food */
     u32 stocks[10] = { 10288, 9884, 4294, 399, 1, 2, 3, 4, 0, 0 };
     for (u32 stock = 0; stock < 10; ++stock) test_put_u32(record, 32 + 4 * stock, stocks[stock]);   /* +32 equipment */
@@ -157,7 +157,7 @@ unit_save_city_tests(test_counts *counts)
     TEST_CHECK(counts, city.id == 36 && city.flags == 0x11, "city id and +0 flags");
     TEST_CHECK(counts, city.commanding_officer_id == 442 && city.owner_force_id == 9, "city +9 commander and +11 owner");
     TEST_CHECK(counts, city.capacity_constant == 150000, "city +12 capacity constant");
-    TEST_CHECK(counts, city.gold == 82767 && city.troops == 45395 && city.food == 233450, "city +16 gold, +20 troops, +24 food");
+    TEST_CHECK(counts, city.gold == 82767 && city.troops == 45395 && city.food == 233450, "city +16 troops, +20 gold, +24 food");
     TEST_CHECK(counts, city.equipment_stocks[CITY_STOCK_SPEARS] == 10288 && city.equipment_stocks[CITY_STOCK_WAR_HORSES] == 399 &&
                        city.equipment_stocks[CITY_STOCK_CATAPULTS] == 3 && city.equipment_stocks[CITY_STOCK_SHIP_TYPE_3] == 0,
                "city +32 equipment stocks in spec order");
@@ -276,7 +276,7 @@ test_build_save_file(u8 *file, memory_arena *arena)
     u8 *city = payload + 0x0830FF + 107 * 36;
     test_put_u16(city, 9, 343);
     city[11] = 10;
-    test_put_u32(city, 16, 5000);
+    test_put_u32(city, 20, 5000);   /* +20 gold */
     payload[0x07F0E8 + 53] = 0x57;   /* item 0: owner 343 = 0x0157 */
     payload[0x07F0E8 + 54] = 0x01;
     /* M11: building record 87 is a mint (type 38) with 1000 durability on (122, 142). */

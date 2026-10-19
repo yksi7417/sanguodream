@@ -175,7 +175,7 @@ feature_sample_city_tests(test_counts *counts, engine_api *api)
             if (city.gold != 0 || city.troops != 0) ownerless_empty = false;
             continue;
         }
-        if (city.gold < 3184 || city.gold > 82767 || city.troops < 31 || city.troops > 45395 ||
+        if (city.troops < 3184 || city.troops > 82767 || city.gold < 31 || city.gold > 45395 ||
             city.food < 14192 || city.food > 233450) owned_in_range = false;
 
         engine_officer commander = {};

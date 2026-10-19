@@ -217,8 +217,8 @@ enum save_city_offset
     SAVE_CITY_COMMANDING_OFFICER_ID   = 9,    /* u16 */
     SAVE_CITY_OWNER_FORCE_ID          = 11,   /* u8 */
     SAVE_CITY_CAPACITY_CONSTANT       = 12,   /* u32 */
-    SAVE_CITY_GOLD                    = 16,   /* u32 */
-    SAVE_CITY_TROOPS                  = 20,   /* u32 */
+    SAVE_CITY_TROOPS                  = 16,   /* u32; the spec swapped +16 and +20 on 2026-10-17 */
+    SAVE_CITY_GOLD                    = 20,   /* u32 */
     SAVE_CITY_FOOD                    = 24,   /* u32 */
     SAVE_CITY_EQUIPMENT_STOCKS        = 32,   /* 10 x u32 */
     SAVE_CITY_LARGE_CITY_FLAG         = 77,   /* u8, hypothesis */
