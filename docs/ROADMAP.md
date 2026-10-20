@@ -809,16 +809,29 @@ orders, reports).
   float of a value, message window), ui/clone-gap-report.md section 7.
   Open: the list of the reports at a turn start and their speaker, and
   the text of each log line for the five city commands.
-- API: the engine gives each event a text key and the entity it
-  concerns. The text module maps the key to a line in the locale.
-- UI: the message log at the bottom left with period headings and one
-  line per event, names in a highlight colour. A speech bubble with a
-  portrait slot over the base after a command. A value that floats over
-  the base. The turn start shows only the reports of the player, each
-  in words, spoken by an officer. The counter "1/32" goes away.
-- Tests: ui: one log line per city command with the text of the spec.
-  The turn start shows at most the reports of the player. The bubble
-  and the float appear after 決定. Demo: "demo/m18_feedback".
+- Decision of the player (2026-10-20): a text provider writes the
+  words of each message. The provider is a plug-in of the front end.
+  The first provider writes plain lines from templates. A later
+  provider can use a small language model. Thus each event must carry
+  the facts that a provider needs. These facts are the kind of the
+  event, the entities, the speaker, the personality of the speaker,
+  the tone and the sign. The sign is good news or bad news for the
+  player. The
+  tone and the sign are more important than the exact words.
+- API: the engine gives each event its kind, its entities, a speaker
+  and a sign. A table in the content pack gives the tone of each kind
+  of event. The officer data gives the personality. Q-177 asks where
+  the save keeps it. Until Q-177 closes, the pack gives a default.
+- UI: a provider interface with one function that turns an event into
+  a line. The template provider is the default. The message log at
+  the bottom left with period headings and one line per event, names
+  in a highlight colour. A speech bubble with a portrait slot over the
+  base after a command. A value that floats over the base.
+- Tests: unit: the template provider gives one line for each kind of
+  event, and no line is empty. ui: one log line per city command. The
+  bubble and the float appear after 決定. A second provider in the
+  test replaces the default and its lines show. Demo:
+  "demo/m18_feedback".
 - What you see: 徵兵 in 長安 gives a bubble, a float and a log line,
   as in the original.
 
@@ -851,14 +864,25 @@ Closes report section 7 (AI turns).
   item 3).
 - API: the engine already gives the events of each AI faction. The
   show system of G1 plays them.
-- UI: after 進行, the HUD shows each AI faction in turn with its 技巧
+- Decision of the player (2026-10-20): the show is off by default.
+  The player must not click through the events of the other factions.
+  Today hexdom shows 32 messages after 進行, and each needs a click.
+  That goes away. The message log of M18 keeps every event, and the
+  player looks back through it. A setting turns the show on.
+- UI, setting off (the default): after 進行, the next turn of the
+  player starts with no message to click. The log shows the date of
+  the period and the events of each faction. A filter of the log shows
+  the events of one faction or only the events near the player.
+- UI, setting on: the HUD shows each AI faction in turn with its 技巧
   and no 行動力. Each command of an AI faction shows as a float over
   the base or the unit, with a short pause. A unit moves hex by hex.
-  The camera stays where the player left it. A setting skips the show.
-- Tests: ui: the HUD names each AI faction in order. The floats appear
-  in the order of the events. The skip setting ends the round without
-  delay. Demo: "demo/m20_ai_round".
-- What you see: the ten seconds of the original's AI round.
+  The camera stays where the player left it. No event of the show
+  needs a click.
+- Tests: ui: with the default setting, 進行 opens no message window
+  and the log holds the events of the round. With the show on, the
+  HUD names each AI faction in order, and the floats appear in the
+  order of the events. Demo: "demo/m20_ai_round".
+- What you see: one 進行 with no clicks, then the log of the round.
 
 ### M21 Information
 Closes report sections 6 (情報, 地圖) and 1 (hover).
@@ -878,7 +902,8 @@ Closes report sections 6 (情報, 地圖) and 1 (hover).
 - What you see: the fourteen screens and the political map.
 
 ### M22 Fit and finish
-Closes the B and C rows of the report.
+Closes the B and C rows of the report. The player confirmed the
+removals below on 2026-10-20.
 - Spec input: ui/clone-gap-report.md, ui/screen-flow.md (global
   rules).
 - UI: the HUD panels hide while a menu or a dialog is open. The unit
