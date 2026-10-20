@@ -17,6 +17,7 @@
 #define DEMO_M14_NAME          "m14_game_screens"
 #define DEMO_M15_NAME          "m15_ai"
 #define DEMO_M16_NAME          "m16_content"
+#define DEMO_M17_NAME          "m17_first_hour"
 
 /* build\demos, with no last backslash. demo_player.cpp sets it. */
 global_variable char g_demo_output_dir[MAX_PATH];
@@ -53,7 +54,8 @@ demo_gui(ImGuiTestContext *ctx)
            they were made for; the walkthrough of M10 shows the real map. */
         config.use_pack_map     = strcmp(ctx->Test->Name, DEMO_M10_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M11_NAME) == 0 ||
                                   strcmp(ctx->Test->Name, DEMO_M12_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M13_NAME) == 0 ||
-                                  strcmp(ctx->Test->Name, DEMO_M14_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M15_NAME) == 0;
+                                  strcmp(ctx->Test->Name, DEMO_M14_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M15_NAME) == 0 ||
+                                  strcmp(ctx->Test->Name, DEMO_M17_NAME) == 0;
         v.backend = engine_create(&v.permanent, &v.transient, config);
         v.api     = engine_make_api(v.backend);
         text_catalog_init(&v.text, arena_sub(&v.permanent, Megabytes(4)), test_platform_read_entire_file,
@@ -2090,6 +2092,216 @@ demo_m16_content(ImGuiTestContext *ctx)
     IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Court", "court"));
 }
 
+/* M17: a ledger event of a battle: a unit or a base takes damage. */
+internal bool
+demo_battle_since(engine_api *api, u32 mark)
+{
+    u32 count = api->ledger_count(api->engine);
+    for (u32 index = mark; index < count; ++index)
+    {
+        sim_event_kind kind = api->ledger_at(api->engine, index).kind;
+        if (kind == SIM_EVENT_UNIT_DAMAGED || kind == SIM_EVENT_BASE_DAMAGED) return true;
+    }
+    return false;
+}
+
+/* M17: the steps from each hex to the goal over the hexes that the unit
+   type can enter (move_cost). A hex that cannot reach the goal keeps
+   U32_MAX. The caller frees the array. */
+#define DEMO_GOAL_RING 3
+internal u32 *
+demo_steps_to(engine_api *api, u8 unit_type, u8 force, hex_coord goal, u32 width, u32 height)
+{
+    u32 cell_count = width * height;
+    u32 *steps = (u32 *)malloc(sizeof(u32) * cell_count);
+    hex_coord *queue = (hex_coord *)malloc(sizeof(hex_coord) * cell_count);
+    for (u32 index = 0; index < cell_count; ++index) steps[index] = U32_MAX;
+    u32 head = 0, tail = 0;
+    for (s32 ring = 0; ring <= DEMO_GOAL_RING; ++ring)   /* the city hexes take no unit: the search starts around them */
+    {
+        for (s32 dq = -ring; dq <= ring; ++dq)
+        {
+            for (s32 dr = -ring; dr <= ring; ++dr)
+            {
+                hex_coord seed = hex_make(goal.q + dq, goal.r + dr);
+                hex_offset cell = hex_to_offset(seed);
+                if (hex_distance(seed, goal) != ring) continue;
+                if (cell.col < 0 || cell.row < 0 || (u32)cell.col >= width || (u32)cell.row >= height) continue;
+                steps[(u32)cell.row * width + (u32)cell.col] = (u32)ring;
+                queue[tail++] = seed;
+            }
+        }
+    }
+    while (head < tail)
+    {
+        hex_coord here = queue[head++];
+        hex_offset at = hex_to_offset(here);
+        u32 next_steps = steps[(u32)at.row * width + (u32)at.col] + 1;
+        for (u32 direction = 0; direction < 6; ++direction)
+        {
+            hex_coord there = hex_neighbor(here, direction);
+            hex_offset cell = hex_to_offset(there);
+            if (cell.col < 0 || cell.row < 0 || (u32)cell.col >= width || (u32)cell.row >= height) continue;
+            u32 index = (u32)cell.row * width + (u32)cell.col;
+            if (steps[index] != U32_MAX || !api->move_cost(api->engine, unit_type, force, there.q, there.r)) continue;
+            steps[index] = next_steps;
+            queue[tail++] = there;
+        }
+    }
+    free(queue);
+    return steps;
+}
+
+internal u32
+demo_steps_at(u32 *steps, u32 width, u32 height, hex_coord hex)
+{
+    hex_offset cell = hex_to_offset(hex);
+    if (cell.col < 0 || cell.row < 0 || (u32)cell.col >= width || (u32)cell.row >= height) return U32_MAX;
+    return steps[(u32)cell.row * width + (u32)cell.col];
+}
+
+/* M17 (tutorial 30): the first hour on the real map with the original
+   timing. 重新開始新遊戲 waits for the rider. 群雄割據 with the faction of
+   the most cities, then the settings. The first turn shows its messages,
+   and each click advances one. Then 進行 of the map menu turn by turn.
+   In the fourth turn the player sends a unit against the nearest rival
+   city, and the walkthrough ends at the first battle. After the first
+   three turns it shows only the heading of each turn, to keep the video
+   short. The AI of M15 does not march in the first ten months of this
+   scenario, so the first war is the attack of the player. */
+internal void
+demo_m17_first_hour(ImGuiTestContext *ctx)
+{
+    const char *milestone = DEMO_M17_NAME;
+    demo_vars &v = ctx->GetVars<demo_vars>();
+    engine_api *api = &v.api;
+    void *e = api->engine;
+    IM_CHECK(api->map_info(e).real_map);
+    v.ui.feel.original_timing = true;
+    v.ui.feel.turn_messages   = true;
+    IM_CHECK(demo_begin_video(ctx, milestone));
+
+    /* 標題: the rider, then the scenario list. */
+    v.ui.show_title = true;
+    ctx->Yield(2);
+    ctx->SetRef("//###Title");
+    ctx->SleepStandard();
+    ctx->ItemClick("###title_new");
+    IM_CHECK(!ctx->ItemExists("###title_load"));
+    for (u32 frame = 0; frame < 600 && !v.ui.show_scenarios; ++frame) ctx->Yield();
+    IM_CHECK(v.ui.show_scenarios);
+    ctx->SetRef("//###Scenarios");
+    ctx->ItemClick("###sc1");
+    IM_CHECK(v.ui.show_rulers && api->city_count(e) == 42);
+    u8 player = demo_rival_faction(api);
+    IM_CHECK(player != ENGINE_NO_FACTION);
+    char item[64];
+    snprintf(item, sizeof(item), "//###Rulers/###ruler%u", player);
+    ctx->ItemClick(item);
+    ctx->ItemClick("//###Rulers/###rulers_ok");
+    ctx->SleepStandard();
+    ctx->ItemClick("//###StartSettings/###start_ok");
+    ctx->Yield(2);
+    IM_CHECK(v.ui.hud_mode && api->whose_turn(e) == player);
+    engine_officer ruler = api->officer_by_id(e, api->force_ruler(e, player));
+    u8 capital = (u8)ruler.current_position;
+    ui_frame_city(&v.ui, capital);
+
+    /* The nearest city of a rival: the target of the first war. */
+    engine_city_slots home = api->city_slots(e, capital);
+    u8 target = ENGINE_NO_CITY;
+    s32 nearest = 0x7FFFFFFF;
+    for (u32 city = 0; city < api->city_count(e); ++city)
+    {
+        u8 owner = api->city_at(e, city).owner_force_id;
+        if (owner == player || owner == ENGINE_NO_FACTION) continue;
+        engine_city_slots site = api->city_slots(e, (u8)city);
+        s32 distance = hex_distance(hex_make(home.q, home.r), hex_make(site.q, site.r));
+        if (distance < nearest) { nearest = distance; target = (u8)city; }
+    }
+    IM_CHECK(target != ENGINE_NO_CITY);
+    engine_city_slots goal = api->city_slots(e, target);
+    hex_coord goal_hex = hex_make(goal.q, goal.r);
+
+    /* The turns until the first battle. The first three turns show all
+       their messages. Then the player sends a unit from the capital. The
+       march and the attack use the engine commands. The ui tests of M5,
+       M6 and M14 cover their dialogs. */
+    bool war = false;
+    u32 unit_id = ENGINE_NO_UNIT;
+    u32 *steps = 0;
+    engine_map_info map = api->map_info(e);
+    for (u32 turn = 0; turn < 30 && !war; ++turn)
+    {
+        u32 mark = api->ledger_count(e);
+        if (turn > 0)
+        {
+            ui_context_open(&v.ui, api, UI_CONTEXT_MAP_MENU, 600.0f, 300.0f);
+            ctx->Yield(2);
+            ctx->ItemClick("//###MapMenu/###proceed");
+            for (u32 frame = 0; frame < 60 && !ui_feel_messages_open(&v.ui); ++frame) ctx->Yield();
+        }
+        IM_CHECK(ui_feel_messages_open(&v.ui));
+        IM_CHECK_EQ(api->whose_turn(e), player);
+        u32 clicks = turn < 3 ? UI_MESSAGE_CAPACITY : 1;
+        for (u32 click = 0; click < clicks && ui_feel_messages_open(&v.ui); ++click)
+        {
+            ctx->ItemClick("//###Messages/###next");
+            ctx->Yield();
+        }
+        v.ui.feel.message_shown = v.ui.feel.message_count;   /* the walkthrough skips the rest */
+        ctx->Yield(2);
+        if (turn == 3)
+        {
+            api->set_city_resource(e, capital, SIM_RESOURCE_SOLDIERS, 0, 20000);   /* the editor: a march needs troops and weapons */
+            api->set_city_resource(e, capital, SIM_RESOURCE_WEAPONS, 0, 20000);
+            api->set_city_resource(e, capital, SIM_RESOURCE_GRAIN, 0, 60000);
+            engine_sortie_order order = api->sortie_proposal(e, capital, 1);
+            IM_CHECK(api->command_sortie(e, &order).refusal == SIM_REFUSAL_NONE);   /* 自動編制: the soldiers that the commander leads */
+            unit_id = demo_unit_of(api, player);
+            IM_CHECK(unit_id != ENGINE_NO_UNIT);
+            ui_select_unit(&v.ui, unit_id);
+        }
+        if (unit_id != ENGINE_NO_UNIT && api->unit_at(e, unit_id).id != ENGINE_NO_UNIT)
+        {
+            engine_unit unit = api->unit_at(e, unit_id);
+            if (!steps) steps = demo_steps_to(api, unit.unit_type, player, goal_hex, map.width, map.height);
+            engine_reach_view reach = api->reachable(e, unit_id);
+            hex_coord best = hex_make(unit.q, unit.r);
+            for (u32 cell = 1; cell < reach.count; ++cell)
+            {
+                if (hex_equal(reach.cells[cell], goal_hex)) continue;
+                if (demo_steps_at(steps, map.width, map.height, reach.cells[cell]) < demo_steps_at(steps, map.width, map.height, best)) best = reach.cells[cell];
+            }
+            if (!hex_equal(best, hex_make(unit.q, unit.r))) api->command_move(e, unit_id, best.q, best.r);
+            bool attacked = false;
+            for (u32 direction = 0; direction < 6 && !attacked; ++direction)   /* a city hex next to the unit */
+            {
+                hex_coord next = hex_neighbor(best, direction);
+                if (api->hex_at(e, next.q, next.r).city_id != target) continue;
+                attacked = api->command_attack(e, unit_id, next.q, next.r).refusal == SIM_REFUSAL_NONE;
+            }
+            v.ui.scene.framed_unit = unit_id;
+            ctx->Yield(2);
+            ctx->SleepStandard();
+        }
+        war = demo_battle_since(api, mark);
+    }
+    free(steps);
+    IM_CHECK(war);
+    ctx->SleepStandard();
+    ctx->SleepStandard();
+
+    IM_CHECK(demo_end_video(ctx));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###HUD", "hud"));
+    ui_context_open(&v.ui, api, UI_CONTEXT_MAP_MENU, 600.0f, 300.0f);   /* one more turn for the picture of the messages */
+    ctx->Yield(2);
+    ctx->ItemClick("//###MapMenu/###proceed");
+    for (u32 frame = 0; frame < 60 && !ui_feel_messages_open(&v.ui); ++frame) ctx->Yield();
+    IM_CHECK(ui_feel_messages_open(&v.ui));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Messages", "messages"));
+}
+
 internal void
 register_demo_tests(ImGuiTestEngine *e)
 {
@@ -2179,4 +2391,9 @@ register_demo_tests(ImGuiTestEngine *e)
     t->SetVarsDataType<demo_vars>();
     t->GuiFunc  = demo_gui;
     t->TestFunc = demo_m16_content;
+
+    t = IM_REGISTER_TEST(e, "demo", DEMO_M17_NAME);
+    t->SetVarsDataType<demo_vars>();
+    t->GuiFunc  = demo_gui;
+    t->TestFunc = demo_m17_first_hour;
 }

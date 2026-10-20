@@ -737,6 +737,52 @@ portraits as the fallback pack.
   points the game at the install; the generated faces otherwise.
 
 ### M17 Feel: a first hour that holds
+Status (2026-10-19): done (tutorial 30). The spec input was
+ui/title-and-load.md, ui/screen-flow.md and ui/main-map.md. The spec has
+no capture of a first hour. It gives no frame times, no order of the
+messages and no list of the reports. Thus M17 builds the times and the
+windows that the spec observed. The demo is "demo/m17_first_hour".
+
+- UI (code/ui/ui_feel.cpp):
+  - the rider of the title: after a click, only the chosen button stays.
+    The screen opens after 1 s, and a second click does nothing;
+  - the load transition: a dark screen with no controls for 4 s after a
+    load;
+  - the message window at the bottom centre: at the start of a turn of
+    a player, the period heading and the reports of the turn. A left
+    click advances. The list panel hides while the window shows;
+  - after 進行, the UI ends the turns of the AI factions until a player
+    acts. Before M17 the game mode stopped at the turn of the first AI
+    faction.
+- API: none new. The two flags ui.feel.original_timing and
+  ui.feel.turn_messages are off in ui_init. The game exe turns them on.
+  Thus the tests and the demos of M0 to M16 do not change.
+- Tests:
+  - ui: the rider, the load transition, the order of the messages and
+    the click that advances, and the messages after 進行;
+  - e2e: the first hour from the title through 群雄割據 and seven turn
+    starts, with a frame limit on each wait;
+  - demo: "demo/m17_first_hour". The player marches from the capital to
+    the nearest rival city. The first battle comes in the eighteenth turn.
+- Open points for the analysis side (not yet in QUESTIONS.md: an
+  unattended run does not commit to the spec repository):
+  - a capture of a first hour from 重新開始新遊戲: the frame times of
+    each screen and the order of the messages of the first turns. The ui
+    test "the message order of the first turn matches the capture" waits
+    for it. ui/screen-flow.md lists this screen as item 12 to record;
+  - the list of the reports at a turn start, and the speaker of each
+    report. The clean room shows the events of the player and the
+    attacks on the cities of the player, and the ruler speaks;
+  - the AI turn on the screen after 進行 (item 3 of the screens to
+    record): camera jumps and messages. The clean room ends the AI turns
+    without a show;
+  - the sound hooks: the spec has no sound events. The keys wait for G6;
+  - 遊戲教學, the tutorial scenario of the title: the spec has no data
+    for it. The button stays grey;
+  - the month of the first AI attack. Under the assumed numbers of M15
+    (ai_priorities.tsv, troops_above 15000) the AI does not march in the
+    first ten months of 群雄割據. knowledge/ai.md claims 5 to 6 months.
+
 The first hour of a new game feels like the original: speed, messages,
 sound hooks, and the tutorial of the first turns.
 - Spec input: ui/screen-flow.md, knowledge/playability.md, the capture

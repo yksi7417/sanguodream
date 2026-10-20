@@ -92,7 +92,7 @@ ui_feel_hostile(sim_event_kind kind)
 
 /* A report for the player: an event of the faction, or an attack of
    another faction on a city of the player. The spec gives no list of the
-   reports (Q-217), so the clean room uses this rule. */
+   reports (an open point of M17), so the clean room uses this rule. */
 internal bool
 ui_feel_is_report(engine_api *api, sim_event *event, u8 force)
 {
