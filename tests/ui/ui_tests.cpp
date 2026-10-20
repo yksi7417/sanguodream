@@ -2599,6 +2599,139 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
+    /* ---- M17: the feel of the first hour ----------------------------------- */
+
+    /* title-and-load.md: after a click, the other five buttons disappear.
+       The rider runs approximately 1 s, then the screen opens. A second
+       click during the rider has no visible effect. */
+    t = IM_REGISTER_TEST(e, "ui", "title_click_hides_the_other_buttons_and_opens_after_the_rider");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_title          = true;
+        v.ui.feel.original_timing = true;
+        ctx->SetRef("###Title");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###title_new");
+        ctx->Yield();
+        IM_CHECK(!v.ui.show_scenarios && v.ui.feel.title_choice == UI_TITLE_NEW);
+        IM_CHECK(ctx->ItemExists("###title_new"));
+        IM_CHECK(!ctx->ItemExists("###title_load") && !ctx->ItemExists("###title_battle") && !ctx->ItemExists("###title_quit"));
+        ctx->ItemClick("###title_new");                        /* the second click */
+        IM_CHECK(!v.ui.show_scenarios && v.ui.feel.title_choice == UI_TITLE_NEW);
+        ctx->Yield((int)(UI_TITLE_SELECT_SECONDS * 60.0f) + 10);
+        IM_CHECK(v.ui.show_scenarios && v.ui.feel.title_choice == UI_TITLE_NONE);
+        IM_CHECK(ctx->ItemExists("###title_load"));            /* the title is whole again under the new screen */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* title-and-load.md: the load shows a dark landscape with no controls
+       for approximately 4 s. Then the main map opens. */
+    t = IM_REGISTER_TEST(e, "ui", "load_transition_hides_the_map_and_takes_no_input");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.feel.original_timing = true;
+        ui_enter_game(&v.ui);
+        ui_feel_begin_transition(&v.ui);
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ImGuiWindow *dark = ctx->WindowInfo("//###LoadTransition", ImGuiTestOpFlags_NoError).Window;
+        ImGuiWindow *hud  = ctx->WindowInfo("//###HUD", ImGuiTestOpFlags_NoError).Window;
+        IM_CHECK(dark != 0 && dark->Active);
+        IM_CHECK(hud == 0 || !hud->Active);
+        ui_context_open(&v.ui, &v.api, UI_CONTEXT_MAP_MENU, 400.0f, 300.0f);   /* a right click on the map */
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.context.kind, (u8)UI_CONTEXT_NONE);
+        ctx->Yield((int)(UI_LOAD_TRANSITION_SECONDS * 60.0f) + 10);
+        dark = ctx->WindowInfo("//###LoadTransition", ImGuiTestOpFlags_NoError).Window;
+        hud  = ctx->WindowInfo("//###HUD", ImGuiTestOpFlags_NoError).Window;
+        IM_CHECK(dark == 0 || !dark->Active);
+        IM_CHECK(hud != 0 && hud->Active);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* main-map.md, "Message window": at the start of a turn the reports
+       show one at a time. The period heading comes first, then the events
+       of the player in ledger order. A left click advances. The list panel
+       hides while the window shows. */
+    t = IM_REGISTER_TEST(e, "ui", "turn_messages_show_the_heading_then_the_reports_and_a_click_advances");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        sim_event income = {};
+        income.kind = SIM_EVENT_GOLD_INCOME; income.faction = 1; income.delta = 120; income.subject = 1;
+        sim_event rival = income;
+        rival.faction = 2;                                     /* another faction: no message */
+        sim_event start = {};
+        start.kind = SIM_EVENT_FACTION_TURN_STARTED; start.faction = 1;   /* bookkeeping: no message */
+        v.recorder.events[0] = income;
+        v.recorder.events[1] = rival;
+        v.recorder.events[2] = start;
+        v.recorder.event_count = 3;
+        v.ui.feel.turn_messages = true;
+        ui_enter_game(&v.ui);
+        ctx->Yield(3);
+        IM_CHECK_EQ(v.ui.feel.message_count, 2u);
+        IM_CHECK_EQ(v.ui.feel.messages[0], UI_MESSAGE_HEADING);
+        IM_CHECK_EQ(v.ui.feel.messages[1], 0u);
+        IM_CHECK(ui_feel_messages_open(&v.ui));
+        IM_CHECK(!ctx->ItemExists("//###HUD/###hud_tabs/###hud_bases"));   /* the list panel hides */
+        recorder_reset(&v.recorder);
+        ctx->SetRef("//###Messages");
+        ctx->ItemClick("###next");
+        ctx->Yield();
+        IM_CHECK_EQ(v.ui.feel.message_shown, 1u);
+        ctx->ItemClick("###next");
+        ctx->Yield(2);
+        IM_CHECK(!ui_feel_messages_open(&v.ui));
+        IM_CHECK(ctx->ItemExists("//###HUD/###hud_tabs/###hud_bases"));    /* the list returns */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* screen-flow.md: 進行 ends the turn, the other factions act, then the
+       messages of the new turn show. The window opens again with the
+       heading of the new turn. */
+    t = IM_REGISTER_TEST(e, "ui", "turn_messages_open_again_after_proceed");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.feel.turn_messages = true;
+        ui_enter_game(&v.ui);
+        ctx->Yield(3);
+        IM_CHECK_EQ(v.ui.feel.message_count, 1u);              /* the heading only */
+        ctx->ItemClick("//###Messages/###next");
+        ctx->Yield(2);
+        IM_CHECK(!ui_feel_messages_open(&v.ui));
+        recorder_reset(&v.recorder);
+        ui_context_open(&v.ui, &v.api, UI_CONTEXT_MAP_MENU, 400.0f, 300.0f);
+        ctx->Yield(2);
+        ctx->ItemClick("//###MapMenu/###proceed");
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_END_TURN), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(ui_feel_messages_open(&v.ui));
+        IM_CHECK_EQ(v.ui.feel.message_count, 1u);
+        IM_CHECK_EQ(v.ui.feel.turn, 1u);
+    };
+
     /* ---- end to end: real engine behind the real panels ------------------- */
 
     t = IM_REGISTER_TEST(e, "e2e", "advance_turn_reaches_the_engine");
@@ -2717,6 +2850,72 @@ register_ui_tests(ImGuiTestEngine *e)
             if (strstr(name, needle)) bad_names++;
         }
         IM_CHECK_EQ(bad_names, 0u);
+    };
+
+    /* M17: the first hour from the title with the original timing and the
+       message window. 重新開始新遊戲, 群雄割據, one ruler, the start, then
+       six turns of 進行. Each turn start shows its messages, and the clicks
+       close them. No step stalls: each wait has a frame limit. */
+    t = IM_REGISTER_TEST(e, "e2e", "the_first_hour_runs_from_the_title_without_a_stall");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->VarsConstructor = [](void *vars) { ((ui_test_vars *)vars)->use_real_engine = true; };
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        engine_api *api = &v.api;
+        void *e = api->engine;
+        v.ui.show_title           = true;
+        v.ui.feel.original_timing = true;
+        v.ui.feel.turn_messages   = true;
+        ctx->Yield(2);
+        ctx->SetRef("//###Title");
+        ctx->ItemClick("###title_new");
+        for (u32 frame = 0; frame < 120 && !v.ui.show_scenarios; ++frame) ctx->Yield();
+        IM_CHECK(v.ui.show_scenarios);
+        ctx->SetRef("//###Scenarios");
+        ctx->ItemClick("###sc1");
+        ctx->Yield(2);
+        IM_CHECK(v.ui.show_rulers);
+        u8 player = ENGINE_NO_FACTION;
+        for (u32 index = 0; index < api->faction_count(e) && player == ENGINE_NO_FACTION; ++index)
+        {
+            u8 force = api->faction_at(e, index).force_id;
+            if (api->force_ruler(e, force) != ENGINE_NO_OFFICER) player = force;
+        }
+        IM_CHECK(player != ENGINE_NO_FACTION);
+        char item[64];
+        snprintf(item, sizeof(item), "//###Rulers/###ruler%u", player);
+        ctx->ItemClick(item);
+        ctx->ItemClick("//###Rulers/###rulers_ok");
+        ctx->Yield(2);
+        ctx->ItemClick("//###StartSettings/###start_ok");
+        ctx->Yield(2);
+        IM_CHECK(v.ui.hud_mode && api->whose_turn(e) == player);
+
+        for (u32 turn = 0; turn <= 6; ++turn)
+        {
+            if (turn > 0)
+            {
+                s64 before = api->date(e).days_since_start;
+                ui_context_open(&v.ui, api, UI_CONTEXT_MAP_MENU, 400.0f, 300.0f);
+                ctx->Yield(2);
+                ctx->ItemClick("//###MapMenu/###proceed");
+                for (u32 frame = 0; frame < 30 && !ui_feel_messages_open(&v.ui); ++frame) ctx->Yield();
+                IM_CHECK_GT(api->date(e).days_since_start, before);   /* the other factions acted */
+            }
+            IM_CHECK(ui_feel_messages_open(&v.ui));
+            IM_CHECK_EQ(api->whose_turn(e), player);
+            IM_CHECK_EQ(v.ui.feel.messages[0], UI_MESSAGE_HEADING);
+            for (u32 click = 0; click < UI_MESSAGE_CAPACITY + 1 && ui_feel_messages_open(&v.ui); ++click)
+            {
+                ctx->ItemClick("//###Messages/###next");
+                ctx->Yield();
+            }
+            IM_CHECK(!ui_feel_messages_open(&v.ui));
+        }
+        ImGuiWindow *bar = ctx->WindowInfo("//##MainMenuBar", ImGuiTestOpFlags_NoError).Window;
+        IM_CHECK(!v.ui.show_debug_panels && (bar == 0 || !bar->Active));
     };
 }
 

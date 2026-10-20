@@ -33,6 +33,28 @@ enum ui_context_kind
 /* The tabs of the list panel of the HUD (main-map.md, "List panel"). */
 enum ui_hud_tab { UI_HUD_TAB_BASES, UI_HUD_TAB_OFFICERS, UI_HUD_TAB_UNITS, UI_HUD_TAB_COUNT };
 
+/* M17: the times of the first screens (ui/title-and-load.md). The capture
+   gives "approximately" for both. */
+#define UI_TITLE_SELECT_SECONDS    1.0f   /* the rider after a click on a title button */
+#define UI_LOAD_TRANSITION_SECONDS 4.0f   /* the dark landscape while a save loads */
+#define UI_MESSAGE_CAPACITY        32     /* the messages of one turn start; the log keeps the rest */
+#define UI_MESSAGE_HEADING         0xFFFFFFFFu   /* a message slot that holds the period heading */
+#define UI_MESSAGE_WIDTH           689.0f /* main-map.md, "Message window": the frame at the bottom centre */
+#define UI_MESSAGE_HEIGHT          197.0f
+#define UI_MESSAGE_MARGIN          12.0f
+#define UI_FEEL_PASS_LIMIT         300    /* the AI turns that one 進行 can end before a player acts */
+
+/* The title button that the player clicked (title-and-load.md, "Title menu"). */
+enum ui_title_choice
+{
+    UI_TITLE_NONE,
+    UI_TITLE_LOAD,
+    UI_TITLE_NEW,
+    UI_TITLE_BATTLE,
+    UI_TITLE_OPTIONS,
+    UI_TITLE_QUIT
+};
+
 /* The five city command dialogs of M3 (ui/city-commands.md). */
 enum ui_city_command
 {
@@ -311,7 +333,25 @@ struct ui_state
         bool                  has_result;
         engine_install_result result;                     /* the answer of the last Set or Clear */
     } content;
-    bool quit_requested;        /* 結束遊戲: the platform closes the window */
+    /* M17: the feel of the first hour. With original_timing off, each
+       screen opens at once, as in M9 to M16. With turn_messages off, no
+       message window opens. The game exe turns both on. */
+    struct
+    {
+        bool original_timing;
+        bool turn_messages;
+        u32  title_choice;        /* ui_title_choice: the clicked button while the rider runs */
+        f32  title_seconds;       /* the time since the click */
+        f32  transition_seconds;  /* above 0: the load transition shows for this time */
+        bool seen_turn;           /* turn and force hold the last turn start of a player */
+        u32  turn;
+        u8   force;
+        u32  ledger_mark;         /* the ledger count at the last turn start */
+        u32  messages[UI_MESSAGE_CAPACITY];   /* ledger indices, or UI_MESSAGE_HEADING */
+        u32  message_count;
+        u32  message_shown;       /* the message on the screen; message_count closes the window */
+    } feel;
+    bool quit_requested;       /* 結束遊戲: the platform closes the window */
     /* The game mode (main-map.md): the HUD at the top left with the list of
        the bases, officers and units, the mini map at the bottom right, and
        one dialog on demand at the entity that the player clicks. */

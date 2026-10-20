@@ -30,6 +30,7 @@ ui_label(char *out, u32 out_size, ui_state *ui, const char *text_id, const char 
 #include "ui/ui_rivals.cpp"
 #include "ui/ui_fidelity.cpp"  /* M13 */
 #include "ui/ui_base_menu.cpp" /* M14: the base command menu of the game mode */
+#include "ui/ui_feel.cpp"      /* M17: before ui_game.cpp, for the title and the load */
 #include "ui/ui_game.cpp"
 
 /* Writes an overlay colour for one cell of the terrain view, if it is on the map. */
@@ -588,11 +589,13 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->hud_mode && ImGui::IsKeyPressed(ImGuiKey_F12, false)) ui->show_debug_panels = !ui->show_debug_panels;
     bool tools = !ui->hud_mode || ui->show_debug_panels;
     bool in_game = !ui->show_title && !ui->show_scenarios && !ui->show_rulers && !ui->show_start_settings;
+    ui_feel_update(ui, api, frame->dt_seconds, in_game);   /* M17: the rider, the load transition and the turn start */
+    bool hud_ready = ui->hud_mode && in_game && !ui_feel_in_transition(ui);
     if (tools) ui_draw_menu_bar(ui, api, frame);
     if (tools && ui->show_demo)   ImGui::ShowDemoWindow(&ui->show_demo);
     if (tools && ui->show_sim)    ui_draw_simulation(ui, api);
     if (tools && ui->show_scene)  ui_draw_scene_panel(ui, api);
-    if (ui->hud_mode && in_game)  ui_draw_hud(ui, api);
+    if (hud_ready)                ui_draw_hud(ui, api);
     if (ui->show_map)    ui_draw_map(ui, api);
     if (ui->show_officers) ui_draw_officers(ui, api);
     if (ui->show_cities) ui_draw_cities(ui, api);
@@ -609,7 +612,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->show_transport)  ui_draw_march_dialog(ui, api, true);
     if (ui->show_unit)       ui_draw_unit_panel(ui, api);
     if (ui->show_unit_menu)  ui_draw_unit_menu(ui, api);
-    if (ui->show_minimap)    ui_draw_minimap(ui, api);
+    if (ui->show_minimap && !ui_feel_in_transition(ui)) ui_draw_minimap(ui, api);
     if (ui->show_units)      ui_draw_units_panel(ui, api);   /* M11 */
     ui_draw_hex_info_box(ui, api);                           /* M11: opens after a pick in the scene */
     if (ui->show_actions)    ui_draw_actions(ui, api);
@@ -623,6 +626,8 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->show_content)    ui_draw_content(ui, api);    /* M16 */
     ui_draw_event_dialog(ui, api);   /* opens while an event waits for a choice */
     ui_draw_game_screens(ui, api);   /* M9: the title, the scenario list, the top bar and the other game screens */
+    ui_draw_messages(ui, api);       /* M17: the reports at the start of a turn */
+    ui_draw_load_transition(ui);     /* M17: on top of everything while a save loads */
     for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind)
     {
         if (ui->show_command[kind]) ui_draw_city_command(ui, api, kind);
@@ -638,7 +643,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
         ImVec2 display = ImGui::GetIO().DisplaySize;
         ui_scene_handle_mouse(ui, api, frame->render ? frame->render->viewport_width : display.x,
                               frame->render ? frame->render->viewport_height : display.y);
-        if (ui->hud_mode && in_game) ui_hud_scene_clicks(ui, api);   /* the dialogs at the clicked city, unit or map */
+        if (hud_ready && !ui_feel_messages_open(ui)) ui_hud_scene_clicks(ui, api);   /* the dialogs at the clicked city, unit or map */
         ui_scene_handle_keys(ui, frame->dt_seconds);
         ui_follow_selection(ui, api);   /* M11: a picked city or unit moves the camera */
         ui_draw_scene_labels(ui, api);  /* M11: the plates of the bases and the units, the slots */

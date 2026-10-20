@@ -1188,3 +1188,7 @@ content.asset.4	音樂
 content.source.0	無
 content.source.1	內容包
 content.source.2	安裝
+msg.heading	《%u年 %u月 %s》
+msg.early	上旬
+msg.middle	中旬
+msg.late	下旬

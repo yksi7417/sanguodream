@@ -207,4 +207,38 @@ spec-src/spec/QUESTIONS.md, for the reason of M13. Copy them by hand:
    covers the PK scenarios.
 
 ## M17 Feel: a first hour that holds
-Status: planned.
+Status: done (2026-10-19, tutorial 30, demo "demo/m17_first_hour"). The
+commits of this task are:
+- 9565d90 feat: add the title rider, the load transition and the turn messages
+- fc41e03 docs: add the demo m17_first_hour, tutorial 30 and the M17 status
+- the commit that writes this entry
+
+Tests after a clean rebuild: unit 669 of 669, feature all pass (41423
+fixture rows, no feature test changed), ui 129 of 129. The ui count has
+4 new ui tests and the new e2e test of the first hour. `run_tests.bat
+--demo` records all 18 demos, "demo/m17_first_hour" too.
+
+What M17 builds:
+- the rider of the title (1 s) and the load transition (4 s) of
+  ui/title-and-load.md;
+- the message window of ui/main-map.md at each turn start of a player.
+  The period heading comes first, then the reports in ledger order. A
+  left click advances, and the list panel hides;
+- after 進行 the UI ends the turns of the AI factions until a player
+  acts. Before this, the game mode stopped at the first AI faction.
+- The flags ui.feel.original_timing and ui.feel.turn_messages are off in
+  ui_init, so M0 to M16 do not change. The game exe turns them on.
+
+Open points for the analysis side. The run did not append them to
+spec-src/spec/QUESTIONS.md, for the reason of M13. Copy them by hand:
+1. A capture of a first hour from 重新開始新遊戲: the frame times of each
+   screen and the order of the messages of the first turns. The ui test
+   "the message order matches the capture" waits for it.
+2. The list of the reports at a turn start, and the speaker of each
+   report.
+3. The AI turn on the screen after 進行: camera jumps and messages.
+4. The sound events. The spec has none.
+5. 遊戲教學, the tutorial scenario of the title.
+6. The month of the first AI attack. Under the assumed numbers of M15
+   the AI does not march in the first ten months of 群雄割據. The demo
+   thus uses an attack of the player for the first war.
