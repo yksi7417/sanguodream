@@ -794,6 +794,103 @@ sound hooks, and the tutorial of the first turns.
 - What you see: a new game from a scenario start, played with the game
   screens, from the title to the first war.
 
+### The goal of M18 to M22
+On 2026-10-20 a session played the original and hexdom side by side
+and wrote spec/ui/clone-gap-report.md (in spec-src). The report lists
+the gaps of the screens, the flows and the feedback, with a severity.
+M18 to M22 close the gaps of severity A, one group each. The art of
+track G stays separate. The order puts the feedback of a command
+first, because every later test needs it.
+
+### M18 Feedback of a command
+Closes report sections 1 (log panel), 4 (result of 決定) and 7 (own
+orders, reports).
+- Spec input: ui/main-map.md (bottom-left panel, speech bubble,
+  float of a value, message window), ui/clone-gap-report.md section 7.
+  Open: the list of the reports at a turn start and their speaker, and
+  the text of each log line for the five city commands.
+- API: the engine gives each event a text key and the entity it
+  concerns. The text module maps the key to a line in the locale.
+- UI: the message log at the bottom left with period headings and one
+  line per event, names in a highlight colour. A speech bubble with a
+  portrait slot over the base after a command. A value that floats over
+  the base. The turn start shows only the reports of the player, each
+  in words, spoken by an officer. The counter "1/32" goes away.
+- Tests: ui: one log line per city command with the text of the spec.
+  The turn start shows at most the reports of the player. The bubble
+  and the float appear after 決定. Demo: "demo/m18_feedback".
+- What you see: 徵兵 in 長安 gives a bubble, a float and a log line,
+  as in the original.
+
+### M19 The city as a scene
+Closes report sections 3, 4 (dialog, proposal, officer list) and 5.
+- Spec input: ui/city-commands.md (base panel, command dialogs,
+  officer selection lists, placement mode). Open: the columns of the
+  first tab of 選擇執行武將 for each command, and the proposal rule of
+  the three officers.
+- API: a query for the proposal of a command (the officers the engine
+  picks). A query for the free slots of a city for the placement.
+- UI: the city panel of the original with its 25 fields, at the left
+  or right edge. The six-button menu next to the city. The command
+  dialogs as framed dialogs at fixed positions on a dark map, with
+  three portrait slots and skill tags. The officer selection list with
+  its tabs, columns, check boxes, sort and the 一併 buttons. The 開發
+  grid with the built counts and the placement mode with the top-right
+  panel. The HUD panels hide while the menu or a dialog is open.
+- Tests: ui: each dialog opens with the proposal filled. The list
+  checks and sorts. 決定 is grey with no officer. The placement takes
+  the clicked slot. Demo: "demo/m19_city_scene".
+- What you see: a 徵兵 and a 開發 from the city panel look like the
+  original, without the art.
+
+### M20 The turn of the others
+Closes report section 7 (AI turns).
+- Spec input: ui/clone-gap-report.md section 7 (the frame times of
+  one AI round), ui/main-map.md "Scenes on the map". Open: a capture
+  of a full AI round with the times of each step (screen-flow.md,
+  item 3).
+- API: the engine already gives the events of each AI faction. The
+  show system of G1 plays them.
+- UI: after 進行, the HUD shows each AI faction in turn with its 技巧
+  and no 行動力. Each command of an AI faction shows as a float over
+  the base or the unit, with a short pause. A unit moves hex by hex.
+  The camera stays where the player left it. A setting skips the show.
+- Tests: ui: the HUD names each AI faction in order. The floats appear
+  in the order of the events. The skip setting ends the round without
+  delay. Demo: "demo/m20_ai_round".
+- What you see: the ten seconds of the original's AI round.
+
+### M21 Information
+Closes report sections 6 (情報, 地圖) and 1 (hover).
+- Spec input: ui/information-screens.md, ui/main-map.md (hover
+  panels, information menu). Open: the screens that the spec marks
+  "not observed".
+- API: table queries for officers, cities, ports, factions, units and
+  items with a sort key.
+- UI: the information menu as a column of 14 buttons. The table
+  windows with their tabs, the detail panels, and 返回. The political
+  map 中地圖 with its control column. The hover panels of a city and a
+  unit next to the object. The 情報 window of the debug layout stays
+  in the debug layout.
+- Tests: ui: each menu item opens its screen. A header click sorts. A
+  row click opens the detail. The hover panel shows the fields of the
+  spec. Demo: "demo/m21_information".
+- What you see: the fourteen screens and the political map.
+
+### M22 Fit and finish
+Closes the B and C rows of the report.
+- Spec input: ui/clone-gap-report.md, ui/screen-flow.md (global
+  rules).
+- UI: the HUD panels hide while a menu or a dialog is open. The unit
+  menu opens on the second click or after a move. The first click
+  selects and shows the panel. The map menu loses 此處情報. The system
+  menu has the six items of the original. 除錯面板 moves to F12 only.
+  The status bar shows 不可 in red on a city hex. The help button "?"
+  exists and opens a short help window. The mini map has no close
+  button in the game mode.
+- Tests: ui: the global rules of screen-flow.md as one test each.
+- What you see: the flows match screen-flow.md step by step.
+
 ### Track G: graphics and animation (G1 to G6)
 docs/GRAPHICS.md is the full plan. docs/art/GEMINI-PROMPTS.md has the
 prompts for the art. The sim stays instant. A director in the UI replays
