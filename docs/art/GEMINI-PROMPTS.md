@@ -50,7 +50,7 @@ Game art asset for a turn-based strategy game set in late Eastern Han China (aro
 
 MASK-RED: paste in every prompt of a unit, a banner or a base.
 ```
-Paint every banner, pennant, sash, helmet plume and shield face in one flat saturated red, hex #D01818, with no shading inside those areas. Use that red nowhere else in the image. Skin, wood, leather and bronze must stay clearly brown or ochre, never red.
+Paint the whole uniform of every soldier (tunic, sleeves, trousers and the cloth under the armour), and every banner, pennant, sash, helmet plume and shield face, in one flat saturated red, hex #D01818, with no shading inside those areas. Use that red nowhere else in the image. Skin, wood, leather, armour plates and bronze must stay clearly brown, grey or ochre, never red.
 ```
 
 BG-GREEN: for every sprite, sheet and facility.
@@ -95,7 +95,16 @@ A single key-art illustration that defines the look of the whole game. A wide ri
 
 ### 4.1 Model sheets
 Make one model sheet for each unit. Each prompt is STYLE, then the unit
-block, then MASK-RED, BG-GREEN, LAYOUT-SHEET and NEGATIVE.
+block, then SMALL, MASK-RED, BG-GREEN, LAYOUT-SHEET and NEGATIVE.
+
+A unit on the map is a crowd of up to 80 figures. Each figure is 20 to
+30 pixels tall on the screen. Thus each foot soldier and each rider
+needs a simple, bold shape. Paste this block after the unit block:
+
+SMALL:
+```
+The figure must stay readable when it is shrunk to 24 pixels tall: a bold simple silhouette, large clear shapes, the weapon slightly oversized and clearly visible, no fine detail, few lines. The weapon tells the class at a glance: a long spear, a halberd with a side blade, a crossbow, or a horse.
+```
 
 Sword (劍兵):
 ```
@@ -456,6 +465,11 @@ Each prompt is STYLE, the subject, BG-BLACK, LAYOUT-STRIP with N and
 NEGATIVE. In these prompts, one frame is one step of the effect. The
 importer turns the black background into transparency.
 
+Fireworks burst, 8 frames, for the fall of a base:
+```
+Subject: a festive fireworks burst in the night sky style of old Chinese celebration paintings: a rising spark trail in frame 1, a round burst of gold and red sparks that opens in frames 2 to 5, falling and fading glitter in frames 6 to 8.
+```
+
 Flame loop, 8 frames:
 ```
 Subject: a looping campfire-sized flame, painted with bold ink-wash strokes in yellow, orange and deep red, the flame shape changes through 8 frames and frame 8 leads back to frame 1. The base of the flame sits on the shared baseline.
@@ -564,6 +578,7 @@ items is wrong:
 - The figure is the same character as the model sheet.
 - The frame count is correct, and each frame stands apart from the next.
 - The feet sit on one line.
-- Red is only on the banners, sashes, plumes and shields.
+- Red is only on the uniforms, banners, sashes, plumes and shields.
+- A foot soldier stays readable when you shrink the image to 24 pixels.
 - The background is one flat colour.
 - The image has no text, no mark and no frame.

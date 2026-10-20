@@ -118,8 +118,15 @@ holds the end state, a skip can never break a rule.
 | Setting | Values | Default |
 |---|---|---|
 | show_speed | off, fast (3x), normal | normal |
+| show_step_seconds | 0.05 to 0.60 s for one hex of a foot unit; the other times scale with it | 0.22 |
 | show_ai | all, near own bases, none | near own bases |
-| show_camera_follow | on, off | on |
+| show_camera_follow | on, off | off |
+
+The Settings panel shows each of these settings, and the settings file
+keeps them. The original always plays the move at one speed, and its
+camera stays where the player left it (spec ui/main-map.md, "Scenes on
+the map"). Thus the defaults copy the original. The other values are
+extras of hexdom.
 
 - A right click or the Space key skips the scene that plays.
 - The player cannot give a command while a scene plays.
@@ -167,13 +174,19 @@ the DLL and the platform: the DLL pushes commands, the platform draws.
 | Numbers and icons | ImGui plates | ImGui overlay at the world-to-screen point of the actor |
 
 ### 5.1 How a unit looks
-- A unit is a squad of figures, not one sprite. The squad has one to five
-  figures and one banner bearer. The figure count follows the soldiers.
-  This rule is an assumption. One figure stands for each 2000 soldiers,
-  and a unit has at least one figure.
-- Each class has a formation on its hex. Pike and halberd stand in a
-  block of 2 x 2 and one in front. Crossbow stands in a line. Cavalry
-  stands in a wedge. Siege weapons and ships are one large sprite.
+- A unit is a dense crowd of small figures that fills its hex, as in the
+  original (spec ui/main-map.md, "Scenes on the map"). More soldiers
+  give more figures. A unit of 8000 soldiers shows approximately 60 to
+  70 figures.
+- The figure count is an assumption: one figure for each 120 soldiers,
+  at least 4 and at most 80. One banner pole in the faction colour
+  stands in each unit.
+- The whole uniform of each figure takes the faction colour. The class
+  shows in the figures: spears, halberds, crossbows or horses.
+- The figures stand in rows that fill the hex, with a small random
+  offset. Siege weapons and ships are one large sprite.
+- 54 units of 80 figures need more than 4096 billboards. The renderer
+  draws the crowds with instanced quads and raises the limit to 16384.
 - The direction of a unit comes from its last step. The renderer compares
   that direction with the yaw of the camera and picks one of four views.
 - Each figure gets a small random offset and a random first frame. Thus
@@ -262,6 +275,7 @@ second frame for a slow ripple.
 ### 7.5 Effects and icons
 | Effect | Frames | Blend |
 |---|---|---|
+| Fireworks burst | 8 | additive |
 | Flame loop | 8 | additive |
 | Big fire on a building | 8 | additive |
 | Smoke puff | 8 | luminance alpha |
@@ -327,7 +341,7 @@ building that the action hits.
 | Ships | 火矢 | volley of fire arrows from the deck |
 | Ships | 猛撞 | the ship lunges; the target ship slides 1 hex; splash |
 | Battle ship | 投石 | stone from the deck at 3 hexes |
-| Any | Failure | the same start; the effect misses; the word 失敗 in grey |
+| Any | Failure | the same start; the effect misses; a speech cut-in with the portrait: the officer of the unit says a short line of failure |
 | Any | Knock onto a trap or a unit | slide stops at the obstacle; a hit on both; the trap fires (8.5) |
 
 ### 8.4 Plots
@@ -342,7 +356,11 @@ building that the action hits.
 | 內訌 Infighting | the adjacent enemy units face each other and strike |
 | 妖術 Sorcery | a dark vortex over the target and the six hexes around; icons |
 | 落雷 Lightning | lightning on seven hexes; hit on each; fire |
-| Any failure | the same start; the effect fades; the word 失敗 in grey |
+| Any failure | the same start; the effect fades; a speech cut-in: the officer of the target says that he saw through the plot |
+
+The project writes its own lines for these cut-ins. It never copies the
+text of the original. data/<pack>/text holds a few lines for each kind
+of officer, so that each officer sounds a little different.
 
 ### 8.5 Fire and traps
 | Action | Scene |
@@ -353,7 +371,7 @@ building that the action hits.
 | 火種, 火焰種, 業火種 | a burst on the trap; fire on the adjacent hexes; 業火種 also gives confusion icons |
 | 火球 and its levels | a fire ball rolls 3 hexes in the direction of the ignition; hit on each unit on the way |
 | 火船 Fire ship | the ship flares; fire on the adjacent water hexes; confusion icons |
-| A trap of the enemy | hidden until it fires; open question Q-G4 |
+| A trap of the enemy | visible on the map with its own sprite, as in the original |
 
 ### 8.6 Siege and capture
 | Action | Scene |
@@ -363,11 +381,11 @@ building that the action hits.
 | Base hit | debris on the wall; the durability number |
 | Damaged state | below 66 % durability: cracks and thin smoke |
 | Broken state | below 33 %: breaches in the wall and small fires |
-| Base falls | the gate doors burst open; the old banners drop; the unit marches in; flag; cut-in with the name of the base and the new owner |
+| Base falls | the gate doors burst open; the old banners drop; the unit marches in; flag; fireworks over the base; a title card "XX 攻陷" over the base; then the dialog of the captives |
 | Gate (關所) falls | as a city; the camera shows both sides of the pass |
 | Port (港) falls | as a city; the moored boats take the new colour |
 | Facility destroyed | the building collapses into dust; loot icons (gold, grain, soldiers) fly to the unit |
-| Captives | one cut-in lists the captured officers |
+| Captives | a dialog lists the captured officers; for each one the player selects persuade, imprison, release or execute |
 
 ### 8.7 Turn events
 | Event | Scene |
@@ -451,18 +469,19 @@ spec input, API, tests, what you see.
   has its sound key. The times match the answers of the analysis side.
 
 ## 10. Questions for the analysis side
-These questions are on behaviour, not on art. Add each one to
-spec/QUESTIONS.md with the next free number.
-- Q-G1: What options does the original give for the animation (on, off,
-  speed)? What is the default?
-- Q-G2: How long does one step of a unit take at each speed?
-- Q-G3: Does the camera follow the units of the AI? Does the original
-  skip the moves far from the player?
-- Q-G4: Does an enemy trap show on the map before it fires?
-- Q-G5: What does the screen show when a base falls: the order of the
-  effect, the banner change and the message?
-- Q-G6: How does the count of figures in a unit follow its soldiers?
-- Q-G7: What does a failed tactic show?
+The player answered the seven questions of this plan on 2026-10-19.
+The spec records the answers in ui/main-map.md, "Scenes on the map".
+This plan uses them in sections 4.5, 5.1, 7.5, 8.3, 8.4, 8.5 and 8.6.
+
+| Question | Answer |
+|---|---|
+| Q-G1 Options for the animation | None. The move always plays at one speed. |
+| Q-G2 Time of one step | Approximately 0.2 s for each hex. hexdom makes it a setting. |
+| Q-G3 Camera in the AI turn | The camera stays where the player left it. |
+| Q-G4 Enemy traps | Visible on the map before they fire. |
+| Q-G5 Fall of a base | Fireworks, then the title "XX 攻陷", then the dialog of the captives. |
+| Q-G6 Figures and soldiers | A dense crowd. More soldiers give more figures. |
+| Q-G7 Failed tactic | A line of the officer. For a plot, a line of the target. |
 
 ## 11. Risks
 | Risk | Answer |

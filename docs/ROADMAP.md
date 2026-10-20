@@ -771,6 +771,30 @@ setting "off" shows the end state without delay.
 The track starts after M17. R1 ships with each G milestone that has its
 status "done". G1 to G3 are the minimum for a playtest.
 
+### Follow-up A1: a pluggable AI
+The user wants rules for the computer player that a later version can
+replace and improve (2026-10-19). Today data drives the AI, but its logic
+is fixed code. ai_priorities.tsv has a closed set of conditions, and
+code/sim/ai.cpp holds the planner. The ruleset hook ai_priority of
+section 2.2 does not exist yet.
+- Engine: an AI planner is a set of function pointers in the ruleset of
+  a pack. The planner of M15 becomes the default planner. A setting or
+  a pack selects another planner. Each planner gives only the commands
+  of a player, and ai_explain works for each planner.
+- Rules from the answers of the player (spec QUESTIONS.md, Q-185):
+  - the first attack comes after 6 months, not 5;
+  - a city sends a unit out when an enemy unit enters the area of its
+    faction, not within 12 hexes;
+  - the AI takes a free city only for a purpose: spare officers and
+    soldiers, developed front cities, or a rival near the city;
+  - the AI attacks the nearest enemy city, and only with an advantage in
+    strength, or when the target lacks soldiers, officers or grain;
+  - a unit goes home when its grain is low. This rule of M15 stays.
+- Tests: feature tests for each rule above. The feature test of M15
+  that expects a free city to fall within 6 turns changes to match.
+- What you see: the AI view of M15 names the planner and the reason for
+  each choice.
+
 ### Release R1 Playtest build
 After M17: a zip with the exe, the DLL and the fallback pack, a one-page
 start guide, and the 32 save slots. Two players play the same scenario
