@@ -238,7 +238,7 @@ ui_draw_hud(ui_state *ui, engine_api *api)
         ui_hud_button(ui, api, "hud.info", "hud_info", UI_CONTEXT_INFO);
         ImGui::SameLine();
         ui_hud_button(ui, api, "hud.system", "hud_system", UI_CONTEXT_SYSTEM_MENU);
-        if (force != ENGINE_NO_FACTION) ui_draw_hud_list(ui, api, force);
+        if (force != ENGINE_NO_FACTION && !ui_feel_messages_open(ui)) ui_draw_hud_list(ui, api, force);   /* M17: the list hides under the messages */
     }
     ImGui::End();
 }

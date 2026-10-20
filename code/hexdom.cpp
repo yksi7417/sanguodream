@@ -70,6 +70,8 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         ui_init(&game->ui, &game->text);
         game->ui.show_title = true;   /* M9: the game starts at the title menu */
         game->ui.hud_mode   = true;   /* the game mode: no debug panels (F12 shows them) */
+        game->ui.feel.original_timing = true;   /* M17: the rider, the load transition */
+        game->ui.feel.turn_messages   = true;   /* M17: the message window and the turns of the AI */
         game->ui.show_officers = game->ui.show_cities = game->ui.show_city = false;   /* they open on demand */
 
         memory->platform.log("hexdom: game state initialized");

@@ -1190,3 +1190,7 @@ content.asset.4	Music	asset: the music
 content.source.0	None	source: nothing gives the asset
 content.source.1	Content pack	source: the content pack
 content.source.2	Install	source: the install folder of the player
+msg.heading	%u-%u %s	the message window: the period heading, year month part (main-map.md)
+msg.early	early	the period heading: days 1 to 10 (上旬)
+msg.middle	middle	the period heading: days 11 to 20 (中旬)
+msg.late	late	the period heading: days 21 to the end (下旬)

@@ -24,6 +24,7 @@ ui_enter_game(ui_state *ui)
     ui->show_unit = ui->show_unit_menu = false;
     ui->scene.has_pick = false;
     ui->context = {};
+    ui_feel_reset_turn(ui);   /* M17: the first turn start shows its messages */
 }
 
 internal void
@@ -38,21 +39,54 @@ ui_open_saveload(ui_state *ui, engine_api *api, bool saving)
 
 /* ---- 標題 (F-145) -------------------------------------------------------------------- */
 
+/* What a title button opens (title-and-load.md, "Title menu"). */
+internal void
+ui_title_open(ui_state *ui, engine_api *api, u32 choice)
+{
+    switch (choice)
+    {
+        case UI_TITLE_LOAD:    ui_open_saveload(ui, api, false); break;
+        case UI_TITLE_NEW:     ui->show_scenarios = true;        break;
+        case UI_TITLE_BATTLE:  ui->show_battles = true;          break;
+        case UI_TITLE_OPTIONS: ui->show_options = true;          break;
+        case UI_TITLE_QUIT:    ui->quit_requested = true;        break;
+        default: break;
+    }
+}
+
+/* One button of the title. While the rider runs (M17), only the chosen
+   button shows, and a click on it does nothing. */
+internal void
+ui_title_button(ui_state *ui, engine_api *api, const char *text_id, const char *key, u32 choice)
+{
+    if (ui->feel.title_choice != UI_TITLE_NONE && ui->feel.title_choice != choice) return;
+    char label[96];
+    if (!ImGui::Button(ui_label(label, sizeof(label), ui, text_id, key), ImVec2(320, 0))) return;
+    if (ui->feel.title_choice != UI_TITLE_NONE) return;
+    if (ui->feel.original_timing) ui_feel_choose_title(ui, choice);
+    else                          ui_title_open(ui, api, choice);
+}
+
 internal void
 ui_draw_title(ui_state *ui, engine_api *api)
 {
     char title[128], label[96];
     ImGui::SetNextWindowSize(ImVec2(360, 330), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "title.title", "Title"), 0, ImGuiWindowFlags_NoCollapse)) { ImGui::End(); return; }
-    ImVec2 size(320, 0);
-    if (ImGui::Button(ui_label(label, sizeof(label), ui, "title.load", "title_load"), size)) ui_open_saveload(ui, api, false);
-    if (ImGui::Button(ui_label(label, sizeof(label), ui, "title.new", "title_new"), size)) ui->show_scenarios = true;
-    ImGui::BeginDisabled();
-    ImGui::Button(ui_label(label, sizeof(label), ui, "title.tutorial", "title_tutorial"), size);   /* the tutorial scenario is not in the spec */
-    ImGui::EndDisabled();
-    if (ImGui::Button(ui_label(label, sizeof(label), ui, "title.battle", "title_battle"), size)) ui->show_battles = true;
-    if (ImGui::Button(ui_label(label, sizeof(label), ui, "title.options", "title_options"), size)) ui->show_options = true;
-    if (ImGui::Button(ui_label(label, sizeof(label), ui, "title.quit", "title_quit"), size)) ui->quit_requested = true;
+    bool riding = ui->feel.title_choice != UI_TITLE_NONE;
+    ui_title_button(ui, api, "title.load", "title_load", UI_TITLE_LOAD);
+    ui_title_button(ui, api, "title.new", "title_new", UI_TITLE_NEW);
+    if (!riding)
+    {
+        ImGui::BeginDisabled();
+        ImGui::Button(ui_label(label, sizeof(label), ui, "title.tutorial", "title_tutorial"), ImVec2(320, 0));   /* the tutorial scenario is not in the spec */
+        ImGui::EndDisabled();
+    }
+    ui_title_button(ui, api, "title.battle", "title_battle", UI_TITLE_BATTLE);
+    ui_title_button(ui, api, "title.options", "title_options", UI_TITLE_OPTIONS);
+    ui_title_button(ui, api, "title.quit", "title_quit", UI_TITLE_QUIT);
+    if (riding)   /* placeholder art for the rider: the bar fills in UI_TITLE_SELECT_SECONDS */
+        ImGui::ProgressBar(ui->feel.title_seconds / UI_TITLE_SELECT_SECONDS, ImVec2(320, 0), "");
     ImGui::End();
 }
 
@@ -278,7 +312,7 @@ ui_draw_saveload(ui_state *ui, engine_api *api)
             {
                 engine_save_status status = api->load_game(e, slot);
                 text_label(ui->text, "save_status", status, ui->game.message, sizeof(ui->game.message));
-                if (status == ENGINE_SAVE_OK) { ui->show_saveload = false; ui_enter_game(ui); }
+                if (status == ENGINE_SAVE_OK) { ui->show_saveload = false; ui_enter_game(ui); ui_feel_begin_transition(ui); }
             }
         }
         ImGui::EndDisabled();
