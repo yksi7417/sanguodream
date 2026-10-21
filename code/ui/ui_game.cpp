@@ -12,6 +12,21 @@
 /* The main map of a game: the game mode. The HUD and the list sit at the
    top left and the mini map at the bottom right. Every other window opens
    on demand (ui_context.cpp). */
+/* The city names of the name index (Scenario.s11 of the spec), after a
+   game starts from the title or a slot, when no names are loaded yet. The
+   player asked on 2026-10-20 for one step: a game start must show the
+   names without the debug button. A loaded name index stays. */
+internal void
+ui_ensure_city_names(ui_state *ui, engine_api *api)
+{
+    if (api->city_name_at(api->engine, 0).city_id != ENGINE_NO_CITY) return;
+    engine_load_result names = api->load_name_index(api->engine, UI_NAME_INDEX_PATH);
+    if (names.status == ENGINE_LOAD_OK)
+        snprintf(ui->names_message, sizeof(ui->names_message), "names loaded (command %u)", names.command_id);
+    else
+        snprintf(ui->names_message, sizeof(ui->names_message), "names not loaded: %s", names.detail ? names.detail : "?");
+}
+
 /* The main screens of the game sit at the centre of the window in every
    frame (the request of the player, 2026-10-20). A resize of the window
    keeps them there, and the position that imgui.ini kept cannot move them. */
@@ -124,6 +139,7 @@ ui_draw_scenarios(ui_state *ui, engine_api *api)
             engine_load_result loaded = scenario.kind == ENGINE_SCENARIO_SAVE ? api->load_save(e, scenario.file) : api->load_scenario(e, scenario.file);
             if (loaded.status == ENGINE_LOAD_OK)
             {
+                ui_ensure_city_names(ui, api);
                 ui->game.rulers   = 0;
                 ui->show_scenarios = false;
                 ui->show_rulers    = true;
@@ -326,7 +342,7 @@ ui_draw_saveload(ui_state *ui, engine_api *api)
             {
                 engine_save_status status = api->load_game(e, slot);
                 text_label(ui->text, "save_status", status, ui->game.message, sizeof(ui->game.message));
-                if (status == ENGINE_SAVE_OK) { ui->show_saveload = false; ui_enter_game(ui); ui_feel_begin_transition(ui); }
+                if (status == ENGINE_SAVE_OK) { ui_ensure_city_names(ui, api); ui->show_saveload = false; ui_enter_game(ui); ui_feel_begin_transition(ui); }
             }
         }
         ImGui::EndDisabled();

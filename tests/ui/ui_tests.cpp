@@ -1823,8 +1823,16 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->Yield(2);
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOAD_GAME), 1u);
         IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_LOAD_GAME), 1u);
-        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOAD_NAME_INDEX), 1u);   /* the game has no names yet: they load in the same step */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 2u);
         IM_CHECK(v.ui.hud_mode && !v.ui.show_saveload);   /* the load starts the game mode */
+        v.recorder.has_names = true;                       /* a second load keeps the names */
+        recorder_reset(&v.recorder);
+        ui_open_saveload(&v.ui, &v.api, false);
+        ctx->Yield(2);
+        ctx->ItemClick("###slot1");
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOAD_NAME_INDEX), 0u);
     };
 
     t = IM_REGISTER_TEST(e, "ui", "new_officer_dialog_issues_one_create_officer");
@@ -3017,6 +3025,7 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->ItemClick("//###StartSettings/###start_ok");
         ctx->Yield(2);
         IM_CHECK(v.ui.hud_mode && api->whose_turn(e) == player);
+        IM_CHECK_EQ(api->city_name_at(e, 0).city_id, 0u);   /* the start loaded the city names in the same step */
 
         for (u32 turn = 0; turn <= 6; ++turn)
         {
