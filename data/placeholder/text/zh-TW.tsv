@@ -1084,6 +1084,7 @@ place.military	軍事設施
 place.camp	陣
 place.trap	陷阱
 place.fire_ship	火船
+place.none	不可
 compass.north	北
 compass.east	東
 compass.south	南
@@ -1105,10 +1106,16 @@ hud.tab_bases	據點
 hud.tab_officers	武將
 hud.tab_units	部隊
 hud.delegate	委任部隊行動
-hud.hex_info	此處情報
 hud.settings	環境設定
-hud.options	項目
-hud.debug	除錯面板 (F12)
+hud.edit	編輯
+hud.help	?
+help.title	說明
+help.text	左鍵點選都市：都市情報與指令選單。\n左鍵點選自軍部隊：選擇部隊。再點一次：指令選單。\n點選移動範圍內的地點：部隊移動。\n右鍵：返回上一層。在空地上：地圖選單。\n右鍵點選自軍部隊：詳細情報、所屬武將。\nW A S D：移動視角。Q E：旋轉視角。滾輪：縮放。\nF12：除錯面板。
+confirm.proceed	將結束%s軍的戰略，有尚未行動的部隊存在，請問是否確定？
+confirm.yes	是
+confirm.no	否
+unit_popup.detail	詳細情報
+unit_popup.officers	所屬武將
 hud.to_title	返回開頭畫面
 hud.quit	結束遊戲
 menu.fidelity	重現

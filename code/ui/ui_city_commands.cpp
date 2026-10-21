@@ -279,7 +279,7 @@ ui_draw_city_command(ui_state *ui, engine_api *api, u32 kind)
         /* M19, ui/city-commands.md "Command dialogs": the dialog sits at a
            fixed place in the centre, and the map behind it is dark. */
         ImGui::GetBackgroundDrawList()->AddRectFilled(ImVec2(0.0f, 0.0f), io.DisplaySize, IM_COL32(0, 0, 0, UI_DIALOG_DIM_ALPHA));
-        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.45f), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.45f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));   /* M22: rule 6 */
     }
     ImGuiWindowFlags flags = ui->hud_mode ? ImGuiWindowFlags_AlwaysAutoResize : 0;
     if (ImGui::Begin(ui_label(title, sizeof(title), ui, info->title_id, info->window), &ui->show_command[kind], flags))

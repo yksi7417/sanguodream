@@ -75,6 +75,7 @@ ui_info_open(ui_state *ui, engine_api *api, u8 screen, bool own)
     ui->info.tab     = 0;
     ui->info.detail  = false;
     ui->info.faction = api->whose_turn(api->engine);
+    ui->info.unit_filter = ENGINE_NO_UNIT;
     ui->info.view    = {};
     ui->info.view.sort_column = UI_SORT_NO_COLUMN;
 }
@@ -107,6 +108,31 @@ ui_draw_info_menu(ui_state *ui, engine_api *api)
     ImGui::End();
 }
 
+/* M22, screen-flow.md: the popup of a right click on an own unit.
+   詳細情報 opens the unit panel. 所屬武將 opens 武將一覽 of the unit. */
+internal void
+ui_draw_unit_popup(ui_state *ui, engine_api *api)
+{
+    if (ui_begin_menu_window(ui, "###UnitPopup"))
+    {
+        u32 unit_id = ui->units.selected;
+        f32 x = ui->context.x, y = ui->context.y;
+        if (ui_menu_item(ui, "unit_popup.detail", "unit_detail", true))
+        {
+            ui_context_open(ui, api, UI_CONTEXT_UNIT, x, y);
+            ui_select_unit(ui, unit_id);
+        }
+        if (ui_menu_item(ui, "unit_popup.officers", "unit_officers", true))
+        {
+            ui_info_open(ui, api, UI_INFO_OFFICERS, false);
+            ui->info.unit_filter = unit_id;
+            ui_context_close(ui);
+            ui_select_unit(ui, ENGINE_NO_UNIT);
+        }
+    }
+    ImGui::End();
+}
+
 /* ---- the tables ---------------------------------------------------------- */
 
 /* The rows of the table at this frame: the officers or the cities. */
@@ -116,6 +142,16 @@ ui_info_collect(ui_state *ui, engine_api *api)
     void *e = api->engine;
     u8 player = api->whose_turn(e);
     ui->info.id_count = 0;
+    if (ui->info.screen == UI_INFO_OFFICERS && ui->info.unit_filter != ENGINE_NO_UNIT)
+    {
+        /* M22: 所屬武將 of a unit: its commander and its deputies. */
+        engine_unit unit = api->unit_at(e, ui->info.unit_filter);
+        for (u32 place = 0; place < SIM_COMMAND_OFFICERS && unit.id != ENGINE_NO_UNIT; ++place)
+        {
+            if (unit.officers[place] != ENGINE_NO_OFFICER) ui->info.ids[ui->info.id_count++] = unit.officers[place];
+        }
+        return;
+    }
     if (ui->info.screen == UI_INFO_OFFICERS)
     {
         u32 count = api->officer_count(e);

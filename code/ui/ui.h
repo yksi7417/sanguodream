@@ -28,8 +28,17 @@ enum ui_context_kind
     UI_CONTEXT_SAVELOAD,
     UI_CONTEXT_SETTINGS,
     UI_CONTEXT_OPTIONS,
+    UI_CONTEXT_HELP,          /* M22: the help window of the "?" button */
+    UI_CONTEXT_EDITOR,        /* M22: 編輯 of the system menu */
+    UI_CONTEXT_UNIT_POPUP,    /* M22: a right click on an own unit: 詳細情報, 所屬武將 */
     UI_CONTEXT_COUNT
 };
+
+/* M22, screen-flow.md, rule 7: the pitch of the rows of a list, of the
+   items of a menu, and of the tabs. */
+#define UI_LIST_PITCH  20.0f
+#define UI_MENU_PITCH  34.0f
+#define UI_TAB_PITCH   76.0f
 
 /* The tabs of the list panel of the HUD (main-map.md, "List panel"). */
 enum ui_hud_tab { UI_HUD_TAB_BASES, UI_HUD_TAB_OFFICERS, UI_HUD_TAB_UNITS, UI_HUD_TAB_COUNT };
@@ -336,7 +345,8 @@ struct ui_state
     bool show_battles;
     bool show_abilities;
     bool show_info;
-    bool show_fidelity;          /* M13: the replay of the save pairs of the original */
+    bool show_help;              /* M22: the help window of the "?" button */
+    bool show_fidelity;         /* M13: the replay of the save pairs of the original */
     struct
     {
         bool                 has_report;   /* a replay ran from the panel */
@@ -439,6 +449,7 @@ struct ui_state
     {
         bool      show;              /* the setting of the settings screen */
         bool      playing;           /* the events of a round play now */
+        bool      confirm;           /* M22: 進行 waits for 是 or 否 (units that have not acted) */
         u32       next;              /* the next ledger index of the round */
         u32       end;               /* the ledger count: the end of the round */
         u8        force;             /* the AI faction that the HUD names; ENGINE_NO_FACTION */
@@ -462,6 +473,7 @@ struct ui_state
         bool          detail;        /* the detail panel of detail_id shows */
         u32           detail_id;     /* an officer id or a city id */
         u8            faction;       /* 勢力情報: the faction that shows */
+        u32           unit_filter;   /* M22: 所屬武將 of a unit; ENGINE_NO_UNIT for all */
         u16           ids[SIM_OFFICER_CAPACITY];   /* the officer or city ids of the rows */
         u32           id_count;
         ui_table_view view;

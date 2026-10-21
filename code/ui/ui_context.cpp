@@ -10,6 +10,8 @@
 #define UI_CONTEXT_SECOND_X     330.0f   /* px from the first window to the second (a command dialog) */
 #define UI_CONTEXT_CLICK_SLACK  16.0f    /* px of mouse travel: more is a camera drag, not a click */
 
+internal void ui_select_unit(ui_state *ui, u32 unit_id);   /* ui_march.cpp */
+
 /* A right click: the button went up, and the mouse did not drag. */
 internal bool
 ui_right_clicked(void)
@@ -33,6 +35,8 @@ ui_context_flag(ui_state *ui, u8 kind)
         case UI_CONTEXT_SAVELOAD:  return &ui->show_saveload;
         case UI_CONTEXT_SETTINGS:  return &ui->show_settings;
         case UI_CONTEXT_OPTIONS:   return &ui->show_options;
+        case UI_CONTEXT_HELP:      return &ui->show_help;
+        case UI_CONTEXT_EDITOR:    return &ui->show_editor;
         default:                   return 0;
     }
 }
@@ -50,7 +54,8 @@ ui_context_close(ui_state *ui)
             break;
         case UI_CONTEXT_UNIT:
             ui->show_unit = ui->show_unit_menu = ui->show_actions = false;
-            ui->combat.pick = UI_PICK_NONE;
+            ui->combat.pick    = UI_PICK_NONE;
+            ui->units.selected = ENGINE_NO_UNIT;   /* M22: the selection ends with its dialog */
             break;
         default:
         {
@@ -102,8 +107,43 @@ ui_context_track(ui_state *ui)
     if (ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows | ImGuiHoveredFlags_AllowWhenBlockedByActiveItem)) ui->context.hovered = true;
 }
 
-/* After the panels of a frame: a right click outside the dialog closes it,
-   and so does the end of its work. The scene then does not use the click. */
+/* M22, screen-flow.md, rule 1: a right click goes back one level. A
+   command dialog goes back to the city menu. A target pick goes back to
+   the unit menu, the menu to the selection, and the selection to the
+   idle map. Other dialogs close. */
+internal void
+ui_context_back(ui_state *ui)
+{
+    if (ui->context.kind == UI_CONTEXT_CITY)
+    {
+        if (ui->show_picker) { ui->show_picker = false; return; }
+        bool dialog = ui->show_develop || ui->show_research || ui->show_merge || ui->show_sortie || ui->show_transport;
+        for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind) dialog = dialog || ui->show_command[kind];
+        if (dialog && ui->show_city)
+        {
+            ui->show_develop = ui->show_research = ui->show_merge = ui->show_sortie = ui->show_transport = false;
+            for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind) ui->show_command[kind] = false;
+            return;
+        }
+    }
+    if (ui->context.kind == UI_CONTEXT_UNIT)
+    {
+        if (ui->combat.pick != UI_PICK_NONE || ui->show_actions)
+        {
+            ui->combat.pick    = UI_PICK_NONE;
+            ui->show_actions   = false;
+            ui->show_unit_menu = true;
+            return;
+        }
+        if (ui->show_unit_menu) { ui->show_unit_menu = false; return; }
+    }
+    if (ui->context.kind == UI_CONTEXT_UNIT || ui->context.kind == UI_CONTEXT_UNIT_POPUP) ui_select_unit(ui, ENGINE_NO_UNIT);
+    ui_context_close(ui);
+}
+
+/* After the panels of a frame: a right click goes back one level, and the
+   end of the work of a dialog closes it. The scene then does not use the
+   click. */
 internal void
 ui_context_update(ui_state *ui, engine_api *api)
 {
@@ -112,10 +152,14 @@ ui_context_update(ui_state *ui, engine_api *api)
     {
         bool *flag = ui_context_flag(ui, ui->context.kind);
         bool just_opened = ImGui::GetFrameCount() <= ui->context.place_frame;
-        if (flag && !*flag) ui->context.kind = UI_CONTEXT_NONE;   /* the close button */
-        else if (!just_opened && ui_right_clicked() && !ui->context.hovered)
+        if (flag && !*flag)   /* the close button */
         {
-            ui_context_close(ui);
+            if (ui->context.kind == UI_CONTEXT_UNIT) ui->units.selected = ENGINE_NO_UNIT;
+            ui->context.kind = UI_CONTEXT_NONE;
+        }
+        else if (!just_opened && ui_right_clicked())
+        {
+            ui_context_back(ui);
             ui->context.consumed = true;
         }
         else if (ui->context.kind == UI_CONTEXT_CITY && api->ledger_count(api->engine) != ui->context.ledger_mark)

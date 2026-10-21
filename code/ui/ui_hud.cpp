@@ -118,6 +118,24 @@ ui_hud_row_label(ui_state *ui, engine_api *api, ui_hud_row *row, char *out, u32 
     return selected;
 }
 
+/* M22, screen-flow.md, rule 3: a selection or an open menu hides the
+   list panel, the log and the mini map. The status area stays. */
+internal bool
+ui_hud_panels_hidden(ui_state *ui)
+{
+    return ui->context.kind != UI_CONTEXT_NONE || ui->units.selected != ENGINE_NO_UNIT || ui->round.confirm ||
+           ui->info.screen != 0 || ui->show_political || ui->placement.active;
+}
+
+/* M22: a left click on a unit row moves the camera to the unit. It
+   selects nothing and opens no window (clone-gap-report.md, section 8). */
+internal void
+ui_hud_look_at_unit(ui_state *ui, engine_api *api, u32 unit_id)
+{
+    engine_unit unit = api->unit_at(api->engine, unit_id);
+    if (unit.id != ENGINE_NO_UNIT) ui_frame_hex(ui, api, hex_make(unit.q, unit.r));
+}
+
 /* A click on a row: the camera goes to the item. A right click also opens its dialog. */
 internal void
 ui_hud_row_click(ui_state *ui, engine_api *api, ui_hud_row *row, bool open)
@@ -144,13 +162,16 @@ ui_hud_row_click(ui_state *ui, engine_api *api, ui_hud_row *row, bool open)
             }
             else if (officer.current_position >= UI_HUD_FIRST_UNIT && officer.current_position != UI_HUD_NO_POSITION)
             {
-                ui_frame_unit(ui, officer.current_position - UI_HUD_FIRST_UNIT);
-                if (open) ui_context_open(ui, api, UI_CONTEXT_UNIT, io.MousePos.x, io.MousePos.y);
+                u32 unit_id = officer.current_position - UI_HUD_FIRST_UNIT;
+                if (!open) { ui_hud_look_at_unit(ui, api, unit_id); break; }
+                ui_frame_unit(ui, unit_id);
+                ui_context_open(ui, api, UI_CONTEXT_UNIT, io.MousePos.x, io.MousePos.y);
             }
         } break;
         default:
+            if (!open) { ui_hud_look_at_unit(ui, api, row->id); break; }
             ui_frame_unit(ui, row->id);
-            if (open) ui_context_open(ui, api, UI_CONTEXT_UNIT, io.MousePos.x, io.MousePos.y);
+            ui_context_open(ui, api, UI_CONTEXT_UNIT, io.MousePos.x, io.MousePos.y);
             break;
     }
 }
@@ -165,6 +186,7 @@ ui_draw_hud_list(ui_state *ui, engine_api *api, u8 force)
     if (!ImGui::BeginTabBar("###hud_tabs")) return;
     for (int tab = 0; tab < UI_HUD_TAB_COUNT; ++tab)
     {
+        ImGui::SetNextItemWidth(UI_TAB_PITCH - ImGui::GetStyle().ItemInnerSpacing.x);   /* M22: the tab pitch of the original */
         if (!ImGui::BeginTabItem(ui_label(label, sizeof(label), ui, tab_ids[tab], tab_keys[tab]))) continue;
         ui->hud_tab = tab;
         char header[UI_NAME_SIZE * 2];
@@ -172,17 +194,18 @@ ui_draw_hud_list(ui_state *ui, engine_api *api, u8 force)
         else                            ui_city_label(ui, api, ui->city.selected, header, sizeof(header));
         ImGui::TextUnformatted(header);
         ImGui::Separator();
-        f32 height = ImGui::GetTextLineHeightWithSpacing() * (f32)UI_HUD_LIST_ROWS;
+        f32 height = UI_LIST_PITCH * (f32)UI_HUD_LIST_ROWS;
         if (ImGui::BeginChild("###hud_rows", ImVec2(0.0f, height)))
         {
             local_persist ui_hud_row rows[UI_HUD_ROW_CAPACITY];
             u32 count = ui_hud_rows(api, force, tab, rows, UI_HUD_ROW_CAPACITY);
+            ImVec2 row_size(0.0f, UI_LIST_PITCH - ImGui::GetStyle().ItemSpacing.y);   /* M22: the row pitch of the original */
             for (u32 index = 0; index < count; ++index)
             {
                 char row_label[UI_NAME_SIZE * 4 + 32];
                 bool selected = ui_hud_row_label(ui, api, rows + index, row_label, sizeof(row_label));
                 if (!rows[index].ready) ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-                if (ImGui::Selectable(row_label, selected)) ui_hud_row_click(ui, api, rows + index, false);
+                if (ImGui::Selectable(row_label, selected, 0, row_size)) ui_hud_row_click(ui, api, rows + index, false);
                 if (ImGui::IsItemHovered() && ui_right_clicked()) ui_hud_row_click(ui, api, rows + index, true);   /* on the release, as the scene */
                 if (!rows[index].ready) ImGui::PopStyleColor();
             }
@@ -242,7 +265,10 @@ ui_draw_hud(ui_state *ui, engine_api *api)
         ui_hud_button(ui, api, "hud.info", "hud_info", UI_CONTEXT_INFO);
         ImGui::SameLine();
         ui_hud_button(ui, api, "hud.system", "hud_system", UI_CONTEXT_SYSTEM_MENU);
-        if (force != ENGINE_NO_FACTION && !ui_feel_messages_open(ui) && !ui->round.playing) ui_draw_hud_list(ui, api, force);   /* M17, M20: the list hides under the messages and the show */
+        ImGui::SameLine();
+        ui_hud_button(ui, api, "hud.help", "hud_help", UI_CONTEXT_HELP);   /* M22: the fourth icon button "?" */
+        /* M17, M20, M22: the list hides under the messages, the show, a selection and a menu */
+        if (force != ENGINE_NO_FACTION && !ui_feel_messages_open(ui) && !ui->round.playing && !ui_hud_panels_hidden(ui)) ui_draw_hud_list(ui, api, force);
     }
     ImGui::End();
 }
@@ -253,7 +279,8 @@ ui_menu_item(ui_state *ui, const char *text_id, const char *key, bool enabled)
 {
     char label[96];
     if (!enabled) ImGui::BeginDisabled();
-    bool picked = ImGui::Selectable(ui_label(label, sizeof(label), ui, text_id, key), false, 0, ImVec2(150.0f, 0.0f));
+    ImVec2 size(150.0f, UI_MENU_PITCH - ImGui::GetStyle().ItemSpacing.y);   /* M22: the menu pitch of the original */
+    bool picked = ImGui::Selectable(ui_label(label, sizeof(label), ui, text_id, key), false, 0, size);
     if (!enabled) ImGui::EndDisabled();
     return picked;
 }
@@ -269,29 +296,45 @@ ui_begin_menu_window(ui_state *ui, const char *name)
     return open;
 }
 
-/* The map menu (main-map.md, "Map context menu"): a right click on the empty map. */
+/* True if a unit of the faction that acts has not acted in this turn. */
+internal bool
+ui_hud_units_waiting(engine_api *api)
+{
+    u8 force = api->whose_turn(api->engine);
+    for (u32 id = 0; id < api->unit_count(api->engine); ++id)
+    {
+        engine_unit unit = api->unit_at(api->engine, id);
+        if (unit.id != ENGINE_NO_UNIT && unit.force_id == force && !unit.acted) return true;
+    }
+    return false;
+}
+
+/* The map menu (main-map.md, "Map context menu"): a right click on the
+   empty map. M22: the five items of the original. 進行 asks first when
+   units of the player have not acted (clone-gap-report.md, section 2). */
 internal void
 ui_draw_map_menu(ui_state *ui, engine_api *api)
 {
     if (ui_begin_menu_window(ui, "###MapMenu"))
     {
         f32 x = ui->context.x, y = ui->context.y;
-        if (ui_menu_item(ui, "topbar.proceed", "proceed", true))         { ui_context_close(ui); ui_round_proceed(ui, api); }   /* M20 */
-        ImGui::Separator();
+        if (ui_menu_item(ui, "topbar.proceed", "proceed", true))
+        {
+            ui_context_close(ui);
+            if (ui_hud_units_waiting(api)) ui->round.confirm = true;
+            else                           ui_round_proceed(ui, api);   /* M20 */
+        }
         if (ui_menu_item(ui, "hud.delegate", "delegate", false))         { ui_context_close(ui); }   /* no long orders yet (Q-215) */
         if (ui_menu_item(ui, "topbar.info", "open_info", true))          ui_context_open(ui, api, UI_CONTEXT_INFO, x, y);
-        if (ui_menu_item(ui, "hud.hex_info", "hex_info", true))
-        {
-            ui->scene.pick = ui->context.hex;
-            ui_context_open(ui, api, UI_CONTEXT_HEX, x, y);
-        }
-        if (ui_menu_item(ui, "topbar.save", "open_save", true))          { ui_open_saveload(ui, api, true);  ui_context_open(ui, api, UI_CONTEXT_SAVELOAD, x, y); }
+        if (ui_menu_item(ui, "topbar.save", "open_save", true))         { ui_open_saveload(ui, api, true);  ui_context_open(ui, api, UI_CONTEXT_SAVELOAD, x, y); }
         if (ui_menu_item(ui, "topbar.load", "open_load", true))          { ui_open_saveload(ui, api, false); ui_context_open(ui, api, UI_CONTEXT_SAVELOAD, x, y); }
     }
     ImGui::End();
 }
 
-/* The system menu (main-map.md, "System menu"): the settings button of the HUD. */
+/* The system menu (main-map.md, "System menu"): the settings button of the
+   HUD. M22: the six items of the original. The debug panels open with F12
+   only. */
 internal void
 ui_draw_system_menu(ui_state *ui, engine_api *api)
 {
@@ -301,10 +344,8 @@ ui_draw_system_menu(ui_state *ui, engine_api *api)
         if (ui_menu_item(ui, "topbar.save", "open_save", true))          { ui_open_saveload(ui, api, true);  ui_context_open(ui, api, UI_CONTEXT_SAVELOAD, x, y); }
         if (ui_menu_item(ui, "topbar.load", "open_load", true))          { ui_open_saveload(ui, api, false); ui_context_open(ui, api, UI_CONTEXT_SAVELOAD, x, y); }
         if (ui_menu_item(ui, "hud.settings", "settings", true))          ui_context_open(ui, api, UI_CONTEXT_SETTINGS, x, y);
-        if (ui_menu_item(ui, "hud.options", "options", true))            ui_context_open(ui, api, UI_CONTEXT_OPTIONS, x, y);
-        if (ui_menu_item(ui, "hud.debug", "debug", true))                { ui->show_debug_panels = !ui->show_debug_panels; ui_context_close(ui); }
-        ImGui::Separator();
-        if (ui_menu_item(ui, "hud.to_title", "to_title", true))          { ui_context_close(ui); ui->show_title = true; }
+        if (ui_menu_item(ui, "hud.edit", "edit", true))                  ui_context_open(ui, api, UI_CONTEXT_EDITOR, x, y);
+        if (ui_menu_item(ui, "hud.to_title", "to_title", true))         { ui_context_close(ui); ui->show_title = true; }
         if (ui_menu_item(ui, "hud.quit", "quit", true))                  { ui_context_close(ui); ui->quit_requested = true; }
     }
     ImGui::End();
@@ -348,13 +389,57 @@ ui_hud_scene_clicks(ui_state *ui, engine_api *api)
     if (!right) return;
     if (data.unit_id != ENGINE_NO_UNIT)
     {
+        /* M22, screen-flow.md: a right click on an own unit opens the popup
+           詳細情報 and 所屬武將. The unit of another faction opens its panel. */
+        bool own = api->unit_at(api->engine, data.unit_id).force_id == api->whose_turn(api->engine);
         ui_select_unit(ui, data.unit_id);
         ui->scene.framed_unit = data.unit_id;
-        ui_context_open(ui, api, UI_CONTEXT_UNIT, x, y);
+        if (own) ui->show_unit = false;
+        ui_context_open(ui, api, (u8)(own ? UI_CONTEXT_UNIT_POPUP : UI_CONTEXT_UNIT), x, y);
         return;
     }
     ui->context.hex = hex;
     ui_context_open(ui, api, UI_CONTEXT_MAP_MENU, x, y);
+}
+
+/* M22: the question before 進行 (clone-gap-report.md, section 2): the
+   buttons 是 and 否 above one line, at the bottom centre, without a
+   portrait. 否 and a right click go back to the map. */
+internal void
+ui_draw_proceed_confirm(ui_state *ui, engine_api *api)
+{
+    ImGuiIO &io = ImGui::GetIO();
+    ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y - UI_MESSAGE_MARGIN), ImGuiCond_Always, ImVec2(0.5f, 1.0f));
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings |
+                             ImGuiWindowFlags_NoMove;
+    if (ImGui::Begin("###ProceedConfirm", 0, flags))
+    {
+        char label[96], ruler[UI_NAME_SIZE * 2] = "-";
+        u8 force = api->whose_turn(api->engine);
+        if (force != ENGINE_NO_FACTION) ui_force_text(ui, api, force, ruler, sizeof(ruler));
+        bool yes = ImGui::Button(ui_label(label, sizeof(label), ui, "confirm.yes", "confirm_yes"), ImVec2(80.0f, 0.0f));
+        ImGui::SameLine();
+        bool no = ImGui::Button(ui_label(label, sizeof(label), ui, "confirm.no", "confirm_no"), ImVec2(80.0f, 0.0f));
+        ImGui::Text(text_get(ui->text, "confirm.proceed"), ruler);
+        if (yes || no || ui_right_clicked()) ui->round.confirm = false;
+        if (yes) ui_round_proceed(ui, api);
+    }
+    ImGui::End();
+}
+
+/* M22: the help window of the "?" button. The spec has no capture of the
+   help screen of the original. This window lists the controls of hexdom. */
+internal void
+ui_draw_help(ui_state *ui)
+{
+    char title[96];
+    ui_center_next_window();
+    if (ImGui::Begin(ui_label(title, sizeof(title), ui, "help.title", "Help"), &ui->show_help, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        ui_context_track(ui);
+        ImGui::TextUnformatted(text_get(ui->text, "help.text"));
+    }
+    ImGui::End();
 }
 
 /* The dialogs that the HUD draws itself. */
@@ -363,4 +448,6 @@ ui_draw_hud_menus(ui_state *ui, engine_api *api)
 {
     if (ui->context.kind == UI_CONTEXT_MAP_MENU)    ui_draw_map_menu(ui, api);
     if (ui->context.kind == UI_CONTEXT_SYSTEM_MENU) ui_draw_system_menu(ui, api);
+    if (ui->show_help)                              ui_draw_help(ui);
+    if (ui->round.confirm)                          ui_draw_proceed_confirm(ui, api);
 }

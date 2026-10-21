@@ -1086,6 +1086,7 @@ place.military	Military facility	the status bar
 place.camp	Camp	the status bar
 place.trap	Trap	the status bar
 place.fire_ship	Fire ship	the status bar, on river and sea
+place.none	Not possible	the status bar, on a city hex, in red (不可)
 compass.north	N	the compass of the mini map
 compass.east	E	the compass of the mini map
 compass.south	S	the compass of the mini map
@@ -1107,10 +1108,16 @@ hud.tab_bases	Bases	the list: the cities, ports and passes of the player
 hud.tab_officers	Officers	the list: the officers of the player
 hud.tab_units	Units	the list: the units of the player
 hud.delegate	Run delegated orders	the map menu
-hud.hex_info	This hex	the map menu: the Hex info box of the clicked hex
 hud.settings	Environment	the system menu
-hud.options	Options	the system menu
-hud.debug	Debug panels (F12)	the system menu
+hud.edit	Edit	the system menu: the editor (編輯)
+hud.help	?	the HUD: the help button
+help.title	Help	the help window of the "?" button
+help.text	Left click a city: the city panel and its menu.\nLeft click an own unit: select it. Click it again: the command menu.\nClick a hex in the range: the unit moves there.\nRight click: back one level. On the empty map: the map menu.\nRight click an own unit: 詳細情報 and 所屬武將.\nW A S D: move the camera. Q E: turn the camera. Wheel: zoom.\nF12: the debug panels.	the help window
+confirm.proceed	End the strategy of %s? Units of the force have not acted. Continue?	the question before 進行; %s is the ruler
+confirm.yes	Yes	the question before 進行 (是)
+confirm.no	No	the question before 進行 (否)
+unit_popup.detail	Details	the popup of a right click on an own unit (詳細情報)
+unit_popup.officers	Officers of the unit	the popup of a right click on an own unit (所屬武將)
 hud.to_title	Back to the title	the system menu
 hud.quit	Quit the game	the system menu
 menu.fidelity	Fidelity	menu item: the replay of the save pairs (M13)

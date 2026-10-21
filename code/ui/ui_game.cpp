@@ -491,7 +491,9 @@ ui_draw_editor(ui_state *ui, engine_api *api)
 {
     char title[128], label[96];
     ImGui::SetNextWindowSize(ImVec2(420, 460), ImGuiCond_FirstUseEver);
+    if (ui->hud_mode) ui_center_next_window();   /* M22: 編輯 of the system menu is a dialog at a fixed place */
     if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "editor.title", "Editor"), &ui->show_editor)) { ImGui::End(); return; }
+    ui_context_track(ui);
     void *e = api->engine;
     ui_officer_pick(ui, api, "editor.officer", "editor_officer", &ui->game.editor_officer, UI_OFFICERS_OWN, ENGINE_NO_FACTION);
     ImGui::SliderInt(ui_label(label, sizeof(label), ui, "editor.loyalty", "editor_loyalty"), &ui->game.editor_loyalty, 0, 100);

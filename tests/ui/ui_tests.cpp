@@ -202,6 +202,27 @@ ui_test_click_cell(ImGuiTestContext *ctx, ui_test_vars &v, hex_coord cell)
     ctx->Yield();
 }
 
+/* True if the window was drawn in the last frame. A window that never
+   showed, or that hides now, gives false. */
+internal bool
+ui_test_window_active(ImGuiTestContext *ctx, const char *ref)
+{
+    ImGuiWindow *window = ctx->WindowInfo(ref, ImGuiTestOpFlags_NoError).Window;
+    return window != 0 && window->Active;
+}
+
+/* 進行 of the map menu. M22: if units of the player have not acted, the
+   game asks first, and the helper answers 是. */
+internal void
+ui_test_proceed(ImGuiTestContext *ctx)
+{
+    ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+    ctx->ItemClick("//###MapMenu/###proceed");
+    if (!v.ui.round.confirm) return;
+    ctx->Yield();
+    ctx->ItemClick("//###ProceedConfirm/###confirm_yes");
+}
+
 /* M12: the signed angle from one heading to the next, in one turn. */
 internal f32
 ui_test_turn_between(f32 from, f32 to)
@@ -747,6 +768,423 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->ItemClick("###execute", 0, ImGuiTestOpFlags_NoAutoOpenFullPath);
         ctx->Yield();
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_DEVELOP), 0u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* ---- M22: the global rules of screen-flow.md, one test each, and the fit of the HUD */
+
+    /* Rule 1: a right click goes back one level. A command dialog goes
+       back to the city menu, then the menu closes. The target pick goes
+       back to the unit menu, the menu to the selection, the selection to
+       the idle map. */
+    t = IM_REGISTER_TEST(e, "ui", "flow_rule1_right_click_goes_back_one_level");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.hud_mode            = true;
+        v.ui.show_map            = false;
+        ctx->Yield(2);
+        ImVec2 display = ImGui::GetIO().DisplaySize;
+        ImVec2 empty(display.x * 0.8f, display.y * 0.3f);
+        ui_context_open(&v.ui, &v.api, UI_CONTEXT_CITY, 300.0f, 200.0f);
+        v.ui.show_command[UI_COMMAND_CONSCRIPT] = true;
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->MouseMoveToPos(empty);
+        ctx->MouseClick(ImGuiMouseButton_Right);
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.show_command[UI_COMMAND_CONSCRIPT] && v.ui.show_city && v.ui.context.kind == UI_CONTEXT_CITY);
+        ctx->MouseClick(ImGuiMouseButton_Right);
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.show_city && v.ui.context.kind == UI_CONTEXT_NONE);
+        ui_select_unit(&v.ui, 0);
+        ui_context_open(&v.ui, &v.api, UI_CONTEXT_UNIT, 300.0f, 200.0f);
+        v.ui.show_unit_menu = true;
+        v.ui.combat.pick    = UI_PICK_ATTACK;
+        ctx->Yield(2);
+        ctx->MouseMoveToPos(empty);
+        ctx->MouseClick(ImGuiMouseButton_Right);
+        ctx->Yield(2);
+        IM_CHECK(v.ui.combat.pick == UI_PICK_NONE && v.ui.show_unit_menu && v.ui.context.kind == UI_CONTEXT_UNIT);
+        ctx->MouseClick(ImGuiMouseButton_Right);
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.show_unit_menu && v.ui.show_unit && v.ui.units.selected == 0);
+        ctx->MouseClick(ImGuiMouseButton_Right);
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.show_unit && v.ui.units.selected == ENGINE_NO_UNIT && v.ui.context.kind == UI_CONTEXT_NONE);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* Rule 2: a left click anywhere advances the message window. */
+    t = IM_REGISTER_TEST(e, "ui", "flow_rule2_left_click_anywhere_advances_a_message");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.ui.hud_mode            = true;
+        v.ui.show_map            = false;
+        v.ui.feel.turn_messages  = true;
+        ctx->Yield(3);
+        v.ui.feel.messages[0]    = UI_MESSAGE_HEADING;
+        v.ui.feel.messages[1]    = UI_MESSAGE_HEADING;
+        v.ui.feel.message_count  = 2;
+        v.ui.feel.message_shown  = 0;
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ImVec2 display = ImGui::GetIO().DisplaySize;
+        ctx->MouseMoveToPos(ImVec2(display.x * 0.8f, display.y * 0.3f));   /* the map, away from the window */
+        ctx->MouseClick(ImGuiMouseButton_Left);
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.feel.message_shown, 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* Rule 3: a selection or an open menu hides the list panel, the log
+       and the mini map. They return when the selection ends. */
+    t = IM_REGISTER_TEST(e, "ui", "flow_rule3_a_selection_or_a_menu_hides_the_list_the_log_and_the_minimap");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.hud_mode            = true;
+        v.ui.show_map            = false;
+        v.ui.show_minimap        = true;
+        v.ui.report.show_log     = true;
+        ctx->Yield(2);
+        IM_CHECK(!ui_hud_panels_hidden(&v.ui));
+        IM_CHECK(ctx->ItemInfo("//###HUD/**/###hud_row0_0", ImGuiTestOpFlags_NoError).ID != 0);
+        IM_CHECK(ui_test_window_active(ctx, "//###Log") && ui_test_window_active(ctx, "//###MiniMap"));
+        ui_context_open(&v.ui, &v.api, UI_CONTEXT_MAP_MENU, 400.0f, 300.0f);
+        ctx->Yield(2);
+        IM_CHECK(ui_hud_panels_hidden(&v.ui));
+        IM_CHECK(ctx->ItemInfo("//###HUD/**/###hud_row0_0", ImGuiTestOpFlags_NoError).ID == 0);
+        IM_CHECK(!ui_test_window_active(ctx, "//###Log") && !ui_test_window_active(ctx, "//###MiniMap"));
+        IM_CHECK(ui_test_window_active(ctx, "//###HUD"));   /* the status area stays */
+        ui_context_close(&v.ui);
+        ui_select_unit(&v.ui, 0);
+        ctx->Yield(2);
+        IM_CHECK(ui_hud_panels_hidden(&v.ui) && !ui_test_window_active(ctx, "//###MiniMap"));
+        ui_select_unit(&v.ui, ENGINE_NO_UNIT);
+        ctx->Yield(2);
+        IM_CHECK(!ui_hud_panels_hidden(&v.ui) && ui_test_window_active(ctx, "//###Log") && ui_test_window_active(ctx, "//###MiniMap"));
+        IM_CHECK(v.ui.show_minimap && v.ui.report.show_log);   /* the panels hide; the settings of the player stay */
+    };
+
+    /* Rule 4: a camera key never closes a panel. */
+    t = IM_REGISTER_TEST(e, "ui", "flow_rule4_a_camera_key_never_closes_a_panel");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.hud_mode            = true;
+        v.ui.show_map            = false;
+        v.ui.scene.headless      = true;
+        ctx->Yield(2);
+        ui_context_open(&v.ui, &v.api, UI_CONTEXT_CITY, 300.0f, 200.0f);
+        ctx->Yield(2);
+        ImGuiKey keys[6] = { ImGuiKey_W, ImGuiKey_A, ImGuiKey_S, ImGuiKey_D, ImGuiKey_Q, ImGuiKey_E };
+        for (u32 index = 0; index < ArrayCount(keys); ++index) ctx->KeyPress(keys[index]);
+        ctx->Yield(2);
+        IM_CHECK(v.ui.show_city && v.ui.context.kind == UI_CONTEXT_CITY);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* Rule 5: every dialog has 決定 at the bottom left and 返回 at its
+       right. 決定 is grey until the dialog is valid. */
+    t = IM_REGISTER_TEST(e, "ui", "flow_rule5_decide_is_left_of_back_and_grey_until_valid");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.hud_mode            = true;
+        v.ui.show_map            = false;
+        for (u32 index = 0; index < ArrayCount(ui_command_cases); ++index)
+        {
+            const ui_command_case *test = ui_command_cases + index;
+            v.recorder.can_issue_refusal = SIM_REFUSAL_NONE;
+            for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind) v.ui.show_command[kind] = kind == test->ui_kind;
+            ctx->Yield(2);
+            ctx->SetRef(test->window);
+            ImGuiTestItemInfo decide = ctx->ItemInfo("###decide");
+            ImGuiTestItemInfo back   = ctx->ItemInfo("###back");
+            IM_CHECK(decide.ID != 0 && back.ID != 0);
+            IM_CHECK(decide.RectFull.Min.x < back.RectFull.Min.x && fabsf(decide.RectFull.Min.y - back.RectFull.Min.y) < 1.0f);
+            IM_CHECK((decide.ItemFlags & ImGuiItemFlags_Disabled) == 0);
+            v.recorder.can_issue_refusal = SIM_REFUSAL_NO_GOLD;
+            ctx->Yield(2);
+            IM_CHECK((ctx->ItemInfo("###decide").ItemFlags & ImGuiItemFlags_Disabled) != 0);
+        }
+    };
+
+    /* Rule 6: a menu follows the clicked object. A dialog sits at a fixed place. */
+    t = IM_REGISTER_TEST(e, "ui", "flow_rule6_menus_follow_the_object_and_dialogs_stay");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.hud_mode            = true;
+        v.ui.show_map            = false;
+        ImVec2 points[2] = { ImVec2(300.0f, 200.0f), ImVec2(600.0f, 420.0f) };
+        ImVec2 menu_at[2], dialog_at[2];
+        for (u32 index = 0; index < 2; ++index)
+        {
+            ui_context_open(&v.ui, &v.api, UI_CONTEXT_MAP_MENU, points[index].x, points[index].y);
+            ctx->Yield(3);
+            menu_at[index] = ctx->WindowInfo("//###MapMenu").Window->Pos;
+            ui_context_close(&v.ui);
+            ctx->Yield(2);
+            ui_context_open(&v.ui, &v.api, UI_CONTEXT_CITY, points[index].x, points[index].y);
+            v.ui.show_command[UI_COMMAND_CONSCRIPT] = true;
+            ctx->Yield(3);
+            dialog_at[index] = ctx->WindowInfo("//###Conscript").Window->Pos;
+            ui_context_close(&v.ui);
+            ctx->Yield(2);
+        }
+        IM_CHECK(fabsf((menu_at[1].x - menu_at[0].x) - (points[1].x - points[0].x)) < 1.0f);
+        IM_CHECK(fabsf((menu_at[1].y - menu_at[0].y) - (points[1].y - points[0].y)) < 1.0f);
+        IM_CHECK(fabsf(dialog_at[1].x - dialog_at[0].x) < 1.0f && fabsf(dialog_at[1].y - dialog_at[0].y) < 1.0f);
+    };
+
+    /* Rule 7: the row pitch of a list is 20 px, the pitch of a menu is
+       34 px, and the pitch of the tabs is 76 px. */
+    t = IM_REGISTER_TEST(e, "ui", "flow_rule7_lists_menus_and_tabs_have_the_pitches_of_the_original");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.hud_mode            = true;
+        v.ui.show_map            = false;
+        ctx->Yield(2);
+        ImGuiTestItemInfo row0 = ctx->ItemInfo("//###HUD/**/###hud_row0_0");
+        ImGuiTestItemInfo row1 = ctx->ItemInfo("//###HUD/**/###hud_row0_1");
+        IM_CHECK(row0.ID != 0 && row1.ID != 0);
+        IM_CHECK(fabsf(row1.RectFull.Min.y - row0.RectFull.Min.y - UI_LIST_PITCH) < 0.5f);
+        ImGuiTestItemInfo tab0 = ctx->ItemInfo("//###HUD/**/###hud_bases");
+        ImGuiTestItemInfo tab1 = ctx->ItemInfo("//###HUD/**/###hud_officers");
+        IM_CHECK(tab0.ID != 0 && tab1.ID != 0);
+        IM_CHECK(fabsf(tab1.RectFull.Min.x - tab0.RectFull.Min.x - UI_TAB_PITCH) < 0.5f);
+        ui_context_open(&v.ui, &v.api, UI_CONTEXT_MAP_MENU, 400.0f, 300.0f);
+        ctx->Yield(2);
+        const char *items[5] = { "###proceed", "###delegate", "###open_info", "###open_save", "###open_load" };
+        ctx->SetRef("//###MapMenu");
+        for (u32 index = 1; index < ArrayCount(items); ++index)
+        {
+            f32 above = ctx->ItemInfo(items[index - 1]).RectFull.Min.y;
+            f32 below = ctx->ItemInfo(items[index]).RectFull.Min.y;
+            IM_CHECK(fabsf(below - above - UI_MENU_PITCH) < 0.5f);
+        }
+    };
+
+    /* The map menu has the five items of the original: no 此處情報. */
+    t = IM_REGISTER_TEST(e, "ui", "map_menu_has_the_five_items_of_the_original");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.ui.hud_mode = true;
+        ctx->Yield();
+        ui_context_open(&v.ui, &v.api, UI_CONTEXT_MAP_MENU, 400.0f, 300.0f);
+        ctx->Yield(2);
+        ctx->SetRef("//###MapMenu");
+        IM_CHECK(ctx->ItemInfo("###hex_info", ImGuiTestOpFlags_NoError).ID == 0);
+        IM_CHECK(ctx->ItemInfo("###proceed").ID != 0 && ctx->ItemInfo("###open_load").ID != 0);
+    };
+
+    /* The system menu has the six items of the original. 除錯面板 is F12 only. */
+    t = IM_REGISTER_TEST(e, "ui", "system_menu_has_the_six_items_of_the_original");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.ui.hud_mode = true;
+        ctx->Yield();
+        ui_context_open(&v.ui, &v.api, UI_CONTEXT_SYSTEM_MENU, 400.0f, 100.0f);
+        ctx->Yield(2);
+        ctx->SetRef("//###SystemMenu");
+        const char *items[6] = { "###open_save", "###open_load", "###settings", "###edit", "###to_title", "###quit" };
+        for (u32 index = 0; index < ArrayCount(items); ++index) IM_CHECK(ctx->ItemInfo(items[index]).ID != 0);
+        IM_CHECK(ctx->ItemInfo("###options", ImGuiTestOpFlags_NoError).ID == 0);
+        IM_CHECK(ctx->ItemInfo("###debug", ImGuiTestOpFlags_NoError).ID == 0);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###edit");
+        ctx->Yield(2);
+        IM_CHECK(v.ui.show_editor && v.ui.context.kind == UI_CONTEXT_EDITOR);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* The mini map has no close button in the game mode. */
+    t = IM_REGISTER_TEST(e, "ui", "minimap_has_no_close_button_in_the_game_mode");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.ui.show_minimap = true;
+        ctx->Yield(2);
+        IM_CHECK(ctx->WindowInfo("//###MiniMap").Window->HasCloseButton);   /* the debug layout */
+        v.ui.hud_mode = true;
+        v.ui.show_map = false;
+        ctx->Yield(2);
+        IM_CHECK(!ctx->WindowInfo("//###MiniMap").Window->HasCloseButton);
+    };
+
+    /* A left click on a unit row moves the camera to the unit. It opens no
+       window and selects nothing. */
+    t = IM_REGISTER_TEST(e, "ui", "hud_unit_row_moves_the_camera_and_opens_no_window");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.hud_mode            = true;
+        v.ui.show_map            = false;
+        v.ui.scene.headless      = true;
+        ctx->Yield(2);
+        ctx->ItemClick("//###HUD/**/###hud_units");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("//###HUD/**/###hud_row3_1");
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.show_unit && v.ui.context.kind == UI_CONTEXT_NONE && v.ui.units.selected == ENGINE_NO_UNIT);
+        v3 expected = hex_world_center(hex_make(1, 3), v.ui.scene.cam.target.y);   /* unit 1 of the recorder */
+        IM_CHECK(fabsf(v.ui.scene.cam.target.x - expected.x) < 1e-3f && fabsf(v.ui.scene.cam.target.z - expected.z) < 1e-3f);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        ctx->ItemClick("//###HUD/**/###hud_bases");   /* ImGui keeps the tab for the next tests */
+    };
+
+    /* The status bar shows 不可 in red on a city hex. */
+    t = IM_REGISTER_TEST(e, "ui", "status_bar_shows_red_not_possible_on_a_city_hex");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ctx->Yield();
+        hex_offset city_cell = { RECORDER_CITY_COL, RECORDER_CITY_ROW };
+        hex_coord city_hex = hex_from_offset(city_cell);
+        engine_hex data = v.api.hex_at(v.api.engine, city_hex.q, city_hex.r);
+        IM_CHECK(data.city_id != ENGINE_NO_CITY);
+        char place[128];
+        IM_CHECK(ui_status_place(&v.ui, &v.api, &data, place, sizeof(place)));
+        IM_CHECK_STR_EQ(place, text_get(v.ui.text, "place.none"));
+        data.city_id = ENGINE_NO_CITY;
+        data.base_id = ENGINE_NO_BASE;
+        IM_CHECK(!ui_status_place(&v.ui, &v.api, &data, place, sizeof(place)));
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* The help button "?" of the HUD opens a short help window. */
+    t = IM_REGISTER_TEST(e, "ui", "help_button_opens_the_help_window");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.ui.hud_mode = true;
+        v.ui.show_map = false;
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("//###HUD/###hud_help");
+        ctx->Yield(2);
+        IM_CHECK(v.ui.show_help && v.ui.context.kind == UI_CONTEXT_HELP);
+        IM_CHECK(ctx->WindowInfo("//###Help").Window != 0);
+        ctx->ItemClick("//###HUD/###hud_help");   /* a second click closes it */
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.show_help && v.ui.context.kind == UI_CONTEXT_NONE);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* 進行 with own units that have not acted asks first. 否 keeps the
+       turn, 是 ends it. Without such units the turn ends at once. */
+    t = IM_REGISTER_TEST(e, "ui", "proceed_with_units_that_have_not_acted_asks_first");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.ui.hud_mode = true;
+        v.ui.show_map = false;
+        ctx->Yield();
+        ui_context_open(&v.ui, &v.api, UI_CONTEXT_MAP_MENU, 400.0f, 300.0f);
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("//###MapMenu/###proceed");
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_END_TURN), 0u);
+        IM_CHECK(v.ui.round.confirm && ctx->WindowInfo("//###ProceedConfirm").Window != 0);
+        ctx->ItemClick("//###ProceedConfirm/###confirm_no");
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.round.confirm);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        ui_context_open(&v.ui, &v.api, UI_CONTEXT_MAP_MENU, 400.0f, 300.0f);
+        ctx->Yield(2);
+        ctx->ItemClick("//###MapMenu/###proceed");
+        ctx->Yield(2);
+        ctx->ItemClick("//###ProceedConfirm/###confirm_yes");
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.round.confirm);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_END_TURN), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        v.recorder.units_acted = true;
+        ui_context_open(&v.ui, &v.api, UI_CONTEXT_MAP_MENU, 400.0f, 300.0f);
+        ctx->Yield(2);
+        ctx->ItemClick("//###MapMenu/###proceed");
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.round.confirm);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_END_TURN), 2u);
+    };
+
+    /* A right click on an own unit opens a popup: 詳細情報 opens the unit
+       panel, 所屬武將 opens 武將一覽 with the officers of the unit. */
+    t = IM_REGISTER_TEST(e, "ui", "unit_popup_opens_the_detail_or_the_officers_of_the_unit");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.ui.hud_mode            = true;
+        v.ui.show_map            = false;
+        ctx->Yield();
+        v.ui.units.selected = 0;
+        ui_context_open(&v.ui, &v.api, UI_CONTEXT_UNIT_POPUP, 400.0f, 300.0f);
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("//###UnitPopup/###unit_detail");
+        ctx->Yield(2);
+        IM_CHECK(v.ui.show_unit && v.ui.context.kind == UI_CONTEXT_UNIT && v.ui.units.selected == 0);
+        ui_context_close(&v.ui);
+        v.ui.units.selected = 0;
+        ui_context_open(&v.ui, &v.api, UI_CONTEXT_UNIT_POPUP, 400.0f, 300.0f);
+        ctx->Yield(2);
+        ctx->ItemClick("//###UnitPopup/###unit_officers");
+        ctx->Yield(2);
+        IM_CHECK(v.ui.info.screen == UI_INFO_OFFICERS && v.ui.info.unit_filter == 0 && v.ui.context.kind == UI_CONTEXT_NONE);
+        IM_CHECK_EQ(v.ui.info.id_count, 2u);   /* 100 and 101 lead unit 0 */
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
@@ -2831,7 +3269,7 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->Yield(2);
         recorder_reset(&v.recorder);
         ctx->SetRef("//###MapMenu");
-        ctx->ItemClick("###proceed");
+        ui_test_proceed(ctx);
         ctx->Yield();
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_END_TURN), 1u);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
@@ -3159,7 +3597,7 @@ register_ui_tests(ImGuiTestEngine *e)
         recorder_reset(&v.recorder);
         ui_context_open(&v.ui, &v.api, UI_CONTEXT_MAP_MENU, 400.0f, 300.0f);
         ctx->Yield(2);
-        ctx->ItemClick("//###MapMenu/###proceed");
+        ui_test_proceed(ctx);
         ctx->Yield(2);
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_END_TURN), 1u);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
@@ -3192,7 +3630,7 @@ register_ui_tests(ImGuiTestEngine *e)
         recorder_reset(&v.recorder);
         ui_context_open(&v.ui, &v.api, UI_CONTEXT_MAP_MENU, 400.0f, 300.0f);
         ctx->Yield(2);
-        ctx->ItemClick("//###MapMenu/###proceed");
+        ui_test_proceed(ctx);
         ctx->Yield(3);
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_END_TURN), 1u);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
@@ -3242,7 +3680,7 @@ register_ui_tests(ImGuiTestEngine *e)
         recorder_reset(&v.recorder);
         ui_context_open(&v.ui, &v.api, UI_CONTEXT_MAP_MENU, 400.0f, 300.0f);
         ctx->Yield(2);
-        ctx->ItemClick("//###MapMenu/###proceed");
+        ui_test_proceed(ctx);
         ctx->Yield();
         IM_CHECK(v.ui.round.playing);
         bool named_rival = false;
@@ -3284,7 +3722,7 @@ register_ui_tests(ImGuiTestEngine *e)
         v3 camera = v.ui.scene.cam.target;
         ui_context_open(&v.ui, &v.api, UI_CONTEXT_MAP_MENU, 400.0f, 300.0f);
         ctx->Yield(2);
-        ctx->ItemClick("//###MapMenu/###proceed");
+        ui_test_proceed(ctx);
         ctx->Yield();
         IM_CHECK(v.ui.round.playing);
         s32 path[8];
@@ -3445,7 +3883,7 @@ register_ui_tests(ImGuiTestEngine *e)
         ui_context_open(&v.ui, api, UI_CONTEXT_MAP_MENU, 400.0f, 300.0f);
         ctx->Yield(2);
         ctx->SetRef("//###MapMenu");
-        ctx->ItemClick("###proceed");
+        ui_test_proceed(ctx);
         ctx->Yield(2);
         IM_CHECK(api->turn(e) != turn || api->whose_turn(e) != force);
         ImGuiWindow *bar = ctx->WindowInfo("//##MainMenuBar", ImGuiTestOpFlags_NoError).Window;
@@ -3544,7 +3982,7 @@ register_ui_tests(ImGuiTestEngine *e)
                 s64 before = api->date(e).days_since_start;
                 ui_context_open(&v.ui, api, UI_CONTEXT_MAP_MENU, 400.0f, 300.0f);
                 ctx->Yield(2);
-                ctx->ItemClick("//###MapMenu/###proceed");
+                ui_test_proceed(ctx);
                 for (u32 frame = 0; frame < 30 && !ui_feel_messages_open(&v.ui); ++frame) ctx->Yield();
                 IM_CHECK_GT(api->date(e).days_since_start, before);   /* the other factions acted */
             }

@@ -379,6 +379,28 @@ ui_draw_scene_labels(ui_state *ui, engine_api *api)
     }
 }
 
+/* The 設置 field of the status bar: what the terrain lets a player place.
+   M22: a city hex shows 不可 in red (clone-gap-report.md, section 1).
+   Returns true when the text is red. */
+internal bool
+ui_status_place(ui_state *ui, engine_api *api, engine_hex *data, char *out, u32 out_size)
+{
+    if (data->city_id != ENGINE_NO_CITY)
+    {
+        snprintf(out, out_size, "%s", text_get(ui->text, "place.none"));
+        return true;
+    }
+    engine_terrain_kind terrain = api->terrain_kind_at(api->engine, data->terrain);
+    b32 water = terrain.cost[MOVEMENT_NAVY] && !terrain.cost[MOVEMENT_FOOT];
+    if (terrain.buildable && data->base_id == ENGINE_NO_BASE)
+    {
+        snprintf(out, out_size, "%s / %s / %s", text_get(ui->text, "place.military"), text_get(ui->text, "place.camp"), text_get(ui->text, "place.trap"));
+    }
+    else if (water) snprintf(out, out_size, "%s", text_get(ui->text, "place.fire_ship"));
+    else            snprintf(out, out_size, "-");
+    return false;
+}
+
 /* The status bar at the bottom centre of the map view (ui/main-map.md):
    the terrain with the owning base, the coordinates x,y, and what the
    terrain lets a player place. It shows the hex under the mouse. */
@@ -392,13 +414,7 @@ ui_draw_status_bar(ui_state *ui, engine_api *api)
     char owner[UI_NAME_SIZE * 2];
     ui_region_name(ui, api, data.region, owner, sizeof(owner));
     char place[128];
-    b32 water = terrain.cost[MOVEMENT_NAVY] && !terrain.cost[MOVEMENT_FOOT];
-    if (terrain.buildable && data.city_id == ENGINE_NO_CITY && data.base_id == ENGINE_NO_BASE)
-    {
-        snprintf(place, sizeof(place), "%s / %s / %s", text_get(ui->text, "place.military"), text_get(ui->text, "place.camp"), text_get(ui->text, "place.trap"));
-    }
-    else if (water) snprintf(place, sizeof(place), "%s", text_get(ui->text, "place.fire_ship"));
-    else            snprintf(place, sizeof(place), "-");
+    bool red = ui_status_place(ui, api, &data, place, sizeof(place));
     hex_offset o = hex_to_offset(ui->scene.hover);
     ImGuiIO &io = ImGui::GetIO();
     ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y - 8.0f), ImGuiCond_Always, ImVec2(0.5f, 1.0f));
@@ -407,8 +423,11 @@ ui_draw_status_bar(ui_state *ui, engine_api *api)
                              ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoSavedSettings;
     if (ImGui::Begin("###StatusBar", 0, flags))
     {
-        ImGui::Text("%s: %s (%s)    %s: %d,%d    %s: %s", text_get(ui->text, "statusbar.terrain"), ui_text_with_key(ui, "terrain", terrain.key), owner,
-                    text_get(ui->text, "statusbar.coords"), o.col, o.row, text_get(ui->text, "statusbar.place"), place);
+        ImGui::Text("%s: %s (%s)    %s: %d,%d    %s:", text_get(ui->text, "statusbar.terrain"), ui_text_with_key(ui, "terrain", terrain.key), owner,
+                    text_get(ui->text, "statusbar.coords"), o.col, o.row, text_get(ui->text, "statusbar.place"));
+        ImGui::SameLine();
+        if (red) ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.25f, 1.0f), "%s", place);
+        else     ImGui::TextUnformatted(place);
     }
     ImGui::End();
 }

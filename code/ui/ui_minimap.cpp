@@ -262,7 +262,8 @@ ui_draw_minimap(ui_state *ui, engine_api *api)
         ImVec2 display = ImGui::GetIO().DisplaySize;
         ImGui::SetNextWindowPos(ImVec2(display.x - UI_MINIMAP_MARGIN, display.y - UI_MINIMAP_MARGIN), ImGuiCond_Appearing, ImVec2(1.0f, 1.0f));
     }
-    if (ImGui::Begin(ui_label(title, sizeof(title), ui, "minimap.title", "MiniMap"), &ui->show_minimap,
+    bool *close = ui->hud_mode ? 0 : &ui->show_minimap;   /* M22: the original has no close button */
+    if (ImGui::Begin(ui_label(title, sizeof(title), ui, "minimap.title", "MiniMap"), close,
                      ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
     {
         if (!ui->scene.initialized) ui_scene_reset_camera(ui, api);

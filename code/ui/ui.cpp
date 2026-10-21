@@ -621,7 +621,8 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (tools && ui->show_sim)    ui_draw_simulation(ui, api);
     if (tools && ui->show_scene)  ui_draw_scene_panel(ui, api);
     if (hud_ready)                ui_draw_hud(ui, api);
-    if (hud_ready)                ui_draw_log(ui, api);   /* M18: the message log at the bottom left */
+    bool panels_hidden = ui->hud_mode && ui_hud_panels_hidden(ui);   /* M22, screen-flow.md, rule 3 */
+    if (hud_ready && !panels_hidden) ui_draw_log(ui, api);   /* M18: the message log at the bottom left */
     if (ui->show_map)    ui_draw_map(ui, api);
     if (ui->show_officers) ui_draw_officers(ui, api);
     if (ui->show_cities) ui_draw_cities(ui, api);
@@ -642,7 +643,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->show_transport)  ui_draw_march_dialog(ui, api, true);
     if (ui->show_unit)       ui_draw_unit_panel(ui, api);
     if (ui->show_unit_menu)  ui_draw_unit_menu(ui, api);
-    if (ui->show_minimap && !ui_feel_in_transition(ui)) ui_draw_minimap(ui, api);
+    if (ui->show_minimap && !ui_feel_in_transition(ui) && !panels_hidden) ui_draw_minimap(ui, api);
     if (ui->show_units)      ui_draw_units_panel(ui, api);   /* M11 */
     ui_draw_hex_info_box(ui, api);                           /* M11: opens after a pick in the scene */
     if (ui->show_actions)    ui_draw_actions(ui, api);
@@ -667,6 +668,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->hud_mode) ui_draw_hud_menus(ui, api);   /* the map menu and the system menu */
     if (ui->hud_mode) ui_draw_info_screens(ui, api);   /* M21: the screens of the information menu */
     if (ui->hud_mode && ui->show_political) ui_draw_political(ui, api);   /* M21: 中地圖 */
+    if (ui->hud_mode && ui->context.kind == UI_CONTEXT_UNIT_POPUP) ui_draw_unit_popup(ui, api);   /* M22 */
     ui_context_update(ui, api);                     /* a right click outside a dialog closes it */
 
     /* The scene goes last: by now ImGui knows which windows want the mouse,
@@ -678,7 +680,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
         ui_scene_handle_mouse(ui, api, frame->render ? frame->render->viewport_width : display.x,
                               frame->render ? frame->render->viewport_height : display.y);
         bool screen_open = ui->info.screen != 0 || ui->show_political;   /* M21: a screen of the information menu covers the map */
-        if (hud_ready && !ui_feel_messages_open(ui) && !ui->round.playing && !screen_open) ui_hud_scene_clicks(ui, api);   /* the dialogs at the clicked city, unit or map */
+        if (hud_ready && !ui_feel_messages_open(ui) && !ui->round.playing && !ui->round.confirm && !screen_open) ui_hud_scene_clicks(ui, api);   /* the dialogs at the clicked city, unit or map */
         if (hud_ready && !screen_open) ui_draw_hover_panel(ui, api);   /* M21: the hover panel of a city or a unit */
         ui_scene_handle_keys(ui, frame->dt_seconds);
         ui_follow_selection(ui, api);   /* M11: a picked city or unit moves the camera */

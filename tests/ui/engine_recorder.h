@@ -238,6 +238,7 @@ struct engine_recorder
     s32           round_unit_shift;   /* end_turn moves unit 0 this many hexes along q */
     s32           unit_shift;
     b32           unit0_rival;        /* unit 0 belongs to force 2 */
+    b32           units_acted;        /* M22: both units acted in this turn */
     u32           officer_count;      /* scripted rows for the Officers and Cities panels */
     u32           city_count;
     char          last_load_path[RECORDER_MAX_PATH];
@@ -1004,6 +1005,7 @@ internal engine_unit recorder_unit_at(void *o, u32 unit_id)
     unit.values.move = 22; unit.values.aptitude = 2;
     unit.grain_turns = 120;          /* M12: 3000 grain at 25 each turn */
     unit.ship_type   = ENGINE_NO_UNIT_TYPE;
+    unit.acted       = r->units_acted;
     return unit;
 }
 internal u32 recorder_unit_at_hex(void *o, s32 q, s32 r)
