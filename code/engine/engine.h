@@ -163,6 +163,7 @@ struct engine_event_report
     char           tone[ENGINE_TONE_SIZE];   /* a key of event_tones.tsv, for example "proud" */
     u8             sign;           /* engine_event_sign */
     b32            report;         /* the turn start of the faction reports the event */
+    b32            log;            /* the message log shows the event (the side effects of a command do not show) */
     b32            assumed;        /* the amount or the tone row is assumed */
 };
 

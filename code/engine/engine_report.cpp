@@ -42,6 +42,7 @@ engine_load_event_tones(engine *e, const char *folder)
             memcpy(entry->tone, tone, strlen(tone) + 1);
             entry->sign_rule = (u8)sign;
             entry->report    = strcmp(tsv_cell(&table, row, "report"), "yes") == 0;
+            entry->hidden    = strcmp(tsv_cell(&table, row, "log"), "no") == 0;
             entry->assumed   = strcmp(tsv_cell(&table, row, "status"), "documented") != 0;
             entry->present   = true;
             break;
@@ -161,6 +162,7 @@ engine_api_event_report(void *opaque, u32 ledger_index)
     if (tone && tone->present) memcpy(report.tone, tone->tone, sizeof(report.tone));
     report.sign    = engine_sign_of(tone && tone->present ? tone->sign_rule : (u8)ENGINE_SIGN_RULE_AMOUNT, event->delta);
     report.report  = tone && tone->present && tone->report;
+    report.log     = !(tone && tone->present && tone->hidden);
     report.assumed = event->assumed || !tone || !tone->present || tone->assumed;
     return report;
 }

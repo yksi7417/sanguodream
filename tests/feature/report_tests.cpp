@@ -43,6 +43,8 @@ feature_report_tests(test_counts *counts)
     engine_event_report cost = api->event_report(e, spent);
     TEST_CHECK(counts, spent != ENGINE_NO_EVENT && cost.sign == ENGINE_SIGN_NEUTRAL && cost.speaker == ids[0],
                "report: the gold of the command is neutral, and its officer speaks for it too");
+    TEST_CHECK(counts, report.log && !cost.log,
+               "report: the log shows the main effect of a command and not its cost (event_tones.tsv, column log)");
 
     u8 slot = feature_build(api, city, FEATURE_FACILITY_BARRACKS, setup.force);
     u32 done = feature_last_event(api, SIM_EVENT_FACILITY_COMPLETED);

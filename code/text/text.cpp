@@ -701,6 +701,7 @@ text_template_line(void *user, text_catalog *catalog, const text_event_facts *fa
     {
         text_join_id("log.", facts->key, id, sizeof(id));
         pattern = text_find_string(catalog, id);
+        if (!pattern && facts->delta == 0) pattern = text_find_string(catalog, "log.generic.quiet");   /* no amount to show */
         if (!pattern) pattern = text_find_string(catalog, "log.generic");
     }
     if (!pattern) pattern = form == TEXT_LINE_SPEECH ? "..." : "{subject} {delta}";

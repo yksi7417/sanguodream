@@ -17,6 +17,7 @@ struct engine_event_tone
     char tone[ENGINE_TONE_SIZE];
     u8   sign_rule;     /* engine_sign_rule */
     b32  report;
+    b32  hidden;        /* the log does not show the kind */
     b32  assumed;
     b32  present;       /* the pack has a row for the kind */
 };

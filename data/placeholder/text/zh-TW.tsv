@@ -1241,3 +1241,21 @@ say.sign.neutral	知道了。
 log.title	記錄
 log.filter.all	全部
 log.filter.mine	本勢力
+log.unit_damaged	{faction}：一支部隊損失士兵 {amount}
+log.counterattack	{faction}：部隊反擊
+log.tactic_used	{faction}：部隊施展戰法
+log.critical_hit	{faction}：攻擊造成重創
+log.unit_state	{faction}：部隊的狀態改變
+log.unit_entered_city	{subject}：部隊入城
+log.merit_gained	{subject}：功績 {delta}
+log.technique_gained	{faction}：技巧 {delta}
+log.base_taken	{faction}：攻佔一處據點
+log.order_dropped	{subject}：治安 {delta}，現為 {value}
+log.aid_left	{faction}：援軍返回
+log.generic.quiet	{subject}：有新消息
+log.officer_captured	{subject}：被俘
+log.officer_escaped	{subject}：逃脫
+log.officer_left	{subject}：離開勢力
+log.officer_recruited	{subject}：加入勢力
+log.recruit_failed	{subject}：拒絕招攬
+log.officer_released	{subject}：完成任務

@@ -1243,3 +1243,21 @@ say.sign.neutral	Understood.
 log.title	Log
 log.filter.all	All
 log.filter.mine	My faction
+log.unit_damaged	{faction}: a unit lost {amount} soldiers
+log.counterattack	{faction}: a unit struck back
+log.tactic_used	{faction}: a unit used a tactic
+log.critical_hit	{faction}: a critical hit
+log.unit_state	{faction}: the state of a unit changed
+log.unit_entered_city	{subject}: a unit entered the city
+log.merit_gained	{subject}: merit {delta}
+log.technique_gained	{faction}: technique points {delta}
+log.base_taken	{faction}: took a base
+log.order_dropped	{subject}: public order {delta}, now {value}
+log.aid_left	{faction}: the allied unit went home
+log.generic.quiet	{subject}: news
+log.officer_captured	{subject}: was taken captive
+log.officer_escaped	{subject}: escaped
+log.officer_left	{subject}: left the faction
+log.officer_recruited	{subject}: joined the faction
+log.recruit_failed	{subject}: refused the offer
+log.officer_released	{subject}: finished the job

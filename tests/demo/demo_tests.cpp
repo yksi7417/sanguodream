@@ -18,6 +18,7 @@
 #define DEMO_M15_NAME          "m15_ai"
 #define DEMO_M16_NAME          "m16_content"
 #define DEMO_M17_NAME          "m17_first_hour"
+#define DEMO_M18_NAME          "m18_feedback"
 
 /* build\demos, with no last backslash. demo_player.cpp sets it. */
 global_variable char g_demo_output_dir[MAX_PATH];
@@ -55,7 +56,7 @@ demo_gui(ImGuiTestContext *ctx)
         config.use_pack_map     = strcmp(ctx->Test->Name, DEMO_M10_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M11_NAME) == 0 ||
                                   strcmp(ctx->Test->Name, DEMO_M12_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M13_NAME) == 0 ||
                                   strcmp(ctx->Test->Name, DEMO_M14_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M15_NAME) == 0 ||
-                                  strcmp(ctx->Test->Name, DEMO_M17_NAME) == 0;
+                                  strcmp(ctx->Test->Name, DEMO_M17_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M18_NAME) == 0;
         v.backend = engine_create(&v.permanent, &v.transient, config);
         v.api     = engine_make_api(v.backend);
         text_catalog_init(&v.text, arena_sub(&v.permanent, Megabytes(4)), test_platform_read_entire_file,
@@ -1872,6 +1873,104 @@ demo_m14_game_screens(ImGuiTestContext *ctx)
     IM_CHECK(demo_screenshot_panel(ctx, milestone, "###MiniMap", "minimap"));
 }
 
+/* M18 (the feedback of a command; tutorial 31): 柴桑 patrols and trains
+   from the base command menu. After each 決定, the first officer of the
+   command speaks in a bubble over 柴桑, the change rises as a value, and
+   the message log at the bottom left gets a line in the words of the text
+   provider. 進行 ends the turn: the log keeps the events of the other
+   factions, and the turn start shows only the reports of the player. */
+internal void
+demo_m18_city_command(ImGuiTestContext *ctx, demo_vars &v, const char *menu, const char *item, u32 kind,
+                      const char *window)
+{
+    ctx->SetRef("//###HUD");
+    ctx->ItemClick("**/###hud_row0_26", ImGuiMouseButton_Right);
+    ctx->Yield(2);
+    IM_CHECK(v.ui.show_city && v.ui.context.kind == UI_CONTEXT_CITY);
+    ctx->SetRef("###City");
+    ctx->ItemClick(menu);
+    ctx->Yield();
+    ctx->ItemClick(item);
+    ctx->Yield();
+    IM_CHECK(v.ui.show_command[kind]);
+    ctx->SleepStandard();
+    u32 bubbles = v.ui.report.feedback_count;
+    ctx->SetRef(window);
+    ctx->ItemClick("###decide");
+    ctx->Yield(2);
+    IM_CHECK_GT(v.ui.report.feedback_count, bubbles);
+    IM_CHECK(ctx->WindowInfo("//###Speech", ImGuiTestOpFlags_NoError).Window != 0);
+    IM_CHECK_GT(v.ui.report.float_count, 0u);
+    ctx->Sleep(UI_BUBBLE_SECONDS * 0.8f);
+}
+
+internal void
+demo_m18_feedback(ImGuiTestContext *ctx)
+{
+    const char *milestone = DEMO_M18_NAME;
+    demo_vars &v = ctx->GetVars<demo_vars>();
+    engine_api *api = &v.api;
+    void *e = api->engine;
+    IM_CHECK(api->map_info(e).real_map);
+    IM_CHECK(demo_open_panel(ctx, "Simulation", &v.ui.show_sim));
+    ctx->SetRef("Simulation");
+    ctx->ItemClick("Load sample save");
+    ctx->ItemClick("Load city names");
+    ctx->Yield();
+    ui_enter_game(&v.ui);
+    v.ui.feel.turn_messages = true;
+    ctx->Yield(2);
+    for (u32 click = 0; click < UI_MESSAGE_CAPACITY + 1 && ui_feel_messages_open(&v.ui); ++click)
+    {
+        ctx->ItemClick("//###Messages/###next");
+        ctx->Yield();
+    }
+    IM_CHECK(demo_begin_video(ctx, milestone));
+    u8 force = api->whose_turn(e);
+    IM_CHECK_EQ(api->city_at(e, 26).owner_force_id, force);
+    api->set_city_resource(e, 26, SIM_RESOURCE_PUBLIC_ORDER, 0, 70);   /* room for the rise */
+    api->set_city_resource(e, 26, SIM_RESOURCE_MORALE, 0, 70);
+    engine_city_slots chaisang = api->city_slots(e, 26);
+    ctx->SetRef("//###HUD");
+    ctx->ItemClick("**/###hud_row0_26");
+    ctx->Yield(2);
+    IM_CHECK(demo_camera_on(v, hex_make(chaisang.q, chaisang.r)));
+    IM_CHECK(ctx->WindowInfo("//###Log", ImGuiTestOpFlags_NoError).Window != 0);
+    ctx->SleepStandard();
+
+    u32 lines = v.ui.report.line_count;
+    demo_m18_city_command(ctx, v, "###menu_city", "###base_patrol", UI_COMMAND_PATROL, "###Patrol");
+    demo_m18_city_command(ctx, v, "###menu_military", "###base_train", UI_COMMAND_TRAIN, "###Train");
+    IM_CHECK_GT(v.ui.report.line_count, lines);
+
+    /* The mine filter of the log, then 進行 from the map menu. */
+    ctx->SetRef("//###Log");
+    ctx->ItemClick(text_get(v.ui.text, "log.filter.mine"));
+    ctx->Yield();
+    IM_CHECK(v.ui.report.mine_only);
+    ctx->SleepStandard();
+    ctx->ItemClick(text_get(v.ui.text, "log.filter.all"));
+    ctx->Yield();
+    ui_context_open(&v.ui, api, UI_CONTEXT_MAP_MENU, ImGui::GetIO().DisplaySize.x * 0.6f, ImGui::GetIO().DisplaySize.y * 0.4f);
+    ctx->Yield(2);
+    u32 turn = api->turn(e);
+    ctx->ItemClick("//###MapMenu/###proceed");
+    for (u32 frame = 0; frame < 60 && api->whose_turn(e) != force; ++frame) ctx->Yield();
+    IM_CHECK(api->turn(e) != turn);
+    ctx->SleepStandard();
+    for (u32 click = 0; click < UI_MESSAGE_CAPACITY + 1 && ui_feel_messages_open(&v.ui); ++click)
+    {
+        ctx->SleepStandard();
+        ctx->ItemClick("//###Messages/###next");
+        ctx->Yield();
+    }
+    IM_CHECK(!ui_feel_messages_open(&v.ui));
+    ctx->SleepStandard();
+    IM_CHECK(demo_end_video(ctx));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Log", "log"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###HUD", "hud"));
+}
+
 /* M13 (the replay of the save pairs; tutorial 26): the Fidelity panel lists
    the pairs of the spec. Replay on conscript/001 loads the save of the
    original before 徵兵 in 江陵, runs 徵兵 with the same three officers and
@@ -2396,4 +2495,9 @@ register_demo_tests(ImGuiTestEngine *e)
     t->SetVarsDataType<demo_vars>();
     t->GuiFunc  = demo_gui;
     t->TestFunc = demo_m17_first_hour;
+
+    t = IM_REGISTER_TEST(e, "demo", DEMO_M18_NAME);
+    t->SetVarsDataType<demo_vars>();
+    t->GuiFunc  = demo_gui;
+    t->TestFunc = demo_m18_feedback;
 }

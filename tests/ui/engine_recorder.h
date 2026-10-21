@@ -733,6 +733,7 @@ internal engine_event_report recorder_event_report(void *o, u32 index)
     report.speaker      = r->officer_count ? (u16)100 : ENGINE_NO_OFFICER;
     report.sign         = (u8)(event->delta > 0 ? ENGINE_SIGN_GOOD : event->delta < 0 ? ENGINE_SIGN_BAD : ENGINE_SIGN_NEUTRAL);
     report.report       = event->detail == 1;
+    report.log          = true;
     return report;
 }
 

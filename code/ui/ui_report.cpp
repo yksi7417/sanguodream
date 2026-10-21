@@ -39,7 +39,7 @@ ui_report_value(engine_api *api, const engine_event_report *report)
     engine_city city = api->city_at(api->engine, report->subject.id);
     if (city.city_id == ENGINE_NO_CITY) return TEXT_NO_VALUE;
     const char *key = report->key;
-    if (strcmp(key, "patrolled") == 0 || strcmp(key, "order_lost") == 0) return city.public_order;
+    if (strcmp(key, "patrolled") == 0 || strcmp(key, "order_lost") == 0 || strcmp(key, "order_dropped") == 0) return city.public_order;
     if (strcmp(key, "conscripted") == 0)                                  return city.troops;
     if (strcmp(key, "trained") == 0 || strcmp(key, "morale_lost") == 0)  return city.morale;
     if (strcmp(key, "gold_earned") == 0)                                  return city.gold;
@@ -66,6 +66,7 @@ ui_report_line(ui_state *ui, engine_api *api, u32 ledger_index, s64 value, u32 f
     speaker[0] = faction[0] = 0;
     if (report.speaker != ENGINE_NO_OFFICER) ui_officer_text(ui, api, report.speaker, speaker, sizeof(speaker));
     if (report.faction != ENGINE_NO_FACTION) ui_force_text(ui, api, report.faction, faction, sizeof(faction));
+    if (!subject[0]) memcpy(subject, faction, sizeof(subject));   /* an event of a faction names the faction */
     text_event_facts facts = {};
     facts.key         = report.key ? report.key : "none";
     facts.tone        = report.tone;
@@ -136,6 +137,7 @@ ui_report_update(ui_state *ui, engine_api *api, f32 dt_seconds)
         sim_event event = api->ledger_at(api->engine, index);
         if (ui_feel_bookkeeping(event.kind)) continue;
         engine_event_report report = api->event_report(api->engine, index);
+        if (!report.log) continue;   /* a side effect of a command: no line and no value */
         if (!ui->report.has_heading || report.turn != ui->report.heading_turn)
         {
             s64 packed = (s64)report.date.year * 10000 + report.date.month * 100 + report.date.day;
@@ -183,12 +185,15 @@ ui_draw_log_line(ui_state *ui, engine_api *api, u32 place)
     }
     char text[UI_NAME_SIZE * 6];
     ui_report_line(ui, api, line, ui->report.values[place], TEXT_LINE_LOG, text, sizeof(text));
-    u8 sign = api->event_report(api->engine, line).sign;
-    ImGui::PushStyleColor(ImGuiCol_Text, ui_report_colour(sign));
+    engine_event_report report = api->event_report(api->engine, line);
+    ImGui::PushStyleColor(ImGuiCol_Text, ui_report_colour(report.sign));
     ImGui::Bullet();
     ImGui::SameLine();
     ImGui::TextWrapped("%s", text);
     ImGui::PopStyleColor();
+    /* The facts behind the words: the key of the kind and its tone. A
+       template author sees which kind needs a template. */
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s  %s  %+d", report.key ? report.key : "-", report.tone, report.delta);
 }
 
 /* main-map.md, "Bottom-left panel": the message log. The filter shows all
