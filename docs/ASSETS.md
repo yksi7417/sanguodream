@@ -72,6 +72,52 @@ Then compare the SHA-256 values with the values above.
 misc/make_big5_table.py reads BIG5.TXT and writes code/text/big5_table.h.
 The game does not read BIG5.TXT at run time. See data/unicode/README.md.
 
+## Default portraits (data/civil_war/Portraits.zip)
+The game shows these pictures as the portraits of the officers in each
+content pack. The owner of this repository added the archive on
+2026-10-18.
+
+| Item | Value |
+|---|---|
+| Contents | 124 JPEG files: 120 numbered pictures and 4 extras ("EXTRA - ...") |
+| Names | `Three Kingdoms Portraits/<faction>/<number> <English name> <Chinese name>.jpg` |
+| Size | 1792 x 2240 or 1856 x 2304 pixels each, 115 MB in all |
+| Source | generated pictures, not art of the original game |
+| Licence | not recorded yet |
+
+The source facts come from a check on 2026-10-18:
+- Five files have a C2PA manifest from Google. The manifest marks them as
+  "trainedAlgorithmicMedia", that is, made by an image generator.
+- The other files have no metadata. They have the same size and style.
+- Each picture shows a bust in a painted style at high resolution. No
+  picture is a portrait from the original game.
+
+Before a release, record the licence of the pictures here. The terms of
+the image generator give that licence.
+
+The archive is larger than 20 MB, so git does not hold it. .gitignore
+lists it. To use the portraits, copy the archive to
+data\civil_war\Portraits.zip. If the file is absent, the UI shows the
+first character of the name in place of a portrait.
+
+### How the game uses the archive
+1. At start, the platform layer maps the archive into memory
+   (code/win32_portraits.h). It reads the central directory with
+   code/render/zip.h.
+2. code/render/portraits.h makes a list of the pictures from the member
+   names: the number and the Chinese name.
+3. The UI picks the picture of an officer (ui_officer_portrait):
+   - the picture with the Chinese name of the officer, if there is one;
+   - else the numbered picture at (officer id modulo 120), in the order of
+     the numbers. The same id always gets the same picture.
+4. When the UI first asks for a picture, the platform decodes it with
+   code/render/jpeg.h at one eighth of its size, 224 x 280 pixels. It
+   decodes one picture in each frame at most. The texture stays until the
+   game closes.
+
+The unit plates and the officer view of the Court panel show the
+portraits.
+
 ## Text of the content pack (data/placeholder)
 The project wrote these files. They contain no text from the original game.
 - text/locales.tsv, text/zh-TW.tsv and text/en.tsv: the UI strings.

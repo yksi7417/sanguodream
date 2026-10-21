@@ -155,6 +155,19 @@ global_variable ui_command_case ui_command_cases[] = {
     { "produce_decide_issues_one_command",   "produce_back_issues_nothing",   "###Produce",   "###open_produce",   UI_COMMAND_PRODUCE,   ENGINE_COMMAND_PRODUCE },
 };
 
+/* A double of the portrait texture of the platform: it records the
+   picture that the UI asks for. */
+global_variable u32 g_ui_test_portrait_requests;
+global_variable u32 g_ui_test_portrait_last;
+global_variable portrait_list g_ui_test_portraits;
+
+internal PLATFORM_PORTRAIT_TEXTURE(ui_test_portrait_texture)
+{
+    g_ui_test_portrait_requests += 1;
+    g_ui_test_portrait_last      = picture;
+    return 1;   /* any nonzero id: the headless tests draw no texture */
+}
+
 /* Clicks the header of a column of a sortable table. The column labels of
    the panels have a "###" stable id, which the test engine's own
    TableClickHeader does not hash the way ImGui does; this helper does. */
@@ -1267,6 +1280,40 @@ register_ui_tests(ImGuiTestEngine *e)
         ui_test_click_cell(ctx, v, hex_make(2, 2));
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_DUEL), 1u);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "court_officer_view_asks_for_the_portrait_of_the_officer");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_court          = true;
+        v.ui.court.officer       = 101;
+        /* Officer 101 of the recorder has the Big5 name B1 41. A picture
+           with that name comes after a numbered picture of another name. */
+        const u8 big5_name[2] = { 0xB1, 0x41 };
+        char name[16], path[64];
+        text_decode_big5_into(big5_name, 2, name, sizeof(name));
+        memset(&g_ui_test_portraits, 0, sizeof(g_ui_test_portraits));
+        const char *other = "Test/01 Other \xE7\x84\xA1.jpg";
+        portrait_list_add(&g_ui_test_portraits, 0, other, (u32)strlen(other));
+        snprintf(path, sizeof(path), "Test/02 Officer %s.jpg", name);
+        portrait_list_add(&g_ui_test_portraits, 1, path, (u32)strlen(path));
+        IM_CHECK_EQ(g_ui_test_portraits.count, 2u);
+        g_ui_test_portrait_requests = 0;
+        g_ui_test_portrait_last     = PORTRAIT_NONE;
+        v.frame.portraits        = &g_ui_test_portraits;
+        v.frame.portrait_texture = ui_test_portrait_texture;
+        ctx->SetRef("###Court");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK(g_ui_test_portrait_requests > 0);
+        IM_CHECK_EQ(g_ui_test_portrait_last, 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
     t = IM_REGISTER_TEST(e, "ui", "court_reward_and_appoint_issue_one_command_court_each");

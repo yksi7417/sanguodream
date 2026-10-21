@@ -38,6 +38,13 @@ ui_text_id(u32 value, u32 none)
 
 #define UI_NAME_SIZE 64   /* UTF-8 of one name: a Big5 name field decodes to at most 3 bytes for each byte */
 
+/* The default portraits are 4:5 pictures (render/portraits.h). A square
+   face uses the full width and 80% of the height from 5% below the top.
+   The officer view shows the full picture at the height of 6 text lines. */
+#define UI_PORTRAIT_SQUARE_TOP     0.05f
+#define UI_PORTRAIT_SQUARE_HEIGHT  0.80f
+#define UI_PORTRAIT_LINES          6.0f
+
 /* One name cell: the display name, and its bytes as hex in a tooltip. */
 internal void
 ui_name_cell(ui_state *ui, const u8 *bytes, u32 size)
@@ -76,6 +83,23 @@ ui_officer_name(ui_state *ui, engine_officer *officer, char *out, u32 out_size)
     text_name(ui->text, officer->family_name, sizeof(officer->family_name), family, sizeof(family));
     text_name(ui->text, officer->given_name, sizeof(officer->given_name), given, sizeof(given));
     snprintf(out, out_size, "%s%s", family, given);
+}
+
+/* The texture of the default portrait of an officer, or 0. The picture
+   with the Chinese name of the officer comes first, else the officer id
+   picks a numbered picture (render/portraits.h). The name comes from the
+   Big5 bytes, not from the locale, so each locale shows the same face. */
+internal ImTextureID
+ui_officer_portrait(ui_state *ui, engine_officer *officer)
+{
+    if (!ui->portraits || !ui->portrait_texture || officer->officer_id == ENGINE_NO_OFFICER) return 0;
+    char family[UI_NAME_SIZE], given[UI_NAME_SIZE], name[UI_NAME_SIZE * 2];
+    text_decode_big5_into(officer->family_name, sizeof(officer->family_name), family, sizeof(family));
+    text_decode_big5_into(officer->given_name, sizeof(officer->given_name), given, sizeof(given));
+    snprintf(name, sizeof(name), "%s%s", family, given);
+    u32 picture = portrait_pick(ui->portraits, name, officer->officer_id);
+    if (picture == PORTRAIT_NONE) return 0;
+    return (ImTextureID)ui->portrait_texture(picture);
 }
 
 /* An officer id as the name of the officer; "-" for none; "?" and the id

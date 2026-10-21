@@ -83,6 +83,11 @@ decompilation of it.
                          fonts, memory block, hot reload
 - code/win32_window.h    the window and the D3D11 swap chain, for
                          win32_hexdom.exe and demo_player.exe
+- code/win32_portraits.h the default portraits: maps the archive, makes a
+                         texture for each picture on demand (docs/ASSETS.md)
+- code/render/           render commands and camera; png.h, zip.h and
+                         jpeg.h decoders; portraits.h, the picture of an
+                         officer
 - code/ecs/              sparse-set component tables
 - code/sim/              headless simulation core (rules)
 - code/engine/           the backend: owns the sim and the event ledger,

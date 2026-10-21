@@ -45,9 +45,11 @@ goes to the hex under the mouse. The distance, the yaw and the tilt stay.
 
 ## The unit plates
 ui_draw_unit_plate draws a plate over each unit:
-- The portrait. The clean room has no officer pictures. A square in the
-  faction colour with the first character of the commander's name stands
-  in for the portrait.
+- The portrait. ui_officer_portrait gives the default portrait of the
+  commander (docs/ASSETS.md, default portraits). The plate shows a square
+  from the top of the picture. If there is no portrait archive, a square
+  in the faction colour with the first character of the commander's name
+  stands in for the portrait.
 - The unit name and the status mark. ui_unit_mark_of gives 完 (grey) after
   the unit acted in this turn. It gives 委 (blue) when the home city of the
   unit is in a corps other than corps 0. Else it gives 未 (green).

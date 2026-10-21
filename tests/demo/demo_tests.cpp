@@ -25,6 +25,9 @@ global_variable char g_demo_output_dir[MAX_PATH];
 /* This frame's render commands and arena; demo_player.cpp sets them each frame. */
 global_variable render_commands *g_demo_render;
 global_variable memory_arena    *g_demo_frame_arena;
+/* The default portraits; demo_player.cpp opens the archive. Zero without it. */
+global_variable const portrait_list       *g_demo_portraits;
+global_variable platform_portrait_texture *g_demo_portrait_texture;
 
 struct demo_vars
 {
@@ -79,6 +82,8 @@ demo_gui(ImGuiTestContext *ctx)
     v.frame.dt_seconds  = ImGui::GetIO().DeltaTime;
     v.frame.render      = g_demo_render;
     v.frame.frame_arena = g_demo_frame_arena;
+    v.frame.portraits        = g_demo_portraits;
+    v.frame.portrait_texture = g_demo_portrait_texture;
     ui_draw(&v.ui, &v.api, &v.frame);
 }
 

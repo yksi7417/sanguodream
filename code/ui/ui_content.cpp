@@ -9,6 +9,17 @@
 internal void
 ui_draw_officer_portrait(ui_state *ui, engine_api *api, u16 officer_id)
 {
+    /* The default portraits (docs/ASSETS.md): the picture when the archive
+       has one for the officer. The frame with the first character stays
+       for a game without the archive and for the tests. */
+    engine_officer officer = api->officer_by_id(api->engine, officer_id);
+    ImTextureID face = ui_officer_portrait(ui, &officer);
+    if (face)
+    {
+        f32 width = ImGui::GetTextLineHeightWithSpacing() * UI_PORTRAIT_LINES * 4.0f / 5.0f;
+        ImGui::Image(face, ImVec2(width, width * 5.0f / 4.0f));
+        return;
+    }
     engine_content_source source = api->content_source(api->engine, ENGINE_ASSET_PORTRAITS);
     char name[UI_NAME_SIZE * 2];
     ui_officer_text(ui, api, officer_id, name, sizeof(name));

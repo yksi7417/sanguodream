@@ -237,9 +237,9 @@ ui_grain_colour(u32 grain_turns)
 
 /* A unit plate: the portrait of the commander, the unit name and the
    status mark on the first row, the supply icon and the soldiers on the
-   second. The clean room has no officer pictures: a square in the faction
-   colour with the first character of the commander's name stands in for
-   the portrait. */
+   second. The portrait is the default portrait of the commander
+   (ui_officer_portrait). Without one, a square in the faction colour with
+   the first character of the commander's name stands in for it. */
 internal void
 ui_draw_unit_plate(ui_state *ui, engine_api *api, ImDrawList *draw, f32 x, f32 y, engine_unit *unit, bool selected)
 {
@@ -271,8 +271,19 @@ ui_draw_unit_plate(ui_state *ui, engine_api *api, ImDrawList *draw, f32 x, f32 y
 
     ImVec2 face_top(top.x + pad, top.y + pad), face_bottom(top.x + pad + portrait, top.y + pad + portrait);
     draw->AddRectFilled(face_top, face_bottom, faction, 2.0f);
-    ImVec2 initial_size = ImGui::CalcTextSize(initial);
-    draw->AddText(ImVec2((face_top.x + face_bottom.x - initial_size.x) * 0.5f, (face_top.y + face_bottom.y - initial_size.y) * 0.5f), white, initial);
+    ImTextureID face = commander.officer_id != ENGINE_NO_OFFICER ? ui_officer_portrait(ui, &commander) : 0;
+    if (face)
+    {
+        /* A square from the 4:5 picture: the full width, from near the top. */
+        draw->AddImageRounded(face, ImVec2(face_top.x + 1.0f, face_top.y + 1.0f), ImVec2(face_bottom.x - 1.0f, face_bottom.y - 1.0f),
+                              ImVec2(0.0f, UI_PORTRAIT_SQUARE_TOP), ImVec2(1.0f, UI_PORTRAIT_SQUARE_TOP + UI_PORTRAIT_SQUARE_HEIGHT),
+                              IM_COL32_WHITE, 2.0f);
+    }
+    else
+    {
+        ImVec2 initial_size = ImGui::CalcTextSize(initial);
+        draw->AddText(ImVec2((face_top.x + face_bottom.x - initial_size.x) * 0.5f, (face_top.y + face_bottom.y - initial_size.y) * 0.5f), white, initial);
+    }
 
     f32 text_x = face_bottom.x + pad * 2.0f;
     draw->AddText(ImVec2(text_x, top.y + pad), white, label);
