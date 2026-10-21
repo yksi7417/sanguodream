@@ -985,6 +985,27 @@ Closes report sections 6 (情報, 地圖) and 1 (hover).
 - What you see: the fourteen screens and the political map.
 
 ### M22 Fit and finish
+Status (2026-10-21): done (tutorial 35, demo "demo/m22_fit_and_finish").
+A right click goes back one level. A selection or a menu hides the
+list, the log and the mini map. The lists, the menus and the tabs have
+the pitches of the original. The map menu has five items and the
+system menu six. The debug panels open with F12 only. The mini map has
+no close button in the game mode. A unit row only moves the camera.
+The status bar shows 不可 in red on a city hex. The "?" button opens a
+help window. 進行 asks first when units have not acted. A right click
+on an own unit opens 詳細情報 and 所屬武將. Each global rule of
+screen-flow.md has one ui test.
+
+Open points for the analysis side:
+- the help screen of the original (screen-flow.md, item 4 of the
+  screens to record);
+- the 設置 field on a gate or a port hex;
+- the full list of the yellow fields of the city panel for each menu
+  item (city-commands.md gives two examples);
+- the skill tags and the grades of 兵科 and 艦船 in the unit panel;
+- the cyan area of a city under the mouse;
+- the submenus 外交, 計略 and 君主 (screens 5 to 7 to record).
+
 Closes the B and C rows of the report. The player confirmed the
 removals below on 2026-10-20.
 - Spec input: ui/clone-gap-report.md, ui/screen-flow.md (global

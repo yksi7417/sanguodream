@@ -22,6 +22,7 @@
 #define DEMO_M19_NAME          "m19_city_scene"
 #define DEMO_M20_NAME          "m20_ai_round"
 #define DEMO_M21_NAME          "m21_information"
+#define DEMO_M22_NAME          "m22_fit_and_finish"
 
 /* build\demos, with no last backslash. demo_player.cpp sets it. */
 global_variable char g_demo_output_dir[MAX_PATH];
@@ -64,7 +65,7 @@ demo_gui(ImGuiTestContext *ctx)
                                   strcmp(ctx->Test->Name, DEMO_M14_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M15_NAME) == 0 ||
                                   strcmp(ctx->Test->Name, DEMO_M17_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M18_NAME) == 0 ||
                                   strcmp(ctx->Test->Name, DEMO_M19_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M20_NAME) == 0 ||
-                                  strcmp(ctx->Test->Name, DEMO_M21_NAME) == 0;
+                                  strcmp(ctx->Test->Name, DEMO_M21_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M22_NAME) == 0;
         v.backend = engine_create(&v.permanent, &v.transient, config);
         v.api     = engine_make_api(v.backend);
         text_catalog_init(&v.text, arena_sub(&v.permanent, Megabytes(4)), test_platform_read_entire_file,
@@ -101,6 +102,18 @@ demo_file_written(const char *path)
     WIN32_FILE_ATTRIBUTE_DATA data;
     if (!GetFileAttributesExA(path, GetFileExInfoStandard, &data)) return false;
     return data.nFileSizeHigh != 0 || data.nFileSizeLow != 0;
+}
+
+/* 進行 of the map menu. M22: if units of the player have not acted, the
+   game asks first, and the walkthrough answers 是. */
+internal void
+demo_proceed(ImGuiTestContext *ctx)
+{
+    demo_vars &v = ctx->GetVars<demo_vars>();
+    ctx->ItemClick("//###MapMenu/###proceed");
+    if (!v.ui.round.confirm) return;
+    ctx->Yield();
+    ctx->ItemClick("//###ProceedConfirm/###confirm_yes");
 }
 
 /* Starts the video of the whole walkthrough: build\demos\<milestone>.mp4,
@@ -1849,7 +1862,7 @@ demo_m14_game_screens(ImGuiTestContext *ctx)
     ctx->SleepStandard();
     u32 turn = api->turn(e);
     ctx->SetRef("//###MapMenu");
-    ctx->ItemClick("###proceed");
+    demo_proceed(ctx);
     ctx->Yield(2);
     IM_CHECK(api->turn(e) != turn || api->whose_turn(e) != force);
     IM_CHECK_EQ(v.ui.context.kind, (u8)UI_CONTEXT_NONE);
@@ -1956,7 +1969,7 @@ demo_m18_feedback(ImGuiTestContext *ctx)
     ui_context_open(&v.ui, api, UI_CONTEXT_MAP_MENU, ImGui::GetIO().DisplaySize.x * 0.6f, ImGui::GetIO().DisplaySize.y * 0.4f);
     ctx->Yield(2);
     u32 turn = api->turn(e);
-    ctx->ItemClick("//###MapMenu/###proceed");
+    demo_proceed(ctx);
     for (u32 frame = 0; frame < 60 && api->whose_turn(e) != force; ++frame) ctx->Yield();
     IM_CHECK(api->turn(e) != turn);
     ctx->SleepStandard();
@@ -1983,6 +1996,11 @@ demo_m18_feedback(ImGuiTestContext *ctx)
 internal void
 demo_m19_open_item(ImGuiTestContext *ctx, demo_vars &v, const char *menu, const char *item)
 {
+    if (v.ui.context.kind != UI_CONTEXT_NONE)   /* M22: an open dialog hides the list */
+    {
+        ui_context_close(&v.ui);
+        ctx->Yield(2);
+    }
     ctx->SetRef("//###HUD");
     ctx->ItemClick("**/###hud_row0_26", ImGuiMouseButton_Right);
     ctx->Yield(2);
@@ -2134,7 +2152,7 @@ demo_m20_proceed(ImGuiTestContext *ctx, demo_vars &v)
     ImVec2 display = ImGui::GetIO().DisplaySize;
     ui_context_open(&v.ui, &v.api, UI_CONTEXT_MAP_MENU, display.x * 0.6f, display.y * 0.4f);
     ctx->Yield(2);
-    ctx->ItemClick("//###MapMenu/###proceed");
+    demo_proceed(ctx);
     ctx->Yield(2);
 }
 
@@ -2712,7 +2730,7 @@ demo_m17_first_hour(ImGuiTestContext *ctx)
         {
             ui_context_open(&v.ui, api, UI_CONTEXT_MAP_MENU, 600.0f, 300.0f);
             ctx->Yield(2);
-            ctx->ItemClick("//###MapMenu/###proceed");
+            demo_proceed(ctx);
             for (u32 frame = 0; frame < 60 && api->whose_turn(e) != player; ++frame) ctx->Yield();
             ctx->Yield(3);
         }
@@ -2775,11 +2793,163 @@ demo_m17_first_hour(ImGuiTestContext *ctx)
     {
         ui_context_open(&v.ui, api, UI_CONTEXT_MAP_MENU, 600.0f, 300.0f);
         ctx->Yield(2);
-        ctx->ItemClick("//###MapMenu/###proceed");
+        demo_proceed(ctx);
         for (u32 frame = 0; frame < 60 && !ui_feel_messages_open(&v.ui); ++frame) ctx->Yield();
     }
     if (ui_feel_messages_open(&v.ui)) IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Messages", "messages"));
     else                              IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Log", "log"));
+}
+
+/* M22 (fit and finish; tutorial 35): the sample save in the game mode.
+   The map menu has five items, and the list, the log and the mini map
+   hide under it. 進行 with a unit that has not acted asks first, and 否
+   keeps the turn. The "?" button opens the help. The system menu has six
+   items. A click on the own unit selects it, a second click opens its
+   menu, and each right click goes back one level. A right click on the
+   unit opens the popup, and 所屬武將 opens the officers of the unit. The
+   status bar shows the red 不可 on 柴桑. */
+internal void
+demo_m22_fit_and_finish(ImGuiTestContext *ctx)
+{
+    const char *milestone = DEMO_M22_NAME;
+    demo_vars &v = ctx->GetVars<demo_vars>();
+    engine_api *api = &v.api;
+    void *e = api->engine;
+    IM_CHECK(api->map_info(e).real_map);
+    IM_CHECK(demo_open_panel(ctx, "Simulation", &v.ui.show_sim));
+    ctx->SetRef("Simulation");
+    ctx->ItemClick("Load sample save");
+    ctx->Yield();
+    ui_enter_game(&v.ui);
+    ctx->Yield(3);
+    u8 player  = api->whose_turn(e);
+    u8 capital = 26;   /* 柴桑 */
+
+    /* The editor gives troops, and 出征 sends a unit that has not acted. */
+    api->set_city_resource(e, capital, SIM_RESOURCE_SOLDIERS, 0, 20000);
+    api->set_city_resource(e, capital, SIM_RESOURCE_WEAPONS, 0, 20000);
+    api->set_city_resource(e, capital, SIM_RESOURCE_GRAIN, 0, 60000);
+    engine_sortie_order order = api->sortie_proposal(e, capital, 1);
+    IM_CHECK(api->command_sortie(e, &order).refusal == SIM_REFUSAL_NONE);
+    u32 unit_id = ENGINE_NO_UNIT;
+    for (u32 id = 0; id < api->unit_count(e); ++id)
+    {
+        engine_unit unit = api->unit_at(e, id);
+        if (unit.id != ENGINE_NO_UNIT && unit.force_id == player && !unit.acted) unit_id = id;
+    }
+    IM_CHECK(unit_id != ENGINE_NO_UNIT);
+    ctx->Yield(2);
+    IM_CHECK(demo_begin_video(ctx, milestone));
+    ImVec2 display = ImGui::GetIO().DisplaySize;
+    ImVec2 centre(display.x * 0.5f, display.y * 0.5f);
+    IM_CHECK(!ui_hud_panels_hidden(&v.ui));
+    ctx->SleepStandard();
+
+    /* The map menu: five items. The list, the log and the mini map hide. */
+    ui_context_open(&v.ui, api, UI_CONTEXT_MAP_MENU, display.x * 0.6f, display.y * 0.4f);
+    ctx->Yield(2);
+    IM_CHECK(ui_hud_panels_hidden(&v.ui));
+    IM_CHECK(ctx->ItemInfo("//###MapMenu/###hex_info", ImGuiTestOpFlags_NoError).ID == 0);
+    ctx->SleepStandard();
+    u32 turn = api->turn(e);
+    ctx->ItemClick("//###MapMenu/###proceed");
+    ctx->Yield(2);
+    IM_CHECK(v.ui.round.confirm);
+    ctx->SleepStandard();
+    ctx->SleepStandard();
+    ctx->ItemClick("//###ProceedConfirm/###confirm_no");
+    ctx->Yield(2);
+    IM_CHECK(!v.ui.round.confirm && api->turn(e) == turn && api->whose_turn(e) == player);
+
+    /* The help window and the system menu. */
+    ctx->ItemClick("//###HUD/###hud_help");
+    ctx->Yield(2);
+    IM_CHECK(v.ui.show_help);
+    ctx->SleepStandard();
+    ctx->SleepStandard();
+    ctx->ItemClick("//###HUD/###hud_help");
+    ctx->ItemClick("//###HUD/###hud_system");
+    ctx->Yield(2);
+    IM_CHECK(v.ui.context.kind == UI_CONTEXT_SYSTEM_MENU);
+    IM_CHECK(ctx->ItemInfo("//###SystemMenu/###debug", ImGuiTestOpFlags_NoError).ID == 0);
+    ctx->SleepStandard();
+    ctx->MouseMoveToPos(ImVec2(display.x * 0.7f, display.y * 0.3f));
+    ctx->MouseClick(ImGuiMouseButton_Right);   /* back: the menu closes */
+    ctx->Yield(2);
+    IM_CHECK(v.ui.context.kind == UI_CONTEXT_NONE);
+
+    /* The unit: a click selects it, a second click opens the menu, and
+       right clicks go back one level at a time. */
+    engine_unit unit = api->unit_at(e, unit_id);
+    ui_frame_hex(&v.ui, api, hex_make(unit.q, unit.r));
+    v.ui.scene.cam.target.y = 0.0f;
+    ctx->Yield(3);
+    ctx->MouseMoveToPos(centre);
+    ctx->Yield(2);
+    ctx->MouseClick(ImGuiMouseButton_Left);
+    ctx->Yield(2);
+    IM_CHECK(v.ui.units.selected == unit_id && v.ui.show_unit && !v.ui.show_unit_menu);
+    ctx->SleepStandard();
+    ctx->MouseClick(ImGuiMouseButton_Left);
+    ctx->Yield(2);
+    IM_CHECK(v.ui.show_unit_menu);
+    ctx->SleepStandard();
+    ctx->MouseClick(ImGuiMouseButton_Right);
+    ctx->Yield(2);
+    IM_CHECK(!v.ui.show_unit_menu && v.ui.units.selected == unit_id);
+    ctx->SleepStandard();
+    ctx->MouseClick(ImGuiMouseButton_Right);
+    ctx->Yield(2);
+    IM_CHECK(v.ui.units.selected == ENGINE_NO_UNIT && !ui_hud_panels_hidden(&v.ui));
+    ctx->SleepStandard();
+
+    /* A right click on the own unit: the popup, then 所屬武將. */
+    ctx->MouseClick(ImGuiMouseButton_Right);
+    ctx->Yield(2);
+    IM_CHECK(v.ui.context.kind == UI_CONTEXT_UNIT_POPUP);
+    ctx->SleepStandard();
+    ctx->ItemClick("//###UnitPopup/###unit_officers");
+    ctx->Yield(2);
+    IM_CHECK(v.ui.info.screen == UI_INFO_OFFICERS && v.ui.info.id_count >= 1);
+    ctx->SleepStandard();
+    ctx->SleepStandard();
+    ctx->ItemClick("//###InfoTable/###info_back");
+    ctx->Yield(2);
+
+    /* The status bar on 柴桑: 不可 in red. */
+    engine_city_slots chaisang = api->city_slots(e, capital);
+    ui_frame_hex(&v.ui, api, hex_make(chaisang.q, chaisang.r));
+    v.ui.scene.cam.target.y = 0.0f;
+    ctx->Yield(3);
+    ctx->MouseMoveToPos(centre);
+    ctx->Yield(3);
+    engine_hex data = api->hex_at(e, v.ui.scene.hover.q, v.ui.scene.hover.r);
+    char place[64];
+    IM_CHECK(data.city_id == capital && ui_status_place(&v.ui, api, &data, place, sizeof(place)));
+    ctx->SleepStandard();
+    ctx->SleepStandard();
+    IM_CHECK(demo_end_video(ctx));
+
+    /* The pictures, after the video. */
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###StatusBar", "status_bar"));
+    ui_context_open(&v.ui, api, UI_CONTEXT_MAP_MENU, display.x * 0.6f, display.y * 0.4f);
+    ctx->Yield(3);
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###MapMenu", "map_menu"));
+    ui_context_open(&v.ui, api, UI_CONTEXT_SYSTEM_MENU, 300.0f, 100.0f);
+    ctx->Yield(3);
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###SystemMenu", "system_menu"));
+    ui_context_open(&v.ui, api, UI_CONTEXT_HELP, 300.0f, 100.0f);
+    ctx->Yield(3);
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Help", "help"));
+    v.ui.units.selected = unit_id;
+    ui_context_open(&v.ui, api, UI_CONTEXT_UNIT_POPUP, display.x * 0.5f, display.y * 0.5f);
+    ctx->Yield(3);
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###UnitPopup", "unit_popup"));
+    ui_context_close(&v.ui);
+    v.ui.round.confirm = true;
+    ctx->Yield(3);
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###ProceedConfirm", "proceed_confirm"));
+    v.ui.round.confirm = false;
 }
 
 internal void
@@ -2896,4 +3066,9 @@ register_demo_tests(ImGuiTestEngine *e)
     t->SetVarsDataType<demo_vars>();
     t->GuiFunc  = demo_gui;
     t->TestFunc = demo_m21_information;
+
+    t = IM_REGISTER_TEST(e, "demo", DEMO_M22_NAME);
+    t->SetVarsDataType<demo_vars>();
+    t->GuiFunc  = demo_gui;
+    t->TestFunc = demo_m22_fit_and_finish;
 }

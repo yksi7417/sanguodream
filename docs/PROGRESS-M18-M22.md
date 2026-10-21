@@ -53,14 +53,19 @@ Open points for the analysis side (also in the ROADMAP Status block):
 - the maximum of 氣力 and the state word in the hover panel of a unit.
 
 ## M22 Fit and finish
-Status: planned. The player confirmed the removals on 2026-10-20.
-Where each item lives (from the M19 to M21 runs):
-- the HUD panels hide while a menu or a dialog is open: ui_draw in
-  code/ui/ui.cpp draws the HUD, the log and the mini map;
-- the unit menu on the second click: ui_unit_click in ui_march.cpp;
-- 此處情報 of the map menu and 除錯面板 of the system menu:
-  ui_draw_map_menu and ui_draw_system_menu in ui_hud.cpp;
-- the close button of the mini map in the game mode: ui_draw_minimap;
-- the window that opens on a unit row: ui_hud_row_click in ui_hud.cpp;
-- red 不可 on a city hex: ui_draw_status_bar in ui_locate.cpp;
-- the help "?" button: ui_draw_hud in ui_hud.cpp.
+Status: done (2026-10-21, tutorial 35, demo "demo/m22_fit_and_finish").
+Commits 0200321 (the HUD fit and the tests of the global rules) and
+COMMIT_DOCS (the demo, tutorial 35 and the docs) on master.
+Tests: all unit and feature layers pass, ui 159/159 with e2e, the window
+smoke run passes, and the 23 demos record.
+Open points for the analysis side (also in the ROADMAP Status block):
+- the help screen of the original;
+- the 設置 field on a gate or a port hex;
+- the full list of the yellow fields of the city panel for each menu
+  item;
+- the skill tags and the grades of 兵科 and 艦船 in the unit panel;
+- the cyan area of a city under the mouse;
+- the submenus 外交, 計略 and 君主.
+
+All milestones M18 to M22 are done. The scheduled task san11-m18-m22
+has no more work.
