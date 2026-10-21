@@ -44,6 +44,7 @@ run_tests.bat --e2e
 | 28 | AI view: the goals of the AI units, the record of an AI turn and the AI panel | code/sim/ai.cpp, code/engine/engine_rivals.cpp, code/ui/ui_ai.cpp, data/placeholder/ai_priorities.tsv, rules.tsv | tests/feature/ai_tests.cpp, rivals_tests.cpp, tests/ui/ui_tests.cpp, tests/demo/demo_tests.cpp |
 | 29 | Content source: the install of the player, the source of each asset and the Content panel | code/engine/engine_content.cpp, code/ui/ui_content.cpp, code/ui/ui_court.cpp | tests/feature/content_source_tests.cpp, tests/ui/ui_tests.cpp, tests/demo/demo_tests.cpp |
 | 30 | First hour: the title rider, the load transition, the turns of the AI after 進行 and the turn messages | code/ui/ui_feel.cpp, code/ui/ui_game.cpp, code/ui/ui_hud.cpp | tests/ui/ui_tests.cpp, tests/demo/demo_tests.cpp |
+| 31 | Feedback: the text provider, the message log, the speech bubble and the values | code/engine/engine_report.cpp, code/text/text.cpp, code/ui/ui_report.cpp, data/placeholder/event_tones.tsv | tests/unit/text_tests.cpp, tests/feature/report_tests.cpp, tests/ui/ui_tests.cpp, tests/demo/demo_tests.cpp |
 
 You will see these conventions everywhere:
 - `internal` means `static`: the function is private to its translation

@@ -803,6 +803,16 @@ track G stays separate. The order puts the feedback of a command
 first, because every later test needs it.
 
 ### M18 Feedback of a command
+Status (2026-10-20): done (tutorial 31, demo "demo/m18_feedback"). The
+engine gives event_report. The pack table event_tones.tsv gives the
+tone, the sign rule, the report flag and the log flag of each kind. The
+text module has the provider interface and the template provider. The
+game mode has the log, the speech bubble and the values. The turn start
+shows only the reports, with the speaker of each one. The words of the
+original are not a goal (DECISIONS.md). Open point for the analysis
+side: the spec has no list of the kinds that the original logs and
+reports at a turn start. The pack table assumes one.
+
 Closes report sections 1 (log panel), 4 (result of 決定) and 7 (own
 orders, reports).
 - Spec input: ui/main-map.md (bottom-left panel, speech bubble,
@@ -837,6 +847,21 @@ orders, reports).
 
 ### M19 The city as a scene
 Closes report sections 3, 4 (dialog, proposal, officer list) and 5.
+- Requests of the player (2026-10-20):
+  - Each command dialog picks the three most suitable officers when it
+    opens. The player does not set them by hand. The ability of the
+    first column of the officer list sets the order. These abilities
+    are 政治 for 開發, 統率 for 巡察, 武力 for 訓練, and 魅力 for 徵兵
+    with 名聲 first. The source is
+    spec/experiments/session-1-results-2026-10-20.md. The original
+    also proposes three officers. The player can still change them.
+  - Each officer shows a portrait: on the plate of a unit, in the
+    officer selection list, in the dialog slots and in the bubble. Today
+    the portrait is a letter in a frame, because no source gives a
+    picture. The branch feat/default-portraits (worktree
+    C:\src\hexdom-portraits, commit b6d8c94 of 2026-10-18) shows the
+    default portraits of data/civil_war/Portraits.zip. Merge it first.
+    The zip stays out of git (.git/info/exclude).
 - Spec input: ui/city-commands.md (base panel, command dialogs,
   officer selection lists, placement mode). Open: the columns of the
   first tab of 選擇執行武將 for each command, and the proposal rule of
