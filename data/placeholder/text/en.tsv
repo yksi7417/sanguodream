@@ -1284,3 +1284,42 @@ placement.officers	Officers	M19: 武將
 placement.site	Site	M19: 場所
 placement.hint	Click an empty slot of the city.	M19: the placement mode after 開發
 settings.ai_show	Show the turns of the other factions	M20: off by default; no part of the show needs a click
+info_menu.own_faction	Own faction	M21: 自軍勢力
+info_menu.own_officers	Own officers	M21: 勢力武將
+info_menu.own_cities	Own cities	M21: 勢力都市
+info_menu.own_ports	Own ports	M21: 勢力港關
+info_menu.all_officers	All officers	M21: 全武將
+info_menu.all_cities	All cities	M21: 全都市
+info_menu.all_ports	All ports	M21: 全港關
+info_menu.all_factions	All factions	M21: 全勢力
+info_menu.all_corps	All corps	M21: 全軍團
+info_menu.all_units	All units	M21: 全部隊
+info_menu.all_items	All items	M21: 全道具
+info_menu.ranks	Ranks	M21: 爵位
+info_menu.posts	Posts	M21: 官職
+info_menu.skills	Skills	M21: 特技
+info_menu.not_observed	The spec does not describe this screen yet.	M21: the tooltip of a grey item
+info.officers_title	Officers	M21: 武將一覽
+info.cities_title	Cities	M21: 都市一覽
+info.faction_title	Faction	M21: 勢力情報
+info.officer_detail	Officer	M21: 武將情報
+info.city_detail	City	M21: 都市情報
+info.tab.belong	Belonging	M21: 所屬
+info.tab.ability	Abilities	M21: 能力
+info.tab.skill	Skill	M21: 特技
+info.tab.state	State	M21: 狀態
+info.col.belong	Home	M21: 所屬
+info.col.governor	Governor	M21: 太守
+info.col.loyalty	Loyalty	M21: 忠誠
+info.col.stamina	Stamina	M21: 體力
+info.col.injury	Injury	M21: 傷病
+info.col.skill	Skill	M21: 特技
+info.technique_points	Technique	M21: 技巧P
+political.title	Political map	M21: 中地圖
+political.background	Background	M21: 背景
+political.faction	Faction	M21: 勢力
+political.show	Show	M21: 顯示
+political.cities	Cities	M21: 都市
+political.bases	Gates and ports	M21: 港關
+political.units	Units	M21: 部隊
+hover.deputy	Deputy	M21: 副將

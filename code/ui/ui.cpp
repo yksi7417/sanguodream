@@ -50,6 +50,8 @@ ui_scene_mark(u32 *overlay, engine_terrain_view view, hex_coord h, u32 rgba)
 #include "ui/ui_round.cpp"    /* M20: the show of the AI round; needs ui_report.cpp */
 #include "ui/ui_minimap.cpp"  /* M12: the round mini map */
 #include "ui/ui_hud.cpp"      /* the HUD and the list of the game mode */
+#include "ui/ui_information.cpp" /* M21: the information menu, the tables and the detail panels */
+#include "ui/ui_political.cpp"   /* M21: the political map 中地圖 and the hover panels */
 #include "ui/ui_ai.cpp"       /* M15: needs ui_locate.cpp */
 
 internal void
@@ -81,6 +83,11 @@ ui_init(ui_state *ui, text_catalog *text)
     ui->picker                = {};
     ui->picker.view.sort_column = UI_SORT_NO_COLUMN;
     ui->placement             = {};
+    ui->info                  = {};   /* M21 */
+    ui->info.view.sort_column = UI_SORT_NO_COLUMN;
+    ui->show_political        = false;
+    ui->political             = {};
+    ui->political.cities = ui->political.bases = ui->political.units = true;
     ui->round                 = {};   /* M20: the show is off by default */
     ui->round.force           = ENGINE_NO_FACTION;
     ui->round.move_unit       = ENGINE_NO_UNIT;
@@ -658,6 +665,8 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->show_picker) ui_draw_picker(ui, api);      /* M19: over the dialog that opened it */
     if (hud_ready)       ui_draw_placement(ui, api);   /* M19: the panel of a 開發 that waits for its slot */
     if (ui->hud_mode) ui_draw_hud_menus(ui, api);   /* the map menu and the system menu */
+    if (ui->hud_mode) ui_draw_info_screens(ui, api);   /* M21: the screens of the information menu */
+    if (ui->hud_mode && ui->show_political) ui_draw_political(ui, api);   /* M21: 中地圖 */
     ui_context_update(ui, api);                     /* a right click outside a dialog closes it */
 
     /* The scene goes last: by now ImGui knows which windows want the mouse,
@@ -668,7 +677,9 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
         ImVec2 display = ImGui::GetIO().DisplaySize;
         ui_scene_handle_mouse(ui, api, frame->render ? frame->render->viewport_width : display.x,
                               frame->render ? frame->render->viewport_height : display.y);
-        if (hud_ready && !ui_feel_messages_open(ui) && !ui->round.playing) ui_hud_scene_clicks(ui, api);   /* the dialogs at the clicked city, unit or map */
+        bool screen_open = ui->info.screen != 0 || ui->show_political;   /* M21: a screen of the information menu covers the map */
+        if (hud_ready && !ui_feel_messages_open(ui) && !ui->round.playing && !screen_open) ui_hud_scene_clicks(ui, api);   /* the dialogs at the clicked city, unit or map */
+        if (hud_ready && !screen_open) ui_draw_hover_panel(ui, api);   /* M21: the hover panel of a city or a unit */
         ui_scene_handle_keys(ui, frame->dt_seconds);
         ui_follow_selection(ui, api);   /* M11: a picked city or unit moves the camera */
         ui_draw_scene_labels(ui, api);  /* M11: the plates of the bases and the units, the slots */

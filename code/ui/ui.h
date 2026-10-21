@@ -453,6 +453,28 @@ struct ui_state
         hex_coord move_from, move_to;
         u32       move_step, move_steps;
     } round;
+    /* M21: the screens of the information menu (ui_information.cpp). */
+    struct
+    {
+        u8            screen;        /* ui_info_screen; UI_INFO_NONE: closed */
+        bool          own;           /* only the faction of the player */
+        int           tab;           /* the view tab of the table */
+        bool          detail;        /* the detail panel of detail_id shows */
+        u32           detail_id;     /* an officer id or a city id */
+        u8            faction;       /* 勢力情報: the faction that shows */
+        u16           ids[SIM_OFFICER_CAPACITY];   /* the officer or city ids of the rows */
+        u32           id_count;
+        ui_table_view view;
+        u32           rows[SIM_OFFICER_CAPACITY];
+        ui_sort_key   keys[SIM_OFFICER_CAPACITY];
+    } info;
+    /* M21: the political map 中地圖 (ui_political.cpp). */
+    bool show_political;
+    struct
+    {
+        int  background;             /* ui_political_background */
+        bool cities, bases, units;   /* 顯示 */
+    } political;
     bool quit_requested;       /* 結束遊戲: the platform closes the window */
     /* The default portraits of this frame (ui_frame_info). Zero: the panels
        show the first character of the name in place of a portrait. */

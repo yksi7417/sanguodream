@@ -750,6 +750,179 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
+    /* ---- M21: the information menu, the tables, the political map, the hover panels */
+
+    /* Each item of the information menu opens its screen; the items that
+       the spec does not describe are grey. The menu commands nothing. */
+    t = IM_REGISTER_TEST(e, "ui", "info_menu_items_open_their_screens_and_grey_the_others");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.hud_mode            = true;
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        u32 opened = 0;
+        for (u32 index = 0; index < ArrayCount(ui_info_items); ++index)
+        {
+            const ui_info_item *item = ui_info_items + index;
+            v.ui.info.screen = UI_INFO_NONE;
+            ui_context_open(&v.ui, &v.api, UI_CONTEXT_INFO, 300.0f, 100.0f);
+            ctx->Yield(2);
+            char ref[64];
+            snprintf(ref, sizeof(ref), "//###InfoMenu/###%s", item->stable_id);
+            ImGuiTestItemInfo info = ctx->ItemInfo(ref);
+            IM_CHECK(info.ID != 0);
+            if (item->screen == UI_INFO_NONE)
+            {
+                IM_CHECK((info.ItemFlags & ImGuiItemFlags_Disabled) != 0);
+                continue;
+            }
+            ctx->ItemClick(ref);
+            ctx->Yield(2);
+            IM_CHECK(v.ui.info.screen == item->screen && v.ui.info.own == item->own && !v.ui.show_info);
+            opened++;
+        }
+        IM_CHECK_EQ(opened, 6u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* 武將一覽: a header click sorts, a row click opens 武將情報, 返回 closes
+       the detail, then the table. */
+    t = IM_REGISTER_TEST(e, "ui", "info_table_header_sorts_and_a_row_opens_the_detail");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.hud_mode            = true;
+        ctx->Yield();
+        ui_info_open(&v.ui, &v.api, UI_INFO_OFFICERS, false);
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->SetRef("//###InfoTable");
+        ctx->ItemClick("**/###tab_ability");
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.info.tab, (int)UI_INFO_TAB_ABILITY);
+        IM_CHECK_EQ(v.ui.info.id_count, 3u);
+        char header[96];
+        snprintf(header, sizeof(header), "%s###charm", text_get(&v.text, "picker.charm"));
+        ui_test_click_header(ctx, "info_table_2_1", 6, header);
+        ctx->Yield(2);
+        IM_CHECK(v.ui.info.view.sort_column == 6 && v.ui.info.view.sort_descending);
+        IM_CHECK_EQ(v.ui.info.ids[v.ui.info.rows[0]], 102u);              /* charm 60 first */
+        ctx->ItemClick("**/###info_row101");
+        ctx->Yield(2);
+        IM_CHECK(v.ui.info.detail && v.ui.info.detail_id == 101);
+        IM_CHECK(ctx->WindowInfo("//###InfoDetail").Window != 0);
+        ctx->ItemClick("//###InfoDetail/**/###list100");                   /* the list at the left shows another officer */
+        IM_CHECK_EQ(v.ui.info.detail_id, 100u);
+        ctx->ItemClick("//###InfoDetail/###detail_back");
+        ctx->Yield();
+        IM_CHECK(!v.ui.info.detail && v.ui.info.screen == UI_INFO_OFFICERS);
+        ctx->ItemClick("//###InfoTable/###info_back");
+        ctx->Yield();
+        IM_CHECK_EQ(v.ui.info.screen, (u8)UI_INFO_NONE);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* 都市一覽 and 勢力情報: a row opens 都市情報, a right click closes it;
+       the faction screen lists the factions. */
+    t = IM_REGISTER_TEST(e, "ui", "city_table_and_faction_screen_show_and_close");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.hud_mode            = true;
+        ctx->Yield();
+        ui_info_open(&v.ui, &v.api, UI_INFO_CITIES, false);
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        IM_CHECK_EQ(v.ui.info.id_count, 2u);
+        ctx->ItemClick("//###InfoTable/**/###info_row1");
+        ctx->Yield(2);
+        IM_CHECK(v.ui.info.detail && v.ui.info.detail_id == 1);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_CITY_ECONOMY), 1u);   /* the fields of the city */
+        ImVec2 display = ImGui::GetIO().DisplaySize;
+        ctx->MouseMoveToPos(ImVec2(display.x * 0.02f, display.y * 0.98f));
+        ctx->MouseClick(ImGuiMouseButton_Right);
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.info.detail && v.ui.info.screen == UI_INFO_CITIES);  /* a right click closes the top window */
+        ui_info_open(&v.ui, &v.api, UI_INFO_FACTION, false);
+        ctx->Yield(2);
+        IM_CHECK(ctx->WindowInfo("//###FactionInfo").Window != 0);
+        ctx->ItemClick("//###FactionInfo/**/###faction1");
+        IM_CHECK_EQ(v.ui.info.faction, 1u);
+        ctx->ItemClick("//###FactionInfo/###faction_back");
+        ctx->Yield();
+        IM_CHECK_EQ(v.ui.info.screen, (u8)UI_INFO_NONE);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* 地圖 of the HUD opens 中地圖. The background changes, the region view
+       draws the territory, and 返回 closes the map. */
+    t = IM_REGISTER_TEST(e, "ui", "political_map_opens_from_the_hud_and_changes_its_background");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.hud_mode            = true;
+        v.ui.show_map            = false;   /* the 2D panel of the debug layout */
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("//###HUD/###hud_map");
+        ctx->Yield(2);
+        IM_CHECK(v.ui.show_political && !v.ui.show_map);   /* the game mode opens 中地圖, not the 2D panel */
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_REGION_VIEW), 1u);
+        ctx->SetRef("//###PoliticalMap");
+        ctx->ItemClick("###bg_gold");
+        ctx->ItemUncheck("###show_units");
+        ctx->Yield();
+        IM_CHECK(v.ui.political.background == UI_POLITICAL_GOLD && !v.ui.political.units);
+        ctx->ItemClick("###political_back");
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.show_political);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* main-map.md, "Hover panels": the panel of the city under the mouse. */
+    t = IM_REGISTER_TEST(e, "ui", "hover_panel_shows_the_city_under_the_mouse");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.hud_mode            = true;
+        v.ui.scene.headless      = true;
+        v.ui.show_city = v.ui.show_map = v.ui.show_officers = v.ui.show_cities = false;
+        ctx->Yield(2);
+        hex_offset city_cell = { RECORDER_CITY_COL, RECORDER_CITY_ROW };
+        ui_frame_hex(&v.ui, &v.api, hex_from_offset(city_cell));
+        v.ui.scene.cam.target.y = 0.0f;
+        ctx->Yield(3);
+        recorder_reset(&v.recorder);
+        ImVec2 display = ImGui::GetIO().DisplaySize;
+        ctx->MouseMoveToPos(ImVec2(display.x * 0.5f, display.y * 0.5f));
+        ctx->Yield(2);
+        IM_CHECK(ctx->WindowInfo("//###HoverCity", ImGuiTestOpFlags_NoError).Window != 0);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_CITY_ECONOMY), 1u);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_CITY_SIEGE), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
     /* ---- M19: the officer selection 選擇執行武將, the 開發 grid, the placement mode */
 
     /* 執行武將 opens the list with the proposal checked. A row click checks

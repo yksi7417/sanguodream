@@ -964,6 +964,17 @@ struct engine_terrain_view
     const u8 *tile;     /* the colour of the atlas for each cell, from the terrain table; kind when no table loaded */
 };
 
+/* M21: the region of each hex and the city of each region, for the
+   territory of the political map 中地圖 (ui/information-screens.md). */
+#define ENGINE_REGION_CAPACITY 256
+struct engine_region_view
+{
+    u32       width;
+    u32       height;
+    const u8 *region;                              /* one row for each cell; 0 when no map layers loaded */
+    u8        region_city[ENGINE_REGION_CAPACITY]; /* the city of each region; ENGINE_NO_CITY for none */
+};
+
 /* ---- M10: the real map (formats/map-data.md, terrain-and-map.md) ------------ */
 
 #define ENGINE_NO_ARMAMENT 0xFF
@@ -1045,6 +1056,7 @@ typedef engine_officer      engine_officer_by_id_fn(void *engine, u16 officer_id
 typedef u16                 engine_force_ruler_fn(void *engine, u8 force_id);         /* ENGINE_NO_OFFICER if the force has no ruler */
 typedef engine_location_name engine_location_name_at_fn(void *engine, u16 location);  /* location 0..86 */
 typedef engine_terrain_view engine_terrain_view_fn(void *engine);
+typedef engine_region_view  engine_region_view_fn(void *engine);   /* M21 */
 typedef engine_date         engine_date_fn(void *engine);
 typedef u8                  engine_whose_turn_fn(void *engine);                /* ENGINE_NO_FACTION if every faction acted */
 typedef u32                 engine_actions_left_fn(void *engine, u8 force_id); /* the action points of the corps */
@@ -1481,6 +1493,7 @@ struct engine_api
     engine_ledger_clear_fn    *ledger_clear;
     engine_set_cell_cost_fn   *set_cell_cost;
     engine_terrain_view_fn    *terrain_view;
+    engine_region_view_fn     *region_view;    /* M21: the territory of the political map */
     engine_set_cell_terrain_fn *set_cell_terrain;
     engine_load_save_fn       *load_save;
     engine_load_name_index_fn *load_name_index;

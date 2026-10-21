@@ -25,6 +25,7 @@ enum recorder_call_kind
     RECORDER_CITY_AT,
     RECORDER_CITY_NAME_AT,
     RECORDER_TERRAIN_VIEW,
+    RECORDER_REGION_VIEW,      /* M21 */
     RECORDER_DATE,
     RECORDER_WHOSE_TURN,
     RECORDER_ACTIONS_LEFT,
@@ -531,6 +532,17 @@ internal engine_load_result recorder_load_save(void *o, const char *path)
 /* The fake 8x6 map has flat plains with one hill column. */
 global_variable u8 recorder_terrain_kind[8 * 6];
 global_variable u8 recorder_terrain_level[8 * 6];
+
+/* M21: the scripted board has no regions. */
+internal engine_region_view
+recorder_region_view(void *o)
+{
+    recorder_record((engine_recorder *)o, RECORDER_REGION_VIEW, 0);
+    engine_region_view view = {};
+    view.width = 8; view.height = 6;
+    for (u32 region = 0; region < ENGINE_REGION_CAPACITY; ++region) view.region_city[region] = ENGINE_NO_CITY;
+    return view;
+}
 
 internal engine_terrain_view
 recorder_terrain_view(void *o)
@@ -1809,6 +1821,7 @@ recorder_make_api(engine_recorder *r)
     api.ledger_clear    = recorder_ledger_clear;
     api.set_cell_cost   = recorder_set_cell_cost;
     api.terrain_view    = recorder_terrain_view;
+    api.region_view     = recorder_region_view;   /* M21 */
     api.set_cell_terrain = recorder_set_cell_terrain;
     api.load_save       = recorder_load_save;
     api.load_name_index = recorder_load_name_index;

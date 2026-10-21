@@ -662,6 +662,8 @@ ui_draw_info(ui_state *ui, engine_api *api)
     ImGui::End();
 }
 
+internal void ui_draw_info_menu(ui_state *ui, engine_api *api);   /* ui_information.cpp (M21) */
+
 /* All the game screens; each draws only while it is open. */
 internal void
 ui_draw_game_screens(ui_state *ui, engine_api *api)
@@ -678,5 +680,6 @@ ui_draw_game_screens(ui_state *ui, engine_api *api)
     if (ui->show_editor)         ui_draw_editor(ui, api);
     if (ui->show_battles)        ui_draw_battles(ui, api);
     if (ui->show_abilities)      ui_draw_abilities(ui, api);
-    if (ui->show_info)           ui_draw_info(ui, api);
+    if (ui->show_info && ui->hud_mode) ui_draw_info_menu(ui, api);   /* M21: the column of 14 buttons */
+    else if (ui->show_info)            ui_draw_info(ui, api);        /* the debug layout */
 }

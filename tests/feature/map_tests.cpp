@@ -436,9 +436,41 @@ feature_map_play_tests(test_counts *counts)
     engine_fixture_destroy(&setup.fixture);
 }
 
+/* M21: the region view of the political map gives, for each hex, the
+   region and its city that hex_at gives. */
+internal void
+feature_map_region_view_tests(test_counts *counts)
+{
+    engine_fixture f;
+    engine_fixture_init_real(&f, 1, 65536);
+    engine_api *api = &f.api;
+    void *e = api->engine;
+    api->load_save(e, SAMPLE_SAVE_RELATIVE_PATH);
+    engine_region_view view = api->region_view(e);
+    TEST_CHECK(counts, view.region != 0 && view.width == 200 && view.height == 200, "the region view covers the 200 x 200 hexes of the map");
+    b32 same = true;
+    u32 checked = 0;
+    for (u32 index = 0; index < api->city_count(e); ++index)
+    {
+        engine_city_slots site = api->city_slots(e, api->city_at(e, index).city_id);
+        for (u32 slot = 0; slot < site.slot_count; ++slot)
+        {
+            engine_facility facility = api->facility_at(e, site.city_id, (u8)slot);
+            engine_hex hex = api->hex_at(e, facility.q, facility.r);
+            hex_offset o = hex_to_offset(hex_make(facility.q, facility.r));
+            u8 region = view.region[(u32)o.row * view.width + (u32)o.col];
+            if (region != hex.region || view.region_city[region] != hex.region_city) same = false;
+            checked++;
+        }
+    }
+    TEST_CHECK(counts, same && checked > 0, "each slot hex has the region and the city of hex_at");
+    engine_fixture_destroy(&f);
+}
+
 internal void
 feature_map_tests(test_counts *counts)
 {
+    feature_map_region_view_tests(counts);
     feature_map_data_tests(counts);
     feature_map_move_tests(counts);
     feature_map_fire_tests(counts);

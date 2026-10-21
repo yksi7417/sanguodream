@@ -229,9 +229,30 @@ engine_api_start_fire(void *opaque, s32 q, s32 r, u32 turns)
     sim_start_fire(e->sim, hex, turns, 0, &sink);
 }
 
+/* M21: the region of each hex and the city of each region. Without the
+   map layers (the placeholder board) the view has no regions. */
+internal engine_region_view
+engine_api_region_view(void *opaque)
+{
+    sim_state *sim = ((engine *)opaque)->sim;
+    engine_region_view view = {};
+    view.width  = sim->map.width;
+    view.height = sim->map.height;
+    for (u32 region = 0; region < ENGINE_REGION_CAPACITY; ++region) view.region_city[region] = ENGINE_NO_CITY;
+    if (!sim->map_layers.loaded) return view;
+    view.region = sim->map_layers.region;
+    for (u32 region = 0; region < ENGINE_REGION_CAPACITY; ++region)
+    {
+        u8 city = sim_map_region_city(sim, (u8)region);
+        view.region_city[region] = city == SIM_NO_CITY ? ENGINE_NO_CITY : city;
+    }
+    return view;
+}
+
 internal void
 engine_bind_map_api(engine_api *api)
 {
+    api->region_view    = engine_api_region_view;
     api->map_info       = engine_api_map_info;
     api->hex_at         = engine_api_hex_at;
     api->armament_count = engine_api_armament_count;

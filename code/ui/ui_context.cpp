@@ -29,7 +29,7 @@ ui_context_flag(ui_state *ui, u8 kind)
         case UI_CONTEXT_UNIT:      return &ui->show_unit;
         case UI_CONTEXT_HEX:       return &ui->scene.has_pick;
         case UI_CONTEXT_INFO:      return &ui->show_info;
-        case UI_CONTEXT_FULL_MAP:  return &ui->show_map;
+        case UI_CONTEXT_FULL_MAP:  return ui->hud_mode ? &ui->show_political : &ui->show_map;   /* M21: 中地圖 in the game mode */
         case UI_CONTEXT_SAVELOAD:  return &ui->show_saveload;
         case UI_CONTEXT_SETTINGS:  return &ui->show_settings;
         case UI_CONTEXT_OPTIONS:   return &ui->show_options;
