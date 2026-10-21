@@ -49,13 +49,16 @@ enum ui_hud_tab { UI_HUD_TAB_BASES, UI_HUD_TAB_OFFICERS, UI_HUD_TAB_UNITS, UI_HU
 #define UI_LOG_CAPACITY            4096   /* the lines of the message log; the oldest go first */
 #define UI_LOG_HEADING             0x80000000u   /* a log line that holds the heading of a turn: | the turn */
 #define UI_LOG_WIDTH               442.0f /* main-map.md: 4, 516, 442, 497 */
-#define UI_LOG_HEIGHT_SHARE        0.45f  /* of the height of the window */
+#define UI_LOG_HEIGHT_SHARE        0.34f  /* of the height of the window; the HUD list above it is taller than in the original */
 #define UI_LOG_MARGIN              4.0f
 #define UI_BUBBLE_SECONDS          3.0f   /* the speech bubble closes by itself after this time */
 #define UI_BUBBLE_WIDTH            294.0f /* main-map.md: 819, 521, 294, 74 */
 #define UI_FLOAT_SECONDS           1.6f   /* a value rises over the base for this time */
 #define UI_FLOAT_RISE              40.0f  /* pixels */
 #define UI_FLOAT_CAPACITY          8
+/* M19: the command dialogs of the game mode (ui/city-commands.md). */
+#define UI_DIALOG_DIM_ALPHA        110    /* the dark map behind a dialog, of 255 */
+#define UI_SLOT_PORTRAIT_LINES     4.0f   /* the height of a portrait slot, in text lines */
 
 /* The title button that the player clicked (title-and-load.md, "Title menu"). */
 enum ui_title_choice

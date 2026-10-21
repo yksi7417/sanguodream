@@ -271,8 +271,16 @@ ui_draw_city_command(ui_state *ui, engine_api *api, u32 kind)
     ui_command_dialog *dialog = ui->commands + kind;
     char title[128];
     ImGui::SetNextWindowSize(ImVec2(440, kind == UI_COMMAND_PRODUCE ? 420.0f : 300.0f), ImGuiCond_FirstUseEver);
-    ui_context_place(ui, 1);   /* the game mode: the dialog opens next to its entity */
-    if (ImGui::Begin(ui_label(title, sizeof(title), ui, info->title_id, info->window), &ui->show_command[kind]))
+    ImGuiIO &io = ImGui::GetIO();
+    if (ui->hud_mode)
+    {
+        /* M19, ui/city-commands.md "Command dialogs": the dialog sits at a
+           fixed place in the centre, and the map behind it is dark. */
+        ImGui::GetBackgroundDrawList()->AddRectFilled(ImVec2(0.0f, 0.0f), io.DisplaySize, IM_COL32(0, 0, 0, UI_DIALOG_DIM_ALPHA));
+        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.45f), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    }
+    ImGuiWindowFlags flags = ui->hud_mode ? ImGuiWindowFlags_AlwaysAutoResize : 0;
+    if (ImGui::Begin(ui_label(title, sizeof(title), ui, info->title_id, info->window), &ui->show_command[kind], flags))
     {
         ui_context_track(ui);
         if (dialog->prepared_city != dialog->city) ui_command_reset_for_city(ui, api, kind);
@@ -288,6 +296,10 @@ ui_draw_city_command(ui_state *ui, engine_api *api, u32 kind)
         ImGui::Button(ui_label(label, sizeof(label), ui, "command.executor", "executor"));
         u16 free_ids[UI_DEVELOP_OFFICER_LIST];
         u32 free_count = ui_free_officers(api, dialog->city, free_ids, ArrayCount(free_ids));
+        /* M19: the portrait slots of the chosen officers, as in the original. */
+        for (u32 place = 0; place < info->max_officers; ++place)
+            ui_draw_officer_face(ui, api, dialog->officers[place], ImGui::GetTextLineHeightWithSpacing() * UI_SLOT_PORTRAIT_LINES);
+        ImGui::NewLine();
         for (u32 place = 0; place < info->max_officers; ++place) ui_draw_command_officer(ui, api, kind, place, free_ids, free_count);
 
         engine_command command = {};

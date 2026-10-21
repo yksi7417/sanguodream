@@ -610,7 +610,11 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (tools && ui->show_ledger) ui_draw_ledger(ui, api);
     if (tools && ui->show_memory) ui_draw_memory(ui, api, frame);
     if (ui->show_settings) ui_draw_settings(ui, api);
-    if (ui->show_city)    ui_draw_city(ui, api);
+    /* M19, ui/city-commands.md: in the game mode the city panel hides while
+       a command dialog of the city is open. */
+    bool command_open = false;
+    for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind) command_open = command_open || ui->show_command[kind];
+    if (ui->show_city && !(ui->hud_mode && command_open)) ui_draw_city(ui, api);
     if (ui->show_develop) ui_draw_develop(ui, api);
     if (ui->show_economy) ui_draw_economy(ui, api);
     if (ui->show_research)   ui_draw_research(ui, api);

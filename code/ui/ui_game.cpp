@@ -12,6 +12,16 @@
 /* The main map of a game: the game mode. The HUD and the list sit at the
    top left and the mini map at the bottom right. Every other window opens
    on demand (ui_context.cpp). */
+/* The main screens of the game sit at the centre of the window in every
+   frame (the request of the player, 2026-10-20). A resize of the window
+   keeps them there, and the position that imgui.ini kept cannot move them. */
+internal void
+ui_center_next_window(void)
+{
+    ImGuiIO &io = ImGui::GetIO();
+    ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+}
+
 internal void
 ui_enter_game(ui_state *ui)
 {
@@ -72,6 +82,7 @@ ui_draw_title(ui_state *ui, engine_api *api)
 {
     char title[128], label[96];
     ImGui::SetNextWindowSize(ImVec2(360, 330), ImGuiCond_FirstUseEver);
+    ui_center_next_window();   /* the request of the player of 2026-10-20 */
     if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "title.title", "Title"), 0, ImGuiWindowFlags_NoCollapse)) { ImGui::End(); return; }
     bool riding = ui->feel.title_choice != UI_TITLE_NONE;
     ui_title_button(ui, api, "title.load", "title_load", UI_TITLE_LOAD);
@@ -97,6 +108,7 @@ ui_draw_scenarios(ui_state *ui, engine_api *api)
 {
     char title[128];
     ImGui::SetNextWindowSize(ImVec2(420, 320), ImGuiCond_FirstUseEver);
+    ui_center_next_window();   /* the request of the player of 2026-10-20 */
     if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "scenarios.title", "Scenarios"), &ui->show_scenarios)) { ImGui::End(); return; }
     void *e = api->engine;
     for (u32 index = 0; index < api->scenario_count(e); ++index)
@@ -129,6 +141,7 @@ ui_draw_rulers(ui_state *ui, engine_api *api)
 {
     char title[128], label[96];
     ImGui::SetNextWindowSize(ImVec2(360, 420), ImGuiCond_FirstUseEver);
+    ui_center_next_window();   /* the request of the player of 2026-10-20 */
     if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "rulers.title", "Rulers"), &ui->show_rulers)) { ImGui::End(); return; }
     void *e = api->engine;
     u32 chosen = 0;
@@ -167,6 +180,7 @@ ui_draw_start_settings(ui_state *ui, engine_api *api)
 {
     char title[128], label[96];
     ImGui::SetNextWindowSize(ImVec2(420, 380), ImGuiCond_FirstUseEver);
+    ui_center_next_window();   /* the request of the player of 2026-10-20 */
     if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "start.title", "StartSettings"), &ui->show_start_settings)) { ImGui::End(); return; }
     void *e = api->engine;
     if (!ui->game.start_loaded) { ui->game.start = api->settings(e); ui->game.start_loaded = true; }
@@ -285,7 +299,7 @@ ui_draw_saveload(ui_state *ui, engine_api *api)
 {
     char title[128], label[96];
     ImGui::SetNextWindowSize(ImVec2(620, 420), ImGuiCond_FirstUseEver);
-    ui_context_place(ui, 0);   /* the game mode: the dialog opens next to its entity */
+    ui_center_next_window();   /* the request of the player of 2026-10-20 */
     if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "saves.title", "SaveLoad"), &ui->show_saveload)) { ImGui::End(); return; }
     ui_context_track(ui);
     void *e = api->engine;
@@ -356,7 +370,7 @@ ui_draw_options(ui_state *ui, engine_api *api)
     (void)api;
     char title[128], label[96];
     ImGui::SetNextWindowSize(ImVec2(300, 160), ImGuiCond_FirstUseEver);
-    ui_context_place(ui, 0);   /* the game mode: the dialog opens next to its entity */
+    ui_center_next_window();   /* the request of the player of 2026-10-20 */
     if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "options.title", "Options"), &ui->show_options)) { ImGui::End(); return; }
     ui_context_track(ui);
     if (ImGui::Button(ui_label(label, sizeof(label), ui, "options.new_officer", "open_new_officer"))) ui->show_new_officer = true;
@@ -370,6 +384,7 @@ ui_draw_new_officer(ui_state *ui, engine_api *api)
 {
     char title[128], label[96];
     ImGui::SetNextWindowSize(ImVec2(440, 460), ImGuiCond_FirstUseEver);
+    ui_center_next_window();   /* the request of the player of 2026-10-20 */
     if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "newcomer.title", "NewOfficer"), &ui->show_new_officer)) { ImGui::End(); return; }
     void *e = api->engine;
     ImGui::Text("%s: %u / 8", text_get(ui->text, "newcomer.count"), api->new_officer_count(e));
@@ -520,6 +535,7 @@ ui_draw_battles(ui_state *ui, engine_api *api)
 {
     char title[128];
     ImGui::SetNextWindowSize(ImVec2(360, 260), ImGuiCond_FirstUseEver);
+    ui_center_next_window();   /* the request of the player of 2026-10-20 */
     if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "battles.title", "Battles"), &ui->show_battles)) { ImGui::End(); return; }
     void *e = api->engine;
     for (u32 index = 0; index < api->battle_count(e); ++index)
