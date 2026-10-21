@@ -26,9 +26,17 @@ Open points for the analysis side (also in the ROADMAP Status block):
 - the place of the city panel at the left or the right edge (Q-045).
 
 ## M20 The turn of the others
-Status: planned. The decision of the player (DECISIONS.md, 2026-10-20):
-the show of the AI round is off by default and needs no click. The log
-keeps the events. A setting turns the show on.
+Status: done (2026-10-21, tutorial 33, demo "demo/m20_ai_round").
+Commit 1be282c on master. The decision of the player (DECISIONS.md,
+2026-10-20): the show of the AI round is off by default and needs no
+click. The log keeps the events. A setting turns the show on.
+Tests: all unit and feature layers pass, ui 139/139 with e2e, the window
+smoke run passes, and the 21 demos record.
+Open points for the analysis side (also in the ROADMAP Status block):
+- the time of each step of an AI round (screen-flow.md, item 3);
+- the path of a move of an AI unit (the ledger gives none);
+- the effects of an attack and the cut-in 突擊!! (track G);
+- a filter of the log for one faction or for the events near the player.
 
 ## M21 Information
 Status: planned.
