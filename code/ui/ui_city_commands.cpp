@@ -71,6 +71,7 @@ ui_draw_command_officer(ui_state *ui, engine_api *api, u32 kind, u32 place, cons
     char label[128], preview[96], combo[128];
     ui_command_officer_label(ui, api, dialog->officers[place], kind, preview, sizeof(preview));
     snprintf(combo, sizeof(combo), "%s %u###officer%u", text_get(ui->text, "develop.officer"), place + 1, place + 1);
+    ui_draw_officer_face(ui, api, dialog->officers[place], ImGui::GetFrameHeight());   /* M19 */
     if (ImGui::BeginCombo(combo, preview))
     {
         snprintf(label, sizeof(label), "%s###o_none", text_get(ui->text, "develop.no_officer"));
@@ -80,24 +81,38 @@ ui_draw_command_officer(ui_state *ui, engine_api *api, u32 kind, u32 place, cons
             char name[96];
             ui_command_officer_label(ui, api, free_ids[index], kind, name, sizeof(name));
             snprintf(label, sizeof(label), "%s###o%u", name, free_ids[index]);
+            ui_draw_officer_face(ui, api, free_ids[index], ImGui::GetTextLineHeight() * 1.5f);
             if (ImGui::Selectable(label, dialog->officers[place] == free_ids[index])) dialog->officers[place] = free_ids[index];
         }
         ImGui::EndCombo();
     }
 }
 
+/* The ability that ranks the proposal of a command (ui_propose_officers):
+   the ability of ui_command_ability. The skill 名聲 of 徵兵 does not count
+   yet. */
+internal u32
+ui_command_ability_kind(u32 kind)
+{
+    switch (kind)
+    {
+        case UI_COMMAND_PATROL:    return UI_ABILITY_LEADERSHIP;
+        case UI_COMMAND_CONSCRIPT: return UI_ABILITY_CHARM;
+        case UI_COMMAND_TRAIN:     return UI_ABILITY_WAR;
+        case UI_COMMAND_MERCHANT:  return UI_ABILITY_POLITICS;
+        default:                   return UI_ABILITY_INTELLIGENCE;
+    }
+}
+
 /* The dialog keeps its choices while it shows one city. For a new city,
-   or after a command, it proposes the first free officer (ui/city-commands.md:
-   "the game fills the officer slots with a proposal"). */
+   or after a command, it proposes the most suitable officers (M19). */
 internal void
 ui_command_reset_for_city(ui_state *ui, engine_api *api, u32 kind)
 {
     ui_command_dialog *dialog = ui->commands + kind;
-    u16 first = ENGINE_NO_OFFICER;
-    ui_free_officers(api, dialog->city, &first, 1);
-    dialog->officers[0]   = first;
-    dialog->officers[1]   = ENGINE_NO_OFFICER;
-    dialog->officers[2]   = ENGINE_NO_OFFICER;
+    dialog->officers[0] = dialog->officers[1] = dialog->officers[2] = ENGINE_NO_OFFICER;
+    u32 places = ui_command_infos[kind].max_officers < 3 ? ui_command_infos[kind].max_officers : 3;
+    ui_propose_officers(api, dialog->city, ui_command_ability_kind(kind), dialog->officers, places);
     dialog->prepared_city = dialog->city;
     if (dialog->amount <= 0) dialog->amount = UI_MERCHANT_DEFAULT_AMOUNT;
 }

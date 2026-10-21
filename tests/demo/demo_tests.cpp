@@ -293,7 +293,6 @@ demo_m1_loader(ImGuiTestContext *ctx)
     IM_CHECK(strncmp(v.ui.load_message, "loaded", 6) == 0);
     IM_CHECK_GE(v.api.officer_count(v.api.engine), 852u);
     IM_CHECK_EQ(v.api.city_count(v.api.engine), 42u);
-    ctx->ItemClick("Load city names");
     ctx->Yield();
     IM_CHECK(strncmp(v.ui.names_message, "names loaded", 12) == 0);
     IM_CHECK_EQ(v.api.city_name_at(v.api.engine, 36).city_id, 36u);
@@ -339,7 +338,6 @@ demo_m2_turns(ImGuiTestContext *ctx)
     IM_CHECK(demo_open_panel(ctx, "Event ledger", &v.ui.show_ledger));
     ctx->SetRef("Simulation");
     ctx->ItemClick("Load sample save");
-    ctx->ItemClick("Load city names");
     ctx->Yield();
     IM_CHECK_EQ(api->city_count(api->engine), 42u);
     IM_CHECK(api->whose_turn(api->engine) != ENGINE_NO_FACTION);              /* the player's faction acts */
@@ -431,14 +429,7 @@ demo_develop(ImGuiTestContext *ctx, demo_vars &v, u8 city, u8 facility)
     char item[32];
     snprintf(item, sizeof(item), "###facility/###f%u", facility);
     ctx->ComboClick(item);
-    u16 ids[3] = { ENGINE_NO_OFFICER, ENGINE_NO_OFFICER, ENGINE_NO_OFFICER };
-    ui_free_officers(api, city, ids, 3);
-    for (u32 place = 1; place < 3; ++place)
-    {
-        if (ids[place] == ENGINE_NO_OFFICER) continue;
-        snprintf(item, sizeof(item), "###officer%u/###o%u", place + 1, ids[place]);
-        ctx->ComboClick(item);
-    }
+    /* M19: the dialog proposes the three officers with the most politics. */
     ctx->Yield();
     engine_command command = {};
     command.kind = ENGINE_COMMAND_DEVELOP;
@@ -489,7 +480,6 @@ demo_m3_economy(ImGuiTestContext *ctx)
     IM_CHECK(demo_open_panel(ctx, "Event ledger", &v.ui.show_ledger));
     ctx->SetRef("Simulation");
     ctx->ItemClick("Load sample save");
-    ctx->ItemClick("Load city names");
     ctx->Yield();
     IM_CHECK_EQ(api->city_count(api->engine), 42u);
     u8 player = api->whose_turn(api->engine);
@@ -591,7 +581,6 @@ demo_m4_growth(ImGuiTestContext *ctx)
     IM_CHECK(demo_open_panel(ctx, "Event ledger", &v.ui.show_ledger));
     ctx->SetRef("Simulation");
     ctx->ItemClick("Load sample save");
-    ctx->ItemClick("Load city names");
     ctx->Yield();
     IM_CHECK_EQ(api->city_count(api->engine), 42u);
     u8 player = api->whose_turn(api->engine);
@@ -730,7 +719,6 @@ demo_m5_march(ImGuiTestContext *ctx)
     IM_CHECK(demo_open_panel(ctx, "Event ledger", &v.ui.show_ledger));
     ctx->SetRef("Simulation");
     ctx->ItemClick("Load sample save");
-    ctx->ItemClick("Load city names");
     ctx->Yield();
     IM_CHECK_EQ(api->city_count(api->engine), 42u);
     u8 player = api->whose_turn(api->engine);
@@ -890,7 +878,6 @@ demo_m6_battle(ImGuiTestContext *ctx)
     IM_CHECK(demo_open_panel(ctx, "Event ledger", &v.ui.show_ledger));
     ctx->SetRef("Simulation");
     ctx->ItemClick("Load sample save");
-    ctx->ItemClick("Load city names");
     ctx->Yield();
     u8 player = api->whose_turn(e);
     u8 city = demo_busiest_city_of_player(api);
@@ -1027,7 +1014,6 @@ demo_m7_court(ImGuiTestContext *ctx)
     IM_CHECK(demo_open_panel(ctx, "Event ledger", &v.ui.show_ledger));
     ctx->SetRef("Simulation");
     ctx->ItemClick("Load sample save");
-    ctx->ItemClick("Load city names");
     ctx->Yield();
     u8 player = api->whose_turn(e);
     u8 city = demo_busiest_city_of_player(api);
@@ -1223,7 +1209,6 @@ demo_m8_rivals(ImGuiTestContext *ctx)
     IM_CHECK(demo_open_panel(ctx, "Event ledger", &v.ui.show_ledger));
     ctx->SetRef("Simulation");
     ctx->ItemClick("Load sample save");
-    ctx->ItemClick("Load city names");
     ctx->Yield();
     engine_settings settings = api->settings(e);
     settings.events = false;                                 /* the demo fires its event itself */
@@ -1901,6 +1886,14 @@ demo_m18_city_command(ImGuiTestContext *ctx, demo_vars &v, const char *menu, con
     ctx->SleepStandard();
     u32 bubbles = v.ui.report.feedback_count;
     ctx->SetRef(window);
+    /* M19: the dialog proposes the most suitable officers. 柴桑 has two
+       free officers, so the first command gives one back for the second. */
+    if (kind == UI_COMMAND_PATROL)
+    {
+        IM_CHECK(v.ui.commands[kind].officers[1] != ENGINE_NO_OFFICER);
+        ctx->ComboClick("###officer2/###o_none");
+        ctx->SleepStandard();
+    }
     ctx->ItemClick("###decide");
     ctx->Yield(2);
     IM_CHECK_GT(v.ui.report.feedback_count, bubbles);
@@ -1920,7 +1913,6 @@ demo_m18_feedback(ImGuiTestContext *ctx)
     IM_CHECK(demo_open_panel(ctx, "Simulation", &v.ui.show_sim));
     ctx->SetRef("Simulation");
     ctx->ItemClick("Load sample save");
-    ctx->ItemClick("Load city names");
     ctx->Yield();
     ui_enter_game(&v.ui);
     v.ui.feel.turn_messages = true;
@@ -1988,7 +1980,7 @@ demo_m13_replay(ImGuiTestContext *ctx)
     demo_vars &v = ctx->GetVars<demo_vars>();
     engine_api *api = &v.api;
     void *e = api->engine;
-    IM_CHECK_EQ(api->replay_pair_count(e), 3u);
+    IM_CHECK_GE(api->replay_pair_count(e), 3u);   /* 3 pairs at M13, 13 after the driven run of 2026-10-20 */
     engine_replay_pair pair = api->replay_pair_at(e, 0);
     IM_CHECK_STR_EQ(pair.rule, "conscript");
     IM_CHECK(demo_begin_video(ctx, milestone));
@@ -2074,7 +2066,6 @@ demo_m15_ai(ImGuiTestContext *ctx)
     IM_CHECK(demo_open_panel(ctx, "Simulation", &v.ui.show_sim));
     ctx->SetRef("Simulation");
     ctx->ItemClick("Load sample save");
-    ctx->ItemClick("Load city names");
     ctx->Yield();
     v.ui.show_sim = false;
     IM_CHECK_EQ(api->city_count(e), 42u);
@@ -2187,7 +2178,8 @@ demo_m16_content(ImGuiTestContext *ctx)
     ctx->ComboClick(item);
     ctx->Yield(2);
     IM_CHECK_EQ(v.ui.court.officer, ruler);
-    IM_CHECK(ctx->ItemExists("###portrait_0"));   /* no source gives a picture: the first character */
+    /* M19: the picture of the default portraits when the archive is there, else the first character */
+    IM_CHECK(ctx->ItemExists("###portrait_0") || v.ui.portraits != 0);
     ctx->SleepStandard();
     ctx->SleepStandard();
 
@@ -2343,9 +2335,10 @@ demo_m17_first_hour(ImGuiTestContext *ctx)
             ui_context_open(&v.ui, api, UI_CONTEXT_MAP_MENU, 600.0f, 300.0f);
             ctx->Yield(2);
             ctx->ItemClick("//###MapMenu/###proceed");
-            for (u32 frame = 0; frame < 60 && !ui_feel_messages_open(&v.ui); ++frame) ctx->Yield();
+            for (u32 frame = 0; frame < 60 && api->whose_turn(e) != player; ++frame) ctx->Yield();
+            ctx->Yield(3);
         }
-        IM_CHECK(ui_feel_messages_open(&v.ui));
+        /* M18: a turn start without a report of the player opens no window. */
         IM_CHECK_EQ(api->whose_turn(e), player);
         u32 clicks = turn < 3 ? UI_MESSAGE_CAPACITY : 1;
         for (u32 click = 0; click < clicks && ui_feel_messages_open(&v.ui); ++click)
@@ -2398,12 +2391,17 @@ demo_m17_first_hour(ImGuiTestContext *ctx)
 
     IM_CHECK(demo_end_video(ctx));
     IM_CHECK(demo_screenshot_panel(ctx, milestone, "###HUD", "hud"));
-    ui_context_open(&v.ui, api, UI_CONTEXT_MAP_MENU, 600.0f, 300.0f);   /* one more turn for the picture of the messages */
-    ctx->Yield(2);
-    ctx->ItemClick("//###MapMenu/###proceed");
-    for (u32 frame = 0; frame < 60 && !ui_feel_messages_open(&v.ui); ++frame) ctx->Yield();
-    IM_CHECK(ui_feel_messages_open(&v.ui));
-    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Messages", "messages"));
+    /* More turns for the picture of the messages. M18: only a turn with a
+       report of the player opens the window; without one, the log. */
+    for (u32 turn = 0; turn < 6 && !ui_feel_messages_open(&v.ui); ++turn)
+    {
+        ui_context_open(&v.ui, api, UI_CONTEXT_MAP_MENU, 600.0f, 300.0f);
+        ctx->Yield(2);
+        ctx->ItemClick("//###MapMenu/###proceed");
+        for (u32 frame = 0; frame < 60 && !ui_feel_messages_open(&v.ui); ++frame) ctx->Yield();
+    }
+    if (ui_feel_messages_open(&v.ui)) IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Messages", "messages"));
+    else                              IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Log", "log"));
 }
 
 internal void

@@ -354,6 +354,7 @@ ui_draw_officer_combo(ui_state *ui, engine_api *api, u32 place, const u16 *free_
     char label[128], preview[96], combo[128];
     ui_officer_label(ui, api, ui->develop.officers[place], preview, sizeof(preview));
     snprintf(combo, sizeof(combo), "%s %u###officer%u", text_get(ui->text, "develop.officer"), place + 1, place + 1);
+    ui_draw_officer_face(ui, api, ui->develop.officers[place], ImGui::GetFrameHeight());   /* M19 */
     if (ImGui::BeginCombo(combo, preview))
     {
         snprintf(label, sizeof(label), "%s###o_none", text_get(ui->text, "develop.no_officer"));
@@ -363,23 +364,77 @@ ui_draw_officer_combo(ui_state *ui, engine_api *api, u32 place, const u16 *free_
             char name[96];
             ui_officer_label(ui, api, free_ids[index], name, sizeof(name));
             snprintf(label, sizeof(label), "%s###o%u", name, free_ids[index]);
+            ui_draw_officer_face(ui, api, free_ids[index], ImGui::GetTextLineHeight() * 1.5f);
             if (ImGui::Selectable(label, ui->develop.officers[place] == free_ids[index])) ui->develop.officers[place] = free_ids[index];
         }
         ImGui::EndCombo();
     }
 }
 
+/* M19: the abilities that rank the officers of a proposal. */
+enum ui_ability
+{
+    UI_ABILITY_LEADERSHIP,
+    UI_ABILITY_WAR,
+    UI_ABILITY_INTELLIGENCE,
+    UI_ABILITY_POLITICS,
+    UI_ABILITY_CHARM,
+};
+
+internal u32
+ui_officer_ability(engine_officer *officer, u32 ability)
+{
+    switch (ability)
+    {
+        case UI_ABILITY_LEADERSHIP:   return officer->leadership;
+        case UI_ABILITY_WAR:          return officer->war;
+        case UI_ABILITY_INTELLIGENCE: return officer->intelligence;
+        case UI_ABILITY_POLITICS:     return officer->politics;
+        case UI_ABILITY_CHARM:        return officer->charm;
+        default:                      return 0;
+    }
+}
+
+/* M19, the request of the player (2026-10-20): a dialog proposes the most
+   suitable officers, as many as the command takes. The ability of the
+   command ranks the free officers of the city. The list of the original
+   shows that ability in its first column
+   (spec/experiments/session-1-results-2026-10-20.md), and the original
+   fills three slots (ui/clone-gap-report.md, section 4). A tie keeps the
+   order of the officer table. Returns the count of the officers. */
+internal u32
+ui_propose_officers(engine_api *api, u8 city_id, u32 ability, u16 *out, u32 places)
+{
+    u16 free_ids[UI_DEVELOP_OFFICER_LIST];
+    u32 free_count = ui_free_officers(api, city_id, free_ids, ArrayCount(free_ids));
+    u32 chosen = 0;
+    for (u32 place = 0; place < places; ++place)
+    {
+        out[place] = ENGINE_NO_OFFICER;
+        u32 best = free_count, best_value = 0;
+        for (u32 index = 0; index < free_count; ++index)
+        {
+            if (free_ids[index] == ENGINE_NO_OFFICER) continue;
+            engine_officer officer = api->officer_by_id(api->engine, free_ids[index]);
+            u32 value = ui_officer_ability(&officer, ability);
+            if (best == free_count || value > best_value) { best = index; best_value = value; }
+        }
+        if (best == free_count) break;
+        out[place] = free_ids[best];
+        free_ids[best] = ENGINE_NO_OFFICER;
+        chosen++;
+    }
+    return chosen;
+}
+
 /* The dialog keeps its choices while it shows one city. For a new city,
-   or after a command, it takes the first free officer and any free slot. */
+   or after a command, it proposes the three officers with the most
+   politics (the list of 開發 shows 政治) and any free slot. */
 internal void
 ui_develop_reset_for_city(ui_state *ui, engine_api *api)
 {
-    u16 first = ENGINE_NO_OFFICER;
-    ui_free_officers(api, ui->develop.city, &first, 1);
-    ui->develop.slot        = ENGINE_ANY_SLOT;
-    ui->develop.officers[0] = first;
-    ui->develop.officers[1] = ENGINE_NO_OFFICER;
-    ui->develop.officers[2] = ENGINE_NO_OFFICER;
+    ui->develop.slot = ENGINE_ANY_SLOT;
+    ui_propose_officers(api, ui->develop.city, UI_ABILITY_POLITICS, ui->develop.officers, SIM_DEVELOP_OFFICERS);
     ui->develop.prepared_city = ui->develop.city;
 }
 

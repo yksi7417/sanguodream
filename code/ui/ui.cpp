@@ -292,7 +292,6 @@ ui_draw_simulation(ui_state *ui, engine_api *api)
             api->advance_turns(api->engine, 12);
         }
         ui_draw_load_sample_save(ui, api);
-        ui_draw_load_city_names(ui, api);
         ImGui::Spacing();
         engine_content_status content = api->content_status(api->engine);
         ImGui::Text("Content pack: %s (%u facilities, %u cities, %u rules)", content.loaded ? "loaded" : content.detail,

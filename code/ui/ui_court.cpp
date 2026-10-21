@@ -45,6 +45,7 @@ ui_officer_pick(ui_state *ui, engine_api *api, const char *text_id, const char *
     char label[96], preview[UI_NAME_SIZE * 2] = "-";
     u8 force = api->whose_turn(api->engine);
     if (*value != ENGINE_NO_OFFICER) ui_officer_text(ui, api, *value, preview, sizeof(preview));
+    ui_draw_officer_face(ui, api, *value, ImGui::GetFrameHeight());   /* M19 */
     if (!ImGui::BeginCombo(ui_label(label, sizeof(label), ui, text_id, stable_id), preview)) return;
     for (u32 index = 0; index < api->officer_count(api->engine); ++index)
     {
@@ -53,6 +54,7 @@ ui_officer_pick(ui_state *ui, engine_api *api, const char *text_id, const char *
         char name[UI_NAME_SIZE * 2], row[128];
         ui_officer_name(ui, &officer, name, sizeof(name));
         snprintf(row, sizeof(row), "%s###o%u", name, officer.officer_id);
+        ui_draw_officer_face(ui, api, officer.officer_id, ImGui::GetTextLineHeight() * 1.5f);
         if (ImGui::Selectable(row, *value == officer.officer_id)) *value = officer.officer_id;
     }
     ImGui::EndCombo();

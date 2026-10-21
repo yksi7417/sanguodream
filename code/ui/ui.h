@@ -447,7 +447,7 @@ struct ui_state
     text_catalog *text;      /* the UI strings and the names; owned by the caller */
     char pending_locale[TEXT_LOCALE_SIZE];   /* set by the Language combo; ui_draw loads it at the start of the next frame */
     char load_message[96];   /* result of the last "Load sample save" click */
-    char names_message[96];  /* result of the last "Load city names" click */
+    char names_message[96];  /* result of the city names load of the last "Load sample save" click */
     struct
     {
         bool      has_from;

@@ -632,23 +632,7 @@ register_ui_tests(ImGuiTestEngine *e)
         }
     };
 
-    t = IM_REGISTER_TEST(e, "ui", "load_city_names_calls_load_name_index_once");
-    t->SetVarsDataType<ui_test_vars>();
-    t->GuiFunc  = ui_test_gui;
-    t->TestFunc = [](ImGuiTestContext *ctx)
-    {
-        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
-        ctx->SetRef("Simulation");
-        recorder_reset(&v.recorder);
-        ctx->ItemClick("Load city names");
-        ctx->Yield();
-        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOAD_NAME_INDEX), 1u);
-        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
-        IM_CHECK_STR_EQ(v.recorder.last_name_index_path, UI_NAME_INDEX_PATH);
-        IM_CHECK(strncmp(v.ui.names_message, "names loaded", 12) == 0);
-    };
-
-    t = IM_REGISTER_TEST(e, "ui", "load_sample_save_calls_load_save_once");
+    t = IM_REGISTER_TEST(e, "ui", "load_sample_save_loads_the_save_and_the_city_names");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;
     t->TestFunc = [](ImGuiTestContext *ctx)
@@ -660,8 +644,11 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->ItemClick("Load sample save");
         ctx->Yield();
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOAD_SAVE), 1u);
-        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOAD_NAME_INDEX), 1u);   /* one step: the save, then the city names */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 2u);
         IM_CHECK_STR_EQ(v.recorder.last_load_path, UI_SAMPLE_SAVE_PATH);
+        IM_CHECK_STR_EQ(v.recorder.last_name_index_path, UI_NAME_INDEX_PATH);
+        IM_CHECK(strncmp(v.ui.names_message, "names loaded", 12) == 0);
         recorder_reset(&v.recorder);
         ctx->Yield();
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_OFFICER_AT), 3u);     /* the panels show the loaded rows */
@@ -721,11 +708,13 @@ register_ui_tests(ImGuiTestEngine *e)
         v.ui.show_develop        = true;
         ctx->SetRef("###Develop");
         ctx->Yield(2);
-        IM_CHECK_EQ(v.ui.develop.officers[0], 100u);                              /* the first free officer by default */
+        /* M19: three officers by politics; the script ties, so the table order */
+        IM_CHECK(v.ui.develop.officers[0] == 100 && v.ui.develop.officers[1] == 101 && v.ui.develop.officers[2] == 102);
         IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_CAN_ISSUE), 1u);          /* the dialog asks can_issue each frame */
         ctx->ComboClick("###facility/###f2");
         ctx->ComboClick("###slot/###s4");
         ctx->ComboClick("###officer2/###o101");
+        ctx->ComboClick("###officer3/###o_none");                                  /* the player can still change the proposal */
         ctx->Yield();
         IM_CHECK(v.ui.develop.facility == 2 && v.ui.develop.slot == 4 && v.ui.develop.officers[1] == 101);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);                    /* choices command nothing */
@@ -803,10 +792,16 @@ register_ui_tests(ImGuiTestEngine *e)
             v.ui.show_command[kind]  = true;
             ctx->SetRef(test_case->window);
             ctx->Yield(2);
-            IM_CHECK_EQ(v.ui.commands[kind].officers[0], 100u);                         /* the dialog proposes the first free officer */
+            /* M19: the dialog proposes the most suitable officers, as many as
+               the command takes. 徵兵 ranks by charm (102 has the most); the
+               other abilities of the script tie or fall, so 100 comes first. */
+            u16 first = kind == UI_COMMAND_CONSCRIPT ? 102 : 100;
+            IM_CHECK_EQ(v.ui.commands[kind].officers[0], (u32)first);
+            if (kind != UI_COMMAND_MERCHANT) IM_CHECK(v.ui.commands[kind].officers[1] == 101 && v.ui.commands[kind].officers[2] != ENGINE_NO_OFFICER);
+            else                             IM_CHECK(v.ui.commands[kind].officers[1] == ENGINE_NO_OFFICER);
             IM_CHECK(ctx->ItemExists("###executor"));                                    /* 執行武將 */
             IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_CAN_ISSUE), 1u);
-            if (kind != UI_COMMAND_MERCHANT) ctx->ComboClick("###officer2/###o101");
+            if (kind != UI_COMMAND_MERCHANT) ctx->ComboClick("###officer3/###o_none");   /* the player can still change the proposal */
             if (kind == UI_COMMAND_PRODUCE)  ctx->ItemClick("###w2");
             if (kind == UI_COMMAND_MERCHANT)
             {
@@ -821,7 +816,7 @@ register_ui_tests(ImGuiTestEngine *e)
             IM_CHECK_EQ(recorder_count(&v.recorder, recorder_call_of(test_case->engine_kind)), 1u);
             IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
             engine_command sent = v.recorder.last_city_command;
-            IM_CHECK(sent.kind == test_case->engine_kind && sent.city_id == 0 && sent.officers[0] == 100);
+            IM_CHECK(sent.kind == test_case->engine_kind && sent.city_id == 0 && sent.officers[0] == first);
             if (kind != UI_COMMAND_MERCHANT) IM_CHECK(sent.officers[1] == 101 && sent.officers[2] == ENGINE_NO_OFFICER);
             if (kind == UI_COMMAND_PRODUCE)  IM_CHECK_EQ(sent.weapon, 2u);
             if (kind == UI_COMMAND_MERCHANT) IM_CHECK(sent.merchant_mode == SIM_MERCHANT_SELL && sent.amount == 500);
@@ -908,11 +903,13 @@ register_ui_tests(ImGuiTestEngine *e)
         v.ui.show_research       = true;
         ctx->SetRef("###Research");
         ctx->Yield(2);
-        IM_CHECK_EQ(v.ui.research.officers[0], 100u);                             /* the first free officer by default */
+        /* M19: three officers by intellect; the script ties, so the table order */
+        IM_CHECK(v.ui.research.officers[0] == 100 && v.ui.research.officers[1] == 101 && v.ui.research.officers[2] == 102);
         IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_FACTION_TECHNIQUES), 1u);
         IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_CAN_ISSUE), 1u);
         ctx->ItemClick("###t1");                                                  /* the second technique of the first line */
         ctx->ComboClick("###officer2/###o101");
+        ctx->ComboClick("###officer3/###o_none");
         ctx->Yield();
         IM_CHECK(v.ui.research.technique == 1 && v.ui.research.officers[1] == 101);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);                    /* choices command nothing */
@@ -2952,8 +2949,6 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(v.api.city_count(v.api.engine), 42u);
         IM_CHECK_EQ(v.api.ledger_at(v.api.engine, 0).kind, SIM_EVENT_SAVE_LOADED);
         IM_CHECK(strncmp(v.ui.load_message, "loaded", 6) == 0);
-        ctx->ItemClick("Load city names");
-        ctx->Yield();
         IM_CHECK_EQ(v.api.city_name_at(v.api.engine, 36).city_id, 36u);
         u32 last = v.api.ledger_count(v.api.engine) - 1;                  /* after the turn start of the load */
         IM_CHECK_EQ(v.api.ledger_at(v.api.engine, last).kind, SIM_EVENT_NAME_INDEX_LOADED);

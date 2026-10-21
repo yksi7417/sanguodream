@@ -42,6 +42,7 @@ ui_draw_growth_officer(ui_state *ui, engine_api *api, u16 *chosen, u32 place, u3
     char label[128], preview[96], combo[128];
     ui_growth_officer_label(ui, api, *chosen, ability, preview, sizeof(preview));
     snprintf(combo, sizeof(combo), "%s %u###officer%u", text_get(ui->text, "develop.officer"), place + 1, place + 1);
+    ui_draw_officer_face(ui, api, *chosen, ImGui::GetFrameHeight());   /* M19 */
     if (ImGui::BeginCombo(combo, preview))
     {
         snprintf(label, sizeof(label), "%s###o_none", text_get(ui->text, "develop.no_officer"));
@@ -51,6 +52,7 @@ ui_draw_growth_officer(ui_state *ui, engine_api *api, u16 *chosen, u32 place, u3
             char name[96];
             ui_growth_officer_label(ui, api, free_ids[index], ability, name, sizeof(name));
             snprintf(label, sizeof(label), "%s###o%u", name, free_ids[index]);
+            ui_draw_officer_face(ui, api, free_ids[index], ImGui::GetTextLineHeight() * 1.5f);
             if (ImGui::Selectable(label, *chosen == free_ids[index])) *chosen = free_ids[index];
         }
         ImGui::EndCombo();
@@ -126,14 +128,12 @@ ui_draw_technique_grid(ui_state *ui, engine_api *api, engine_faction_techniques 
     }
 }
 
+/* M19: the three officers with the most intellect. The spec did not
+   observe the officer list of 研究技巧, so the ability is assumed. */
 internal void
 ui_research_reset_for_city(ui_state *ui, engine_api *api)
 {
-    u16 first = ENGINE_NO_OFFICER;
-    ui_free_officers(api, ui->research.city, &first, 1);
-    ui->research.officers[0]   = first;
-    ui->research.officers[1]   = ENGINE_NO_OFFICER;
-    ui->research.officers[2]   = ENGINE_NO_OFFICER;
+    ui_propose_officers(api, ui->research.city, UI_ABILITY_INTELLIGENCE, ui->research.officers, SIM_DEVELOP_OFFICERS);
     ui->research.prepared_city = ui->research.city;
 }
 

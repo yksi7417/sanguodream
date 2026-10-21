@@ -846,6 +846,18 @@ orders, reports).
   as in the original.
 
 ### M19 The city as a scene
+Status (2026-10-20): in progress. Done:
+- the merge of feat/default-portraits. ui_draw_officer_portrait shows
+  the picture of the archive, else the frame with the first character;
+- the proposal of the most suitable officers. 巡察, 徵兵, 訓練, 商人,
+  生產兵裝, 開發 and 研究技巧 rank the free officers by the ability of
+  the command (ui_propose_officers in code/ui/ui_city.cpp);
+- one step for the sample: "Load sample save" also loads the city names
+  (the request of the player of 2026-10-20).
+Open: the portraits on the unit plates and in the officer list, the
+city panel, the framed dialogs, the officer selection list and the
+placement mode.
+
 Closes report sections 3, 4 (dialog, proposal, officer list) and 5.
 - Requests of the player (2026-10-20):
   - Each command dialog picks the three most suitable officers when it

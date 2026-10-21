@@ -102,6 +102,24 @@ ui_officer_portrait(ui_state *ui, engine_officer *officer)
     return (ImTextureID)ui->portrait_texture(picture);
 }
 
+/* M19, the request of the player (2026-10-20): a small portrait in front
+   of an officer slot or a row of an officer list. Without a picture, an
+   empty space of the same size keeps the rows in line. */
+internal void
+ui_draw_officer_face(ui_state *ui, engine_api *api, u16 officer_id, f32 height)
+{
+    ImTextureID face = 0;
+    if (officer_id != ENGINE_NO_OFFICER)
+    {
+        engine_officer officer = api->officer_by_id(api->engine, officer_id);
+        face = ui_officer_portrait(ui, &officer);
+    }
+    ImVec2 size(height * 4.0f / 5.0f, height);
+    if (face) ImGui::Image(face, size);
+    else      ImGui::Dummy(size);
+    ImGui::SameLine();
+}
+
 /* An officer id as the name of the officer; "-" for none; "?" and the id
    if no officer has the id. */
 internal void
@@ -429,8 +447,11 @@ ui_draw_cities(ui_state *ui, engine_api *api)
     ImGui::End();
 }
 
-/* The button sends one load_save command; the result text is copied into
-   ui_state, because the engine's detail string lives in the DLL image. */
+/* The button sends one load_save command and, after a load, one
+   load_name_index command, so that one step gives the save and the city
+   names (the request of the player of 2026-10-20). The result texts are
+   copied into ui_state, because the detail string of the engine lives in
+   the DLL image. */
 internal void
 ui_draw_load_sample_save(ui_state *ui, engine_api *api)
 {
@@ -440,6 +461,11 @@ ui_draw_load_sample_save(ui_state *ui, engine_api *api)
         if (result.status == ENGINE_LOAD_OK)
         {
             snprintf(ui->load_message, sizeof(ui->load_message), "loaded (command %u)", result.command_id);
+            engine_load_result names = api->load_name_index(api->engine, UI_NAME_INDEX_PATH);
+            if (names.status == ENGINE_LOAD_OK)
+                snprintf(ui->names_message, sizeof(ui->names_message), "names loaded (command %u)", names.command_id);
+            else
+                snprintf(ui->names_message, sizeof(ui->names_message), "names not loaded: %s", names.detail ? names.detail : "?");
         }
         else
         {
@@ -451,27 +477,10 @@ ui_draw_load_sample_save(ui_state *ui, engine_api *api)
         ImGui::SameLine();
         ImGui::TextUnformatted(ui->load_message);
     }
-}
-
-/* The button sends one load_name_index command, as the sample save button. */
-internal void
-ui_draw_load_city_names(ui_state *ui, engine_api *api)
-{
-    if (ImGui::Button("Load city names"))
-    {
-        engine_load_result result = api->load_name_index(api->engine, UI_NAME_INDEX_PATH);
-        if (result.status == ENGINE_LOAD_OK)
-        {
-            snprintf(ui->names_message, sizeof(ui->names_message), "names loaded (command %u)", result.command_id);
-        }
-        else
-        {
-            snprintf(ui->names_message, sizeof(ui->names_message), "names not loaded: %s", result.detail ? result.detail : "?");
-        }
-    }
     if (ui->names_message[0])
     {
         ImGui::SameLine();
         ImGui::TextUnformatted(ui->names_message);
     }
 }
+

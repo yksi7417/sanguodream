@@ -404,6 +404,8 @@ internal engine_officer recorder_scripted_officer(engine_recorder *r, u32 i)
     officer.family_name[0] = 0xB1;
     officer.family_name[1] = (u8)(0x40 + i);
     officer.leadership     = 50;
+    officer.charm          = (u8)(40 + 10 * i);   /* M19: the charm rises and the force falls, so that a proposal has an order */
+    officer.war            = (u8)(70 - 10 * i);
     officer.force_id       = 1;
     officer.status         = 3;
     officer.base_location  = (u16)i;        /* officer i has its base in city i */
