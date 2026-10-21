@@ -39,7 +39,28 @@ Open points for the analysis side (also in the ROADMAP Status block):
 - a filter of the log for one faction or for the events near the player.
 
 ## M21 Information
-Status: planned.
+Status: done (2026-10-21, tutorial 34, demo "demo/m21_information").
+Commits e917370 and the docs commit after it on master.
+Tests: all unit and feature layers pass (feature/map 42/42 with the
+region view), ui 144/144 with e2e, the window smoke run passes, and the
+22 demos record.
+Open points for the analysis side (also in the ROADMAP Status block):
+- the screens marked "not observed" (勢力港關, 全港關, 全軍團, 全部隊,
+  全道具, 爵位, 官職, 特技);
+- the columns of the other tabs of 武將一覽 and 都市一覽, and the sub tabs;
+- the controls of 中地圖 without a data source (軍團, 外交, 戰, 街道,
+  災害, 漢帝, the legend);
+- the maximum of 氣力 and the state word in the hover panel of a unit.
 
 ## M22 Fit and finish
 Status: planned. The player confirmed the removals on 2026-10-20.
+Where each item lives (from the M19 to M21 runs):
+- the HUD panels hide while a menu or a dialog is open: ui_draw in
+  code/ui/ui.cpp draws the HUD, the log and the mini map;
+- the unit menu on the second click: ui_unit_click in ui_march.cpp;
+- 此處情報 of the map menu and 除錯面板 of the system menu:
+  ui_draw_map_menu and ui_draw_system_menu in ui_hud.cpp;
+- the close button of the mini map in the game mode: ui_draw_minimap;
+- the window that opens on a unit row: ui_hud_row_click in ui_hud.cpp;
+- red 不可 on a city hex: ui_draw_status_bar in ui_locate.cpp;
+- the help "?" button: ui_draw_hud in ui_hud.cpp.

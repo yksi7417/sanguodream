@@ -47,6 +47,7 @@ run_tests.bat --e2e
 | 31 | Feedback: the text provider, the message log, the speech bubble and the values | code/engine/engine_report.cpp, code/text/text.cpp, code/ui/ui_report.cpp, data/placeholder/event_tones.tsv | tests/unit/text_tests.cpp, tests/feature/report_tests.cpp, tests/ui/ui_tests.cpp, tests/demo/demo_tests.cpp |
 | 32 | City scene: the officer selection, the 開發 grid and the placement mode | code/ui/ui_officer_pick.cpp, code/ui/ui_placement.cpp, code/ui/ui_city.cpp | tests/ui/ui_tests.cpp, tests/demo/demo_tests.cpp |
 | 33 | AI round: the turn of the others with no click, and the show of the AI round | code/ui/ui_round.cpp, code/ui/ui_feel.cpp, code/ui/ui_hud.cpp, code/ui/ui_settings.cpp | tests/ui/ui_tests.cpp, tests/demo/demo_tests.cpp |
+| 34 | Information: the information menu, the tables, the political map and the hover panels | code/ui/ui_information.cpp, code/ui/ui_political.cpp, code/engine/engine_map.cpp | tests/feature/map_tests.cpp, tests/ui/ui_tests.cpp, tests/demo/demo_tests.cpp |
 
 You will see these conventions everywhere:
 - `internal` means `static`: the function is private to its translation

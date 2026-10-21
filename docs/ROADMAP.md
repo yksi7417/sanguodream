@@ -950,6 +950,24 @@ Closes report section 7 (AI turns).
 - What you see: one 進行 with no clicks, then the log of the round.
 
 ### M21 Information
+Status (2026-10-21): done (tutorial 34, demo "demo/m21_information").
+In the game mode, 情報 opens the column of 14 items. 自軍勢力, 勢力武將,
+勢力都市, 全武將, 全都市 and 全勢力 open their screens. 武將一覽 has the
+tabs 所屬, 能力 and 特技, and 都市一覽 has the tab 狀態. A header click
+sorts, and a row click opens 武將情報 or 都市情報. 地圖 opens 中地圖 with
+the territory of each faction, the backgrounds 士兵, 資金 and 兵糧, and
+the marks of 顯示. The hover panels of a city and a unit show next to
+the mouse. The engine gives region_view for the territory.
+
+Open points for the analysis side:
+- the screens marked "not observed": 勢力港關, 全港關, 全軍團, 全部隊,
+  全道具, 爵位, 官職, 特技. Their items are grey;
+- the columns of the other tabs of 武將一覽 (適性, 命令, 個人, 血緣) and of
+  都市一覽 (戰力 to 災害), and the sub tabs 兵裝 and 內政設施;
+- 背景 軍團, 顯示 外交, 戰 and 街道, the legend 外交狀態凡例, and the
+  distributions 災害 and 漢帝 of 中地圖;
+- the maximum of 氣力 and the state word of the hover panel of a unit.
+
 Closes report sections 6 (情報, 地圖) and 1 (hover).
 - Spec input: ui/information-screens.md, ui/main-map.md (hover
   panels, information menu). Open: the screens that the spec marks

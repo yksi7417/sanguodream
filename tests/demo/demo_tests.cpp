@@ -21,6 +21,7 @@
 #define DEMO_M18_NAME          "m18_feedback"
 #define DEMO_M19_NAME          "m19_city_scene"
 #define DEMO_M20_NAME          "m20_ai_round"
+#define DEMO_M21_NAME          "m21_information"
 
 /* build\demos, with no last backslash. demo_player.cpp sets it. */
 global_variable char g_demo_output_dir[MAX_PATH];
@@ -62,7 +63,8 @@ demo_gui(ImGuiTestContext *ctx)
                                   strcmp(ctx->Test->Name, DEMO_M12_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M13_NAME) == 0 ||
                                   strcmp(ctx->Test->Name, DEMO_M14_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M15_NAME) == 0 ||
                                   strcmp(ctx->Test->Name, DEMO_M17_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M18_NAME) == 0 ||
-                                  strcmp(ctx->Test->Name, DEMO_M19_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M20_NAME) == 0;
+                                  strcmp(ctx->Test->Name, DEMO_M19_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M20_NAME) == 0 ||
+                                  strcmp(ctx->Test->Name, DEMO_M21_NAME) == 0;
         v.backend = engine_create(&v.permanent, &v.transient, config);
         v.api     = engine_make_api(v.backend);
         text_catalog_init(&v.text, arena_sub(&v.permanent, Megabytes(4)), test_platform_read_entire_file,
@@ -2205,6 +2207,145 @@ demo_m20_ai_round(ImGuiTestContext *ctx)
     IM_CHECK(demo_screenshot_panel(ctx, milestone, "###HUD", "hud"));
 }
 
+/* M21 (information; tutorial 34): the sample save in the game mode. 情報
+   opens the column of 14 items. 全武將 opens 武將一覽; the 能力 tab sorts
+   by 統率, and a row opens 武將情報. 勢力都市 opens 都市一覽 and 都市情報.
+   自軍勢力 opens 勢力情報. 地圖 opens 中地圖 with the background of the
+   soldiers. A hover over 柴桑 shows its panel. */
+internal void
+demo_m21_open_item(ImGuiTestContext *ctx, demo_vars &v, const char *item)
+{
+    ctx->ItemClick("//###HUD/###hud_info");
+    ctx->Yield(2);
+    IM_CHECK(v.ui.show_info);
+    ctx->SleepStandard();
+    char ref[64];
+    snprintf(ref, sizeof(ref), "//###InfoMenu/###%s", item);
+    ctx->ItemClick(ref);
+    ctx->Yield(2);
+}
+
+internal void
+demo_m21_information(ImGuiTestContext *ctx)
+{
+    const char *milestone = DEMO_M21_NAME;
+    demo_vars &v = ctx->GetVars<demo_vars>();
+    engine_api *api = &v.api;
+    void *e = api->engine;
+    IM_CHECK(api->map_info(e).real_map);
+    IM_CHECK(demo_open_panel(ctx, "Simulation", &v.ui.show_sim));
+    ctx->SetRef("Simulation");
+    ctx->ItemClick("Load sample save");
+    ctx->Yield();
+    ui_enter_game(&v.ui);
+    ctx->Yield(3);
+    IM_CHECK(demo_begin_video(ctx, milestone));
+    ctx->SetRef("//###HUD");
+    ctx->ItemClick("**/###hud_row0_26");
+    ctx->Yield(2);
+
+    /* 全武將, the 能力 tab, a sort by 統率, and the first row. */
+    demo_m21_open_item(ctx, v, "im_all_officers");
+    IM_CHECK(v.ui.info.screen == UI_INFO_OFFICERS && !v.ui.info.own);
+    ctx->SleepStandard();
+    ctx->ItemClick("//###InfoTable/**/###tab_ability");
+    ctx->Yield(2);
+    char header[96];
+    snprintf(header, sizeof(header), "%s###leadership", text_get(v.ui.text, "picker.leadership"));
+    ctx->SetRef("//###InfoTable");
+    {
+        ImGuiTable *table = ImGui::TableFindByID(ctx->GetID("info_table_2_1"));
+        IM_CHECK(table != 0);
+        int column = 2;
+        ImGuiID column_id = ImHashData(&column, sizeof(column), ImGui::TableGetInstanceID(table, 0));
+        ctx->ItemClick(ImHashStr(header, 0, column_id));
+    }
+    ctx->Yield(2);
+    IM_CHECK(v.ui.info.view.sort_column == 2 && v.ui.info.view.count > 0);
+    ctx->SleepStandard();
+    u32 top = v.ui.info.ids[v.ui.info.rows[0]];
+    char row[48];
+    snprintf(row, sizeof(row), "**/###info_row%u", top);
+    ctx->ItemClick(row);
+    ctx->Yield(2);
+    IM_CHECK(v.ui.info.detail && v.ui.info.detail_id == top);
+    ctx->SleepStandard();
+    ctx->SleepStandard();
+    ctx->ItemClick("//###InfoDetail/###detail_back");
+    ctx->Yield();
+    ctx->ItemClick("//###InfoTable/###info_back");
+    ctx->Yield();
+
+    /* 勢力都市 and 都市情報 of 柴桑. */
+    demo_m21_open_item(ctx, v, "im_own_cities");
+    IM_CHECK(v.ui.info.screen == UI_INFO_CITIES && v.ui.info.own);
+    ctx->ItemClick("//###InfoTable/**/###info_row26");
+    ctx->Yield(2);
+    IM_CHECK(v.ui.info.detail && v.ui.info.detail_id == 26);
+    ctx->SleepStandard();
+    ctx->SleepStandard();
+    ctx->ItemClick("//###InfoDetail/###detail_back");
+    ctx->ItemClick("//###InfoTable/###info_back");
+    ctx->Yield();
+
+    /* 自軍勢力. */
+    demo_m21_open_item(ctx, v, "im_own_faction");
+    IM_CHECK(v.ui.info.screen == UI_INFO_FACTION);
+    ctx->SleepStandard();
+    ctx->SleepStandard();
+    ctx->ItemClick("//###FactionInfo/###faction_back");
+    ctx->Yield();
+
+    /* 中地圖 with the background of the soldiers. */
+    ctx->ItemClick("//###HUD/###hud_map");
+    ctx->Yield(2);
+    IM_CHECK(v.ui.show_political);
+    ctx->SleepStandard();
+    ctx->ItemClick("//###PoliticalMap/###bg_soldiers");
+    ctx->Yield();
+    IM_CHECK_EQ(v.ui.political.background, (int)UI_POLITICAL_SOLDIERS);
+    ctx->SleepStandard();
+    ctx->ItemClick("//###PoliticalMap/###bg_faction");
+    ctx->SleepStandard();
+    ctx->ItemClick("//###PoliticalMap/###political_back");
+    ctx->Yield(2);
+
+    /* The hover panel of 柴桑, at the centre of the view. */
+    engine_city_slots chaisang = api->city_slots(e, 26);
+    ui_frame_hex(&v.ui, api, hex_make(chaisang.q, chaisang.r));
+    v.ui.scene.cam.target.y = 0.0f;
+    ctx->Yield(3);
+    ImVec2 display = ImGui::GetIO().DisplaySize;
+    ctx->MouseMoveToPos(ImVec2(display.x * 0.5f, display.y * 0.5f));
+    ctx->Yield(3);
+    IM_CHECK(ctx->WindowInfo("//###HoverCity", ImGuiTestOpFlags_NoError).Window != 0);
+    ctx->SleepStandard();
+    IM_CHECK(demo_end_video(ctx));
+
+    /* The pictures, after the video. */
+    ui_info_open(&v.ui, api, UI_INFO_OFFICERS, false);
+    ctx->Yield(3);
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###InfoTable", "officer_table"));
+    v.ui.info.detail    = true;
+    v.ui.info.detail_id = top;
+    ctx->Yield(3);
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###InfoDetail", "officer_detail"));
+    ui_info_open(&v.ui, api, UI_INFO_CITIES, true);
+    ctx->Yield(2);
+    v.ui.info.detail    = true;
+    v.ui.info.detail_id = 26;
+    ctx->Yield(3);
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###InfoDetail", "city_detail"));
+    ui_info_open(&v.ui, api, UI_INFO_FACTION, true);
+    ctx->Yield(3);
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###FactionInfo", "faction"));
+    v.ui.info.screen = UI_INFO_NONE;
+    v.ui.show_political = true;
+    v.ui.political.background = UI_POLITICAL_FACTION;
+    ctx->Yield(3);
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###PoliticalMap", "political_map"));
+}
+
 /* M13 (the replay of the save pairs; tutorial 26): the Fidelity panel lists
    the pairs of the spec. Replay on conscript/001 loads the save of the
    original before 徵兵 in 江陵, runs 徵兵 with the same three officers and
@@ -2750,4 +2891,9 @@ register_demo_tests(ImGuiTestEngine *e)
     t->SetVarsDataType<demo_vars>();
     t->GuiFunc  = demo_gui;
     t->TestFunc = demo_m20_ai_round;
+
+    t = IM_REGISTER_TEST(e, "demo", DEMO_M21_NAME);
+    t->SetVarsDataType<demo_vars>();
+    t->GuiFunc  = demo_gui;
+    t->TestFunc = demo_m21_information;
 }

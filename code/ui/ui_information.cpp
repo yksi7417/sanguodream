@@ -157,6 +157,22 @@ ui_info_skill_name(ui_state *ui, engine_api *api, u8 skill)
     return ui_text_with_key(ui, "skill", api->skill_kind_at(api->engine, skill).key);
 }
 
+/* 所在: a base, or the unit of an officer in the field. */
+internal void
+ui_info_position_text(ui_state *ui, engine_api *api, u16 position, char *out, u32 out_size)
+{
+    if (position >= UI_HUD_FIRST_UNIT && position != UI_HUD_NO_POSITION)
+    {
+        engine_unit unit = api->unit_at(api->engine, position - UI_HUD_FIRST_UNIT);
+        if (unit.id != ENGINE_NO_UNIT)
+        {
+            ui_unit_label(ui, api, &unit, out, out_size);
+            return;
+        }
+    }
+    ui_code_text(ui, api, UI_CODE_LOCATION, position, out, out_size);
+}
+
 /* The cells of an officer row in the columns of the tab. */
 internal void
 ui_info_officer_cells(ui_state *ui, engine_api *api, u16 officer_id, ui_sort_key *cells)
@@ -171,7 +187,8 @@ ui_info_officer_cells(ui_state *ui, engine_api *api, u16 officer_id, ui_sort_key
         case UI_INFO_TAB_BELONG:
             ui_key_code(ui, api, cells + 1, UI_CODE_FORCE, officer.force_id, UI_NO_ID_8);
             ui_key_code(ui, api, cells + 2, UI_CODE_LOCATION, officer.base_location, UI_NO_ID_16);
-            ui_key_code(ui, api, cells + 3, UI_CODE_LOCATION, officer.current_position, UI_NO_ID_16);
+            ui_info_position_text(ui, api, officer.current_position, name, sizeof(name));
+            ui_key_text(cells + 3, name);
             ui_key_code(ui, api, cells + 4, UI_CODE_STATUS, officer.status, U32_MAX);
             ui_key_mixed(cells + 5, officer.status == 2 ? 1 : 0, officer.status == 2 ? "\xE2\x97\x8B" : "\xC3\x97");   /* ○ or × */
             if (officer.status == 0) ui_key_mixed(cells + 6, 101, "---");   /* the ruler has no loyalty */
@@ -387,7 +404,7 @@ ui_draw_officer_detail(ui_state *ui, engine_api *api)
     char force[UI_NAME_SIZE * 2], belong[UI_NAME_SIZE * 2], place[UI_NAME_SIZE * 2], status[UI_NAME_SIZE * 2];
     ui_code_text(ui, api, UI_CODE_FORCE, officer.force_id, force, sizeof(force));
     ui_code_text(ui, api, UI_CODE_LOCATION, officer.base_location, belong, sizeof(belong));
-    ui_code_text(ui, api, UI_CODE_LOCATION, officer.current_position, place, sizeof(place));
+    ui_info_position_text(ui, api, officer.current_position, place, sizeof(place));
     ui_code_text(ui, api, UI_CODE_STATUS, officer.status, status, sizeof(status));
     ImGui::Text("%s %s   %s %s   %s %s   %s %s", text_get(ui->text, "column.force"), force, text_get(ui->text, "info.col.belong"), belong,
                 text_get(ui->text, "column.location"), place, text_get(ui->text, "picker.status"), status);
