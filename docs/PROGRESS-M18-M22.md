@@ -55,7 +55,7 @@ Open points for the analysis side (also in the ROADMAP Status block):
 ## M22 Fit and finish
 Status: done (2026-10-21, tutorial 35, demo "demo/m22_fit_and_finish").
 Commits 0200321 (the HUD fit and the tests of the global rules) and
-COMMIT_DOCS (the demo, tutorial 35 and the docs) on master.
+4449b46 (the demo, tutorial 35 and the docs) on master.
 Tests: all unit and feature layers pass, ui 159/159 with e2e, the window
 smoke run passes, and the 23 demos record.
 Open points for the analysis side (also in the ROADMAP Status block):
@@ -67,5 +67,5 @@ Open points for the analysis side (also in the ROADMAP Status block):
 - the cyan area of a city under the mouse;
 - the submenus 外交, 計略 and 君主.
 
-All milestones M18 to M22 are done. The scheduled task san11-m18-m22
-has no more work.
+Each milestone from M18 to M22 has the status "done". The scheduled
+task san11-m18-m22 has no more work.
