@@ -29,6 +29,8 @@ global_variable ui_command_info ui_command_infos[UI_COMMAND_COUNT] = {
 
 #define UI_MERCHANT_DEFAULT_AMOUNT 1000
 
+internal void ui_picker_open(ui_state *ui, engine_api *api, u8 target, u8 city, u32 places);   /* ui_officer_pick.cpp (M19) */
+
 /* The ability that decides the effect of the command (city-commands.md). */
 internal u32
 ui_command_ability(engine_officer *officer, u32 kind)
@@ -291,9 +293,13 @@ ui_draw_city_command(ui_state *ui, engine_api *api, u32 kind)
         if (kind == UI_COMMAND_PRODUCE)  ui_draw_weapon_rows(ui, api, &economy);
         if (kind == UI_COMMAND_MERCHANT) ui_draw_merchant_order(ui, &economy);
 
-        /* 執行武將: the button names the officer slots; the combos choose the officers. */
+        /* 執行武將: the button opens the officer selection (M19); the combos
+           also choose the officers. */
         char label[96];
-        ImGui::Button(ui_label(label, sizeof(label), ui, "command.executor", "executor"));
+        if (ImGui::Button(ui_label(label, sizeof(label), ui, "command.executor", "executor")))
+        {
+            ui_picker_open(ui, api, (u8)kind, dialog->city, info->max_officers);
+        }
         u16 free_ids[UI_DEVELOP_OFFICER_LIST];
         u32 free_count = ui_free_officers(api, dialog->city, free_ids, ArrayCount(free_ids));
         /* M19: the portrait slots of the chosen officers, as in the original. */

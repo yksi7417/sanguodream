@@ -499,9 +499,16 @@ ui_develop_reset_for_city(ui_state *ui, engine_api *api)
     ui->develop.prepared_city = ui->develop.city;
 }
 
+internal void ui_draw_develop_game(ui_state *ui, engine_api *api);   /* ui_placement.cpp (M19) */
+
 internal void
 ui_draw_develop(ui_state *ui, engine_api *api)
 {
+    if (ui->hud_mode)
+    {
+        ui_draw_develop_game(ui, api);   /* M19: the grid of the original and the placement mode */
+        return;
+    }
     char title[128];
     ImGui::SetNextWindowSize(ImVec2(420, 300), ImGuiCond_FirstUseEver);
     ui_context_place(ui, 1);   /* the game mode: the dialog opens next to its entity */

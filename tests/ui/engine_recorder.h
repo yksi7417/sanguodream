@@ -1535,6 +1535,9 @@ internal engine_battle recorder_battle_at(void *o, u32 index)
    is city 0. */
 #define RECORDER_CITY_COL 2
 #define RECORDER_CITY_ROW 2
+#define RECORDER_SLOT_COL 6     /* M19: the hex of slot RECORDER_SLOT_INDEX of city 0 */
+#define RECORDER_SLOT_ROW 4
+#define RECORDER_SLOT_INDEX 4
 
 internal engine_map_info recorder_map_info(void *o)
 {
@@ -1555,6 +1558,11 @@ internal engine_hex recorder_hex_at(void *o, s32 q, s32 r)
     hex.city_id     = offset.col == RECORDER_CITY_COL && offset.row == RECORDER_CITY_ROW ? 0 : ENGINE_NO_CITY;
     hex.base_id     = ENGINE_NO_BASE;
     hex.slot_city   = ENGINE_NO_CITY;    /* M11: nothing stands on the scripted hexes */
+    if (offset.col == RECORDER_SLOT_COL && offset.row == RECORDER_SLOT_ROW)
+    {
+        hex.slot_city  = 0;              /* M19: one empty slot of city 0, for the placement mode */
+        hex.slot_index = RECORDER_SLOT_INDEX;
+    }
     hex.facility    = ENGINE_NO_FACILITY;
     hex.building_id = ENGINE_NO_BUILDING;
     hex.building_kind = ENGINE_NO_ROW;

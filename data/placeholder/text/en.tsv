@@ -1267,3 +1267,19 @@ city.price_text	%u grain = 1 gold
 city.active	Active
 city.captives	Captives
 city.ronin	Free officers
+picker.title	Choose the officers	M19: 選擇執行武將
+picker.check_all	Check all	M19: 一併
+picker.clear_all	Clear all	M19: 一併解除
+picker.officer	Officer	M19: 武將
+picker.corps	Corps	M19: 軍團
+picker.days	Days	M19: 日數
+picker.status	Rank	M19: 身份
+picker.leadership	LEA	M19: 統率
+picker.war	WAR	M19: 武力
+picker.intelligence	INT	M19: 智力
+picker.politics	POL	M19: 政治
+picker.charm	CHA	M19: 魅力
+placement.cost	Cost	M19: 費用
+placement.officers	Officers	M19: 武將
+placement.site	Site	M19: 場所
+placement.hint	Click an empty slot of the city.	M19: the placement mode after 開發

@@ -322,6 +322,12 @@ ui_hud_scene_clicks(ui_state *ui, engine_api *api)
     hex_coord hex = ui->scene.hover;
     engine_hex data = api->hex_at(api->engine, hex.q, hex.r);
     f32 x = io.MousePos.x, y = io.MousePos.y;
+    if (ui->placement.active)   /* M19: a 開發 waits for its slot (ui_placement.cpp) */
+    {
+        if (left) ui_placement_click(ui, api, hex);
+        else      ui->placement.active = false;
+        return;
+    }
     if (left && ui_unit_click(ui, api, hex))
     {
         ui->scene.framed_unit = ui->units.selected;   /* the camera stays: the unit is under the cursor */

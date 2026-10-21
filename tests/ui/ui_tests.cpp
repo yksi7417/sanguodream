@@ -750,6 +750,182 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
+    /* ---- M19: the officer selection 選擇執行武將, the 開發 grid, the placement mode */
+
+    /* 執行武將 opens the list with the proposal checked. A row click checks
+       or clears the row. 決定 and 一併解除 are grey with no check. 決定
+       writes the checks into the slots, and the dialog keeps them. */
+    t = IM_REGISTER_TEST(e, "ui", "officer_pick_checks_rows_and_fills_the_command_dialog");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_command[UI_COMMAND_PATROL] = true;
+        ctx->SetRef("###Patrol");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###executor");
+        ctx->Yield(2);
+        IM_CHECK(v.ui.show_picker && v.ui.picker.target == UI_COMMAND_PATROL && v.ui.picker.id_count == 3);
+        IM_CHECK_EQ(v.ui.picker.checked_count, 3u);                                   /* the proposal is checked */
+        ctx->SetRef("//###OfficerPick");
+        ctx->ItemClick("###clear_all");
+        ctx->Yield();
+        IM_CHECK_EQ(v.ui.picker.checked_count, 0u);
+        IM_CHECK((ctx->ItemInfo("###pick_decide").ItemFlags & ImGuiItemFlags_Disabled) != 0);
+        IM_CHECK((ctx->ItemInfo("###clear_all").ItemFlags & ImGuiItemFlags_Disabled) != 0);
+        ctx->ItemClick("**/###pick_row102");
+        ctx->ItemClick("**/###pick_row100");
+        ctx->ItemClick("**/###pick_row100");                                         /* a second click clears the row */
+        ctx->ItemClick("**/###pick_row101");
+        ctx->Yield();
+        IM_CHECK(v.ui.picker.checked_count == 2 && v.ui.picker.checked[0] == 102 && v.ui.picker.checked[1] == 101);
+        ctx->ItemClick("###pick_decide");
+        ctx->Yield(2);
+        u16 *slots = v.ui.commands[UI_COMMAND_PATROL].officers;
+        IM_CHECK(!v.ui.show_picker);
+        IM_CHECK(slots[0] == 102 && slots[1] == 101 && slots[2] == ENGINE_NO_OFFICER);   /* the dialog keeps the choice */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* A header click sorts. 一併 checks the rows from the top, as many as the
+       command takes: one for 商人. */
+    t = IM_REGISTER_TEST(e, "ui", "officer_pick_header_sorts_and_check_all_takes_the_top_rows");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_command[UI_COMMAND_MERCHANT] = true;
+        ctx->SetRef("###Merchant");
+        ctx->Yield(2);
+        ctx->ItemClick("###executor");
+        ctx->Yield(2);
+        ctx->SetRef("//###OfficerPick");
+        IM_CHECK_EQ(v.ui.picker.places, 1u);
+        char header[96];
+        snprintf(header, sizeof(header), "%s###charm", text_get(&v.text, "picker.charm"));
+        ui_test_click_header(ctx, "pick_table", UI_PICKER_COLUMN_CHARM, header);
+        ctx->Yield(2);
+        IM_CHECK(v.ui.picker.view.sort_column == UI_PICKER_COLUMN_CHARM && v.ui.picker.view.sort_descending);   /* the top value first */
+        IM_CHECK_EQ(v.ui.picker.ids[v.ui.picker.rows[0]], 102u);                      /* charm 60, 50, 40 */
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###check_all");
+        ctx->Yield();
+        IM_CHECK(v.ui.picker.checked_count == 1 && v.ui.picker.checked[0] == 102);
+        ctx->ItemClick("###pick_decide");
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.commands[UI_COMMAND_MERCHANT].officers[0], 102u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* The game mode: the 開發 grid shows the built count of each facility.
+       決定 sends nothing and starts the placement. The 場所 arrows step
+       through the empty slots. A click on an empty slot of the city sends
+       one command_develop for that slot. */
+    t = IM_REGISTER_TEST(e, "ui", "develop_grid_starts_the_placement_and_a_slot_click_sends_one_develop");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.hud_mode            = true;
+        v.ui.scene.headless      = true;
+        v.ui.show_city = v.ui.show_map = v.ui.show_officers = v.ui.show_cities = false;   /* nothing covers the map */
+        v.ui.show_develop        = true;
+        v.ui.develop.city        = 0;
+        ctx->Yield(2);
+        u32 counts[256];
+        ui_count_built_facilities(&v.api, 0, counts, ArrayCount(counts));
+        IM_CHECK_EQ(counts[0], 2u);                                                   /* the two built markets of the script */
+        ctx->SetRef("###Develop");
+        IM_CHECK(ctx->ItemExists("###fac0") && ctx->ItemExists("###fac2"));
+        ctx->ItemClick("###fac2");
+        ctx->Yield();
+        IM_CHECK_EQ(v.ui.develop.facility, 2u);
+        ctx->ItemClick("###executor");
+        ctx->Yield(2);
+        IM_CHECK(v.ui.show_picker && v.ui.picker.target == UI_PICKER_FOR_DEVELOP && v.ui.picker.places == 3);
+        ctx->SetRef("//###OfficerPick");
+        ctx->ItemClick("###pick_back");                                               /* 返回 keeps the slots */
+        ctx->Yield();
+        IM_CHECK(!v.ui.show_picker && v.ui.develop.officers[0] == 100);
+        recorder_reset(&v.recorder);
+        ctx->SetRef("###Develop");
+        ctx->ItemClick("###decide");
+        ctx->Yield(2);
+        IM_CHECK(v.ui.placement.active && !v.ui.show_develop && v.ui.placement.facility == 2 && v.ui.placement.city == 0);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);                        /* 決定 waits for the slot */
+        IM_CHECK_EQ(v.ui.placement.slot, 0u);                                         /* the first empty slot */
+        ctx->SetRef("//###Placement");
+        ctx->ItemClick("###slot_next");
+        ctx->ItemClick("###slot_next");
+        IM_CHECK_EQ(v.ui.placement.slot, 4u);                                         /* 2 and 3 hold markets */
+        ctx->ItemClick("###slot_prev");
+        IM_CHECK_EQ(v.ui.placement.slot, 1u);
+        hex_offset slot_cell = { RECORDER_SLOT_COL, RECORDER_SLOT_ROW };
+        ui_frame_hex(&v.ui, &v.api, hex_from_offset(slot_cell));                      /* the slot hex is at the centre of the screen */
+        v.ui.scene.cam.target.y = 0.0f;
+        ctx->Yield(3);
+        recorder_reset(&v.recorder);
+        ImVec2 display = ImGui::GetIO().DisplaySize;
+        ctx->MouseMoveToPos(ImVec2(display.x * 0.5f, display.y * 0.5f));
+        ctx->Yield(2);
+        IM_CHECK(v.ui.placement.hover_valid);                                         /* the panel turns green */
+        ctx->MouseClick(0);
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_DEVELOP), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        engine_command sent = v.recorder.last_develop;
+        IM_CHECK(sent.city_id == 0 && sent.facility == 2 && sent.slot == RECORDER_SLOT_INDEX && sent.officers[0] == 100);
+        IM_CHECK(!v.ui.placement.active);
+    };
+
+    /* A click off the empty slots sends nothing and the placement waits.
+       返回 stops it. */
+    t = IM_REGISTER_TEST(e, "ui", "placement_ignores_other_hexes_and_back_stops_it");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.hud_mode            = true;
+        v.ui.scene.headless      = true;
+        v.ui.show_city = v.ui.show_map = v.ui.show_officers = v.ui.show_cities = false;
+        v.ui.placement.active    = true;
+        v.ui.placement.city      = 0;
+        v.ui.placement.facility  = 1;
+        v.ui.placement.slot      = ENGINE_ANY_SLOT;
+        v.ui.placement.officers[0] = 100;
+        v.ui.placement.officers[1] = v.ui.placement.officers[2] = ENGINE_NO_OFFICER;
+        ctx->Yield(2);
+        hex_offset city_cell = { RECORDER_CITY_COL, RECORDER_CITY_ROW };
+        ui_frame_hex(&v.ui, &v.api, hex_from_offset(city_cell));                      /* the city hex, not a slot */
+        v.ui.scene.cam.target.y = 0.0f;
+        ctx->Yield(3);
+        recorder_reset(&v.recorder);
+        ImVec2 display = ImGui::GetIO().DisplaySize;
+        ctx->MouseMoveToPos(ImVec2(display.x * 0.5f, display.y * 0.5f));
+        ctx->MouseClick(0);
+        ctx->Yield(2);
+        IM_CHECK(v.ui.placement.active && !v.ui.placement.hover_valid && !v.ui.show_city);   /* no City dialog either */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        ctx->SetRef("//###Placement");
+        ctx->ItemClick("###place_back");
+        ctx->Yield();
+        IM_CHECK(!v.ui.placement.active);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
     /* ---- M3: the five city command dialogs, the economy panel, the ledger filter */
 
     t = IM_REGISTER_TEST(e, "ui", "city_panel_opens_each_command_dialog_and_commands_nothing");

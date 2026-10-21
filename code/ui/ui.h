@@ -82,6 +82,9 @@ enum ui_city_command
     UI_COMMAND_COUNT
 };
 
+#define UI_PICKER_FOR_DEVELOP UI_COMMAND_COUNT   /* the target of the officer selection: the 開發 dialog */
+#define UI_PICKER_CAPACITY    64                 /* the free officers that the officer selection lists */
+
 struct ui_command_dialog
 {
     u8  city;                            /* the city of the dialog */
@@ -398,6 +401,35 @@ struct ui_state
         u32  float_count;
         u32  feedback_count;      /* the bubbles that the UI opened; the tests read it */
     } report;
+    /* M19: the officer selection window 選擇執行武將 (ui_officer_pick.cpp).
+       It lists the free officers of the city of a dialog. 決定 writes the
+       checked officers into the slots of that dialog. */
+    bool show_picker;
+    struct
+    {
+        u8            target;        /* a ui_city_command, or UI_PICKER_FOR_DEVELOP */
+        u8            city;
+        u8            places;        /* the officers that the command takes */
+        u16           checked[SIM_DEVELOP_OFFICERS];
+        u32           checked_count;
+        u16           ids[UI_PICKER_CAPACITY];   /* the free officers at the open */
+        u32           id_count;
+        u16           hovered;       /* the officer of the portrait at the left */
+        ui_table_view view;
+        u32           rows[UI_PICKER_CAPACITY];
+        ui_sort_key   keys[UI_PICKER_CAPACITY];
+    } picker;
+    /* M19: the placement mode after 開發 in the game mode (ui_placement.cpp).
+       The next left click on an empty slot of the city sends the command. */
+    struct
+    {
+        bool active;
+        u8   city;
+        u8   facility;
+        u8   slot;                   /* the slot that the 場所 arrows chose; ENGINE_ANY_SLOT for none */
+        u16  officers[SIM_DEVELOP_OFFICERS];
+        bool hover_valid;            /* the hex under the mouse is an empty slot of the city */
+    } placement;
     bool quit_requested;       /* 結束遊戲: the platform closes the window */
     /* The default portraits of this frame (ui_frame_info). Zero: the panels
        show the first character of the name in place of a portrait. */

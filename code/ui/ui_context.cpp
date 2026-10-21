@@ -45,7 +45,7 @@ ui_context_close(ui_state *ui)
     {
         case UI_CONTEXT_CITY:
             ui->show_city = ui->show_develop = ui->show_research = ui->show_merge = false;
-            ui->show_sortie = ui->show_transport = false;
+            ui->show_sortie = ui->show_transport = ui->show_picker = false;
             for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind) ui->show_command[kind] = false;
             break;
         case UI_CONTEXT_UNIT:

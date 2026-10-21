@@ -21,6 +21,8 @@ ui_label(char *out, u32 out_size, ui_state *ui, const char *text_id, const char 
 #include "ui/ui_settings.cpp"
 #include "ui/ui_city.cpp"
 #include "ui/ui_city_commands.cpp"
+#include "ui/ui_officer_pick.cpp" /* M19: 選擇執行武將 */
+#include "ui/ui_placement.cpp"    /* M19: the 開發 grid and the placement mode of the game mode */
 #include "ui/ui_economy.cpp"
 #include "ui/ui_growth.cpp"
 #include "ui/ui_march.cpp"
@@ -74,6 +76,10 @@ ui_init(ui_state *ui, text_catalog *text)
     ui->develop = {};
     ui->develop.prepared_city = ENGINE_NO_CITY;
     ui->develop.slot          = ENGINE_ANY_SLOT;
+    ui->show_picker           = false;   /* M19 */
+    ui->picker                = {};
+    ui->picker.view.sort_column = UI_SORT_NO_COLUMN;
+    ui->placement             = {};
     ui->show_economy          = false;
     ui->report                = {};   /* M18 */
     ui->report.provider       = text_template_provider();
@@ -612,7 +618,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->show_settings) ui_draw_settings(ui, api);
     /* M19, ui/city-commands.md: in the game mode the city panel hides while
        a command dialog of the city is open. */
-    bool command_open = false;
+    bool command_open = ui->show_develop || ui->show_picker;
     for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind) command_open = command_open || ui->show_command[kind];
     if (ui->show_city && !(ui->hud_mode && command_open)) ui_draw_city(ui, api);
     if (ui->show_develop) ui_draw_develop(ui, api);
@@ -644,6 +650,8 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     {
         if (ui->show_command[kind]) ui_draw_city_command(ui, api, kind);
     }
+    if (ui->show_picker) ui_draw_picker(ui, api);      /* M19: over the dialog that opened it */
+    if (hud_ready)       ui_draw_placement(ui, api);   /* M19: the panel of a 開發 that waits for its slot */
     if (ui->hud_mode) ui_draw_hud_menus(ui, api);   /* the map menu and the system menu */
     ui_context_update(ui, api);                     /* a right click outside a dialog closes it */
 
