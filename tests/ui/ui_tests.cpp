@@ -2938,6 +2938,7 @@ register_ui_tests(ImGuiTestEngine *e)
         v.recorder.events[2] = start;
         v.recorder.event_count = 3;
         v.ui.feel.turn_messages = true;
+        v.ui.round.show         = true;   /* M20: the message window opens only with the show on */
         ui_enter_game(&v.ui);
         ctx->Yield(3);
         IM_CHECK_EQ(v.ui.feel.message_count, 2u);
@@ -2973,6 +2974,7 @@ register_ui_tests(ImGuiTestEngine *e)
         v.recorder.events[0] = done;
         v.recorder.event_count = 1;
         v.ui.feel.turn_messages = true;
+        v.ui.round.show         = true;   /* M20: the message window opens only with the show on */
         ui_enter_game(&v.ui);
         ctx->Yield(3);
         IM_CHECK_EQ(v.ui.feel.message_count, 2u);              /* the heading and the report */
@@ -2991,6 +2993,140 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK(ui_feel_messages_open(&v.ui));
         IM_CHECK_EQ(v.ui.feel.message_count, 2u);              /* the heading and the new report only */
         IM_CHECK_EQ(v.ui.feel.turn, 1u);
+    };
+
+    /* M20, the decision of the player: with the default setting, 進行 opens
+       no message window, and the log holds the events of the round. */
+    t = IM_REGISTER_TEST(e, "ui", "proceed_with_the_default_setting_opens_no_message_and_the_log_keeps_the_round");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        sim_event rival = {};
+        rival.kind = SIM_EVENT_CONSCRIPTED; rival.faction = 2; rival.subject = 1; rival.delta = 500; rival.turn = 1;
+        sim_event report = {};
+        report.kind = SIM_EVENT_FACILITY_COMPLETED; report.faction = 1; report.subject = 1; report.detail = 1; report.turn = 1;   /* a report */
+        v.recorder.round_events[0] = rival;
+        v.recorder.round_events[1] = report;
+        v.recorder.round_event_count = 2;
+        v.ui.feel.turn_messages = true;   /* as the game exe */
+        IM_CHECK(!v.ui.round.show);       /* the default */
+        ui_enter_game(&v.ui);
+        ctx->Yield(3);
+        recorder_reset(&v.recorder);
+        ui_context_open(&v.ui, &v.api, UI_CONTEXT_MAP_MENU, 400.0f, 300.0f);
+        ctx->Yield(2);
+        ctx->ItemClick("//###MapMenu/###proceed");
+        ctx->Yield(3);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_END_TURN), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(!ui_feel_messages_open(&v.ui) && !v.ui.round.playing);
+        IM_CHECK(ctx->ItemExists("//###HUD/###hud_tabs/###hud_bases"));   /* the list stays */
+        bool rival_line = false, report_line = false;
+        for (u32 offset = 0; offset < v.ui.report.line_count; ++offset)
+        {
+            u32 line = v.ui.report.lines[(v.ui.report.line_first + offset) % UI_LOG_CAPACITY];
+            rival_line  = rival_line || line == 0;
+            report_line = report_line || line == 1;
+        }
+        IM_CHECK(rival_line && report_line);
+    };
+
+    /* M20, with the show on: the HUD names each AI faction in the order of
+       the round, the values rise in the order of the events, and no click
+       is necessary. The messages of the player follow the show. */
+    t = IM_REGISTER_TEST(e, "ui", "ai_show_names_each_faction_and_floats_the_events_in_order");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        sim_event first = {};
+        first.kind = SIM_EVENT_CONSCRIPTED; first.faction = 2; first.subject = 1; first.delta = 500; first.turn = 1;
+        sim_event second = first;
+        second.kind = SIM_EVENT_MORALE_LOST; second.subject = 2; second.delta = -5;
+        sim_event quiet = first;
+        quiet.kind = SIM_EVENT_FACTION_TURN_ENDED;   /* the books of the turn: no step */
+        sim_event third = first;
+        third.faction = 3; third.delta = 120;
+        sim_event report = {};
+        report.kind = SIM_EVENT_FACILITY_COMPLETED; report.faction = 1; report.subject = 1; report.detail = 1; report.turn = 1;
+        v.recorder.round_events[0] = first;
+        v.recorder.round_events[1] = second;
+        v.recorder.round_events[2] = quiet;
+        v.recorder.round_events[3] = third;
+        v.recorder.round_events[4] = report;
+        v.recorder.round_event_count = 5;
+        v.ui.feel.turn_messages = true;
+        v.ui.round.show = true;
+        ui_enter_game(&v.ui);
+        ctx->Yield(3);
+        recorder_reset(&v.recorder);
+        ui_context_open(&v.ui, &v.api, UI_CONTEXT_MAP_MENU, 400.0f, 300.0f);
+        ctx->Yield(2);
+        ctx->ItemClick("//###MapMenu/###proceed");
+        ctx->Yield();
+        IM_CHECK(v.ui.round.playing);
+        bool named_rival = false;
+        for (u32 frame = 0; frame < 600 && v.ui.round.playing; ++frame)
+        {
+            ctx->Yield();
+            named_rival = named_rival || ui_round_hud_force(&v.ui, &v.api) == 2;
+            IM_CHECK(!ui_feel_messages_open(&v.ui));   /* no window during the show */
+        }
+        IM_CHECK(!v.ui.round.playing && named_rival);
+        IM_CHECK(v.ui.round.named_count == 2 && v.ui.round.named[0] == 2 && v.ui.round.named[1] == 3);
+        IM_CHECK_EQ(v.ui.round.shown_count, 3u);
+        IM_CHECK(v.ui.round.shown[0] == 0 && v.ui.round.shown[1] == 1 && v.ui.round.shown[2] == 3);   /* the order of the events */
+        ctx->Yield(2);
+        IM_CHECK(ui_feel_messages_open(&v.ui));         /* the report of the player follows the show */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+    };
+
+    /* M20, with the show on: a unit of an AI faction walks hex by hex from
+       its hex before 進行 to its new hex. The camera stays. */
+    t = IM_REGISTER_TEST(e, "ui", "ai_show_moves_a_unit_hex_by_hex_and_the_camera_stays");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.recorder.unit0_rival   = true;
+        v.recorder.round_unit_shift = 3;                 /* unit 0 goes from q 1 to q 4 */
+        sim_event moved = {};
+        moved.kind = SIM_EVENT_UNIT_MOVED; moved.faction = 2; moved.detail = 0; moved.delta = 12; moved.turn = 1;
+        v.recorder.round_events[0] = moved;
+        v.recorder.round_event_count = 1;
+        v.ui.scene.headless = true;
+        v.ui.round.show     = true;
+        ui_enter_game(&v.ui);
+        ctx->Yield(3);
+        v3 camera = v.ui.scene.cam.target;
+        ui_context_open(&v.ui, &v.api, UI_CONTEXT_MAP_MENU, 400.0f, 300.0f);
+        ctx->Yield(2);
+        ctx->ItemClick("//###MapMenu/###proceed");
+        ctx->Yield();
+        IM_CHECK(v.ui.round.playing);
+        s32 path[8];
+        u32 path_count = 0;
+        for (u32 frame = 0; frame < 600 && v.ui.round.playing; ++frame)
+        {
+            engine_unit unit = v.api.unit_at(v.api.engine, 0);
+            hex_coord drawn = ui_round_unit_hex(&v.ui, &unit);
+            if ((path_count == 0 || path[path_count - 1] != drawn.q) && path_count < ArrayCount(path)) path[path_count++] = drawn.q;
+            ctx->Yield();
+        }
+        IM_CHECK(!v.ui.round.playing);
+        IM_CHECK_EQ(path_count, 4u);                      /* q 1, 2, 3, 4: one hex in each step */
+        IM_CHECK(path[0] == 1 && path[1] == 2 && path[2] == 3 && path[3] == 4);
+        IM_CHECK(v.ui.scene.cam.target.x == camera.x && v.ui.scene.cam.target.z == camera.z);
     };
 
     /* M18, main-map.md "Speech bubble", "Floating value", "Bottom-left

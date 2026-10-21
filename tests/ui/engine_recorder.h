@@ -231,6 +231,12 @@ struct engine_recorder
     u32           next_command_id;
     sim_event     events[RECORDER_MAX_EVENTS];
     u32           event_count;
+    /* M20: the AI round that end_turn adds to the ledger, and a move of unit 0 */
+    sim_event     round_events[8];
+    u32           round_event_count;
+    s32           round_unit_shift;   /* end_turn moves unit 0 this many hexes along q */
+    s32           unit_shift;
+    b32           unit0_rival;        /* unit 0 belongs to force 2 */
     u32           officer_count;      /* scripted rows for the Officers and Cities panels */
     u32           city_count;
     char          last_load_path[RECORDER_MAX_PATH];
@@ -350,6 +356,11 @@ internal u32 recorder_end_turn(void *o)
     engine_recorder *r = (engine_recorder *)o;
     recorder_record(r, RECORDER_END_TURN, 0);
     r->turn++;
+    for (u32 index = 0; index < r->round_event_count && r->event_count < RECORDER_MAX_EVENTS; ++index)
+    {
+        r->events[r->event_count++] = r->round_events[index];   /* M20: the AI factions act inside end_turn */
+    }
+    r->unit_shift += r->round_unit_shift;
     return r->next_command_id++;
 }
 internal u32 recorder_advance_turns(void *o, u32 count)
@@ -964,12 +975,13 @@ internal engine_unit_type recorder_unit_type_at(void *o, u32 index)
 internal u32 recorder_unit_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_UNIT_COUNT, 0); return 2; }
 internal engine_unit recorder_unit_at(void *o, u32 unit_id)
 {
-    recorder_record((engine_recorder *)o, RECORDER_UNIT_AT, unit_id);
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_UNIT_AT, unit_id);
     engine_unit unit = {};
     unit.id = unit_id < 2 ? unit_id : ENGINE_NO_UNIT;
     if (unit.id == ENGINE_NO_UNIT) return unit;
-    unit.force_id    = 1;
-    unit.q           = 1;
+    unit.force_id    = (u8)(unit_id == 0 && r->unit0_rival ? 2 : 1);
+    unit.q           = 1 + (unit_id == 0 ? r->unit_shift : 0);
     unit.r           = unit_id == 0 ? 2 : 3;
     unit.unit_type   = unit_id == 0 ? 1 : 12;
     unit.officers[0] = unit_id == 0 ? 100 : 102;

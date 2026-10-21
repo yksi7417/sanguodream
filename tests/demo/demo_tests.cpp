@@ -20,6 +20,7 @@
 #define DEMO_M17_NAME          "m17_first_hour"
 #define DEMO_M18_NAME          "m18_feedback"
 #define DEMO_M19_NAME          "m19_city_scene"
+#define DEMO_M20_NAME          "m20_ai_round"
 
 /* build\demos, with no last backslash. demo_player.cpp sets it. */
 global_variable char g_demo_output_dir[MAX_PATH];
@@ -61,7 +62,7 @@ demo_gui(ImGuiTestContext *ctx)
                                   strcmp(ctx->Test->Name, DEMO_M12_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M13_NAME) == 0 ||
                                   strcmp(ctx->Test->Name, DEMO_M14_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M15_NAME) == 0 ||
                                   strcmp(ctx->Test->Name, DEMO_M17_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M18_NAME) == 0 ||
-                                  strcmp(ctx->Test->Name, DEMO_M19_NAME) == 0;
+                                  strcmp(ctx->Test->Name, DEMO_M19_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M20_NAME) == 0;
         v.backend = engine_create(&v.permanent, &v.transient, config);
         v.api     = engine_make_api(v.backend);
         text_catalog_init(&v.text, arena_sub(&v.permanent, Megabytes(4)), test_platform_read_entire_file,
@@ -2119,6 +2120,91 @@ demo_m19_city_scene(ImGuiTestContext *ctx)
     IM_CHECK(demo_end_video(ctx));
 }
 
+/* M20 (the turn of the others; tutorial 33): the sample save in the game
+   mode. With the default setting, 進行 ends the turn, and the next turn
+   starts with no message window. The log holds the events of the round.
+   Then the settings screen turns the show on. The next 進行 plays the AI
+   round: the HUD names each AI faction in turn, the values rise over the
+   cities, and the units walk. No step needs a click. */
+internal void
+demo_m20_proceed(ImGuiTestContext *ctx, demo_vars &v)
+{
+    ImVec2 display = ImGui::GetIO().DisplaySize;
+    ui_context_open(&v.ui, &v.api, UI_CONTEXT_MAP_MENU, display.x * 0.6f, display.y * 0.4f);
+    ctx->Yield(2);
+    ctx->ItemClick("//###MapMenu/###proceed");
+    ctx->Yield(2);
+}
+
+internal void
+demo_m20_ai_round(ImGuiTestContext *ctx)
+{
+    const char *milestone = DEMO_M20_NAME;
+    demo_vars &v = ctx->GetVars<demo_vars>();
+    engine_api *api = &v.api;
+    void *e = api->engine;
+    IM_CHECK(api->map_info(e).real_map);
+    IM_CHECK(demo_open_panel(ctx, "Simulation", &v.ui.show_sim));
+    ctx->SetRef("Simulation");
+    ctx->ItemClick("Load sample save");
+    ctx->Yield();
+    ui_enter_game(&v.ui);
+    v.ui.feel.turn_messages = true;   /* as the game exe */
+    ctx->Yield(3);
+    IM_CHECK(!v.ui.round.show && !ui_feel_messages_open(&v.ui));
+    IM_CHECK(demo_begin_video(ctx, milestone));
+    u8 player = api->whose_turn(e);
+    ctx->SetRef("//###HUD");
+    ctx->ItemClick("**/###hud_row0_26");
+    ctx->Yield(2);
+    ctx->SleepStandard();
+
+    /* The default: one 進行 with no click. */
+    u32 turn = api->turn(e);
+    u32 lines = v.ui.report.line_count;
+    demo_m20_proceed(ctx, v);
+    IM_CHECK(api->turn(e) != turn && api->whose_turn(e) == player);
+    IM_CHECK(!ui_feel_messages_open(&v.ui) && !v.ui.round.playing);
+    IM_CHECK_GT(v.ui.report.line_count, lines);
+    ctx->SleepStandard();
+    ctx->SleepStandard();
+
+    /* The settings screen turns the show on. */
+    ctx->ItemClick("//###HUD/###hud_system");
+    ctx->Yield(2);
+    ctx->ItemClick("//###SystemMenu/###settings");
+    ctx->Yield(2);
+    ctx->SetRef("###Settings");
+    ctx->ItemCheck("###ai_show");
+    ctx->Yield();
+    IM_CHECK(v.ui.round.show);
+    ctx->SleepStandard();
+    ui_context_close(&v.ui);
+    ctx->Yield(2);
+
+    /* The show: the round plays by itself. */
+    turn = api->turn(e);
+    demo_m20_proceed(ctx, v);
+    IM_CHECK(v.ui.round.playing);
+    for (u32 frame = 0; frame < 20000 && v.ui.round.playing; ++frame)
+    {
+        ctx->Yield();
+        IM_CHECK(!ui_feel_messages_open(&v.ui));
+    }
+    IM_CHECK(!v.ui.round.playing && api->turn(e) != turn);
+    IM_CHECK_GT(v.ui.round.named_count, 1u);
+    ctx->SleepStandard();
+    for (u32 click = 0; click < UI_MESSAGE_CAPACITY + 1 && ui_feel_messages_open(&v.ui); ++click)
+    {
+        ctx->ItemClick("//###Messages/###next");   /* the reports of the player follow the show */
+        ctx->Yield();
+    }
+    ctx->SleepStandard();
+    IM_CHECK(demo_end_video(ctx));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Log", "log"));
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###HUD", "hud"));
+}
+
 /* M13 (the replay of the save pairs; tutorial 26): the Fidelity panel lists
    the pairs of the spec. Replay on conscript/001 loads the save of the
    original before 徵兵 in 江陵, runs 徵兵 with the same three officers and
@@ -2659,4 +2745,9 @@ register_demo_tests(ImGuiTestEngine *e)
     t->SetVarsDataType<demo_vars>();
     t->GuiFunc  = demo_gui;
     t->TestFunc = demo_m19_city_scene;
+
+    t = IM_REGISTER_TEST(e, "demo", DEMO_M20_NAME);
+    t->SetVarsDataType<demo_vars>();
+    t->GuiFunc  = demo_gui;
+    t->TestFunc = demo_m20_ai_round;
 }

@@ -16,6 +16,8 @@ internal void ui_event_subject_text(ui_state *ui, engine_api *api, u32 entity, c
 /* ui_report.cpp (M18): the words of an event and the value after it. */
 internal void ui_report_line(ui_state *ui, engine_api *api, u32 ledger_index, s64 value, u32 form, char *out, u32 out_size);
 internal s64  ui_report_value(engine_api *api, const engine_event_report *report);
+/* ui_round.cpp (M20): 進行 of the map menu and of the top bar (ui_game.cpp). */
+internal void ui_round_proceed(ui_state *ui, engine_api *api);
 
 internal bool
 ui_feel_messages_open(ui_state *ui)
@@ -161,13 +163,22 @@ ui_feel_turn_start(ui_state *ui, engine_api *api)
         force = api->whose_turn(e);
         human = ui_feel_human(api, force, &any_human);
     }
-    if (!human) return;
+    if (!human || ui->round.playing) return;   /* M20: the messages follow the show */
     u32 turn = api->turn(e);
     if (ui->feel.seen_turn && ui->feel.turn == turn && ui->feel.force == force) return;
     ui->feel.seen_turn = true;
     ui->feel.turn      = turn;
     ui->feel.force     = force;
-    ui_feel_collect_messages(ui, api, force);
+    if (ui->round.show)
+    {
+        ui_feel_collect_messages(ui, api, force);
+        return;
+    }
+    /* M20, the decision of the player: with the show off, the turn starts
+       with no message to click. The reports stay in the log. */
+    ui->feel.message_count = 0;
+    ui->feel.message_shown = 0;
+    ui->feel.ledger_mark   = api->ledger_count(e);
 }
 
 internal void ui_title_open(ui_state *ui, engine_api *api, u32 choice);

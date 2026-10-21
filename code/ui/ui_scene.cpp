@@ -161,6 +161,8 @@ ui_scene_handle_keys(ui_state *ui, f32 dt_seconds)
     if (ImGui::IsKeyPressed(ImGuiKey_PageDown)) camera_zoom(&ui->scene.cam, UI_SCENE_ZOOM_STEP);
 }
 
+internal hex_coord ui_round_unit_hex(ui_state *ui, engine_unit *unit);   /* ui_round.cpp (M20); ui_locate.cpp uses it too */
+
 /* Fills the frame's render commands from the engine: the terrain, the
    overlay colours for the selection and the hover, and placeholder models
    and units until the spec gives real positions. */
@@ -231,7 +233,7 @@ ui_scene_push(ui_state *ui, engine_api *api, ui_frame_info *frame)
     {
         engine_unit unit = api->unit_at(api->engine, id);
         if (unit.id == ENGINE_NO_UNIT) continue;
-        hex_coord h = hex_make(unit.q, unit.r);
+        hex_coord h = ui_round_unit_hex(ui, &unit);   /* M20: a unit of the show walks hex by hex */
         hex_offset o = hex_to_offset(h);
         if (o.col < 0 || o.row < 0 || (u32)o.col >= view.width || (u32)o.row >= view.height) continue;
         u32 cell = (u32)o.row * view.width + (u32)o.col;

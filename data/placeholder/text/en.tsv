@@ -1283,3 +1283,4 @@ placement.cost	Cost	M19: 費用
 placement.officers	Officers	M19: 武將
 placement.site	Site	M19: 場所
 placement.hint	Click an empty slot of the city.	M19: the placement mode after 開發
+settings.ai_show	Show the turns of the other factions	M20: off by default; no part of the show needs a click

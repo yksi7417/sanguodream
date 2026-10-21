@@ -362,7 +362,7 @@ ui_draw_scene_labels(ui_state *ui, engine_api *api)
     {
         engine_unit unit = api->unit_at(api->engine, id);
         f32 x = 0.0f, y = 0.0f;
-        if (unit.id == ENGINE_NO_UNIT || !ui_scene_screen(api, view_projection, hex_make(unit.q, unit.r), UI_LABEL_LIFT, &x, &y)) continue;
+        if (unit.id == ENGINE_NO_UNIT || !ui_scene_screen(api, view_projection, ui_round_unit_hex(ui, &unit), UI_LABEL_LIFT, &x, &y)) continue;   /* M20 */
         ui_draw_unit_plate(ui, api, draw, x, y, &unit, unit.id == ui->units.selected);   /* M12 */
     }
     if (ui->scene.has_hover && !io.WantCaptureMouse)

@@ -276,7 +276,7 @@ ui_draw_topbar(ui_state *ui, engine_api *api)
     if (force != ENGINE_NO_FACTION) ui_force_text(ui, api, force, faction, sizeof(faction));
     ImGui::Text("%u/%u/%u   %s   %s %u", date.year, date.month, date.day, faction, text_get(ui->text, "topbar.points"),
                 force != ENGINE_NO_FACTION ? api->actions_left(e, force) : 0u);
-    if (ImGui::Button(ui_label(label, sizeof(label), ui, "topbar.proceed", "proceed"))) api->end_turn(e);
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "topbar.proceed", "proceed"))) ui_round_proceed(ui, api);   /* M20 */
     ImGui::SameLine();
     if (ImGui::Button(ui_label(label, sizeof(label), ui, "topbar.info", "open_info"))) ui->show_info = true;
     ImGui::SameLine();

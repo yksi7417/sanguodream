@@ -904,6 +904,24 @@ Closes report sections 3, 4 (dialog, proposal, officer list) and 5.
   original, without the art.
 
 ### M20 The turn of the others
+Status (2026-10-21): done (tutorial 33, demo "demo/m20_ai_round"). With
+the default setting, 進行 ends the turn and the next turn of the player
+starts with no message window. The log holds every event of the round.
+The settings screen has the setting of the show. With the show on, the
+HUD names each AI faction in turn with its 技巧 and no 行動力. The values
+rise over the cities on the screen, and the units walk hex by hex. The
+camera stays, and no step needs a click. The reports of the player
+follow the show in the message window.
+
+Open points for the analysis side:
+- a capture of a full AI round with the time of each step
+  (screen-flow.md, item 3). The times of ui_round.cpp are assumed;
+- the path of a move of an AI unit. The ledger gives no path, so the
+  unit walks on the line of hexes;
+- the effects of an attack, the fire and the cut-in 突擊!! (track G);
+- a filter of the log for one faction or for the events near the
+  player. The log filters all events or the events of the player.
+
 Closes report section 7 (AI turns).
 - Spec input: ui/clone-gap-report.md section 7 (the frame times of
   one AI round), ui/main-map.md "Scenes on the map". Open: a capture

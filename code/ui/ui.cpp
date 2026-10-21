@@ -47,6 +47,7 @@ ui_scene_mark(u32 *overlay, engine_terrain_view view, hex_coord h, u32 rgba)
 #include "ui/ui_scene.cpp"
 #include "ui/ui_locate.cpp"   /* M11 */
 #include "ui/ui_report.cpp"   /* M18: the log, the speech bubble and the values; needs ui_locate.cpp */
+#include "ui/ui_round.cpp"    /* M20: the show of the AI round; needs ui_report.cpp */
 #include "ui/ui_minimap.cpp"  /* M12: the round mini map */
 #include "ui/ui_hud.cpp"      /* the HUD and the list of the game mode */
 #include "ui/ui_ai.cpp"       /* M15: needs ui_locate.cpp */
@@ -80,6 +81,9 @@ ui_init(ui_state *ui, text_catalog *text)
     ui->picker                = {};
     ui->picker.view.sort_column = UI_SORT_NO_COLUMN;
     ui->placement             = {};
+    ui->round                 = {};   /* M20: the show is off by default */
+    ui->round.force           = ENGINE_NO_FACTION;
+    ui->round.move_unit       = ENGINE_NO_UNIT;
     ui->show_economy          = false;
     ui->report                = {};   /* M18 */
     ui->report.provider       = text_template_provider();
@@ -604,6 +608,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     ui_feel_update(ui, api, frame->dt_seconds, in_game);   /* M17: the rider, the load transition and the turn start */
     bool hud_ready = ui->hud_mode && in_game && !ui_feel_in_transition(ui);
     if (in_game) ui_report_update(ui, api, frame->dt_seconds);   /* M18: the log and the feedback read the new events */
+    if (in_game) ui_round_update(ui, api, frame->dt_seconds);    /* M20: the next step of the show of the AI round */
     if (tools) ui_draw_menu_bar(ui, api, frame);
     if (tools && ui->show_demo)   ImGui::ShowDemoWindow(&ui->show_demo);
     if (tools && ui->show_sim)    ui_draw_simulation(ui, api);
@@ -663,7 +668,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
         ImVec2 display = ImGui::GetIO().DisplaySize;
         ui_scene_handle_mouse(ui, api, frame->render ? frame->render->viewport_width : display.x,
                               frame->render ? frame->render->viewport_height : display.y);
-        if (hud_ready && !ui_feel_messages_open(ui)) ui_hud_scene_clicks(ui, api);   /* the dialogs at the clicked city, unit or map */
+        if (hud_ready && !ui_feel_messages_open(ui) && !ui->round.playing) ui_hud_scene_clicks(ui, api);   /* the dialogs at the clicked city, unit or map */
         ui_scene_handle_keys(ui, frame->dt_seconds);
         ui_follow_selection(ui, api);   /* M11: a picked city or unit moves the camera */
         ui_draw_scene_labels(ui, api);  /* M11: the plates of the bases and the units, the slots */

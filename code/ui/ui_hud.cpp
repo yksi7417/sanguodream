@@ -219,7 +219,8 @@ ui_draw_hud(ui_state *ui, engine_api *api)
     if (ImGui::Begin("###HUD", 0, flags))
     {
         engine_date date = api->date(e);
-        u8 force = api->whose_turn(e);
+        u8 force = ui_round_hud_force(ui, api);   /* M20: the AI faction of the show, else the faction that acts */
+        bool ai_turn = ui->round.playing && force != api->whose_turn(e);
         const char *seasons[4] = { "season.spring", "season.summer", "season.autumn", "season.winter" };
         char when[64], ruler[UI_NAME_SIZE * 2] = "-";
         snprintf(when, sizeof(when), text_get(ui->text, "hud.date"), date.year, date.month, date.day);
@@ -227,18 +228,21 @@ ui_draw_hud(ui_state *ui, engine_api *api)
         ImGui::Text("%s  %s  %s", text_get(ui->text, seasons[date.season < 4 ? date.season : 0]), when, ruler);
         u32 points = force != ENGINE_NO_FACTION ? api->actions_left(e, force) : 0;
         u32 technique = force != ENGINE_NO_FACTION ? api->technique_points(e, force) : 0;
-        ImGui::TextUnformatted(text_get(ui->text, "topbar.points"));
-        ImGui::SameLine();
-        if (points < UI_HUD_LOW_POINTS) ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.3f, 1.0f), "%u", points);
-        else                            ImGui::Text("%u", points);
-        ImGui::SameLine(0.0f, 16.0f);
+        if (!ai_turn)   /* M20: an AI faction shows its 技巧 and no 行動力 */
+        {
+            ImGui::TextUnformatted(text_get(ui->text, "topbar.points"));
+            ImGui::SameLine();
+            if (points < UI_HUD_LOW_POINTS) ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.3f, 1.0f), "%u", points);
+            else                            ImGui::Text("%u", points);
+            ImGui::SameLine(0.0f, 16.0f);
+        }
         ImGui::Text("%s %u", text_get(ui->text, "hud.technique"), technique);
         ui_hud_button(ui, api, "hud.full_map", "hud_map", UI_CONTEXT_FULL_MAP);
         ImGui::SameLine();
         ui_hud_button(ui, api, "hud.info", "hud_info", UI_CONTEXT_INFO);
         ImGui::SameLine();
         ui_hud_button(ui, api, "hud.system", "hud_system", UI_CONTEXT_SYSTEM_MENU);
-        if (force != ENGINE_NO_FACTION && !ui_feel_messages_open(ui)) ui_draw_hud_list(ui, api, force);   /* M17: the list hides under the messages */
+        if (force != ENGINE_NO_FACTION && !ui_feel_messages_open(ui) && !ui->round.playing) ui_draw_hud_list(ui, api, force);   /* M17, M20: the list hides under the messages and the show */
     }
     ImGui::End();
 }
@@ -272,7 +276,7 @@ ui_draw_map_menu(ui_state *ui, engine_api *api)
     if (ui_begin_menu_window(ui, "###MapMenu"))
     {
         f32 x = ui->context.x, y = ui->context.y;
-        if (ui_menu_item(ui, "topbar.proceed", "proceed", true))         { ui_context_close(ui); api->end_turn(api->engine); }
+        if (ui_menu_item(ui, "topbar.proceed", "proceed", true))         { ui_context_close(ui); ui_round_proceed(ui, api); }   /* M20 */
         ImGui::Separator();
         if (ui_menu_item(ui, "hud.delegate", "delegate", false))         { ui_context_close(ui); }   /* no long orders yet (Q-215) */
         if (ui_menu_item(ui, "topbar.info", "open_info", true))          ui_context_open(ui, api, UI_CONTEXT_INFO, x, y);

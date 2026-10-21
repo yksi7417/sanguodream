@@ -82,6 +82,9 @@ enum ui_city_command
     UI_COMMAND_COUNT
 };
 
+#define UI_ROUND_FACTION_CAPACITY 64    /* M20: the AI factions of one round that the tests read */
+#define UI_ROUND_SHOWN_CAPACITY   256   /* M20: the values of one round that the tests read */
+
 #define UI_PICKER_FOR_DEVELOP UI_COMMAND_COUNT   /* the target of the officer selection: the 開發 dialog */
 #define UI_PICKER_CAPACITY    64                 /* the free officers that the officer selection lists */
 
@@ -430,6 +433,26 @@ struct ui_state
         u16  officers[SIM_DEVELOP_OFFICERS];
         bool hover_valid;            /* the hex under the mouse is an empty slot of the city */
     } placement;
+    /* M20: the show of the AI round after 進行 (ui_round.cpp). The setting
+       is off by default (the decision of the player, 2026-10-20). */
+    struct
+    {
+        bool      show;              /* the setting of the settings screen */
+        bool      playing;           /* the events of a round play now */
+        u32       next;              /* the next ledger index of the round */
+        u32       end;               /* the ledger count: the end of the round */
+        u8        force;             /* the AI faction that the HUD names; ENGINE_NO_FACTION */
+        f32       wait;              /* the seconds until the next step */
+        u8        named[UI_ROUND_FACTION_CAPACITY];   /* the factions that the HUD named, in order */
+        u32       named_count;
+        u32       shown[UI_ROUND_SHOWN_CAPACITY];     /* the ledger indices of the values, in order */
+        u32       shown_count;
+        hex_coord before[SIM_UNIT_CAPACITY];          /* the hex of each unit before its move of the round */
+        bool      known[SIM_UNIT_CAPACITY];
+        u32       move_unit;         /* the unit that walks now; ENGINE_NO_UNIT */
+        hex_coord move_from, move_to;
+        u32       move_step, move_steps;
+    } round;
     bool quit_requested;       /* 結束遊戲: the platform closes the window */
     /* The default portraits of this frame (ui_frame_info). Zero: the panels
        show the first character of the name in place of a portrait. */
