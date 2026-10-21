@@ -43,6 +43,18 @@ enum ui_hud_tab { UI_HUD_TAB_BASES, UI_HUD_TAB_OFFICERS, UI_HUD_TAB_UNITS, UI_HU
 #define UI_MESSAGE_HEIGHT          197.0f
 #define UI_MESSAGE_MARGIN          12.0f
 #define UI_FEEL_PASS_LIMIT         300    /* the AI turns that one 進行 can end before a player acts */
+/* M18: the feedback of a command (ui_report.cpp; main-map.md, "Bottom-left
+   panel", "Speech bubble", "Floating value"). */
+#define UI_LOG_CAPACITY            4096   /* the lines of the message log; the oldest go first */
+#define UI_LOG_HEADING             0x80000000u   /* a log line that holds the heading of a turn: | the turn */
+#define UI_LOG_WIDTH               442.0f /* main-map.md: 4, 516, 442, 497 */
+#define UI_LOG_HEIGHT_SHARE        0.45f  /* of the height of the window */
+#define UI_LOG_MARGIN              4.0f
+#define UI_BUBBLE_SECONDS          3.0f   /* the speech bubble closes by itself after this time */
+#define UI_BUBBLE_WIDTH            294.0f /* main-map.md: 819, 521, 294, 74 */
+#define UI_FLOAT_SECONDS           1.6f   /* a value rises over the base for this time */
+#define UI_FLOAT_RISE              40.0f  /* pixels */
+#define UI_FLOAT_CAPACITY          8
 
 /* The title button that the player clicked (title-and-load.md, "Title menu"). */
 enum ui_title_choice
@@ -351,6 +363,37 @@ struct ui_state
         u32  message_count;
         u32  message_shown;       /* the message on the screen; message_count closes the window */
     } feel;
+    /* M18: the words of the events and the feedback of a command
+       (ui_report.cpp). The provider is a plug-in: ui_set_text_provider
+       replaces the template provider. */
+    struct
+    {
+        text_provider provider;
+        bool show_log;            /* the message log at the bottom left of the game mode */
+        bool mine_only;           /* the log shows only the events of the player */
+        u32  ledger_mark;         /* the ledger count that the log has read */
+        u32  lines[UI_LOG_CAPACITY];    /* ledger indices, or UI_LOG_HEADING | turn */
+        s64  values[UI_LOG_CAPACITY];   /* the value after the event, or TEXT_NO_VALUE */
+        u32  line_count;          /* the lines in the ring */
+        u32  line_first;          /* the place of the oldest line */
+        bool has_heading;
+        u32  heading_turn;        /* the turn of the last heading */
+        /* the speech bubble over the base of the last command of a player */
+        u32  bubble_event;        /* the ledger index; ENGINE_NO_EVENT if none */
+        u8   bubble_city;
+        f32  bubble_seconds;      /* above 0 while the bubble shows */
+        s64  bubble_value;
+        /* the values that rise over the base after a command */
+        struct
+        {
+            u8  city;
+            s32 delta;
+            u8  sign;             /* engine_event_sign */
+            f32 seconds;
+        } floats[UI_FLOAT_CAPACITY];
+        u32  float_count;
+        u32  feedback_count;      /* the bubbles that the UI opened; the tests read it */
+    } report;
     bool quit_requested;       /* 結束遊戲: the platform closes the window */
     /* The game mode (main-map.md): the HUD at the top left with the list of
        the bases, officers and units, the mini map at the bottom right, and
@@ -430,6 +473,9 @@ struct ui_frame_info
 
 /* The caller loads a locale into the catalog before the first frame. */
 internal void ui_init(ui_state *ui, text_catalog *text);
+/* M18: replaces the text provider of the messages. A provider without a
+   line function gives back the template provider. */
+internal void ui_set_text_provider(ui_state *ui, text_provider provider);
 internal void ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame);
 
 #endif /* UI_H */

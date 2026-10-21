@@ -1194,3 +1194,52 @@ msg.heading	%u-%u %s	the message window: the period heading, year month part (ma
 msg.early	early	the period heading: days 1 to 10 (上旬)
 msg.middle	middle	the period heading: days 11 to 20 (中旬)
 msg.late	late	the period heading: days 21 to the end (下旬)
+log.generic	{subject}: {delta}
+log.patrolled	{subject}: public order {delta}, now {value}
+log.conscripted	{subject}: soldiers {delta}, now {value}
+log.trained	{subject}: morale {delta}, now {value}
+log.order_lost	{subject}: public order {delta}, now {value}
+log.morale_lost	{subject}: morale {delta}, now {value}
+log.grain_sold	{subject}: sold {amount} grain
+log.grain_bought	{subject}: bought {amount} grain
+log.gold_earned	{subject}: gold {delta}, now {value}
+log.gold_spent	{subject}: spent {amount} gold
+log.develop_started	{subject}: a facility is under construction
+log.facility_completed	{subject}: a facility is complete
+log.production_started	{subject}: weapon production started
+log.weapons_produced	{subject}: weapons {delta}
+log.research_started	{subject}: research started
+log.technique_researched	{faction}: a technique is complete
+log.unit_sortied	{subject}: a unit marched out
+log.unit_destroyed	{faction}: a unit was destroyed
+log.unit_retreated	{faction}: a unit retreats
+log.base_captured	{subject}: the enemy took the base
+log.base_damaged	{subject}: under attack, durability {delta}
+log.disaster_started	{subject}: a disaster struck
+log.gold_income	{subject}: gold income {delta}
+log.grain_income	{subject}: grain income {delta}
+log.officer_found	{subject}: an officer was found
+log.officer_died	{subject}: died
+say.patrolled	I walked the streets. The people are at ease.
+say.conscripted	The new soldiers have joined the ranks.
+say.trained	The drill of the troops paid off.
+say.grain_sold	The grain is now gold.
+say.grain_bought	The gold is now grain.
+say.develop_started	Leave the construction to me.
+say.production_started	The smiths are at work.
+say.research_started	I will study it with care.
+say.tone.calm	As you command.
+say.tone.proud	It is done!
+say.tone.joyful	What good news!
+say.tone.worried	This does not look good...
+say.tone.alarmed	We are in trouble!
+say.tone.grim	A sad day...
+say.tone.angry	Curses!
+say.tone.humble	Forgive me. I failed.
+say.tone.neutral	Understood.
+say.sign.good	Good news.
+say.sign.bad	Bad news.
+say.sign.neutral	Understood.
+log.title	Log
+log.filter.all	All
+log.filter.mine	My faction

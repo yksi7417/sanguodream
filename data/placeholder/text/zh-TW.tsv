@@ -1192,3 +1192,52 @@ msg.heading	《%u年 %u月 %s》
 msg.early	上旬
 msg.middle	中旬
 msg.late	下旬
+log.generic	{subject}：{delta}
+log.patrolled	{subject}：治安 {delta}，現為 {value}
+log.conscripted	{subject}：士兵 {delta}，現為 {value}
+log.trained	{subject}：氣力 {delta}，現為 {value}
+log.order_lost	{subject}：治安 {delta}，現為 {value}
+log.morale_lost	{subject}：氣力 {delta}，現為 {value}
+log.grain_sold	{subject}：賣出兵糧 {amount}
+log.grain_bought	{subject}：買入兵糧 {amount}
+log.gold_earned	{subject}：資金 {delta}，現為 {value}
+log.gold_spent	{subject}：支出資金 {amount}
+log.develop_started	{subject}：開始建造設施
+log.facility_completed	{subject}：設施建成
+log.production_started	{subject}：開始生產兵裝
+log.weapons_produced	{subject}：兵裝 {delta}
+log.research_started	{subject}：開始研究技巧
+log.technique_researched	{faction}：技巧研究完成
+log.unit_sortied	{subject}：部隊出征
+log.unit_destroyed	{faction}：一支部隊潰滅
+log.unit_retreated	{faction}：一支部隊撤退
+log.base_captured	{subject}：被敵軍攻佔
+log.base_damaged	{subject}：遭到攻擊，耐久 {delta}
+log.disaster_started	{subject}：發生災害
+log.gold_income	{subject}：資金收入 {delta}
+log.grain_income	{subject}：兵糧收入 {delta}
+log.officer_found	{subject}：發現人才
+log.officer_died	{subject}：去世
+say.patrolled	我去城中走了一趟，百姓都安心了。
+say.conscripted	新兵已經編入軍中。
+say.trained	士兵們的操練有了成果。
+say.grain_sold	兵糧已經換成資金了。
+say.grain_bought	資金已經換成兵糧了。
+say.develop_started	工程交給我吧。
+say.production_started	工匠們已經開工了。
+say.research_started	我會盡力鑽研。
+say.tone.calm	遵命。
+say.tone.proud	事情辦妥了！
+say.tone.joyful	真是好消息！
+say.tone.worried	情況不太妙……
+say.tone.alarmed	大事不好！
+say.tone.grim	實在遺憾……
+say.tone.angry	可惡！
+say.tone.humble	慚愧，是我無能。
+say.tone.neutral	知道了。
+say.sign.good	好消息。
+say.sign.bad	壞消息。
+say.sign.neutral	知道了。
+log.title	記錄
+log.filter.all	全部
+log.filter.mine	本勢力

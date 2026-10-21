@@ -1,0 +1,79 @@
+key	tone	sign	report	status	note
+# M18: the tone, the sign rule and the report flag of each event kind (engine_report.cpp). A text provider of the front end uses them to write a line.
+# The player decided on 2026-10-20 (spec DECISIONS.md) that the tone, the personality and the sign of an event matter more than the exact words. The spec has no list of tones, so every row is assumed.
+# tone: neutral, calm, proud, joyful, worried, alarmed, grim, angry, humble. sign: amount (good if the amount rises), good, bad, neutral.
+# report: yes if the turn start of the faction shows the event in the message window. The log keeps every event. A kind without a row: tone neutral, sign amount, no report.
+develop_started	calm	neutral	no	assumed	the order of a build; the bubble of the command shows it
+facility_completed	proud	good	yes	assumed	the original reports each finished build at the turn start
+facility_merged	proud	good	yes	assumed
+facility_repaired	calm	good	no	assumed
+facility_damaged	alarmed	bad	yes	assumed
+facility_destroyed	grim	bad	yes	assumed
+black_market_removed	worried	bad	yes	assumed
+gold_income	calm	amount	no	assumed
+grain_income	calm	amount	no	assumed
+grain_harvest	joyful	good	yes	assumed
+salaries_paid	calm	neutral	no	assumed
+salaries_unpaid	worried	bad	yes	assumed
+grain_consumed	calm	neutral	no	assumed
+soldiers_deserted	alarmed	bad	yes	assumed
+gold_over_cap	worried	bad	no	assumed
+grain_over_cap	worried	bad	no	assumed
+gold_spent	calm	neutral	no	assumed
+weapons_free	joyful	good	no	assumed
+technique_gained	calm	good	no	assumed
+merit_gained	proud	good	no	assumed
+patrolled	calm	amount	no	assumed	長沙的治安增至89(+10)
+conscripted	proud	amount	no	assumed	長安的士兵增至34894(+3232)
+order_lost	worried	amount	no	assumed
+morale_lost	worried	amount	no	assumed
+trained	proud	amount	no	assumed
+grain_bought	calm	amount	no	assumed
+grain_sold	calm	neutral	no	assumed
+gold_earned	calm	amount	no	assumed
+production_started	calm	neutral	no	assumed
+weapons_produced	proud	good	yes	assumed
+research_started	calm	neutral	no	assumed
+technique_researched	joyful	good	yes	assumed
+merge_started	calm	neutral	no	assumed
+disaster_started	alarmed	bad	yes	assumed
+disaster_ended	calm	good	yes	assumed
+grain_lost	grim	bad	yes	assumed
+soldiers_lost	grim	bad	yes	assumed
+game_won	joyful	good	yes	assumed
+game_lost	grim	bad	yes	assumed
+unit_sortied	proud	neutral	no	assumed	曹純隊自上庸處出征
+unit_destroyed	grim	bad	yes	assumed	呂翔隊潰滅
+unit_retreated	worried	bad	no	assumed	鄧丹隊開始撤退
+unit_state	worried	neutral	no	assumed	閻行隊從混亂狀態中恢復
+unit_damaged	alarmed	amount	no	assumed
+counterattack	angry	neutral	no	assumed
+critical_hit	proud	good	no	assumed
+tactic_used	proud	neutral	no	assumed
+plot_used	calm	neutral	no	assumed
+fire_started	alarmed	bad	no	assumed
+base_damaged	alarmed	bad	yes	assumed
+base_soldiers_lost	alarmed	bad	yes	assumed
+base_captured	grim	bad	yes	assumed
+base_taken	proud	good	yes	assumed
+officer_found	joyful	good	yes	assumed
+officer_recruited	joyful	good	yes	assumed
+recruit_failed	humble	bad	no	assumed
+officer_captured	grim	bad	yes	assumed
+officer_escaped	worried	bad	yes	assumed
+officer_left	grim	bad	yes	assumed
+officer_died	grim	bad	yes	assumed
+officer_exiled	grim	neutral	no	assumed
+loyalty_changed	calm	amount	no	assumed
+post_appointed	proud	good	no	assumed
+rank_changed	proud	good	yes	assumed
+ruler_succeeded	grim	neutral	yes	assumed
+diplomacy_failed	humble	bad	no	assumed
+faction_surrendered	proud	good	yes	assumed
+aid_arrived	joyful	good	yes	assumed
+duel_ended	proud	neutral	no	assumed
+debate_ended	proud	neutral	no	assumed
+event_fired	calm	neutral	yes	assumed
+ability_researched	joyful	good	yes	assumed
+officer_trained	proud	good	yes	assumed
+ending	calm	neutral	yes	assumed

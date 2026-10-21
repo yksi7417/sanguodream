@@ -2661,9 +2661,10 @@ register_ui_tests(ImGuiTestEngine *e)
     };
 
     /* main-map.md, "Message window": at the start of a turn the reports
-       show one at a time. The period heading comes first, then the events
-       of the player in ledger order. A left click advances. The list panel
-       hides while the window shows. */
+       show one at a time. The period heading comes first, then the reports
+       of the player in ledger order. M18: only a kind that the pack marks as
+       a report (the recorder: detail 1) opens a message. A left click
+       advances. The list panel hides while the window shows. */
     t = IM_REGISTER_TEST(e, "ui", "turn_messages_show_the_heading_then_the_reports_and_a_click_advances");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;
@@ -2674,6 +2675,7 @@ register_ui_tests(ImGuiTestEngine *e)
         v.recorder.city_count    = 2;
         sim_event income = {};
         income.kind = SIM_EVENT_GOLD_INCOME; income.faction = 1; income.delta = 120; income.subject = 1;
+        income.detail = 1;                                     /* the recorder reports it */
         sim_event rival = income;
         rival.faction = 2;                                     /* another faction: no message */
         sim_event start = {};
@@ -2713,13 +2715,19 @@ register_ui_tests(ImGuiTestEngine *e)
         ui_test_vars &v = ctx->GetVars<ui_test_vars>();
         v.recorder.officer_count = 3;
         v.recorder.city_count    = 2;
+        sim_event done = {};
+        done.kind = SIM_EVENT_FACILITY_COMPLETED; done.faction = 1; done.subject = 1; done.detail = 1;   /* a report */
+        v.recorder.events[0] = done;
+        v.recorder.event_count = 1;
         v.ui.feel.turn_messages = true;
         ui_enter_game(&v.ui);
         ctx->Yield(3);
-        IM_CHECK_EQ(v.ui.feel.message_count, 1u);              /* the heading only */
+        IM_CHECK_EQ(v.ui.feel.message_count, 2u);              /* the heading and the report */
+        ctx->ItemClick("//###Messages/###next");
         ctx->ItemClick("//###Messages/###next");
         ctx->Yield(2);
         IM_CHECK(!ui_feel_messages_open(&v.ui));
+        v.recorder.events[v.recorder.event_count++] = done;    /* the report of the next turn */
         recorder_reset(&v.recorder);
         ui_context_open(&v.ui, &v.api, UI_CONTEXT_MAP_MENU, 400.0f, 300.0f);
         ctx->Yield(2);
@@ -2728,8 +2736,83 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_END_TURN), 1u);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
         IM_CHECK(ui_feel_messages_open(&v.ui));
-        IM_CHECK_EQ(v.ui.feel.message_count, 1u);
+        IM_CHECK_EQ(v.ui.feel.message_count, 2u);              /* the heading and the new report only */
         IM_CHECK_EQ(v.ui.feel.turn, 1u);
+    };
+
+    /* M18, main-map.md "Speech bubble", "Floating value", "Bottom-left
+       panel": a command of the player opens a bubble over the base, a value
+       rises, and the log gets a heading and a line. The feedback commands
+       nothing. The bubble closes by itself. */
+    t = IM_REGISTER_TEST(e, "ui", "command_feedback_opens_the_bubble_the_value_and_a_log_line");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        ui_enter_game(&v.ui);
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.report.feedback_count, 0u);
+        recorder_reset(&v.recorder);
+        sim_event conscripted = {};
+        conscripted.kind = SIM_EVENT_CONSCRIPTED; conscripted.faction = 1; conscripted.subject = 1;
+        conscripted.delta = 1383; conscripted.cause = 7;
+        sim_event rival = conscripted;
+        rival.faction = 2; rival.cause = 8;                    /* another faction: a log line, no bubble */
+        v.recorder.events[v.recorder.event_count++] = conscripted;
+        v.recorder.events[v.recorder.event_count++] = rival;
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.report.feedback_count, 1u);
+        IM_CHECK_GT(v.ui.report.bubble_seconds, 0.0f);
+        IM_CHECK_EQ(v.ui.report.float_count, 1u);
+        IM_CHECK_EQ(v.ui.report.floats[0].delta, 1383);
+        IM_CHECK(ctx->WindowInfo("//###Speech", ImGuiTestOpFlags_NoError).Window != 0);
+        IM_CHECK(ctx->WindowInfo("//###Log", ImGuiTestOpFlags_NoError).Window != 0);
+        IM_CHECK_EQ(v.ui.report.line_count, 3u);                /* the heading and two lines */
+        IM_CHECK((v.ui.report.lines[v.ui.report.line_first] & UI_LOG_HEADING) != 0);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        v.ui.report.bubble_seconds = 0.001f;
+        ctx->Yield(3);
+        ImGuiWindow *bubble = ctx->WindowInfo("//###Speech", ImGuiTestOpFlags_NoError).Window;
+        IM_CHECK(bubble == 0 || !bubble->Active);
+    };
+
+    /* M18: the text provider is a plug-in (spec DECISIONS.md, 2026-10-20).
+       A second provider writes the words of the log and of the bubble. A
+       provider without a line function gives back the templates. */
+    t = IM_REGISTER_TEST(e, "ui", "a_second_text_provider_replaces_the_words");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        sim_event trained = {};
+        trained.kind = SIM_EVENT_TRAINED; trained.faction = 1; trained.subject = 1; trained.delta = 4; trained.cause = 3;
+        v.recorder.events[v.recorder.event_count++] = trained;
+        ui_enter_game(&v.ui);
+        ctx->Yield(2);
+        char before[256], after[256];
+        ui_report_line(&v.ui, &v.api, 0, TEXT_NO_VALUE, TEXT_LINE_LOG, before, sizeof(before));
+        text_provider model = {};
+        model.name = "model";
+        model.line = [](void *, text_catalog *, const text_event_facts *facts, u32 form, char *out, u32 out_size) -> u32
+        {
+            return text_copy_utf8(form == TEXT_LINE_SPEECH ? "the model speaks" : facts->key, out, out_size);
+        };
+        ui_set_text_provider(&v.ui, model);
+        ui_report_line(&v.ui, &v.api, 0, TEXT_NO_VALUE, TEXT_LINE_LOG, after, sizeof(after));
+        IM_CHECK_STR_EQ(after, "trained");
+        IM_CHECK(strcmp(before, after) != 0);
+        ui_report_line(&v.ui, &v.api, 0, TEXT_NO_VALUE, TEXT_LINE_SPEECH, after, sizeof(after));
+        IM_CHECK_STR_EQ(after, "the model speaks");
+        text_provider empty = {};
+        ui_set_text_provider(&v.ui, empty);
+        IM_CHECK_STR_EQ(v.ui.report.provider.name, "template");
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
     /* ---- end to end: real engine behind the real panels ------------------- */
@@ -2904,9 +2987,9 @@ register_ui_tests(ImGuiTestEngine *e)
                 for (u32 frame = 0; frame < 30 && !ui_feel_messages_open(&v.ui); ++frame) ctx->Yield();
                 IM_CHECK_GT(api->date(e).days_since_start, before);   /* the other factions acted */
             }
-            IM_CHECK(ui_feel_messages_open(&v.ui));
+            /* M18: a turn without a report of the player opens no window. */
             IM_CHECK_EQ(api->whose_turn(e), player);
-            IM_CHECK_EQ(v.ui.feel.messages[0], UI_MESSAGE_HEADING);
+            if (ui_feel_messages_open(&v.ui)) IM_CHECK_EQ(v.ui.feel.messages[0], UI_MESSAGE_HEADING);
             for (u32 click = 0; click < UI_MESSAGE_CAPACITY + 1 && ui_feel_messages_open(&v.ui); ++click)
             {
                 ctx->ItemClick("//###Messages/###next");

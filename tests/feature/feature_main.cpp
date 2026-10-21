@@ -38,6 +38,7 @@
 #include "replay_tests.cpp"
 #include "ai_tests.cpp"
 #include "content_source_tests.cpp"
+#include "report_tests.cpp"     /* M18 */
 #include "fixture_tests.cpp"
 
 int
@@ -118,6 +119,10 @@ main(int argc, char **argv)
     test_counts content_counts = {};
     feature_content_source_tests(&content_counts);
     failed |= test_report("feature/content_source", &content_counts);
+
+    test_counts report_counts = {};
+    feature_report_tests(&report_counts);
+    failed |= test_report("feature/report", &report_counts);
 
     char fixtures_dir[MAX_PATH];
     if (argc > 1)

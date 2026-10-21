@@ -162,4 +162,60 @@ internal const char *text_label(text_catalog *catalog, const char *prefix, u32 c
    "B1E4BEDE". Returns the length of the key. */
 internal u32 text_name_key(const u8 *bytes, u32 size, char *out, u32 out_size);
 
+/* ---- M18: text providers ------------------------------------------------
+   A text provider turns the facts of one event into a line of words. The
+   player decided on 2026-10-20 that a provider is a plug-in: the first one
+   fills templates, and a later one can use a small language model. The
+   front end fills the facts from the engine. This module knows nothing of
+   the engine, so the facts are plain values and UTF-8 names. */
+enum text_sign
+{
+    TEXT_SIGN_NEUTRAL,
+    TEXT_SIGN_GOOD,          /* good news for the faction of the event */
+    TEXT_SIGN_BAD,
+};
+
+enum text_line_form
+{
+    TEXT_LINE_LOG,           /* one line of the message log, in the third person */
+    TEXT_LINE_SPEECH,        /* what the speaker says in the speech bubble */
+};
+
+#define TEXT_NO_VALUE (-1)
+
+struct text_event_facts
+{
+    const char *key;          /* the key of the event kind, for example "conscripted" */
+    const char *tone;         /* for example "proud"; "" for none */
+    u8          sign;         /* text_sign */
+    u8          personality;  /* the personality code of the speaker; the template provider ignores it */
+    const char *subject;      /* the name of the city or the officer of the event, or "" */
+    const char *speaker;      /* the name of the officer who speaks, or "" */
+    const char *faction;      /* the name of the faction of the event, or "" */
+    s32         delta;        /* the amount of the event */
+    s64         value;        /* the value after the event (the soldiers of the city), or TEXT_NO_VALUE */
+};
+
+/* Writes the line into out with a NUL. Returns the bytes written without
+   the NUL, or 0 if the provider has no line for the facts. */
+typedef u32 text_line_fn(void *user, text_catalog *catalog, const text_event_facts *facts, u32 form, char *out, u32 out_size);
+
+struct text_provider
+{
+    const char   *name;       /* for the settings and the tests, for example "template" */
+    text_line_fn *line;
+    void         *user;       /* the data of the provider */
+};
+
+/* The template provider. A log line is the string "log.<key>", else
+   "log.generic". A speech is "say.<key>", else "say.tone.<tone>", else
+   "say.sign.<sign>". A template can hold {subject}, {speaker}, {faction},
+   {delta} (with its sign), {amount} (without a sign) and {value}. */
+internal text_provider text_template_provider(void);
+
+/* The line of a provider. If the provider gives no line, the template
+   provider writes it, so that a line is never empty. */
+internal u32 text_write_line(const text_provider *provider, text_catalog *catalog, const text_event_facts *facts, u32 form,
+                             char *out, u32 out_size);
+
 #endif /* TEXT_H */

@@ -395,6 +395,84 @@ unit_text_encode_tests(test_counts *counts)
                "a character without a Big5 code, or a buffer too small, gives 0");
 }
 
+/* M18: a test provider that writes one fixed line, and one that writes nothing. */
+internal u32
+unit_text_fixed_line(void *user, text_catalog *catalog, const text_event_facts *facts, u32 form, char *out, u32 out_size)
+{
+    (void)catalog; (void)facts; (void)form;
+    return text_copy_utf8((const char *)user, out, out_size);
+}
+
+internal u32
+unit_text_silent_line(void *user, text_catalog *catalog, const text_event_facts *facts, u32 form, char *out, u32 out_size)
+{
+    (void)user; (void)catalog; (void)facts; (void)form; (void)out; (void)out_size;
+    return 0;
+}
+
+/* M18: the text providers (text.h). The template provider gives a line for
+   every event kind in both forms, also without a catalog. It fills the
+   placeholders. A second provider replaces it, and a provider without a
+   line falls back to the templates. */
+internal void
+unit_text_provider_tests(test_counts *counts, memory_arena *arena)
+{
+    text_provider templates = text_template_provider();
+    text_event_facts facts = {};
+    facts.subject = "長沙";
+    facts.speaker = "周瑜";
+    facts.faction = "孫堅";
+    facts.tone    = "proud";
+    facts.sign    = TEXT_SIGN_GOOD;
+    facts.delta   = 1383;
+    facts.value   = 21383;
+    b32 every_line = true;
+    char line[256];
+    for (u32 kind = 0; kind < SIM_EVENT_COUNT; ++kind)
+    {
+        facts.key = sim_event_name((sim_event_kind)kind);
+        every_line = every_line && text_write_line(&templates, 0, &facts, TEXT_LINE_LOG, line, sizeof(line)) > 0 && line[0];
+        every_line = every_line && text_write_line(&templates, 0, &facts, TEXT_LINE_SPEECH, line, sizeof(line)) > 0 && line[0];
+    }
+    TEST_CHECK(counts, every_line, "the template provider gives a log line and a speech for every event kind, also without a catalog");
+
+    static const char file[] =
+        "id\ttext\n"
+        "log.conscripted\t{subject}: soldiers {delta}, now {value}\n"
+        "log.grain_sold\t{subject}: sold {amount} grain\n"
+        "log.generic\t{faction} {delta}\n"
+        "say.tone.proud\t{speaker}: it is done\n"
+        "say.sign.bad\tbad news\n";
+    text_catalog catalog = {};
+    catalog.strings = text_table_parse(file, sizeof(file) - 1, "id", arena);
+    facts.key = "conscripted";
+    text_write_line(&templates, &catalog, &facts, TEXT_LINE_LOG, line, sizeof(line));
+    TEST_CHECK(counts, strcmp(line, "長沙: soldiers +1383, now 21383") == 0, "a log template fills the subject, the signed amount and the value");
+    facts.key = "grain_sold"; facts.delta = -2244;
+    text_write_line(&templates, &catalog, &facts, TEXT_LINE_LOG, line, sizeof(line));
+    TEST_CHECK(counts, strcmp(line, "長沙: sold 2244 grain") == 0, "{amount} is the amount without its sign");
+    facts.key = "unknown_kind"; facts.delta = 5;
+    text_write_line(&templates, &catalog, &facts, TEXT_LINE_LOG, line, sizeof(line));
+    TEST_CHECK(counts, strcmp(line, "孫堅 +5") == 0, "a kind without a template takes log.generic");
+    text_write_line(&templates, &catalog, &facts, TEXT_LINE_SPEECH, line, sizeof(line));
+    TEST_CHECK(counts, strcmp(line, "周瑜: it is done") == 0, "a speech without a template of its kind takes the template of its tone");
+    facts.tone = "unknown"; facts.sign = TEXT_SIGN_BAD;
+    text_write_line(&templates, &catalog, &facts, TEXT_LINE_SPEECH, line, sizeof(line));
+    TEST_CHECK(counts, strcmp(line, "bad news") == 0, "a speech without a tone template takes the template of its sign");
+
+    text_provider fixed = {};
+    fixed.name = "fixed";
+    fixed.line = unit_text_fixed_line;
+    fixed.user = (void *)"a line of the model";
+    text_write_line(&fixed, &catalog, &facts, TEXT_LINE_LOG, line, sizeof(line));
+    TEST_CHECK(counts, strcmp(line, "a line of the model") == 0, "a second provider replaces the templates");
+    text_provider silent = {};
+    silent.line = unit_text_silent_line;
+    facts.key = "conscripted"; facts.delta = 1383;
+    text_write_line(&silent, &catalog, &facts, TEXT_LINE_LOG, line, sizeof(line));
+    TEST_CHECK(counts, strcmp(line, "長沙: soldiers +1383, now 21383") == 0, "a provider without a line falls back to the templates");
+}
+
 internal void
 unit_text_tests(test_counts *counts)
 {
@@ -408,5 +486,6 @@ unit_text_tests(test_counts *counts)
     unit_text_catalog_tests(counts, &arena);
     unit_text_name_tests(counts, &arena);
     unit_text_label_tests(counts, &arena);
+    unit_text_provider_tests(counts, &arena);   /* M18 */
     test_arena_destroy(&arena);
 }

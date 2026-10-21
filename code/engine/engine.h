@@ -129,6 +129,43 @@ struct engine_date
     s64 days_since_start;   /* from the start date of the game or of the loaded save */
 };
 
+/* M18: the facts of one ledger event for a text provider of the front end
+   (ROADMAP M18; spec DECISIONS.md, the answers of the player of
+   2026-10-20). The engine gives the facts. The front end writes the words.
+   The tone, the sign rule and the report flag come from event_tones.tsv of
+   the pack. A kind without a row has the tone "neutral", the sign of its
+   amount, and no report. */
+enum engine_event_sign
+{
+    ENGINE_SIGN_NEUTRAL,
+    ENGINE_SIGN_GOOD,        /* good news for the faction of the event */
+    ENGINE_SIGN_BAD,         /* bad news for the faction of the event */
+};
+
+#define ENGINE_TONE_SIZE 16
+#define ENGINE_NO_EVENT  U32_MAX
+
+struct engine_event_report
+{
+    u32            ledger_index;   /* ENGINE_NO_EVENT for an index out of range */
+    u8             kind;           /* sim_event_kind */
+    const char    *key;            /* the stable key of the kind, for example "conscripted" */
+    u32            turn;
+    engine_date    date;           /* the date of the turn of the event */
+    engine_subject subject;
+    u8             faction;        /* ENGINE_NO_FACTION if none */
+    s32            delta;
+    u32            detail;
+    u32            cause;          /* the command of the event; 0 for the turn itself */
+    u16            speaker;        /* the first officer of the command, else the officer of the event, the
+                                      governor of its city or the ruler; ENGINE_NO_OFFICER if none */
+    u8             personality;    /* sim_personality of the speaker; 0 without a speaker */
+    char           tone[ENGINE_TONE_SIZE];   /* a key of event_tones.tsv, for example "proud" */
+    u8             sign;           /* engine_event_sign */
+    b32            report;         /* the turn start of the faction reports the event */
+    b32            assumed;        /* the amount or the tone row is assumed */
+};
+
 /* A faction in the order of this turn. */
 struct engine_faction
 {
@@ -1029,6 +1066,8 @@ typedef engine_weapon_kind     engine_weapon_kind_at_fn(void *engine, u32 index)
 typedef engine_ledger_view     engine_ledger_filter_fn(void *engine, u8 city_id, u8 resource);
 /* The city or the officer that a ledger event names as its subject. */
 typedef engine_subject         engine_subject_of_fn(void *engine, u32 entity);
+/* M18: the facts of a ledger event for a text provider. A query. */
+typedef engine_event_report    engine_event_report_fn(void *engine, u32 ledger_index);
 /* Commands */
 typedef u32                 engine_end_turn_fn(void *engine);                 /* returns the command id */
 typedef u32                 engine_advance_turns_fn(void *engine, u32 count); /* returns events emitted */
@@ -1474,6 +1513,7 @@ struct engine_api
     engine_weapon_kind_at_fn        *weapon_kind_at;
     engine_ledger_filter_fn         *ledger_filter;
     engine_subject_of_fn            *subject_of;
+    engine_event_report_fn          *event_report;     /* M18 */
     engine_command_city_fn          *command_patrol;
     engine_command_city_fn          *command_conscript;
     engine_command_city_fn          *command_train;

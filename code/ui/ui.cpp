@@ -44,6 +44,7 @@ ui_scene_mark(u32 *overlay, engine_terrain_view view, hex_coord h, u32 rgba)
 
 #include "ui/ui_scene.cpp"
 #include "ui/ui_locate.cpp"   /* M11 */
+#include "ui/ui_report.cpp"   /* M18: the log, the speech bubble and the values; needs ui_locate.cpp */
 #include "ui/ui_minimap.cpp"  /* M12: the round mini map */
 #include "ui/ui_hud.cpp"      /* the HUD and the list of the game mode */
 #include "ui/ui_ai.cpp"       /* M15: needs ui_locate.cpp */
@@ -74,6 +75,10 @@ ui_init(ui_state *ui, text_catalog *text)
     ui->develop.prepared_city = ENGINE_NO_CITY;
     ui->develop.slot          = ENGINE_ANY_SLOT;
     ui->show_economy          = false;
+    ui->report                = {};   /* M18 */
+    ui->report.provider       = text_template_provider();
+    ui->report.show_log       = true;
+    ui->report.bubble_event   = ENGINE_NO_EVENT;
     for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind)
     {
         ui->show_command[kind] = false;
@@ -591,11 +596,13 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     bool in_game = !ui->show_title && !ui->show_scenarios && !ui->show_rulers && !ui->show_start_settings;
     ui_feel_update(ui, api, frame->dt_seconds, in_game);   /* M17: the rider, the load transition and the turn start */
     bool hud_ready = ui->hud_mode && in_game && !ui_feel_in_transition(ui);
+    if (in_game) ui_report_update(ui, api, frame->dt_seconds);   /* M18: the log and the feedback read the new events */
     if (tools) ui_draw_menu_bar(ui, api, frame);
     if (tools && ui->show_demo)   ImGui::ShowDemoWindow(&ui->show_demo);
     if (tools && ui->show_sim)    ui_draw_simulation(ui, api);
     if (tools && ui->show_scene)  ui_draw_scene_panel(ui, api);
     if (hud_ready)                ui_draw_hud(ui, api);
+    if (hud_ready)                ui_draw_log(ui, api);   /* M18: the message log at the bottom left */
     if (ui->show_map)    ui_draw_map(ui, api);
     if (ui->show_officers) ui_draw_officers(ui, api);
     if (ui->show_cities) ui_draw_cities(ui, api);
@@ -649,6 +656,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
         ui_draw_scene_labels(ui, api);  /* M11: the plates of the bases and the units, the slots */
         if (ui->show_ai) ui_draw_ai_lines(ui, api);   /* M15: each unit of the AI view to its goal */
     }
+    if (hud_ready) ui_draw_feedback(ui, api);   /* M18: the speech bubble and the values over the base of a command */
     ui_draw_status_bar(ui, api);        /* M11: the terrain, the coordinates and what can stand on the hex under the mouse */
     ui_scene_push(ui, api, frame);
 }

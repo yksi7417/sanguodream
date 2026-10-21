@@ -13,6 +13,9 @@
    off, the title and the load act at once, as in M9 to M16. */
 
 internal void ui_event_subject_text(ui_state *ui, engine_api *api, u32 entity, char *out, u32 out_size);
+/* ui_report.cpp (M18): the words of an event and the value after it. */
+internal void ui_report_line(ui_state *ui, engine_api *api, u32 ledger_index, s64 value, u32 form, char *out, u32 out_size);
+internal s64  ui_report_value(engine_api *api, const engine_event_report *report);
 
 internal bool
 ui_feel_messages_open(ui_state *ui)
@@ -90,22 +93,25 @@ ui_feel_hostile(sim_event_kind kind)
     }
 }
 
-/* A report for the player: an event of the faction, or an attack of
-   another faction on a city of the player. The spec gives no list of the
-   reports (an open point of M17), so the clean room uses this rule. */
+/* A report for the player (M18): a kind that event_tones.tsv marks as a
+   report, of the faction, or an attack of another faction on a city of
+   the player. The other events go only to the log. The spec gives no list
+   of the reports (an open point of M17), so the pack holds the list. */
 internal bool
-ui_feel_is_report(engine_api *api, sim_event *event, u8 force)
+ui_feel_is_report(engine_api *api, u32 ledger_index, sim_event *event, u8 force)
 {
     if (ui_feel_bookkeeping(event->kind)) return false;
+    engine_event_report report = api->event_report(api->engine, ledger_index);
+    if (!report.report) return false;
     if (event->faction == force) return true;
-    if (!ui_feel_hostile(event->kind) || !event->subject) return false;
-    engine_subject subject = api->subject_of(api->engine, event->subject);
-    return subject.kind == ENGINE_SUBJECT_CITY && api->city_at(api->engine, (u8)subject.id).owner_force_id == force;
+    if (!ui_feel_hostile(event->kind) || report.subject.kind != ENGINE_SUBJECT_CITY) return false;
+    return api->city_at(api->engine, (u8)report.subject.id).owner_force_id == force;
 }
 
 /* The messages of a turn start: the heading, then the reports since the
-   last turn start in ledger order. UI_MESSAGE_CAPACITY keeps the first
-   ones. The log keeps all events. */
+   last turn start in ledger order. A turn without a report opens no
+   window. UI_MESSAGE_CAPACITY keeps the first ones. The log keeps all
+   events. */
 internal void
 ui_feel_collect_messages(ui_state *ui, engine_api *api, u8 force)
 {
@@ -117,8 +123,9 @@ ui_feel_collect_messages(ui_state *ui, engine_api *api, u8 force)
     for (u32 index = ui->feel.ledger_mark; index < count && ui->feel.message_count < UI_MESSAGE_CAPACITY; ++index)
     {
         sim_event event = api->ledger_at(api->engine, index);
-        if (ui_feel_is_report(api, &event, force)) ui->feel.messages[ui->feel.message_count++] = index;
+        if (ui_feel_is_report(api, index, &event, force)) ui->feel.messages[ui->feel.message_count++] = index;
     }
+    if (ui->feel.message_count == 1) ui->feel.message_count = 0;   /* only the heading: no window */
     ui->feel.ledger_mark = count;
 }
 
@@ -203,16 +210,15 @@ ui_feel_message_text(ui_state *ui, engine_api *api, u32 message, char *out, u32 
         snprintf(out, out_size, text_get(ui->text, "msg.heading"), date.year, date.month, text_get(ui->text, part));
         return;
     }
-    sim_event event = api->ledger_at(api->engine, message);
-    char subject[UI_NAME_SIZE * 2];
-    ui_event_subject_text(ui, api, event.subject, subject, sizeof(subject));
-    snprintf(out, out_size, "%s  %s  %+d", sim_event_name(event.kind), subject, event.delta);
+    engine_event_report report = api->event_report(api->engine, message);
+    ui_report_line(ui, api, message, ui_report_value(api, &report), TEXT_LINE_LOG, out, out_size);   /* M18 */
 }
 
 /* main-map.md, "Message window": 689 x 197 at the bottom centre, the
-   portrait of the speaker at the left, the text at the right. The ruler
-   speaks: the spec does not name the speaker of each report. The whole
-   window is the button that advances. */
+   portrait of the speaker at the left, the text at the right. M18: the
+   speaker of each report comes from event_report, and the heading has the
+   ruler. The window shows no counter. The whole window is the button that
+   advances. */
 internal void
 ui_draw_messages(ui_state *ui, engine_api *api)
 {
@@ -227,14 +233,22 @@ ui_draw_messages(ui_state *ui, engine_api *api)
     {
         ImVec2 origin = ImGui::GetCursorScreenPos();
         ImVec2 area   = ImGui::GetContentRegionAvail();
-        u16 ruler = api->force_ruler(api->engine, ui->feel.force);
-        if (ruler != ENGINE_NO_OFFICER) ui_draw_officer_portrait(ui, api, ruler);
-        char speaker[UI_NAME_SIZE * 2], text[UI_NAME_SIZE * 4];
-        ui_force_text(ui, api, ui->feel.force, speaker, sizeof(speaker));
-        ui_feel_message_text(ui, api, ui->feel.messages[ui->feel.message_shown], text, sizeof(text));
+        u32 message = ui->feel.messages[ui->feel.message_shown];
+        u16 speaker_id = api->force_ruler(api->engine, ui->feel.force);
+        if (message != UI_MESSAGE_HEADING)
+        {
+            u16 reporter = api->event_report(api->engine, message).speaker;
+            if (reporter != ENGINE_NO_OFFICER) speaker_id = reporter;
+        }
+        if (speaker_id != ENGINE_NO_OFFICER) ui_draw_officer_portrait(ui, api, speaker_id);
+        char speaker[UI_NAME_SIZE * 2], text[UI_NAME_SIZE * 6];
+        speaker[0] = 0;
+        if (speaker_id != ENGINE_NO_OFFICER) ui_officer_text(ui, api, speaker_id, speaker, sizeof(speaker));
+        else ui_force_text(ui, api, ui->feel.force, speaker, sizeof(speaker));
+        ui_feel_message_text(ui, api, message, text, sizeof(text));
         ImGui::Separator();
         ImGui::TextWrapped("%s", text);
-        ImGui::TextDisabled("%s   %u / %u", speaker, ui->feel.message_shown + 1, ui->feel.message_count);
+        ImGui::TextDisabled("%s", speaker);
         ImGui::SetCursorScreenPos(origin);
         ImGui::SetNextItemAllowOverlap();
         if (ImGui::InvisibleButton("###next", ImVec2(area.x > 1.0f ? area.x : 1.0f, area.y > 1.0f ? area.y : 1.0f)))

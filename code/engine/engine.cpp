@@ -11,6 +11,18 @@
    arrays of the engine (tiles, reach cells and reach costs). */
 #define ENGINE_MAP_BYTES_PER_CELL (3 + 1 + 4 + 128 + 1 + sizeof(hex_coord) + sizeof(u32))
 
+/* M18: one row of event_tones.tsv (engine_report.cpp). */
+struct engine_event_tone
+{
+    char tone[ENGINE_TONE_SIZE];
+    u8   sign_rule;     /* engine_sign_rule */
+    b32  report;
+    b32  assumed;
+    b32  present;       /* the pack has a row for the kind */
+};
+
+#define ENGINE_SPEAKER_RING 256   /* the last commands and their first officers */
+
 struct engine
 {
     memory_arena *permanent;
@@ -47,6 +59,10 @@ struct engine
     u32                     install_message_files;
     u8                      names_source;                     /* engine_source_kind of the last name index */
     char                    names_path[ENGINE_PATH_SIZE];
+    /* M18: the facts of the events for a text provider (engine_report.cpp) */
+    engine_event_tone event_tones[SIM_EVENT_COUNT];
+    u32               speaker_commands[ENGINE_SPEAKER_RING];   /* the command id of each place, 0 if empty */
+    u16               speaker_officers[ENGINE_SPEAKER_RING];
 };
 
 internal engine_config
@@ -214,6 +230,9 @@ internal void engine_place_natural_traps(engine *e);   /* engine_combat.cpp */
 internal void engine_load_scenarios(engine *e, const char *folder);   /* engine_playable.cpp */
 internal void engine_load_battles(engine *e, const char *folder);
 internal void engine_load_replay_pairs(engine *e, const char *folder);   /* engine_replay.cpp */
+internal void engine_load_event_tones(engine *e, const char *folder);    /* engine_report.cpp */
+internal void engine_note_speaker(engine *e, const sim_command *command);
+internal engine_event_report engine_api_event_report(void *opaque, u32 ledger_index);
 internal char *engine_read_map_text(engine *e, const char *folder, u32 *width, u32 *height);   /* engine_map.cpp */
 internal b32   engine_load_pack_map(engine *e, const char *folder, const char *hexes_text);
 
@@ -270,6 +289,7 @@ engine_create(memory_arena *permanent, memory_arena *transient, engine_config co
     engine_load_battles(e, config.content_folder);
     e->replay_diffs = PushArray(permanent, ENGINE_REPLAY_DIFF_CAPACITY, engine_replay_diff);   /* M13 */
     engine_load_replay_pairs(e, config.content_folder);
+    engine_load_event_tones(e, config.content_folder);   /* M18 */
     return e;
 }
 
@@ -292,6 +312,7 @@ engine_run(engine *e, sim_command command, u32 *events_emitted)
     arena_reset(&e->scratch);
     sim_event_sink sink = sim_sink_from_arena(&e->scratch, ENGINE_SINK_CAPACITY);
     sim_apply(e->sim, command, &sink);
+    engine_note_speaker(e, &command);   /* M18 */
     engine_ledger_append(e, &sink);
     if (events_emitted) *events_emitted += sink.count;
 }
@@ -1288,6 +1309,7 @@ engine_api_set_city_resource(void *opaque, u8 city_id, u8 resource, u32 index, u
 #include "engine/engine_playable.cpp"
 #include "engine/engine_replay.cpp"     /* M13 */
 #include "engine/engine_content.cpp"    /* M16 */
+#include "engine/engine_report.cpp"     /* M18 */
 
 internal engine_api
 engine_make_api(engine *e)
@@ -1343,6 +1365,7 @@ engine_make_api(engine *e)
     api.weapon_kind_at       = engine_api_weapon_kind_at;
     api.ledger_filter        = engine_api_ledger_filter;
     api.subject_of           = engine_api_subject_of;
+    api.event_report         = engine_api_event_report;   /* M18 */
     api.command_patrol       = engine_api_command_patrol;
     api.command_conscript    = engine_api_command_conscript;
     api.command_train        = engine_api_command_train;

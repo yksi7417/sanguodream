@@ -119,6 +119,7 @@ enum recorder_call_kind
     RECORDER_BATTLE_COUNT,
     RECORDER_BATTLE_AT,
     RECORDER_SUBJECT_OF,
+    RECORDER_EVENT_REPORT,     /* M18: a query */
     /* M10 queries */
     RECORDER_MAP_INFO,
     RECORDER_HEX_AT,               /* arg = the col | the row << 16 of the hex */
@@ -701,6 +702,38 @@ internal engine_subject recorder_subject_of(void *o, u32 entity)
     if (entity >= 1 && entity <= r->city_count)                      { subject.kind = ENGINE_SUBJECT_CITY;    subject.id = (u16)(entity - 1); }
     else if (entity >= 1000 && entity < 1000 + r->officer_count)     { subject.kind = ENGINE_SUBJECT_OFFICER; subject.id = (u16)(entity - 1000 + 100); }
     return subject;
+}
+/* M18: the facts of a scripted event. The speaker is the first scripted
+   officer, the tone is "calm", and an event that a test marks with
+   detail 1 is a report. The sign follows the amount. */
+internal engine_event_report recorder_event_report(void *o, u32 index)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_EVENT_REPORT, index);
+    engine_event_report report = {};
+    report.ledger_index = ENGINE_NO_EVENT;
+    report.speaker      = ENGINE_NO_OFFICER;
+    report.faction      = ENGINE_NO_FACTION;
+    memcpy(report.tone, "calm", 5);
+    if (index >= r->event_count) return report;
+    sim_event *event = r->events + index;
+    report.ledger_index = index;
+    report.kind         = (u8)event->kind;
+    report.key          = sim_event_name(event->kind);
+    report.turn         = event->turn;
+    report.date.year    = 194;
+    report.date.month   = 6;
+    report.date.day     = 1;
+    report.faction      = event->faction == SIM_NO_FORCE ? ENGINE_NO_FACTION : event->faction;
+    report.delta        = event->delta;
+    report.detail       = event->detail;
+    report.cause        = event->cause;
+    report.subject.kind = ENGINE_SUBJECT_NONE;
+    if (event->subject >= 1 && event->subject <= r->city_count) { report.subject.kind = ENGINE_SUBJECT_CITY; report.subject.id = (u16)(event->subject - 1); }
+    report.speaker      = r->officer_count ? (u16)100 : ENGINE_NO_OFFICER;
+    report.sign         = (u8)(event->delta > 0 ? ENGINE_SIGN_GOOD : event->delta < 0 ? ENGINE_SIGN_BAD : ENGINE_SIGN_NEUTRAL);
+    report.report       = event->detail == 1;
+    return report;
 }
 
 internal engine_ledger_view recorder_ledger_filter(void *o, u8 city_id, u8 resource)
@@ -1783,6 +1816,7 @@ recorder_make_api(engine_recorder *r)
     api.weapon_kind_at       = recorder_weapon_kind_at;
     api.ledger_filter        = recorder_ledger_filter;
     api.subject_of           = recorder_subject_of;
+    api.event_report         = recorder_event_report;
     api.command_patrol       = recorder_command_patrol;
     api.command_conscript    = recorder_command_conscript;
     api.command_train        = recorder_command_train;

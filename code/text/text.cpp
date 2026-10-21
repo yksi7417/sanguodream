@@ -587,3 +587,142 @@ text_encode_big5(const char *utf8, u8 *out, u32 out_size)
     }
     return used;
 }
+/* ---- M18: text providers ------------------------------------------------ */
+
+/* The text of an id in the active or the fallback locale, or 0. A miss here
+   is not a missing string: the providers try a chain of ids. */
+internal const char *
+text_find_string(text_catalog *catalog, const char *id)
+{
+    if (!catalog) return 0;
+    const char *found = text_table_find(&catalog->strings, id);
+    return found ? found : text_table_find(&catalog->fallback_strings, id);
+}
+
+/* "prefix" + "part" into out (64 bytes at most). */
+internal void
+text_join_id(const char *prefix, const char *part, char *out, u32 out_size)
+{
+    u32 used = 0;
+    for (const char *at = prefix; *at && used + 1 < out_size; ++at) out[used++] = *at;
+    for (const char *at = part; at && *at && used + 1 < out_size; ++at) out[used++] = *at;
+    out[used] = 0;
+}
+
+/* Appends text to out at *used; stops before the end of out. */
+internal void
+text_append_text(char *out, u32 out_size, u32 *used, const char *text)
+{
+    for (const char *at = text; at && *at && *used + 1 < out_size; ++at) out[(*used)++] = *at;
+}
+
+/* Appends a signed number; with_sign writes "+" before a positive value. */
+internal void
+text_append_number(char *out, u32 out_size, u32 *used, s64 value, b32 with_sign)
+{
+    char digits[24];
+    u32 count = 0;
+    if (value < 0) digits[count++] = '-';
+    else if (with_sign && value > 0) digits[count++] = '+';
+    u64 magnitude = value < 0 ? (u64)(-value) : (u64)value;
+    char reversed[20];
+    u32 length = 0;
+    do
+    {
+        reversed[length++] = (char)('0' + magnitude % 10);
+        magnitude /= 10;
+    } while (magnitude && length < sizeof(reversed));
+    while (length) digits[count++] = reversed[--length];
+    digits[count] = 0;
+    text_append_text(out, out_size, used, digits);
+}
+
+/* Fills the placeholders of a template. An unknown placeholder stays as it
+   is, so that a bad template shows in the game. */
+internal u32
+text_fill_template(const char *pattern, const text_event_facts *facts, char *out, u32 out_size)
+{
+    if (!out_size) return 0;
+    u32 used = 0;
+    for (const char *at = pattern; *at && used + 1 < out_size;)
+    {
+        if (*at != '{') { out[used++] = *at++; continue; }
+        const char *end = at + 1;
+        while (*end && *end != '}') ++end;
+        if (!*end) { out[used++] = *at++; continue; }
+        char name[16];
+        u32 length = (u32)(end - at - 1);
+        if (length >= sizeof(name)) { out[used++] = *at++; continue; }
+        for (u32 index = 0; index < length; ++index) name[index] = at[1 + index];
+        name[length] = 0;
+        if      (strcmp(name, "subject") == 0) text_append_text(out, out_size, &used, facts->subject);
+        else if (strcmp(name, "speaker") == 0) text_append_text(out, out_size, &used, facts->speaker);
+        else if (strcmp(name, "faction") == 0) text_append_text(out, out_size, &used, facts->faction);
+        else if (strcmp(name, "delta") == 0)   text_append_number(out, out_size, &used, facts->delta, true);
+        else if (strcmp(name, "amount") == 0)  text_append_number(out, out_size, &used, facts->delta < 0 ? -(s64)facts->delta : facts->delta, false);
+        else if (strcmp(name, "value") == 0)
+        {
+            if (facts->value == TEXT_NO_VALUE) text_append_text(out, out_size, &used, "?");
+            else text_append_number(out, out_size, &used, facts->value, false);
+        }
+        else
+        {
+            for (const char *copy = at; copy <= end && used + 1 < out_size; ++copy) out[used++] = *copy;
+        }
+        at = end + 1;
+    }
+    out[used] = 0;
+    return used;
+}
+
+internal u32
+text_template_line(void *user, text_catalog *catalog, const text_event_facts *facts, u32 form, char *out, u32 out_size)
+{
+    (void)user;
+    char id[64];
+    const char *pattern = 0;
+    if (form == TEXT_LINE_SPEECH)
+    {
+        static const char *signs[] = { "neutral", "good", "bad" };
+        text_join_id("say.", facts->key, id, sizeof(id));
+        pattern = text_find_string(catalog, id);
+        if (!pattern && facts->tone && facts->tone[0])
+        {
+            text_join_id("say.tone.", facts->tone, id, sizeof(id));
+            pattern = text_find_string(catalog, id);
+        }
+        if (!pattern)
+        {
+            text_join_id("say.sign.", signs[facts->sign < ArrayCount(signs) ? facts->sign : 0], id, sizeof(id));
+            pattern = text_find_string(catalog, id);
+        }
+    }
+    else
+    {
+        text_join_id("log.", facts->key, id, sizeof(id));
+        pattern = text_find_string(catalog, id);
+        if (!pattern) pattern = text_find_string(catalog, "log.generic");
+    }
+    if (!pattern) pattern = form == TEXT_LINE_SPEECH ? "..." : "{subject} {delta}";
+    return text_fill_template(pattern, facts, out, out_size);
+}
+
+internal text_provider
+text_template_provider(void)
+{
+    text_provider provider = {};
+    provider.name = "template";
+    provider.line = text_template_line;
+    return provider;
+}
+
+internal u32
+text_write_line(const text_provider *provider, text_catalog *catalog, const text_event_facts *facts, u32 form,
+                char *out, u32 out_size)
+{
+    if (!out_size) return 0;
+    out[0] = 0;
+    u32 written = provider && provider->line ? provider->line(provider->user, catalog, facts, form, out, out_size) : 0;
+    if (!written || !out[0]) written = text_template_line(0, catalog, facts, form, out, out_size);
+    return written;
+}
