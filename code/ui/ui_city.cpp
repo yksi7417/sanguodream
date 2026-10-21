@@ -200,6 +200,56 @@ ui_draw_city_buttons(ui_state *ui, engine_api *api, engine_city *city)
     ui_draw_march_buttons(ui, api, first_officer);
 }
 
+/* M19, ui/city-commands.md "Base panel": the fields of the city panel of
+   the original, in its order. 治安 and 氣力 are of 100. The weapons are
+   the stock of each row of weapons.tsv. 現役 is the free officers of the
+   city of its active officers. */
+internal void
+ui_draw_city_game_fields(ui_state *ui, engine_api *api, u8 city_id)
+{
+    engine_city city = api->city_at(api->engine, city_id);
+    engine_city_slots slots = api->city_slots(api->engine, city_id);
+    engine_city_economy economy = api->city_economy(api->engine, city_id);
+    engine_city_siege siege = api->city_siege(api->engine, city_id);
+    char name[UI_NAME_SIZE * 2];
+    ui_city_label(ui, api, city_id, name, sizeof(name));
+    ImGui::TextColored(ImVec4(0.62f, 0.82f, 0.96f, 1.0f), "%s", name);
+    ImGui::Separator();
+    ImGui::Text("%s %u   %s %u", text_get(ui->text, "column.gold"), city.gold, text_get(ui->text, "column.food"), city.food);
+    ImGui::Text("%s %u / 100   %s %u / %u", text_get(ui->text, "command.order"), economy.public_order,
+                text_get(ui->text, "city.slots"), slots.used, slots.slot_count);
+    ImGui::Text("%s %u / %u", text_get(ui->text, "city.durability"), siege.durability, siege.durability_max);
+    ImGui::Text("%s %u   %s %u / 100", text_get(ui->text, "command.soldiers"), economy.soldiers, text_get(ui->text, "command.morale"),
+                economy.morale);
+    u32 count = api->weapon_kind_count(api->engine);
+    for (u32 index = 0; index < count; ++index)
+    {
+        engine_weapon_kind kind = api->weapon_kind_at(api->engine, index);
+        u32 stock = kind.stock < CITY_EQUIPMENT_STOCK_COUNT ? economy.stocks[kind.stock] : 0;
+        if (index % 4 != 0) ImGui::SameLine();
+        ImGui::Text("%s %u", ui_text_with_key(ui, "weapon", kind.key), stock);
+    }
+    ImGui::Text("%s %u   %s %u", text_get(ui->text, "city.gold_income"), slots.gold_income, text_get(ui->text, "city.grain_income"),
+                slots.grain_income);
+    char price[64];
+    snprintf(price, sizeof(price), text_get(ui->text, "city.price_text"), economy.grain_per_gold);
+    ImGui::Text("%s %s", text_get(ui->text, "city.market_price"), price);
+    u32 active = 0, captives = 0, ronin = 0;
+    for (u32 index = 0; index < api->officer_count(api->engine); ++index)
+    {
+        engine_officer officer = api->officer_at(api->engine, index);
+        if (officer.current_position != city_id) continue;
+        if (officer.status <= 3 && officer.force_id == city.owner_force_id) active++;
+        else if (officer.status == 6) ronin++;
+        else if (api->officer_detail(api->engine, officer.officer_id).captive) captives++;
+    }
+    u16 free_ids[UI_DEVELOP_OFFICER_LIST];
+    u32 free_count = ui_free_officers(api, city_id, free_ids, ArrayCount(free_ids));
+    ImGui::Text("%s %u / %u   %s %u   %s %u", text_get(ui->text, "city.active"), free_count, active, text_get(ui->text, "city.captives"),
+                captives, text_get(ui->text, "city.ronin"), ronin);
+    ImGui::Separator();
+}
+
 internal void
 ui_draw_city(ui_state *ui, engine_api *api)
 {
@@ -212,6 +262,17 @@ ui_draw_city(ui_state *ui, engine_api *api)
         if (api->city_count(api->engine) == 0)
         {
             ImGui::TextWrapped("%s", text_get(ui->text, "city.none"));
+            ImGui::End();
+            return;
+        }
+        if (ui->hud_mode)
+        {
+            /* M19: the base panel of the original and its command menu,
+               without the combo, the check boxes and the slot table of the
+               debug layout. */
+            ui_draw_city_game_fields(ui, api, ui->city.selected);
+            engine_city chosen = api->city_at(api->engine, ui->city.selected);
+            ui_draw_city_buttons(ui, api, &chosen);
             ImGui::End();
             return;
         }

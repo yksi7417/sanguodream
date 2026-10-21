@@ -1259,3 +1259,9 @@ log.officer_left	{subject}：離開勢力
 log.officer_recruited	{subject}：加入勢力
 log.recruit_failed	{subject}：拒絕招攬
 log.officer_released	{subject}：完成任務
+city.durability	耐久
+city.market_price	市價
+city.price_text	兵糧%u=資金1
+city.active	現役
+city.captives	俘虜
+city.ronin	在野

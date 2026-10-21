@@ -19,10 +19,13 @@ Status: in progress (2026-10-20). Done and pushed (master 077fa0c):
   portrait slots, the city panel hidden behind them;
 - the game screens centred in every frame;
 - one step for the city names at a game start.
+- the city panel of the game mode with the fields of the original
+  (ui_draw_city_game_fields in code/ui/ui_city.cpp): stock, 治安, 設施數,
+  耐久, 士兵, 氣力, the weapons, the income, 市價, 現役, 俘虜, 在野, then
+  the base command menu. The debug layout keeps its combo and slot table.
 Next steps, in this order:
-1. The city panel of the original with its fields
-   (ui/city-commands.md "Base panel") in the game mode, at the left or the
-   right edge, with the six-button menu next to the city.
+1. (Optional) The panel at the left or the right edge (Q-045). Today it
+   opens next to the city through ui_context_place.
 2. The officer selection window 選擇執行武將 (ui/city-commands.md
    "Officer selection lists"): tabs, columns, check boxes, sort, 一併 and
    一併解除. The 執行武將 button of each command dialog opens it.

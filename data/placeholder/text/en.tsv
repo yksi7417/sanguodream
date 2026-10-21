@@ -1261,3 +1261,9 @@ log.officer_left	{subject}: left the faction
 log.officer_recruited	{subject}: joined the faction
 log.recruit_failed	{subject}: refused the offer
 log.officer_released	{subject}: finished the job
+city.durability	Durability
+city.market_price	Market
+city.price_text	%u grain = 1 gold
+city.active	Active
+city.captives	Captives
+city.ronin	Free officers
