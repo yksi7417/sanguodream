@@ -19,6 +19,7 @@
 #define DEMO_M16_NAME          "m16_content"
 #define DEMO_M17_NAME          "m17_first_hour"
 #define DEMO_M18_NAME          "m18_feedback"
+#define DEMO_M19_NAME          "m19_city_scene"
 
 /* build\demos, with no last backslash. demo_player.cpp sets it. */
 global_variable char g_demo_output_dir[MAX_PATH];
@@ -59,7 +60,8 @@ demo_gui(ImGuiTestContext *ctx)
         config.use_pack_map     = strcmp(ctx->Test->Name, DEMO_M10_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M11_NAME) == 0 ||
                                   strcmp(ctx->Test->Name, DEMO_M12_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M13_NAME) == 0 ||
                                   strcmp(ctx->Test->Name, DEMO_M14_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M15_NAME) == 0 ||
-                                  strcmp(ctx->Test->Name, DEMO_M17_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M18_NAME) == 0;
+                                  strcmp(ctx->Test->Name, DEMO_M17_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M18_NAME) == 0 ||
+                                  strcmp(ctx->Test->Name, DEMO_M19_NAME) == 0;
         v.backend = engine_create(&v.permanent, &v.transient, config);
         v.api     = engine_make_api(v.backend);
         text_catalog_init(&v.text, arena_sub(&v.permanent, Megabytes(4)), test_platform_read_entire_file,
@@ -1968,6 +1970,155 @@ demo_m18_feedback(ImGuiTestContext *ctx)
     IM_CHECK(demo_screenshot_panel(ctx, milestone, "###HUD", "hud"));
 }
 
+/* M19 (the city as a scene; tutorial 32): 柴桑 of the sample save in the
+   game mode. The city panel shows the fields of the original. 徵兵 opens
+   with the proposal. 執行武將 opens 選擇執行武將: a click on the 魅力
+   header sorts, 一併解除 clears, and a click on the top row checks it.
+   決定 sends 徵兵 with that officer. Then 開發 shows the grid of the
+   facilities with the built counts. 決定 starts the placement mode, the
+   場所 arrow frames an empty slot, and a click on it starts the market. */
+internal void
+demo_m19_open_item(ImGuiTestContext *ctx, demo_vars &v, const char *menu, const char *item)
+{
+    ctx->SetRef("//###HUD");
+    ctx->ItemClick("**/###hud_row0_26", ImGuiMouseButton_Right);
+    ctx->Yield(2);
+    IM_CHECK(v.ui.show_city && v.ui.context.kind == UI_CONTEXT_CITY);
+    ctx->SetRef("###City");
+    ctx->ItemClick(menu);
+    ctx->Yield();
+    ctx->ItemClick(item);
+    ctx->Yield(2);
+}
+
+internal void
+demo_m19_city_scene(ImGuiTestContext *ctx)
+{
+    const char *milestone = DEMO_M19_NAME;
+    demo_vars &v = ctx->GetVars<demo_vars>();
+    engine_api *api = &v.api;
+    void *e = api->engine;
+    IM_CHECK(api->map_info(e).real_map);
+    IM_CHECK(demo_open_panel(ctx, "Simulation", &v.ui.show_sim));
+    ctx->SetRef("Simulation");
+    ctx->ItemClick("Load sample save");
+    ctx->Yield();
+    ui_enter_game(&v.ui);
+    v.ui.feel.turn_messages = false;   /* the turn start of the save opens no message window */
+    ctx->Yield(2);
+    u8 force = api->whose_turn(e);
+    IM_CHECK_EQ(api->city_at(e, 26).owner_force_id, force);
+    api->set_city_resource(e, 26, SIM_RESOURCE_GOLD, 0, 5000);   /* the editor: gold for both commands */
+    engine_city_slots chaisang = api->city_slots(e, 26);
+    /* Each slot of 柴桑 holds a facility in the save, so the editor
+       destroys the last one for the 開發. */
+    u8 freed = (u8)(chaisang.slot_count - 1);
+    api->damage_facility(e, 26, freed, 1000000);
+    IM_CHECK_EQ(api->facility_at(e, 26, freed).state, (u8)SIM_SLOT_EMPTY);
+
+    /* The pictures, while the officers are free: the city panel, the 開發
+       grid and the list. */
+    ctx->SetRef("//###HUD");
+    ctx->ItemClick("**/###hud_row0_26", ImGuiMouseButton_Right);
+    ctx->Yield(3);
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###City", "city"));
+    demo_m19_open_item(ctx, v, "###menu_city", "###base_develop");
+    ctx->Yield(2);
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Develop", "develop"));
+    ctx->SetRef("###Develop");
+    ctx->ItemClick("###executor");
+    ctx->Yield(3);
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###OfficerPick", "officer_pick"));
+    ui_context_close(&v.ui);
+    ctx->Yield(2);
+    IM_CHECK(!v.ui.show_picker && !v.ui.show_develop);
+
+    IM_CHECK(demo_begin_video(ctx, milestone));
+    ctx->SetRef("//###HUD");
+    ctx->ItemClick("**/###hud_row0_26");
+    ctx->Yield(2);
+    IM_CHECK(demo_camera_on(v, hex_make(chaisang.q, chaisang.r)));
+
+    /* The city panel, then 徵兵 with the proposal. */
+    ctx->ItemClick("**/###hud_row0_26", ImGuiMouseButton_Right);
+    ctx->Yield(2);
+    IM_CHECK(v.ui.show_city);
+    ctx->SleepStandard();
+    ctx->SleepStandard();
+    demo_m19_open_item(ctx, v, "###menu_city", "###base_conscript");
+    IM_CHECK(v.ui.show_command[UI_COMMAND_CONSCRIPT]);
+    IM_CHECK(v.ui.commands[UI_COMMAND_CONSCRIPT].officers[0] != ENGINE_NO_OFFICER);   /* the proposal */
+    ctx->SleepStandard();
+    ctx->SetRef("###Conscript");
+    ctx->ItemClick("###executor");
+    ctx->Yield(2);
+    IM_CHECK(v.ui.show_picker && v.ui.picker.id_count >= 2);
+    ctx->SetRef("//###OfficerPick");
+    char header[96];
+    snprintf(header, sizeof(header), "%s###charm", text_get(v.ui.text, "picker.charm"));
+    {
+        ImGuiTable *table = ImGui::TableFindByID(ctx->GetID("pick_table"));
+        IM_CHECK(table != 0);
+        int column = UI_PICKER_COLUMN_CHARM;
+        ImGuiID column_id = ImHashData(&column, sizeof(column), ImGui::TableGetInstanceID(table, 0));
+        ctx->ItemClick(ImHashStr(header, 0, column_id));
+    }
+    ctx->Yield(2);
+    IM_CHECK(v.ui.picker.view.sort_column == UI_PICKER_COLUMN_CHARM);
+    ctx->SleepStandard();
+    ctx->ItemClick("###clear_all");
+    ctx->Yield();
+    IM_CHECK_EQ(v.ui.picker.checked_count, 0u);
+    u16 top = v.ui.picker.ids[v.ui.picker.rows[0]];
+    char row[48];
+    snprintf(row, sizeof(row), "**/###pick_row%u", top);
+    ctx->ItemClick(row);
+    ctx->Yield();
+    IM_CHECK(v.ui.picker.checked_count == 1 && v.ui.picker.checked[0] == top);
+    ctx->SleepStandard();
+    ctx->ItemClick("###pick_decide");
+    ctx->Yield(2);
+    IM_CHECK(v.ui.commands[UI_COMMAND_CONSCRIPT].officers[0] == top && v.ui.commands[UI_COMMAND_CONSCRIPT].officers[1] == ENGINE_NO_OFFICER);
+    ctx->SleepStandard();
+    u32 bubbles = v.ui.report.feedback_count;
+    ctx->SetRef("###Conscript");
+    ctx->ItemClick("###decide");
+    ctx->Yield(2);
+    IM_CHECK_GT(v.ui.report.feedback_count, bubbles);
+    ctx->Sleep(UI_BUBBLE_SECONDS * 0.8f);
+
+    /* 開發: the grid, 決定, then the slot on the map. */
+    demo_m19_open_item(ctx, v, "###menu_city", "###base_develop");
+    IM_CHECK(v.ui.show_develop);
+    ctx->SetRef("###Develop");
+    ctx->ItemClick("###fac0");
+    ctx->Yield();
+    IM_CHECK(v.ui.develop.officers[0] != ENGINE_NO_OFFICER);
+    ctx->SleepStandard();
+    ctx->ItemClick("###decide");
+    ctx->Yield(2);
+    IM_CHECK(v.ui.placement.active && v.ui.placement.slot != ENGINE_ANY_SLOT);
+    ctx->SleepStandard();
+    ctx->SetRef("//###Placement");
+    ctx->ItemClick("###slot_next");
+    ctx->Yield(2);
+    u8 slot = v.ui.placement.slot;
+    IM_CHECK(slot != ENGINE_ANY_SLOT);
+    v.ui.scene.cam.target.y = 0.0f;   /* the pick meets the ground plane at the centre */
+    ctx->Yield(2);
+    ImVec2 display = ImGui::GetIO().DisplaySize;
+    ctx->MouseMoveToPos(ImVec2(display.x * 0.5f, display.y * 0.5f));
+    ctx->Yield(2);
+    IM_CHECK(v.ui.placement.hover_valid);
+    ctx->SleepStandard();
+    ctx->MouseClick(0);
+    ctx->Yield(2);
+    IM_CHECK(!v.ui.placement.active);
+    IM_CHECK_EQ(api->facility_at(e, 26, slot).state, (u8)SIM_SLOT_BUILDING);
+    ctx->Sleep(UI_BUBBLE_SECONDS * 0.8f);
+    IM_CHECK(demo_end_video(ctx));
+}
+
 /* M13 (the replay of the save pairs; tutorial 26): the Fidelity panel lists
    the pairs of the spec. Replay on conscript/001 loads the save of the
    original before 徵兵 in 江陵, runs 徵兵 with the same three officers and
@@ -2503,4 +2654,9 @@ register_demo_tests(ImGuiTestEngine *e)
     t->SetVarsDataType<demo_vars>();
     t->GuiFunc  = demo_gui;
     t->TestFunc = demo_m18_feedback;
+
+    t = IM_REGISTER_TEST(e, "demo", DEMO_M19_NAME);
+    t->SetVarsDataType<demo_vars>();
+    t->GuiFunc  = demo_gui;
+    t->TestFunc = demo_m19_city_scene;
 }

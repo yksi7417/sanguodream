@@ -469,9 +469,9 @@ ui_propose_officers(engine_api *api, u8 city_id, u32 ability, u16 *out, u32 plac
     u16 free_ids[UI_DEVELOP_OFFICER_LIST];
     u32 free_count = ui_free_officers(api, city_id, free_ids, ArrayCount(free_ids));
     u32 chosen = 0;
+    for (u32 place = 0; place < places; ++place) out[place] = ENGINE_NO_OFFICER;   /* a short list leaves the other slots empty */
     for (u32 place = 0; place < places; ++place)
     {
-        out[place] = ENGINE_NO_OFFICER;
         u32 best = free_count, best_value = 0;
         for (u32 index = 0; index < free_count; ++index)
         {

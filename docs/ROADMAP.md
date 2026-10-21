@@ -846,17 +846,27 @@ orders, reports).
   as in the original.
 
 ### M19 The city as a scene
-Status (2026-10-20): in progress. Done:
-- the merge of feat/default-portraits. ui_draw_officer_portrait shows
-  the picture of the archive, else the frame with the first character;
-- the proposal of the most suitable officers. 巡察, 徵兵, 訓練, 商人,
-  生產兵裝, 開發 and 研究技巧 rank the free officers by the ability of
-  the command (ui_propose_officers in code/ui/ui_city.cpp);
-- one step for the sample: "Load sample save" also loads the city names
-  (the request of the player of 2026-10-20).
-Open: the portraits on the unit plates and in the officer list, the
-city panel, the framed dialogs, the officer selection list and the
-placement mode.
+Status (2026-10-21): done (tutorial 32, demo "demo/m19_city_scene").
+The game mode has the city panel with the fields of the original, the
+framed command dialogs on a dark map with portrait slots, and the
+proposal of the most suitable officers at each open. The 執行武將
+button opens the officer selection 選擇執行武將 with the sort, the
+checks and the 一併 buttons. 開發 shows the grid of the facilities with
+the built counts. Its 決定 starts the placement mode, and a click on an
+empty slot sends the command. The portraits of the archive show on the
+unit plates, in the bubble, in the dialogs and in the list.
+
+Open points for the analysis side:
+- the columns of the first tab of 選擇執行武將 for each command (the
+  spec gives one set for 召喚);
+- the other tabs of the list (所屬, 能力, 特技, 適性, 命令, 個人, 血緣);
+- the rule when a row click goes past the officers that a command takes,
+  and what 一併 checks then;
+- the direction rule of a header sort (Q-046);
+- the text of 效果 and 限制 in the 開發 dialog;
+- the place of the city panel at the left or the right edge (Q-045);
+- the proposal rule of the original (the ability of the first column is
+  the rule of the player, not an observation).
 
 Closes report sections 3, 4 (dialog, proposal, officer list) and 5.
 - Requests of the player (2026-10-20):

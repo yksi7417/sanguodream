@@ -66,9 +66,12 @@ ui_base_open_item(ui_state *ui, const ui_base_item *item, u16 first_officer)
     u8 city = ui->city.selected;
     switch (item->open)
     {
+        /* M19, ui/city-commands.md "Command dialogs": the game fills the
+           officer slots with a proposal when the dialog opens. */
         case UI_BASE_OPEN_DEVELOP:
             ui->show_develop = true;
             ui->develop.city = city;
+            ui->develop.prepared_city = ENGINE_NO_CITY;
             ui->develop.message[0] = 0;
             break;
         case UI_BASE_OPEN_MERGE:     ui->show_merge = true;     ui->merge.city = city;     break;
@@ -78,6 +81,7 @@ ui_base_open_item(ui_state *ui, const ui_base_item *item, u16 first_officer)
         case UI_BASE_OPEN_COMMAND:
             ui->show_command[item->ui_kind] = true;
             ui->commands[item->ui_kind].city = city;
+            ui->commands[item->ui_kind].prepared_city = ENGINE_NO_CITY;
             break;
         case UI_BASE_OPEN_COURT:
             ui->show_court = true;

@@ -791,6 +791,21 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
+    /* A city with fewer free officers than slots: the proposal leaves the
+       other slots empty, so that 開發 names no officer 0. */
+    t = IM_REGISTER_TEST(e, "ui", "develop_proposal_with_one_free_officer_leaves_the_other_slots_empty");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 1;
+        v.recorder.city_count    = 2;
+        v.ui.show_develop        = true;
+        ctx->Yield(2);
+        IM_CHECK(v.ui.develop.officers[0] == 100 && v.ui.develop.officers[1] == ENGINE_NO_OFFICER && v.ui.develop.officers[2] == ENGINE_NO_OFFICER);
+    };
+
     /* A header click sorts. 一併 checks the rows from the top, as many as the
        command takes: one for 商人. */
     t = IM_REGISTER_TEST(e, "ui", "officer_pick_header_sorts_and_check_all_takes_the_top_rows");
@@ -1876,13 +1891,23 @@ register_ui_tests(ImGuiTestEngine *e)
                 IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
                 return;
             }
+            /* M19: an earlier open of city 1 left officer 0 in the slots; each
+               open proposes again (city 1 has no free officer). */
+            v.ui.develop.city = v.ui.develop.prepared_city = 1;
+            v.ui.develop.officers[0] = 0;
+            for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind)
+            {
+                v.ui.commands[kind].city = v.ui.commands[kind].prepared_city = 1;
+                v.ui.commands[kind].officers[0] = 0;
+            }
             ctx->ItemClick(test_case->item);
-            ctx->Yield();
+            ctx->Yield(2);
             switch (test_case->expect)
             {
-                case UI_EXPECT_DEVELOP:   IM_CHECK(v.ui.show_develop && v.ui.develop.city == 1); break;
+                case UI_EXPECT_DEVELOP:   IM_CHECK(v.ui.show_develop && v.ui.develop.city == 1 && v.ui.develop.officers[0] == ENGINE_NO_OFFICER); break;
                 case UI_EXPECT_MERGE:     IM_CHECK(v.ui.show_merge && v.ui.merge.city == 1); break;
-                case UI_EXPECT_COMMAND:   IM_CHECK(v.ui.show_command[test_case->ui_kind] && v.ui.commands[test_case->ui_kind].city == 1); break;
+                case UI_EXPECT_COMMAND:   IM_CHECK(v.ui.show_command[test_case->ui_kind] && v.ui.commands[test_case->ui_kind].city == 1 &&
+                                                   v.ui.commands[test_case->ui_kind].officers[0] == ENGINE_NO_OFFICER); break;
                 case UI_EXPECT_RESEARCH:  IM_CHECK(v.ui.show_research && v.ui.research.city == 1); break;
                 case UI_EXPECT_SORTIE:    IM_CHECK(v.ui.show_sortie && v.ui.sortie.city == 1); break;
                 case UI_EXPECT_TRANSPORT: IM_CHECK(v.ui.show_transport && v.ui.transport.city == 1); break;
