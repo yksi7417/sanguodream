@@ -1242,6 +1242,7 @@ enum engine_replay_command_kind
     ENGINE_REPLAY_CONSCRIPT,    /* 徵兵 */
     ENGINE_REPLAY_PATROL,       /* 巡察 */
     ENGINE_REPLAY_TRAIN,        /* 訓練 */
+    ENGINE_REPLAY_MERCHANT,     /* 商人: officers[0], merchant_mode and amount */
     ENGINE_REPLAY_COMMAND_COUNT
 };
 
@@ -1251,6 +1252,8 @@ struct engine_replay_command
     u8  city_id;
     u8  facility;    /* ENGINE_REPLAY_DEVELOP: the row of facilities.tsv */
     u16 officers[SIM_DEVELOP_OFFICERS];   /* ENGINE_NO_OFFICER for an empty place */
+    u8  merchant_mode;   /* ENGINE_REPLAY_MERCHANT: sim_merchant_mode */
+    u32 amount;          /* ENGINE_REPLAY_MERCHANT: the gold to spend or the grain to sell */
 };
 
 /* A row of pairs.tsv of the content pack. */

@@ -26,6 +26,17 @@ global_variable const feature_replay_expected feature_replay_ceilings[] =
     { "conscript",    1, 2 },     /* troops (Q-153) and public order (Q-152) */
     { "develop",      1, 1 },     /* the merit of the officer comes later in the original */
     { "economy-turn", 1, 334 },   /* the AI factions pick other commands (M15) */
+    /* Measured on 2026-10-20: the pairs of the driven run of 孫堅 in 長沙 (spec 7b606e1). */
+    { "conscript",    2, 2 },     /* troops +650 for +1383 (Q-153), public order -5 for -8 (Q-152) */
+    { "develop",      2, 3 },     /* the original gives the merit of 開發 at the end of the build (Q-220) */
+    { "economy-turn", 2, 177 },   /* the AI factions pick other commands (M15) */
+    { "economy-turn", 3, 190 },
+    { "economy-turn", 4, 185 },
+    { "economy-turn", 5, 246 },
+    { "economy-turn", 6, 295 },
+    { "merchant",     1, 1 },     /* gold +400 for +381: the sale rate of the original (Q-155) */
+    { "patrol",       1, 0 },     /* public order matches; only the technique points differ (Q-158) */
+    { "train",        1, 0 },     /* morale matches; only the technique points differ (Q-158) */
 };
 
 internal const feature_replay_expected *

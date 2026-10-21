@@ -314,17 +314,19 @@ internal void
 fixture_patrol(tsv_table *table, engine_api *api, test_counts *counts)
 {
     void *e = api->engine;
-    api->load_save(e, SAMPLE_SAVE_RELATIVE_PATH);
-    u8 city = feature_busiest_city(api);
-    u8 force = api->city_at(e, city).owner_force_id;
-    feature_play_as(api, force);
-    api->set_city_gold(e, city, 50000);
-    api->set_actions(e, force, 255);
-    api->set_city_resource(e, city, SIM_RESOURCE_PUBLIC_ORDER, 0, 50);
     u16 ids[SIM_DEVELOP_OFFICERS];
-    feature_take_officers(api, city, ids, 1);
     for (u32 row = 0; row < table->row_count; ++row)
     {
+        /* A city can patrol one time in each turn. Each row thus starts
+           from a fresh load of the sample. */
+        api->load_save(e, SAMPLE_SAVE_RELATIVE_PATH);
+        u8 city = feature_busiest_city(api);
+        u8 force = api->city_at(e, city).owner_force_id;
+        feature_play_as(api, force);
+        api->set_city_gold(e, city, 50000);
+        api->set_actions(e, force, 255);
+        api->set_city_resource(e, city, SIM_RESOURCE_PUBLIC_ORDER, 0, 50);
+        feature_take_officers(api, city, ids, 1);
         u32 ap_cost = 0, gold_cost = 0, merit = 0;
         b32 parsed = tsv_cell_u32(table, row, "ap_cost", &ap_cost) && tsv_cell_u32(table, row, "gold_cost", &gold_cost) &&
                      tsv_cell_u32(table, row, "merit_gain", &merit);
@@ -335,7 +337,8 @@ fixture_patrol(tsv_table *table, engine_api *api, test_counts *counts)
         api->command_patrol(e, city, ids);
         feature_officer_by_id(api, ids[0], &after);
         char name[128];
-        snprintf(name, sizeof(name), "patrol row %u: %u action points, %u gold, %u merit", row, ap_cost, gold_cost, merit);
+        snprintf(name, sizeof(name), "patrol row %u: %u action points, %u gold, %u merit (officer %u, refusal %u, merit %u to %u)", row,
+                 ap_cost, gold_cost, merit, (u32)ids[0], (u32)check.refusal, before.merit, after.merit);
         TEST_CHECK(counts, parsed && check.refusal == SIM_REFUSAL_NONE && check.action_points == ap_cost && check.gold == gold_cost &&
                            after.merit == before.merit + merit, name);
     }
@@ -370,7 +373,188 @@ fixture_action_points(tsv_table *table, engine_api *api, test_counts *counts)
     printf("  PENDING %u rows: the recovery of the action points in a turn (Q-019)\n", pending);
 }
 
+/* ---- the fixtures of the driven run of 2026-10-20 (spec 7b606e1) ---------
+   experiments/session-1-results-2026-10-20.md and battle-1-results. The
+   rows are the predictions of the dialogs of the original. The officers of
+   the rows play in the 孫堅 game, not in the sample save. Thus each handler
+   checks the costs through can_issue with free officers of the sample, and
+   prints the effect columns as pending until the spec gives a formula. */
+
+#define FIXTURE_CITY_COMMAND_AP 20   /* city-commands.md: each city command costs 20 */
+
+/* The number of names in a comma list ("a,b,c" is 3). */
+internal u32
+fixture_list_count(const char *list)
+{
+    if (!list || !*list) return 0;
+    u32 count = 1;
+    for (const char *at = list; *at; ++at) count += (*at == ',');
+    return count;
+}
+
+/* Prepares the busiest city of the sample for a city command: the player
+   plays its faction, with gold, grain, action points and room for the
+   effect. Returns the city. */
+internal u8
+fixture_city_ready(engine_api *api)
+{
+    void *e = api->engine;
+    api->load_save(e, SAMPLE_SAVE_RELATIVE_PATH);
+    u8 city = feature_busiest_city(api);
+    u8 force = api->city_at(e, city).owner_force_id;
+    feature_play_as(api, force);
+    /* 徵兵 needs a barracks (city-commands.md). The build takes officers and
+       action points, so the city gets them back after it. */
+    feature_build(api, city, FEATURE_FACILITY_BARRACKS, force);
+    api->set_city_gold(e, city, 50000);
+    api->set_city_resource(e, city, SIM_RESOURCE_GRAIN, 0, 200000);
+    api->set_city_resource(e, city, SIM_RESOURCE_SOLDIERS, 0, 10000);
+    api->set_city_resource(e, city, SIM_RESOURCE_MORALE, 0, 50);
+    api->set_city_resource(e, city, SIM_RESOURCE_PUBLIC_ORDER, 0, 50);
+    api->set_actions(e, force, 255);
+    return city;
+}
+
+/* One check of a city command with as many free officers as the row names:
+   the command is allowed and costs 20 action points and the gold of the
+   row. The check issues nothing. */
+internal void
+fixture_city_cost_rows(tsv_table *table, engine_api *api, test_counts *counts, engine_command_kind kind,
+                       const char *mechanic, const char *gold_column, const char *pending)
+{
+    u8 city = fixture_city_ready(api);
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        u32 wanted = fixture_list_count(tsv_cell(table, row, "officers"));
+        u16 ids[SIM_DEVELOP_OFFICERS];
+        u32 taken = feature_take_officers(api, city, ids, wanted ? wanted : 1);
+        u32 gold = 0;
+        b32 parsed = !gold_column || tsv_cell_u32(table, row, gold_column, &gold);
+        engine_command command = feature_city_command(kind, city, ids[0], ids[1], ids[2]);
+        engine_check check = api->can_issue(api->engine, &command);
+        char name[160];
+        snprintf(name, sizeof(name), "%s row %u: %u officers, %u action points, %u gold (refusal %u, cost %u/%u)", mechanic, row,
+                 wanted, FIXTURE_CITY_COMMAND_AP, gold, (u32)check.refusal, check.action_points, check.gold);
+        TEST_CHECK(counts, parsed && taken == wanted && check.refusal == SIM_REFUSAL_NONE &&
+                           check.action_points == FIXTURE_CITY_COMMAND_AP && check.gold == gold, name);
+    }
+    printf("  PENDING %u rows x %s\n", table->row_count, pending);
+}
+
+/* conscript.tsv: 徵兵 costs 300 gold and 20 action points. The soldiers
+   that each officer set gives have no formula yet (Q-153). */
+internal void
+fixture_conscript(tsv_table *table, engine_api *api, test_counts *counts)
+{
+    fixture_city_cost_rows(table, api, counts, ENGINE_COMMAND_CONSCRIPT, "conscript", "gold_cost",
+                           "soldiers gained: no formula yet (Q-153)");
+}
+
+/* train.tsv: 訓練 costs no gold and 20 action points. The morale gain by
+   the force of the officers has no formula yet (Q-154). */
+internal void
+fixture_train(tsv_table *table, engine_api *api, test_counts *counts)
+{
+    fixture_city_cost_rows(table, api, counts, ENGINE_COMMAND_TRAIN, "train", 0,
+                           "morale gained: no formula yet (Q-154)");
+}
+
+/* merchant.tsv: one 商人 trade of the amount of the row by one officer
+   costs 20 action points and no gold of its own. The rate of the original
+   (the sale gets 80 percent of the purchase rate) waits for Q-155. */
+internal void
+fixture_merchant(tsv_table *table, engine_api *api, test_counts *counts)
+{
+    u8 city = fixture_city_ready(api);
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        u32 gold_before = 0, gold_after = 0, grain_before = 0, grain_after = 0;
+        b32 parsed = tsv_cell_u32(table, row, "gold_before", &gold_before) && tsv_cell_u32(table, row, "gold_after", &gold_after) &&
+                     tsv_cell_u32(table, row, "grain_before", &grain_before) && tsv_cell_u32(table, row, "grain_after", &grain_after);
+        b32 sell = strcmp(tsv_cell(table, row, "direction"), "sell") == 0;
+        u16 ids[SIM_DEVELOP_OFFICERS];
+        feature_take_officers(api, city, ids, 1);
+        engine_command command = feature_city_command(ENGINE_COMMAND_MERCHANT, city, ids[0]);
+        command.merchant_mode = (u8)(sell ? SIM_MERCHANT_SELL : SIM_MERCHANT_BUY);
+        command.amount = sell ? grain_before - grain_after : gold_before - gold_after;
+        engine_check check = api->can_issue(api->engine, &command);
+        char name[160];
+        snprintf(name, sizeof(name), "merchant row %u: %s %u, %u action points", row, sell ? "sell grain" : "spend gold",
+                 command.amount, FIXTURE_CITY_COMMAND_AP);
+        TEST_CHECK(counts, parsed && check.refusal == SIM_REFUSAL_NONE && check.action_points == FIXTURE_CITY_COMMAND_AP, name);
+    }
+    printf("  PENDING %u rows x the gold and the grain after the trade: the rate of the original (Q-155)\n", table->row_count);
+}
+
+/* develop-period.tsv: the period of 開發 by the politics of the officers.
+   The handler checks the facility row of the pack: its cost is the gold of
+   the row, and no row is shorter than its shortest period. The shortest
+   row must equal that shortest period (the proposal of the original). The
+   period of each officer set has no formula yet (Q-142). */
+internal void
+fixture_develop_period(tsv_table *table, engine_api *api, test_counts *counts)
+{
+    engine_facility_kind barracks = {};
+    for (u32 index = 0; index < api->facility_kind_count(api->engine); ++index)
+    {
+        engine_facility_kind kind = api->facility_kind_at(api->engine, index);
+        if (strcmp(kind.key, "barracks") == 0) barracks = kind;
+    }
+    u32 shortest = 0xFFFFFFFF;
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        u32 days = 0, gold = 0;
+        b32 parsed = tsv_cell_u32(table, row, "period_days", &days) && tsv_cell_u32(table, row, "gold_cost", &gold);
+        if (parsed && days < shortest) shortest = days;
+        char name[160];
+        snprintf(name, sizeof(name), "develop-period row %u: 兵舍 costs %u gold, %u days is not below the shortest period", row, gold, days);
+        TEST_CHECK(counts, parsed && barracks.cost == gold && days >= barracks.min_days, name);
+    }
+    TEST_CHECK(counts, shortest == barracks.min_days, "develop-period: the shortest row is the shortest period of 兵舍 in the pack");
+    printf("  PENDING %u rows x the period by the politics of the officers: no formula yet (Q-142)\n", table->row_count);
+}
+
+/* unit-values-sortie.tsv: the values that the 出征 dialog predicts. The
+   handler checks the movement of each weapon against unit_types.tsv. The
+   attack, the defence, the intellect and the build need the officers of
+   the 孫堅 game, and the engine's formula is assumed (Q-170). */
+internal void
+fixture_unit_values_sortie(tsv_table *table, engine_api *api, test_counts *counts)
+{
+    struct weapon_class { const char *weapon, *unit_type; };
+    weapon_class classes[] = {
+        { "sword", "sword" }, { "spear", "pike" }, { "halberd", "halberd" }, { "crossbow", "crossbow" },
+        { "horse", "cavalry" }, { "ship-small", "boat" }, { "ship-large", "tower_ship" },
+    };
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        const char *weapon = tsv_cell(table, row, "weapon");
+        const char *key = 0;
+        for (u32 index = 0; index < ArrayCount(classes); ++index)
+        {
+            if (strcmp(classes[index].weapon, weapon) == 0) key = classes[index].unit_type;
+        }
+        u32 expected = 0, move = 0;
+        for (u32 index = 0; key && index < api->unit_type_count(api->engine); ++index)
+        {
+            engine_unit_type type = api->unit_type_at(api->engine, index);
+            if (strcmp(type.key, key) == 0) expected = type.move;
+        }
+        b32 parsed = tsv_cell_u32(table, row, "move", &move);
+        char name[160];
+        snprintf(name, sizeof(name), "unit-values-sortie row %u (%s): movement %u", row, weapon, move);
+        TEST_CHECK(counts, parsed && expected != 0 && move == expected, name);
+    }
+    printf("  PENDING %u rows x attack, defence, intellect, build, tactics: the officers of the 孫堅 game and Q-170\n",
+           table->row_count);
+}
+
 global_variable fixture_handler g_fixture_handlers[] = {
+    { "conscript",             fixture_conscript },
+    { "train",                 fixture_train },
+    { "merchant",              fixture_merchant },
+    { "develop-period",        fixture_develop_period },
+    { "unit-values-sortie",    fixture_unit_values_sortie },
     { "unit-values-guidebook", fixture_unit_values_guidebook },
     { "grain-consumption",     fixture_grain_consumption },
     { "patrol",                fixture_patrol },

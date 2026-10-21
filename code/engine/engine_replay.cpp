@@ -171,6 +171,9 @@ engine_replay_run(engine *e, const engine_replay_command *command)
         case ENGINE_REPLAY_CONSCRIPT: result = engine_api_command_conscript(e, command->city_id, command->officers); break;
         case ENGINE_REPLAY_PATROL:    result = engine_api_command_patrol(e, command->city_id, command->officers);    break;
         case ENGINE_REPLAY_TRAIN:     result = engine_api_command_train(e, command->city_id, command->officers);     break;
+        case ENGINE_REPLAY_MERCHANT:
+            result = engine_api_command_merchant(e, command->city_id, command->officers[0], command->merchant_mode, command->amount);
+            break;
         default: break;
     }
     return result;
@@ -274,7 +277,7 @@ engine_replay_officers(const char *text, u16 *officers)
 internal void
 engine_load_replay_pairs(engine *e, const char *folder)
 {
-    static const char *kinds[ENGINE_REPLAY_COMMAND_COUNT] = { "-", "end_turn", "develop", "conscript", "patrol", "train" };
+    static const char *kinds[ENGINE_REPLAY_COMMAND_COUNT] = { "-", "end_turn", "develop", "conscript", "patrol", "train", "merchant" };
     e->replay_pair_count = 0;
     tsv_table table = {};
     arena_reset(&e->scratch);
@@ -300,6 +303,9 @@ engine_load_replay_pairs(engine *e, const char *folder)
         pair->command.city_id  = tsv_cell_u32(&table, row, "city", &city) ? (u8)city : SIM_NO_CITY;
         pair->command.facility = tsv_cell_u32(&table, row, "facility", &facility) ? (u8)facility : CONTENT_NO_FACILITY;
         engine_replay_officers(tsv_cell(&table, row, "officers"), pair->command.officers);
+        u32 mode = 0, amount = 0;
+        pair->command.merchant_mode = tsv_cell_u32(&table, row, "mode", &mode) ? (u8)mode : 0;
+        pair->command.amount        = tsv_cell_u32(&table, row, "amount", &amount) ? amount : 0;
         e->replay_pair_count++;
     }
     arena_reset(&e->scratch);

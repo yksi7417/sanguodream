@@ -1,7 +1,18 @@
-id	rule	number	command	city	facility	officers	q_ids	folder
+id	rule	number	command	city	facility	officers	mode	amount	q_ids	folder
 # The save pairs of spec/fixtures/saves/pairs (M13). misc/make_pair_index.py writes this file from pair.json and diff.json.
-# command: end_turn, develop, conscript, patrol or train; - if the engine has no handler. city and facility: the ids of bases.tsv and facilities.tsv.
+# command: end_turn, develop, conscript, patrol, train or merchant; - if the engine has no handler. city and facility: the ids of bases.tsv and facilities.tsv.
 # officers: the officers whose acted flag rises in diff.json (assumed: pair.json does not name them). folder: relative to the executable.
-0	conscript	1	conscript	30	-	636,808,811	Q-153,Q-158	..\spec-src\spec\fixtures\saves\pairs\conscript\001
-1	develop	1	develop	27	0	139	Q-146,Q-158	..\spec-src\spec\fixtures\saves\pairs\develop\001
-2	economy-turn	1	end_turn	-	-	-	Q-146,Q-148,Q-149,Q-150,Q-151,Q-152	..\spec-src\spec\fixtures\saves\pairs\economy-turn\001
+# mode and amount: the merchant trade from diff.json (mode 1 sells grain, 0 spends gold); - for the other commands.
+0	conscript	1	conscript	30	-	636,808,811	-	-	Q-153,Q-158	..\spec-src\spec\fixtures\saves\pairs\conscript\001
+1	conscript	2	conscript	31	-	355	-	-	Q-153,Q-158	..\spec-src\spec\fixtures\saves\pairs\conscript\002
+2	develop	1	develop	27	0	139	-	-	Q-146,Q-158	..\spec-src\spec\fixtures\saves\pairs\develop\001
+3	develop	2	develop	31	2	99,245,370	-	-	Q-142,Q-158,Q-220	..\spec-src\spec\fixtures\saves\pairs\develop\002
+4	economy-turn	1	end_turn	-	-	-	-	-	Q-146,Q-148,Q-149,Q-150,Q-151,Q-152	..\spec-src\spec\fixtures\saves\pairs\economy-turn\001
+5	economy-turn	2	end_turn	-	-	-	-	-	Q-141,Q-151,Q-142,Q-004	..\spec-src\spec\fixtures\saves\pairs\economy-turn\002
+6	economy-turn	3	end_turn	-	-	-	-	-	Q-141,Q-151,Q-021,Q-004	..\spec-src\spec\fixtures\saves\pairs\economy-turn\003
+7	economy-turn	4	end_turn	-	-	-	-	-	Q-141,Q-142,Q-220	..\spec-src\spec\fixtures\saves\pairs\economy-turn\004
+8	economy-turn	5	end_turn	-	-	-	-	-	Q-141,Q-151,Q-021	..\spec-src\spec\fixtures\saves\pairs\economy-turn\005
+9	economy-turn	6	end_turn	-	-	-	-	-	Q-141,Q-021,Q-105	..\spec-src\spec\fixtures\saves\pairs\economy-turn\006
+10	merchant	1	merchant	31	-	251	1	2244	Q-155,Q-158	..\spec-src\spec\fixtures\saves\pairs\merchant\001
+11	patrol	1	patrol	31	-	198	-	-	Q-152,Q-158	..\spec-src\spec\fixtures\saves\pairs\patrol\001
+12	train	1	train	31	-	198	-	-	Q-154,Q-158	..\spec-src\spec\fixtures\saves\pairs\train\001
