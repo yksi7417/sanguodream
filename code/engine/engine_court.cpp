@@ -44,7 +44,39 @@ engine_api_officer_detail(void *opaque, u16 officer_id)
         officer_component *ruler = sim_find_officer(sim, sim_force_ruler(sim, acting));
         if (ruler) result.recruit_chance = sim_recruit_chance(sim, ruler, officer);
     }
+    if (acting != SIM_NO_FORCE && sim_check_reward_officer(sim, acting, officer) == SIM_REFUSAL_NONE)
+    {
+        result.reward_rise = sim_reward_rise_of(sim, acting, officer);   /* the 褒賞 list shows it (G2-040) */
+    }
     return result;
+}
+
+/* The chance of 探索 or 登庸 with the clue of the adviser. */
+internal engine_court_advice
+engine_api_court_advice(void *opaque, engine_command_kind kind, const engine_court_order *order)
+{
+    sim_state *sim = ((engine *)opaque)->sim;
+    engine_court_advice advice = {};
+    advice.adviser = ENGINE_NO_OFFICER;
+    city_component *city = sim_find_city(sim, order->city_id);
+    officer_component *officer = sim_find_officer(sim, order->officer);
+    if (!city || !officer) return advice;
+    u8 force = city->owner_force_id;
+    if (kind == ENGINE_COMMAND_SEARCH)
+    {
+        advice.chance = sim_search_chance(sim, city, officer);
+    }
+    else if (kind == ENGINE_COMMAND_RECRUIT)
+    {
+        officer_component *target = sim_find_officer(sim, order->target);
+        if (!target || sim_check_recruit_target(sim, force, target) != SIM_REFUSAL_NONE) return advice;
+        advice.chance = sim_recruit_chance(sim, officer, target);
+    }
+    else return advice;
+    advice.clue = sim_chance_clue(&sim->content.rules, advice.chance);
+    officer_component *adviser = force < SIM_FORCE_CAPACITY ? sim_find_officer(sim, sim->adviser[force]) : 0;
+    if (adviser && adviser->force_id == force && sim_officer_is_active(adviser)) advice.adviser = adviser->officer_id;
+    return advice;
 }
 
 internal u32
@@ -511,6 +543,7 @@ engine_bind_court_api(engine_api *api)
     api->command_move_officers = engine_api_command_move_officers;
     api->command_summon        = engine_api_command_summon;
     api->travel_days           = engine_api_travel_days;
+    api->court_advice          = engine_api_court_advice;
     api->command_duel          = engine_api_command_duel;
     api->command_duel_action   = engine_api_command_duel_action;
     api->command_debate_action = engine_api_command_debate_action;

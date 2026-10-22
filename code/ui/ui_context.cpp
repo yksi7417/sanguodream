@@ -50,7 +50,7 @@ ui_context_close(ui_state *ui)
         case UI_CONTEXT_CITY:
             ui->show_city = ui->show_develop = ui->show_research = ui->show_merge = false;
             ui->show_sortie = ui->show_transport = ui->show_picker = false;
-            ui->show_move_officers = ui->show_summon = ui->show_posts = ui->show_exile = ui->show_plot = false;
+            ui->show_move_officers = ui->show_summon = ui->show_posts = ui->show_exile = ui->show_plot = ui->show_reward = false;
             for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind) ui->show_command[kind] = false;
             break;
         case UI_CONTEXT_UNIT:
@@ -119,12 +119,12 @@ ui_context_back(ui_state *ui)
     {
         if (ui->show_picker) { ui->show_picker = false; return; }
         bool dialog = ui->show_develop || ui->show_research || ui->show_merge || ui->show_sortie || ui->show_transport ||
-                      ui->show_move_officers || ui->show_summon || ui->show_posts || ui->show_exile || ui->show_plot;
+                      ui->show_move_officers || ui->show_summon || ui->show_posts || ui->show_exile || ui->show_plot || ui->show_reward;
         for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind) dialog = dialog || ui->show_command[kind];
         if (dialog && ui->show_city)
         {
             ui->show_develop = ui->show_research = ui->show_merge = ui->show_sortie = ui->show_transport = false;
-            ui->show_move_officers = ui->show_summon = ui->show_posts = ui->show_exile = ui->show_plot = false;
+            ui->show_move_officers = ui->show_summon = ui->show_posts = ui->show_exile = ui->show_plot = ui->show_reward = false;
             for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind) ui->show_command[kind] = false;
             return;
         }

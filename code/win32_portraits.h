@@ -7,6 +7,7 @@
    file gives a 224 x 280 texture. Include it after win32_window.h. */
 
 #include "hexdom.h"               /* PLATFORM_PORTRAIT_TEXTURE */
+#include "win32_faces.h"          /* win32_make_rgba_texture, and the generated faces */
 #include "render/zip.h"
 #include "render/jpeg.h"
 #include "render/portraits.h"
@@ -95,26 +96,8 @@ win32_portraits_make_texture(win32_portraits *portraits, u32 picture)
     ID3D11ShaderResourceView *view = 0;
     if (!error)
     {
-        D3D11_TEXTURE2D_DESC desc = {};
-        desc.Width            = image.width;
-        desc.Height           = image.height;
-        desc.MipLevels        = 1;
-        desc.ArraySize        = 1;
-        desc.Format           = DXGI_FORMAT_R8G8B8A8_UNORM;
-        desc.SampleDesc.Count = 1;
-        desc.Usage            = D3D11_USAGE_IMMUTABLE;
-        desc.BindFlags        = D3D11_BIND_SHADER_RESOURCE;
-        D3D11_SUBRESOURCE_DATA initial = {};
-        initial.pSysMem     = image.rgba;
-        initial.SysMemPitch = image.width * 4;
-        ID3D11Texture2D *texture = 0;
-        if (FAILED(portraits->device->CreateTexture2D(&desc, &initial, &texture)) ||
-            FAILED(portraits->device->CreateShaderResourceView(texture, 0, &view)))
-        {
-            error = "the D3D11 texture was not made";
-            view  = 0;
-        }
-        if (texture) texture->Release();
+        view = win32_make_rgba_texture(portraits->device, image.width, image.height, image.rgba);
+        if (!view) error = "the D3D11 texture was not made";
     }
     if (error && portraits->log)
     {

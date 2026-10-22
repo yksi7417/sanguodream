@@ -152,6 +152,8 @@ struct engine_event_report
     u32            ledger_index;   /* ENGINE_NO_EVENT for an index out of range */
     u8             kind;           /* sim_event_kind */
     const char    *key;            /* the stable key of the kind, for example "conscripted" */
+    u8             resource;       /* sim_resource: the field that the amount changes; SIM_RESOURCE_NONE for none */
+    const char    *resource_key;   /* the key of that field, for example "soldiers"; the text id is "resource.<key>" */
     u32            turn;
     engine_date    date;           /* the date of the turn of the event */
     engine_subject subject;
@@ -763,6 +765,17 @@ typedef sim_court_order engine_court_order;
 /* The order of 移動 and 召喚 (travel.cpp; G2-036, G2-037). */
 typedef sim_move_order engine_move_order;
 
+/* The estimate of the adviser for a court order (ui/city-commands.md: the
+   message after the choice of a target). chance is in percent. clue is a
+   sim_chance_clue, SIM_CLUE_NONE when the order has no target. adviser is
+   the 軍師 of the force, or ENGINE_NO_OFFICER. */
+struct engine_court_advice
+{
+    u32 chance;
+    u8  clue;
+    u16 adviser;
+};
+
 /* The M7 state of an officer (officers-and-relations.md). */
 struct engine_officer_detail
 {
@@ -782,6 +795,7 @@ struct engine_officer_detail
     u32 age;
     u32 soldier_cap;                /* the soldiers that the officer leads */
     u32 recruit_chance;             /* the chance for the acting faction now, 0 if it cannot recruit the officer */
+    u32 reward_rise;                /* the loyalty that one 褒賞 of the acting faction gives now, 0 if it cannot reward the officer (G2-040) */
     u8  training_turns;             /* M9: 培育武將: the turns left; the officer is away */
     u8  training_row;               /* M9: the row of chart_row_at */
     b32 created;                    /* M9: a new officer of this game */
@@ -1240,6 +1254,9 @@ typedef engine_command_result engine_command_court_fn(void *engine, engine_comma
    (抵達日數; assumed, Q-228). */
 typedef engine_command_result engine_command_move_officers_fn(void *engine, const engine_move_order *order);
 typedef u32                   engine_travel_days_fn(void *engine, u8 from_base, u8 to_base);
+/* The estimate of the adviser for ENGINE_COMMAND_SEARCH (the city and the officer of the order) and
+   ENGINE_COMMAND_RECRUIT (also the target). Other kinds give SIM_CLUE_NONE. */
+typedef engine_court_advice   engine_court_advice_fn(void *engine, engine_command_kind kind, const engine_court_order *order);
 typedef engine_command_result engine_command_duel_fn(void *engine, u32 unit_id, s32 q, s32 r);          /* 單挑 */
 typedef engine_command_result engine_command_mini_fn(void *engine, u8 action, u8 value);               /* sim_duel_action, sim_debate_action */
 /* Test and editor commands. They ledger nothing, except the debate that
@@ -1664,6 +1681,7 @@ struct engine_api
     engine_command_move_officers_fn *command_move_officers;   /* 移動 (G2-036) */
     engine_command_move_officers_fn *command_summon;          /* 召喚 (G2-037) */
     engine_travel_days_fn           *travel_days;
+    engine_court_advice_fn          *court_advice;
     engine_command_duel_fn          *command_duel;
     engine_command_mini_fn          *command_duel_action;
     engine_command_mini_fn          *command_debate_action;

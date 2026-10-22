@@ -65,7 +65,6 @@ feature_court_order(u8 city, u16 officer, u16 target)
     order.city_id     = city;
     order.officer     = officer;
     order.target      = target;
-    order.officers[0] = order.officers[1] = order.officers[2] = ENGINE_NO_OFFICER;
     order.item        = 0xFF;
     order.post        = 0xFF;
     order.force       = order.force_2 = ENGINE_NO_FACTION;
@@ -118,29 +117,85 @@ feature_court_table_tests(test_counts *counts, feature_city_setup *setup)
     TEST_CHECK(counts, items > 0 && known > 0, "the items of the save load, and items.tsv knows the kind of some by the Big5 name");
 }
 
+/* Up to count officers of the force that the faction can reward now. The
+   editor sets their loyalty to 50 first. */
+internal u32
+feature_reward_candidates(engine_api *api, u8 force, u16 *out, u32 count)
+{
+    void *e = api->engine;
+    u32 found = 0;
+    for (u32 index = 0; index < api->officer_count(e) && found < count; ++index)
+    {
+        engine_officer officer = api->officer_at(e, index);
+        if (officer.force_id != force || officer.status == OFFICER_STATUS_RULER || officer.status > 3 || officer.current_position >= 87) continue;
+        engine_officer_edit edit = feature_edit_of(api, officer.officer_id);
+        edit.loyalty = 50;
+        api->set_officer(e, officer.officer_id, &edit);
+        if (api->officer_detail(e, officer.officer_id).reward_rise == 0) continue;
+        out[found++] = officer.officer_id;
+    }
+    return found;
+}
+
+/* The rise that rules.tsv of the placeholder pack gives: 10 less one for
+   each 15 of the distance of compatibility to the ruler, at least 1. */
+internal u32
+feature_expected_rise(engine_api *api, u8 force, u16 officer_id)
+{
+    engine_officer officer = {}, ruler = {};
+    feature_officer_by_id(api, officer_id, &officer);
+    feature_officer_by_id(api, api->force_ruler(api->engine, force), &ruler);
+    u32 distance = officer.compatibility > ruler.compatibility ? officer.compatibility - ruler.compatibility : ruler.compatibility - officer.compatibility;
+    distance %= 150;
+    if (distance > 75) distance = 150 - distance;
+    u32 penalty = distance / 15;
+    return penalty >= 10 ? 1 : 10 - penalty;
+}
+
 internal void
 feature_reward_and_post_tests(test_counts *counts, feature_city_setup *setup)
 {
     engine_api *api = setup->api;
     void *e = api->engine;
-    u16 ids[3];
-    feature_take_officers(api, setup->city, ids, 2);
-    for (u32 place = 0; place < 2; ++place)
-    {
-        engine_officer_edit edit = feature_edit_of(api, ids[place]);
-        edit.loyalty = 50;
-        api->set_officer(e, ids[place], &edit);
-    }
+
+    /* 褒賞 of a set of the whole force (G2-040) */
+    u16 set[4];
+    u32 count = feature_reward_candidates(api, setup->force, set, 4);
     engine_court_order order = feature_court_order(setup->city, ENGINE_NO_OFFICER, ENGINE_NO_OFFICER);
-    order.officers[0] = ids[0];
-    order.officers[1] = ids[1];
+    u32 rises[4] = {}, total = 0;
+    b32 formula = true;
+    for (u32 place = 0; place < count; ++place)
+    {
+        order.rewards[place] = set[place];
+        rises[place] = api->officer_detail(e, set[place]).reward_rise;
+        formula = formula && rises[place] == feature_expected_rise(api, setup->force, set[place]);
+        total += rises[place];
+    }
+    order.reward_count = count;
     engine_check check = feature_court_check(api, ENGINE_COMMAND_REWARD, &order);
     u32 gold = api->city_at(e, setup->city).gold;
     engine_command_result result = api->command_court(e, ENGINE_COMMAND_REWARD, &order);
-    TEST_CHECK(counts, check.refusal == SIM_REFUSAL_NONE && check.gold == 200 && check.action_points == 10 && result.refusal == SIM_REFUSAL_NONE &&
-                       api->city_at(e, setup->city).gold == gold - 200 && api->officer_detail(e, ids[0]).loyalty > 50 && api->officer_detail(e, ids[1]).loyalty > 50,
-               "褒賞: 100 gold and 5 action points for each officer, and loyalty rises (assumed amount)");
+    b32 each_rose = true;
+    for (u32 place = 0; place < count; ++place)
+    {
+        engine_officer_detail detail = api->officer_detail(e, set[place]);
+        each_rose = each_rose && detail.loyalty == 50 + rises[place] && detail.reward_rise == 0;
+    }
+    TEST_CHECK(counts, count == 4 && check.refusal == SIM_REFUSAL_NONE && check.gold == 400 && check.action_points == 20 && check.quantity == total &&
+                       result.refusal == SIM_REFUSAL_NONE && api->city_at(e, setup->city).gold == gold - 400 && each_rose,
+               "褒賞 (G2-040): one order rewards four officers of the force for 100 gold and 5 action points each; each loyalty rises by the rise of the list");
+    TEST_CHECK(counts, formula, "the rise is reward.loyalty less the distance of compatibility to the ruler over reward.compatibility_divisor, at least reward.loyalty_min (assumed, Q-028)");
     TEST_CHECK(counts, api->command_court(e, ENGINE_COMMAND_REWARD, &order).refusal == SIM_REFUSAL_LIMIT_REACHED, "refused: one reward for each officer in each turn");
+    engine_officer_edit full = feature_edit_of(api, set[0]);
+    full.loyalty = 100;
+    api->set_officer(e, set[0], &full);
+    order.reward_count = 1;
+    TEST_CHECK(counts, api->officer_detail(e, set[0]).reward_rise == 0 && feature_court_check(api, ENGINE_COMMAND_REWARD, &order).refusal == SIM_REFUSAL_VALUE_AT_MAXIMUM,
+               "refused: an officer with loyalty 100 gets no reward, and the list shows no rise for it");
+    order.reward_count = 0;
+    TEST_CHECK(counts, feature_court_check(api, ENGINE_COMMAND_REWARD, &order).refusal == SIM_REFUSAL_NO_OFFICER, "refused: an empty set");
+    u16 ids[3];
+    feature_take_officers(api, setup->city, ids, 2);
 
     /* 官職 */
     engine_officer before = {};
@@ -169,6 +224,57 @@ feature_reward_and_post_tests(test_counts *counts, feature_city_setup *setup)
     appoint.post = FEATURE_POST_CHANCELLOR;
     TEST_CHECK(counts, api->faction_rank(e, setup->force) >= 7 || api->command_court(e, ENGINE_COMMAND_APPOINT, &appoint).refusal == SIM_REFUSAL_NO_RANK,
                "refused: the rank of the ruler does not allow 丞相 (assumed rank rule, Q-027)");
+}
+
+internal u8
+feature_clue_of(u32 chance)
+{
+    return chance < 34 ? (u8)SIM_CLUE_LOW : (chance >= 67 ? (u8)SIM_CLUE_HIGH : (u8)SIM_CLUE_MIDDLE);
+}
+
+/* An officer of another faction that the faction can recruit after the
+   editor sets its loyalty to 0, or ENGINE_NO_OFFICER. */
+internal u16
+feature_recruit_target(engine_api *api, u8 other, engine_court_order *order)
+{
+    void *e = api->engine;
+    for (u32 index = 0; index < api->officer_count(e); ++index)
+    {
+        engine_officer candidate = api->officer_at(e, index);
+        if (candidate.force_id != other || candidate.status == OFFICER_STATUS_RULER || candidate.status > 3 || candidate.current_position >= 87) continue;
+        engine_officer_edit edit = feature_edit_of(api, candidate.officer_id);
+        edit.loyalty = 0;
+        api->set_officer(e, candidate.officer_id, &edit);
+        order->target = candidate.officer_id;
+        if (feature_court_check(api, ENGINE_COMMAND_RECRUIT, order).refusal == SIM_REFUSAL_NONE) return candidate.officer_id;
+    }
+    order->target = ENGINE_NO_OFFICER;
+    return ENGINE_NO_OFFICER;
+}
+
+/* The estimate of the adviser (court_advice) for 探索 and 登庸. */
+internal void
+feature_court_advice_tests(test_counts *counts, feature_city_setup *setup)
+{
+    engine_api *api = setup->api;
+    void *e = api->engine;
+    u16 ids[3];
+    feature_take_officers(api, setup->city, ids, 1);
+    engine_court_order order = feature_court_order(setup->city, ids[0], ENGINE_NO_OFFICER);
+    engine_court_advice search = api->court_advice(e, ENGINE_COMMAND_SEARCH, &order);
+    engine_check check = feature_court_check(api, ENGINE_COMMAND_SEARCH, &order);
+    TEST_CHECK(counts, search.chance <= 100 && search.chance == check.quantity && search.clue == feature_clue_of(search.chance) &&
+                       search.adviser == api->adviser(e, setup->force),
+               "探索: court_advice gives the chance of the check and its band (advice.low_below 34, advice.high_from 67, assumed)");
+    engine_court_advice none = api->court_advice(e, ENGINE_COMMAND_RECRUIT, &order);
+    engine_court_advice reward = api->court_advice(e, ENGINE_COMMAND_REWARD, &order);
+    TEST_CHECK(counts, none.clue == SIM_CLUE_NONE && none.chance == 0 && reward.clue == SIM_CLUE_NONE, "登庸 without a target and 褒賞 give no estimate");
+    u8 other = feature_other_faction(api, setup->force, 0);
+    u16 target = feature_recruit_target(api, other, &order);
+    engine_court_advice recruit = api->court_advice(e, ENGINE_COMMAND_RECRUIT, &order);
+    check = feature_court_check(api, ENGINE_COMMAND_RECRUIT, &order);
+    TEST_CHECK(counts, target != ENGINE_NO_OFFICER && recruit.chance == check.quantity && recruit.clue == feature_clue_of(recruit.chance),
+               "登庸: court_advice gives the chance of the recruiter for the target and its band");
 }
 
 internal void
@@ -506,6 +612,7 @@ feature_court_tests_main(test_counts *counts)
     feature_court_table_tests(counts, &setup);
     feature_reward_and_post_tests(counts, &setup);
     feature_search_result_tests(counts, &setup);
+    feature_court_advice_tests(counts, &setup);
     feature_recruit_and_item_tests(counts, &setup);
     feature_match_release_tests(counts, &setup);
     engine_fixture_destroy(&setup.fixture);

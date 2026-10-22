@@ -19,7 +19,7 @@ unit_portraits_tests(test_counts *counts)
     memory_arena arena = test_arena_create(Megabytes(1));
     portrait_list *list = PushStruct(&arena, portrait_list);
 
-    TEST_CHECK(counts, portrait_pick(list, TEST_UTF8_LIU_BEI, 7) == PORTRAIT_NONE, "an empty list has no picture");
+    TEST_CHECK(counts, portrait_pick(list, TEST_UTF8_LIU_BEI) == PORTRAIT_NONE, "an empty list has no picture");
     TEST_CHECK(counts, portrait_test_add(list, 0, "Three Kingdoms Portraits/Shu/02 Guan Yu " TEST_UTF8_GUAN_YU ".jpg"), "a numbered picture is added");
     TEST_CHECK(counts, portrait_test_add(list, 1, "Three Kingdoms Portraits/Shu/01 Liu Bei " TEST_UTF8_LIU_BEI ".jpg"), "a second numbered picture is added");
     TEST_CHECK(counts, portrait_test_add(list, 2, "Three Kingdoms Portraits/Extras (not on the 120 list)/EXTRA - Zhang Yi " TEST_UTF8_ZHANG_YI ".jpg"), "an extra is added");
@@ -35,12 +35,10 @@ unit_portraits_tests(test_counts *counts)
     TEST_CHECK(counts, list->numbered_count == 3 && list->numbered[0] == 1 && list->numbered[1] == 0 && list->numbered[2] == 3,
                "the numbered pictures are in the order of their numbers, without the extra");
 
-    TEST_CHECK(counts, portrait_pick(list, TEST_UTF8_LIU_BEI, 999) == 1, "the name of the officer picks his own picture");
-    TEST_CHECK(counts, portrait_pick(list, TEST_UTF8_ZHANG_YI, 999) == 2, "an extra matches by name");
-    TEST_CHECK(counts, portrait_pick(list, TEST_UTF8_NO_NAME, 0) == 1, "an officer without a picture: id 0 gets number 01");
-    TEST_CHECK(counts, portrait_pick(list, TEST_UTF8_NO_NAME, 4) == 0, "id 4 modulo 3 numbered pictures gets number 02");
-    TEST_CHECK(counts, portrait_pick(list, TEST_UTF8_NO_NAME, 5) == 3, "id 5 gets number 10");
-    TEST_CHECK(counts, portrait_pick(list, TEST_UTF8_NO_NAME, 5) == portrait_pick(list, "", 5), "the choice depends only on the id");
-    TEST_CHECK(counts, portrait_pick(list, 0, 3) == 1, "no name uses the id");
+    TEST_CHECK(counts, portrait_pick(list, TEST_UTF8_LIU_BEI) == 1, "the name of the officer picks his own picture");
+    TEST_CHECK(counts, portrait_pick(list, TEST_UTF8_ZHANG_YI) == 2, "an extra matches by name");
+    TEST_CHECK(counts, portrait_pick(list, TEST_UTF8_NO_NAME) == PORTRAIT_NONE, "an officer without a picture gets no picture of another officer");
+    TEST_CHECK(counts, portrait_pick(list, "") == PORTRAIT_NONE, "an empty name gets no picture");
+    TEST_CHECK(counts, portrait_pick(list, 0) == PORTRAIT_NONE, "no name gets no picture");
     test_arena_destroy(&arena);
 }

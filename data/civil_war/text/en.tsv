@@ -433,6 +433,14 @@ court.marriage_kind	Marriage	婚姻
 court.matchmake	Matchmake	仲介
 court.captive	Captive	俘虜
 court.release	Release	釋放
+court.clue_low	The chance is low.	the clue of the adviser (assumed words; the original's words are a question in docs/PROGRESS-GAP2.md)
+court.clue_middle	The chance is fair.	the clue of the adviser (assumed words)
+court.clue_high	The chance is high.	the clue of the adviser (assumed words)
+reward.title	Reward	G2-040: 褒賞
+reward.rise	Gain	the loyalty that the reward gives
+reward.gold	Gold	資金
+reward.ap	Action points	行動力
+reward.no_officer	No officer can get a reward.	沒有能夠給予褒賞的武將
 personality.0	Careful	小心
 personality.1	Calm	冷靜
 personality.2	Bold	剛膽

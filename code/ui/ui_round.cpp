@@ -118,10 +118,12 @@ ui_round_play_event(ui_state *ui, engine_api *api, u32 index, sim_event *event)
     if (ui->report.float_count < UI_FLOAT_CAPACITY)
     {
         u32 place = ui->report.float_count++;
-        ui->report.floats[place].city    = (u8)report.subject.id;
-        ui->report.floats[place].delta   = report.delta;
-        ui->report.floats[place].sign    = report.sign;
-        ui->report.floats[place].seconds = UI_FLOAT_SECONDS;
+        ui->report.floats[place].city         = (u8)report.subject.id;
+        ui->report.floats[place].delta        = report.delta;
+        ui->report.floats[place].sign         = report.sign;
+        ui->report.floats[place].seconds      = UI_FLOAT_SECONDS;
+        ui->report.floats[place].resource     = report.resource;
+        ui->report.floats[place].resource_key = report.resource_key;
     }
     if (ui->round.shown_count < UI_ROUND_SHOWN_CAPACITY) ui->round.shown[ui->round.shown_count++] = index;
     ui->round.wait = UI_ROUND_EVENT_SECONDS;

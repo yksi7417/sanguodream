@@ -95,6 +95,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     frame_info.frame_arena      = frame;
     frame_info.portraits        = memory->platform.portraits;
     frame_info.portrait_texture = memory->platform.portrait_texture;
+    frame_info.face_texture     = memory->platform.face_texture;
     ui_draw(&game->ui, &game->api, &frame_info);
     memory->quit_requested = game->ui.quit_requested;
     memory->font_pixels    = (u32)game->ui.font_size;

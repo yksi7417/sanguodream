@@ -123,8 +123,11 @@ ap.give_item	10	documented	city-commands.md, 授與: 10 AP
 ap.diplomacy	30	documented	city-commands.md, each diplomacy command: 30 AP
 ap.faction_plot	30	documented	city-commands.md, 二虎競食, 驅虎吞狼, 流言: 30 AP
 reward.gold	100	documented	city-commands.md, 褒賞: 100 gold for each officer
-reward.loyalty	10	assumed	the loyalty that one reward gives at the ruler's compatibility (Q-028)
+reward.loyalty	10	assumed	the rise of one 褒賞: reward.loyalty - distance of compatibility to the ruler / reward.compatibility_divisor, at least reward.loyalty_min (Q-028; the spec names the compatibility only, officers-and-relations.md; the fit is a question in docs/PROGRESS-GAP2.md)
 reward.compatibility_divisor	15	assumed	one loyalty less for each 15 of compatibility distance to the ruler (Q-028)
+reward.loyalty_min	1	assumed	the smallest rise of one 褒賞 (Q-028)
+advice.low_below	34	assumed	the clue of the adviser on a chance in percent: below this the chance is low (ui/city-commands.md names the estimate and no words or thresholds; docs/PROGRESS-GAP2.md)
+advice.high_from	67	assumed	the clue of the adviser: from this the chance is high; between the two it is middle
 search.base	20	assumed	the chance of a search in percent, plus politics x search.politics_percent / 100 (Q-178)
 search.politics_percent	50	assumed	see search.base
 search.gold_chance	30	assumed	the chance to find gold when no free officer is found (Q-178)

@@ -261,6 +261,8 @@ main(int argc, char **argv)
         g_demo_portrait_texture = win32_portrait_texture;
     }
     printf("%s\n", portrait_message);
+    win32_faces_init(&g_win32_faces, window.device);
+    g_demo_face_texture = win32_face_texture;
 
     test_io.ConfigRunSpeed            = ImGuiTestRunSpeed_Cinematic;
     /* A cinematic walkthrough takes about one minute; the default watchdog stops a test at 60 s. */
@@ -294,6 +296,7 @@ main(int argc, char **argv)
         }
         win32_begin_frame(&window);
         win32_portraits_begin_frame(&g_win32_portraits);
+        win32_faces_begin_frame(&g_win32_faces);
         arena_reset(&frame_arena);
         ImVec2 display = ImGui::GetIO().DisplaySize;
         g_demo_render = render_commands_begin(&frame_arena, display.x, display.y);
@@ -312,6 +315,7 @@ main(int argc, char **argv)
 
     ImGuiTestEngine_Stop(engine);
     win32_portraits_close(&g_win32_portraits);
+    win32_faces_close(&g_win32_faces);
     win32_close_window(&window);
     ImGui::DestroyContext();
     ImGuiTestEngine_DestroyContext(engine);

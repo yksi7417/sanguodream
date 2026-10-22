@@ -751,7 +751,8 @@ struct sim_rules
     /* M7: officers, personnel, posts, duel, debate, diplomacy, faction plots */
     u32 ap_search, ap_recruit, ap_reward, ap_give_item, ap_diplomacy, ap_faction_plot;
     u32 ap_move_officers, ap_summon;   /* 移動, 召喚 (travel.cpp) */
-    u32 reward_gold, reward_loyalty, reward_compatibility_divisor;
+    u32 reward_gold, reward_loyalty, reward_compatibility_divisor, reward_loyalty_min;   /* 褒賞: sim_reward_loyalty_rise */
+    u32 clue_low_below, clue_high_from;   /* the bands of the clue of the adviser (sim_chance_clue) */
     u32 search_base, search_politics_percent, search_gold_chance, search_gold, search_debate_intellect;
     u32 recruit_base, recruit_charm_percent, recruit_captive_bonus, recruit_relation_bonus, recruit_new_loyalty;
     u32 recruit_compatibility_divisor, recruit_debate_intellect;

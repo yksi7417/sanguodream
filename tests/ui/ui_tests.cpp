@@ -119,6 +119,7 @@ enum ui_base_menu_expect
     UI_EXPECT_POSTS,       /* G2-060 */
     UI_EXPECT_EXILE,
     UI_EXPECT_ABILITIES,
+    UI_EXPECT_REWARD,      /* G2-040: show_reward */
     UI_EXPECT_GREY
 };
 
@@ -146,7 +147,7 @@ global_variable ui_base_menu_case ui_base_menu_cases[] = {
     { "base_menu_people_summon_opens_its_dialog",    "###menu_people",    "###base_summon",    UI_EXPECT_SUMMON,    0 },
     { "base_menu_people_search_opens_the_court",     "###menu_people",    "###base_search",    UI_EXPECT_COURT,     0 },
     { "base_menu_people_recruit_opens_the_court",    "###menu_people",    "###base_recruit",   UI_EXPECT_COURT,     0 },
-    { "base_menu_people_reward_opens_the_court",     "###menu_people",    "###base_reward",    UI_EXPECT_COURT,     0 },
+    { "base_menu_people_reward_opens_its_dialog",    "###menu_people",    "###base_reward",    UI_EXPECT_REWARD,    0 },
     { "base_menu_people_give_opens_the_court",       "###menu_people",    "###base_give",      UI_EXPECT_COURT,     0 },
     { "base_menu_diplomacy_opens_its_panel",         "###menu_diplomacy", "###menu_diplomacy", UI_EXPECT_DIPLOMACY, 0 },
     { "base_menu_plot_two_tigers_opens_the_diplomacy_panel", "###menu_plot", "###base_two_tigers", UI_EXPECT_DIPLOMACY, 0 },
@@ -177,6 +178,20 @@ internal PLATFORM_PORTRAIT_TEXTURE(ui_test_portrait_texture)
     g_ui_test_portrait_requests += 1;
     g_ui_test_portrait_last      = picture;
     return 1;   /* any nonzero id: the headless tests draw no texture */
+}
+
+/* A double of the generated faces of the platform: it records the officer
+   and the key that the UI asks for. */
+global_variable u32 g_ui_test_face_requests;
+global_variable u32 g_ui_test_face_last_officer;
+global_variable u32 g_ui_test_face_last_key;
+
+internal PLATFORM_FACE_TEXTURE(ui_test_face_texture)
+{
+    g_ui_test_face_requests    += 1;
+    g_ui_test_face_last_officer = officer_id;
+    g_ui_test_face_last_key     = key;
+    return 2;
 }
 
 /* Clicks the header of a column of a sortable table. The column labels of
@@ -594,6 +609,63 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_STR_EQ(text_label(&v.text, "status", 0, label, sizeof(label)), "\xE5\x90\x9B\xE4\xB8\xBB");   /* zh-TW: the game term */
         IM_CHECK(text_catalog_set_locale(&v.text, "en"));
         IM_CHECK_STR_EQ(text_label(&v.text, "status", 0, label, sizeof(label)), "ruler");                      /* en: the gloss */
+    };
+
+    /* The log has a form of its own for every event kind that reaches it.
+       The generic forms "{subject}: {delta}" and "{subject}: news" say
+       nothing about the field (the player asked what "+11" means). */
+    t = IM_REGISTER_TEST(e, "ui", "each_locale_has_a_log_line_for_each_event_kind");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        for (u32 index = 0; index < v.text.locale_count; ++index)
+        {
+            IM_CHECK(text_catalog_set_locale(&v.text, v.text.locales[index].code));
+            if (!text_catalog_has_strings(&v.text)) continue;
+            for (u32 kind = 1; kind < SIM_EVENT_COUNT; ++kind)
+            {
+                if (ui_feel_bookkeeping((sim_event_kind)kind)) continue;
+                char id[64];
+                snprintf(id, sizeof(id), "log.%s", sim_event_name((sim_event_kind)kind));
+                if (!text_find_string(&v.text, id)) ctx->LogError("%s lacks %s", v.text.locales[index].code, id);
+                IM_CHECK(text_find_string(&v.text, id) != 0);
+            }
+        }
+        IM_CHECK(text_catalog_set_locale(&v.text, "zh-TW"));
+    };
+
+    /* A value that rises over a city names its field (資金收入 +2047, not
+       +2047 alone), and a log line of an officer names the field too. */
+    t = IM_REGISTER_TEST(e, "ui", "a_rising_value_and_a_log_line_name_the_field");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        ui_enter_game(&v.ui);
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        sim_event income = {};
+        income.kind = SIM_EVENT_GOLD_INCOME; income.faction = 1; income.subject = 1; income.delta = 2047; income.cause = 7;
+        sim_event loyalty = {};
+        loyalty.kind = SIM_EVENT_LOYALTY_CHANGED; loyalty.faction = 1; loyalty.subject = 9; loyalty.delta = 11; loyalty.cause = 8;
+        v.recorder.events[v.recorder.event_count++] = income;
+        v.recorder.events[v.recorder.event_count++] = loyalty;
+        ctx->Yield(2);
+        engine_event_report report = v.api.event_report(v.api.engine, 0);
+        IM_CHECK_EQ(report.resource, (u8)SIM_RESOURCE_GOLD);
+        IM_CHECK_STR_EQ(report.resource_key, "gold");
+        IM_CHECK_EQ(v.ui.report.float_count, 1u);
+        IM_CHECK_EQ(v.ui.report.floats[0].resource, (u8)SIM_RESOURCE_GOLD);
+        char line[256];
+        ui_report_line(&v.ui, &v.api, 1, TEXT_NO_VALUE, TEXT_LINE_LOG, line, sizeof(line));
+        IM_CHECK(strstr(line, "\xE5\xBF\xA0\xE8\xAA\xA0") != 0);   /* zh-TW: 忠誠 */
+        IM_CHECK(strstr(line, "+11") != 0);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
     t = IM_REGISTER_TEST(e, "ui", "language_combo_changes_the_locale_and_commands_nothing");
@@ -2216,6 +2288,66 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
+    /* An officer without a picture of its name gets a generated face
+       (render/faces.h): the UI asks the platform for the face of the
+       officer with the key of its description, and for no picture. */
+    t = IM_REGISTER_TEST(e, "ui", "court_officer_view_asks_for_a_generated_face_without_a_picture");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_court          = true;
+        v.ui.court.officer       = 101;
+        memset(&g_ui_test_portraits, 0, sizeof(g_ui_test_portraits));
+        const char *other = "Test/01 Other \xE7\x84\xA1.jpg";
+        portrait_list_add(&g_ui_test_portraits, 0, other, (u32)strlen(other));
+        g_ui_test_portrait_requests = 0;
+        g_ui_test_face_requests     = 0;
+        v.frame.portraits        = &g_ui_test_portraits;
+        v.frame.portrait_texture = ui_test_portrait_texture;
+        v.frame.face_texture     = ui_test_face_texture;
+        ctx->SetRef("###Court");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK_EQ(g_ui_test_portrait_requests, 0u);
+        IM_CHECK(g_ui_test_face_requests > 0);
+        IM_CHECK_EQ(g_ui_test_face_last_officer, 101u);
+        /* The recorder gives officer 101 the age 30, a man, with no personality tint. */
+        face_description expected = face_describe(101, false, 30, 0);
+        IM_CHECK_EQ(g_ui_test_face_last_key, face_key_pack(&expected));
+        IM_CHECK(recorder_count(&v.recorder, RECORDER_OFFICER_DETAIL) > 0);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* Without the archive, the face stands in for every officer. */
+    t = IM_REGISTER_TEST(e, "ui", "court_officer_view_asks_for_a_generated_face_without_the_archive");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_court          = true;
+        v.ui.court.officer       = 102;
+        g_ui_test_face_requests  = 0;
+        v.frame.portraits        = 0;
+        v.frame.portrait_texture = 0;
+        v.frame.face_texture     = ui_test_face_texture;
+        ctx->SetRef("###Court");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK(g_ui_test_face_requests > 0);
+        IM_CHECK_EQ(g_ui_test_face_last_officer, 102u);
+        IM_CHECK(g_ui_test_face_last_key & FACE_KEY_VALID);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
     t = IM_REGISTER_TEST(e, "ui", "court_reward_and_appoint_issue_one_command_court_each");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;
@@ -2234,7 +2366,7 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_COURT), 1u);
         IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_COMMAND_COURT), (u32)ENGINE_COMMAND_REWARD);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
-        IM_CHECK(v.recorder.last_court.officers[0] == 101 && v.recorder.last_court.city_id == 0);
+        IM_CHECK(v.recorder.last_court.rewards[0] == 101 && v.recorder.last_court.reward_count == 1 && v.recorder.last_court.city_id == 0);
         ctx->ComboClick("###post/###p1");
         ctx->Yield();
         recorder_reset(&v.recorder);
@@ -2635,6 +2767,7 @@ register_ui_tests(ImGuiTestEngine *e)
                 case UI_EXPECT_POSTS:     IM_CHECK(v.ui.show_posts && v.ui.posts.staged_count == 0); break;
                 case UI_EXPECT_EXILE:     IM_CHECK(v.ui.show_exile && v.ui.exile.officer == ENGINE_NO_OFFICER); break;
                 case UI_EXPECT_ABILITIES: IM_CHECK(v.ui.show_abilities); break;
+                case UI_EXPECT_REWARD:    IM_CHECK(v.ui.show_reward && v.ui.reward.city == 1 && v.ui.reward.count == 2); break;   /* the open checks 101 and 102 */
                 default:                  IM_CHECK(false); break;
             }
             IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
@@ -4063,6 +4196,95 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_COMMAND_COURT), (u32)ENGINE_COMMAND_EXILE);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
         IM_CHECK(v.recorder.last_court.target == 101 && !v.ui.show_exile);
+    };
+
+    /* G2-040: the 褒賞 dialog checks every officer that the recorder marks
+       with a rise (101 and 102) when it opens. A click on a row clears it.
+       決定 sends one command_court REWARD with the checked set. */
+    t = IM_REGISTER_TEST(e, "ui", "reward_dialog_decide_issues_one_command_court_with_the_checked_set");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_reward         = true;
+        v.ui.reward.city         = 0;
+        v.ui.reward.count        = 0;
+        v.ui.reward.fill         = true;
+        ctx->SetRef("###Reward");
+        ctx->Yield(2);
+        IM_CHECK(v.ui.reward.count == 2 && v.ui.reward.checked[0] == 101 && v.ui.reward.checked[1] == 102);
+        IM_CHECK(ctx->ItemExists("reward_rows/###reward_row101") && ctx->ItemExists("reward_rows/###reward_row102"));
+        IM_CHECK(!ctx->ItemExists("reward_rows/###reward_row100"));   /* the ruler is not in the list */
+        ctx->ItemClick("reward_rows/###reward_row101");
+        ctx->Yield();
+        IM_CHECK(v.ui.reward.count == 1 && v.ui.reward.checked[0] == 102);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###decide");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_COURT), 1u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_COMMAND_COURT), (u32)ENGINE_COMMAND_REWARD);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(v.recorder.last_court.reward_count == 1 && v.recorder.last_court.rewards[0] == 102 && v.recorder.last_court.city_id == 0);
+        IM_CHECK(!v.ui.show_reward);
+    };
+
+    /* G2-040: 一併解除 clears the set and greys 決定, 一併 checks every row,
+       and 返回 closes the dialog. None of them commands anything. */
+    t = IM_REGISTER_TEST(e, "ui", "reward_dialog_check_all_clear_all_and_back_command_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_reward         = true;
+        v.ui.reward.city         = 0;
+        v.ui.reward.count        = 0;
+        v.ui.reward.fill         = true;
+        ctx->SetRef("###Reward");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###reward_clear_all");
+        ctx->Yield();
+        IM_CHECK(v.ui.reward.count == 0);
+        IM_CHECK((ctx->ItemInfo("###decide").ItemFlags & ImGuiItemFlags_Disabled) != 0);
+        ctx->ItemClick("###reward_check_all");
+        ctx->Yield();
+        IM_CHECK(v.ui.reward.count == 2);
+        ctx->ItemClick("###back");
+        ctx->Yield();
+        IM_CHECK(!v.ui.show_reward);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* The Court panel asks court_advice for 探索 and for 登庸 and shows the
+       clue of the adviser next to each, without a command. */
+    t = IM_REGISTER_TEST(e, "ui", "court_search_and_recruit_show_the_clue_of_the_adviser");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_court          = true;
+        v.ui.court.officer       = 101;
+        v.ui.court.target        = 102;
+        ctx->SetRef("###Court");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield(2);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_COURT_ADVICE), 2u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_COURT_ADVICE), (u32)ENGINE_COMMAND_SEARCH);
+        IM_CHECK(ctx->ItemExists("###advice_search") && ctx->ItemExists("###advice_recruit"));
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        v.ui.court.target = ENGINE_NO_OFFICER;   /* no target: the recruit clue goes away */
+        ctx->Yield(6);                           /* the item table of the test engine forgets an item after some frames */
+        IM_CHECK(ctx->ItemExists("###advice_search") && !ctx->ItemExists("###advice_recruit"));
     };
 
     /* G2-065: 決定 of the plot dialog sends one command_court FACTION_PLOT

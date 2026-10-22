@@ -394,12 +394,17 @@ struct sim_unit_order
     u8        kind;                         /* tactic, plot: the row of its table; build: the row of buildings.tsv */
 };
 
-/* The orders of M7: personnel, court, diplomacy and faction plots. */
+/* The orders of M7: personnel, court, diplomacy and faction plots. A
+   reward names a set of officers of the whole force (G2-040): the city of
+   the order pays 100 gold for each, and the force pays 5 action points
+   for each. */
+#define SIM_REWARD_OFFICERS 64
 struct sim_court_order
 {
     u8  city_id;                            /* the city of the officer that acts (search, recruit, reward, item, envoy) */
     u16 officer;                            /* the officer that acts; the envoy */
-    u16 officers[SIM_COMMAND_OFFICERS];     /* reward: the officers that get it */
+    u16 rewards[SIM_REWARD_OFFICERS];       /* reward: the officers that get it */
+    u32 reward_count;                       /* reward: how many of rewards are set */
     u16 target;                             /* recruit, item, appoint, matchmake, release, exile, exchange: the other officer */
     u8  item;                               /* give item: the item id */
     u8  post;                               /* appoint: the row of posts.tsv */
@@ -409,6 +414,19 @@ struct sim_court_order
     u8  target_city;                        /* 驅虎吞狼, 流言, 請求援軍: the city */
     u32 gold;
     u32 months;                             /* 停戰協定 */
+};
+
+/* The clue of the adviser on the chance of a command (ui/city-commands.md,
+   "the adviser's estimate"): three bands of the chance in percent. The
+   words and the thresholds of the original are not in the spec (assumed,
+   docs/PROGRESS-GAP2.md, the questions for the observer). */
+enum sim_chance_clue
+{
+    SIM_CLUE_NONE,      /* no estimate: the order has no target */
+    SIM_CLUE_LOW,       /* below advice.low_below */
+    SIM_CLUE_MIDDLE,
+    SIM_CLUE_HIGH,      /* advice.high_from or more */
+    SIM_CLUE_COUNT
 };
 
 /* The orders 移動 and 召喚 (city-commands.md, "Personnel commands";

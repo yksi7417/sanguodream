@@ -437,6 +437,14 @@ court.marriage_kind	婚姻
 court.matchmake	仲介
 court.captive	俘虜
 court.release	釋放
+court.clue_low	成功的希望不大。
+court.clue_middle	成敗難料。
+court.clue_high	大有成功的希望。
+reward.title	褒賞
+reward.rise	上升
+reward.gold	資金
+reward.ap	行動力
+reward.no_officer	沒有能夠給予褒賞的武將
 personality.0	小心
 personality.1	冷靜
 personality.2	剛膽
@@ -1387,3 +1395,109 @@ event.city	據點
 event_question.transport_arrived	輸送隊到達了。要如何安置部隊？
 event_choice.transport_arrived.0	將其留在該據點
 event_choice.transport_arrived.1	令其返回原據點
+# The log lines of the event kinds that fell back to log.generic (the player asked what +11 means, 2026-10-22).
+log.year_started	新的一年開始
+log.month_started	新的一月開始
+log.season_started	季節更替
+log.salaries_paid	{subject}：俸祿 {delta}
+log.grain_consumed	{subject}：兵糧消耗 {delta}
+log.hook_bandits	各地盜賊蠢動
+log.hook_locusts	蝗蟲肆虐
+log.hook_plague	瘟疫蔓延
+log.hook_good_harvest	豐收
+log.hook_officers_age	武將年歲增長
+log.hook_new_officers	新武將登場
+log.black_market_removed	{subject}：黑市消失
+log.gold_over_cap	{subject}：資金超過上限 {delta}
+log.grain_over_cap	{subject}：兵糧超過上限 {delta}
+log.salaries_unpaid	{subject}：無法支付俸祿
+log.soldiers_deserted	{subject}：士兵逃亡 {delta}，兵糧不足
+log.weapons_free	{subject}：{speaker}產出 {delta}
+log.facility_repaired	{subject}：設施修復，耐久 {delta}
+log.facility_damaged	{subject}：設施受損，耐久 {delta}
+log.facility_destroyed	{subject}：設施被毀
+log.technique_spent	{faction}：技巧 {delta}
+log.merge_started	{subject}：開始吸收合併
+log.facility_merged	{subject}：設施合併，等級 {delta}
+log.disaster_ended	{subject}：災害結束
+log.grain_lost	{subject}：兵糧損失 {delta}
+log.grain_harvest	{subject}：豐收，兵糧 {delta}
+log.soldiers_lost	{subject}：士兵損失 {delta}
+log.game_won	{faction}：統一天下
+log.game_lost	{faction}：敗亡
+log.unit_supplies	{subject}：部隊攜帶資金 {delta}
+log.unit_grain_taken	{subject}：部隊攜帶兵糧 {delta}
+log.unit_weapons_taken	{subject}：部隊攜帶兵裝 {delta}
+log.unit_moved	{faction}：部隊移動
+log.unit_soldiers_lost	{faction}：部隊途中損失士兵 {amount}
+log.unit_waited	{faction}：部隊待命
+log.unit_gold_returned	{subject}：部隊交回資金 {delta}
+log.unit_grain_returned	{subject}：部隊交回兵糧 {delta}
+log.unit_supplied	{faction}：部隊獲得補給，士兵 {delta}
+log.unit_grain_eaten	{faction}：部隊消耗兵糧 {amount}
+log.unit_deserted	{faction}：部隊士兵逃亡 {amount}
+log.plot_used	{faction}：部隊施展計略
+log.morale_changed	{faction}：部隊氣力 {delta}
+log.unit_pushed	{faction}：部隊後退 {delta} 格
+log.fire_started	{faction}：起火
+log.fire_ended	火勢熄滅
+log.building_started	{faction}：開始設置建築
+log.building_completed	{faction}：建築完成
+log.building_damaged	{faction}：建築耐久 {delta}
+log.building_destroyed	{faction}：建築被毀
+log.trap_triggered	{faction}：觸發陷阱
+log.base_soldiers_lost	{subject}：據點士兵損失 {delta}
+log.base_recovered	{subject}：耐久恢復 {delta}
+log.unit_loot	{faction}：部隊掠奪資金 {delta}
+log.gold_found	{subject}：發現資金 {delta}
+log.loyalty_changed	{subject}：忠誠 {delta}，現為 {value}
+log.item_given	{subject}：獲得{speaker}
+log.post_appointed	{subject}：就任{speaker}
+log.rank_changed	{faction}：爵位改變
+log.sworn	{subject}：與{speaker}結義
+log.married	{subject}：與{speaker}結婚
+log.captive_released	{subject}：獲釋
+log.officer_exiled	{subject}：被流放
+log.ability_changed	{subject}：{speaker} {delta}，現為 {value}
+log.health_changed	{subject}：健康狀態改變
+log.ruler_succeeded	{subject}：繼任{faction}君主
+log.friendliness_changed	{faction}：交情 {delta}
+log.relation_changed	{faction}：關係改變
+log.diplomacy_failed	{faction}：外交失敗
+log.faction_surrendered	{faction}：勢力歸順
+log.captive_exchanged	{subject}：交換歸還
+log.aid_arrived	{faction}：援軍到達
+log.faction_founded	{subject}：{faction}舉兵
+log.duel_started	{subject}：單挑開始
+log.duel_refused	{subject}：單挑被拒
+log.duel_strike	{subject}：受到攻擊，體力 {delta}
+log.duel_special	{subject}：使出絕技
+log.duel_ended	{subject}：單挑獲勝
+log.debate_started	{subject}：舌戰開始
+log.debate_exchange	{subject}：氣勢 {delta}
+log.debate_ended	{subject}：舌戰獲勝
+log.corps_created	{faction}：成立軍團
+log.corps_changed	{faction}：軍團變更
+log.corps_dissolved	{faction}：軍團解散
+log.adviser_appointed	{subject}：就任{faction}軍師
+log.emperor_changed	天子動向改變
+log.event_fired	{faction}：發生事件
+log.event_chosen	{faction}：已做出選擇
+log.base_income	{subject}：據點收入 {delta}
+log.ai_planned	{faction}：本回合下達 {delta} 道指令
+log.officer_created	{subject}：新武將登場
+log.ability_research_started	{faction}：開始研究能力
+log.ability_researched	{faction}：能力研究完成
+log.training_started	{subject}：開始培育
+log.officer_trained	{subject}：培育完成，能力 {delta}
+log.history_fired	{faction}：發生歷史事件
+log.ending	{faction}：迎來結局
+log.bandit_site	{subject}：盜賊出沒
+log.rockfall_returned	落石重新設置
+log.save_map_loaded	讀取地圖完成
+log.unit_ordered	{faction}：部隊接受委任
+log.unit_order_done	{faction}：委任結束
+log.mission_started	{subject}：出發執行計略，{delta}日
+log.price_changed	{subject}：米價變動 {delta}，現為 {value}
+log.transport_arrived	{subject}：輸送隊到達
+log.envoy_arrived	{subject}：使者到達

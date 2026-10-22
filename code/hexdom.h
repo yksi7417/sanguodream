@@ -51,6 +51,14 @@ struct portrait_list;   /* render/portraits.h */
 #define PLATFORM_PORTRAIT_TEXTURE(name) u64 name(u32 picture)
 typedef PLATFORM_PORTRAIT_TEXTURE(platform_portrait_texture);
 
+/* The texture of the generated face of an officer without a picture
+   (render/faces.h), as an ImTextureID. key is the packed description from
+   face_key_pack. The platform paints the face one time for each officer and
+   keeps the texture by officer id. Zero if the face is not ready in this
+   frame. */
+#define PLATFORM_FACE_TEXTURE(name) u64 name(u32 officer_id, u32 key)
+typedef PLATFORM_FACE_TEXTURE(platform_face_texture);
+
 typedef void *imgui_alloc_fn(size_t size, void *user);
 typedef void  imgui_free_fn(void *ptr, void *user);
 
@@ -64,6 +72,7 @@ struct platform_api
     void                      *imgui_alloc_user; /* memory the exe still owns          */
     const portrait_list       *portraits;        /* the default portraits; zero without the archive */
     platform_portrait_texture *portrait_texture;
+    platform_face_texture     *face_texture;     /* the generated faces; zero without a device */
 };
 
 struct render_commands;

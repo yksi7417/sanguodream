@@ -32,6 +32,7 @@ global_variable memory_arena    *g_demo_frame_arena;
 /* The default portraits; demo_player.cpp opens the archive. Zero without it. */
 global_variable const portrait_list       *g_demo_portraits;
 global_variable platform_portrait_texture *g_demo_portrait_texture;
+global_variable platform_face_texture     *g_demo_face_texture;      /* the generated faces (render/faces.h) */
 
 struct demo_vars
 {
@@ -90,6 +91,7 @@ demo_gui(ImGuiTestContext *ctx)
     v.frame.frame_arena = g_demo_frame_arena;
     v.frame.portraits        = g_demo_portraits;
     v.frame.portrait_texture = g_demo_portrait_texture;
+    v.frame.face_texture     = g_demo_face_texture;
     ui_draw(&v.ui, &v.api, &v.frame);
 }
 

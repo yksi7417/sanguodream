@@ -93,12 +93,35 @@ ui_court_order(engine_api *api, u16 officer, u16 target)
     order.city_id     = ui_officer_city(api, officer);
     order.officer     = officer;
     order.target      = target;
-    order.officers[0] = order.officers[1] = order.officers[2] = ENGINE_NO_OFFICER;
     order.item        = ENGINE_NO_ROW;
     order.post        = ENGINE_NO_ROW;
     order.force       = order.force_2 = ENGINE_NO_FACTION;
     order.target_city = ENGINE_NO_CITY;
     return order;
+}
+
+/* The clue of the adviser on the chance of a command (ui/city-commands.md:
+   the estimate after the choice of a target). Three bands in three
+   colours, with the name of the 軍師 when the force has one. The words
+   are assumed (docs/PROGRESS-GAP2.md). A hover shows the chance. */
+internal void
+ui_draw_chance_clue(ui_state *ui, engine_api *api, engine_court_advice *advice, const char *stable_id)
+{
+    if (advice->clue == SIM_CLUE_NONE || advice->clue >= SIM_CLUE_COUNT) return;
+    ImGui::SameLine();   /* next to the button of the command */
+    static const char *text_ids[SIM_CLUE_COUNT] = { "", "court.clue_low", "court.clue_middle", "court.clue_high" };
+    static const ImVec4 colours[SIM_CLUE_COUNT] =
+    {
+        ImVec4(1.0f, 1.0f, 1.0f, 1.0f), ImVec4(1.0f, 0.45f, 0.4f, 1.0f), ImVec4(1.0f, 0.85f, 0.35f, 1.0f), ImVec4(0.45f, 0.9f, 0.5f, 1.0f),
+    };
+    char name[UI_NAME_SIZE * 2] = "", shown[192], label[224];
+    if (advice->adviser != ENGINE_NO_OFFICER) ui_officer_text(ui, api, advice->adviser, name, sizeof(name));
+    snprintf(shown, sizeof(shown), "%s%s%s", name, name[0] ? ": " : "", text_get(ui->text, text_ids[advice->clue]));
+    snprintf(label, sizeof(label), "%s###%s", shown, stable_id);
+    ImGui::PushStyleColor(ImGuiCol_Text, colours[advice->clue]);
+    ImGui::Selectable(label, false, ImGuiSelectableFlags_None, ImGui::CalcTextSize(shown));   /* an item with an id, so that a test finds it */
+    ImGui::PopStyleColor();
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s %u%%", text_get(ui->text, "court.chance"), advice->chance);
 }
 
 /* The state of the selected officer. */
@@ -163,9 +186,10 @@ ui_draw_court(ui_state *ui, engine_api *api)
     if (officer != ENGINE_NO_OFFICER) ui_draw_officer_state(ui, api, officer);
     ImGui::Separator();
 
-    /* 褒賞, 官職, 流放 of the selected officer */
+    /* 褒賞, 官職, 流放 of the selected officer. The 褒賞 dialog rewards a set (ui_draw_reward). */
     engine_court_order reward = ui_court_order(api, officer, ENGINE_NO_OFFICER);
-    reward.officers[0] = officer;
+    reward.rewards[0]   = officer;
+    reward.reward_count = 1;
     ui_court_button(ui, api, "court.reward", "reward", ENGINE_COMMAND_REWARD, &reward);
     ImGui::SameLine();
     engine_court_order exile = ui_court_order(api, officer, officer);
@@ -191,9 +215,11 @@ ui_draw_court(ui_state *ui, engine_api *api)
     ui_court_button(ui, api, "court.appoint", "appoint", ENGINE_COMMAND_APPOINT, &appoint);
     ImGui::Separator();
 
-    /* 探索, 登庸 by the selected officer */
+    /* 探索, 登庸 by the selected officer, each with the clue of the adviser */
     engine_court_order search = ui_court_order(api, officer, ENGINE_NO_OFFICER);
     ui_court_button(ui, api, "court.search", "search", ENGINE_COMMAND_SEARCH, &search);
+    engine_court_advice search_advice = api->court_advice(e, ENGINE_COMMAND_SEARCH, &search);
+    ui_draw_chance_clue(ui, api, &search_advice, "advice_search");
     ui_officer_pick(ui, api, "court.recruit_target", "recruit_target", &ui->court.target, UI_OFFICERS_RECRUITABLE, ENGINE_NO_FACTION);
     if (ui->court.target != ENGINE_NO_OFFICER)
     {
@@ -202,6 +228,8 @@ ui_draw_court(ui_state *ui, engine_api *api)
     }
     engine_court_order recruit = ui_court_order(api, officer, ui->court.target);
     ui_court_button(ui, api, "court.recruit", "recruit", ENGINE_COMMAND_RECRUIT, &recruit);
+    engine_court_advice recruit_advice = api->court_advice(e, ENGINE_COMMAND_RECRUIT, &recruit);
+    ui_draw_chance_clue(ui, api, &recruit_advice, "advice_recruit");
     ImGui::Separator();
 
     /* 授與 */
@@ -253,6 +281,151 @@ ui_draw_court(ui_state *ui, engine_api *api)
     release.city_id = ui->city.selected;
     ui_court_button(ui, api, "court.release", "release", ENGINE_COMMAND_RELEASE, &release);
     if (ui->command_message[0]) ImGui::TextWrapped("%s", ui->command_message);
+    ImGui::End();
+}
+
+/* ---- the 褒賞 dialog (G2-040) ------------------------------------------------------- */
+
+internal b32
+ui_reward_is_checked(ui_state *ui, u16 officer_id)
+{
+    for (u32 index = 0; index < ui->reward.count; ++index)
+    {
+        if (ui->reward.checked[index] == officer_id) return true;
+    }
+    return false;
+}
+
+internal void
+ui_reward_toggle(ui_state *ui, u16 officer_id)
+{
+    for (u32 index = 0; index < ui->reward.count; ++index)
+    {
+        if (ui->reward.checked[index] != officer_id) continue;
+        for (u32 next = index + 1; next < ui->reward.count; ++next) ui->reward.checked[next - 1] = ui->reward.checked[next];
+        ui->reward.count--;
+        return;
+    }
+    if (ui->reward.count < SIM_REWARD_OFFICERS) ui->reward.checked[ui->reward.count++] = officer_id;
+}
+
+/* The officers that the acting faction can reward now: the list of the
+   dialog (ui/city-commands.md, 選擇對象武將 of 褒賞: 忠誠 below 100). */
+internal u32
+ui_reward_candidates(engine_api *api, u8 force, u16 *out, u32 capacity)
+{
+    u32 count = 0;
+    for (u32 index = 0; index < api->officer_count(api->engine) && count < capacity; ++index)
+    {
+        engine_officer officer = api->officer_at(api->engine, index);
+        if (officer.force_id != force || officer.status > 3) continue;
+        if (api->officer_detail(api->engine, officer.officer_id).reward_rise == 0) continue;
+        out[count++] = officer.officer_id;
+    }
+    return count;
+}
+
+/* One row of the list: the check mark, 武將, 忠誠, the rise, 所在, 身份 and 功績. */
+internal void
+ui_draw_reward_row(ui_state *ui, engine_api *api, u16 officer_id)
+{
+    engine_officer officer = api->officer_by_id(api->engine, officer_id);
+    engine_officer_detail detail = api->officer_detail(api->engine, officer_id);
+    b32 checked = ui_reward_is_checked(ui, officer_id);
+    char label[64], text[UI_NAME_SIZE * 2];
+    ui_sort_key status;
+    snprintf(label, sizeof(label), "%s###reward_row%u", checked ? "\xE2\x96\xA0" : "\xE2\x96\xA1", officer_id);   /* U+25A0, U+25A1 */
+    ImGui::TableNextRow();
+    ImGui::TableNextColumn();
+    if (ImGui::Selectable(label, checked != 0, ImGuiSelectableFlags_SpanAllColumns)) ui_reward_toggle(ui, officer_id);
+    ImGui::TableNextColumn();
+    ui_officer_name(ui, &officer, text, sizeof(text));
+    ImGui::TextUnformatted(text);
+    ImGui::TableNextColumn(); ImGui::Text("%u", detail.loyalty);
+    ImGui::TableNextColumn(); ImGui::Text("+%u", detail.reward_rise);
+    ImGui::TableNextColumn();
+    ui_city_label(ui, api, (u8)officer.current_position, text, sizeof(text));
+    ImGui::TextUnformatted(text);
+    ImGui::TableNextColumn();
+    ui_key_code(ui, api, &status, UI_CODE_STATUS, officer.status, U32_MAX);
+    ImGui::TextUnformatted(status.text);
+    ImGui::TableNextColumn(); ImGui::Text("%u", officer.merit);
+}
+
+/* 褒賞 (G2-040; ui/city-commands.md, "褒賞" and 選擇對象武將): the officers
+   of the force with 忠誠 below 100, each with a check box, 一併 and
+   一併解除, the cost for the checked set, and 決定 that sends one order.
+   The dialog checks every row when it opens, as the original does. */
+internal void
+ui_draw_reward(ui_state *ui, engine_api *api)
+{
+    char title[128], label[96];
+    ImGui::SetNextWindowSize(ImVec2(620, 480), ImGuiCond_FirstUseEver);
+    ui_context_place(ui, 1);
+    if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "reward.title", "Reward"), &ui->show_reward)) { ImGui::End(); return; }
+    ui_context_track(ui);
+    void *e = api->engine;
+    u8 force = api->whose_turn(e);
+    u16 rows[SIM_REWARD_OFFICERS];
+    u32 row_count = ui_reward_candidates(api, force, rows, ArrayCount(rows));
+    if (ui->reward.fill)
+    {
+        ui->reward.count = 0;
+        for (u32 index = 0; index < row_count; ++index) ui->reward.checked[ui->reward.count++] = rows[index];
+        ui->reward.fill = false;
+    }
+    if (!row_count) ImGui::TextUnformatted(text_get(ui->text, "reward.no_officer"));
+    ImGuiTableFlags flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY;
+    if (ImGui::BeginTable("reward_rows", 7, flags, ImVec2(0, 300)))
+    {
+        ImGui::TableSetupScrollFreeze(0, 1);
+        ImGui::TableSetupColumn("###reward_check", ImGuiTableColumnFlags_WidthFixed, 24.0f);
+        ui_table_column(ui, "picker.officer", "officer");
+        ui_table_column(ui, "court.loyalty", "loyalty");
+        ui_table_column(ui, "reward.rise", "rise");
+        ui_table_column(ui, "column.location", "base");
+        ui_table_column(ui, "picker.status", "status");
+        ui_table_column(ui, "column.merit", "merit");
+        ImGui::TableHeadersRow();
+        for (u32 index = 0; index < row_count; ++index) ui_draw_reward_row(ui, api, rows[index]);
+        ImGui::EndTable();
+    }
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "picker.check_all", "reward_check_all")))
+    {
+        ui->reward.count = 0;
+        for (u32 index = 0; index < row_count; ++index) ui->reward.checked[ui->reward.count++] = rows[index];
+    }
+    ImGui::SameLine();
+    ImGui::BeginDisabled(ui->reward.count == 0);
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "picker.clear_all", "reward_clear_all"))) ui->reward.count = 0;
+    ImGui::EndDisabled();
+
+    /* The cost of the checked set, from the check of the engine. */
+    engine_command command = {};
+    command.kind          = ENGINE_COMMAND_REWARD;
+    command.court.city_id = ui->reward.city;
+    command.court.officer = ENGINE_NO_OFFICER;
+    command.court.target  = ENGINE_NO_OFFICER;
+    command.court.item    = ENGINE_NO_ROW;
+    command.court.post    = ENGINE_NO_ROW;
+    command.court.force   = command.court.force_2 = ENGINE_NO_FACTION;
+    command.court.target_city  = ENGINE_NO_CITY;
+    command.court.reward_count = ui->reward.count;
+    for (u32 index = 0; index < ui->reward.count; ++index) command.court.rewards[index] = ui->reward.checked[index];
+    engine_check check = api->can_issue(e, &command);
+    b32 runs = ui->reward.count > 0 && check.refusal == SIM_REFUSAL_NONE;
+    ImGui::Text("%s %u   %s %u / %u   %s %u", text_get(ui->text, "picker.officer"), ui->reward.count, text_get(ui->text, "reward.gold"),
+                check.gold, api->city_at(e, ui->reward.city).gold, text_get(ui->text, "reward.ap"), check.action_points);
+    if (ui->reward.count > 0 && check.refusal != SIM_REFUSAL_NONE)
+    {
+        ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f), "%s: %s", text_get(ui->text, "develop.refused"), ui_refusal_text(ui, check.refusal));
+    }
+    if (ui_draw_decide_back(ui, runs, &ui->show_reward))
+    {
+        engine_command_result result = api->command_court(e, ENGINE_COMMAND_REWARD, &command.court);
+        ui_growth_result(ui, "reward.title", result);
+        if (result.refusal == SIM_REFUSAL_NONE) ui->show_reward = false;
+    }
     ImGui::End();
 }
 

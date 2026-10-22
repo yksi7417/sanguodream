@@ -8,12 +8,9 @@
    The member names have the form "<folder>/<number> <English name>
    <Chinese name>.jpg", for example "Shu/01 Liu Bei 劉備.jpg". The extras
    have the form "EXTRA - Zhang Yi 張翼.jpg" and no number. The picture of
-   an officer is:
-   1. the picture with the Chinese name of the officer, if there is one;
-   2. else the numbered picture at (officer id modulo the numbered count),
-      in the order of the numbers.
-   The second rule is stable: the same officer id always gets the same
-   picture from the same archive. */
+   an officer is the picture with the Chinese name of the officer. An
+   officer without one gets a generated face (render/faces.h), not a
+   picture of another officer. */
 
 #include "base.h"
 
@@ -98,22 +95,18 @@ portrait_list_add(portrait_list *list, u32 member, const char *path, u32 path_si
     return true;
 }
 
-/* The picture index of an officer (the rules at the top of this file), or
-   PORTRAIT_NONE if the list has no picture. name is the UTF-8 Chinese name
-   of the officer and can be empty. */
+/* The index of the picture with the name of the officer, or PORTRAIT_NONE
+   if no picture has that name. name is the UTF-8 Chinese name of the
+   officer and can be empty. */
 internal u32
-portrait_pick(const portrait_list *list, const char *name, u32 officer_id)
+portrait_pick(const portrait_list *list, const char *name)
 {
-    if (!list || list->count == 0) return PORTRAIT_NONE;
-    if (name && name[0])
+    if (!list || !name || !name[0]) return PORTRAIT_NONE;
+    for (u32 index = 0; index < list->count; ++index)
     {
-        for (u32 index = 0; index < list->count; ++index)
-        {
-            if (strcmp(list->pictures[index].name, name) == 0) return index;
-        }
+        if (strcmp(list->pictures[index].name, name) == 0) return index;
     }
-    if (list->numbered_count) return list->numbered[officer_id % list->numbered_count];
-    return officer_id % list->count;
+    return PORTRAIT_NONE;
 }
 
 #endif /* PORTRAITS_H */
