@@ -63,6 +63,12 @@ ui_report_line(ui_state *ui, engine_api *api, u32 ledger_index, s64 value, u32 f
     engine_event_report report = api->event_report(api->engine, ledger_index);
     char subject[UI_NAME_SIZE * 2], speaker[UI_NAME_SIZE * 2], faction[UI_NAME_SIZE * 2];
     ui_report_subject(ui, api, &report, subject, sizeof(subject));
+    if (report.kind == SIM_EVENT_TECHNIQUE_RESEARCHED)
+    {
+        /* G2-062: the line names the technique (開發投石的技巧研究完畢). */
+        engine_technique_kind technique = api->technique_kind_at(api->engine, report.detail);
+        snprintf(subject, sizeof(subject), "%s", ui_text_with_key(ui, "technique", technique.key));
+    }
     speaker[0] = faction[0] = 0;
     if (report.speaker != ENGINE_NO_OFFICER) ui_officer_text(ui, api, report.speaker, speaker, sizeof(speaker));
     if (report.faction != ENGINE_NO_FACTION) ui_force_text(ui, api, report.faction, faction, sizeof(faction));

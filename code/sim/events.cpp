@@ -68,7 +68,32 @@ sim_ask_event(sim_state *sim, event_kind *kind, u8 force, u16 officer_a, u16 off
     pending->city      = city;
     pending->choices   = choices;
     pending->cause     = cause;
+    pending->officer_c = SIM_NO_OFFICER;
+    pending->city_2    = SIM_NO_CITY;
     if (force >= SIM_FORCE_CAPACITY || !sim->turns.human[force]) sim_resolve_event(sim, 0, cause, events);
+}
+
+/* G2-027: a transport reached its city. The cargo is in the city and the
+   officers stand in it. The question asks where they go: 0 they stay, 1
+   they go back to the home city on the road (travel.cpp). A computer
+   faction keeps them. */
+internal void
+sim_transport_arrived(sim_state *sim, const u16 *officers, u8 city, u8 home, u8 force, u32 cause, sim_event_sink *events)
+{
+    sim_event event = sim_event_make(sim, SIM_EVENT_TRANSPORT_ARRIVED, cause);
+    event.subject = sim_find_officer(sim, officers[0]) ? sim_officer_entity(sim, officers[0]) : 0;
+    event.faction = force;
+    event.detail  = city;
+    event.delta   = home;
+    sim_emit(events, event);
+    u8 row = content_find_event(&sim->content, "transport_arrived");
+    if (row >= sim->content.event_count || sim->pending.active || home == SIM_NO_CITY || home == city) return;
+    sim_ask_event(sim, sim->content.events + row, force, officers[0], officers[1], city, 2, cause, events);
+    if (sim->pending.active)
+    {
+        sim->pending.officer_c = officers[2];
+        sim->pending.city_2    = home;
+    }
 }
 
 internal b32
@@ -531,6 +556,22 @@ sim_resolve_event(sim_state *sim, u8 choice, u32 cause, sim_event_sink *events)
     sim_emit(events, chosen);
     officer_component *a = sim_find_officer(sim, pending.officer_a), *b = sim_find_officer(sim, pending.officer_b);
     u32 experience = sim->content.rules.event_experience;
+    if (strcmp(kind->key, "transport_arrived") == 0)
+    {
+        /* G2-027: choice 1 sends the officers back to the home city. */
+        if (choice != 1 || pending.city_2 == SIM_NO_CITY) return;
+        u16 ids[SIM_COMMAND_OFFICERS] = { pending.officer_a, pending.officer_b, pending.officer_c };
+        for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place)
+        {
+            officer_component *officer = sim_find_officer(sim, ids[place]);
+            if (!officer || officer->current_position != pending.city || officer->travel_turns) continue;
+            u32 days = sim_travel_days(sim, pending.city, pending.city_2);
+            officer->travel_city  = pending.city_2;
+            officer->travel_turns = (u8)Maximum(days / CALENDAR_DAYS_PER_TURN, 1u);
+            sim_emit_officer(sim, SIM_EVENT_OFFICER_MOVED, officer, (s32)days, pending.city_2, true, cause, events);
+        }
+        return;
+    }
     if (strcmp(kind->key, "treason") == 0)
     {
         if (choice == 0)

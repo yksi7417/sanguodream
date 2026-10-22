@@ -409,9 +409,11 @@ feature_event_tests(test_counts *counts)
     u8 force = setup.force;
 
     engine_event_kind treason = api->event_kind_at(e, FEATURE_EVENT_TREASON), bronze = api->event_kind_at(e, FEATURE_EVENT_BRONZE_BIRD);
-    TEST_CHECK(counts, api->event_kind_count(e) == 21 && api->content_status(e).event_count == 21 && strcmp(treason.key, "treason") == 0 &&
-                       treason.check == EVENT_CHECK_QUARTER && treason.min_days == 360 && bronze.chance == 100,
-               "events.tsv has the 21 generic events of events.md, with their checks and chances");
+    engine_event_kind transport = api->event_kind_at(e, 21);
+    TEST_CHECK(counts, api->event_kind_count(e) == 22 && api->content_status(e).event_count == 22 && strcmp(treason.key, "treason") == 0 &&
+                       treason.check == EVENT_CHECK_QUARTER && treason.min_days == 360 && bronze.chance == 100 &&
+                       strcmp(transport.key, "transport_arrived") == 0 && transport.check == EVENT_CHECK_NONE,
+               "events.tsv has the 21 generic events of events.md with their checks and chances, and the question of a transport (G2-027)");
     TEST_CHECK(counts, api->trigger_event(e, 200, force, ENGINE_NO_CITY, ENGINE_NO_OFFICER).refusal == SIM_REFUSAL_NO_EVENT, "refused: no such event");
     TEST_CHECK(counts, api->command_event_choice(e, 0).refusal == SIM_REFUSAL_NO_EVENT, "refused: no event waits for a choice");
     TEST_CHECK(counts, api->relic_count(e) == 7 && api->relic_at(e, 0).alive && api->relic_at(e, 0).kind == RELIC_RUIN && api->relic_at(e, 1).kind == RELIC_TEMPLE,

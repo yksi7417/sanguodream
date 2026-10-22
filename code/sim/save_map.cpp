@@ -358,6 +358,14 @@ sim_load_save_map(sim_state *sim, save_file *save, u32 cause, sim_event_sink *ev
         }
     }
     if (save->units) sim_load_save_units(sim, save, &counts);
+    /* G2-027: a transport on its way (任務 移動) keeps a long order to its
+       city, and moves at 進行 (orders.cpp). */
+    for (u32 unit_id = 0; unit_id < sim->unit_count; ++unit_id)
+    {
+        sim_unit *unit = sim->units + unit_id;
+        if (!unit->alive || unit->destination == SIM_NO_CITY || unit->destination == sim_city_at(sim, unit->hex)) continue;
+        sim_give_unit_order(sim, unit_id, UNIT_ORDER_MOVE, sim_travel_base_hex(sim, unit->destination), SIM_NO_UNIT, cause, events);
+    }
     sim_event event = sim_event_make(sim, SIM_EVENT_SAVE_MAP_LOADED, cause);
     event.delta   = (s32)(counts.facilities + counts.buildings + counts.naturals + counts.relics);
     event.detail  = counts.units;

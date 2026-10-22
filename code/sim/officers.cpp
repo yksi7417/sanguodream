@@ -500,6 +500,7 @@ internal void
 sim_run_officers_month(sim_state *sim, u32 cause, sim_event_sink *events)
 {
     sim_rules *rules = &sim->content.rules;
+    sim_run_deaths_month(sim, cause, events);   /* G2-055 */
     for (u32 index = 0; index < sim->officers.count; ++index)
     {
         officer_component *officer = sim->officers.data + index;
@@ -559,8 +560,24 @@ sim_run_officers_year(sim_state *sim, u32 cause, sim_event_sink *events)
             sim_change_ability(sim, officer, CONTENT_ABILITY_FORCE, -(s32)rules->age_decline, true, cause, events);
             sim_change_ability(sim, officer, CONTENT_ABILITY_LEADERSHIP, -(s32)rules->age_decline, true, cause, events);
         }
-        u32 death_year = officer->death_year + (sim->settings.long_lifespan ? rules->lifespan_long_years : 0);   /* M9: 壽命 長 */
-        if (sim->settings.lifespan && officer->death_year && year > death_year && sim_random_below(sim, 100) < rules->death_chance)
+    }
+}
+
+/* G2-055: at each month start an officer past its death year rolls its
+   death (朱儁, death year 195, died at the change to 197/12/1). The chance
+   is assumed (Q-029). With 壽命 長 the death year is later (M9). */
+internal void
+sim_run_deaths_month(sim_state *sim, u32 cause, sim_event_sink *events)
+{
+    sim_rules *rules = &sim->content.rules;
+    u32 year = sim->turns.date.year;
+    if (!sim->settings.lifespan || !rules->death_month_chance) return;
+    for (u32 index = 0; index < sim->officers.count; ++index)
+    {
+        officer_component *officer = sim->officers.data + index;
+        if (officer->status == OFFICER_STATUS_DEAD || officer->status == OFFICER_STATUS_EMPTY_SLOT || officer->appearance_year > year) continue;
+        u32 death_year = officer->death_year + (sim->settings.long_lifespan ? rules->lifespan_long_years : 0);
+        if (officer->death_year && year > death_year && sim_random_below(sim, 100) < rules->death_month_chance)
         {
             sim_officer_dies(sim, officer, cause, events);
         }

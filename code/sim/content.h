@@ -746,6 +746,7 @@ struct sim_rules
     u32 recruit_compatibility_divisor, recruit_debate_intellect;
     u32 loyalty_start, loyalty_monthly, loyalty_ambition, loyalty_unpaid, loyalty_leave, loyalty_leave_chance;
     u32 experience_command, experience_level, age_decline, death_chance, wound_turns, stamina_recovery;
+    u32 death_month_chance;   /* G2-055: the chance at each month start past the death year */
     u32 release_technique, exile_technique, matchmaking_technique, matchmaking_merit, matchmaking_age;
     u32 relation_liked_percent, relation_disliked_intellect;
     u32 duel_damage, duel_attack_percent, duel_defence_percent, duel_spirit_rise, duel_spirit_hit, duel_critical_rounds;

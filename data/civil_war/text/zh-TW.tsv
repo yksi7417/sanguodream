@@ -1048,3 +1048,9 @@ cities.all	全部都市
 table.filter	篩選
 city.not_yours	這不是你的都市，不能對它下令。
 settings.font_size	字型大小
+event.transport_arrived	輸送隊到達
+event_role.transport_arrived.a	主將
+event.city	據點
+event_question.transport_arrived	輸送隊到達了。要如何安置部隊？
+event_choice.transport_arrived.0	將其留在該據點
+event_choice.transport_arrived.1	令其返回原據點

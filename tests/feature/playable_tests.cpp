@@ -503,8 +503,8 @@ feature_civil_war_tests(test_counts *counts)
     void *e = api->engine;
     engine_content_status status = api->content_status(e);
     TEST_CHECK(counts, status.loaded && api->unit_type_at(e, 1).move == 24 && api->unit_type_at(e, 4).move == 32 &&
-                       api->history_count(e) == 0 && api->event_kind_count(e) == 3 && api->ancient_count(e) == 0 && api->scenario_count(e) == 1,
-               "the Civil War pack loads with its own units, no historical events and one scenario");
+                       api->history_count(e) == 0 && api->event_kind_count(e) == 4 && api->ancient_count(e) == 0 && api->scenario_count(e) == 1,
+               "the Civil War pack loads with its own units, no historical events, the question of a transport and one scenario");
     engine_settings settings = api->settings(e);
     settings.disasters = false;
     api->set_settings(e, settings);

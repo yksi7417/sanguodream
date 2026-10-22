@@ -24,3 +24,5 @@ id	key	name_zh	check	min_days	months	chance	p1	p2	p3	p4	p5	p6	names	status
 18	visit_huangchengyan	旅人訪問・黃承彥	search	0	-	100	90	10000	100	0	0	0	B6C0A9D3ABDB	documented
 19	spouse_help	夫婦的助力	wait	0	-	50	0	0	0	0	0	0	-	assumed
 20	sworn_spirit	義兄弟之氣炎	wait	0	-	50	60	0	0	0	0	0	-	assumed
+21	transport_arrived	輸送隊到達	none	0	-	100	0	0	0	0	0	0	-	documented
+# transport_arrived: the question when a transport of the player reaches its city (G2-027): 0 the officers stay, 1 they return to the home city. The code asks it; no check fires it.

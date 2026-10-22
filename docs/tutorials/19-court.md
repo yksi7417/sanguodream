@@ -65,8 +65,10 @@ These rules run on the calendar:
   experience.level points add 1 to the ability, up to 100.
 - With 能力變動, force and leadership fall each year after the age of
   decline of the growth type.
-- With the historical lifespan, an officer older than its death year can
-  die. A dead ruler gives the faction to the officer with the most merit.
+- With the historical lifespan, an officer older than its death year rolls
+  its death at each month start (age.death_month_chance, assumed; G2-055).
+  The deputy leads its unit after the death. A dead ruler gives the
+  faction to the officer with the most merit.
 
 Each turn the stamina recovers and a wound heals by one step after
 health.wound_turns turns.

@@ -1050,3 +1050,9 @@ cities.all	All cities	check box: list every city, not only the cities of the pla
 table.filter	filter	hint in the filter box of a table
 city.not_yours	This city is not yours. It takes no command from you.	the City panel for a city of another force
 settings.font_size	Font size	slider, pixels
+event.transport_arrived	Transport arrived	輸送隊到達
+event_role.transport_arrived.a	Leader	主將
+event.city	Base	據點
+event_question.transport_arrived	The transport unit has arrived. Where do its officers go?	輸送隊到達了。要如何安置部隊？
+event_choice.transport_arrived.0	Keep them in this base	將其留在該據點
+event_choice.transport_arrived.1	Send them back home	令其返回原據點

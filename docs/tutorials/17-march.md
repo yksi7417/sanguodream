@@ -129,6 +129,13 @@ officer, a destination city of the faction and a cargo of weapons.
 `sortie_proposal` is 自動編制: the officers with the best aptitude, then
 force plus leadership, then merit.
 
+A transport of a save with the task 移動 keeps the long order 移動 to its
+city from the load (G2-027). When a transport enters its city, the city
+takes the cargo, the soldiers, the gold and the grain. Then the question
+輸送隊到達 waits for the player (`transport_arrived`, `pending_event`).
+The officers stay in the city, or they go back to the home city on the
+road. A computer faction keeps them.
+
 ## The move range and the zone of control
 `sim_unit_reach` is a search of the lowest cost from the hex of the
 unit, within its movement. A hex costs the entry cost of its kind for the

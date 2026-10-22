@@ -1215,7 +1215,7 @@ log.facility_completed	{subject}：設施建成
 log.production_started	{subject}：開始生產兵裝
 log.weapons_produced	{subject}：兵裝 {delta}
 log.research_started	{subject}：開始研究技巧
-log.technique_researched	{faction}：技巧研究完成
+log.technique_researched	{faction}：{subject}的技巧研究完畢
 log.unit_sortied	{subject}：部隊出征
 log.unit_destroyed	{faction}：一支部隊潰滅
 log.unit_retreated	{faction}：一支部隊撤退
@@ -1373,3 +1373,9 @@ log.officer_moved	{subject}出發前往其他據點
 log.officer_arrived	{subject}移動完畢
 log.faction_plot	{speaker}在{subject}的計策成功
 log.faction_plot_failed	{speaker}在{subject}的計策失敗
+event.transport_arrived	輸送隊到達
+event_role.transport_arrived.a	主將
+event.city	據點
+event_question.transport_arrived	輸送隊到達了。要如何安置部隊？
+event_choice.transport_arrived.0	將其留在該據點
+event_choice.transport_arrived.1	令其返回原據點

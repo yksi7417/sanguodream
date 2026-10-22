@@ -263,6 +263,12 @@ ui_draw_event_dialog(ui_state *ui, engine_api *api)
         snprintf(role, sizeof(role), "event_role.%s.b", kind.key);
         ImGui::Text("%s: %s", text_get(ui->text, role), name);
     }
+    if (pending.city != ENGINE_NO_CITY)
+    {
+        /* G2-027: the base of the event, for example the city that a transport reached. */
+        ui_city_label(ui, api, pending.city, name, sizeof(name));
+        ImGui::Text("%s: %s", text_get(ui->text, "event.city"), name);
+    }
     ImGui::TextWrapped("%s", ui_text_with_key(ui, "event_question", kind.key));
     for (u32 choice = 0; choice < pending.choices; ++choice)
     {

@@ -1494,8 +1494,8 @@ internal engine_pending_event recorder_pending_event(void *o)
     engine_recorder *r = (engine_recorder *)o;
     recorder_record(r, RECORDER_PENDING_EVENT, 0);
     engine_pending_event view = {};
-    view.officer_a = view.officer_b = ENGINE_NO_OFFICER;
-    view.city = ENGINE_NO_CITY;
+    view.officer_a = view.officer_b = view.officer_c = ENGINE_NO_OFFICER;
+    view.city = view.city_2 = ENGINE_NO_CITY;
     view.force = ENGINE_NO_FACTION;
     if (!r->pending_active) return view;
     view.active = true;

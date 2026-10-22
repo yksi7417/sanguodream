@@ -391,6 +391,55 @@ feature_month_start_sample_tests(test_counts *counts)
     engine_fixture_destroy(&f);
 }
 
+/* G2-055: an officer past its death year dies at a month start (朱儁,
+   death year 195, died at 197/12/1 in the original). The deputy leads
+   its unit after the death, and the ledger has the death. */
+internal void
+feature_death_month_sample_tests(test_counts *counts)
+{
+    engine_fixture f;
+    engine_fixture_init_real(&f, 1, 4096);
+    engine_api *api = &f.api;
+    void *e = api->engine;
+    api->load_save(e, SAMPLE_SAVE_RELATIVE_PATH);
+    u8 force = api->whose_turn(e);
+    u16 year = api->date(e).year;
+    u16 old = ENGINE_NO_OFFICER, deputy = ENGINE_NO_OFFICER;
+    u32 unit_id = ENGINE_NO_UNIT;
+    for (u32 index = 0; index < api->officer_count(e) && old == ENGINE_NO_OFFICER; ++index)
+    {
+        engine_officer officer = api->officer_at(e, index);
+        if (officer.force_id != force || officer.status == 8 || !officer.death_year || officer.death_year >= year) continue;
+        if (officer.current_position < 87) continue;   /* a leader of a unit, with a deputy */
+        engine_unit unit = api->unit_at(e, officer.current_position - 87);
+        if (unit.id == ENGINE_NO_UNIT || unit.officers[0] != officer.officer_id || unit.officers[1] == ENGINE_NO_OFFICER) continue;
+        old     = officer.officer_id;
+        deputy  = unit.officers[1];
+        unit_id = officer.current_position - 87;
+    }
+    TEST_CHECK(counts, old != ENGINE_NO_OFFICER, "the sample has a unit leader of the player past its death year (朱儁)");
+    if (old == ENGINE_NO_OFFICER) { engine_fixture_destroy(&f); return; }
+    /* The fixture turns the lifespan off for the other tests: this one needs it (壽命 historical). */
+    engine_settings settings = api->settings(e);
+    settings.lifespan = true;
+    api->set_settings(e, settings);
+    u32 mark = api->ledger_count(e);
+    engine_officer dead = {};
+    for (u32 turn = 0; turn < 120; ++turn)
+    {
+        feature_officer_by_id(api, old, &dead);
+        if (dead.status == 8) break;
+        /* A question of the player (a transport that arrived, an event) waits before the turn ends: take the first choice. */
+        if (api->pending_event(e).active) api->command_event_choice(e, 0);
+        feature_next_own_turn(api, force);
+    }
+    TEST_CHECK(counts, dead.status == 8 && feature_count_events(api, SIM_EVENT_OFFICER_DIED, mark) >= 1,
+               "the officer dies at a month start within 40 months (the chance is assumed)");
+    engine_unit unit = api->unit_at(e, unit_id);
+    TEST_CHECK(counts, unit.id == ENGINE_NO_UNIT || unit.officers[0] == deputy, "the deputy leads the unit after the death");
+    engine_fixture_destroy(&f);
+}
+
 internal void
 feature_turn_tests(test_counts *counts)
 {
@@ -398,4 +447,5 @@ feature_turn_tests(test_counts *counts)
     feature_turn_order_sample_tests(counts);
     feature_turn_order_three_factions_tests(counts);
     feature_month_start_sample_tests(counts);
+    feature_death_month_sample_tests(counts);
 }

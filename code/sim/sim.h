@@ -194,6 +194,7 @@ enum sim_event_kind
     SIM_EVENT_MISSION_STARTED,      /* subject = the officer of a plot; detail = the target base; delta = the days */
     SIM_EVENT_FACTION_PLOT_FAILED,  /* subject = the target city; faction; detail = the kind; the cause is the command of the plot */
     SIM_EVENT_PRICE_CHANGED,        /* subject = city; delta = the change of the price; detail = the new price (G2-013; assumed drift) */
+    SIM_EVENT_TRANSPORT_ARRIVED,    /* subject = the leader; faction; detail = the city; delta = the home city (G2-027) */
     SIM_EVENT_COUNT
 };
 
@@ -1145,6 +1146,8 @@ struct sim_pending_event
     u8  city;
     u8  choices;
     u32 cause;
+    u16 officer_c;                       /* G2-027: the third officer of a transport that arrived; SIM_NO_OFFICER */
+    u8  city_2;                          /* G2-027: the home city of the transport; SIM_NO_CITY */
 };
 
 /* M9: the 研究能力 of a faction: one at a time. */
@@ -1369,6 +1372,8 @@ internal u32                 sim_city_soldier_cap(sim_state *sim, u8 city_id);
 internal void                sim_reward_command(sim_state *sim, u8 force, const u16 *officers, u32 technique,
                                                 u32 cause, sim_event_sink *events);
 internal void                sim_add_technique_points(sim_state *sim, u8 force, s32 points, u32 cause, sim_event_sink *events);
+internal void                sim_transport_arrived(sim_state *sim, const u16 *officers, u8 city, u8 home, u8 force, u32 cause,
+                                                   sim_event_sink *events);
 internal void                sim_emit_city(sim_state *sim, sim_event_kind kind, city_component *city, s32 delta, u32 detail,
                                            b32 assumed, u32 cause, sim_event_sink *events);
 internal sim_refusal         sim_check_damage(sim_state *sim, sim_damage_order *order);
@@ -1464,6 +1469,7 @@ internal b32              sim_unit_step(sim_state *sim, u32 unit_id, hex_coord g
 internal void             sim_run_unit_orders(sim_state *sim, u8 force, u32 cause, sim_event_sink *events);
 internal b32              sim_ai_attack(sim_state *sim, u32 unit_id, hex_coord hex, sim_event_sink *events);   /* ai.cpp */
 /* The journeys of officers and the missions of the plots (travel.cpp). */
+internal hex_coord        sim_travel_base_hex(sim_state *sim, u8 base);
 internal u32              sim_travel_days(sim_state *sim, u8 from_base, u8 to_base);
 internal sim_check        sim_check_move_officers(sim_state *sim, sim_command_kind kind, sim_move_order *order);
 internal void             sim_move_officers_command(sim_state *sim, sim_command command, sim_event_sink *events);
@@ -1547,6 +1553,7 @@ internal void      sim_court_command(sim_state *sim, sim_command command, sim_ev
 internal void      sim_run_officers_turn(sim_state *sim, u32 cause, sim_event_sink *events);
 internal void      sim_run_officers_month(sim_state *sim, u32 cause, sim_event_sink *events);
 internal void      sim_run_officers_year(sim_state *sim, u32 cause, sim_event_sink *events);
+internal void      sim_run_deaths_month(sim_state *sim, u32 cause, sim_event_sink *events);   /* G2-055 */
 internal void      sim_unpaid_loyalty(sim_state *sim, city_component *city, u32 cause, sim_event_sink *events);
 internal void      sim_init_diplomacy(sim_state *sim);
 internal b32       sim_at_war(sim_state *sim, u8 a, u8 b);

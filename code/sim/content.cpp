@@ -416,6 +416,7 @@ global_variable content_rule_field content_rule_fields[] = {
     CONTENT_RULE("loyalty.leave", loyalty_leave), CONTENT_RULE("loyalty.leave_chance", loyalty_leave_chance),
     CONTENT_RULE("experience.command", experience_command), CONTENT_RULE("experience.level", experience_level),
     CONTENT_RULE("age.decline", age_decline), CONTENT_RULE("age.death_chance", death_chance),
+    CONTENT_RULE("age.death_month_chance", death_month_chance),
     CONTENT_RULE("health.wound_turns", wound_turns), CONTENT_RULE("stamina.recovery", stamina_recovery),
     CONTENT_RULE("matchmaking.technique", matchmaking_technique), CONTENT_RULE("matchmaking.merit", matchmaking_merit),
     CONTENT_RULE("matchmaking.age", matchmaking_age),

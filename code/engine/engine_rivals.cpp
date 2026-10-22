@@ -245,10 +245,12 @@ engine_api_pending_event(void *opaque)
 {
     sim_pending_event *pending = &((engine *)opaque)->sim->pending;
     engine_pending_event result = {};
-    result.officer_a = result.officer_b = ENGINE_NO_OFFICER;
-    result.city  = ENGINE_NO_CITY;
+    result.officer_a = result.officer_b = result.officer_c = ENGINE_NO_OFFICER;
+    result.city  = result.city_2 = ENGINE_NO_CITY;
     result.force = ENGINE_NO_FACTION;
     if (!pending->active) return result;
+    result.officer_c = pending->officer_c == SIM_NO_OFFICER ? (u16)ENGINE_NO_OFFICER : pending->officer_c;
+    result.city_2    = pending->city_2 == SIM_NO_CITY ? (u8)ENGINE_NO_CITY : pending->city_2;
     result.active    = true;
     result.event     = pending->event;
     result.force     = pending->force;

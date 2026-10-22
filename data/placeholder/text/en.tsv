@@ -1217,7 +1217,7 @@ log.facility_completed	{subject}: a facility is complete
 log.production_started	{subject}: weapon production started
 log.weapons_produced	{subject}: weapons {delta}
 log.research_started	{subject}: research started
-log.technique_researched	{faction}: a technique is complete
+log.technique_researched	{faction}: the research of {subject} is complete
 log.unit_sortied	{subject}: a unit marched out
 log.unit_destroyed	{faction}: a unit was destroyed
 log.unit_retreated	{faction}: a unit retreats
@@ -1375,3 +1375,9 @@ log.officer_moved	{subject} leaves for another base	G2-036
 log.officer_arrived	{subject} arrives	G2-036: the log line of the original names the base
 log.faction_plot	{speaker}: the plot on {subject} succeeds	G2-065
 log.faction_plot_failed	{speaker}: the plot on {subject} fails	G2-065
+event.transport_arrived	Transport arrived	輸送隊到達
+event_role.transport_arrived.a	Leader	主將
+event.city	Base	據點
+event_question.transport_arrived	The transport unit has arrived. Where do its officers go?	輸送隊到達了。要如何安置部隊？
+event_choice.transport_arrived.0	Keep them in this base	將其留在該據點
+event_choice.transport_arrived.1	Send them back home	令其返回原據點

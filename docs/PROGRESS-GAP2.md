@@ -28,7 +28,10 @@ task reads it at the start of each run. The order of the work is section
 | G2-025 | 商人 uses E = 400 / (450 - P), a purchase gives floor(G x R x E) grain and a sale floor(N x E x 0.8 / R) gold. The dialog shows 交易效果 as a whole percent. All 16 rows of fixtures/merchant.tsv fit (the purchases of 長沙 within 3 grain). | group 4 | unit/economy, feature/city_commands, fixture/merchant |
 | G2-013 | The price R is a column of cities.tsv: 柴桑 3, 新野 5, 江陵 7 and 江夏 3 as observed, 5 for the other cities (assumed). The panel shows it. At each month start it drifts by -1, 0 or +1 within 3 to 7 (assumed, Q-155). The income stays open: see the questions. | group 4 | unit/content, feature/city_commands |
 | G2-049 | A unit eats one grain for 10 soldiers each turn (2043 soldiers eat 204). The preset of 出征 proposes two grain for each soldier (G2-044: 2043 soldiers, 4086 grain). The grain of a unit of the save stays open (Q-226). | group 4 | feature/march, feature/save_map, feature/ai |
-| G2-028 | The clone of the report rolled a plague (10 治安, 5 percent of the soldiers) because its date was wrong before G2-001. A plague starts only in the months 1, 4, 7 and 10. A regression test loads the sample, reaches 197/11/1 and checks that 江夏 keeps its soldiers and its public order. The gold income and the free weapons stay open: see the questions. | group 4 | feature/turns |
+| G2-028 | The clone of the report rolled a plague (10 治安, 5 percent of the soldiers) because its date was wrong before G2-001. A plague starts only in the months 1, 4, 7 and 10. A regression test loads the sample, reaches 197/11/1 and checks that 江夏 keeps its soldiers and its public order. The gold income and the free weapons stay open: see the questions. | 0ac20d2 | feature/turns |
+| G2-027 | A transport of the save with the task 移動 keeps a long order to its city and moves at 進行. At the city the cargo, the soldiers, the gold and the grain go into the city. Then the question 輸送隊到達 waits for the player with the leader, the city and two choices: 將其留在該據點, or 令其返回原據點 (the officers go back on the road, 10 days for each city region). The dialog of an event now names its base. A step of a long order resets the scratch arena between the plan and the reach: the real map overflowed it. | group 5 | feature/people, feature/rivals, feature/playable |
+| G2-055 | An officer past its death year rolls its death at each month start, not at the year start (朱儁, death year 195, died at the change to 197/12/1). The chance for each month is assumed (age.death_month_chance 10, Q-029). The deputy leads the unit after the death. The death is a message of the turn start with the portrait of the officer, and a line of the log. | group 5 | feature/turns |
+| G2-062 | The log line of a complete research names the technique (開發投石的技巧研究完畢), and the turn start shows it as a message. The research of 劉表 in the sample does not load: the spec marks the research fields of the save as open (Q-202, see the questions). | group 5 | ui/report (the line), feature/growth |
 
 ## In progress
 
@@ -49,7 +52,12 @@ task reads it at the start of each run. The order of the work is section
   technique.tactic_extra_unit are in rules.tsv. No code gives them yet.
   The clone has no facility that an enemy destroys. A tactic that hits
   more units gives 15 one time.
-- Next: group 5, the turn start events (G2-027, G2-062, G2-055).
+- Group 5. The research of the save (G2-062) stays open until the
+  analysis side finds its fields. The clone shows the question of a
+  transport after 進行 and before the date changes, as the original. The
+  death of an officer is a message of the turn start, not a picture of a
+  death bed: the clone has no such picture.
+- Next: the other P1 rows of the report, then P2, then P3.
 
 ## Questions for the observer
 
@@ -161,3 +169,18 @@ task reads it at the start of each run. The order of the work is section
   the original and 12600 in the clone (Q-226). The clone reads the field
   +13 of the unit record. Can the analysis side check the field against
   the 兵糧 of three units of the sample?
+- G2-062, the research of the save. formats/save-file.md says that +67
+  of table B is 255 for 劉表 while 技巧表 shows 開發投石 with 80 days
+  (Q-202). In the sample, +69 holds 8 and +70 holds 6 for 劉表. Eighty
+  days are 8 turns, so +69 can be the turns that remain. The technique
+  開發投石 is the level 3 of the line 發明, the sixth line of 技巧表. Does +70 hold the
+  line, as 1 to 9? The other forces do not fit this hypothesis. Force 1
+  holds 7 and 2 there with no research on 技巧表. The forces 2, 7 and 9
+  hold 128 to 130 at +70. Please read 技巧表 of three forces of the sample with a
+  research in progress, with the technique and the days left. Then the
+  analysis side can match the bytes, and the clone can load the research.
+- G2-027, the unit of 吳巨. The report says that the clone of run 5
+  showed no unit near 江陵 for the transport of 吳巨 (3790 soldiers). The
+  save holds it as unit 53 at the map hex 69,148 with the task 移動 to
+  the base 29. Please compare the units near 江陵 again with the new
+  build, and name the hex of the unit of 吳巨 on the status bar.

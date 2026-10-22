@@ -65,7 +65,8 @@ The command pays when it starts. The ledger has `gold_spent`,
 officer gains merit; the research gives no technique points. The officers
 are busy for the whole period. At the start of each turn
 `sim_progress_research` counts down. At 0 the faction has the technique
-(`technique_researched`) and the officers are free.
+(`technique_researched`) and the officers are free. The log line names
+the technique, and the turn start shows it as a message (G2-062).
 
 The period is an assumed line (Q-161). It goes from the longest period of
 the row at an ability sum of 0 to the shortest at a sum of 200. A

@@ -160,10 +160,66 @@ feature_travel_days_real_map_tests(test_counts *counts)
     engine_fixture_destroy(&f);
 }
 
+/* G2-027: the transport of the sample (呂蒙隊, 任務 移動 to 柴桑) keeps a
+   long order from the load, moves at 進行, delivers its cargo and asks
+   where its officers go. Choice 0 keeps them in the city. Choice 1 sends
+   them back to the home city on the road. */
+internal void
+feature_transport_arrival_tests(test_counts *counts)
+{
+    for (u8 choice = 0; choice < 2; ++choice)
+    {
+        engine_fixture f;
+        engine_fixture_init_real(&f, 1, 4096);
+        engine_api *api = &f.api;
+        void *e = api->engine;
+        api->load_save(e, SAMPLE_SAVE_RELATIVE_PATH);
+        u8 force = api->whose_turn(e);
+        u32 transport = ENGINE_NO_UNIT;
+        for (u32 unit_id = 0; unit_id < api->unit_count(e) && transport == ENGINE_NO_UNIT; ++unit_id)
+        {
+            engine_unit unit = api->unit_at(e, unit_id);
+            if (unit.id != ENGINE_NO_UNIT && unit.force_id == force && unit.destination != ENGINE_NO_CITY && api->unit_type_at(e, unit.unit_type).transport) transport = unit_id;
+        }
+        TEST_CHECK(counts, transport != ENGINE_NO_UNIT, "the sample has a transport of the player on its way to a city");
+        if (transport == ENGINE_NO_UNIT) { engine_fixture_destroy(&f); continue; }
+        engine_unit before = api->unit_at(e, transport);
+        u8 city = before.destination, home = before.home_city;
+        u16 leader = before.officers[0];
+        u32 soldiers = api->city_economy(e, city).soldiers;
+        TEST_CHECK(counts, before.order == UNIT_ORDER_MOVE && home != ENGINE_NO_CITY && home != city,
+                   "the transport of the save has the long order 移動 to its city");
+        u32 mark = api->ledger_count(e);
+        for (u32 turn = 0; turn < 12 && (api->unit_at(e, transport).id != ENGINE_NO_UNIT); ++turn) feature_next_own_turn(api, force);
+        engine_pending_event pending = api->pending_event(e);
+        engine_event_kind kind = api->event_kind_at(e, pending.event);
+        TEST_CHECK(counts, !(api->unit_at(e, transport).id != ENGINE_NO_UNIT) && feature_count_events(api, SIM_EVENT_TRANSPORT_ARRIVED, mark) == 1 &&
+                           api->city_economy(e, city).soldiers > soldiers,
+                   "the transport reaches its city within 12 turns, and the city takes its soldiers and its cargo");
+        TEST_CHECK(counts, pending.active && strcmp(kind.key, "transport_arrived") == 0 && pending.choices == 2 && pending.city == city &&
+                           pending.city_2 == home && pending.officer_a == leader && pending.force == force,
+                   "the question of the arrival waits for the player, with the city, the home city and the leader");
+        TEST_CHECK(counts, api->command_event_choice(e, choice).refusal == SIM_REFUSAL_NONE && !api->pending_event(e).active,
+                   "the choice closes the question");
+        engine_officer officer = {};
+        feature_officer_by_id(api, leader, &officer);
+        if (choice == 0)
+        {
+            TEST_CHECK(counts, officer.current_position == city && officer.travel_city == ENGINE_NO_CITY, "choice 0: the officers stay in the city");
+        }
+        else
+        {
+            TEST_CHECK(counts, officer.travel_city == home && officer.travel_days > 0, "choice 1: the officers go back to the home city on the road");
+        }
+        engine_fixture_destroy(&f);
+    }
+}
+
 internal void
 feature_people_tests(test_counts *counts)
 {
     feature_move_officers_tests(counts);
     feature_plot_mission_tests(counts);
     feature_travel_days_real_map_tests(counts);
+    feature_transport_arrival_tests(counts);
 }

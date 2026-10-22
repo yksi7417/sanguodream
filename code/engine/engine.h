@@ -653,6 +653,8 @@ struct engine_pending_event
     u16 officer_a, officer_b;
     u8  city;
     u8  choices;
+    u16 officer_c;                  /* G2-027: the third officer of a transport that arrived; ENGINE_NO_OFFICER */
+    u8  city_2;                     /* G2-027: the home city of the transport; ENGINE_NO_CITY */
 };
 
 /* ---- M9: save and load (manual p.6: 32 slots with a comment, no autosave) */

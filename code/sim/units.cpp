@@ -824,7 +824,16 @@ sim_move_unit(sim_state *sim, sim_command command, memory_arena *scratch, sim_ev
         sim_terrain_loss(sim, order->unit, step, command.id, events);
     }
     u8 city_id = sim_city_at(sim, unit->hex);
-    if (city_id != SIM_NO_CITY) sim_unit_enter_city(sim, order->unit, city_id, SIM_EVENT_NONE, command.id, events);
+    if (city_id != SIM_NO_CITY)
+    {
+        unit_type_kind *type = sim_unit_type(sim, unit->unit_type);
+        b32 delivered = type && type->transport && unit->destination == city_id;
+        u16 officers[SIM_COMMAND_OFFICERS] = { unit->officers[0], unit->officers[1], unit->officers[2] };
+        u8 home = unit->home_city, force = unit->force_id;
+        sim_unit_enter_city(sim, order->unit, city_id, SIM_EVENT_NONE, command.id, events);
+        /* G2-027: a transport at its city asks where its officers go (events.cpp). */
+        if (delivered) sim_transport_arrived(sim, officers, city_id, home, force, command.id, events);
+    }
 }
 
 /* 待命, 退卻 and 補給. */

@@ -37,6 +37,8 @@ The features are F-032, F-120 to F-123 and F-130 of FEATURES.md.
   - chance: the percent at each check;
   - p1 to p6: the numbers of the trigger and the effect;
   - names: the Big5 bytes of the officers that the event names.
+  The row transport_arrived is not a generic event. The code asks it when
+  a transport of the player reaches its city (G2-027, tutorial 17).
 - ai_priorities.tsv has one row for each kind of proposal: the command,
   the priority, the condition and its threshold.
 

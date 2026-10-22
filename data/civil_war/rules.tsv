@@ -314,3 +314,4 @@ sortie.grain_per_soldier	2	observed	G2-044: the preset of 出征 proposes two ti
 merchant.effect_scale	400	observed	city-commands.md: the trade effect E = 400 / (450 - politics)
 merchant.effect_offset	450	observed	city-commands.md: the same rule
 merchant.sale_percent	80	observed	city-commands.md: a sale gives N x E x 0.8 / R gold
+age.death_month_chance	10	assumed	G2-055: an officer past the death year rolls its death at each month start (朱儁 died at 197/12/1, death year 195); the chance is assumed (Q-029)

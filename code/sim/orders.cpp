@@ -78,6 +78,7 @@ sim_unit_step(sim_state *sim, u32 unit_id, hex_coord goal, b32 stop_before_goal,
     u32 length = sim_plan_path(&plan, goal, path, ArrayCount(path));
     if (stop_before_goal && length) length--;
     if (!length) return false;
+    arena_reset(&sim->scratch);   /* the path holds the plan now: the reach gets the whole scratch (the real map needs it) */
     sim_reach reach = sim_unit_reach(sim, unit_id, &sim->scratch);
     hex_coord to = unit->hex;
     b32 found = false;
