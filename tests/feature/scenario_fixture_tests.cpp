@@ -24,6 +24,9 @@
 #define SPEC_SCEN002_TITLE_BYTES       8     /* four Big5 characters */
 #define SPEC_FORCE_RELATION_MAXIMUM    100
 #define SPEC_HANZHONG_CITY_ID          36
+#define SPEC_CHENLIU_CITY_ID           12
+#define SPEC_LIU_DAI_OFFICER_ID        631   /* 武將一覽 of the original at the start of 194: loyalty 98 */
+#define SPEC_GUO_JIA_OFFICER_ID        63    /* the byte is 120; the screen shows 100 */
 #define SPEC_ZHANG_LU_FORCE_ID         9
 #define SPEC_ZHANG_LU_OFFICER_ID       442   /* save-file.md: officer 442 rules force 9 from city 36 */
 #define SPEC_BIG5_CHARACTER_BYTES      2u
@@ -245,6 +248,12 @@ feature_scen002_officer_tests(test_counts *counts, scenario_file *scenario)
     TEST_CHECK(counts, ruler->status == OFFICER_STATUS_RULER && ruler->force_id == SPEC_ZHANG_LU_FORCE_ID &&
                        ruler->base_location == SPEC_HANZHONG_CITY_ID,
                "SCEN002 officer 442 is the ruler of force 9 in Hanzhong (36)");
+
+    /* scenario-file.md: bytes +0..+147 are the save record. save-file.md +104 is the loyalty (confirmed 2026-10-22). */
+    officer_record *liu_dai = scenario->officers + SPEC_LIU_DAI_OFFICER_ID;
+    officer_record *guo_jia = scenario->officers + SPEC_GUO_JIA_OFFICER_ID;
+    TEST_CHECK(counts, liu_dai->has_loyalty && liu_dai->loyalty == 98 && guo_jia->loyalty == 120,
+               "a scenario officer has the loyalty byte +104: 98 for Liu Dai, 120 for Guo Jia");
 }
 
 /* scenario-file.md, Force record. */
@@ -310,9 +319,15 @@ feature_scen002_city_tests(test_counts *counts, scenario_file *scenario)
     }
     TEST_CHECK(counts, commanders_none, "a scenario city has no commander");
 
+    /* The scenario field +n is the save field +n+3. save-file.md swapped the
+       save fields +16 and +20 on 2026-10-17: +16 is the troops, +20 the gold.
+       Thus +13 of the scenario is the troops and +17 the gold. */
     city_record *hanzhong = scenario->cities + SPEC_HANZHONG_CITY_ID;
-    TEST_CHECK(counts, hanzhong->gold == 14000 && hanzhong->troops == 3200 && hanzhong->food == 48000,
-               "Hanzhong starts with 14,000 gold, 3,200 troops and 48,000 food");
+    TEST_CHECK(counts, hanzhong->troops == 14000 && hanzhong->gold == 3200 && hanzhong->food == 48000,
+               "Hanzhong starts with 14,000 troops, 3,200 gold and 48,000 food");
+    city_record *chenliu = scenario->cities + SPEC_CHENLIU_CITY_ID;
+    TEST_CHECK(counts, chenliu->troops == 28000 && chenliu->gold == 5600 && chenliu->food == 56000,
+               "Chenliu starts with 28,000 troops and 5,600 gold, the gold of the city panel of the original");
     TEST_CHECK(counts, hanzhong->equipment_stocks[0] == 0 && hanzhong->equipment_stocks[1] == 6000 &&
                        hanzhong->equipment_stocks[2] == 2000 && hanzhong->equipment_stocks[3] == 0,
                "Hanzhong starts with equipment stocks 0, 6,000, 2,000, 0");

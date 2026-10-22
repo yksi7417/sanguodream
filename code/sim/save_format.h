@@ -10,8 +10,8 @@
 
    Fields that the spec marks "unknown" are not decoded, with two
    exceptions in the header (unknown_at_0x063 and the constants), which the
-   load menu and the tests can show, and one hypothesis in the officer
-   record (loyalty, +104). Names are Big5
+   load menu and the tests can show, and the loyalty of the officer
+   record (+104). Names are Big5
    bytes, copied verbatim. The spec gives no character mapping, so the game
    never converts them. */
 
@@ -126,7 +126,7 @@ enum officer_record_offset
     OFFICER_BASE_LOCATION            = 96,    /* u16 */
     OFFICER_CURRENT_POSITION         = 98,    /* u16 */
     OFFICER_STATUS                   = 100,   /* u8 */
-    OFFICER_LOYALTY                  = 104,   /* u8, save only; a hypothesis (Q-005), see officer_record */
+    OFFICER_LOYALTY                  = 104,   /* u8, confirmed 2026-10-22; the scenario record has it too */
     OFFICER_MERIT                    = 105,   /* u16 */
     OFFICER_UNIT_APTITUDES           = 107,   /* 6 x u8 */
     OFFICER_STATS                    = 113,   /* 5 x u8: leadership, war, intelligence, politics, charm */
@@ -204,19 +204,20 @@ struct officer_record
     u8  intelligence;
     u8  politics;
     u8  charm;
-    u8  skill_number;
+    u8  skill_number;                         /* the file id of the skill, not the number of skills.md (content_skill_of_file_id) */
     u16 flags;
     b32 has_acted_this_turn;                  /* flags bit 0 */
+    /* +104 is the loyalty (save-file.md, confirmed on 2026-10-22: 武將一覽
+       shows the byte, at most 100). 100 for rulers, 0 for inactive
+       officers, 78..255 otherwise. The byte is in the shared part, so a
+       scenario record has it too. has_loyalty is false for a record that
+       a decoder did not fill. */
+    b32 has_loyalty;
+    u8  loyalty;
     /* save only; zero for a scenario record */
     b32 has_save_fields;
     u16 per_stat_experience[OFFICER_STAT_COUNT];
     u8  order_kind;
-    /* HYPOTHESIS (Q-005, G2-035): +104 is the loyalty. The spec calls the
-       byte unknown (100 for rulers, 0 for inactive officers, 78..255
-       otherwise). In sample.s11 the four officers of the player with a value
-       below 100 (97, 97, 98, 99) are the four that the reward list of the
-       original shows, with these numbers. The game shows at most 100. */
-    u8  loyalty;
 };
 
 /* ---- city record (save-file.md, City record) ---------------------------- */

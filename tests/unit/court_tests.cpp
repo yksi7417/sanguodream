@@ -3,12 +3,14 @@
    items.tsv, the distance of compatibility, the hand size and the strength
    order of the debate cards. No engine, no files. */
 
-#define UNIT_SKILL_HEADER "number\tkey\tname_zh\tcategory\teffect\tapplies\tnote\n"
+#define UNIT_SKILL_HEADER "number\tkey\tname_zh\tcategory\teffect\tapplies\tnote\tfile_id\n"
 #define UNIT_RANK_HEADER  "id\tkey\tname_zh\tsoldiers\tcities\tneeds_emperor\tstatus\n"
 #define UNIT_POST_HEADER  "id\tkey\tname_zh\tmerit\tsoldiers\tability\tbonus\trank\tstatus\n"
 #define UNIT_ITEM_HEADER  "id\tkey\tname_zh\tbig5\ttype\tpolearm\tstatus\n"
 
-/* 100 rows; row 19 is 捕縛 with the rule hook "capture", row 7 a table skill. */
+/* 100 rows; row 19 is 捕縛 with the rule hook "capture", row 7 a table skill.
+   The file id of the number n is 100 - n: the order of the file is not the
+   order of the book. */
 internal char *
 unit_skill_text(memory_arena *arena, const char *bad_row_19)
 {
@@ -17,10 +19,10 @@ unit_skill_text(memory_arena *arena, const char *bad_row_19)
     u32 used = (u32)snprintf(text, size, "%s", UNIT_SKILL_HEADER);
     for (u32 number = 1; number <= 100; ++number)
     {
-        const char *row = "%u\tskill_%u\tx\tattack\t-\tnone\tx\n";
-        if (number == 19) row = bad_row_19 ? bad_row_19 : "%u\tcapture_%u\tx\tattack\tcapture\trule\tx\n";
-        if (number == 7)  row = "%u\ttrail_%u\tx\tmovement\t-\ttable\tx\n";
-        used += (u32)snprintf(text + used, size - used, row, number, number);
+        const char *row = "%u\tskill_%u\tx\tattack\t-\tnone\tx\t%u\n";
+        if (number == 19) row = bad_row_19 ? bad_row_19 : "%u\tcapture_%u\tx\tattack\tcapture\trule\tx\t%u\n";
+        if (number == 7)  row = "%u\ttrail_%u\tx\tmovement\t-\ttable\tx\t%u\n";
+        used += (u32)snprintf(text + used, size - used, row, number, number, 100 - number);
     }
     return text;
 }
@@ -35,10 +37,28 @@ unit_skill_table_tests(test_counts *counts, memory_arena *arena)
                        content.skill_count == 100 && content.rules.skill_capture == 19 && content.skills[18].hooked &&
                        content.skills[6].hooked && !content.skills[0].hooked && content.skills[18].category == SKILL_ATTACK,
                "skills.tsv has the 100 skills; a rule skill writes its number into skill.<effect>");
+    /* The skill byte of a scenario or a save record is the file id (scenario-file.md, officer +124). */
+    TEST_CHECK(counts, content_skill_of_file_id(&content, 99) == 0 && content_skill_of_file_id(&content, 0) == 99 &&
+                       content_skill_of_file_id(&content, 81) == 18 && content.skills[18].file_id == 81,
+               "the file id of a row gives the skill number - 1 that the sim keeps");
+    TEST_CHECK(counts, content_skill_of_file_id(&content, OFFICER_SKILL_NONE) == OFFICER_SKILL_NONE &&
+                       content_skill_of_file_id(&content, 100) == OFFICER_SKILL_NONE,
+               "the file id 255 and a file id above 99 give no skill");
     tsv_table bad = {};
-    TEST_CHECK(counts, tsv_parse(unit_skill_text(arena, "%u\tx_%u\tx\tattack\tno_such_hook\trule\tx\n"), arena, &bad) &&
+    TEST_CHECK(counts, tsv_parse(unit_skill_text(arena, "%u\tx_%u\tx\tattack\tno_such_hook\trule\tx\t%u\n"), arena, &bad) &&
                        !content_load_skills(&content, &bad, &bad_row) && bad_row == 18,
                "a rule skill with an effect that names no rule is a bad row");
+    tsv_table twice = {};
+    TEST_CHECK(counts, tsv_parse(unit_skill_text(arena, "%u\tcapture_%u\tx\tattack\tcapture\trule\tx\t99\n"), arena, &twice) &&
+                       !content_load_skills(&content, &twice, &bad_row) && bad_row == 18,
+               "a file id that a row before uses is a bad row");
+    tsv_table missing = {};
+    TEST_CHECK(counts, tsv_parse(unit_skill_text(arena, "%u\tcapture_%u\tx\tattack\tcapture\trule\tx\t\n"), arena, &missing) &&
+                       !content_load_skills(&content, &missing, &bad_row) && bad_row == 18,
+               "a row without a file id is a bad row");
+    sim_content empty = {};
+    TEST_CHECK(counts, content_skill_of_file_id(&empty, 12) == 12,
+               "a pack without skills.tsv keeps the skill byte as the number - 1");
 }
 
 internal void

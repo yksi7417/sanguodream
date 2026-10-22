@@ -84,8 +84,13 @@ enum scenario_city_offset
 {
     SCENARIO_CITY_OWNER_FORCE        = 8,    /* u8 */
     SCENARIO_CITY_CAPACITY_CONSTANT  = 9,    /* u32 */
-    SCENARIO_CITY_STARTING_GOLD      = 13,   /* u32 */
-    SCENARIO_CITY_STARTING_TROOPS    = 17,   /* u32 */
+    /* scenario-file.md names +13 the gold and +17 the troops. But a scenario
+       field +n is the save field +n+3, and save-file.md swapped the save
+       fields +16 (troops) and +20 (gold) on 2026-10-17. SCEN002 agrees with
+       the swap: 陳留 has 28,000 at +13 and 5,600 at +17, and the original
+       shows 5,600 gold in 陳留 at the start. */
+    SCENARIO_CITY_STARTING_TROOPS    = 13,   /* u32 */
+    SCENARIO_CITY_STARTING_GOLD      = 17,   /* u32 */
     SCENARIO_CITY_STARTING_FOOD      = 21,   /* u32 */
     SCENARIO_CITY_EQUIPMENT_STOCKS   = 29,   /* 10 x u32 */
     SCENARIO_CITY_LARGE_CITY_FLAG    = 74,   /* u8 */

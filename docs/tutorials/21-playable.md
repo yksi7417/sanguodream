@@ -113,6 +113,37 @@ PK rows are not available. load_scenario starts a new game from a scenario
 file: the engine makes a save from its records. No faction is human until
 the front end chooses the rulers.
 
+### The start of a new game
+On 2026-10-22 the player started 群雄割據 as 曹操 in the original and in
+the clone. The two 武將一覽 lists did not agree. These fixes make the start
+agree with the scenario file:
+- Gold and troops. scenario-file.md names +13 the gold and +17 the troops.
+  But a scenario field +n is the save field +n+3. save-file.md swapped the
+  save fields +16 and +20 on 2026-10-17. Thus the loader reads +13 as the
+  troops and +17 as the gold. 陳留 starts with 28,000 troops and 5,600
+  gold. The plate of a city shows the troops.
+- Loyalty. The loyalty byte +104 is in the part that the scenario record
+  shares with the save record. The shared decoder reads it. The rule
+  loyalty.start applies only to a record without the byte.
+- Skills. The skill byte +124 is a file id. The order of the file ids is
+  not the order of skills.md. The column file_id of skills.tsv gives the
+  file id of each number. The clone matched the holders of skills.md
+  against the bytes of SCEN002. 97 numbers agree, and no byte has two
+  numbers. The numbers 35, 41 and 61 have no holder. Their file ids follow
+  from the order of their neighbours. The loader changes the byte into the
+  number - 1 that the sim keeps.
+- Merit. Before the fix, load_scenario also started the first turn. No
+  faction was human, so the AI played every faction, also 曹操. Each
+  officer got the merit of a command. Now load_scenario only makes the
+  order of the factions, and whose_turn gives no faction. The first
+  end_turn after the choice of the rulers starts the first turn.
+- Officers. SCEN002 puts 27 officers in force 0, with 夏侯恩 and 曹純. The
+  list of the original shows 24 rows and a scroll bar. The clone keeps the
+  27 officers. docs/PROGRESS-GAP2.md asks the observer for the rows below.
+
+The names of two skills differ in the original: 連戰 is 連擊 and 急襲 is
+突襲. The text of the skill is the same.
+
 data/civil_war/ is the second content pack (see its README). It has other
 units, weapons, rules and events, and no historical events. The same
 engine code runs it.
@@ -153,6 +184,9 @@ the title menu at the start.
   - the 40 history rows, a trigger, and 郭嘉之死 on the calendar;
   - the endings A and B or C, and the portrait of 曹操;
   - the scenario list and a new game from 群雄割據;
+  - the troops and the gold of 陳留 after a new game as 曹操;
+  - the loyalty, the merit and the skill of 25 officers of 曹操;
+  - the 27 officers of 曹操 at the start;
   - the Civil War pack.
 - ui_tests.cpp checks the API calls of each new screen:
   - the title flow and 進行;

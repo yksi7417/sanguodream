@@ -43,8 +43,8 @@ test_build_scenario_file(u8 *file)
     memset(city, 0xEE, 8);                            /* +0 unknown */
     city[8] = 9;                                      /* +8 owner force */
     test_put_u32(city, 9, 100000);                    /* +9 capacity constant */
-    test_put_u32(city, 13, 14000);                    /* +13 starting gold */
-    test_put_u32(city, 17, 3200);                     /* +17 starting troops */
+    test_put_u32(city, 13, 14000);                    /* +13 starting troops (save +16, save-file.md) */
+    test_put_u32(city, 17, 3200);                     /* +17 starting gold (save +20) */
     test_put_u32(city, 21, 48000);                    /* +21 starting food */
     u32 stocks[10] = { 0, 6000, 2000, 0, 0, 0, 0, 0, 0, 0 };
     for (u32 stock = 0; stock < 10; ++stock) test_put_u32(city, 29 + 4 * stock, stocks[stock]);   /* +29 equipment */
@@ -81,6 +81,7 @@ unit_scenario_file_tests(test_counts *counts)
                        officer->status == OFFICER_STATUS_REGULAR_OFFICER, "scenario officer 343 decodes like the save record");
     TEST_CHECK(counts, officer->has_acted_this_turn && !officer->has_save_fields && officer->order_kind == 0,
                "scenario officer keeps +148 and has no save-only fields");
+    TEST_CHECK(counts, officer->has_loyalty && officer->loyalty == 97, "scenario officer +104 loyalty, a byte of the shared part");
     TEST_CHECK(counts, officer_slot_is_empty(scenario.officers + 0), "a zero slot is empty");
     TEST_CHECK(counts, scenario.items[1].owner_officer_id == 343, "scenario items use the save item layout");
 
@@ -92,8 +93,8 @@ unit_scenario_file_tests(test_counts *counts)
 
     city_record *city = scenario.cities + 36;
     TEST_CHECK(counts, city->id == 36 && city->owner_force_id == 9, "scenario city +8 owner force");
-    TEST_CHECK(counts, city->capacity_constant == 100000 && city->gold == 14000 && city->troops == 3200 && city->food == 48000,
-               "scenario city +9 capacity, +13 gold, +17 troops, +21 food");
+    TEST_CHECK(counts, city->capacity_constant == 100000 && city->troops == 14000 && city->gold == 3200 && city->food == 48000,
+               "scenario city +9 capacity, +13 troops, +17 gold, +21 food");
     TEST_CHECK(counts, city->equipment_stocks[CITY_STOCK_HALBERDS] == 6000 && city->equipment_stocks[CITY_STOCK_CROSSBOWS] == 2000,
                "scenario city +29 equipment stocks");
     TEST_CHECK(counts, city->large_city_flag == 1 && city->durability_maximum == 8000, "scenario city +74 and +77");

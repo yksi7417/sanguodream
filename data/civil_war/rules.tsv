@@ -137,7 +137,7 @@ recruit.relation_bonus	30	assumed	more chance for a blood relation or a liked of
 recruit.new_loyalty	70	assumed	the loyalty of a recruited officer (Q-178)
 recruit.compatibility_divisor	3	assumed	see recruit.base
 recruit.debate_intellect	85	assumed	a target with this intellect or more answers a recruit with a debate (Q-178)
-loyalty.start	80	assumed	the loyalty of an officer after a save loads; the save field is not decoded (Q-177); a ruler has 100
+loyalty.start	80	assumed	the loyalty of an officer whose record has no loyalty byte; a scenario or a save record gives the byte +104 (2026-10-22); a ruler has 100
 loyalty.monthly	1	assumed	the loyalty that an officer loses each month (Q-028)
 loyalty.ambition	1	assumed	more loss each month for each step of ambition above normal; justice lowers the loss in the same way (Q-028)
 loyalty.unpaid	5	assumed	the loyalty that each officer of a city loses when the city cannot pay the salaries (Q-028)
