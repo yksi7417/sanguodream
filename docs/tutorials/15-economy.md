@@ -79,11 +79,11 @@ number is in rules.tsv with the status "assumed" and a question:
 |---|---|---|
 | Income at public order 0, as a percent of the income at order 100 | 50 | Q-151 |
 | Public order of one patrol | 10 percent of the leadership sum | Q-152 |
-| Soldiers of one conscription | 10 for each point of the charm sum | Q-153 |
-| Public order and morale that a conscription takes | 5 and 5 | Q-153 |
+| Soldiers of one conscription | floor(F x (1000 + 5.6 x S)) for the charm sum S; F is 1.0, 1.2 or 1.5 by the level of the barracks | observed at level 3 (G2-011); the factors of level 1 and 2 are assumed |
+| Public order and morale that a conscription takes | 10 and 9 | observed (pairs/conscript/001) |
 | Morale of a loaded city | 50 | Q-154 |
 | Morale of one train | 10 percent of the force sum | Q-154 |
-| Price of grain | 6 grain for 1 gold, plus 1 percent for each 10 politics | Q-155 |
+| Price of grain | the price R of the city (cities.tsv, 3 to 7 grain for 1 gold) and the trade effect 400 / (450 - politics); a sale loses 20 percent | observed (G2-025); the monthly drift of R is assumed (Q-155) |
 | Weapons of one production | 10 for each point of the intellect sum | Q-023, Q-156 |
 | Period of a siege weapon or a ship | 90 days at sum 0 to 30 days at sum 100 | Q-156 |
 | Cost in a specialty city | 80 percent | Q-022, Q-156 |
@@ -126,12 +126,14 @@ The commands are:
   100. An enemy within 2 hexes gives half the rise. At 80 or more, the
   city has no bandits. This is a flag (`bandits_blocked`) until F-007.
 - 徵兵 conscript: 300 gold. It needs a barracks, and it runs one time for
-  each barracks in each turn. The charm sum gives the soldiers, times the
-  level of the barracks. It takes public order and morale.
+  each barracks in each turn. The soldiers are floor(F x (1000 + 5.6 x S))
+  for the charm sum S and the factor F of the barracks level. It takes 10
+  public order and 9 morale.
 - 訓練 train: no gold. The force sum raises morale, up to 100. It runs one
   time in each turn. A drill ground gives more.
 - 商人 merchant: one officer. The order buys grain with gold, or sells
-  grain for gold, at the city price. An enemy within 2 hexes blocks it.
+  grain for gold, at the price R of the city and the trade effect of the
+  officer. A sale loses 20 percent. An enemy within 2 hexes blocks it.
   It gives no technique points.
 - 生產兵裝 produce: the cost of the weapon (weapons.tsv). Pikes,
   halberds, crossbows and war horses arrive in the same turn. The intellect sum
@@ -141,8 +143,14 @@ The commands are:
   `no_facility` until M4.
 
 Each command marks its officers as acted. Each officer gains 50 merit.
-All commands but the merchant give technique points to the faction. The
-develop command now gives them too.
+Each command gives the technique points of its action. The technique rows
+of rules.tsv hold them, from the table of knowledge/tech-tree.md. The
+values are these:
+- 巡察 3 and 訓練 3;
+- 徵兵 2 to 5 by the soldiers;
+- 商人 0;
+- 生產兵裝 5 for a weapon and 10 for a siege weapon or a ship;
+- 開發 0 at the order and 15 when the facility is complete.
 
 ## engine_api
 - `city_income_forecast(city)` gives each part of the income.
@@ -176,7 +184,8 @@ layout of ui/city-commands.md:
 and closes the dialog. The City panel then shows the result. 返回 closes the
 dialog and sends nothing. The produce dialog has a button for each weapon
 with its cost, the stock of each weapon and the period. The merchant
-dialog has buy and sell, the amount and the city price.
+dialog has buy and sell, the amount, the city price and the trade effect
+of the officer.
 
 The Economy panel has one row for each city of the faction that acts. Each
 row has the gold and the grain with their caps. It also has the income of

@@ -403,15 +403,13 @@ sim_capture_city(sim_state *sim, city_component *city, u32 attacker_id, u32 caus
     event.detail  = old_owner;
     sim_emit(events, event);
     sim_rules *rules = &sim->content.rules;
-    if (rules->siege_capture_technique)
-    {
-        sim->technique_points[attacker->force_id] += rules->siege_capture_technique;
-        sim_event gained = sim_event_make(sim, SIM_EVENT_TECHNIQUE_GAINED, cause);
-        gained.faction = attacker->force_id;
-        gained.delta   = (s32)rules->siege_capture_technique;
-        gained.assumed = true;
-        sim_emit(events, gained);
-    }
+    sim_add_technique_points(sim, attacker->force_id, (s32)rules->siege_capture_technique, cause, events);
+    /* The loss of a city gives technique points to the old owner (tech-tree.md:
+       approximately 225, more with many facilities; claimed). */
+    u32 built = 0;
+    sim_city_site *site = sim->sites + city->city_id;
+    for (u32 slot = 0; slot < site->slot_count; ++slot) built += site->slots[slot].state == SIM_SLOT_BUILT;
+    sim_add_technique_points(sim, old_owner, (s32)(rules->technique_city_lost + rules->technique_city_lost_facility * built), cause, events);
     sim_unit_enter_city(sim, attacker_id, city->city_id, SIM_EVENT_NONE, cause, events);
 }
 
@@ -932,6 +930,8 @@ sim_use_tactic(sim_state *sim, sim_command command, sim_event_sink *events)
     b32 success = check.quantity >= 100 || sim_random_below(sim, 100) < check.quantity;
     sim_emit_unit(sim, SIM_EVENT_TACTIC_USED, order->unit, SIM_NO_CITY, success ? 1 : 0, true, command.id, events);
     if (!success) return;
+    /* A tactic that succeeds gives technique points (G2-048: 火矢 gave 15; tech-tree.md). */
+    sim_add_technique_points(sim, unit->force_id, (s32)rules->technique_tactic, command.id, events);
 
     unit_type_kind *type = sim_unit_type(sim, sim_effective_type(sim, unit));
     content_unit_class unit_class = sim_class_of_aptitude(type->aptitude);

@@ -1,46 +1,47 @@
-id	specialty	slots	port	name_zh
+id	specialty	slots	port	name_zh	price
+# price: the city price of the merchant, R grain for 1 gold (city-commands.md). Observed in sample.s11 for 柴桑 3, 新野 5, 江陵 7 and 江夏 3 (G2-013, G2-025). The other cities use 5, the middle of the range 3 to 7 (assumed, Q-155).
 # The 42 cities of cities-and-facilities.md (guide book p.25). id = the city number of the guide book minus 1 = the city id of the save.
 # specialty: big_city, pike, halberd, crossbow, horse, siege, navy. slots: the number of development slots. Both documented.
 # port: yes if a port of bases-ports-and-passes.md belongs to the city (documented, guide book p.172 to p.175).
-0	horse	12	yes	襄平
-1	horse	15	no	北平
-2	halberd	12	no	薊
-3	siege	15	no	南皮
-4	crossbow	12	yes	平原
-5	horse	12	yes	晉陽
-6	big_city	20	yes	鄴
-7	halberd	12	yes	北海
-8	big_city	18	yes	下邳
-9	siege	10	no	小沛
-10	crossbow	15	yes	壽春
-11	pike	15	yes	濮陽
-12	siege	15	yes	陳留
-13	big_city	18	no	許昌
-14	halberd	12	no	汝南
-15	big_city	22	yes	洛陽
-16	pike	15	no	宛
-17	big_city	22	yes	長安
-18	siege	12	yes	上庸
-19	horse	10	no	安定
-20	horse	12	no	天水
-21	horse	15	no	武威
-22	big_city	18	yes	建業
-23	navy	15	yes	吳
-24	crossbow	15	yes	會稽
-25	navy	15	yes	廬江
-26	navy	12	yes	柴桑
-27	halberd	12	yes	江夏
-28	pike	10	yes	新野
-29	big_city	18	yes	襄陽
-30	navy	15	yes	江陵
-31	navy	12	yes	長沙
-32	halberd	10	yes	武陵
-33	pike	12	no	桂陽
-34	crossbow	12	no	零陵
-35	crossbow	12	yes	永安
-36	halberd	15	no	漢中
-37	crossbow	10	no	梓潼
-38	pike	12	no	江州
-39	big_city	18	no	成都
-40	pike	12	no	建寧
-41	siege	15	no	雲南
+0	horse	12	yes	襄平	5
+1	horse	15	no	北平	5
+2	halberd	12	no	薊	5
+3	siege	15	no	南皮	5
+4	crossbow	12	yes	平原	5
+5	horse	12	yes	晉陽	5
+6	big_city	20	yes	鄴	5
+7	halberd	12	yes	北海	5
+8	big_city	18	yes	下邳	5
+9	siege	10	no	小沛	5
+10	crossbow	15	yes	壽春	5
+11	pike	15	yes	濮陽	5
+12	siege	15	yes	陳留	5
+13	big_city	18	no	許昌	5
+14	halberd	12	no	汝南	5
+15	big_city	22	yes	洛陽	5
+16	pike	15	no	宛	5
+17	big_city	22	yes	長安	5
+18	siege	12	yes	上庸	5
+19	horse	10	no	安定	5
+20	horse	12	no	天水	5
+21	horse	15	no	武威	5
+22	big_city	18	yes	建業	5
+23	navy	15	yes	吳	5
+24	crossbow	15	yes	會稽	5
+25	navy	15	yes	廬江	5
+26	navy	12	yes	柴桑	3
+27	halberd	12	yes	江夏	3
+28	pike	10	yes	新野	5
+29	big_city	18	yes	襄陽	5
+30	navy	15	yes	江陵	7
+31	navy	12	yes	長沙	5
+32	halberd	10	yes	武陵	5
+33	pike	12	no	桂陽	5
+34	crossbow	12	no	零陵	5
+35	crossbow	12	yes	永安	5
+36	halberd	15	no	漢中	5
+37	crossbow	10	no	梓潼	5
+38	pike	12	no	江州	5
+39	big_city	18	no	成都	5
+40	pike	12	no	建寧	5
+41	siege	15	no	雲南	5

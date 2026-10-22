@@ -179,21 +179,22 @@ feature_conscript_tests(test_counts *counts)
     feature_take_officers(api, city, ids, 3);
     engine_command command = feature_city_command(ENGINE_COMMAND_CONSCRIPT, city, ids[0], ids[1], ids[2]);
     engine_check check = api->can_issue(e, &command);
-    u32 soldiers = feature_officer_sum(api, ids, FEATURE_CHARM) * 10;
+    /* city-commands.md: floor(F x (1000 + 5.6 x S)); a new barracks is level 1 (F = 1.0). */
+    u32 soldiers = (10000 + feature_officer_sum(api, ids, FEATURE_CHARM) * 56) / 10;
     TEST_CHECK(counts, check.refusal == SIM_REFUSAL_NONE && check.gold == FEATURE_CONSCRIPT_GOLD && check.action_points == FEATURE_COMMAND_AP &&
                        check.value_before == 10000 && check.value_after == 10000 + soldiers && check.slot == barracks,
-               "conscript: 300 gold, 20 points, and soldiers now -> after from the sum of charm (assumed)");
+               "conscript: 300 gold, 20 points, and soldiers now -> after: 1000 + 5.6 x the sum of charm (G2-011)");
     u32 mark = api->ledger_count(e);
     engine_command_result result = api->command_conscript(e, city, ids);
     engine_city_economy economy = api->city_economy(e, city);
     TEST_CHECK(counts, result.refusal == SIM_REFUSAL_NONE && economy.soldiers == 10000 + soldiers &&
-                       economy.public_order == 55 && economy.morale == 65 && api->city_at(e, city).gold == 50000 - FEATURE_CONSCRIPT_GOLD,
-               "conscription adds soldiers, costs 300 gold, and lowers public order and morale (assumed 5 each)");
+                       economy.public_order == 50 && economy.morale == 61 && api->city_at(e, city).gold == 50000 - FEATURE_CONSCRIPT_GOLD,
+               "conscription adds soldiers, costs 300 gold, and takes 10 public order and 9 morale (pairs/conscript/001, G2-011)");
     sim_event conscripted = {}, order = {}, morale = {};
     TEST_CHECK(counts, feature_find_city_event(api, city, SIM_EVENT_CONSCRIPTED, mark, &conscripted) && conscripted.delta == (s32)soldiers &&
                        conscripted.detail == barracks && conscripted.assumed &&
-                       feature_find_city_event(api, city, SIM_EVENT_ORDER_LOST, mark, &order) && order.delta == -5 &&
-                       feature_find_city_event(api, city, SIM_EVENT_MORALE_LOST, mark, &morale) && morale.delta == -5,
+                       feature_find_city_event(api, city, SIM_EVENT_ORDER_LOST, mark, &order) && order.delta == -10 &&
+                       feature_find_city_event(api, city, SIM_EVENT_MORALE_LOST, mark, &morale) && morale.delta == -9,
                "the ledger has the soldiers with the barracks, the order and the morale");
     TEST_CHECK(counts, economy.barracks == 1 && economy.barracks_free == 0 && api->facility_at(e, city, barracks).used,
                "the barracks is used in this turn");
@@ -231,11 +232,12 @@ feature_conscript_tests(test_counts *counts)
     api->set_facility_level(e, city, barracks, 3);
     command = feature_city_command(ENGINE_COMMAND_CONSCRIPT, city, ids[0]);
     check = api->can_issue(e, &command);
-    TEST_CHECK(counts, check.slot == barracks && check.value_after == feature_officer_sum(api, ids, FEATURE_CHARM) * 10 * 3 / 2,
-               "a level-3 barracks gives 1.5 times the soldiers and is used first");
+    u32 level3 = (10000 + feature_officer_sum(api, ids, FEATURE_CHARM) * 56) * 150 / 1000;   /* floor(1.5 x (1000 + 5.6 x S)) */
+    TEST_CHECK(counts, check.slot == barracks && check.value_after == level3,
+               "a level-3 barracks gives 1.5 times the soldiers and is used first (city-commands.md)");
     engine_city_slots site = api->city_slots(e, city);
     api->place_unit(e, force == 1 ? 2 : 1, site.q + 2, site.r);
-    TEST_CHECK(counts, api->can_issue(e, &command).value_after == feature_officer_sum(api, ids, FEATURE_CHARM) * 10 * 3 / 2 / 2,
+    TEST_CHECK(counts, api->can_issue(e, &command).value_after == level3 / 2,
                "an enemy within 2 hexes gives fewer soldiers (assumed half); conscription still runs");
     engine_fixture_destroy(&setup.fixture);
 }
@@ -306,12 +308,15 @@ feature_merchant_tests(test_counts *counts)
     TEST_CHECK(counts, api->can_issue(e, &command).refusal == SIM_REFUSAL_NO_AMOUNT, "refused: no amount");
     command.amount = 1000;
     engine_check check = api->can_issue(e, &command);
-    u32 percent = 100 + trader.politics / 10;
-    u32 grain = 1000 * 6 * percent / 100;
+    /* city-commands.md "Merchant rate": E = 400 / (450 - P); a purchase gives floor(G x R x E) grain. */
+    u32 price = api->city_economy(e, city).grain_per_gold;
+    u32 divisor = 450u - trader.politics;
+    u32 grain = 1000 * price * 400 / divisor;
     TEST_CHECK(counts, check.refusal == SIM_REFUSAL_NONE && check.gold == 1000 && check.action_points == FEATURE_COMMAND_AP &&
-                       check.quantity == grain && check.value_before == 20000 && check.value_after == 20000 + grain && check.assumed,
-               "merchant: 1000 gold buys 6 grain for each gold, plus the politics bonus (assumed price)");
-    TEST_CHECK(counts, api->city_economy(e, city).grain_per_gold == 6, "the city price is 6 grain for 1 gold (assumed)");
+                       check.quantity == grain && check.value_before == 20000 && check.value_after == 20000 + grain &&
+                       check.effect_percent == 400 * 100 / divisor,
+               "merchant: 1000 gold buys R grain for each gold times the trade effect of the officer (G2-025)");
+    TEST_CHECK(counts, price >= 3 && price <= 7, "the city price is 3 to 7 grain for 1 gold (G2-013)");
     u32 mark = api->ledger_count(e);
     engine_command_result result = api->command_merchant(e, city, ids[0], SIM_MERCHANT_BUY, 1000);
     sim_event bought = {}, spent = {};
@@ -325,13 +330,14 @@ feature_merchant_tests(test_counts *counts)
 
     engine_officer seller = {};
     feature_officer_by_id(api, ids[1], &seller);
-    u32 gold = 1000 * (100 + seller.politics / 10) / 100;
+    /* A sale of N grain gives floor(N x E x 0.8 / R) gold. */
+    u32 gold = 6000 * 400 * 80 / ((450u - seller.politics) * price * 100);
     mark = api->ledger_count(e);
     result = api->command_merchant(e, city, ids[1], SIM_MERCHANT_SELL, 6000);
     sim_event sold = {}, earned = {};
     TEST_CHECK(counts, result.refusal == SIM_REFUSAL_NONE && api->city_at(e, city).food == 20000 + grain - 6000 &&
                        api->city_at(e, city).gold == 50000 - 1000 + gold,
-               "the sale moves 6000 grain to gold at the city price with the politics bonus (assumed)");
+               "the sale moves 6000 grain to gold at the city price, the trade effect and the loss of 20 percent (G2-025)");
     TEST_CHECK(counts, feature_find_city_event(api, city, SIM_EVENT_GRAIN_SOLD, mark, &sold) && sold.delta == -6000 &&
                        feature_find_city_event(api, city, SIM_EVENT_GOLD_EARNED, mark, &earned) && earned.delta == (s32)gold && earned.assumed,
                "the ledger has the sale and the gold");

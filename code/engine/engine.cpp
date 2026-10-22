@@ -1112,7 +1112,7 @@ engine_api_city_economy(void *opaque, u8 city_id)
     result.soldier_cap     = sim_city_soldier_cap(sim, city_id);
     result.weapon_cap      = rules->city_weapon_cap;
     for (u32 index = 0; index < CITY_EQUIPMENT_STOCK_COUNT; ++index) result.stocks[index] = city->equipment_stocks[index];
-    result.grain_per_gold  = rules->merchant_grain_per_gold;
+    result.grain_per_gold  = city->price;
     result.patrolled       = city->patrolled_turn == sim->turn + 1;
     result.trained         = city->trained_turn == sim->turn + 1;
     sim_city_site *site = sim->sites + city_id;
@@ -1310,6 +1310,7 @@ engine_api_set_city_resource(void *opaque, u8 city_id, u8 resource, u32 index, u
         case SIM_RESOURCE_SOLDIERS:     city->troops = value; break;
         case SIM_RESOURCE_MORALE:       city->morale = byte_value; break;
         case SIM_RESOURCE_PUBLIC_ORDER: city->public_order = byte_value; break;
+        case SIM_RESOURCE_PRICE:        city->price = byte_value; break;
         case SIM_RESOURCE_WEAPONS:      if (index < CITY_EQUIPMENT_STOCK_COUNT) city->equipment_stocks[index] = value; break;
         default: break;
     }

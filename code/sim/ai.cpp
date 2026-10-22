@@ -457,7 +457,7 @@ sim_ai_distance_score(u32 bonus, s32 distance)
 internal u32
 sim_unit_grain_turns(sim_state *sim, sim_unit *unit)
 {
-    u32 eaten = sim->content.rules.grain_soldiers ? unit->soldiers / sim->content.rules.grain_soldiers : 0;
+    u32 eaten = sim->content.rules.unit_grain_soldiers ? unit->soldiers / sim->content.rules.unit_grain_soldiers : 0;
     if (unit->grain_unknown || !eaten) return U32_MAX;
     return unit->grain / eaten;
 }

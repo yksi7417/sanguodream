@@ -230,7 +230,7 @@ engine_api_unit_at(void *opaque, u32 unit_id)
     result.order_r      = unit->order_hex.r;
     result.order_target = unit->order_target < SIM_UNIT_CAPACITY ? unit->order_target : ENGINE_NO_UNIT;
     /* M12: the supply icon of the plate. A unit eats one grain for each grain.soldiers soldiers each turn (units.cpp). */
-    u32 eaten = sim->content.rules.grain_soldiers ? unit->soldiers / sim->content.rules.grain_soldiers : 0;
+    u32 eaten = sim->content.rules.unit_grain_soldiers ? unit->soldiers / sim->content.rules.unit_grain_soldiers : 0;
     if (unit->grain_unknown) result.grain_turns = ENGINE_GRAIN_TURNS_UNKNOWN;
     else if (!eaten)         result.grain_turns = ENGINE_GRAIN_TURNS_ENDLESS;
     else                     result.grain_turns = unit->grain / eaten;
@@ -391,7 +391,7 @@ engine_api_path_to(void *opaque, u32 unit_id, s32 q, s32 r)
     view.found = true;
     view.cost  = plan.costs[sim_reach_find(&plan, goal)];
     view.days  = sim_plan_days(sim, unit, view.cost);
-    u32 eaten = sim->content.rules.grain_soldiers ? unit->soldiers / sim->content.rules.grain_soldiers : 0;
+    u32 eaten = sim->content.rules.unit_grain_soldiers ? unit->soldiers / sim->content.rules.unit_grain_soldiers : 0;
     view.grain_days = eaten && !unit->grain_unknown ? unit->grain / eaten * CALENDAR_DAYS_PER_TURN : ENGINE_GRAIN_TURNS_ENDLESS;
     for (u32 index = 0; index < view.count && view.base_count < ENGINE_PATH_BASES; ++index)
     {

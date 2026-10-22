@@ -26,10 +26,7 @@ order.bandit_threshold	80	documented	cities-and-facilities.md, above 80 no bandi
 order.income_floor	50	assumed	Q-151: the income percent at public order 0; 100 percent at order 100
 patrol.leadership_percent	10	assumed	Q-152: public order for each 100 of the leadership sum
 patrol.enemy_percent	50	assumed	Q-152: the rise with an enemy within 2 hexes
-conscript.charm_soldiers	10	assumed	Q-153: soldiers for each point of the charm sum
 conscript.enemy_percent	50	assumed	Q-153: the soldiers with an enemy within 2 hexes
-conscript.order_loss	5	assumed	Q-153: public order that one conscription takes
-conscript.morale_loss	5	assumed	Q-153: morale that one conscription takes
 city.soldier_cap	100000	documented	cities-and-facilities.md, soldiers cap
 city.big_soldier_cap	150000	documented	cities-and-facilities.md, big city
 city.weapon_cap	100000	documented	cities-and-facilities.md, weapons cap of each weapon
@@ -37,8 +34,6 @@ city.start_morale	50	assumed	Q-154: the morale of a loaded city (the save field 
 morale.max	100	documented	city-commands.md, 訓練 (120 with 熟練兵, M4)
 train.force_percent	10	assumed	Q-154: morale for each 100 of the force sum
 train.drill_percent	150	assumed	Q-154: a drill ground gives a larger effect
-merchant.grain_per_gold	6	assumed	Q-155: the city price; the example 兵糧6=資金1 of ui/city-commands.md
-merchant.politics_divisor	10	assumed	Q-155: one percent better price for each 10 politics
 produce.intellect_quantity	10	assumed	Q-023, Q-156: weapons for each point of the intellect sum
 produce.full_intellect	100	assumed	Q-156: the intellect sum that gives the shortest period of a siege weapon or a ship
 produce.specialty_percent	80	assumed	Q-022, Q-156: the cost in a specialty city
@@ -48,7 +43,6 @@ produce.skill_period_percent	50	documented	skills.md, 發明 and 造船: half th
 level.2_percent	120	documented	cities-and-facilities.md, merge level 2
 level.3_percent	150	documented	cities-and-facilities.md, merge level 3
 skill.income_percent	150	documented	skills.md, 富豪 and 米道: 1.5 times
-technique.per_command	10	assumed	Q-158: technique points for each command that raises them
 merit.per_command	50	documented	save-file.md, officer +105: +50 for each officer that does an order
 facility.recovery	100	assumed	Q-157: the durability that a facility recovers each turn
 # M4: research, merge, the PK facilities and the end of the game.
@@ -95,7 +89,6 @@ combat.siege_percent	300	assumed	Q-175: the durability damage of a siege weapon,
 combat.base_counter	300	assumed	Q-175: the soldiers that a base kills when a unit attacks it, before 強化防衛
 combat.capture_percent	50	assumed	Q-176: the chance to capture each officer of a destroyed unit
 combat.halberd_capture	20	assumed	Q-176: more chance with a halberd tactic (PK, manual p.34)
-combat.destroy_technique	50	assumed	Q-176: technique points for a destroyed unit (精妙 doubles)
 plot.base_success	50	assumed	Q-173: the chance of a plot; plus the difference of intellect
 fire.turns	3	assumed	Q-173: the turns of a fire; a swamp burns 1 turn
 fire.damage_percent	10	assumed	Q-173: the soldiers that fire takes each turn
@@ -105,7 +98,6 @@ build.durability_per_build	5	assumed	Q-174: the durability that 設置 and 修�
 siege.blockade_loss	500	assumed	Q-175: the soldiers that a base loses each turn with an enemy within 2 hexes
 siege.recovery	100	assumed	Q-175: the durability that a base recovers each turn
 siege.default_durability	3000	assumed	Q-175: the durability of a city when the save gives no maximum
-siege.capture_technique	100	assumed	Q-176: technique points for a captured base
 combat.technique_percent	120	assumed	Q-172: the 鍛鍊 techniques raise the damage of the tactics of their class, and the 精銳 techniques raise attack and defence, by this percent
 combat.collision_percent	10	assumed	Q-172: the soldiers that a knocked unit and the unit that it hits each lose
 combat.ambush_percent	130	assumed	Q-173: the damage of an ambush (with the intellect as the attack)
@@ -157,8 +149,6 @@ age.decline	1	assumed	force and leadership lost each year after the age of decli
 age.death_chance	30	assumed	the chance each year that an officer older than the death year dies (lifespan historical; Q-029)
 health.wound_turns	9	assumed	the turns that a wound needs to heal by one step (Q-179)
 stamina.recovery	10	assumed	the stamina that an officer recovers each turn (Q-179)
-release.technique	50	assumed	technique points for the release of a captive (city-commands.md: release raises them)
-exile.technique	50	assumed	technique points lost for the exile of an officer (city-commands.md: exile lowers them)
 matchmaking.technique	500	documented	city-commands.md, 仲介: 500 technique points
 matchmaking.merit	500	documented	city-commands.md, 仲介: merit 500 or more
 matchmaking.age	40	documented	guide book: both under 40 for a marriage
@@ -220,7 +210,6 @@ diplomacy.fail_loss	10	assumed	the friendliness that a failed diplomacy command 
 alliance.gold	1000	documented	city-commands.md, 同盟: 1000 gold or more
 alliance.base	0	assumed	the chance of 同盟: friendliness - 40 + politics / 5 + gold / 200 + base (Q-180)
 break.loss	30	assumed	the friendliness that 摒棄 loses (Q-180)
-break.technique	100	assumed	the technique points that 摒棄 loses (Q-180)
 ceasefire.base	20	assumed	the chance of 停戰協定: base + friendliness / 2 + politics / 5 + gold / 100 - months x month_cost (Q-180)
 ceasefire.month_cost	2	assumed	see ceasefire.base
 surrender.base	0	assumed	the chance of 降伏勸告: base + charm / 5 + 10 x (strength ratio - 3), 0 for a strong target (Q-180)
@@ -228,7 +217,6 @@ exchange.base	20	assumed	the chance of 交換俘虜: base + politics / 4 + gold 
 aid.base	10	assumed	the chance of 請求援軍: base + friendliness / 2 + gold / 100 (Q-180)
 aid.turns	18	documented	city-commands.md, 請求援軍: half a year (18 turns)
 aid.soldiers	5000	assumed	the soldiers of an aid unit (Q-180)
-diplomacy.technique	100	assumed	the technique points of a diplomacy success (Q-180)
 faction_plot.gold	200	documented	city-commands.md, 二虎競食, 驅虎吞狼, 流言: 200 gold
 two_tigers.base	30	assumed	the chance of 二虎競食: base + intellect - the intellect of the better target ruler (Q-181)
 two_tigers.loss	20	assumed	the friendliness that the two targets lose (Q-181)
@@ -276,3 +264,53 @@ train.turns	3	documented	pk-officer-training.md: the officer is away 30 days (3 
 ability_research.ap	20	documented	pk-officer-training.md: 研究能力 costs 20 AP
 ability_research.gold	300	documented	pk-officer-training.md: 研究能力 costs 300 gold
 scenario.public_order	70	assumed	the public order of each city in a new game from a scenario file; the scenario record has no public order (scenario-file.md; Q-189)
+# The technique points by action (knowledge/tech-tree.md, the table by action; G2-014, Q-158). One row for each action. observed: the gap reports and session 1; claimed: the video of tech-tree.md; assumed: an interpolation of the clean room.
+technique.patrol	3	observed	Q-158, G2-014: 巡察 with three officers; session 1 gave 4 with one officer
+technique.train	3	observed	Q-158: 訓練
+technique.conscript_min	2	observed	Q-158: 徵兵 of session 1
+technique.conscript_max	5	observed	G2-014: 徵兵 of 3439 soldiers with three officers
+technique.conscript_soldiers	1000	assumed	the soldiers for each point above the minimum of 徵兵 (tech-tree.md: 2 to 5 by the quantity)
+technique.develop	0	observed	Q-158: 開發 gives nothing at the order
+technique.merchant	0	observed	Q-158, G2-014: 商人
+technique.produce_weapon	5	observed	G2-014: 生產兵裝 of 槍 with three officers
+technique.produce_siege	10	claimed	tech-tree.md: each siege weapon
+technique.produce_ship	10	claimed	tech-tree.md: each ship
+technique.facility_built	15	observed	Q-158: the turn that completed the barracks; tech-tree.md: 15 for a facility, 0 for 黑市
+technique.merge	10	claimed	tech-tree.md: 吸收合併
+technique.facility_lost	30	claimed	tech-tree.md: a facility that an enemy destroys (not built yet)
+technique.facility_lost_leveled	20	claimed	tech-tree.md: 市場, 農田, 兵舍, 廄舍, 鍛冶廠 (not built yet)
+technique.city_captured	125	claimed	tech-tree.md: 破城
+technique.city_lost	225	claimed	tech-tree.md: approximately 225 without facilities
+technique.city_lost_facility	25	assumed	tech-tree.md says more with many facilities (500 to 600): 25 for each built facility
+technique.unit_destroyed	25	observed	G2-048: an attack that destroyed a unit gave 25; a tactic that destroyed one gave 40 (15 + 25)
+technique.tactic	15	observed	G2-048: 火矢 gave 15; tech-tree.md: a tactic gives 15
+technique.tactic_extra_unit	10	claimed	tech-tree.md: for each more unit that a tactic hits (not built yet)
+technique.plot	10	claimed	tech-tree.md: 火計, 擾亂, 偽報, 伏兵
+technique.plot_strife	15	claimed	tech-tree.md: 內訌
+technique.goodwill	0	claimed	tech-tree.md: 親善
+technique.alliance	25	claimed	tech-tree.md: 同盟
+technique.ceasefire	15	claimed	tech-tree.md: 停戰
+technique.break_alliance	50	claimed	tech-tree.md: 解除同盟 gives 50 to the side that proposes it
+technique.exchange_sender	25	claimed	tech-tree.md: 贖人, the side that sends the envoy
+technique.exchange_releaser	15	claimed	tech-tree.md: the side that releases the officer
+technique.aid	15	claimed	tech-tree.md: 請求援軍
+technique.surrender	500	claimed	tech-tree.md: a successful 勸降
+technique.two_tigers	15	claimed	tech-tree.md: a successful 二虎競食
+technique.rumour	15	claimed	tech-tree.md: a successful 流言
+technique.drive_tiger	50	claimed	tech-tree.md: a successful 驅虎吞狼
+technique.search_found	10	claimed	tech-tree.md: 探索 only when it finds an officer
+technique.recruit	20	claimed	tech-tree.md: 登庸 of a free officer, approximately 20
+technique.release_captive	3	claimed	tech-tree.md: 流放 of a captive gives 2 to 5
+technique.exile	5	claimed	tech-tree.md: 流放 of an own officer takes 5 to 10, more for a stronger officer: 5 + 5 x the best ability / 100
+# The merchant and the conscription of city-commands.md (observed in the dialogs of sample.s11; G2-011, G2-025).
+merchant.price_min	3	observed	city-commands.md: the city price is 3 to 7 grain for one gold
+merchant.price_max	7	observed	city-commands.md
+conscript.base_soldiers	1000	observed	city-commands.md: floor(F x (1000 + 5.6 x S)) at the barracks level F
+conscript.charm_tenths	56	observed	city-commands.md: 5.6 soldiers for each point of the charm sum
+conscript.order_loss	10	observed	pairs/conscript/001: one conscription with three officers took 10 public order (G2-011)
+conscript.morale_loss	9	observed	pairs/conscript/001: and 9 morale (G2-011)
+unit.grain_soldiers	10	observed	G2-049: a unit uses one grain each turn for 10 soldiers (2043 soldiers ate 204, 6730 ate 673)
+sortie.grain_per_soldier	2	observed	G2-044: the preset of 出征 proposes two times the soldiers in grain (2043 soldiers, 4086 grain)
+merchant.effect_scale	400	observed	city-commands.md: the trade effect E = 400 / (450 - politics)
+merchant.effect_offset	450	observed	city-commands.md: the same rule
+merchant.sale_percent	80	observed	city-commands.md: a sale gives N x E x 0.8 / R gold

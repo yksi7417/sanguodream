@@ -159,8 +159,9 @@ is an enemy until diplomacy (M7). The military facilities come in M6.
 - 補給: a transport unit gives soldiers, gold or grain to an adjacent unit
   of the faction.
 
-Each turn a unit eats one grain for 100 soldiers, as a city does. Without
-grain its soldiers leave (`unit_deserted`).
+Each turn a unit eats one grain for 10 soldiers (G2-049). A city eats one
+grain for 40 soldiers. The preset of 出征 proposes two grain for each
+soldier. Without grain the soldiers of a unit leave (`unit_deserted`).
 
 ## The long orders (code/sim/orders.cpp)
 The second clone gap report (G2-042, G2-052, G2-056, G2-058) added the

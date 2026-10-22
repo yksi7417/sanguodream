@@ -292,7 +292,7 @@ feature_ai_grain_tests(test_counts *counts)
     hex_coord placed = {};
     b32 moved = feature_free_hex_at(api, feature_city_hex(api, city), 2, unit_id, force, &placed);
     engine_unit unit = api->unit_at(e, unit_id);
-    u32 one_turn = unit.soldiers / FEATURE_GRAIN_SOLDIERS;
+    u32 one_turn = unit.soldiers / 10;   /* unit.grain_soldiers: one grain for 10 soldiers (G2-049) */
     api->set_unit_grain(e, unit_id, one_turn);
     TEST_CHECK(counts, moved && api->unit_at(e, unit_id).grain == one_turn && api->unit_at(e, unit_id).grain_turns == 1,
                "set_unit_grain: the unit of the AI has grain for 1 turn");

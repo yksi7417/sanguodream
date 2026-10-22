@@ -22,7 +22,13 @@ task reads it at the start of each run. The order of the work is section
 | G2-036 | 人材 > 移動 opens a dialog with the target city and its days, the free officers of the city with check marks, and 行動力 20. The officers travel for the days and arrive at a turn start, with a log line. The days are 10 for each city region that the journey enters (assumed, Q-228): 江陵 to 江夏 gives 10, as the report. | group 3 | feature/people, ui |
 | G2-037 | 人材 > 召喚 opens a dialog with the officers of the other cities of the faction, their base and days, and 行動力 20. The officers travel to the city. | group 3 | feature/people, ui |
 | G2-060 | 君主 opens a second column: 評定, 軍團, 軍師, 官職, 仲介 (grey), 流放, 研究能力, 培育武將. 官職 opens a window with the posts (官職名, 功績, 指揮, 效果, 武將), the officers without a post, 任命, 免職, 全解除, 回復原狀 and 決定. The clone selects a post and an officer in place of a drag. 流放 opens a list of the officers. 研究能力 and 培育武將 open the abilities window. | group 3 | ui |
-| G2-065 | 計略 opens a second column: 二虎競食, 驅虎吞狼, 流言. 驅虎吞狼 and 流言 open a dialog with the bases of the other forces (據點, 太守, 現役, 治安, 日數), one executor from the free officers of the city in the order of 智力, the gold, the days and 行動力. The plot goes on the road for the days, and the result comes at the turn start of the arrival with a log line that names the officer and the base. | group 3 | feature/people, feature/court, ui |
+| G2-065 | 計略 opens a second column: 二虎競食, 驅虎吞狼, 流言. 驅虎吞狼 and 流言 open a dialog with the bases of the other forces (據點, 太守, 現役, 治安, 日數), one executor from the free officers of the city in the order of 智力, the gold, the days and 行動力. The plot goes on the road for the days, and the result comes at the turn start of the arrival with a log line that names the officer and the base. | 8cc350d | feature/people, feature/court, ui |
+| G2-014 | The technique points come from one rules.tsv row for each action (technique.*), with the status of each row: observed for the gap reports and Q-158, claimed for the video of tech-tree.md. 巡察 3, 訓練 3, 徵兵 2 to 5 by the soldiers, 商人 0, 生產兵裝 5 (10 for a siege weapon or a ship), 開發 0 at the order and 15 at the completion, 吸收合併 10, a tactic 15, a destroyed unit 25, 破城 125, the loss of a city 225 plus 25 for each facility, 探索 10 when it finds an officer, 登庸 20, 流放 of a captive 3, 流放 of an own officer 5 plus 5 scaled by the best ability, 親善 0, 同盟 25, 停戰 15, 解除同盟 +50, 贖人 25 and 15, 請求援軍 15, 勸降 500, 二虎競食 15, 流言 15, 驅虎吞狼 50. | group 4 | unit/economy, feature/economy, feature/court, fixture/conscript |
+| G2-011 | 徵兵 gives floor(F x (1000 + 5.6 x S)) soldiers (city-commands.md) and takes 10 治安 and 9 氣力. The seven dialogs of the sample fit within 7 soldiers. The fixture handler sets the charm of the officers and the level of the barracks through the editor. | group 4 | unit/economy, feature/city_commands, fixture/conscript |
+| G2-025 | 商人 uses E = 400 / (450 - P), a purchase gives floor(G x R x E) grain and a sale floor(N x E x 0.8 / R) gold. The dialog shows 交易效果 as a whole percent. All 16 rows of fixtures/merchant.tsv fit (the purchases of 長沙 within 3 grain). | group 4 | unit/economy, feature/city_commands, fixture/merchant |
+| G2-013 | The price R is a column of cities.tsv: 柴桑 3, 新野 5, 江陵 7 and 江夏 3 as observed, 5 for the other cities (assumed). The panel shows it. At each month start it drifts by -1, 0 or +1 within 3 to 7 (assumed, Q-155). The income stays open: see the questions. | group 4 | unit/content, feature/city_commands |
+| G2-049 | A unit eats one grain for 10 soldiers each turn (2043 soldiers eat 204). The preset of 出征 proposes two grain for each soldier (G2-044: 2043 soldiers, 4086 grain). The grain of a unit of the save stays open (Q-226). | group 4 | feature/march, feature/save_map, feature/ai |
+| G2-028 | The clone of the report rolled a plague (10 治安, 5 percent of the soldiers) because its date was wrong before G2-001. A plague starts only in the months 1, 4, 7 and 10. A regression test loads the sample, reaches 197/11/1 and checks that 江夏 keeps its soldiers and its public order. The gold income and the free weapons stay open: see the questions. | group 4 | feature/turns |
 
 ## In progress
 
@@ -36,8 +42,14 @@ task reads it at the start of each run. The order of the work is section
 - Group 3 has no open work. 仲介 stays grey. The 移動 and 召喚 dialogs
   list cities only, not ports and passes. The log line of an arrival
   names the officer but not the base.
-- Next: group 4, the numbers (G2-005, G2-011, G2-013, G2-014, G2-025,
-  G2-028, G2-049) and the table of technique points.
+- Group 4. G2-005 stays open: the recovery of 行動力 and the gain of 技巧
+  at the turn start have no rule in the spec (see the questions). The
+  income of G2-013 and G2-028 stays open for the same reason. The rows
+  technique.facility_lost, technique.facility_lost_leveled and
+  technique.tactic_extra_unit are in rules.tsv. No code gives them yet.
+  The clone has no facility that an enemy destroys. A tactic that hits
+  more units gives 15 one time.
+- Next: group 5, the turn start events (G2-027, G2-062, G2-055).
 
 ## Questions for the observer
 
@@ -103,3 +115,49 @@ task reads it at the start of each run. The order of the work is section
   The clone selects a row and an officer, then clicks 任命. What does
   the original do when the player drops an officer on a row with a
   holder: a swap, a refusal, or a dismissal?
+- G2-005, the recovery of 行動力. The spec names the inputs (the cities,
+  the leader, the adviser, 符節台) but no formula (Q-019). 劉表 with 9
+  cities went 62 to 236 (+174). The clone adds the larger of the
+  leadership and the charm of the ruler (83, assumed). Please read these
+  numbers at one turn start of the original:
+  - the 行動力 of 劉表 before and after the turn start;
+  - the 統率 and the 魅力 of 劉表, and the 智力 of the adviser;
+  - the number of 符節台 in the nine cities.
+  Please read the same numbers for one other force with few cities, for
+  example 劉璋. Then the builder can fit a line.
+- G2-005, the gain of 技巧 at the turn start. The original gave +37, +75,
+  +24, +20, +7, +7, +29, +5 and +12 at the turn starts of the runs. Some
+  of these turns had no command. The HUD showed 161 at the change of the
+  date and 178 at the start of the turn of 劉表. The spec gives no rule
+  for a gain at a turn start. Does a facility give 技巧 each turn, for
+  example 錬兵所? How many such facilities do the nine cities of 劉表
+  hold? Does the log or the 報告 window name the source of the points at
+  the turn start?
+- G2-013 and G2-028, the income. The spec gives no formula beyond the
+  multipliers and names the initial income value of a city as unknown
+  (Q-021). The original shows 資金收入 2047 and 兵糧收入 23575 for 江陵,
+  1818 and 9405 for 新野, 1772 and 7990 for 江夏. Please read, for all
+  nine cities of 劉表: 資金收入, 兵糧收入, 治安, and the count and the
+  level of 市場, 農場 and the other income facilities. With nine rows the
+  builder can fit the initial value and the share of each facility.
+- G2-028, the free weapons of a specialty city. The original gave 213 戟
+  to 江夏 at a month start. The clone gives 100 (assumed, Q-156). Does the
+  number change with the 鍛冶廠 count or level, or with the month? Please
+  read the gain of 江夏 at two month starts, with its 鍛冶廠 levels.
+- G2-011, the barracks factor of level 1. The rule
+  floor(F x (1000 + 5.6 x S)) fits the level-3 dialogs of the sample
+  within 7 soldiers. The 長沙 rows of 2026-10-20 have a level-1
+  barracks, with F 1.0 assumed. They give 1000 + 5.9 x S, for example
+  1536 for S 91 and 1383 for S 65. The level factor of the spec is a
+  decision of the player, not an observation. Please open 徵兵 in a city
+  of the sample with a level-1 or level-2 barracks. Please read the
+  prediction for one officer and the charm on the screen. Then the
+  builder can fit F for each level.
+- G2-011, the loss of 治安 and 氣力. One conscription with three officers
+  took 10 and 9. Does a conscription with one officer take the same?
+  Please do 徵兵 with one officer in 新野 and read 治安 and 氣力 before
+  and after.
+- G2-049, the grain of a unit of the save. 霍去病隊 shows 兵糧 10500 in
+  the original and 12600 in the clone (Q-226). The clone reads the field
+  +13 of the unit record. Can the analysis side check the field against
+  the 兵糧 of three units of the sample?

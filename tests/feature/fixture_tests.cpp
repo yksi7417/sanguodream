@@ -441,13 +441,98 @@ fixture_city_cost_rows(tsv_table *table, engine_api *api, test_counts *counts, e
     printf("  PENDING %u rows x %s\n", table->row_count, pending);
 }
 
-/* conscript.tsv: 徵兵 costs 300 gold and 20 action points. The soldiers
-   that each officer set gives have no formula yet (Q-153). */
+/* The built slot of the city with this facility id, or ENGINE_ANY_SLOT. */
+internal u8
+fixture_built_slot(engine_api *api, u8 city, u8 facility)
+{
+    engine_city_slots slots = api->city_slots(api->engine, city);
+    for (u8 slot = 0; slot < slots.slot_count; ++slot)
+    {
+        engine_facility built = api->facility_at(api->engine, city, slot);
+        if (built.state == SIM_SLOT_BUILT && built.facility == facility) return slot;
+    }
+    return ENGINE_ANY_SLOT;
+}
+
+/* Parses "79,79,73" into values; returns the count. */
+internal u32
+fixture_list_values(const char *list, u32 *values, u32 capacity)
+{
+    u32 count = 0;
+    const char *at = list;
+    while (at && *at && count < capacity)
+    {
+        u32 value = 0;
+        b32 digits = false;
+        while (*at >= '0' && *at <= '9') { value = value * 10 + (u32)(*at - '0'); ++at; digits = true; }
+        if (!digits) return count;
+        values[count++] = value;
+        if (*at == ',') ++at;
+    }
+    return count;
+}
+
+/* Gives the officer the charm or the politics of a row through the editor. */
+internal void
+fixture_set_ability(engine_api *api, u16 officer_id, u32 ability, u32 value)
+{
+    engine_officer officer = {};
+    feature_officer_by_id(api, officer_id, &officer);
+    engine_officer_edit edit = feature_edit_of(api, officer_id);
+    edit.set_abilities = true;
+    edit.leadership    = officer.leadership;
+    edit.war           = officer.war;
+    edit.intelligence  = officer.intelligence;
+    edit.politics      = ability == FEATURE_POLITICS ? (u8)value : officer.politics;
+    edit.charm         = ability == FEATURE_CHARM    ? (u8)value : officer.charm;
+    api->set_officer(api->engine, officer_id, &edit);
+}
+
+/* conscript.tsv: 徵兵 costs 300 gold and 20 action points, and gives
+   floor(F x (1000 + 5.6 x S)) soldiers (city-commands.md). The handler
+   gives the officers the charm of the row and the barracks its level, then
+   reads the soldiers of can_issue. The rows of the sample (level 3) fit
+   within 7 soldiers, as the spec says. The rows of 長沙 (level 1, the play
+   run of 2026-10-20) differ by up to 37: the level-1 factor is a question
+   (docs/PROGRESS-GAP2.md), and the row with the skill 名聲 needs a skill
+   setter. These rows are pending. */
 internal void
 fixture_conscript(tsv_table *table, engine_api *api, test_counts *counts)
 {
-    fixture_city_cost_rows(table, api, counts, ENGINE_COMMAND_CONSCRIPT, "conscript", "gold_cost",
-                           "soldiers gained: no formula yet (Q-153)");
+    void *e = api->engine;
+    u8 city = fixture_city_ready(api);
+    u8 barracks = fixture_built_slot(api, city, FEATURE_FACILITY_BARRACKS);
+    u32 pending = 0;
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        u32 charm[SIM_DEVELOP_OFFICERS] = {};
+        u32 wanted = fixture_list_values(tsv_cell(table, row, "charm_values"), charm, SIM_DEVELOP_OFFICERS);
+        u32 level = 0, gold = 0, gain = 0;
+        b32 parsed = wanted > 0 && tsv_cell_u32(table, row, "barracks_level", &level) && tsv_cell_u32(table, row, "gold_cost", &gold) &&
+                     tsv_cell_u32(table, row, "gain", &gain);
+        u16 ids[SIM_DEVELOP_OFFICERS];
+        u32 taken = feature_take_officers(api, city, ids, wanted);
+        for (u32 place = 0; place < taken; ++place) fixture_set_ability(api, ids[place], FEATURE_CHARM, charm[place]);
+        b32 leveled = barracks != ENGINE_ANY_SLOT && api->set_facility_level(e, city, barracks, (u8)level);
+        engine_command command = feature_city_command(ENGINE_COMMAND_CONSCRIPT, city, ids[0], ids[1], ids[2]);
+        engine_check check = api->can_issue(e, &command);
+        char name[200];
+        snprintf(name, sizeof(name), "conscript row %u: %u officers at barracks level %u, %u action points, %u gold, %u soldiers (got %u)", row,
+                 wanted, level, FIXTURE_CITY_COMMAND_AP, gold, gain, check.quantity);
+        b32 costs = parsed && taken == wanted && leveled && check.refusal == SIM_REFUSAL_NONE &&
+                    check.action_points == FIXTURE_CITY_COMMAND_AP && check.gold == gold;
+        if (level == 3)
+        {
+            u32 error = check.quantity > gain ? check.quantity - gain : gain - check.quantity;
+            TEST_CHECK(counts, costs && error <= 7, name);
+        }
+        else
+        {
+            TEST_CHECK(counts, costs, name);
+            pending++;
+        }
+    }
+    printf("  PENDING %u rows x the soldiers at barracks level 1: the factor of the level (docs/PROGRESS-GAP2.md)\n", pending);
 }
 
 /* train.tsv: 訓練 costs no gold and 20 action points. The morale gain by
@@ -459,31 +544,47 @@ fixture_train(tsv_table *table, engine_api *api, test_counts *counts)
                            "morale gained: no formula yet (Q-154)");
 }
 
-/* merchant.tsv: one 商人 trade of the amount of the row by one officer
-   costs 20 action points and no gold of its own. The rate of the original
-   (the sale gets 80 percent of the purchase rate) waits for Q-155. */
+/* merchant.tsv: one 商人 trade by one officer costs 20 action points. The
+   trade effect is E = 400 / (450 - P), a purchase gives floor(G x R x E)
+   grain and a sale floor(N x E x 0.8 / R) gold (city-commands.md). The
+   handler gives the city the price and the stock of the row and the
+   officer its politics, then reads can_issue. A row with 1 gold or 1 grain
+   left trades the whole stock (the dialog shows 1 at the end of the
+   slider). The rows of the sample fit exactly. The purchases of 長沙 differ
+   by 3 grain in 16683: the handler allows 3. */
 internal void
 fixture_merchant(tsv_table *table, engine_api *api, test_counts *counts)
 {
+    void *e = api->engine;
     u8 city = fixture_city_ready(api);
     for (u32 row = 0; row < table->row_count; ++row)
     {
-        u32 gold_before = 0, gold_after = 0, grain_before = 0, grain_after = 0;
+        u32 gold_before = 0, gold_after = 0, grain_before = 0, grain_after = 0, price = 0, politics = 0, effect = 0;
         b32 parsed = tsv_cell_u32(table, row, "gold_before", &gold_before) && tsv_cell_u32(table, row, "gold_after", &gold_after) &&
-                     tsv_cell_u32(table, row, "grain_before", &grain_before) && tsv_cell_u32(table, row, "grain_after", &grain_after);
+                     tsv_cell_u32(table, row, "grain_before", &grain_before) && tsv_cell_u32(table, row, "grain_after", &grain_after) &&
+                     tsv_cell_u32(table, row, "price_grain_per_gold", &price) && tsv_cell_u32(table, row, "politics", &politics) &&
+                     tsv_cell_u32(table, row, "effect_shown_percent", &effect);
         b32 sell = strcmp(tsv_cell(table, row, "direction"), "sell") == 0;
+        api->set_city_gold(e, city, gold_before);
+        api->set_city_resource(e, city, SIM_RESOURCE_GRAIN, 0, grain_before);
+        api->set_city_resource(e, city, SIM_RESOURCE_PRICE, 0, price);
         u16 ids[SIM_DEVELOP_OFFICERS];
         feature_take_officers(api, city, ids, 1);
+        fixture_set_ability(api, ids[0], FEATURE_POLITICS, politics);
         engine_command command = feature_city_command(ENGINE_COMMAND_MERCHANT, city, ids[0]);
         command.merchant_mode = (u8)(sell ? SIM_MERCHANT_SELL : SIM_MERCHANT_BUY);
-        command.amount = sell ? grain_before - grain_after : gold_before - gold_after;
-        engine_check check = api->can_issue(api->engine, &command);
-        char name[160];
-        snprintf(name, sizeof(name), "merchant row %u: %s %u, %u action points", row, sell ? "sell grain" : "spend gold",
-                 command.amount, FIXTURE_CITY_COMMAND_AP);
-        TEST_CHECK(counts, parsed && check.refusal == SIM_REFUSAL_NONE && check.action_points == FIXTURE_CITY_COMMAND_AP, name);
+        command.amount = sell ? (grain_after == 1 ? grain_before : grain_before - grain_after)
+                              : (gold_after == 1 ? gold_before : gold_before - gold_after);
+        engine_check check = api->can_issue(e, &command);
+        u32 wanted = sell ? gold_after - gold_before : grain_after - grain_before;
+        u32 got    = sell ? check.gold_gain : check.quantity;
+        u32 error  = got > wanted ? got - wanted : wanted - got;
+        char name[200];
+        snprintf(name, sizeof(name), "merchant row %u: %s %u at price %u and politics %u, effect %u%%, gives %u (got %u), %u action points", row,
+                 sell ? "sell grain" : "spend gold", command.amount, price, politics, effect, wanted, got, FIXTURE_CITY_COMMAND_AP);
+        TEST_CHECK(counts, parsed && check.refusal == SIM_REFUSAL_NONE && check.action_points == FIXTURE_CITY_COMMAND_AP &&
+                           check.effect_percent == effect && error <= 3, name);
     }
-    printf("  PENDING %u rows x the gold and the grain after the trade: the rate of the original (Q-155)\n", table->row_count);
 }
 
 /* develop-period.tsv: the period of 開發 by the politics of the officers.

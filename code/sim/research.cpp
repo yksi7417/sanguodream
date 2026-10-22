@@ -185,7 +185,7 @@ sim_research(sim_state *sim, sim_command command, sim_event_sink *events)
     }
     sim_emit_city(sim, SIM_EVENT_RESEARCH_STARTED, city, (s32)check.turns, order->technique, true, command.id, events);
     /* Research raises merit and lowers technique points (city-commands.md). */
-    sim_reward_command(sim, force, order->officers, false, command.id, events);
+    sim_reward_command(sim, force, order->officers, 0, command.id, events);
 }
 
 /* At the start of each turn each research advances one turn. At 0 the

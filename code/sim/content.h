@@ -83,6 +83,7 @@ struct city_kind
     u8             slot_count;
     city_specialty specialty;
     b32            has_port;
+    u8             price;          /* the start price of the merchant, R grain for 1 gold (G2-013) */
 };
 
 /* One weapon of weapons.tsv (weapons-and-production.md). */
@@ -636,7 +637,6 @@ struct sim_rules
     u32 order_income_floor;
     u32 patrol_leadership_percent;
     u32 patrol_enemy_percent;
-    u32 conscript_charm_soldiers;
     u32 conscript_enemy_percent;
     u32 conscript_order_loss;
     u32 conscript_morale_loss;
@@ -647,8 +647,6 @@ struct sim_rules
     u32 morale_max;
     u32 train_force_percent;
     u32 train_drill_percent;
-    u32 merchant_grain_per_gold;
-    u32 merchant_politics_divisor;
     u32 produce_intellect_quantity;
     u32 produce_full_intellect;
     u32 produce_specialty_percent;
@@ -666,7 +664,19 @@ struct sim_rules
     u32 skill_breeding;
     u32 skill_invention;
     u32 skill_shipbuilding;
-    u32 technique_per_command;
+    /* The technique points by action (G2-014; rules.tsv technique.*). */
+    u32 technique_patrol, technique_train, technique_conscript_min, technique_conscript_max, technique_conscript_soldiers;
+    u32 technique_develop, technique_merchant, technique_produce_weapon, technique_produce_siege, technique_produce_ship;
+    u32 technique_facility_built, technique_merge, technique_facility_lost, technique_facility_lost_leveled;
+    u32 technique_city_lost, technique_city_lost_facility, technique_tactic, technique_tactic_extra_unit;
+    u32 technique_plot, technique_plot_strife, technique_goodwill, technique_alliance, technique_ceasefire;
+    u32 technique_exchange_sender, technique_exchange_releaser, technique_aid, technique_surrender;
+    u32 technique_two_tigers, technique_rumour, technique_drive_tiger, technique_search_found, technique_recruit;
+    u32 unit_grain_soldiers;           /* G2-049: the soldiers that one grain feeds in a unit each turn */
+    u32 sortie_grain_per_soldier;      /* G2-044: the grain that the preset proposes for each soldier */
+    u32 merchant_price_min, merchant_price_max;   /* the city price (city-commands.md) */
+    u32 merchant_effect_scale, merchant_effect_offset, merchant_sale_percent;   /* E = scale / (offset - politics); a sale gets sale_percent */
+    u32 conscript_base_soldiers, conscript_charm_tenths;   /* city-commands.md: F x (1000 + 5.6 x S) */
     u32 merit_per_command;
     u32 facility_recovery;
     u32 develop_officers;
@@ -749,7 +759,7 @@ struct sim_rules
     u32 debate_merit, debate_technique, debate_press_chance, debate_skill_card_percent;
     u32 friendliness_start, goodwill_gold, goodwill_base, goodwill_politics_percent, diplomacy_fail_loss;
     u32 alliance_gold, alliance_base, break_loss, break_technique, ceasefire_base, ceasefire_month_cost;
-    u32 surrender_base, exchange_base, aid_base, aid_turns, aid_soldiers, diplomacy_technique;
+    u32 surrender_base, exchange_base, aid_base, aid_turns, aid_soldiers;
     u32 faction_plot_gold, two_tigers_base, two_tigers_loss, drive_tiger_base, rumour_base, rumour_order_loss, rumour_loyalty_loss;
     u32 skill_search, skill_debater, skill_benevolence, skill_wife_help, skill_guard, skill_fame, skill_fame_percent;
     u32 skill_morale_up, skill_double_attack, skill_heart_attack, skill_unyielding, skill_diamond, skill_iron_wall, skill_fury;

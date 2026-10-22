@@ -12,12 +12,17 @@ unit_economy_rules(void)
     rules.order_income_floor           = 50;    /* assumed */
     rules.patrol_leadership_percent    = 10;    /* assumed */
     rules.patrol_enemy_percent         = 50;    /* assumed */
-    rules.conscript_charm_soldiers     = 10;    /* assumed */
+    rules.conscript_base_soldiers      = 1000;  /* city-commands.md: floor(F x (1000 + 5.6 x S)) */
+    rules.conscript_charm_tenths       = 56;
     rules.conscript_enemy_percent      = 50;    /* assumed */
+    rules.technique_conscript_min      = 2;     /* Q-158 */
+    rules.technique_conscript_max      = 5;     /* G2-014 */
+    rules.technique_conscript_soldiers = 1000;  /* assumed */
     rules.train_force_percent          = 10;    /* assumed */
     rules.train_drill_percent          = 150;   /* assumed */
-    rules.merchant_grain_per_gold      = 6;     /* assumed from the 市價 example of ui/city-commands.md */
-    rules.merchant_politics_divisor    = 10;    /* assumed */
+    rules.merchant_effect_scale        = 400;   /* city-commands.md: E = 400 / (450 - P) */
+    rules.merchant_effect_offset       = 450;
+    rules.merchant_sale_percent        = 80;    /* a sale loses 20 percent */
     rules.produce_intellect_quantity   = 10;    /* assumed */
     rules.produce_full_intellect       = 100;   /* assumed */
     rules.produce_specialty_percent    = 80;    /* assumed */
@@ -74,31 +79,42 @@ unit_city_command_rule_tests(test_counts *counts)
     TEST_CHECK(counts, sim_patrol_rise(240, true, &rules) == 12, "patrol: an enemy within 2 hexes gives a smaller rise (assumed half)");
     TEST_CHECK(counts, sim_patrol_rise(5, false, &rules) == 1, "patrol: one officer always gives at least 1 order");
 
-    /* 徵兵: the sum of charm raises the number of soldiers (assumed amount). */
-    TEST_CHECK(counts, sim_conscript_soldiers(240, 1, false, &rules) == 2400, "conscript: a charm sum of 240 gives 2400 soldiers (assumed)");
-    TEST_CHECK(counts, sim_conscript_soldiers(240, 2, false, &rules) == 2880 && sim_conscript_soldiers(240, 3, false, &rules) == 3600,
-               "conscript: a level-2 or level-3 barracks gives 1.2 or 1.5 times");
-    TEST_CHECK(counts, sim_conscript_soldiers(240, 1, true, &rules) == 1200, "conscript: an enemy within 2 hexes gives fewer soldiers (assumed half)");
+    /* 徵兵: floor(F x (1000 + 5.6 x S)) (city-commands.md; the dialogs of the sample, G2-011). */
+    TEST_CHECK(counts, sim_conscript_soldiers(231, 3, false, &rules) == 3440, "conscript: a charm sum of 231 at a level-3 barracks gives 3440 soldiers (the dialog of 江陵: 3439)");
+    TEST_CHECK(counts, sim_conscript_soldiers(79, 3, false, &rules) == 2163 && sim_conscript_soldiers(47, 3, false, &rules) == 1894,
+               "conscript: 79 gives 2163 and 47 gives 1894 at level 3 (the dialogs of 江陵 and 新野)");
+    TEST_CHECK(counts, sim_conscript_soldiers(91, 1, false, &rules) == 1509 && sim_conscript_soldiers(240, 2, false, &rules) == 2812,
+               "conscript: a level-1 barracks gives 1000 + 5.6 x S, a level-2 barracks 1.2 times");
+    TEST_CHECK(counts, sim_conscript_soldiers(231, 3, true, &rules) == 1720, "conscript: an enemy within 2 hexes gives fewer soldiers (assumed half)");
+    TEST_CHECK(counts, sim_conscript_technique(500, &rules) == 2 && sim_conscript_technique(1536, &rules) == 3 &&
+                       sim_conscript_technique(3439, &rules) == 5 && sim_conscript_technique(9000, &rules) == 5,
+               "conscript: the technique points go from 2 to 5 with the soldiers (G2-014: 5 for 3439)");
 
     /* 訓練: the sum of force raises morale (assumed amount). */
     TEST_CHECK(counts, sim_train_rise(240, false, &rules) == 24, "train: a force sum of 240 gives 24 morale (assumed)");
     TEST_CHECK(counts, sim_train_rise(240, true, &rules) == 36, "train: a drill ground gives a larger effect (assumed 1.5 times)");
     TEST_CHECK(counts, sim_train_rise(3, false, &rules) == 1, "train: one officer always gives at least 1 morale");
 
-    /* 商人: the price rule is assumed. Politics gives a better price. */
-    TEST_CHECK(counts, sim_merchant_percent(80, &rules) == 108 && sim_merchant_percent(0, &rules) == 100,
-               "merchant: politics 80 gives 8 percent more (assumed)");
-    TEST_CHECK(counts, sim_merchant_grain_for_gold(1000, 80, &rules) == 6480, "merchant: 1000 gold buys 6000 grain plus 8 percent (assumed price)");
-    TEST_CHECK(counts, sim_merchant_gold_for_grain(6000, 80, &rules) == 1080, "merchant: 6000 grain sells for 1000 gold plus 8 percent (assumed price)");
-    TEST_CHECK(counts, sim_merchant_gold_for_grain(5, 0, &rules) == 0, "merchant: less grain than one gold gives no gold");
+    /* 商人: E = 400 / (450 - P) at the city price R (city-commands.md "Merchant rate"; the dialogs of the sample, G2-025). */
+    TEST_CHECK(counts, sim_merchant_percent(99, &rules) == 113 && sim_merchant_percent(90, &rules) == 111 && sim_merchant_percent(26, &rules) == 94 &&
+                       sim_merchant_percent(22, &rules) == 93 && sim_merchant_percent(74, &rules) == 106,
+               "merchant: the trade effect in percent is cut to a whole number (113 for politics 99, 93 for 22)");
+    TEST_CHECK(counts, sim_merchant_grain_for_gold(32890, 99, 3, &rules) == 112444, "merchant: 32890 gold at price 3 and politics 99 buys 112444 grain (柴桑)");
+    TEST_CHECK(counts, sim_merchant_gold_for_grain(67447, 99, 3, &rules) == 20496, "merchant: 67447 grain at price 3 and politics 99 sells for 20496 gold (柴桑)");
+    TEST_CHECK(counts, sim_merchant_gold_for_grain(32999, 22, 3, &rules) == 8224 && sim_merchant_gold_for_grain(62545, 22, 3, &rules) == 15587,
+               "merchant: the two sales of 江夏 in the report (G2-025)");
+    TEST_CHECK(counts, sim_merchant_gold_for_grain(3996, 74, 5, &rules) == 680 && sim_merchant_gold_for_grain(40798, 74, 5, &rules) == 6944,
+               "merchant: the sales of 長沙 at price 5 (fixtures/merchant.tsv)");
+    TEST_CHECK(counts, sim_merchant_gold_for_grain(5, 0, 7, &rules) == 0 && sim_merchant_gold_for_grain(100, 50, 0, &rules) == 0,
+               "merchant: less grain than one gold, or no price, gives no gold");
     b32 no_profit = true;
     for (u32 politics = 0; politics <= 100; politics += 10)
     {
-        u32 grain = sim_merchant_grain_for_gold(1000, politics, &rules);
-        u32 back  = sim_merchant_gold_for_grain(grain, politics, &rules);
+        u32 grain = sim_merchant_grain_for_gold(1000, politics, 5, &rules);
+        u32 back  = sim_merchant_gold_for_grain(grain, politics, 5, &rules);
         if (back > sim_percent_of(sim_percent_of(1000, sim_merchant_percent(politics, &rules)), sim_merchant_percent(politics, &rules))) no_profit = false;
     }
-    TEST_CHECK(counts, no_profit, "merchant: a buy and a sale give back no more than the price bonus two times");
+    TEST_CHECK(counts, no_profit, "merchant: a buy and a sale give back no more than the trade effect two times");
 
     /* 生產兵裝: the sum of intellect sets the quantity, or the period of siege weapons and ships. */
     TEST_CHECK(counts, sim_produce_quantity(240, 1, false, &rules) == 2400, "produce: an intellect sum of 240 gives 2400 weapons (assumed)");

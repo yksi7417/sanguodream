@@ -193,6 +193,7 @@ enum sim_event_kind
     SIM_EVENT_OFFICER_ARRIVED,      /* subject = officer; detail = the city */
     SIM_EVENT_MISSION_STARTED,      /* subject = the officer of a plot; detail = the target base; delta = the days */
     SIM_EVENT_FACTION_PLOT_FAILED,  /* subject = the target city; faction; detail = the kind; the cause is the command of the plot */
+    SIM_EVENT_PRICE_CHANGED,        /* subject = city; delta = the change of the price; detail = the new price (G2-013; assumed drift) */
     SIM_EVENT_COUNT
 };
 
@@ -211,6 +212,7 @@ enum sim_resource
     SIM_RESOURCE_TECHNIQUE,
     SIM_RESOURCE_ACTION_POINTS,
     SIM_RESOURCE_MERIT,
+    SIM_RESOURCE_PRICE,          /* the city price of the merchant (a test setter) */
     SIM_RESOURCE_COUNT
 };
 
@@ -607,6 +609,7 @@ struct sim_check
     u32         value_after;
     u32         quantity;       /* the amount that the command adds or moves */
     u32         gold_gain;      /* merchant sale: the gold that the city gets */
+    u32         effect_percent; /* merchant: the trade effect E in percent (city-commands.md) */
     b32         assumed;        /* the effect comes from an assumed rule */
 };
 
@@ -790,6 +793,7 @@ struct city_component
     u8  public_order;                    /* hypothesis */
     /* the state of the city commands (M3) */
     u8  morale;                          /* 氣力; save +84 (G2-012); a scenario city starts at city.start_morale (assumed) */
+    u8  price;                           /* 市價: R grain for 1 gold (G2-013); the start value is cities.tsv, then it drifts each month */
     u32 patrolled_turn;                  /* sim turn + 1 of the last patrol; 0 = never */
     u32 trained_turn;                    /* sim turn + 1 of the last train */
     /* M4: the disasters that run in the city: turns left, 0 = none */
@@ -1362,8 +1366,9 @@ internal b32                 sim_city_has_skill(sim_state *sim, u8 city_id, u32 
 internal sim_income_forecast sim_city_forecast(sim_state *sim, u8 city_id);
 internal u32                 sim_city_salaries(sim_state *sim, city_component *city);
 internal u32                 sim_city_soldier_cap(sim_state *sim, u8 city_id);
-internal void                sim_reward_command(sim_state *sim, u8 force, const u16 *officers, b32 technique,
+internal void                sim_reward_command(sim_state *sim, u8 force, const u16 *officers, u32 technique,
                                                 u32 cause, sim_event_sink *events);
+internal void                sim_add_technique_points(sim_state *sim, u8 force, s32 points, u32 cause, sim_event_sink *events);
 internal void                sim_emit_city(sim_state *sim, sim_event_kind kind, city_component *city, s32 delta, u32 detail,
                                            b32 assumed, u32 cause, sim_event_sink *events);
 internal sim_refusal         sim_check_damage(sim_state *sim, sim_damage_order *order);
@@ -1378,9 +1383,12 @@ internal void                sim_damage_facility(sim_state *sim, sim_command com
 internal u32       sim_patrol_rise(u32 leadership_sum, b32 enemy_near, sim_rules *rules);
 internal u32       sim_conscript_soldiers(u32 charm_sum, u32 level, b32 enemy_near, sim_rules *rules);
 internal u32       sim_train_rise(u32 force_sum, b32 drill_ground, sim_rules *rules);
+internal u32       sim_conscript_technique(u32 soldiers, sim_rules *rules);
 internal u32       sim_merchant_percent(u32 politics, sim_rules *rules);
-internal u32       sim_merchant_grain_for_gold(u32 gold, u32 politics, sim_rules *rules);
-internal u32       sim_merchant_gold_for_grain(u32 grain, u32 politics, sim_rules *rules);
+internal u32       sim_merchant_grain_for_gold(u32 gold, u32 politics, u32 price, sim_rules *rules);
+internal u32       sim_merchant_gold_for_grain(u32 grain, u32 politics, u32 price, sim_rules *rules);
+internal u32       sim_exile_technique(u32 best_ability, sim_rules *rules);
+internal void      sim_run_prices_month(sim_state *sim, u32 cause, sim_event_sink *events);
 internal u32       sim_produce_quantity(u32 intellect_sum, u32 level, b32 skill, sim_rules *rules);
 internal u32       sim_produce_days(u32 intellect_sum, u32 min_days, u32 max_days, b32 skill, sim_rules *rules);
 internal u32       sim_weapon_cost(u32 cost, b32 specialty, sim_rules *rules);

@@ -862,25 +862,25 @@ sim_unit_action(sim_state *sim, sim_command command, memory_arena *scratch, sim_
 
 /* ---- each turn --------------------------------------------------------------- */
 
-/* Each turn each unit eats one grain for each grain.soldiers soldiers
-   (assumed, Q-119). Without grain the soldiers that the missing grain feeds
-   leave (assumed, Q-160). */
+/* Each turn each unit eats one grain for each unit.grain_soldiers soldiers
+   (G2-049: 2043 soldiers ate 204, 6730 ate 673). Without grain the soldiers
+   that the missing grain feeds leave (assumed, Q-160). */
 internal void
 sim_run_units_turn(sim_state *sim, u32 cause, sim_event_sink *events)
 {
     sim_rules *rules = &sim->content.rules;
-    if (!rules->grain_soldiers) return;
+    if (!rules->unit_grain_soldiers) return;
     for (u32 unit_id = 0; unit_id < sim->unit_count; ++unit_id)
     {
         sim_unit *unit = sim->units + unit_id;
         if (!unit->alive || !unit->soldiers || unit->grain_unknown) continue;
-        u32 needed = unit->soldiers / rules->grain_soldiers;
+        u32 needed = unit->soldiers / rules->unit_grain_soldiers;
         u32 eaten  = needed < unit->grain ? needed : unit->grain;
         unit->grain -= eaten;
         if (eaten) sim_emit_unit(sim, SIM_EVENT_UNIT_GRAIN_EATEN, unit_id, SIM_NO_CITY, -(s32)eaten, true, cause, events);
         if (eaten < needed)
         {
-            u64 hungry = (u64)(needed - eaten) * rules->grain_soldiers;
+            u64 hungry = (u64)(needed - eaten) * rules->unit_grain_soldiers;
             u32 lost = hungry < unit->soldiers ? (u32)hungry : unit->soldiers;
             unit->soldiers -= lost;
             if (lost) sim_emit_unit(sim, SIM_EVENT_UNIT_DESERTED, unit_id, SIM_NO_CITY, -(s32)lost, true, cause, events);
@@ -930,8 +930,8 @@ sim_sortie_proposal(sim_state *sim, u8 city_id, u8 unit_type)
     }
     if (type->transport) soldiers = 0;
     order.soldiers = soldiers;
-    u32 grain_turns = 30;
-    u32 grain = sim->content.rules.grain_soldiers ? soldiers / sim->content.rules.grain_soldiers * grain_turns : 0;
+    /* G2-044: the preset proposes sortie.grain_per_soldier grain for each soldier (2043 soldiers, 4086 grain). */
+    u32 grain = soldiers * sim->content.rules.sortie_grain_per_soldier;
     order.grain = Minimum(grain, city->food);
     return order;
 }

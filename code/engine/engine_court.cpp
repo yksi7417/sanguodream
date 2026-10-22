@@ -422,6 +422,14 @@ engine_api_set_officer(void *opaque, u16 officer_id, const engine_officer_edit *
     officer->growth      = edit->growth < GROWTH_COUNT ? edit->growth : (u8)GROWTH_NORMAL;
     officer->female      = edit->female;
     officer->merit       = edit->merit;
+    if (edit->set_abilities)
+    {
+        officer->leadership   = edit->leadership;
+        officer->war          = edit->war;
+        officer->intelligence = edit->intelligence;
+        officer->politics     = edit->politics;
+        officer->charm        = edit->charm;
+    }
     if (edit->captor != ENGINE_NO_FACTION && edit->captor != officer->force_id && officer->status != SIM_STATUS_CAPTIVE)
     {
         sim_state *sim = ((engine *)opaque)->sim;

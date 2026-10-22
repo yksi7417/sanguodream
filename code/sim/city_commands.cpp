@@ -51,14 +51,27 @@ sim_patrol_rise(u32 leadership_sum, b32 enemy_near, sim_rules *rules)
     return rise;
 }
 
-/* ASSUMED (Q-153): conscript.charm_soldiers soldiers for each point of the
-   charm sum, times the level of the barracks. With an enemy within 2 hexes
-   fewer soldiers come (city-commands.md): conscript.enemy_percent of them. */
+/* city-commands.md "Conscription yield": floor(F x (1000 + 5.6 x S)). S is
+   the charm sum and F the factor of the barracks level (1.0, 1.2, 1.5). The
+   rules hold 1000 and 56 tenths. The rule fits the dialogs of the sample
+   within 7 soldiers. With an enemy within 2 hexes fewer soldiers come:
+   conscript.enemy_percent of them (assumed, Q-153). */
 internal u32
 sim_conscript_soldiers(u32 charm_sum, u32 level, b32 enemy_near, sim_rules *rules)
 {
-    u32 soldiers = sim_percent_of(charm_sum * rules->conscript_charm_soldiers, sim_level_percent(level, rules));
+    u64 tenths   = (u64)rules->conscript_base_soldiers * 10 + (u64)charm_sum * rules->conscript_charm_tenths;
+    u32 soldiers = (u32)(tenths * sim_level_percent(level, rules) / 1000);
     return enemy_near ? sim_percent_of(soldiers, rules->conscript_enemy_percent) : soldiers;
+}
+
+/* The technique points of one 徵兵: technique.conscript_min, plus one for
+   each technique.conscript_soldiers soldiers, at most technique.conscript_max
+   (Q-158: 2; G2-014: 5 for 3439 soldiers; the steps are assumed). */
+internal u32
+sim_conscript_technique(u32 soldiers, sim_rules *rules)
+{
+    u32 points = rules->technique_conscript_min + (rules->technique_conscript_soldiers ? soldiers / rules->technique_conscript_soldiers : 0);
+    return points < rules->technique_conscript_max ? points : rules->technique_conscript_max;
 }
 
 /* ASSUMED (Q-154): the sum of force raises morale by train.force_percent of
@@ -72,27 +85,59 @@ sim_train_rise(u32 force_sum, b32 drill_ground, sim_rules *rules)
     return drill_ground ? sim_percent_of(rise, rules->train_drill_percent) : rise;
 }
 
-/* ASSUMED (Q-155): "politics gives a better price". The price is
-   100 + politics / merchant.politics_divisor percent of the city price. */
+/* city-commands.md "Merchant rate": the trade effect E = 400 / (450 - P)
+   from the politics P of the officer. The dialog shows E as a whole percent
+   (P 99 shows 113). The rules hold 400 and 450. */
+internal u32
+sim_merchant_divisor(u32 politics, sim_rules *rules)
+{
+    return rules->merchant_effect_offset > politics ? rules->merchant_effect_offset - politics : 1;
+}
+
 internal u32
 sim_merchant_percent(u32 politics, sim_rules *rules)
 {
-    return 100 + (rules->merchant_politics_divisor ? politics / rules->merchant_politics_divisor : 0);
+    return rules->merchant_effect_scale * 100 / sim_merchant_divisor(politics, rules);
 }
 
-/* ASSUMED (Q-155): the city price is merchant.grain_per_gold grain for one
-   gold, the 兵糧6=資金1 example of ui/city-commands.md. */
+/* A purchase for G gold gives floor(G x R x E) grain at the city price R
+   (observed: 32890 gold at R 3 and P 99 gave 112444 grain). */
 internal u32
-sim_merchant_grain_for_gold(u32 gold, u32 politics, sim_rules *rules)
+sim_merchant_grain_for_gold(u32 gold, u32 politics, u32 price, sim_rules *rules)
 {
-    return (u32)((u64)gold * rules->merchant_grain_per_gold * sim_merchant_percent(politics, rules) / 100);
+    return (u32)((u64)gold * price * rules->merchant_effect_scale / sim_merchant_divisor(politics, rules));
 }
 
+/* A sale of N grain gives floor(N x E x 0.8 / R) gold: a sale loses 20
+   percent (observed: 67447 grain at R 3 and P 99 gave 20496 gold). */
 internal u32
-sim_merchant_gold_for_grain(u32 grain, u32 politics, sim_rules *rules)
+sim_merchant_gold_for_grain(u32 grain, u32 politics, u32 price, sim_rules *rules)
 {
-    if (!rules->merchant_grain_per_gold) return 0;
-    return (u32)((u64)grain * sim_merchant_percent(politics, rules) / ((u64)rules->merchant_grain_per_gold * 100));
+    if (!price) return 0;
+    return (u32)((u64)grain * rules->merchant_effect_scale * rules->merchant_sale_percent /
+                 ((u64)sim_merchant_divisor(politics, rules) * price * 100));
+}
+
+/* Day 1 of each month: the price R of each city changes by -1, 0 or +1 with
+   equal chance and stays from merchant.price_min to merchant.price_max
+   (city-commands.md; assumed, a decision of the player, Q-155). */
+internal void
+sim_run_prices_month(sim_state *sim, u32 cause, sim_event_sink *events)
+{
+    sim_rules *rules = &sim->content.rules;
+    if (rules->merchant_price_max <= rules->merchant_price_min) return;
+    for (u32 index = 0; index < sim->cities.count; ++index)
+    {
+        city_component *city = sim->cities.data + index;
+        s32 change = (s32)sim_random_below(sim, 3) - 1;
+        s32 price  = (s32)city->price + change;
+        if (price < (s32)rules->merchant_price_min) price = (s32)rules->merchant_price_min;
+        if (price > (s32)rules->merchant_price_max) price = (s32)rules->merchant_price_max;
+        if ((u8)price == city->price) continue;
+        change = price - (s32)city->price;
+        city->price = (u8)price;
+        sim_emit_city(sim, SIM_EVENT_PRICE_CHANGED, city, change, (u32)price, true, cause, events);
+    }
 }
 
 /* ASSUMED (Q-023, Q-156): produce.intellect_quantity weapons for each point
@@ -297,16 +342,17 @@ sim_check_merchant(sim_state *sim, city_component *city, sim_city_order *order, 
     if (buy && city->gold < order->amount)        return sim_refuse(check, SIM_REFUSAL_NO_GOLD);
     check.action_points = rules->ap_merchant;
     check.value_before  = city->food;
+    check.effect_percent = sim_merchant_percent(politics, rules);
     if (buy)
     {
         check.gold        = order->amount;
-        check.quantity    = sim_merchant_grain_for_gold(order->amount, politics, rules);
+        check.quantity    = sim_merchant_grain_for_gold(order->amount, politics, city->price, rules);
         check.value_after = sim_add_within(city->food, check.quantity, rules->city_grain_cap);
     }
     else
     {
         check.quantity    = order->amount;
-        check.gold_gain   = sim_merchant_gold_for_grain(order->amount, politics, rules);
+        check.gold_gain   = sim_merchant_gold_for_grain(order->amount, politics, city->price, rules);
         check.value_after = city->food - order->amount;
     }
     return check;
@@ -476,6 +522,31 @@ sim_apply_city_effect(sim_state *sim, sim_command_kind kind, city_component *cit
     }
 }
 
+/* The technique points of a city command (tech-tree.md, the table by
+   action; G2-014): 巡察 3, 訓練 3, 徵兵 2 to 5 by the soldiers, 商人 0,
+   生產兵裝 5 for a weapon and 10 for a siege weapon or a ship. */
+internal u32
+sim_city_command_technique(sim_state *sim, sim_command_kind kind, sim_city_order *order, sim_check *check)
+{
+    sim_rules *rules = &sim->content.rules;
+    switch (kind)
+    {
+        case SIM_COMMAND_PATROL:    return rules->technique_patrol;
+        case SIM_COMMAND_TRAIN:     return rules->technique_train;
+        case SIM_COMMAND_CONSCRIPT: return sim_conscript_technique(check->quantity, rules);
+        case SIM_COMMAND_MERCHANT:  return rules->technique_merchant;
+        case SIM_COMMAND_PRODUCE:
+        {
+            weapon_kind *weapon = order->weapon < sim->content.weapon_count ? sim->content.weapons + order->weapon : 0;
+            if (!weapon) return 0;
+            if (weapon->facility == FACILITY_EFFECT_SHIPS)  return rules->technique_produce_ship;
+            if (weapon->max_days)                           return rules->technique_produce_siege;
+            return rules->technique_produce_weapon;
+        }
+        default: return 0;
+    }
+}
+
 /* Runs one of the five commands. It checks first: a refused order changes
    nothing. */
 internal void
@@ -503,8 +574,7 @@ sim_city_command(sim_state *sim, sim_command command, sim_event_sink *events)
     points.faction = force;
     points.delta   = -(s32)check.action_points;
     sim_emit(events, points);
-    /* The merchant raises politics and merit, not technique points (city-commands.md). */
-    sim_reward_command(sim, force, order->officers, command.kind != SIM_COMMAND_MERCHANT, command.id, events);
+    sim_reward_command(sim, force, order->officers, sim_city_command_technique(sim, command.kind, order, &check), command.id, events);
     /* M7: the command gives experience to the ability it uses (officers-and-relations.md). */
     u32 ability = command.kind == SIM_COMMAND_PATROL    ? CONTENT_ABILITY_LEADERSHIP :
                   command.kind == SIM_COMMAND_CONSCRIPT ? CONTENT_ABILITY_CHARM :

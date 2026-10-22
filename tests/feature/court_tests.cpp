@@ -281,15 +281,24 @@ feature_match_release_tests(test_counts *counts, feature_city_setup *setup)
     u32 points = api->technique_points(e, setup->force);
     mark = api->ledger_count(e);
     TEST_CHECK(counts, api->command_court(e, ENGINE_COMMAND_RELEASE, &release).refusal == SIM_REFUSAL_NONE && feature_officer_force(api, prisoner) == other &&
-                       !api->officer_detail(e, prisoner).captive && api->technique_points(e, setup->force) == points + 50 &&
+                       !api->officer_detail(e, prisoner).captive && api->technique_points(e, setup->force) == points + 3 &&
                        feature_count_events(api, SIM_EVENT_CAPTIVE_RELEASED, mark) == 1,
-               "流放 of a captive: it goes back to its faction, and the faction gains technique points (assumed 50)");
+               "流放 of a captive: it goes back to its faction, and the faction gains technique points (tech-tree.md: 2 to 5)");
     TEST_CHECK(counts, api->command_court(e, ENGINE_COMMAND_RELEASE, &release).refusal == SIM_REFUSAL_NOT_CAPTIVE, "refused: the officer is no captive");
     engine_court_order exile = feature_court_order(setup->city, ENGINE_NO_OFFICER, b);
     engine_officer exiled = {};
+    TEST_CHECK(counts, feature_officer_by_id(api, b, &exiled), "the officer to exile is known");
+    u32 best = Maximum(Maximum(Maximum((u32)exiled.leadership, (u32)exiled.war), Maximum((u32)exiled.intelligence, (u32)exiled.politics)), (u32)exiled.charm);
+    u32 cost = 5 + 5 * best / 100;
+    points = api->technique_points(e, setup->force);
+    engine_command command = {};
+    command.kind  = ENGINE_COMMAND_EXILE;
+    command.court = exile;
+    TEST_CHECK(counts, api->can_issue(e, &command).quantity == cost, "流放 of an own officer costs 5 technique points plus 5 scaled by the best ability (tech-tree.md)");
     TEST_CHECK(counts, api->command_court(e, ENGINE_COMMAND_EXILE, &exile).refusal == SIM_REFUSAL_NONE && feature_officer_by_id(api, b, &exiled) &&
-                       exiled.force_id == ENGINE_NO_FACTION && exiled.status == OFFICER_STATUS_FREE_OR_NOT_APPEARED,
-               "流放 of an own officer: it becomes a free officer");
+                       exiled.force_id == ENGINE_NO_FACTION && exiled.status == OFFICER_STATUS_FREE_OR_NOT_APPEARED &&
+                       api->technique_points(e, setup->force) == points - cost,
+               "流放 of an own officer: it becomes a free officer, and the faction pays the points");
 }
 
 internal void
@@ -359,8 +368,8 @@ feature_diplomacy_tests(test_counts *counts, feature_city_setup *setup)
     brk.kind  = SIM_DIPLOMACY_BREAK;
     result = api->command_court(e, ENGINE_COMMAND_DIPLOMACY, &brk);
     TEST_CHECK(counts, result.refusal == SIM_REFUSAL_NONE && api->diplomacy(e, setup->force, other).relation == RELATION_NONE &&
-                       api->technique_points(e, setup->force) == 900,
-               "摒棄: the alliance ends and the faction loses technique points (assumed 100)");
+                       api->technique_points(e, setup->force) == 1050,
+               "摒棄: the alliance ends and the side that proposes it gains 50 technique points (tech-tree.md)");
     engine_court_order ceasefire = brk;
     ceasefire.kind   = SIM_DIPLOMACY_CEASEFIRE;
     ceasefire.months = 30;

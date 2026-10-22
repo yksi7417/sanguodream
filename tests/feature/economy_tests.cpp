@@ -422,11 +422,9 @@ feature_technique_merit_tests(test_counts *counts)
     u32 mark = api->ledger_count(e);
     u16 develop_ids[SIM_DEVELOP_OFFICERS] = { ids[0], ENGINE_NO_OFFICER, ENGINE_NO_OFFICER };
     engine_command_result develop = api->command_develop(e, city, FEATURE_FACILITY_MARKET, develop_ids, ENGINE_ANY_SLOT);
-    sim_event gained = {};
-    TEST_CHECK(counts, develop.refusal == SIM_REFUSAL_NONE && api->technique_points(e, force) == points + FEATURE_TECHNIQUE_PER_COMMAND &&
-                       feature_find_event(api, SIM_EVENT_TECHNIQUE_GAINED, mark, &gained) && gained.faction == force &&
-                       gained.assumed && gained.cause == develop.command_id,
-               "a develop gives technique points to the faction (amount assumed)");
+    TEST_CHECK(counts, develop.refusal == SIM_REFUSAL_NONE && api->technique_points(e, force) == points &&
+                       feature_count_events(api, SIM_EVENT_TECHNIQUE_GAINED, mark) == 0,
+               "開發 gives no technique points at the order (Q-158, G2-014)");
     engine_officer after = {};
     TEST_CHECK(counts, feature_officer_by_id(api, ids[0], &after) && after.merit == first.merit + FEATURE_MERIT_PER_COMMAND &&
                        feature_count_events(api, SIM_EVENT_MERIT_GAINED, mark) == 1,
@@ -442,6 +440,91 @@ feature_technique_merit_tests(test_counts *counts)
     engine_fixture_destroy(&f);
 }
 
+/* True if the ledger from "from" on has a technique gain of the faction with this delta. */
+internal b32
+feature_technique_gain_of(engine_api *api, u8 force, s32 delta, u32 from)
+{
+    u32 count = api->ledger_count(api->engine);
+    for (u32 index = from; index < count; ++index)
+    {
+        sim_event event = api->ledger_at(api->engine, index);
+        if (event.kind == SIM_EVENT_TECHNIQUE_GAINED && event.faction == force && event.delta == delta) return true;
+    }
+    return false;
+}
+
+/* G2-014: the technique points by action (knowledge/tech-tree.md, the
+   table by action; Q-158). 巡察 3, 訓練 3, 徵兵 2 to 5 by the soldiers,
+   商人 0, 生產兵裝 5 for a weapon, 開發 0 at the order and 15 when the
+   facility is complete. */
+internal void
+feature_technique_table_tests(test_counts *counts)
+{
+    engine_fixture f;
+    engine_fixture_init(&f, 1, 4096);
+    engine_api *api = &f.api;
+    void *e = api->engine;
+    api->load_save(e, SAMPLE_SAVE_RELATIVE_PATH);
+    u8 city  = feature_busiest_city(api);
+    u8 force = api->city_at(e, city).owner_force_id;
+    feature_play_as(api, force);
+    u8 barracks = feature_build(api, city, FEATURE_FACILITY_BARRACKS, force);
+    u8 smithy   = feature_build(api, city, FEATURE_FACILITY_SMITHY, force);
+    api->set_city_gold(e, city, 50000);
+    api->set_actions(e, force, 255);
+    api->set_city_resource(e, city, SIM_RESOURCE_GRAIN, 0, 200000);
+    api->set_city_resource(e, city, SIM_RESOURCE_SOLDIERS, 0, 10000);
+    api->set_city_resource(e, city, SIM_RESOURCE_MORALE, 0, 50);
+    api->set_city_resource(e, city, SIM_RESOURCE_PUBLIC_ORDER, 0, 50);
+    TEST_CHECK(counts, barracks != ENGINE_ANY_SLOT && smithy != ENGINE_ANY_SLOT, "the city has a barracks and a smithy for the technique test");
+
+    u16 ids[SIM_DEVELOP_OFFICERS] = { ENGINE_NO_OFFICER, ENGINE_NO_OFFICER, ENGINE_NO_OFFICER };
+    u32 points = api->technique_points(e, force);
+    feature_free_officers(api, city, ids, 1);
+    engine_command_result result = api->command_patrol(e, city, ids);
+    TEST_CHECK(counts, result.refusal == SIM_REFUSAL_NONE && api->technique_points(e, force) == points + 3, "巡察 gives 3 technique points (Q-158, G2-014)");
+
+    points = api->technique_points(e, force);
+    ids[0] = ids[1] = ids[2] = ENGINE_NO_OFFICER;
+    feature_free_officers(api, city, ids, 1);
+    result = api->command_train(e, city, ids);
+    TEST_CHECK(counts, result.refusal == SIM_REFUSAL_NONE && api->technique_points(e, force) == points + 3, "訓練 gives 3 technique points (Q-158)");
+
+    points = api->technique_points(e, force);
+    ids[0] = ids[1] = ids[2] = ENGINE_NO_OFFICER;
+    feature_free_officers(api, city, ids, 3);
+    u32 soldiers = api->city_economy(e, city).soldiers;
+    result = api->command_conscript(e, city, ids);
+    u32 gained = api->city_economy(e, city).soldiers - soldiers;
+    u32 expected = Minimum(5u, 2 + gained / 1000);
+    TEST_CHECK(counts, result.refusal == SIM_REFUSAL_NONE && api->technique_points(e, force) == points + expected,
+               "徵兵 gives 2 to 5 technique points by the soldiers (G2-014: 5 for 3439)");
+
+    points = api->technique_points(e, force);
+    ids[0] = ids[1] = ids[2] = ENGINE_NO_OFFICER;
+    feature_free_officers(api, city, ids, 1);
+    result = api->command_merchant(e, city, ids[0], SIM_MERCHANT_BUY, 100);
+    TEST_CHECK(counts, result.refusal == SIM_REFUSAL_NONE && api->technique_points(e, force) == points, "商人 gives no technique points (Q-158)");
+
+    points = api->technique_points(e, force);
+    ids[0] = ids[1] = ids[2] = ENGINE_NO_OFFICER;
+    feature_free_officers(api, city, ids, 1);
+    result = api->command_produce(e, city, 0, ids);   /* weapon 0: the pike */
+    TEST_CHECK(counts, result.refusal == SIM_REFUSAL_NONE && api->technique_points(e, force) == points + 5,
+               "生產兵裝 of a weapon gives 5 technique points (G2-014)");
+
+    points = api->technique_points(e, force);
+    ids[0] = ids[1] = ids[2] = ENGINE_NO_OFFICER;
+    feature_free_officers(api, city, ids, 1);
+    u32 mark = api->ledger_count(e);
+    result = api->command_develop(e, city, FEATURE_FACILITY_MARKET, ids, ENGINE_ANY_SLOT);
+    TEST_CHECK(counts, result.refusal == SIM_REFUSAL_NONE && api->technique_points(e, force) == points, "開發 gives no technique points at the order");
+    for (u32 turn = 0; turn < 12 && !feature_count_events(api, SIM_EVENT_FACILITY_COMPLETED, mark); ++turn) feature_next_own_turn(api, force);
+    TEST_CHECK(counts, feature_count_events(api, SIM_EVENT_FACILITY_COMPLETED, mark) >= 1 && feature_technique_gain_of(api, force, 15, mark),
+               "the complete facility gives 15 technique points (Q-158)");
+    engine_fixture_destroy(&f);
+}
+
 internal void
 feature_economy_tests(test_counts *counts)
 {
@@ -450,4 +533,5 @@ feature_economy_tests(test_counts *counts)
     feature_multiplier_tests(counts);
     feature_durability_tests(counts);
     feature_technique_merit_tests(counts);
+    feature_technique_table_tests(counts);
 }

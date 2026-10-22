@@ -318,7 +318,7 @@ struct engine_city_economy
     u32 soldiers, soldier_cap;
     u32 weapon_cap;
     u32 stocks[CITY_EQUIPMENT_STOCK_COUNT];
-    u32 grain_per_gold;     /* the merchant price before the politics bonus (assumed) */
+    u32 grain_per_gold;     /* 市價: the city price R of the merchant, R grain for 1 gold (G2-013) */
     b32 patrolled;          /* a patrol ran in this turn */
     b32 trained;            /* a train ran in this turn */
     u32 barracks;           /* built barracks */
@@ -793,6 +793,8 @@ struct engine_officer_edit
     b32 female;
     u16 merit;
     u8  captor;                     /* a faction: the officer becomes its captive; ENGINE_NO_FACTION: no change */
+    b32 set_abilities;              /* true: the five abilities below replace those of the officer (a test setter) */
+    u8  leadership, war, intelligence, politics, charm;
 };
 
 struct engine_skill_kind

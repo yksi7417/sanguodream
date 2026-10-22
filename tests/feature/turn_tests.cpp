@@ -362,10 +362,40 @@ feature_turn_order_three_factions_tests(test_counts *counts)
     engine_fixture_destroy(&f);
 }
 
+/* G2-028: the month start takes no soldiers and no public order from a
+   city. The clone of the report rolled a plague at a wrong date (G2-001).
+   From the load of the sample at 197/10/1, three turns reach 197/11/1.
+   No disaster can start in month 11 (disasters.tsv). */
+internal void
+feature_month_start_sample_tests(test_counts *counts)
+{
+    engine_fixture f;
+    engine_fixture_init(&f, 1, 4096);
+    engine_api *api = &f.api;
+    void *e = api->engine;
+    api->load_save(e, SAMPLE_SAVE_RELATIVE_PATH);
+    u8 force = api->whose_turn(e);
+    u8 jiangxia = 27;   /* 江夏, a city of 劉表 in the sample */
+    engine_city_economy before = api->city_economy(e, jiangxia);
+    u32 mark = api->ledger_count(e);
+    b32 advanced = api->city_at(e, jiangxia).owner_force_id == force;
+    for (u32 turn = 0; turn < 3 && advanced; ++turn) advanced = feature_next_own_turn(api, force);
+    engine_date date = api->date(e);
+    engine_city_economy after = api->city_economy(e, jiangxia);
+    TEST_CHECK(counts, advanced && date.year == 197 && date.month == 11 && date.day == 1,
+               "three turns after the load of the sample it is 197/11/1");
+    TEST_CHECK(counts, after.soldiers == before.soldiers && after.public_order == before.public_order,
+               "the month start of 197/11/1 keeps the soldiers and the public order of 江夏 (G2-028)");
+    TEST_CHECK(counts, feature_count_events(api, SIM_EVENT_SOLDIERS_LOST, mark) == 0,
+               "no disaster takes soldiers from a city in month 11");
+    engine_fixture_destroy(&f);
+}
+
 internal void
 feature_turn_tests(test_counts *counts)
 {
     feature_calendar_tests(counts);
     feature_turn_order_sample_tests(counts);
     feature_turn_order_three_factions_tests(counts);
+    feature_month_start_sample_tests(counts);
 }

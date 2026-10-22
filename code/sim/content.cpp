@@ -195,10 +195,10 @@ content_load_cities(sim_content *content, tsv_table *table, u32 *bad_row)
     if (table->row_count > SAVE_CITY_COUNT) { *bad_row = SAVE_CITY_COUNT; return false; }
     for (u32 row = 0; row < table->row_count; ++row)
     {
-        u32 id = 0, slots = 0;
+        u32 id = 0, slots = 0, price = 0;
         city_specialty specialty = content_specialty_from_name(tsv_cell(table, row, "specialty"));
         if (!tsv_cell_u32(table, row, "id", &id) || id != row || !tsv_cell_u32(table, row, "slots", &slots) ||
-            slots > 255 || specialty == CITY_SPECIALTY_COUNT)
+            slots > 255 || specialty == CITY_SPECIALTY_COUNT || !tsv_cell_u32(table, row, "price", &price) || price > 255)
         {
             *bad_row = row;
             content->city_count = 0;
@@ -207,6 +207,7 @@ content_load_cities(sim_content *content, tsv_table *table, u32 *bad_row)
         content->cities[row].slot_count = (u8)slots;
         content->cities[row].specialty  = specialty;
         content->cities[row].has_port   = tsv_cell_yes(table, row, "port");
+        content->cities[row].price      = (u8)price;
     }
     content->city_count = table->row_count;
     return true;
@@ -245,7 +246,6 @@ global_variable content_rule_field content_rule_fields[] = {
     CONTENT_RULE("order.income_floor",    order_income_floor),
     CONTENT_RULE("patrol.leadership_percent", patrol_leadership_percent),
     CONTENT_RULE("patrol.enemy_percent",  patrol_enemy_percent),
-    CONTENT_RULE("conscript.charm_soldiers", conscript_charm_soldiers),
     CONTENT_RULE("conscript.enemy_percent", conscript_enemy_percent),
     CONTENT_RULE("conscript.order_loss",  conscript_order_loss),
     CONTENT_RULE("conscript.morale_loss", conscript_morale_loss),
@@ -256,8 +256,6 @@ global_variable content_rule_field content_rule_fields[] = {
     CONTENT_RULE("morale.max",            morale_max),
     CONTENT_RULE("train.force_percent",   train_force_percent),
     CONTENT_RULE("train.drill_percent",   train_drill_percent),
-    CONTENT_RULE("merchant.grain_per_gold", merchant_grain_per_gold),
-    CONTENT_RULE("merchant.politics_divisor", merchant_politics_divisor),
     CONTENT_RULE("produce.intellect_quantity", produce_intellect_quantity),
     CONTENT_RULE("produce.full_intellect", produce_full_intellect),
     CONTENT_RULE("produce.specialty_percent", produce_specialty_percent),
@@ -275,7 +273,30 @@ global_variable content_rule_field content_rule_fields[] = {
     CONTENT_RULE("skill.breeding",        skill_breeding),
     CONTENT_RULE("skill.invention",       skill_invention),
     CONTENT_RULE("skill.shipbuilding",    skill_shipbuilding),
-    CONTENT_RULE("technique.per_command", technique_per_command),
+    CONTENT_RULE("technique.patrol", technique_patrol), CONTENT_RULE("technique.train", technique_train),
+    CONTENT_RULE("technique.conscript_min", technique_conscript_min), CONTENT_RULE("technique.conscript_max", technique_conscript_max),
+    CONTENT_RULE("technique.conscript_soldiers", technique_conscript_soldiers), CONTENT_RULE("technique.develop", technique_develop),
+    CONTENT_RULE("technique.merchant", technique_merchant), CONTENT_RULE("technique.produce_weapon", technique_produce_weapon),
+    CONTENT_RULE("technique.produce_siege", technique_produce_siege), CONTENT_RULE("technique.produce_ship", technique_produce_ship),
+    CONTENT_RULE("technique.facility_built", technique_facility_built), CONTENT_RULE("technique.merge", technique_merge),
+    CONTENT_RULE("technique.facility_lost", technique_facility_lost), CONTENT_RULE("technique.facility_lost_leveled", technique_facility_lost_leveled),
+    CONTENT_RULE("technique.city_captured", siege_capture_technique), CONTENT_RULE("technique.city_lost", technique_city_lost),
+    CONTENT_RULE("technique.city_lost_facility", technique_city_lost_facility), CONTENT_RULE("technique.unit_destroyed", combat_destroy_technique),
+    CONTENT_RULE("technique.tactic", technique_tactic), CONTENT_RULE("technique.tactic_extra_unit", technique_tactic_extra_unit),
+    CONTENT_RULE("technique.plot", technique_plot), CONTENT_RULE("technique.plot_strife", technique_plot_strife),
+    CONTENT_RULE("technique.goodwill", technique_goodwill), CONTENT_RULE("technique.alliance", technique_alliance),
+    CONTENT_RULE("technique.ceasefire", technique_ceasefire), CONTENT_RULE("technique.break_alliance", break_technique),
+    CONTENT_RULE("technique.exchange_sender", technique_exchange_sender), CONTENT_RULE("technique.exchange_releaser", technique_exchange_releaser),
+    CONTENT_RULE("technique.aid", technique_aid), CONTENT_RULE("technique.surrender", technique_surrender),
+    CONTENT_RULE("technique.two_tigers", technique_two_tigers), CONTENT_RULE("technique.rumour", technique_rumour),
+    CONTENT_RULE("technique.drive_tiger", technique_drive_tiger), CONTENT_RULE("technique.search_found", technique_search_found),
+    CONTENT_RULE("technique.recruit", technique_recruit), CONTENT_RULE("technique.release_captive", release_technique),
+    CONTENT_RULE("technique.exile", exile_technique),
+    CONTENT_RULE("unit.grain_soldiers", unit_grain_soldiers), CONTENT_RULE("sortie.grain_per_soldier", sortie_grain_per_soldier),
+    CONTENT_RULE("merchant.price_min", merchant_price_min), CONTENT_RULE("merchant.price_max", merchant_price_max),
+    CONTENT_RULE("merchant.effect_scale", merchant_effect_scale), CONTENT_RULE("merchant.effect_offset", merchant_effect_offset),
+    CONTENT_RULE("merchant.sale_percent", merchant_sale_percent),
+    CONTENT_RULE("conscript.base_soldiers", conscript_base_soldiers), CONTENT_RULE("conscript.charm_tenths", conscript_charm_tenths),
     CONTENT_RULE("merit.per_command",     merit_per_command),
     CONTENT_RULE("facility.recovery",     facility_recovery),
     CONTENT_RULE("ap.research",           ap_research),
@@ -325,7 +346,6 @@ global_variable content_rule_field content_rule_fields[] = {
     CONTENT_RULE("combat.base_counter",   combat_base_counter),
     CONTENT_RULE("combat.capture_percent", combat_capture_percent),
     CONTENT_RULE("combat.halberd_capture", combat_halberd_capture),
-    CONTENT_RULE("combat.destroy_technique", combat_destroy_technique),
     CONTENT_RULE("plot.base_success",     plot_base_success),
     CONTENT_RULE("fire.turns",            fire_turns),
     CONTENT_RULE("fire.damage_percent",   fire_damage_percent),
@@ -341,7 +361,6 @@ global_variable content_rule_field content_rule_fields[] = {
     CONTENT_RULE("siege.blockade_loss",   siege_blockade_loss),
     CONTENT_RULE("siege.recovery",        siege_recovery),
     CONTENT_RULE("siege.default_durability", siege_default_durability),
-    CONTENT_RULE("siege.capture_technique", siege_capture_technique),
     CONTENT_RULE("skill.capture",         skill_capture),
     CONTENT_RULE("skill.escape_capture",  skill_escape_capture),
     CONTENT_RULE("skill.fortune",         skill_fortune),
@@ -398,7 +417,6 @@ global_variable content_rule_field content_rule_fields[] = {
     CONTENT_RULE("experience.command", experience_command), CONTENT_RULE("experience.level", experience_level),
     CONTENT_RULE("age.decline", age_decline), CONTENT_RULE("age.death_chance", death_chance),
     CONTENT_RULE("health.wound_turns", wound_turns), CONTENT_RULE("stamina.recovery", stamina_recovery),
-    CONTENT_RULE("release.technique", release_technique), CONTENT_RULE("exile.technique", exile_technique),
     CONTENT_RULE("matchmaking.technique", matchmaking_technique), CONTENT_RULE("matchmaking.merit", matchmaking_merit),
     CONTENT_RULE("matchmaking.age", matchmaking_age),
     CONTENT_RULE("relation.liked_percent", relation_liked_percent), CONTENT_RULE("relation.disliked_intellect", relation_disliked_intellect),
@@ -429,10 +447,10 @@ global_variable content_rule_field content_rule_fields[] = {
     CONTENT_RULE("friendliness.start", friendliness_start), CONTENT_RULE("goodwill.gold", goodwill_gold),
     CONTENT_RULE("goodwill.base", goodwill_base), CONTENT_RULE("goodwill.politics_percent", goodwill_politics_percent),
     CONTENT_RULE("diplomacy.fail_loss", diplomacy_fail_loss), CONTENT_RULE("alliance.gold", alliance_gold),
-    CONTENT_RULE("alliance.base", alliance_base), CONTENT_RULE("break.loss", break_loss), CONTENT_RULE("break.technique", break_technique),
+    CONTENT_RULE("alliance.base", alliance_base), CONTENT_RULE("break.loss", break_loss),
     CONTENT_RULE("ceasefire.base", ceasefire_base), CONTENT_RULE("ceasefire.month_cost", ceasefire_month_cost),
     CONTENT_RULE("surrender.base", surrender_base), CONTENT_RULE("exchange.base", exchange_base), CONTENT_RULE("aid.base", aid_base),
-    CONTENT_RULE("aid.turns", aid_turns), CONTENT_RULE("aid.soldiers", aid_soldiers), CONTENT_RULE("diplomacy.technique", diplomacy_technique),
+    CONTENT_RULE("aid.turns", aid_turns), CONTENT_RULE("aid.soldiers", aid_soldiers),
     CONTENT_RULE("faction_plot.gold", faction_plot_gold), CONTENT_RULE("two_tigers.base", two_tigers_base),
     CONTENT_RULE("two_tigers.loss", two_tigers_loss), CONTENT_RULE("drive_tiger.base", drive_tiger_base),
     CONTENT_RULE("rumour.base", rumour_base), CONTENT_RULE("rumour.order_loss", rumour_order_loss),

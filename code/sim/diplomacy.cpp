@@ -347,11 +347,13 @@ sim_diplomacy_result(sim_state *sim, u8 force, sim_court_order *order, b32 succe
         case SIM_DIPLOMACY_GOODWILL:
             sim_change_friendliness(sim, force, other, (s32)(rules->goodwill_base + (envoy ? envoy->politics : 0) * rules->goodwill_politics_percent / 100),
                                     cause, events);
+            sim_add_technique_points(sim, force, (s32)rules->technique_goodwill, cause, events);
             break;
         case SIM_DIPLOMACY_BREAK:
             sim_set_relation(sim, force, other, RELATION_NONE, 0, cause, events);
             sim_change_friendliness(sim, force, other, -(s32)rules->break_loss, cause, events);
-            sim_add_technique_points(sim, force, -(s32)rules->break_technique, cause, events);
+            /* 解除同盟 gives technique points to the side that proposes it (tech-tree.md: 50; claimed). */
+            sim_add_technique_points(sim, force, (s32)rules->break_technique, cause, events);
             break;
         default:
             if (!success)
@@ -379,10 +381,17 @@ sim_diplomacy_result(sim_state *sim, u8 force, sim_court_order *order, b32 succe
                 captive->base_location    = captive->current_position;
                 sim_emit_officer(sim, SIM_EVENT_CAPTIVE_EXCHANGED, captive, 0, other, false, cause, events);
             }
-            sim_add_technique_points(sim, force, (s32)rules->diplomacy_technique, cause, events);
+            /* The technique points of the kind (tech-tree.md, the table by action; claimed). */
+            u32 points = order->kind == SIM_DIPLOMACY_ALLIANCE  ? rules->technique_alliance :
+                         order->kind == SIM_DIPLOMACY_CEASEFIRE ? rules->technique_ceasefire :
+                         order->kind == SIM_DIPLOMACY_SURRENDER ? rules->technique_surrender :
+                         order->kind == SIM_DIPLOMACY_AID       ? rules->technique_aid :
+                         order->kind == SIM_DIPLOMACY_EXCHANGE  ? rules->technique_exchange_sender : 0;
+            sim_add_technique_points(sim, force, (s32)points, cause, events);
+            if (order->kind == SIM_DIPLOMACY_EXCHANGE) sim_add_technique_points(sim, other, (s32)rules->technique_exchange_releaser, cause, events);
             break;
     }
-    if (envoy) sim_reward_officer(sim, force, envoy->officer_id, false, CONTENT_ABILITY_POLITICS, cause, events);
+    if (envoy) sim_reward_officer(sim, force, envoy->officer_id, 0, CONTENT_ABILITY_POLITICS, cause, events);
 }
 
 internal void
@@ -613,5 +622,9 @@ sim_resolve_plot(sim_state *sim, sim_mission *mission, sim_event_sink *events)
             }
         }
     }
-    if (sim_find_officer(sim, order->officer)) sim_reward_officer(sim, force, order->officer, false, CONTENT_ABILITY_INTELLECT, cause, events);
+    /* A plot that succeeds gives the technique points of its kind (tech-tree.md; claimed). */
+    u32 points = order->kind == SIM_PLOT_TWO_TIGERS  ? rules->technique_two_tigers :
+                 order->kind == SIM_PLOT_DRIVE_TIGER ? rules->technique_drive_tiger : rules->technique_rumour;
+    if (success) sim_add_technique_points(sim, force, (s32)points, cause, events);
+    if (sim_find_officer(sim, order->officer)) sim_reward_officer(sim, force, order->officer, 0, CONTENT_ABILITY_INTELLECT, cause, events);
 }

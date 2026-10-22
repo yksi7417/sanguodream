@@ -145,6 +145,7 @@ command.period	Period	期間
 command.days	 days	after a number of days
 command.weapons	Weapons	兵裝
 command.price	Price	市價
+command.effect	Trade effect	交易效果
 command.buy	Buy grain	the merchant spends gold
 command.sell	Sell grain	the merchant sells grain
 command.amount	Amount	gold to spend or grain to sell

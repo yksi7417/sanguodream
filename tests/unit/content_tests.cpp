@@ -81,16 +81,19 @@ unit_content_tests(test_counts *counts, memory_arena *arena)
                "an unknown effect refuses the table");
 
     tsv_table cities = {};
-    tsv_parse(content_test_text(arena, "id\tspecialty\tslots\tport\n0\thorse\t12\tyes\n1\tbig_city\t20\tno\n"), arena, &cities);
+    tsv_parse(content_test_text(arena, "id\tspecialty\tslots\tport\tprice\n0\thorse\t12\tyes\t3\n1\tbig_city\t20\tno\t7\n"), arena, &cities);
     TEST_CHECK(counts, content_load_cities(&content, &cities, &bad_row) && content.city_count == 2,
                "the city table parses one city for each row");
     TEST_CHECK(counts, content.cities[0].specialty == CITY_SPECIALTY_HORSE && content.cities[0].slot_count == 12 &&
-                       content.cities[0].has_port, "a city has its specialty, slots and port");
-    TEST_CHECK(counts, content.cities[1].specialty == CITY_SPECIALTY_BIG_CITY && !content.cities[1].has_port,
-               "a big city without a port");
-    tsv_parse(content_test_text(arena, "id\tspecialty\tslots\n0\tsword\t12\n"), arena, &cities);
+                       content.cities[0].has_port && content.cities[0].price == 3, "a city has its specialty, slots, port and price");
+    TEST_CHECK(counts, content.cities[1].specialty == CITY_SPECIALTY_BIG_CITY && !content.cities[1].has_port && content.cities[1].price == 7,
+               "a big city without a port, with its own price");
+    tsv_parse(content_test_text(arena, "id\tspecialty\tslots\tprice\n0\tsword\t12\t5\n"), arena, &cities);
     TEST_CHECK(counts, !content_load_cities(&content, &cities, &bad_row) && content.city_count == 0,
                "an unknown specialty refuses the city table");
+    tsv_parse(content_test_text(arena, "id\tspecialty\tslots\tport\n0\thorse\t12\tyes\n"), arena, &cities);
+    TEST_CHECK(counts, !content_load_cities(&content, &cities, &bad_row) && content.city_count == 0,
+               "a city table without the price column is refused (G2-013)");
 
     tsv_table rules = {};
     tsv_parse(content_test_text(arena, "key\tvalue\tstatus\nap.cap\t255\tdocumented\nap.develop\t20\tdocumented\n"), arena, &rules);

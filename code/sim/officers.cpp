@@ -218,9 +218,30 @@ sim_gain_experience(sim_state *sim, officer_component *officer, u32 ability, u32
     officer->experience[ability] = (u16)total;
 }
 
-/* Gives merit, technique points and experience after a command. */
+/* The best of the five abilities of an officer. */
+internal u32
+sim_best_ability(officer_component *officer)
+{
+    u32 best = officer->leadership;
+    if (officer->war > best)          best = officer->war;
+    if (officer->intelligence > best) best = officer->intelligence;
+    if (officer->politics > best)     best = officer->politics;
+    if (officer->charm > best)        best = officer->charm;
+    return best;
+}
+
+/* 流放 of an own officer takes technique points: technique.exile, plus the
+   same amount scaled by the best ability (tech-tree.md: 5 to 10, more for
+   a strong officer; claimed). */
+internal u32
+sim_exile_technique(u32 best_ability, sim_rules *rules)
+{
+    return rules->exile_technique + rules->exile_technique * best_ability / 100;
+}
+
+/* Gives merit, the technique points of the action and experience after a command. */
 internal void
-sim_reward_officer(sim_state *sim, u8 force, u16 officer_id, b32 technique, u32 ability, u32 cause, sim_event_sink *events)
+sim_reward_officer(sim_state *sim, u8 force, u16 officer_id, u32 technique, u32 ability, u32 cause, sim_event_sink *events)
 {
     u16 officers[SIM_COMMAND_OFFICERS] = { officer_id, SIM_NO_OFFICER, SIM_NO_OFFICER };
     sim_reward_command(sim, force, officers, technique, cause, events);
@@ -773,7 +794,7 @@ sim_check_court(sim_state *sim, sim_command_kind kind, sim_court_order *order)
         {
             officer_component *target = sim_own_officer(sim, force, order->target);
             if (!target || target->status == OFFICER_STATUS_RULER) return sim_refuse(check, SIM_REFUSAL_NO_OFFICER);
-            check.quantity = rules->exile_technique;
+            check.quantity = sim_exile_technique(sim_best_ability(target), rules);
             return check;
         }
         default:
@@ -846,7 +867,9 @@ sim_search(sim_state *sim, city_component *city, sim_court_order *order, u32 cau
         city->gold += rules->search_gold;
         sim_emit_city(sim, SIM_EVENT_GOLD_FOUND, city, (s32)rules->search_gold, 0, true, cause, events);
     }
-    sim_reward_officer(sim, city->owner_force_id, searcher->officer_id, success, CONTENT_ABILITY_POLITICS, cause, events);
+    /* 探索 gives technique points only when it finds an officer (tech-tree.md). */
+    sim_reward_officer(sim, city->owner_force_id, searcher->officer_id, found && success ? rules->technique_search_found : 0u,
+                       CONTENT_ABILITY_POLITICS, cause, events);
     if (!sim->debate.active) sim_events_after_search(sim, city->city_id, searcher->officer_id, cause, events);   /* M8: the travellers */
 }
 
@@ -867,7 +890,7 @@ sim_recruit(sim_state *sim, city_component *city, sim_court_order *order, sim_ch
         if (success) sim_join_faction(sim, target, city->owner_force_id, city->city_id, cause, events);
         else         sim_emit_officer(sim, SIM_EVENT_RECRUIT_FAILED, target, 0, 0, true, cause, events);
     }
-    sim_reward_officer(sim, city->owner_force_id, recruiter->officer_id, success, CONTENT_ABILITY_CHARM, cause, events);
+    sim_reward_officer(sim, city->owner_force_id, recruiter->officer_id, success ? rules->technique_recruit : 0u, CONTENT_ABILITY_CHARM, cause, events);
 }
 
 internal void
@@ -1015,7 +1038,7 @@ sim_court_command(sim_state *sim, sim_command command, sim_event_sink *events)
             officer_component *target = sim_find_officer(sim, order->target);
             sim_make_free(sim, target, command.id, events);
             sim_emit_officer(sim, SIM_EVENT_OFFICER_EXILED, target, 0, force, false, command.id, events);
-            sim_add_technique_points(sim, force, -(s32)rules->exile_technique, command.id, events);
+            sim_add_technique_points(sim, force, -(s32)sim_exile_technique(sim_best_ability(target), rules), command.id, events);
             break;
         }
         default: break;

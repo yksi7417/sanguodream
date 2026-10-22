@@ -117,8 +117,8 @@ sim_merge(sim_state *sim, sim_command command, sim_event_sink *events)
     }
     sim_emit_city(sim, SIM_EVENT_MERGE_STARTED, city, (s32)check.turns, order->absorber, true, command.id, events);
     u16 officers[SIM_COMMAND_OFFICERS] = { order->officer, SIM_NO_OFFICER, SIM_NO_OFFICER };
-    /* The merge gives merit, and technique points as the develop command does (assumed, Q-163). */
-    sim_reward_command(sim, force, officers, true, command.id, events);
+    /* The merge gives merit and the technique points of 吸收合併 (tech-tree.md: 10; claimed). */
+    sim_reward_command(sim, force, officers, sim->content.rules.technique_merge, command.id, events);
 }
 
 /* The merge of the absorber is complete: it gains the level and the

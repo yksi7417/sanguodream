@@ -256,8 +256,8 @@ feature_save_map_tests(test_counts *counts)
                "the 樓船 of 孫策 moves on the real map (the move gives back the scratch memory of its check)");
     TEST_CHECK(counts, first.officers[0] == 158 && first.officers[1] == 552 && first.soldiers == 6000,
                "unit 0 has the leader 158, the deputy 552 and 6000 troops");
-    TEST_CHECK(counts, first.grain_turns == first.grain / (first.soldiers / 40) && first.grain_turns != ENGINE_GRAIN_TURNS_UNKNOWN,
-               "the supply icon of a unit of the save uses the grain of the record (+13)");
+    TEST_CHECK(counts, first.grain_turns == first.grain / (first.soldiers / 10) && first.grain_turns != ENGINE_GRAIN_TURNS_UNKNOWN,
+               "the supply icon of a unit of the save uses the grain of the record (+13) at one grain for 10 soldiers (G2-049)");
     feature_play_as(api, api->city_at(e, city).owner_force_id);
     feature_next_turn(api);
     engine_unit fed = api->unit_at(e, 0);

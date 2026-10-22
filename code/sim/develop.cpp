@@ -285,7 +285,8 @@ sim_develop(sim_state *sim, sim_command command, sim_event_sink *events)
     points.faction = force;
     points.delta   = -(s32)check.action_points;
     sim_emit(events, points);
-    sim_reward_command(sim, force, order->officers, true, command.id, events);
+    /* 開發 gives no technique points at the order (Q-158, G2-014). The complete facility gives them. */
+    sim_reward_command(sim, force, order->officers, sim->content.rules.technique_develop, command.id, events);
 }
 
 /* The officers of a job are free again: one released event for each. */
@@ -359,6 +360,8 @@ sim_progress_jobs(sim_state *sim, u32 cause, sim_event_sink *events)
             completed.faction = city ? city->owner_force_id : SIM_NO_FORCE;
             completed.delta   = slot->facility;
             sim_emit(events, completed);
+            /* The complete facility gives technique points (Q-158: 15 at the turn that completed the barracks). */
+            if (city) sim_add_technique_points(sim, city->owner_force_id, (s32)sim->content.rules.technique_facility_built, cause, events);
             sim_release_slot_officers(sim, slot, cause, events);
         }
     }

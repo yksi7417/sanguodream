@@ -240,11 +240,11 @@ sim_city_receive(sim_state *sim, city_component *city, u32 *stock, u32 cap, u32 
 }
 
 /* The command gives merit to each officer (save-file.md: +50 for each
-   officer that does an order) and, if the command raises them, technique
-   points to the faction (calendar-and-turn.md; the amount is assumed,
-   Q-158). */
+   officer that does an order) and the technique points of the action to
+   the faction (knowledge/tech-tree.md, the table by action; G2-014). The
+   caller gives the points of its action from rules.tsv. */
 internal void
-sim_reward_command(sim_state *sim, u8 force, const u16 *officers, b32 technique, u32 cause, sim_event_sink *events)
+sim_reward_command(sim_state *sim, u8 force, const u16 *officers, u32 technique, u32 cause, sim_event_sink *events)
 {
     sim_rules *rules = &sim->content.rules;
     for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place)
@@ -260,15 +260,7 @@ sim_reward_command(sim_state *sim, u8 force, const u16 *officers, b32 technique,
         event.delta   = (s32)gained;
         sim_emit(events, event);
     }
-    if (technique && rules->technique_per_command && force != SIM_NO_FORCE)
-    {
-        sim->technique_points[force] += rules->technique_per_command;
-        sim_event event = sim_event_make(sim, SIM_EVENT_TECHNIQUE_GAINED, cause);
-        event.faction = force;
-        event.delta   = (s32)rules->technique_per_command;
-        event.assumed = true;
-        sim_emit(events, event);
-    }
+    sim_add_technique_points(sim, force, (s32)technique, cause, events);
 }
 
 /* ---- the calendar events ------------------------------------------------ */

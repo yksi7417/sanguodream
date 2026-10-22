@@ -495,6 +495,8 @@ sim_load_save_world(sim_state *sim, save_file *save, sim_command command, sim_ev
         city_component city = sim_city_from_record(record);
         /* G2-012: the morale of the city record (+84). A scenario record has none: city.start_morale (assumed, Q-154). */
         city.morale = record->has_morale ? record->morale : (u8)Minimum(sim->content.rules.city_start_morale, 255u);
+        /* G2-013: the city price of the merchant starts at the price column of cities.tsv. */
+        city.price  = city.city_id < sim->content.city_count ? sim->content.cities[city.city_id].price : (u8)sim->content.rules.merchant_price_min;
         sim_add_city(sim, city);
     }
 
@@ -719,6 +721,7 @@ sim_event_name(sim_event_kind kind)
         case SIM_EVENT_OFFICER_ARRIVED:         return "officer_arrived";
         case SIM_EVENT_MISSION_STARTED:         return "mission_started";
         case SIM_EVENT_FACTION_PLOT_FAILED:     return "faction_plot_failed";
+        case SIM_EVENT_PRICE_CHANGED:           return "price_changed";
         case SIM_EVENT_FACTION_PLOT:            return "faction_plot";
         case SIM_EVENT_FACTION_FOUNDED:         return "faction_founded";
         case SIM_EVENT_ORDER_DROPPED:           return "order_dropped";

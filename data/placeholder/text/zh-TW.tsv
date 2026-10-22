@@ -143,6 +143,7 @@ command.period	期間
 command.days	日
 command.weapons	兵裝
 command.price	市價
+command.effect	交易效果
 command.buy	買入兵糧
 command.sell	賣出兵糧
 command.amount	數量

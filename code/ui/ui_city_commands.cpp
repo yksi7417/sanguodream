@@ -214,6 +214,11 @@ ui_draw_command_fields(ui_state *ui, engine_api *api, u32 kind, engine_city_econ
     const char *arrow = "\xE2\x86\x92";   /* U+2192 */
     if (runs) ImGui::Text("%s: %u %s %u", text_get(ui->text, info->value_id), current, arrow, check->value_after);
     else      ImGui::Text("%s: %u %s -", text_get(ui->text, info->value_id), current, arrow);
+    if (kind == UI_COMMAND_MERCHANT && runs)
+    {
+        /* G2-025: the trade effect of the officer, as the original shows it (交易效果 93%). */
+        ImGui::Text("%s: %u%%", text_get(ui->text, "command.effect"), check->effect_percent);
+    }
     if (kind == UI_COMMAND_MERCHANT && runs && check->gold_gain)
     {
         ImGui::Text("%s: +%u / %u", text_get(ui->text, "command.gold"), check->gold_gain, economy->gold);

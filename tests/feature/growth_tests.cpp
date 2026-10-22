@@ -226,8 +226,8 @@ feature_technique_effect_tests(test_counts *counts)
     mark = api->ledger_count(e);
     TEST_CHECK(counts, barracks != ENGINE_ANY_SLOT && api->command_conscript(e, city, ids).refusal == SIM_REFUSAL_NONE, "the city conscripts");
     sim_event order = {};
-    TEST_CHECK(counts, feature_find_city_event(api, city, SIM_EVENT_ORDER_LOST, mark, &order) && order.delta == -2,
-               "with the decrees technique conscription takes 2 public order, not 5 (assumed: half)");
+    TEST_CHECK(counts, feature_find_city_event(api, city, SIM_EVENT_ORDER_LOST, mark, &order) && order.delta == -5,
+               "with the decrees technique conscription takes 5 public order, not 10 (assumed: half)");
 
     /* The flags of M5 and M6 are in the set of the faction. */
     api->grant_technique(e, force, FEATURE_TECH_ROUGH_MARCH);
