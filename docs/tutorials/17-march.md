@@ -77,15 +77,21 @@ unit-values-guidebook.tsv checks that column against the table. The
 movement of the ships and of the transport unit is an assumption of
 Q-168.
 
-The spec names the inputs of the five values but gives no formula. The
-engine uses an assumed formula (Q-170):
+The run of 2026-10-22 settled the values of one officer (G2-043,
+fixtures/unit-values-sortie.tsv). The rule of a second officer is an
+assumption (Q-170):
 - The commander's ability is the base. If the best deputy is higher, the
   unit gains half of the difference, or all of it for a couple or sworn
   brothers.
-- Attack = force × the best aptitude × the attack grade. Defence =
-  leadership × aptitude × the defence grade.
-- Intellect is the best intellect of the officers. Build is politics by
-  the deputy rule.
+- Attack = force × the aptitude factor × the attack factor of the class.
+  Defence = leadership × the aptitude factor × the defence factor of the
+  class. The aptitude factors are 0.95 (S), 0.85 (A), 0.75 (B) and 0.65
+  (C). The class factors are the rows class.attack_* and class.defence_*
+  of rules.tsv. The pike has 1.0 and 1.0, the halberd 0.95 and 1.1, the
+  crossbow 0.9 and 0.95, the cavalry 1.1 and 0.95. A sword unit uses
+  0.36 and no aptitude.
+- Intellect is the best intellect of the officers. Build is 50 plus two
+  thirds of the politics by the deputy rule.
 - Movement is the class movement plus 4 for each technique or skill that
   adds movement (assumed, Q-169).
 

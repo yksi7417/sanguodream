@@ -3,7 +3,10 @@
 This file records the work of the builder on the gaps of
 spec-src/spec/ui/clone-gap-report-2.md (G2-001 to G2-065). The observer
 task reads it at the start of each run. The order of the work is section
-6 of the report. The spec revision is 511531a.
+6 of the report. The spec revision is 20da6c0. The play run of
+2026-10-22 (spec/experiments/gap2-answers-2026-10-22.md) answered most
+of the questions of the groups 1 to 5. The rows below name it as "the
+run of 2026-10-22".
 
 ## Fixed gaps
 
@@ -14,17 +17,17 @@ task reads it at the start of each run. The order of the work is section
 | G2-003 | The load runs no AI command, recovers no action points and starts no delegated corps. It gives the turn to the player at once and emits the turn start. The cities keep the soldiers of the file. | group 1 | feature/turns |
 | G2-004 | The load takes the acted flag of each officer (+148 bit 0). A unit whose leader acted has acted, so its plate shows 完 and 進行 asks no question. | group 1 | feature/turns, feature/save_map |
 | G2-012 | The load reads the morale of the city (+84). The third ship field (+68) is the stock of the 樓船: 江陵 4, 江夏 1. | group 1 | unit/save_format, feature/load_save |
-| G2-035 | The load reads the loyalty of each officer from +104 (a hypothesis, Q-005). The game shows at most 100. 英布 97, 劉辟 97, 董承 98, 呂蒙 99, the others 100. | 4a1d459 | unit/save_format, feature/load_save, feature/court |
+| G2-035 | The load reads the loyalty of each officer from +104. The run of 2026-10-22 confirmed the byte: the screen shows 100 for every value of 100 or more, and the game keeps the surplus (韓嵩 107, 張良 113, 李傕 242). The clone keeps the byte of the save, shows at most 100, and a loss takes from the surplus first. A gain stops at 100. | 4a1d459, settled rules | unit/save_format, feature/load_save, feature/court |
 | G2-042 | After 決定 of 出征 the new unit is selected and its range shows. A left click on the plate of a unit is a click on its hex. A click on an own unit with no selection selects it. | group 2 | ui |
-| G2-052 | A left click on an enemy unit while an own unit is selected opens 殲滅 and 驅趕, with the panel 預定抵達時間, 所有兵糧 and 通過據點. 殲滅 marches on the target and attacks it in the same turn when it is in reach, then at each 進行 until it is gone. The plate shows 委. A left click on an own unit asks for the follow order with 是 and 否. | group 2 | feature/orders, ui |
+| G2-052 | A left click on an enemy unit while an own unit is selected opens 殲滅 and 驅趕, with the panel 預定抵達時間, 所有兵糧 and 通過據點. 殲滅 marches on the target and attacks it in the same turn when it is in reach, then at each 進行 until it is gone. The plate shows 委. A left click on an own unit asks for the follow order with 是 and 否. The run of 2026-10-22 showed that the unit uses a tactic when the order allows it, and the normal attack otherwise: the long order of the clone now tries the tactics of the class first. | group 2, settled rules | feature/orders, ui |
 | G2-056 | A land unit enters a river hex as a 走舸 at the cost of the boat row. The far-hex order 移動 takes it onto the river over several turns. | group 2 | feature/orders |
 | G2-058 | A left click on a hex out of the range opens 移動 (and 設置, grey) with the days to arrive. 移動 moves the unit to the end of its range in the same turn, marks it 委, and moves it on at each 進行 until it arrives. 委任部隊行動 runs the steps now and is white when a unit has an order. | 3a621c8 | feature/orders, feature/march, ui |
-| G2-036 | 人材 > 移動 opens a dialog with the target city and its days, the free officers of the city with check marks, and 行動力 20. The officers travel for the days and arrive at a turn start, with a log line. The days are 10 for each city region that the journey enters (assumed, Q-228): 江陵 to 江夏 gives 10, as the report. | group 3 | feature/people, ui |
+| G2-036 | 人材 > 移動 opens a dialog with the target city and its days, the free officers of the city with check marks, and 行動力 20. The officers travel for the days and arrive at a turn start, with a log line. The days are 10 for each city region that the journey enters (assumed, Q-228): 江陵 to 江夏 gives 10, as the report. The run of 2026-10-22 read 59 rows (fixtures/journey-days.tsv). The rule fits the 18 rows of 10 days, and 1 of the 41 farther rows. The handler checks the rows of 10 days. The rule of the farther bases is a question below. | group 3 | feature/people, ui, fixture/journey-days |
 | G2-037 | 人材 > 召喚 opens a dialog with the officers of the other cities of the faction, their base and days, and 行動力 20. The officers travel to the city. | group 3 | feature/people, ui |
-| G2-060 | 君主 opens a second column: 評定, 軍團, 軍師, 官職, 仲介 (grey), 流放, 研究能力, 培育武將. 官職 opens a window with the posts (官職名, 功績, 指揮, 效果, 武將), the officers without a post, 任命, 免職, 全解除, 回復原狀 and 決定. The clone selects a post and an officer in place of a drag. 流放 opens a list of the officers. 研究能力 and 培育武將 open the abilities window. | group 3 | ui |
+| G2-060 | 君主 opens a second column: 評定, 軍團, 軍師, 官職, 仲介 (grey), 流放, 研究能力, 培育武將. 官職 opens a window with the posts (官職名, 功績, 指揮, 效果, 武將), the officers without a post, 任命, 免職, 全解除, 回復原狀 and 決定. The clone selects a post and an officer in place of a drag. 流放 opens a list of the officers. 研究能力 and 培育武將 open the abilities window. The run of 2026-10-22 showed that a drop on a row with a holder does nothing: the clone refuses 任命 on a taken post, as before. | group 3 | ui, feature/court |
 | G2-065 | 計略 opens a second column: 二虎競食, 驅虎吞狼, 流言. 驅虎吞狼 and 流言 open a dialog with the bases of the other forces (據點, 太守, 現役, 治安, 日數), one executor from the free officers of the city in the order of 智力, the gold, the days and 行動力. The plot goes on the road for the days, and the result comes at the turn start of the arrival with a log line that names the officer and the base. | 8cc350d | feature/people, feature/court, ui |
 | G2-014 | The technique points come from one rules.tsv row for each action (technique.*), with the status of each row: observed for the gap reports and Q-158, claimed for the video of tech-tree.md. 巡察 3, 訓練 3, 徵兵 2 to 5 by the soldiers, 商人 0, 生產兵裝 5 (10 for a siege weapon or a ship), 開發 0 at the order and 15 at the completion, 吸收合併 10, a tactic 15, a destroyed unit 25, 破城 125, the loss of a city 225 plus 25 for each facility, 探索 10 when it finds an officer, 登庸 20, 流放 of a captive 3, 流放 of an own officer 5 plus 5 scaled by the best ability, 親善 0, 同盟 25, 停戰 15, 解除同盟 +50, 贖人 25 and 15, 請求援軍 15, 勸降 500, 二虎競食 15, 流言 15, 驅虎吞狼 50. | group 4 | unit/economy, feature/economy, feature/court, fixture/conscript |
-| G2-011 | 徵兵 gives floor(F x (1000 + 5.6 x S)) soldiers (city-commands.md) and takes 10 治安 and 9 氣力. The seven dialogs of the sample fit within 7 soldiers. The fixture handler sets the charm of the officers and the level of the barracks through the editor. | group 4 | unit/economy, feature/city_commands, fixture/conscript |
+| G2-011 | 徵兵 gives floor(F x (1000 + 6 x S x 治安 / 100)) soldiers, with F 1.0 for a level-1 barracks and 1.5 for level 3 (the run of 2026-10-22, 13 rows within 10 soldiers or 1 percent). It takes 10 治安 and 9 氣力. The fixture handler sets the charm of the officers, the level of the barracks and the public order of the city through the editor. Two rows with 程普 (skill 名聲, 1.5 times the soldiers) stay pending: the clone has no skills. | group 4, settled rules | unit/economy, feature/city_commands, fixture/conscript |
 | G2-025 | 商人 uses E = 400 / (450 - P), a purchase gives floor(G x R x E) grain and a sale floor(N x E x 0.8 / R) gold. The dialog shows 交易效果 as a whole percent. All 16 rows of fixtures/merchant.tsv fit (the purchases of 長沙 within 3 grain). | group 4 | unit/economy, feature/city_commands, fixture/merchant |
 | G2-013 | The price R is a column of cities.tsv: 柴桑 3, 新野 5, 江陵 7 and 江夏 3 as observed, 5 for the other cities (assumed). The panel shows it. At each month start it drifts by -1, 0 or +1 within 3 to 7 (assumed, Q-155). The income stays open: see the questions. | group 4 | unit/content, feature/city_commands |
 | G2-049 | A unit eats one grain for 10 soldiers each turn (2043 soldiers eat 204). The preset of 出征 proposes two grain for each soldier (G2-044: 2043 soldiers, 4086 grain). The grain of a unit of the save stays open (Q-226). | group 4 | feature/march, feature/save_map, feature/ai |
@@ -33,7 +36,7 @@ task reads it at the start of each run. The order of the work is section
 | G2-055 | An officer past its death year rolls its death at each month start, not at the year start (朱儁, death year 195, died at the change to 197/12/1). The chance for each month is assumed (age.death_month_chance 10, Q-029). The deputy leads the unit after the death. The death is a message of the turn start with the portrait of the officer, and a line of the log. | group 5 | feature/turns |
 | G2-062 | The log line of a complete research names the technique (開發投石的技巧研究完畢), and the turn start shows it as a message. The research of 劉表 in the sample does not load: the spec marks the research fields of the save as open (Q-202, see the questions). | 196a186 | ui/report (the line), feature/growth |
 | G2-063 | The envoy of a diplomacy command goes on the road for the days of 抵達日數 to the capital of the target (travel.cpp, as the plots). The result comes at the turn start of the arrival, with the command as its cause. The dialog lists only the free officers of the city that did not act, and shows 抵達日數 for the chosen faction. The relations of the save stay open (see the questions of group 1). | P1 rest | feature/court, feature/replay |
-| G2-048 | The 技巧 of a battle came with group 4: a destroyed unit gives 25, a tactic 15 (0ac20d2). The merit and the experience of a battle stay open (Q-225, see the questions). | 0ac20d2 | feature/combat |
+| G2-048 | The 技巧 of a battle came with group 4: a destroyed unit gives 25, a tactic 15 (0ac20d2). The run of 2026-10-22 settled the merit and the experience: an attack gives 20 merit to each officer of the attacker, an arrow attack 10, a tactic 50, a destroyed unit 320 (350 with a tactic). An attack gives 1 force experience, a tactic 3. A destroyed unit gives 3 leadership experience, and the officers of the unit that was hit gain 1. The rows are rules.tsv (merit.*, experience.*). The fixture handler checks a melee attack and a destroy. The arrow and tactic rows stay pending in the handler. | 0ac20d2, settled rules | feature/combat, fixture/battle-merit |
 | G2-008 | The header of the list panel is the selected city when the player owns it, else the first own city. The rows with a base that can act come first, then the grey rows. | P2 batch 1 | ui (the list tests) |
 | G2-015 | An item of the city menu is grey when its command cannot run: no free slot (開發), no facility, a value at its maximum, a limit of the turn, no free officer, no item or an enemy near. 吸收合併 stays white: its probe needs the two slots of the dialog. The window still scrolls. | P2 batch 1 | ui |
 | G2-016 | 現役 counts all officers of the city, also those in its units. 在野 counts the free officers of the city that appeared (assumed, Q-223). | P2 batch 1 | ui |
@@ -54,6 +57,10 @@ task reads it at the start of each run. The order of the work is section
 | G2-038 | The log line of a failed 登庸 names both officers (高長恭登庸卞氏失敗). A failure gives 0 技巧 (group 4). The dialog with a target list that has columns, and the speech of the executor, stay open. | P2 batch 3 | feature/court |
 | G2-059 | A force that loses its last city falls: the ledger has 張楊軍滅亡, the log shows it, and the turn start shows it as a message to every player. The picture of a burning castle stays open: the clone has no such picture. | P2 batch 3 | feature/combat |
 | G2-040 | Open. The clone rewards up to three officers of the city in one order for 5 行動力 and 100 gold each, as the spec says. The original rewards a set of the whole force in one dialog. The list with 忠誠 below 100 and the check boxes stay open. | - | - |
+| G2-022 | 訓練 raises the morale by floor(4 + 0.115 x S) in a city with a 鍊兵所 and by floor(3 + S / 15) without one. S is the force of the first officer plus half of the force of each other officer (the run of 2026-10-22, 17 rows). The fixture handler checks the rows without a drill ground, builds one, then checks the rows with it. | settled rules | unit/economy, feature/city_commands, fixture/train |
+| G2-026 | 生產兵裝 gives F x (1000 + 10 x I) weapons, with F 1.5 for a level-3 smithy. I is the intellect of the first officer plus half of the intellect of each other officer (the run of 2026-10-22, 6 rows). | settled rules | unit/economy, feature/city_commands, fixture/produce |
+| G2-043 | The attack of a unit is 武力 x A x C, and the defence is 統率 x A x D. A is the aptitude factor (S 0.95, A 0.85, B 0.75, C 0.65). C and D are the class factors (槍兵 1.0 and 1.0, 戟兵 0.95 and 1.1, 弩兵 0.9 and 0.95, 騎兵 1.1 and 0.95). A sword unit uses 0.36 with no aptitude. 建設 is 50 plus two thirds of 政治. 智力 is the intellect of the officer. The rows are rules.tsv (class.*, unit.*, aptitude.*). The fixture handler sets the abilities and the aptitudes of one officer through the editor: the pike, the halberd and the sword rows fit within one point, the crossbow and the cavalry rows within two. The ship rows stay pending. | settled rules | unit/units, feature/march, fixture/unit-values-sortie |
+| G2-005 | The gain of 技巧 at the turn start: each built 鍊兵所 of the force gives 15 (the run of 2026-10-22, rules.tsv technique.drill_ground_turn). The recovery of 行動力 stays open: see the questions. | settled rules | feature/turns |
 
 ## In progress
 
@@ -61,15 +68,16 @@ task reads it at the start of each run. The order of the work is section
   the spec does not support (see the questions). The corps of a save still act as
   the factions 0 and 12, and the adviser and the relations keep their
   start values.
-- Group 2 has no open work. In the original, 殲滅 used a tactic (G2-052).
-  The long order of the clone uses the normal attack of the class. The
-  rule that picks the tactic is a question below.
+- Group 2 has no open work. The long order of the clone uses the first
+  tactic that the unit can pay, else the normal attack (G2-052, the run
+  of 2026-10-22). The end of 驅趕 stays a question below.
 - Group 3 has no open work. 仲介 stays grey. The 移動 and 召喚 dialogs
   list cities only, not ports and passes. The log line of an arrival
   names the officer but not the base.
-- Group 4. G2-005 stays open: the recovery of 行動力 and the gain of 技巧
-  at the turn start have no rule in the spec (see the questions). The
-  income of G2-013 and G2-028 stays open for the same reason. The rows
+- Group 4. G2-005 stays half open. The gain of 技巧 at the turn start
+  comes from the drill grounds. The recovery of 行動力 has no rule
+  that fits the 12 corps of the run (see the questions). The income of
+  G2-013 and G2-028 stays open for the same reason. The rows
   technique.facility_lost, technique.facility_lost_leveled and
   technique.tactic_extra_unit are in rules.tsv. No code gives them yet.
   The clone has no facility that an enemy destroys. A tactic that hits
@@ -80,8 +88,9 @@ task reads it at the start of each run. The order of the work is section
   death of an officer is a message of the turn start, not a picture of a
   death bed: the clone has no such picture.
 - The other P1 rows. G2-022 (訓練), G2-026 (生產兵裝) and G2-043 (the
-  unit values) have no rule in the spec: see the questions. G2-061 waits
-  for the corps fields of the save (the questions of group 1).
+  unit values) follow the rules of the run of 2026-10-22 (the table
+  above). G2-061 waits for the corps fields of the save (the questions
+  of group 1).
 - P2 batch 1 (f4e7fbc): the greys of the city menu, the counts of the
   city panel, the list header, the log and the Diplomacy panel.
 - P2 batch 2 (a5ffabb): the produce and merchant dialogs, the unit menu,
@@ -94,11 +103,10 @@ task reads it at the start of each run. The order of the work is section
 
 ## Questions for the observer
 
-- G2-035, the loyalty byte (+104). In the sample, 鮑叔牙 (id 828, in a
-  unit) has 99 at +104. The 褒賞 list of the original did not show him.
-  李傕 (id 598) has 242. What 忠誠 does the original show for 鮑叔牙 and
-  for 李傕 at the load of the sample? If 鮑叔牙 shows 99, the byte is
-  the loyalty and the 褒賞 list has a second filter.
+- G2-035, the 褒賞 list. The byte +104 is the loyalty (the run of
+  2026-10-22). 鮑叔牙 (99, in a unit) was not in the 褒賞 list of the
+  original. What is the second filter of the list: the officers in a
+  unit, the officers away, or another rule?
 - G2-061, the corps. The save marks 長沙 with the owner 0 and 武陵 with
   the owner 12. Table A record 0 has the leader 蘇飛, 255 action points
   and the bytes 1 and 1 at +13 and +14. Record 12 has the leader 吳巨,
@@ -126,78 +134,57 @@ task reads it at the start of each run. The order of the work is section
   holds the 鬥艦, and what field holds the 木獸? The clone keeps the
   鬥艦 at the second ship field and the 木獸 with the 衝車 (assumed,
   Q-006).
-- G2-052, the attack of 殲滅. In run 7 the order used a tactic. The
-  氣力 went from 100 to 85, and the target went into 混亂. In run 8
-  夏侯淵隊 shot from two hexes. The clone attacks with the normal attack
-  of the class.
-  What picks the tactic of a long order? Does the unit use its best
-  tactic when the morale allows it, and the normal attack otherwise?
-- G2-052, the end of 驅趕. The clone ends 驅趕 after one attack (an
-  assumption). When does the original end 驅趕: after one attack, when
-  the target leaves the area of the base, or when the target is gone?
+- G2-052, the end of 驅趕. The run of 2026-10-22 saw 驅趕 continue over
+  two attacks while the target stayed near 長安. The clone ends 驅趕
+  after one attack (an assumption). When does the original end 驅趕:
+  when the target leaves the area of the base, or when the target is
+  gone?
 - G2-058, the path of a long order. The clone plans the lowest-cost
   path over the terrain and treats own cities and bases as waypoints
   (Q-227). Does the unit of the original stop in an own base on the
   way, as a move of one turn does?
-- G2-036, G2-063, G2-065, the days of a journey (抵達日數). The spec
-  gives no rule. The clone counts 10 days for each city region that
-  the journey enters. Two regions are neighbours when they touch, and
-  the regions of gates and ports on the way are free (Q-228). This
-  gives 10 days for 江陵 to 江夏, as the report. The report also gives
-  10 for 新野 to 汝南, and 50 for 襄陽 to the capital of 袁紹. Please read
-  the 日數 column of the 移動 dialog of 江陵 for all bases of 劉表. Please
-  also read the 日數 of the 流言 dialog of 新野 for five bases. Then the
-  builder can check the rule against more than three numbers.
+- G2-036, G2-063, G2-065, the days of a journey (抵達日數). The run of
+  2026-10-22 read 59 rows (fixtures/journey-days.tsv). The clone counts
+  10 days for each city region that the journey enters, with the
+  regions of gates and ports free (Q-228). That rule fits the 18 rows
+  of 10 days and 1 of the 41 farther rows. The builder tried three
+  other rules against the 59 rows. Ten days for each region, ports and
+  gates included: 31 rows. Ten days for each 22 hexes of the straight
+  distance: 34 rows. Ten days for each 147 points of the lowest
+  foot-path cost over the terrain of the map: 23 rows. No rule of the
+  map alone fits. A question for the analysis side: does the game keep
+  a table of the days between the bases, or a route graph of the
+  bases? The 10-day bases of 江陵 are not all neighbours of its region
+  (九江港 and 柴桑 are far down the river).
 - G2-065, the result of a plot. The clone rolls the chance at the
   arrival, with the chance of the order. Does the original roll at the
   order or at the arrival? A plot on a base that changed hands on the
   way fails in the clone.
-- G2-060, the window 官職. The original drags an officer onto a row.
-  The clone selects a row and an officer, then clicks 任命. What does
-  the original do when the player drops an officer on a row with a
-  holder: a swap, a refusal, or a dismissal?
-- G2-005, the recovery of 行動力. The spec names the inputs (the cities,
-  the leader, the adviser, 符節台) but no formula (Q-019). 劉表 with 9
-  cities went 62 to 236 (+174). The clone adds the larger of the
-  leadership and the charm of the ruler (83, assumed). Please read these
-  numbers at one turn start of the original:
-  - the 行動力 of 劉表 before and after the turn start;
-  - the 統率 and the 魅力 of 劉表, and the 智力 of the adviser;
-  - the number of 符節台 in the nine cities.
-  Please read the same numbers for one other force with few cities, for
-  example 劉璋. Then the builder can fit a line.
-- G2-005, the gain of 技巧 at the turn start. The original gave +37, +75,
-  +24, +20, +7, +7, +29, +5 and +12 at the turn starts of the runs. Some
-  of these turns had no command. The HUD showed 161 at the change of the
-  date and 178 at the start of the turn of 劉表. The spec gives no rule
-  for a gain at a turn start. Does a facility give 技巧 each turn, for
-  example 錬兵所? How many such facilities do the nine cities of 劉表
-  hold? Does the log or the 報告 window name the source of the points at
-  the turn start?
-- G2-013 and G2-028, the income. The spec gives no formula beyond the
-  multipliers and names the initial income value of a city as unknown
-  (Q-021). The original shows 資金收入 2047 and 兵糧收入 23575 for 江陵,
-  1818 and 9405 for 新野, 1772 and 7990 for 江夏. Please read, for all
-  nine cities of 劉表: 資金收入, 兵糧收入, 治安, and the count and the
-  level of 市場, 農場 and the other income facilities. With nine rows the
-  builder can fit the initial value and the share of each facility.
-- G2-028, the free weapons of a specialty city. The original gave 213 戟
-  to 江夏 at a month start. The clone gives 100 (assumed, Q-156). Does the
-  number change with the 鍛冶廠 count or level, or with the month? Please
-  read the gain of 江夏 at two month starts, with its 鍛冶廠 levels.
-- G2-011, the barracks factor of level 1. The rule
-  floor(F x (1000 + 5.6 x S)) fits the level-3 dialogs of the sample
-  within 7 soldiers. The 長沙 rows of 2026-10-20 have a level-1
-  barracks, with F 1.0 assumed. They give 1000 + 5.9 x S, for example
-  1536 for S 91 and 1383 for S 65. The level factor of the spec is a
-  decision of the player, not an observation. Please open 徵兵 in a city
-  of the sample with a level-1 or level-2 barracks. Please read the
-  prediction for one officer and the charm on the screen. Then the
-  builder can fit F for each level.
-- G2-011, the loss of 治安 and 氣力. One conscription with three officers
-  took 10 and 9. Does a conscription with one officer take the same?
-  Please do 徵兵 with one officer in 新野 and read 治安 and 氣力 before
-  and after.
+- G2-005, the recovery of 行動力. The run of 2026-10-22 read the
+  recovery of 12 corps (fixtures/action-points.tsv). It is a fixed
+  number for each corps:
+  - 劉表, 9 cities, 統率 48, 魅力 83, adviser 100: 174;
+  - 劉璋, 5 cities, 16 and 65, adviser 88: 103;
+  - 孫策, 1 city, 92 and 92, adviser 98: 57;
+  - 袁術, 1 city, 44 and 39, adviser 76: 40.
+  No line of the city count and one ability fits all rows.
+  The clone keeps the assumed rule (Q-019). A question for the analysis
+  side: what inputs make the recovery? The 符節台 count of the AI forces
+  is unknown.
+- G2-013 and G2-028, the income. The run of 2026-10-22 read the income
+  of 11 cities with their facilities and their public order
+  (fixtures/city-income.tsv). The spec still names the initial income
+  value of a city as unknown (Q-021). The fixture handler prints the
+  rows as open. A question for the analysis side: what is the base
+  income of a city, and what share does each facility level add?
+- G2-028, the free weapons of a specialty city. The run of 2026-10-22
+  read 13 rows (fixtures/free-weapons.tsv). The clone gives 100
+  (assumed, Q-156), and the handler prints the rows as open. The
+  rule by the governor or the 鍛冶廠 stays open (Q-022).
+- G2-011, the loss of 治安 and 氣力. In the run of 2026-10-22 one
+  officer in 新野 took 12 治安 and 6 氣力. Three officers in 江陵 took 10
+  and 9. The clone takes 10 and 9 for any count. What rule gives the
+  loss: the count of the officers, the charm, or the public order?
 - G2-049, the grain of a unit of the save. 霍去病隊 shows 兵糧 10500 in
   the original and 12600 in the clone (Q-226). The clone reads the field
   +13 of the unit record. Can the analysis side check the field against
@@ -212,36 +199,18 @@ task reads it at the start of each run. The order of the work is section
   hold 128 to 130 at +70. Please read 技巧表 of three forces of the sample with a
   research in progress, with the technique and the days left. Then the
   analysis side can match the bytes, and the clone can load the research.
-- G2-048, the merit and the experience of a battle. An attack that
-  destroyed a unit of 319 soldiers gave merit +320 to each officer. It
-  gave 統率 +3 and 武力 +1. 殲滅 that destroyed 1170 soldiers gave +350,
-  統率 +3 and 武力 +3. An attack that took 1888 soldiers with no destroy
-  gave +100 (G2-052). 火矢 that took 750 gave +50 and 武力 +3. The clone
-  gives no merit for a battle. What parts make the merit? Possible parts
-  are a base for the attack, a base for a destroyed unit and a share of
-  the soldiers. Please read the merit of the officers before and after
-  three attacks with no destroy. Please also note the soldiers that each
-  attack took.
-- G2-022, the gain of 訓練. The original gave +15 for the war sum 135
-  in 江陵. That city has a barracks and 氣力 74. It gave +9 for the sum
-  140 in 長沙, a city with no barracks. The clone gives 10 percent of the
-  sum (assumed, Q-154). Please read three more 訓練 predictions. One is in
-  江陵 with one officer. One is in a city with a level-1 barracks. One is
-  in a city with 氣力 below 50. Then the builder can fit the line and the
-  factor of the barracks.
-- G2-026, the quantity of 生產兵裝. The original gave 3315 槍 in 新野
-  for the intellect sum 176, with the politics sum 155 and the cost 560.
-  The clone gives 15 for each point of the sum (assumed, Q-023, Q-156).
-  Please read the level of the 鍛冶廠 of 新野. Please read two more
-  predictions with one officer each, one with a high intellect and one
-  with a low intellect. Then the builder can see whether the intellect or
-  the politics sets the quantity.
-- G2-043, the values of a unit. The original shows 攻擊 59, 防禦 78 and
-  建設 95 for 王翦 alone with 槍兵 A and 2043 soldiers. The officer has
-  統率 92, 武力 71, 智力 75 and 政治 68. The spec names the inputs but no formula
-  (Q-224). Please read the five values for the same officer with 戟兵 and
-  with 騎兵. Please read them for one more officer with 槍兵 A. Then the
-  builder can fit the weights of the abilities and the aptitude.
+- G2-048, the merit of an attack that took many soldiers. The run of
+  2026-10-22 settled 20 for an attack, 10 for an arrow attack and 50 for
+  a tactic. The earlier run 7 saw +100 for an attack that took 1888
+  soldiers with no destroy. Does the merit grow with the soldiers that
+  the attack took, or did that attack use a tactic?
+- G2-043, the values of a unit. The run of 2026-10-22 settled the
+  factors of the pike, the halberd, the crossbow and the cavalry. The
+  cut of the product to a whole number stays open: a round fits some
+  rows, and a floor fits others. The factors of the ships and of a
+  second officer stay open (Q-170). Please read the five values of one
+  officer with 走舸 and with 樓船, and of two officers together with
+  槍兵.
 - G2-027, the unit of 吳巨. The report says that the clone of run 5
   showed no unit near 江陵 for the transport of 吳巨 (3790 soldiers). The
   save holds it as unit 53 at the map hex 69,148 with the task 移動 to

@@ -79,12 +79,12 @@ number is in rules.tsv with the status "assumed" and a question:
 |---|---|---|
 | Income at public order 0, as a percent of the income at order 100 | 50 | Q-151 |
 | Public order of one patrol | 10 percent of the leadership sum | Q-152 |
-| Soldiers of one conscription | floor(F x (1000 + 5.6 x S)) for the charm sum S; F is 1.0, 1.2 or 1.5 by the level of the barracks | observed at level 3 (G2-011); the factors of level 1 and 2 are assumed |
-| Public order and morale that a conscription takes | 10 and 9 | observed (pairs/conscript/001) |
+| Soldiers of one conscription | floor(F x (1000 + 6 x S x P / 100)) for the charm sum S and the public order P; F is 1.0 at level 1, 1.2 at level 2 (assumed) and 1.5 at level 3 | observed at the levels 1 and 3 (G2-011, the run of 2026-10-22) |
+| Public order and morale that a conscription takes | 10 and 9 | observed (pairs/conscript/001); one officer took 12 and 6 in the run of 2026-10-22 |
 | Morale of a loaded city | 50 | Q-154 |
-| Morale of one train | 10 percent of the force sum | Q-154 |
+| Morale of one train | floor(4 + 0.115 x S) with a drill ground, floor(3 + S / 15) without one; S is the force of the first officer plus half of the force of each other officer | observed (G2-022, the run of 2026-10-22) |
 | Price of grain | the price R of the city (cities.tsv, 3 to 7 grain for 1 gold) and the trade effect 400 / (450 - politics); a sale loses 20 percent | observed (G2-025); the monthly drift of R is assumed (Q-155) |
-| Weapons of one production | 10 for each point of the intellect sum | Q-023, Q-156 |
+| Weapons of one production | F x (1000 + 10 x I); I is the intellect of the first officer plus half of the intellect of each other officer; F is 1.5 at smithy level 3 | observed at level 3 (G2-026, the run of 2026-10-22); the factors of the levels 1 and 2 are assumed |
 | Period of a siege weapon or a ship | 90 days at sum 0 to 30 days at sum 100 | Q-156 |
 | Cost in a specialty city | 80 percent | Q-022, Q-156 |
 | Free weapons of a specialty city | 100 each month | Q-022 |
@@ -126,18 +126,23 @@ The commands are:
   100. An enemy within 2 hexes gives half the rise. At 80 or more, the
   city has no bandits. This is a flag (`bandits_blocked`) until F-007.
 - 徵兵 conscript: 300 gold. It needs a barracks, and it runs one time for
-  each barracks in each turn. The soldiers are floor(F x (1000 + 5.6 x S))
-  for the charm sum S and the factor F of the barracks level. It takes 10
+  each barracks in each turn. The soldiers are
+  floor(F x (1000 + 6 x S x P / 100)). S is the charm sum, P is the
+  public order and F is the factor of the barracks level. It takes 10
   public order and 9 morale.
-- 訓練 train: no gold. The force sum raises morale, up to 100. It runs one
-  time in each turn. A drill ground gives more.
+- 訓練 train: no gold. The force of the officers raises morale, up to
+  100. S is the force of the first officer plus half of the force of each
+  other officer. The rise is floor(4 + 0.115 x S) with a drill ground and
+  floor(3 + S / 15) without one. It runs one time in each turn.
 - 商人 merchant: one officer. The order buys grain with gold, or sells
   grain for gold, at the price R of the city and the trade effect of the
   officer. A sale loses 20 percent. An enemy within 2 hexes blocks it.
   It gives no technique points.
 - 生產兵裝 produce: the cost of the weapon (weapons.tsv). Pikes,
-  halberds, crossbows and war horses arrive in the same turn. The intellect sum
-  gives their quantity. A siege weapon or a ship arrives after a period,
+  halberds, crossbows and war horses arrive in the same turn. The
+  quantity is F x (1000 + 10 x I). I is the intellect of the first
+  officer plus half of the intellect of each other officer. F is the
+  factor of the smithy level. A siege weapon or a ship arrives after a period,
   one item for each command, and its officers are busy until then. The
   weapons that need a technique (木獸, 投石, 鬥艦) refuse with
   `no_facility` until M4.

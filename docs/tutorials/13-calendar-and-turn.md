@@ -112,9 +112,15 @@ with the event `action_points_recovered`.
 No source gives the recovery formula (Q-019). The engine uses an
 assumed rule: the higher of the leadership and the charm of the leader
 (Q-141). The rule comes from an unverified claim in
-knowledge/turn-structure.md. The cities, the adviser and the tally office
-do not change the recovery yet. A load gives each faction one recovery,
-because the loader does not decode the pool of the save.
+knowledge/turn-structure.md. The run of 2026-10-22 read the recovery of
+12 corps (fixtures/action-points.tsv): a fixed number for each corps
+that no single input explains. The cities, the adviser and the tally
+office do not change the recovery yet. A load gives each faction one
+recovery, because the loader does not decode the pool of the save.
+
+At the same turn start each built 鍊兵所 of the faction gives 15
+technique points (G2-005, the run of 2026-10-22, rules.tsv
+technique.drill_ground_turn).
 
 ## engine_api
 - `date` gives the year, month, day, season and the days since the start.

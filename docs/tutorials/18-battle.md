@@ -157,6 +157,17 @@ with the chance combat.capture_percent, more with a halberd tactic and always wi
 捕縛. 強運 and 血路 always escape. An officer that escapes goes to a city
 of the faction. The victor gains technique points.
 
+## The merit and the experience of a battle
+The run of 2026-10-22 settled the rewards of a battle (G2-048,
+fixtures/battle-merit.tsv). `sim_reward_battle` gives them after an
+attack, a joint attack and a tactic:
+- Each officer of the attacker gains merit (rules.tsv merit.*). An
+  attack gives 20, an arrow attack 10 and a tactic 50. A destroyed unit
+  gives 320, or 350 when a tactic destroyed it.
+- Each officer of the attacker gains force experience: 1 for an attack,
+  3 for a tactic. A destroyed unit gives 3 leadership experience.
+- Each officer of the target unit gains 1 leadership experience.
+
 ## Water
 A foot or cavalry unit on water is a 走舸: it pays the navy cost and
 fights with the values of the boat. A siege weapon stays on land

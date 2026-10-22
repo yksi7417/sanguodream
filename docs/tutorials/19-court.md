@@ -24,10 +24,12 @@ The features are F-051 to F-056, F-058, F-059, F-100, F-101 and F-110 to
 F-113 of FEATURES.md.
 
 ## The fields that the save does not decode
-The save loader does not decode loyalty, ambition, justice, personality,
+The save loader decodes the loyalty from the byte +104 of the officer
+record (G2-035). The game keeps a surplus above 100 in that byte (張良
+113, 李傕 242) and shows at most 100. The clone keeps the byte and shows
+at most 100. The loader does not decode ambition, justice, personality,
 growth type, sex or health (Q-177). After a save loads, the engine gives
 each officer these assumed values:
-- loyalty: 100 for a ruler, loyalty.start (80) for the others;
 - ambition and justice: 2, that is normal (0 to 4);
 - personality: reckless for a strong officer with a low intellect, bold
   for a strong officer, calm for a wise officer, careful for the others;
@@ -58,6 +60,8 @@ These rules run on the calendar:
   nothing.
 - A city that cannot pay its salaries takes loyalty.unpaid from its
   officers.
+- A loss of loyalty takes from the surplus above 100 first. A gain stops
+  at 100 (the run of 2026-10-22).
 - An officer below loyalty.leave can leave its faction (an officer with
   justice 4 never does).
 - Each month the ruler gets the rank of its city count.
