@@ -63,12 +63,12 @@ function takes the facts and a form:
 The template provider looks up these strings in the locale:
 1. a log line: "log.<key>", then "log.generic.quiet" for an event
    without an amount, then "log.generic". Every kind that reaches the
-   log has its own line in both locales: the generic lines say nothing
-   about the field, and the player asked what "+11" means. The test
+   log has its own line in both locales. The generic lines do not name
+   the field, and the player asked what "+11" means. The test
    each_locale_has_a_log_line_for_each_event_kind keeps it so. The
-   speaker slot of a line can hold a thing of the event: the weapon of
-   the free weapons, the item, the post, the other officer of an oath or
-   a marriage, or the ability that changed;
+   speaker slot of a line can hold a thing of the event. Examples are
+   the weapon of the free weapons, the item, the post and the ability
+   that changed. An oath or a marriage names the other officer there;
 2. a speech: "say.<key>", then "say.tone.<tone>", then
    "say.sign.<sign>".
 
