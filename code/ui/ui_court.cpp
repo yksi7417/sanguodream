@@ -471,8 +471,8 @@ ui_draw_diplomacy(ui_state *ui, engine_api *api)
         }
         ImGui::EndTable();
     }
-    /* G2-063: the envoy is a free officer of the city, and the days of 抵達日數 go to the capital of the target. */
-    u8 envoy_city = ui_court_order(api, ENGINE_NO_OFFICER, ENGINE_NO_OFFICER).city_id;
+    /* G2-063: the envoy is a free officer of the selected city, and the days of 抵達日數 go to the capital of the target. */
+    u8 envoy_city = ui->city.selected;
     ui_officer_pick(ui, api, "diplomacy.envoy", "envoy", &ui->diplomacy.envoy, UI_OFFICERS_CITY_FREE, envoy_city);
     if (ui->diplomacy.force != ENGINE_NO_FACTION && envoy_city != ENGINE_NO_CITY)
     {

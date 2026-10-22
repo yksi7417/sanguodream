@@ -2569,6 +2569,32 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK(v.recorder.last_court.kind == SIM_DIPLOMACY_GOODWILL && v.recorder.last_court.force == 2 && v.recorder.last_court.officer == 101);
     };
 
+    /* G2-063: the envoy picker lists the free officers of the selected
+       city. The scripted officers stand in city 0, so city 1 lists none. */
+    t = IM_REGISTER_TEST(e, "ui", "diplomacy_envoy_picker_lists_the_free_officers_of_the_selected_city");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_diplomacy      = true;
+        v.ui.city.selected       = 0;
+        ctx->SetRef("###Diplomacy");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ComboClick("###envoy/###o101");
+        IM_CHECK_EQ(v.ui.diplomacy.envoy, (u16)101);
+        v.ui.city.selected = 1;
+        ctx->Yield(2);
+        ctx->ItemClick("###envoy");
+        ctx->Yield();
+        IM_CHECK(ctx->ItemInfo("//##Combo_00/**/###o101", ImGuiTestOpFlags_NoError).ID == 0);
+        ctx->KeyPress(ImGuiKey_Escape);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
     t = IM_REGISTER_TEST(e, "ui", "duel_screen_policy_special_and_round_issue_one_command_each");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;
