@@ -138,6 +138,15 @@ ui_force_text(ui_state *ui, engine_api *api, u8 force_id, char *out, u32 out_siz
 {
     if (force_id == ENGINE_NO_FACTION) { snprintf(out, out_size, "-"); return; }
     u16 ruler = api->force_ruler(api->engine, force_id);
+    if (ruler == ENGINE_NO_OFFICER)
+    {
+        /* G2-019, G2-023: a corps of a save plays as a faction without a ruler: its leader names it. */
+        for (u32 index = 0; index < api->faction_count(api->engine) && ruler == ENGINE_NO_OFFICER; ++index)
+        {
+            engine_faction faction = api->faction_at(api->engine, index);
+            if (faction.force_id == force_id) ruler = faction.leader_officer_id;
+        }
+    }
     if (ruler == ENGINE_NO_OFFICER) snprintf(out, out_size, "%s %u", text_get(ui->text, "label.force"), force_id);
     else                            ui_officer_text(ui, api, ruler, out, out_size);
 }

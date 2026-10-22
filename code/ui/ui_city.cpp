@@ -234,14 +234,17 @@ ui_draw_city_game_fields(ui_state *ui, engine_api *api, u8 city_id)
     char price[64];
     snprintf(price, sizeof(price), text_get(ui->text, "city.price_text"), economy.grain_per_gold);
     ImGui::Text("%s %s", text_get(ui->text, "city.market_price"), price);
+    /* G2-016: 現役 counts all officers of the city, also those in its units (base_location). 在野
+       counts the free officers that appeared (assumed, Q-223). */
     u32 active = 0, captives = 0, ronin = 0;
+    u16 year = api->date(api->engine).year;
     for (u32 index = 0; index < api->officer_count(api->engine); ++index)
     {
         engine_officer officer = api->officer_at(api->engine, index);
+        if (officer.status <= 3 && officer.force_id == city.owner_force_id && officer.base_location == city_id) { active++; continue; }
         if (officer.current_position != city_id) continue;
-        if (officer.status <= 3 && officer.force_id == city.owner_force_id) active++;
-        else if (officer.status == 6) ronin++;
-        else if (api->officer_detail(api->engine, officer.officer_id).captive) captives++;
+        if (officer.status == 6 && officer.appearance_year <= year) ronin++;
+        else if (officer.status != 6 && api->officer_detail(api->engine, officer.officer_id).captive) captives++;
     }
     u16 free_ids[UI_DEVELOP_OFFICER_LIST];
     u32 free_count = ui_free_officers(api, city_id, free_ids, ArrayCount(free_ids));

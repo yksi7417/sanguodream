@@ -39,8 +39,14 @@ officers and sends the command, as in the debug layout.
 An item is grey in two cases:
 - The engine has no command for it. 仲介 is grey, because the clone has
   no dialog for it yet.
-- can_issue refuses the trial order for a cost: the action points, the
-  gold or the technique points. The tooltip names the reason.
+- can_issue refuses the trial order for a reason that blocks the command
+  now (G2-015, G2-030, G2-041). These reasons are:
+  - a cost: the action points, the gold or the technique points;
+  - no free slot, no facility or no free officer;
+  - a value at its maximum or a limit of the turn;
+  - no item, or an enemy near.
+  The tooltip names the reason. 授與沒收 is also grey when the force
+  holds no item.
 
 The debug layout keeps the flat buttons of the City panel. The older ui
 tests use them.

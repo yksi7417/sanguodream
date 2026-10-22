@@ -3950,7 +3950,7 @@ register_ui_tests(ImGuiTestEngine *e)
         ui_context_open(&v.ui, &v.api, UI_CONTEXT_MAP_MENU, 400.0f, 300.0f);
         ctx->Yield(2);
         ImGuiTestItemInfo grey = ctx->ItemInfo("//###MapMenu/###delegate");
-        IM_CHECK(grey.ID != 0 && (grey.ItemFlags & ImGuiItemFlags_Disabled) != 0);   /* no unit has an order */
+        IM_CHECK(grey.ID != 0 && (grey.ItemFlags & ImGuiItemFlags_Disabled) == 0);   /* G2-033: no order, but the units have not acted: white */
         ui_context_close(&v.ui);
         v.recorder.unit_order = UNIT_ORDER_MOVE;
         ctx->Yield();

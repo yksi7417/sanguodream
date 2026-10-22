@@ -94,7 +94,7 @@ ui_draw_develop_fields(ui_state *ui, engine_api *api, engine_check *check)
     engine_city_slots slots = api->city_slots(api->engine, ui->develop.city);
     ImGui::Text("%s: %u / %u   %s: %u%s   %s: %u / %u", text_get(ui->text, "command.gold"), runs ? check->gold : 0, city.gold,
                 text_get(ui->text, "command.period"), runs ? check->days : 0, text_get(ui->text, "command.days"),
-                text_get(ui->text, "develop.slot"), slots.used, slots.slot_count);
+                text_get(ui->text, "develop.slot"), slots.slot_count - slots.used, slots.slot_count);   /* G2-034: 空地 counts the free slots */
     u32 available = city.owner_force_id != ENGINE_NO_FACTION ? api->actions_left(api->engine, city.owner_force_id) : 0;
     ImGui::Text("%s: %u / %u", text_get(ui->text, "command.action_points"), runs ? check->action_points : 0, available);
     if (!runs) ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f), "%s: %s", text_get(ui->text, "develop.refused"), ui_refusal_text(ui, check->refusal));

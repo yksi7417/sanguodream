@@ -232,7 +232,9 @@ ui_draw_log(ui_state *ui, engine_api *api)
             ui_draw_log_line(ui, api, place);
             ImGui::PopID();
         }
-        if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - 1.0f) ImGui::SetScrollHereY(1.0f);
+        /* G2-019: a new line scrolls the log to the end, as the original shows the newest line at the bottom. */
+        if (ui->report.lines_seen != ui->report.line_count || ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - 1.0f) ImGui::SetScrollHereY(1.0f);
+        ui->report.lines_seen = ui->report.line_count;
         ImGui::EndChild();
     }
     ImGui::End();

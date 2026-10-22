@@ -34,6 +34,15 @@ task reads it at the start of each run. The order of the work is section
 | G2-062 | The log line of a complete research names the technique (開發投石的技巧研究完畢), and the turn start shows it as a message. The research of 劉表 in the sample does not load: the spec marks the research fields of the save as open (Q-202, see the questions). | 196a186 | ui/report (the line), feature/growth |
 | G2-063 | The envoy of a diplomacy command goes on the road for the days of 抵達日數 to the capital of the target (travel.cpp, as the plots). The result comes at the turn start of the arrival, with the command as its cause. The dialog lists only the free officers of the city that did not act, and shows 抵達日數 for the chosen faction. The relations of the save stay open (see the questions of group 1). | P1 rest | feature/court, feature/replay |
 | G2-048 | The 技巧 of a battle came with group 4: a destroyed unit gives 25, a tactic 15 (0ac20d2). The merit and the experience of a battle stay open (Q-225, see the questions). | 0ac20d2 | feature/combat |
+| G2-008 | The header of the list panel is the selected city when the player owns it, else the first own city. The rows with a base that can act come first, then the grey rows. | P2 batch 1 | ui (the list tests) |
+| G2-015 | An item of the city menu is grey when its command cannot run: no free slot (開發), no facility, a value at its maximum, a limit of the turn, no free officer, no item or an enemy near. 吸收合併 stays white: its probe needs the two slots of the dialog. The window still scrolls. | P2 batch 1 | ui |
+| G2-016 | 現役 counts all officers of the city, also those in its units. 在野 counts the free officers of the city that appeared (assumed, Q-223). | P2 batch 1 | ui |
+| G2-019 | A new line scrolls the log to its end. A corps of a save that plays as a faction shows the name of its leader, not 勢力 N. | P2 batch 1 | ui |
+| G2-023 | The factions of the Diplomacy panel show the name of the ruler or the leader. The panel shows no line of the last command. The panel stays one window with the plots. | P2 batch 1 | ui |
+| G2-030 | 巡察 is grey when 治安 is at its maximum (the probe refuses with the value at the maximum). | P2 batch 1 | ui |
+| G2-033 | 委任部隊行動 is white when a unit of the player has not acted, or has a long order. | P2 batch 1 | ui |
+| G2-034 | The develop dialog shows 空地 as the free slots of the total. The period, the lock of a facility, the lines 耐久, 效果 and 限制, and the state 建設中 stay open. | P2 batch 1 | ui |
+| G2-041 | 授與沒收 is grey when no officer and no city of the force holds an item. | P2 batch 1 | ui |
 
 ## In progress
 
@@ -62,7 +71,10 @@ task reads it at the start of each run. The order of the work is section
 - The other P1 rows. G2-022 (訓練), G2-026 (生產兵裝) and G2-043 (the
   unit values) have no rule in the spec: see the questions. G2-061 waits
   for the corps fields of the save (the questions of group 1).
-- Next: the P2 rows, then P3.
+- P2 batch 1: the greys of the city menu, the counts of the city
+  panel, the list header, the log and the Diplomacy panel.
+- Next: the other P2 rows (the dialogs of 出征, 生產兵裝, 商人, 登庸,
+  探索, 褒賞, the unit panel and the tactics), then P3.
 
 ## Questions for the observer
 

@@ -432,6 +432,7 @@ struct ui_state
         u32  lines[UI_LOG_CAPACITY];    /* ledger indices, or UI_LOG_HEADING | turn */
         s64  values[UI_LOG_CAPACITY];   /* the value after the event, or TEXT_NO_VALUE */
         u32  line_count;          /* the lines in the ring */
+        u32  lines_seen;          /* G2-019: the line_count that the log drew last; a new line scrolls to the end */
         u32  line_first;          /* the place of the oldest line */
         bool has_heading;
         u32  heading_turn;        /* the turn of the last heading */

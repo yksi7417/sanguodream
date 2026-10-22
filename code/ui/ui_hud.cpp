@@ -190,8 +190,18 @@ ui_draw_hud_list(ui_state *ui, engine_api *api, u8 force)
         if (!ImGui::BeginTabItem(ui_label(label, sizeof(label), ui, tab_ids[tab], tab_keys[tab]))) continue;
         ui->hud_tab = tab;
         char header[UI_NAME_SIZE * 2];
+        /* G2-008: the header is an own base: the selected city when the player owns it, else the first own city. */
+        u8 shown = ui->city.selected;
+        if (shown == ENGINE_NO_CITY || api->city_at(api->engine, shown).owner_force_id != force)
+        {
+            for (u32 index = 0; index < api->city_count(api->engine); ++index)
+            {
+                engine_city city = api->city_at(api->engine, index);
+                if (city.owner_force_id == force) { shown = city.city_id; break; }
+            }
+        }
         if (tab == UI_HUD_TAB_OFFICERS) ui_force_text(ui, api, force, header, sizeof(header));
-        else                            ui_city_label(ui, api, ui->city.selected, header, sizeof(header));
+        else                            ui_city_label(ui, api, shown, header, sizeof(header));
         ImGui::TextUnformatted(header);
         ImGui::Separator();
         f32 height = UI_LIST_PITCH * (f32)UI_HUD_LIST_ROWS;
@@ -319,7 +329,8 @@ ui_hud_units_ordered(engine_api *api)
     for (u32 id = 0; id < api->unit_count(api->engine); ++id)
     {
         engine_unit unit = api->unit_at(api->engine, id);
-        if (unit.id != ENGINE_NO_UNIT && unit.force_id == force && unit.order) return true;
+        /* G2-033: white when a unit of the player has not acted, or has a long order to run. */
+        if (unit.id != ENGINE_NO_UNIT && unit.force_id == force && (unit.order || !unit.acted)) return true;
     }
     return false;
 }

@@ -335,7 +335,7 @@ ui_draw_diplomacy(ui_state *ui, engine_api *api)
     exchange.kind   = SIM_DIPLOMACY_EXCHANGE;
     exchange.target = ui->diplomacy.captive;
     ui_court_button(ui, api, "diplomacy.exchange", "exchange", ENGINE_COMMAND_DIPLOMACY, &exchange);
-    ImGui::Separator();
+    ImGui::Separator();   /* G2-023: the panel shows no line of the last command */
 
     /* The plots of factions */
     char second[UI_NAME_SIZE * 2] = "-";
@@ -380,7 +380,6 @@ ui_draw_diplomacy(ui_state *ui, engine_api *api)
         ui_court_button(ui, api, text_id, plots[kind], ENGINE_COMMAND_FACTION_PLOT, &plot);
         if (kind + 1 < SIM_FACTION_PLOT_COUNT) ImGui::SameLine();
     }
-    if (ui->command_message[0]) ImGui::TextWrapped("%s", ui->command_message);
     ImGui::End();
 }
 

@@ -147,6 +147,35 @@ ui_base_main_item(ui_state *ui, const char *text_id, const char *stable_id, b32 
     return clicked;
 }
 
+/* An item is grey when its command cannot run now (G2-015, G2-030,
+   G2-041): a cost, no free slot, no facility, a value at its maximum, a
+   limit of the turn, no free officer, no item or an enemy near. A
+   refusal of the probe values (a placeholder facility or weapon) does
+   not grey it. */
+/* True if an officer of the force, or a city of the force, holds an item. */
+internal b32
+ui_force_has_item(engine_api *api, u8 force)
+{
+    void *e = api->engine;
+    if (force == ENGINE_NO_FACTION) return false;
+    for (u32 index = 0; index < api->item_count(e); ++index)
+    {
+        engine_item item = api->item_at(e, index);
+        if (item.id == ENGINE_NO_ROW) continue;
+        if (item.owner != ENGINE_NO_OFFICER && api->officer_by_id(e, item.owner).force_id == force) return true;
+        if (item.city != ENGINE_NO_CITY && api->city_at(e, item.city).owner_force_id == force) return true;
+    }
+    return false;
+}
+
+internal b32
+ui_refusal_blocks_item(sim_refusal refusal)
+{
+    return ui_refusal_is_cost(refusal) || refusal == SIM_REFUSAL_NO_SLOT || refusal == SIM_REFUSAL_NO_FACILITY ||
+           refusal == SIM_REFUSAL_VALUE_AT_MAXIMUM || refusal == SIM_REFUSAL_LIMIT_REACHED || refusal == SIM_REFUSAL_NO_OFFICER ||
+           refusal == SIM_REFUSAL_NO_ITEM || refusal == SIM_REFUSAL_ENEMY_NEAR;
+}
+
 internal void
 ui_draw_base_menu(ui_state *ui, engine_api *api, u16 first_officer)
 {
@@ -180,7 +209,9 @@ ui_draw_base_menu(ui_state *ui, engine_api *api, u16 first_officer)
         b32 no_api = item->open == UI_BASE_OPEN_NO_API;
         sim_refusal refusal = item->probe == ENGINE_COMMAND_KIND_COUNT ? SIM_REFUSAL_NONE
                                                                   : ui_probe_city_command(api, ui->city.selected, item->probe, first_officer);
-        b32 grey = no_api || ui_refusal_is_cost(refusal);
+        b32 grey = no_api || ui_refusal_blocks_item(refusal);
+        /* G2-041: 授與沒收 is grey when the force holds no item. */
+        if (strcmp(item->stable_id, "base_give") == 0) grey = grey || !ui_force_has_item(api, api->city_at(api->engine, ui->city.selected).owner_force_id);
         ImGui::BeginDisabled(grey);
         b32 clicked = ImGui::Button(ui_label(label, sizeof(label), ui, item->text_id, item->stable_id), ImVec2(110.0f, 0.0f));
         ImGui::EndDisabled();
