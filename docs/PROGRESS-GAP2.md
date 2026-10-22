@@ -42,7 +42,14 @@ task reads it at the start of each run. The order of the work is section
 | G2-030 | 巡察 is grey when 治安 is at its maximum (the probe refuses with the value at the maximum). | P2 batch 1 | ui |
 | G2-033 | 委任部隊行動 is white when a unit of the player has not acted, or has a long order. | P2 batch 1 | ui |
 | G2-034 | The develop dialog shows 空地 as the free slots of the total. The period, the lock of a facility, the lines 耐久, 效果 and 限制, and the state 建設中 stay open. | P2 batch 1 | ui |
-| G2-041 | 授與沒收 is grey when no officer and no city of the force holds an item. | P2 batch 1 | ui |
+| G2-041 | 授與沒收 is grey when no officer and no city of the force holds an item. | f4e7fbc | ui |
+| G2-029 | An item of 生產兵裝 is grey when the city has no facility for it or the force lacks its technique. The item shows the cost of the city (560 for 槍 in a pike city). The dialog shows the 效果 line of 槍, 戟, 弩 and 軍馬. The log names the item and the new stock (新野之槍庫存數變為29644（+3315）). The items with an unknown technique still show, grey. The skill row and the speech stay open. | P2 batch 2 | ui |
+| G2-031 | 商人 has one slider from the full sale (left) to the full purchase (right). The centre trades nothing and 決定 is grey there. The dialog shows 交易效果 (G2-025). | P2 batch 2 | ui |
+| G2-045 | 攻擊, 齊攻, 戰法 and 單挑 are grey without an enemy unit within 2 hexes. The unit panel shows no line after a command that ran; it shows the reason of a refusal. The move before the menu and the cancel of a target stay as they are. | P2 batch 2 | ui |
+| G2-047 | Esc, or a left click outside a context menu, closes it. | P2 batch 2 | ui |
+| G2-050 | 攻擊 is grey without an enemy next to the unit, and the unit panel shows no line after the attack (see G2-045). The speech of the leader, the battle show and the target hexes on the map stay open. | P2 batch 2 | ui |
+| G2-051 | The tab 部隊 lists the units that can act first, then the units that acted in grey (the list of M22). | M22 | ui |
+| G2-053 | The unit panel opens at the left edge of the screen under the status area, not at the centre of the map. | P2 batch 2 | ui |
 
 ## In progress
 
@@ -71,10 +78,13 @@ task reads it at the start of each run. The order of the work is section
 - The other P1 rows. G2-022 (訓練), G2-026 (生產兵裝) and G2-043 (the
   unit values) have no rule in the spec: see the questions. G2-061 waits
   for the corps fields of the save (the questions of group 1).
-- P2 batch 1: the greys of the city menu, the counts of the city
-  panel, the list header, the log and the Diplomacy panel.
-- Next: the other P2 rows (the dialogs of 出征, 生產兵裝, 商人, 登庸,
-  探索, 褒賞, the unit panel and the tactics), then P3.
+- P2 batch 1 (f4e7fbc): the greys of the city menu, the counts of the
+  city panel, the list header, the log and the Diplomacy panel.
+- P2 batch 2: the produce and merchant dialogs, the unit menu, the
+  context menus and the place of the unit panel.
+- Next: the other P2 rows, then P3. These rows are the dialogs of 出征,
+  登庸, 探索 and 褒賞, the tactics column, the research window and the
+  end of a force.
 
 ## Questions for the observer
 

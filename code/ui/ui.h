@@ -111,6 +111,7 @@ struct ui_command_dialog
     u8  weapon;                          /* produce */
     int merchant_mode;                   /* merchant: sim_merchant_mode */
     int amount;                          /* merchant: the gold to spend or the grain to sell */
+    int trade;                           /* merchant: the slider, below 0 a sale of grain, above 0 a purchase with gold (G2-031) */
 };
 
 /* The 出征 and 輸送 dialogs (M5): the order that 決定 sends. */

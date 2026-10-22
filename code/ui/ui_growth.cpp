@@ -78,6 +78,15 @@ ui_draw_decide_back(ui_state *ui, b32 runs, bool *show)
     return decided;
 }
 
+/* The unit panel shows the reason of a refusal and nothing after a command
+   that ran (G2-045, G2-050: no line "done, command N"). */
+internal void
+ui_units_note_result(ui_state *ui, engine_command_result result)
+{
+    if (result.refusal == SIM_REFUSAL_NONE) ui->units.message[0] = 0;
+    else snprintf(ui->units.message, sizeof(ui->units.message), "%s", ui->command_message);
+}
+
 internal void
 ui_growth_result(ui_state *ui, const char *title_id, engine_command_result result)
 {

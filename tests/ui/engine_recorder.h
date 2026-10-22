@@ -246,6 +246,7 @@ struct engine_recorder
     s32           round_unit_shift;   /* end_turn moves unit 0 this many hexes along q */
     s32           unit_shift;
     b32           unit0_rival;        /* unit 0 belongs to force 2 */
+    b32           unit1_rival;       /* G2-045: unit 1 at 1,3 belongs to force 2 */
     b32           units_acted;        /* M22: both units acted in this turn */
     u32           officer_count;      /* scripted rows for the Officers and Cities panels */
     u32           city_count;
@@ -1004,7 +1005,7 @@ internal engine_unit recorder_unit_at(void *o, u32 unit_id)
     engine_unit unit = {};
     unit.id = unit_id < 2 ? unit_id : ENGINE_NO_UNIT;
     if (unit.id == ENGINE_NO_UNIT) return unit;
-    unit.force_id    = (u8)(unit_id == 0 && r->unit0_rival ? 2 : 1);
+    unit.force_id    = (u8)((unit_id == 0 && r->unit0_rival) || (unit_id == 1 && r->unit1_rival) ? 2 : 1);
     unit.q           = 1 + (unit_id == 0 ? r->unit_shift : 0);
     unit.r           = unit_id == 0 ? 2 : 3;
     unit.unit_type   = unit_id == 0 ? 1 : 12;

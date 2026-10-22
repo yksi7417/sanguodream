@@ -63,7 +63,7 @@ ui_combat_click(ui_state *ui, engine_api *api, hex_coord hex)
         default: break;
     }
     ui_growth_result(ui, ui_pick_text_id(pick), result);
-    snprintf(ui->units.message, sizeof(ui->units.message), "%s", ui->command_message);
+    ui_units_note_result(ui, result);
     ui->combat.pick = UI_PICK_NONE;
     return true;
 }

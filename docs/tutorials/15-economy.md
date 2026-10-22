@@ -183,9 +183,11 @@ layout of ui/city-commands.md:
 決定 is grey when `can_issue` refuses. One click of 決定 sends one command
 and closes the dialog. The City panel then shows the result. 返回 closes the
 dialog and sends nothing. The produce dialog has a button for each weapon
-with its cost, the stock of each weapon and the period. The merchant
-dialog has buy and sell, the amount, the city price and the trade effect
-of the officer.
+with its cost in the city. It shows the stock of each weapon, the period
+and the 效果 line of the weapon. An item is grey without its facility or
+its technique (G2-029). The merchant dialog has one slider from the full
+sale to the full purchase, the city price and the trade effect of the
+officer (G2-031). The centre of the slider trades nothing.
 
 The Economy panel has one row for each city of the faction that acts. Each
 row has the gold and the grain with their caps. It also has the income of

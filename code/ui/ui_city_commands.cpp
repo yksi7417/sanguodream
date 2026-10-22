@@ -116,7 +116,8 @@ ui_command_reset_for_city(ui_state *ui, engine_api *api, u32 kind)
     u32 places = ui_command_infos[kind].max_officers < 3 ? ui_command_infos[kind].max_officers : 3;
     ui_propose_officers(api, dialog->city, ui_command_ability_kind(kind), dialog->officers, places);
     dialog->prepared_city = dialog->city;
-    if (dialog->amount <= 0) dialog->amount = UI_MERCHANT_DEFAULT_AMOUNT;
+    dialog->trade  = 0;   /* G2-031: the slider starts at the centre with no trade */
+    dialog->amount = 0;
 }
 
 /* The current value that the command changes, from the city queries. */
@@ -146,15 +147,29 @@ ui_draw_weapon_rows(ui_state *ui, engine_api *api, engine_city_economy *economy)
     ui_command_dialog *dialog = ui->commands + UI_COMMAND_PRODUCE;
     ImGui::TextUnformatted(text_get(ui->text, "command.weapons"));
     u32 count = api->weapon_kind_count(api->engine);
+    const char *selected_key = 0;
     for (u32 index = 0; index < count; ++index)
     {
         engine_weapon_kind kind = api->weapon_kind_at(api->engine, index);
+        /* G2-029: the true cost of the city (a specialty city pays less), and a grey item
+           when the city has no facility for it or the force lacks its technique. */
+        engine_command probe = {};
+        probe.kind    = ENGINE_COMMAND_PRODUCE;
+        probe.city_id = dialog->city;
+        probe.weapon  = kind.id;
+        for (u32 place = 0; place < SIM_DEVELOP_OFFICERS; ++place) probe.officers[place] = dialog->officers[place];
+        engine_check check = api->can_issue(api->engine, &probe);
+        b32 blocked = check.refusal == SIM_REFUSAL_NO_FACILITY || check.refusal == SIM_REFUSAL_NEEDS_TECHNIQUE;
+        u32 cost = check.refusal == SIM_REFUSAL_NONE ? check.gold : kind.cost;
         char label[96];
-        snprintf(label, sizeof(label), "%s %u###w%u", ui_text_with_key(ui, "weapon", kind.key), kind.cost, kind.id);
+        snprintf(label, sizeof(label), "%s %u###w%u", ui_text_with_key(ui, "weapon", kind.key), cost, kind.id);
         if (index % 4 != 0) ImGui::SameLine();
         bool selected = dialog->weapon == kind.id;
+        if (selected) selected_key = kind.key;
         if (selected) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.5f, 0.8f, 1.0f));
+        ImGui::BeginDisabled(blocked);
         if (ImGui::Button(label)) dialog->weapon = kind.id;
+        ImGui::EndDisabled();
         if (selected) ImGui::PopStyleColor();
     }
     ImGui::Text("%s:", text_get(ui->text, "command.stock"));
@@ -164,6 +179,15 @@ ui_draw_weapon_rows(ui_state *ui, engine_api *api, engine_city_economy *economy)
         if (index % 5 != 0) ImGui::SameLine();
         ImGui::Text("%s %u", ui_text_with_key(ui, "weapon", kind.key), kind.stock < CITY_EQUIPMENT_STOCK_COUNT ? economy->stocks[kind.stock] : 0);
     }
+    if (selected_key)
+    {
+        /* G2-029: the 效果 line of the weapon, when the text table has one. */
+        char effect_id[64];
+        snprintf(effect_id, sizeof(effect_id), "weapon_effect.%s", selected_key);
+        const char *effect = text_table_find(&ui->text->strings, effect_id);
+        if (!effect) effect = text_table_find(&ui->text->fallback_strings, effect_id);
+        if (effect) ImGui::Text("%s: %s", text_get(ui->text, "command.weapon_effect"), effect);
+    }
 }
 
 /* The merchant: buy or sell, the amount and the city price. */
@@ -172,15 +196,18 @@ ui_draw_merchant_order(ui_state *ui, engine_city_economy *economy)
 {
     ui_command_dialog *dialog = ui->commands + UI_COMMAND_MERCHANT;
     char label[96];
-    snprintf(label, sizeof(label), "%s###buy", text_get(ui->text, "command.buy"));
-    if (ImGui::RadioButton(label, dialog->merchant_mode == SIM_MERCHANT_BUY)) dialog->merchant_mode = SIM_MERCHANT_BUY;
-    ImGui::SameLine();
-    snprintf(label, sizeof(label), "%s###sell", text_get(ui->text, "command.sell"));
-    if (ImGui::RadioButton(label, dialog->merchant_mode == SIM_MERCHANT_SELL)) dialog->merchant_mode = SIM_MERCHANT_SELL;
-    snprintf(label, sizeof(label), "%s###amount", text_get(ui->text, "command.amount"));
-    ImGui::SetNextItemWidth(160.0f);
-    ImGui::InputInt(label, &dialog->amount, 100, 1000);
-    if (dialog->amount < 0) dialog->amount = 0;
+    /* G2-031: one slider from the full sale (left) to the full purchase (right). The centre
+       trades nothing, and 決定 is grey there (the check refuses no amount). */
+    s32 limit = (s32)Maximum(Minimum(economy->grain, 100000u), Minimum(economy->gold, 100000u));
+    if (limit < 1) limit = 1;
+    if (dialog->trade < -limit) dialog->trade = -limit;
+    if (dialog->trade > limit)  dialog->trade = limit;
+    snprintf(label, sizeof(label), "%s###trade", text_get(ui->text, "command.amount"));
+    ImGui::SetNextItemWidth(260.0f);
+    ImGui::SliderInt(label, &dialog->trade, -limit, limit);
+    dialog->merchant_mode = dialog->trade < 0 ? SIM_MERCHANT_SELL : SIM_MERCHANT_BUY;
+    dialog->amount = dialog->trade < 0 ? (int)Minimum((u32)(-dialog->trade), economy->grain) : (int)Minimum((u32)dialog->trade, economy->gold);
+    ImGui::Text("%s: %d", text_get(ui->text, dialog->trade < 0 ? "command.sell" : "command.buy"), dialog->amount);
     ImGui::Text("%s: %s%u=%s1", text_get(ui->text, "command.price"), text_get(ui->text, "command.grain"), economy->grain_per_gold,
                 text_get(ui->text, "command.gold"));
 }

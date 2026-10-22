@@ -323,7 +323,7 @@ ui_unit_click(ui_state *ui, engine_api *api, hex_coord hex)
         if (reach.cells[index].q != hex.q || reach.cells[index].r != hex.r) continue;
         engine_command_result result = api->command_move(api->engine, unit.id, hex.q, hex.r);
         ui_growth_result(ui, "unit.move_done", result);
-        snprintf(ui->units.message, sizeof(ui->units.message), "%s", ui->command_message);
+        ui_units_note_result(ui, result);
         if (result.refusal == SIM_REFUSAL_NONE) ui->show_unit_menu = api->unit_at(api->engine, unit.id).id != ENGINE_NO_UNIT;
         return true;
     }
@@ -393,6 +393,7 @@ ui_draw_unit_panel(ui_state *ui, engine_api *api)
     char title[128];
     ImGui::SetNextWindowSize(ImVec2(300, 380), ImGuiCond_FirstUseEver);
     ui_context_place(ui, 1);   /* the game mode: the dialog opens next to its entity */
+    if (ui->hud_mode) ImGui::SetNextWindowPos(ImVec2(18.0f, 160.0f), ImGuiCond_Appearing);   /* G2-053: at the left edge, under the status area */
     if (ImGui::Begin(ui_label(title, sizeof(title), ui, "unit.title", "Unit"), &ui->show_unit))
     {
         ui_context_track(ui);
@@ -483,7 +484,7 @@ ui_draw_supply(ui_state *ui, engine_api *api, engine_unit *transport)
     {
         engine_command_result result = api->command_supply(api->engine, command.unit, command.target_unit, command.soldiers, command.gold, command.grain);
         ui_growth_result(ui, "unit.supply", result);
-        snprintf(ui->units.message, sizeof(ui->units.message), "%s", ui->command_message);
+        ui_units_note_result(ui, result);
     }
     ImGui::EndDisabled();
     if (check.refusal != SIM_REFUSAL_NONE) ImGui::TextDisabled("%s", ui_refusal_text(ui, check.refusal));
@@ -528,6 +529,15 @@ ui_draw_unit_menu(ui_state *ui, engine_api *api)
         const char **items = type.transport ? transport_items : combat_items;
         u32 count = type.transport ? ArrayCount(transport_items) : ArrayCount(combat_items);
         char label[96], text_id[32];
+        /* G2-045, G2-050: 攻擊, 齊攻, 戰法 and 單挑 are grey without an enemy unit within 2 hexes. */
+        b32 enemy_near = false;
+        for (u32 other_id = 0; other_id < api->unit_count(api->engine) && !enemy_near; ++other_id)
+        {
+            engine_unit other = api->unit_at(api->engine, other_id);
+            if (other.id == ENGINE_NO_UNIT || other.force_id == unit.force_id) continue;
+            hex_coord mine = { unit.q, unit.r }, theirs = { other.q, other.r };
+            enemy_near = hex_distance(mine, theirs) <= 2;
+        }
         for (u32 index = 0; index < count; ++index)
         {
             const char *item = items[index];
@@ -539,6 +549,7 @@ ui_draw_unit_menu(ui_state *ui, engine_api *api)
             b32 enabled = supply || pick != UI_PICK_NONE ||
                           ((wait || retreat) && api->can_issue(api->engine, &command).refusal == SIM_REFUSAL_NONE);
             if (pick != UI_PICK_NONE && (unit.acted || unit.state != 0)) enabled = false;
+            if ((pick == UI_PICK_ATTACK || pick == UI_PICK_JOINT || pick == UI_PICK_TACTIC || pick == UI_PICK_DUEL) && !enemy_near) enabled = false;
             snprintf(text_id, sizeof(text_id), "unit_menu.%s", item);
             ImGui::BeginDisabled(!enabled);
             if (ImGui::Button(ui_label(label, sizeof(label), ui, text_id, item), ImVec2(120.0f, 0.0f)))
@@ -561,7 +572,7 @@ ui_draw_unit_menu(ui_state *ui, engine_api *api)
                 {
                     engine_command_result result = wait ? api->command_wait(api->engine, unit.id) : api->command_retreat(api->engine, unit.id);
                     ui_growth_result(ui, text_id, result);
-                    snprintf(ui->units.message, sizeof(ui->units.message), "%s", ui->command_message);
+                    ui_units_note_result(ui, result);
                     ui->show_unit_menu = false;
                     if (retreat && result.refusal == SIM_REFUSAL_NONE) ui_select_unit(ui, ENGINE_NO_UNIT);
                 }
@@ -654,7 +665,7 @@ ui_draw_unit_target_menu(ui_state *ui, engine_api *api)
         if (sent)
         {
             ui_growth_result(ui, text_id, result);
-            snprintf(ui->units.message, sizeof(ui->units.message), "%s", ui->command_message);
+            ui_units_note_result(ui, result);
             open = false;
             if (result.refusal == SIM_REFUSAL_NONE)
             {

@@ -139,6 +139,7 @@ command.soldiers	士兵
 command.morale	氣力
 command.grain	兵糧
 command.stock	庫存
+command.weapon_effect	效果
 command.period	期間
 command.days	日
 command.weapons	兵裝
@@ -1214,7 +1215,11 @@ log.gold_spent	{subject}：支出資金 {amount}
 log.develop_started	{subject}：開始建造設施
 log.facility_completed	{subject}：設施建成
 log.production_started	{subject}：開始生產兵裝
-log.weapons_produced	{subject}：兵裝 {delta}
+log.weapons_produced	{subject}之{speaker}庫存數變為{value}（{delta}）
+weapon_effect.pike	有利於對付騎兵，但不利於戟兵
+weapon_effect.halberd	有利於對付槍兵，但不利於弩兵
+weapon_effect.crossbow	有利於對付戟兵，但不利於騎兵
+weapon_effect.horse	有利於對付弩兵，但不利於槍兵
 log.research_started	{subject}：開始研究技巧
 log.technique_researched	{faction}：{subject}的技巧研究完畢
 log.unit_sortied	{subject}：部隊出征

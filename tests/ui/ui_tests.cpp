@@ -1616,11 +1616,7 @@ register_ui_tests(ImGuiTestEngine *e)
             IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_CAN_ISSUE), 1u);
             if (kind != UI_COMMAND_MERCHANT) ctx->ComboClick("###officer3/###o_none");   /* the player can still change the proposal */
             if (kind == UI_COMMAND_PRODUCE)  ctx->ItemClick("###w2");
-            if (kind == UI_COMMAND_MERCHANT)
-            {
-                ctx->ItemClick("###sell");
-                ctx->ItemInputValue("###amount", 500);
-            }
+            if (kind == UI_COMMAND_MERCHANT) ctx->ItemInputValue("###trade", -500);   /* G2-031: left of the centre sells grain */
             ctx->Yield();
             IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);                      /* choices command nothing */
             recorder_reset(&v.recorder);
@@ -2057,6 +2053,7 @@ register_ui_tests(ImGuiTestEngine *e)
         ui_test_vars &v = ctx->GetVars<ui_test_vars>();
         v.recorder.officer_count = 3;
         v.recorder.city_count    = 2;
+        v.recorder.unit1_rival   = true;   /* G2-045: unit 0 of force 2 stands next to unit 1: the attack items are white */
         v.ui.units.selected      = 0;
         v.ui.show_unit_menu      = true;
         ctx->SetRef("###UnitMenu");
@@ -2088,6 +2085,7 @@ register_ui_tests(ImGuiTestEngine *e)
         ui_test_vars &v = ctx->GetVars<ui_test_vars>();
         v.recorder.officer_count = 3;
         v.recorder.city_count    = 2;
+        v.recorder.unit1_rival   = true;   /* G2-045: an enemy next to the unit makes the attack white */
         v.ui.units.selected      = 0;
         v.ui.show_unit_menu      = true;
         ctx->SetRef("###UnitMenu");
@@ -2115,6 +2113,7 @@ register_ui_tests(ImGuiTestEngine *e)
         ui_test_vars &v = ctx->GetVars<ui_test_vars>();
         v.recorder.officer_count = 3;
         v.recorder.city_count    = 2;
+        v.recorder.unit1_rival   = true;   /* G2-045: an enemy next to the unit makes 戰法 white */
         v.ui.units.selected      = 0;
         v.ui.show_unit_menu      = true;
         ctx->SetRef("###UnitMenu");
@@ -2168,6 +2167,7 @@ register_ui_tests(ImGuiTestEngine *e)
         ui_test_vars &v = ctx->GetVars<ui_test_vars>();
         v.recorder.officer_count = 3;
         v.recorder.city_count    = 2;
+        v.recorder.unit1_rival   = true;   /* G2-045: an enemy next to the unit makes 單挑 white */
         v.ui.units.selected      = 0;
         v.ui.show_unit_menu      = true;
         ctx->SetRef("###UnitMenu");

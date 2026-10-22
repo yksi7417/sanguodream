@@ -303,6 +303,12 @@ ui_begin_menu_window(ui_state *ui, const char *name)
                              ImGuiWindowFlags_NoMove;
     bool open = ImGui::Begin(name, 0, flags);
     if (open) ui_context_track(ui);
+    /* G2-047: Esc, or a left click outside the menu, closes it. The menu still draws this frame. */
+    if (open && (ImGui::IsKeyPressed(ImGuiKey_Escape) ||
+                 (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows))))
+    {
+        ui_context_close(ui);
+    }
     return open;
 }
 

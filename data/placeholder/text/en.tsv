@@ -141,6 +141,7 @@ command.soldiers	Soldiers	士兵
 command.morale	Morale	氣力
 command.grain	Grain	兵糧
 command.stock	Stock	庫存
+command.weapon_effect	Effect	效果
 command.period	Period	期間
 command.days	 days	after a number of days
 command.weapons	Weapons	兵裝
@@ -1216,7 +1217,11 @@ log.gold_spent	{subject}: spent {amount} gold
 log.develop_started	{subject}: a facility is under construction
 log.facility_completed	{subject}: a facility is complete
 log.production_started	{subject}: weapon production started
-log.weapons_produced	{subject}: weapons {delta}
+log.weapons_produced	{subject}: the stock of {speaker} is {value} ({delta})
+weapon_effect.pike	Strong against cavalry, weak against halberds	有利於對付騎兵，但不利於戟兵
+weapon_effect.halberd	Strong against pikes, weak against crossbows	有利於對付槍兵，但不利於弩兵
+weapon_effect.crossbow	Strong against halberds, weak against cavalry	有利於對付戟兵，但不利於騎兵
+weapon_effect.horse	Strong against crossbows, weak against pikes	有利於對付弩兵，但不利於槍兵
 log.research_started	{subject}: research started
 log.technique_researched	{faction}: the research of {subject} is complete
 log.unit_sortied	{subject}: a unit marched out

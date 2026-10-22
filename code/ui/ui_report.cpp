@@ -44,6 +44,13 @@ ui_report_value(engine_api *api, const engine_event_report *report)
     if (strcmp(key, "trained") == 0 || strcmp(key, "morale_lost") == 0)  return city.morale;
     if (strcmp(key, "gold_earned") == 0)                                  return city.gold;
     if (strcmp(key, "grain_bought") == 0)                                 return city.food;
+    if (strcmp(key, "weapons_produced") == 0)
+    {
+        /* G2-029: the new stock of the weapon (the detail of the event). */
+        engine_weapon_kind weapon = api->weapon_kind_at(api->engine, report->detail);
+        engine_city_economy economy = api->city_economy(api->engine, (u8)report->subject.id);
+        return weapon.id != ENGINE_NO_WEAPON && weapon.stock < CITY_EQUIPMENT_STOCK_COUNT ? (s64)economy.stocks[weapon.stock] : TEXT_NO_VALUE;
+    }
     return TEXT_NO_VALUE;
 }
 
@@ -71,6 +78,12 @@ ui_report_line(ui_state *ui, engine_api *api, u32 ledger_index, s64 value, u32 f
     }
     speaker[0] = faction[0] = 0;
     if (report.speaker != ENGINE_NO_OFFICER) ui_officer_text(ui, api, report.speaker, speaker, sizeof(speaker));
+    if (report.kind == SIM_EVENT_WEAPONS_PRODUCED && form == TEXT_LINE_LOG)
+    {
+        /* G2-029: the log line names the weapon (新野之槍庫存數變為29644). */
+        engine_weapon_kind weapon = api->weapon_kind_at(api->engine, report.detail);
+        if (weapon.id != ENGINE_NO_WEAPON && weapon.key[0]) snprintf(speaker, sizeof(speaker), "%s", ui_text_with_key(ui, "weapon", weapon.key));
+    }
     if (report.faction != ENGINE_NO_FACTION) ui_force_text(ui, api, report.faction, faction, sizeof(faction));
     if (!subject[0]) memcpy(subject, faction, sizeof(subject));   /* an event of a faction names the faction */
     text_event_facts facts = {};
