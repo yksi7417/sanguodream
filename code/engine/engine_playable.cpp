@@ -317,7 +317,7 @@ engine_api_load_scenario(void *opaque, const char *path)
     for (u32 index = 0; index < save.city_count; ++index) save.cities[index].public_order = (u8)order;
     sim_event_sink sink = sim_sink_from_arena(&e->scratch, ENGINE_SINK_CAPACITY);
     sim_command command = sim_make_command(e->sim, SIM_COMMAND_LOAD_SAVE);
-    if (!sim_load_save(e->sim, &save, command, &sink))
+    if (!sim_load_new_game(e->sim, &save, command, &sink))
     {
         result.status = ENGINE_LOAD_BAD_SAVE;
         result.detail = "the scenario has more officers or cities than the game can hold";

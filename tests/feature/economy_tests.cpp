@@ -259,6 +259,7 @@ feature_multiplier_tests(test_counts *counts)
     u8 city = feature_busiest_city(api);
     u8 force = api->city_at(e, city).owner_force_id;
     feature_play_as(api, force);
+    feature_next_own_turn(api, force);   /* G2-004: the save marks officers as acted; the builds below need a fresh turn */
     u32 market_value = api->facility_kind_at(e, FEATURE_FACILITY_MARKET).value;
     TEST_CHECK(counts, api->facility_kind_at(e, FEATURE_FACILITY_GREAT_MARKET).value == 3 * market_value &&
                        api->facility_kind_at(e, FEATURE_FACILITY_FISH_MARKET).value == 2 * market_value &&

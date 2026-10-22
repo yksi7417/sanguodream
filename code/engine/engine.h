@@ -74,7 +74,7 @@ struct engine_city
     u32 equipment_stocks[CITY_EQUIPMENT_STOCK_COUNT];   /* spears, halberds, crossbows, war horses, rams, towers, catapults, 3 ships */
     u16 durability_maximum;         /* hypothesis in the spec */
     u8  public_order;               /* hypothesis in the spec */
-    u8  morale;                     /* 氣力; the start value is assumed (the save field is not decoded) */
+    u8  morale;                     /* 氣力; from the save (city +84); a scenario city starts at an assumed value */
 };
 
 /* The name of a city from the name index (Scenario.s11), as a front end

@@ -184,7 +184,7 @@ dump_header(json_writer *json, save_file *save)
     json_uint(json, "scenario_start_month", header->scenario_start_month);
     json_uint(json, "scenario_start_ten_day_period", header->scenario_start_ten_day_period);
     json_big5(json, "scenario_name", header->scenario_name, SAVE_HEADER_NAME_SIZE);
-    json_uint(json, "unknown_at_0x07c", header->unknown_at_0x07c);
+    json_uint(json, "turn_counter", header->turn_counter);
     json_uint(json, "uncompressed_payload_length", header->uncompressed_payload_length);
     json_uint(json, "compressed_stream_length", header->compressed_stream_length);
     json_close(json, '}');
@@ -249,6 +249,7 @@ dump_city(json_writer *json, city_record *city, name_index *names)
     json_u32_array(json, "equipment_stocks", city->equipment_stocks, CITY_EQUIPMENT_STOCK_COUNT);
     json_uint(json, "large_city_flag", city->large_city_flag);
     json_uint(json, "durability_maximum", city->durability_maximum);
+    json_uint(json, "morale", city->morale);
     json_uint(json, "public_order", city->public_order);
     json_close(json, '}');
 }

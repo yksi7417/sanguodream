@@ -183,9 +183,10 @@ feature_save_map_tests(test_counts *counts)
                "杜畿 carries 7568 槍, 4999 戟, 1559 弩, 2 木獸 and 2 井闌, and moves to 長安 (17)");
     TEST_CHECK(counts, feature_type_is(api, lu_meng.unit_type, "transport") && lu_meng_hex.col == 115 && lu_meng_hex.row == 136 &&
                        lu_meng.soldiers == 14113 && lu_meng.morale == 92 && lu_meng.gold == 6064 && lu_meng.grain == 50835 &&
-                       lu_meng.cargo[CITY_STOCK_CROSSBOWS] == 2120 && lu_meng.cargo[CITY_STOCK_SHIP_TYPE_1] == 5 && lu_meng.cargo[CITY_STOCK_SPEARS] == 0 &&
+                       lu_meng.cargo[CITY_STOCK_CROSSBOWS] == 2120 && lu_meng.cargo[CITY_STOCK_SHIP_TYPE_3] == 5 && lu_meng.cargo[CITY_STOCK_SPEARS] == 0 &&
                        lu_meng.destination == 26,
                "unit 27 (呂蒙) is a transport at 115,136: 14113 soldiers, morale 92, gold 6064, grain 50835, 2120 弩 and 5 樓船, to 柴桑");
+    TEST_CHECK(counts, lu_meng.acted && du_ji.acted, "G2-004: the two transports have acted, as their leaders have in the save");
     u32 transports = 0;
     for (u32 id = 0; id < api->unit_count(e); ++id) transports += api->unit_at(e, id).id != ENGINE_NO_UNIT && feature_type_is(api, api->unit_at(e, id).unit_type, "transport");
     TEST_CHECK(counts, transports == 6, "the six units 13, 27, 31, 42, 52 and 53 are transports");

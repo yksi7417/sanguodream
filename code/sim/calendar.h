@@ -78,6 +78,15 @@ calendar_next_turn(calendar_date date)
     return next;
 }
 
+/* The date some turns later. A save gives its date as the scenario start
+   plus the turn counter of its header (save-file.md, 0x07C; Q-004). */
+internal calendar_date
+calendar_add_turns(calendar_date date, u32 turns)
+{
+    for (u32 turn = 0; turn < turns; ++turn) date = calendar_next_turn(date);
+    return date;
+}
+
 /* The number of turns from year 0, month 1, day 1 to the date. */
 internal s64
 calendar_turn_number(calendar_date date)

@@ -182,8 +182,8 @@ sim_city_from_record(city_record *record)
 
 /* Replaces the officers and cities with those of a decoded save: one entity
    per slot that holds an officer, in slot order, then one per city in id
-   order. Emits one SIM_EVENT_SAVE_LOADED. The turn counter does not change,
-   because the spec has not found the game date (QUESTIONS.md, Q-004).
+   order. Emits one SIM_EVENT_SAVE_LOADED. The sim turn does not change:
+   the date comes from the turn counter of the header (G2-001).
 
    Returns false, and changes nothing, when the entities or the tables
    cannot hold the new world. */
@@ -443,13 +443,13 @@ sim_player_force(sim_state *sim, save_header *header)
 
 /* Replaces the officers and cities with those of a decoded save: one entity
    per slot that holds an officer, in slot order, then one per city in id
-   order. Emits one SIM_EVENT_SAVE_LOADED, then starts the turn (the order,
-   the action points, the AI factions before the player).
+   order. Emits one SIM_EVENT_SAVE_LOADED. The caller then starts the turn
+   (sim_load_new_game) or resumes the turn of the player (sim_load_save).
 
-   The calendar starts at the scenario start of the header, because the
-   spec has not found the game date (Q-004). The ten-day period of the
-   header is 1 for the first turn of the month (assumed: every scenario
-   has 1). The turn counter does not change.
+   The calendar is the scenario start of the header plus its turn counter
+   (Q-004, G2-001). The ten-day period of the header is 1 for the first
+   turn of the month (assumed: every scenario has 1). The sim turn does
+   not change.
 
    Returns false, and changes nothing, when the entities or the tables
    cannot hold the new world. */
@@ -477,20 +477,26 @@ sim_load_save_world(sim_state *sim, save_file *save, sim_command command, sim_ev
         if (officer_slot_is_empty(record)) continue;
         sim_add_officer(sim, sim_officer_from_record(record));
         officer_component *added = sim_find_officer(sim, (u16)slot);
-        if (added) sim_init_officer_state(sim, added, record);   /* M7: character and relations */
+        if (!added) continue;
+        sim_init_officer_state(sim, added, record);   /* M7: character and relations */
+        /* G2-035: the loyalty of a save record (+104, hypothesis Q-005). The game shows at most 100. */
+        if (record->has_save_fields) added->loyalty = (u8)Minimum(record->loyalty, 100u);
     }
     sim_load_items(sim, save);
     for (u32 index = 0; index < save->city_count; ++index)
     {
-        city_component city = sim_city_from_record(save->cities + index);
-        city.morale = (u8)Minimum(sim->content.rules.city_start_morale, 255u);   /* the save field is not decoded (Q-154) */
+        city_record *record = save->cities + index;
+        city_component city = sim_city_from_record(record);
+        /* G2-012: the morale of the city record (+84). A scenario record has none: city.start_morale (assumed, Q-154). */
+        city.morale = record->has_morale ? record->morale : (u8)Minimum(sim->content.rules.city_start_morale, 255u);
         sim_add_city(sim, city);
     }
 
     u8 day = (u8)(1 + (save->header.scenario_start_ten_day_period > 0 ? save->header.scenario_start_ten_day_period - 1 : 0) *
                       CALENDAR_DAYS_PER_TURN);
     sim->turns.start_date = calendar_make(save->header.scenario_start_year, save->header.scenario_start_month, day);
-    sim->turns.date       = sim->turns.start_date;
+    /* G2-001: the date is the start date plus the turn counter of the header (save-file.md, 0x07C). */
+    sim->turns.date       = calendar_add_turns(sim->turns.start_date, save->header.turn_counter);
     u8 player = sim_player_force(sim, &save->header);
     if (player != SIM_NO_FORCE) sim->turns.human[player] = true;
     sim_init_diplomacy(sim);                      /* M7: the save fields of diplomacy are not decoded (Q-180) */
@@ -508,26 +514,29 @@ sim_load_save_world(sim_state *sim, save_file *save, sim_command command, sim_ev
     return true;
 }
 
-/* The load of a new game from a save: the world, then the start of a turn.
-   The AI factions before the player act, and every faction recovers its
-   action points. */
+/* A new game from a scenario (engine_api_load_scenario): the world, then
+   the start of a turn. The AI factions before the player act, and every
+   faction recovers its action points. */
 internal b32
-sim_load_save(sim_state *sim, save_file *save, sim_command command, sim_event_sink *events)
+sim_load_new_game(sim_state *sim, save_file *save, sim_command command, sim_event_sink *events)
 {
     if (!sim_load_save_world(sim, save, command, events)) return false;
     sim_start_turn(sim, command.id, events);
     return true;
 }
 
-/* M13: the load of a save in the middle of the player's turn, for the
-   replay of a save pair. The original saves while the player acts, so the
-   factions before the player already acted. This load runs no AI and
+/* The load of a save, in the middle of the player's turn (G2-001 to
+   G2-004; M13 first used it for the replay of a save pair). The original
+   saves while the player acts, so the factions before the player already
+   acted. This load runs no AI command, starts no delegated corps and
    recovers no action points. It takes from the save:
    - the action points and the technique points of each force (Q-202);
-   - the acted flag of each officer (officer +148 bit 0).
-   The acting faction is the first human faction of the order. */
+   - the acted flag of each officer (officer +148 bit 0); the units take
+     the flag of their leader (save_map.cpp).
+   The acting faction is the first human faction of the order. The load
+   emits SIM_EVENT_FACTION_TURN_STARTED for it, as the start of a turn does. */
 internal b32
-sim_resume_save(sim_state *sim, save_file *save, sim_command command, sim_event_sink *events)
+sim_load_save(sim_state *sim, save_file *save, sim_command command, sim_event_sink *events)
 {
     if (!sim_load_save_world(sim, save, command, events)) return false;
     sim_turn_state *turns = &sim->turns;
@@ -548,6 +557,13 @@ sim_resume_save(sim_state *sim, save_file *save, sim_command command, sim_event_
         {
             officer->acted_turn = sim->turn + 1;
         }
+    }
+    if (turns->acting < turns->order_count && turns->human[turns->order[turns->acting].force_id])
+    {
+        sim_event started = sim_event_make(sim, SIM_EVENT_FACTION_TURN_STARTED, command.id);
+        started.faction = turns->order[turns->acting].force_id;
+        started.delta   = (s32)turns->acting;
+        sim_emit(events, started);
     }
     return true;
 }

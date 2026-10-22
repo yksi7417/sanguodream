@@ -26,8 +26,10 @@ start on day 1, 11 and 21. The manual documents these rules (p.7, p.9):
 - `calendar_turns_for_days` gives the turns of a job. A 20-day job takes
   2 turns. A part of a turn counts as a whole turn.
 
-The spec has not found the game date in a save (Q-004). Thus a load starts the
-calendar at the scenario start of the save header. A new game without a
+The header of a save holds the scenario start and a turn counter (Q-004,
+save-file.md 0x07C). A load sets the calendar to the start plus one turn
+for each count (`calendar_add_turns`). The sample holds 194/6/1 and 120.
+Thus the game starts at 197/10/1 (G2-001). A new game without a
 save starts on 1 January 190 (`SIM_DEFAULT_START_YEAR`). The header field
 of the ten-day period is 1 in every save. The loader reads 1 as day 1.
 This is an assumption (Q-144).

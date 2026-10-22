@@ -105,8 +105,8 @@ feature_court_table_tests(test_counts *counts, feature_city_setup *setup)
     TEST_CHECK(counts, rank == expected, "the rank of the ruler follows the city count (ranks.tsv)");
     u16 officer = feature_find_officer(api, setup->force, ENGINE_NO_OFFICER, ENGINE_NO_OFFICER);
     engine_officer_detail detail = api->officer_detail(e, officer);
-    TEST_CHECK(counts, detail.loyalty == 80 && detail.post == ENGINE_NO_ROW && detail.soldier_cap == 5000 && detail.stamina == 100,
-               "an officer starts with loyalty 80 (assumed, Q-177), no post, 5000 soldiers and full stamina");
+    TEST_CHECK(counts, detail.loyalty >= 1 && detail.loyalty <= 100 && detail.post == ENGINE_NO_ROW && detail.soldier_cap == 5000 && detail.stamina == 100,
+               "an officer starts with the loyalty of the save (G2-035), no post, 5000 soldiers and full stamina");
     u32 items = 0, known = 0;
     for (u32 index = 0; index < api->item_count(e); ++index)
     {
@@ -573,7 +573,7 @@ feature_month_tests(test_counts *counts)
         b32 liked = false;
         engine_officer_detail ruler_detail = api->officer_detail(e, ruler);
         for (u32 slot = 0; slot < OFFICER_RELATION_SLOTS; ++slot) liked |= ruler_detail.liked[slot] == x.officer_id;
-        if (liked || detail.loyalty != 80) continue;
+        if (liked || detail.loyalty != 100) continue;   /* G2-035: the save gives 100 to most officers */
         if (officer == ENGINE_NO_OFFICER) officer = x.officer_id;
         else calm = x.officer_id;
     }
@@ -586,7 +586,7 @@ feature_month_tests(test_counts *counts)
     api->set_officer(e, calm, &edit);
     u32 mark = api->ledger_count(e);
     for (u32 step = 0; step < 12 && feature_count_events(api, SIM_EVENT_MONTH_STARTED, mark) == 0; ++step) feature_next_own_turn(api, setup.force);
-    u32 lost = 80 - api->officer_detail(e, officer).loyalty, kept = 80 - api->officer_detail(e, calm).loyalty;
+    u32 lost = 100 - api->officer_detail(e, officer).loyalty, kept = 100 - api->officer_detail(e, calm).loyalty;
     TEST_CHECK(counts, calm != ENGINE_NO_OFFICER && feature_count_events(api, SIM_EVENT_MONTH_STARTED, mark) >= 1 && lost >= 1 && lost > kept,
                "each month officers lose loyalty; an ambitious officer loses more than a just one (assumed amounts, Q-028)");
     engine_fixture_destroy(&setup.fixture);

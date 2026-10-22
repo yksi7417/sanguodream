@@ -136,7 +136,7 @@ engine_replay_resume(engine *e, const char *path)
     if (save_load(&e->scratch, (const u8 *)file.contents, file.size, &save).status != SAVE_LOAD_OK) return false;
     sim_event_sink sink = sim_sink_from_arena(&e->scratch, ENGINE_SINK_CAPACITY);
     sim_command command = sim_make_command(e->sim, SIM_COMMAND_LOAD_SAVE);
-    if (!sim_resume_save(e->sim, &save, command, &sink)) return false;
+    if (!sim_load_save(e->sim, &save, command, &sink)) return false;
     engine_ledger_append(e, &sink);
     return true;
 }

@@ -57,6 +57,7 @@ test_build_officer_record(u8 *record)
     test_put_u16(record, 96, 12);                  /* +96 base location */
     test_put_u16(record, 98, 92);                  /* +98 current position: unit 5 */
     record[100] = 3;                               /* +100 status */
+    record[104] = 97;                              /* +104 loyalty (hypothesis, Q-005, G2-035) */
     test_put_u16(record, 105, 27400);              /* +105 merit */
     u8 aptitudes[6] = { 3, 3, 1, 2, 0, 2 };
     memcpy(record + 107, aptitudes, 6);            /* +107 unit aptitudes */
@@ -99,6 +100,7 @@ unit_save_officer_tests(test_counts *counts)
     TEST_CHECK(counts, officer.base_location == 12 && officer.current_position == 92, "officer +96 base location and +98 current position");
     TEST_CHECK(counts, officer.status == OFFICER_STATUS_REGULAR_OFFICER, "officer +100 status");
     TEST_CHECK(counts, officer.merit == 27400, "officer +105 merit");
+    TEST_CHECK(counts, officer.loyalty == 97, "officer +104 loyalty (hypothesis, Q-005)");
     TEST_CHECK(counts, officer.unit_aptitudes[OFFICER_APTITUDE_SPEAR] == 3 && officer.unit_aptitudes[OFFICER_APTITUDE_CROSSBOW] == 1 &&
                        officer.unit_aptitudes[OFFICER_APTITUDE_NAVY] == 2, "officer +107 unit aptitudes");
     TEST_CHECK(counts, officer.leadership == 96 && officer.war == 72 && officer.intelligence == 91 &&
@@ -150,10 +152,12 @@ unit_save_city_tests(test_counts *counts)
     for (u32 stock = 0; stock < 10; ++stock) test_put_u32(record, 32 + 4 * stock, stocks[stock]);   /* +32 equipment */
     record[77] = 1;                            /* +77 large-city flag */
     test_put_u16(record, 80, 8000);            /* +80 durability maximum */
+    record[84] = 83;                           /* +84 morale (G2-012) */
     record[85] = 97;                           /* +85 public order */
 
     city_record city;
     save_decode_city(record, 36, &city);
+    TEST_CHECK(counts, city.morale == 83 && city.has_morale, "city +84 morale (G2-012)");
     TEST_CHECK(counts, city.id == 36 && city.flags == 0x11, "city id and +0 flags");
     TEST_CHECK(counts, city.commanding_officer_id == 442 && city.owner_force_id == 9, "city +9 commander and +11 owner");
     TEST_CHECK(counts, city.capacity_constant == 150000, "city +12 capacity constant");
@@ -203,7 +207,7 @@ test_build_save_header(u8 *file, u32 uncompressed_length, u32 compressed_length)
     file[0x069] = 6;                                            /* scenario start month */
     file[0x06A] = 1;                                            /* scenario start ten-day period */
     file[0x06B] = 0xB8; file[0x06C] = 0x73;                     /* scenario name */
-    test_put_u32(file, 0x07C, 77);                              /* unknown */
+    test_put_u32(file, 0x07C, 77);                              /* turn counter: 77 turns since the start */
     memcpy(file + 0x1B3, "MWC\x1A", 4);                         /* tag */
     test_put_u32(file, 0x1B7, uncompressed_length);
     test_put_u32(file, 0x1BB, compressed_length);
@@ -222,7 +226,8 @@ unit_save_header_tests(test_counts *counts)
                        header.constant_at_0x065 == 255, "header constants at 0x018, 0x01C, 0x020, 0x065");
     TEST_CHECK(counts, header.player_ruler_name[0] == 0xB1 && header.player_ruler_name[1] == 0x69 && header.player_ruler_name[2] == 0,
                "header player's ruler name verbatim");
-    TEST_CHECK(counts, header.unknown_at_0x063 == 66 && header.unknown_at_0x07c == 77, "header unknowns at 0x063 and 0x07C");
+    TEST_CHECK(counts, header.unknown_at_0x063 == 66, "header unknown at 0x063");
+    TEST_CHECK(counts, header.turn_counter == 77, "header 0x07C is the turn counter (G2-001)");
     TEST_CHECK(counts, header.scenario_number == 2 && header.scenario_start_year == 194 && header.scenario_start_month == 6 &&
                        header.scenario_start_ten_day_period == 1, "header scenario number and start date");
     TEST_CHECK(counts, header.scenario_name[0] == 0xB8 && header.scenario_name[1] == 0x73, "header scenario name verbatim");

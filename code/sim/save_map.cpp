@@ -280,6 +280,11 @@ sim_load_save_units(sim_state *sim, save_file *save, sim_save_map_counts *counts
             unit->state       = UNIT_STATE_CONFUSED;
             unit->state_turns = 0;   /* no count: the unit rolls its recovery from its next turn (Q-218) */
         }
+        /* G2-004: a unit whose leader acted in this turn has acted (the plate shows 完). */
+        if (record->officers[0] < save->officer_slot_count && save->officers[record->officers[0]].has_acted_this_turn)
+        {
+            unit->acted_turn = sim->turn + 1;
+        }
         unit->home_city     = leader->base_location < SAVE_CITY_COUNT ? (u8)leader->base_location : (u8)SIM_NO_CITY;
         unit->destination   = SIM_NO_CITY;
         if (record->task == SAVE_UNIT_TASK_MOVE && record->target < SAVE_CITY_COUNT) unit->destination = (u8)record->target;   /* a city; a gate or port target is not kept */

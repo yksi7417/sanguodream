@@ -1,6 +1,6 @@
 # 26 Replay: the save pairs of the original
 
-Files: code/engine/engine_replay.cpp, code/sim/sim.cpp (sim_resume_save),
+Files: code/engine/engine_replay.cpp, code/sim/sim.cpp (sim_load_save),
 code/sim/save_format.cpp (the per-force tables), code/ui/ui_fidelity.cpp,
 misc/make_pair_index.py, data/placeholder/pairs.tsv. Tests:
 tests/feature/replay_tests.cpp, the force tables in
@@ -33,21 +33,24 @@ script after each update of the spec-src submodule:
 
     python -X utf8 misc/make_pair_index.py
 
-## The load in the middle of a turn (sim_resume_save)
+## The load in the middle of a turn (sim_load_save)
 The original saves while the player acts. The factions before the player
-already acted in that turn. sim_load_save starts a new turn: the AI
-factions before the player act, and all factions recover their action
-points. That is correct for a new game from a save, but not for a replay.
-sim_resume_save loads the same world and then:
+already acted in that turn. Thus a load must not start a new turn. Before
+the second gap report, sim_load_save started one: the AI factions before
+the player acted, and all factions recovered their action points. The
+replay had its own load, sim_resume_save. Since G2-003, sim_load_save is
+that load for the game and the replay alike. After the world, it:
 - gives the turn to the first human faction of the order, without an AI
-  turn;
+  turn, and emits the turn start of that faction;
 - takes the action points (table A, +12) and the technique points (table
-  B, +0) of each force from the save;
-- takes the acted flag of each officer (+148 bit 0) from the save.
+  B, +61) of each force from the save;
+- takes the acted flag of each officer (+148 bit 0) from the save, and
+  marks the units of the acted leaders as acted.
+A new game from a scenario file still starts a turn (sim_load_new_game).
 
 ## The replay (engine_api replay_pair)
 replay_pair(before, command, after) does these steps:
-1. It loads the second save with sim_resume_save and takes a snapshot. This
+1. It loads the second save with sim_load_save and takes a snapshot. This
    is the original.
 2. It loads the first save the same way and takes a snapshot. This is the
    before.

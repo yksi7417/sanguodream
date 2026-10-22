@@ -193,8 +193,8 @@ feature_turn_order_sample_tests(test_counts *counts)
     engine_load_result loaded = api->load_save(e, SAMPLE_SAVE_RELATIVE_PATH);
     TEST_CHECK(counts, loaded.status == ENGINE_LOAD_OK, "the sample loads");
     engine_date date = api->date(e);
-    TEST_CHECK(counts, feature_date_is(date, 194, 6, 1) && date.days_since_start == 0 && date.season == CALENDAR_SUMMER,
-               "a load starts the calendar at the scenario start of the header (Q-004: the save date is unknown)");
+    TEST_CHECK(counts, feature_date_is(date, 197, 10, 1) && date.days_since_start == 1200 && date.season == CALENDAR_WINTER,
+               "G2-001: a load sets the calendar to the scenario start plus the turn counter of the header");
     TEST_CHECK(counts, api->ledger_at(e, 0).kind == SIM_EVENT_SAVE_LOADED, "the first event of a load is save_loaded");
 
     u32 factions = api->faction_count(e);
@@ -219,32 +219,47 @@ feature_turn_order_sample_tests(test_counts *counts)
         if (api->faction_at(e, index).force_id == player_force) player_place = index;
     }
     TEST_CHECK(counts, player_place < factions && api->faction_at(e, player_place).human, "the player's faction is human");
-    TEST_CHECK(counts, feature_count_events(api, SIM_EVENT_AI_PASSED, 0) == player_place,
-               "each AI faction before the player passed (the AI placeholder)");
-    TEST_CHECK(counts, feature_count_events(api, SIM_EVENT_ACTION_POINTS_RECOVERED, 0) == factions,
-               "each faction recovered its action points at the start of the turn");
+    /* G2-003: the original saves in the turn of the player, so the load
+       runs no AI command and recovers no action points. */
+    TEST_CHECK(counts, feature_count_events(api, SIM_EVENT_AI_PASSED, 0) == 0 &&
+                       feature_count_events(api, SIM_EVENT_ACTION_POINTS_RECOVERED, 0) == 0 &&
+                       feature_count_events(api, SIM_EVENT_ACTION_POINTS_SPENT, 0) == 0,
+               "G2-003: no faction acts and no pool recovers at the load");
+    sim_event started = {};
+    TEST_CHECK(counts, feature_find_event(api, SIM_EVENT_FACTION_TURN_STARTED, 0, &started) && started.faction == player_force &&
+                       feature_count_events(api, SIM_EVENT_FACTION_TURN_STARTED, 0) == 1,
+               "G2-003: the load starts the turn of the player at once");
+    TEST_CHECK(counts, api->city_at(e, 31).troops == 7773 && api->city_at(e, 36).troops == 8925,
+               "G2-003: the cities keep the soldiers of the file after the load");
 
-    /* The recovery: the higher of leadership and charm of the ruler (assumed, Q-019, Q-141). */
+    /* G2-002: the pool and the technique points of the save (table A +12, table B +61). */
     engine_faction player = api->faction_at(e, player_place);
     engine_officer ruler = {};
     TEST_CHECK(counts, feature_officer_by_id(api, player.leader_officer_id, &ruler) && ruler.status == 0 &&
                        ruler.force_id == player_force, "the leader of corps 1 is the ruler of the faction");
-    u32 recovery = Maximum(ruler.leadership, ruler.charm);
-    TEST_CHECK(counts, api->actions_left(e, player_force) == recovery && player.action_points == recovery,
-               "the pool after the first recovery is the higher of leadership and charm (assumed)");
-    sim_event recovered = {};
-    TEST_CHECK(counts, feature_find_event(api, SIM_EVENT_ACTION_POINTS_RECOVERED, 0, &recovered) && recovered.assumed,
-               "the ledger marks the recovery as assumed");
+    TEST_CHECK(counts, api->actions_left(e, player_force) == 62 && player.action_points == 62 &&
+                       api->technique_points(e, player_force) == 23,
+               "G2-002: the pool and the technique points come from the save");
 
+    /* G2-004: the acted flags of the officers (+148 bit 0) and of the units they lead. */
+    engine_officer acted_officer = {}, free_officer = {};
+    TEST_CHECK(counts, feature_officer_by_id(api, 110, &acted_officer) && acted_officer.acted &&
+                       feature_officer_by_id(api, 636, &free_officer) && !free_officer.acted,
+               "G2-004: an officer with the acted flag of the save has acted, the others have not");
+
+    /* The recovery: the higher of leadership and charm of the ruler (assumed, Q-019, Q-141). */
+    u32 recovery = Maximum(ruler.leadership, ruler.charm);
     u32 before_end = api->ledger_count(e);
     api->end_turn(e);
-    sim_event ended = {};
+    sim_event ended = {}, recovered = {};
     TEST_CHECK(counts, feature_find_event(api, SIM_EVENT_FACTION_TURN_ENDED, before_end, &ended) &&
                        ended.faction == player_force, "proceed ends the turn of the player");
-    TEST_CHECK(counts, api->date(e).days_since_start == 10 && api->whose_turn(e) == player_force,
+    TEST_CHECK(counts, api->date(e).days_since_start == 1210 && api->whose_turn(e) == player_force,
                "after the player and the AI factions, the next turn starts and the player acts again");
-    TEST_CHECK(counts, api->actions_left(e, player_force) == Minimum(2 * recovery, 255u),
-               "the pool recovers at the start of each turn");
+    TEST_CHECK(counts, api->actions_left(e, player_force) == Minimum(62 + recovery, 255u),
+               "the pool recovers at the start of each turn by the higher of leadership and charm (assumed)");
+    TEST_CHECK(counts, feature_find_event(api, SIM_EVENT_ACTION_POINTS_RECOVERED, before_end, &recovered) && recovered.assumed,
+               "the ledger marks the recovery as assumed");
     for (u32 turn = 0; turn < 6; ++turn) api->end_turn(e);
     TEST_CHECK(counts, api->actions_left(e, player_force) == 255, "the pool stops at its cap of 255");
 

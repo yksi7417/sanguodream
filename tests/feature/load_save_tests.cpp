@@ -204,6 +204,39 @@ feature_sample_city_tests(test_counts *counts, engine_api *api)
     TEST_CHECK(counts, officers_agree, "officers with status 0..3 in an owned city belong to the owner force");
 }
 
+/* The state of the player of sample.s11 after the load (clone gap report 2,
+   group 1). The values come from the report and from the save:
+   - G2-001: 120 turns after 194/6/1 is 197/10/1, in winter;
+   - G2-012: city +84 is the morale (江陵 83, 新野 100), and the third ship
+     field holds the 樓船 (江陵 4, 江夏 1);
+   - G2-035: officer +104 is the loyalty (hypothesis, Q-005): 英布 97,
+     劉辟 97, 董承 98, 呂蒙 99; every other officer of 劉表 shows 100. */
+internal void
+feature_sample_state_tests(test_counts *counts, engine_api *api)
+{
+    void *e = api->engine;
+    engine_date date = api->date(e);
+    TEST_CHECK(counts, date.year == 197 && date.month == 10 && date.day == 1 && date.season == CALENDAR_WINTER &&
+                       date.days_since_start == 1200, "G2-001: the date of the sample is 1 October 197 (turn counter 120)");
+
+    engine_city jiangling = api->city_at(e, 30), xinye = api->city_at(e, 28), jiangxia = api->city_at(e, 27);
+    TEST_CHECK(counts, jiangling.morale == 83 && xinye.morale == 100, "G2-012: the morale of a city comes from +84 of its record");
+    u32 tower_ship_stock = CITY_EQUIPMENT_STOCK_COUNT;
+    for (u32 index = 0; index < api->weapon_kind_count(e); ++index)
+    {
+        engine_weapon_kind kind = api->weapon_kind_at(e, index);
+        if (kind.id != ENGINE_NO_WEAPON && strcmp(kind.key, "tower_ship") == 0) tower_ship_stock = kind.stock;
+    }
+    TEST_CHECK(counts, tower_ship_stock == CITY_STOCK_SHIP_TYPE_3 && jiangling.equipment_stocks[tower_ship_stock] == 4 &&
+                       jiangxia.equipment_stocks[tower_ship_stock] == 1, "G2-012: the third ship field is the stock of the tower ships");
+
+    TEST_CHECK(counts, api->officer_detail(e, 812).loyalty == 97 && api->officer_detail(e, 639).loyalty == 97 &&
+                       api->officer_detail(e, 491).loyalty == 98 && api->officer_detail(e, 661).loyalty == 99,
+               "G2-035: the loyalty of an officer comes from +104 of its record (hypothesis, Q-005)");
+    TEST_CHECK(counts, api->officer_detail(e, 636).loyalty == 100 && api->officer_detail(e, 110).loyalty == 100 &&
+                       api->officer_detail(e, 54).loyalty == 100, "G2-035: the ruler and the officers above 100 show 100");
+}
+
 internal void
 feature_load_save_tests(test_counts *counts)
 {
@@ -225,6 +258,7 @@ feature_load_save_tests(test_counts *counts)
     feature_sample_identity_tests(counts, api);
     feature_sample_officer_range_tests(counts, api);
     feature_sample_city_tests(counts, api);
+    feature_sample_state_tests(counts, api);
 
     u32 officers = api->officer_count(e);
     TEST_CHECK(counts, api->entities_alive(e) == officers + api->city_count(e), "one entity per officer and per city");

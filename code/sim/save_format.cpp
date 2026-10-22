@@ -41,7 +41,7 @@ save_decode_header(const u8 *file)
     header.scenario_start_month          = file[SAVE_SCENARIO_START_MONTH];
     header.scenario_start_ten_day_period = file[SAVE_SCENARIO_START_TEN_DAY_PERIOD];
     memcpy(header.scenario_name, file + SAVE_SCENARIO_NAME, SAVE_HEADER_NAME_SIZE);
-    header.unknown_at_0x07c = format_read_u32(file + SAVE_UNKNOWN_AT_0X07C);
+    header.turn_counter = format_read_u32(file + SAVE_TURN_COUNTER);
     memcpy(header.tag, file + SAVE_TAG, SAVE_TAG_SIZE);
     header.uncompressed_payload_length = format_read_u32(file + SAVE_UNCOMPRESSED_PAYLOAD_LENGTH);
     header.compressed_stream_length    = format_read_u32(file + SAVE_COMPRESSED_STREAM_LENGTH);
@@ -106,6 +106,7 @@ save_decode_officer(const u8 *record, u16 id, officer_record *out)
     out->has_save_fields = true;
     format_read_u16_array(record + OFFICER_PER_STAT_EXPERIENCE, out->per_stat_experience, OFFICER_STAT_COUNT);
     out->order_kind = record[OFFICER_ORDER_KIND];
+    out->loyalty    = record[OFFICER_LOYALTY];
 }
 
 internal void
@@ -126,6 +127,8 @@ save_decode_city(const u8 *record, u8 id, city_record *out)
     }
     out->large_city_flag    = record[SAVE_CITY_LARGE_CITY_FLAG];
     out->durability_maximum = format_read_u16(record + SAVE_CITY_DURABILITY_MAXIMUM);
+    out->morale             = record[SAVE_CITY_MORALE];
+    out->has_morale         = true;
     out->public_order       = record[SAVE_CITY_PUBLIC_ORDER];
 }
 

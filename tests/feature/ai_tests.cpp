@@ -175,6 +175,10 @@ feature_ai_free_city_tests(test_counts *counts)
     engine_api *api = setup.api;
     void *e = api->engine;
     u8 human = setup.force, home = ENGINE_NO_CITY;
+    /* The test puts the date back to the first months of the scenario (G2-001: the sample loads at
+       197/10/1) and takes a fresh turn, so that the acted flags of the save (G2-004) do not pick the city. */
+    api->set_date(e, 194, 6, 1);
+    feature_next_own_turn(api, human);
     u8 force = feature_ai_faction(api, human, &home);
     if (force == ENGINE_NO_FACTION) { TEST_CHECK(counts, false, "the sample has an AI faction"); engine_fixture_destroy(&setup.fixture); return; }
 
@@ -196,7 +200,7 @@ feature_ai_free_city_tests(test_counts *counts)
     feature_ai_arm_city(api, home, force, human);
     feature_turn_on(api, true, false);
 
-    /* The sample is in the first months of its scenario: the AI does not march on a city yet. */
+    /* In the first months of the scenario the AI does not march on a city yet. */
     feature_next_own_turn(api, human);
     engine_ai_explain early = api->ai_explain(e, force);
     TEST_CHECK(counts, early.turn > 0 && !feature_ai_key(&early, "take_free") && !feature_ai_key(&early, "sortie") &&

@@ -323,7 +323,7 @@ internal void
 ui_draw_unit_cargo(ui_state *ui, engine_api *api, engine_unit *unit)
 {
     const u32 rows[2][3] = { { CITY_STOCK_SPEARS, CITY_STOCK_HALBERDS, CITY_STOCK_CROSSBOWS },
-                             { CITY_STOCK_BATTERING_RAMS, CITY_STOCK_SIEGE_TOWERS, CITY_STOCK_SHIP_TYPE_1 } };
+                             { CITY_STOCK_BATTERING_RAMS, CITY_STOCK_SIEGE_TOWERS, CITY_STOCK_SHIP_TYPE_3 } };
     if (!ImGui::BeginTable("unit_cargo", 4, ImGuiTableFlags_SizingFixedFit)) return;
     for (u32 row = 0; row < 2; ++row)
     {
@@ -336,7 +336,7 @@ ui_draw_unit_cargo(ui_state *ui, engine_api *api, engine_unit *unit)
         ImGui::TableNextColumn();
         if (row == 0) ImGui::Text("%s %u", ui_stock_name(ui, api, CITY_STOCK_WAR_HORSES), unit->cargo[CITY_STOCK_WAR_HORSES]);
     }
-    const u32 others[3] = { CITY_STOCK_CATAPULTS, CITY_STOCK_SHIP_TYPE_2, CITY_STOCK_SHIP_TYPE_3 };
+    const u32 others[3] = { CITY_STOCK_CATAPULTS, CITY_STOCK_SHIP_TYPE_1, CITY_STOCK_SHIP_TYPE_2 };
     for (u32 index = 0; index < 3; ++index)
     {
         if (!unit->cargo[others[index]]) continue;

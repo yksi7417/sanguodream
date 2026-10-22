@@ -58,4 +58,12 @@ unit_calendar_tests(test_counts *counts)
     TEST_CHECK(counts, calendar_turns_for_days(20) == 2 && calendar_turns_for_days(30) == 3 &&
                        calendar_turns_for_days(25) == 3 && calendar_turns_for_days(0) == 0,
                "a 20-day job takes 2 turns; a part of a turn counts as a turn");
+
+    /* G2-001: the turn counter of the save header (save-file.md, 0x07C) and
+       the scenario start give the date. sample.s11: 194/6/1 + 120 turns. */
+    TEST_CHECK(counts, calendar_is(calendar_add_turns(calendar_make(194, 6, 1), 120), 197, 10, 1),
+               "120 turns after 1 June 194 is 1 October 197");
+    TEST_CHECK(counts, calendar_is(calendar_add_turns(calendar_make(190, 12, 21), 1), 191, 1, 1) &&
+                       calendar_is(calendar_add_turns(start, 0), 190, 1, 1),
+               "an added turn wraps the year; zero turns keep the date");
 }

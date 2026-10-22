@@ -8,9 +8,10 @@
    here mirrors the binary layout as a struct: the structs hold decoded
    values in the order that suits the game, not the order of the bytes.
 
-   Fields that the spec marks "unknown" are not decoded, with three
-   exceptions in the header (unknown_at_0x063, unknown_at_0x07c and the
-   constants), which the load menu and the tests can show. Names are Big5
+   Fields that the spec marks "unknown" are not decoded, with two
+   exceptions in the header (unknown_at_0x063 and the constants), which the
+   load menu and the tests can show, and one hypothesis in the officer
+   record (loyalty, +104). Names are Big5
    bytes, copied verbatim. The spec gives no character mapping, so the game
    never converts them. */
 
@@ -36,7 +37,7 @@ enum save_container_offset
     SAVE_SCENARIO_START_MONTH          = 0x069,   /* u8 */
     SAVE_SCENARIO_START_TEN_DAY_PERIOD = 0x06A,   /* u8 */
     SAVE_SCENARIO_NAME                 = 0x06B,   /* 9 bytes Big5, NUL padded */
-    SAVE_UNKNOWN_AT_0X07C              = 0x07C,   /* u32 */
+    SAVE_TURN_COUNTER                  = 0x07C,   /* u32: the ten-day turns since the scenario start (Q-004) */
     SAVE_TAG                           = 0x1B3,   /* 4 bytes, "MWC" + 0x1A */
     SAVE_UNCOMPRESSED_PAYLOAD_LENGTH   = 0x1B7,   /* u32 */
     SAVE_COMPRESSED_STREAM_LENGTH      = 0x1BB,   /* u32 */
@@ -68,7 +69,7 @@ struct save_header
     u8  scenario_start_month;
     u8  scenario_start_ten_day_period;
     u8  scenario_name[SAVE_HEADER_NAME_SIZE];       /* Big5 */
-    u32 unknown_at_0x07c;
+    u32 turn_counter;                               /* the date is the start date plus 10 days for each count */
     u8  tag[SAVE_TAG_SIZE];
     u32 uncompressed_payload_length;
     u32 compressed_stream_length;
@@ -125,6 +126,7 @@ enum officer_record_offset
     OFFICER_BASE_LOCATION            = 96,    /* u16 */
     OFFICER_CURRENT_POSITION         = 98,    /* u16 */
     OFFICER_STATUS                   = 100,   /* u8 */
+    OFFICER_LOYALTY                  = 104,   /* u8, save only; a hypothesis (Q-005), see officer_record */
     OFFICER_MERIT                    = 105,   /* u16 */
     OFFICER_UNIT_APTITUDES           = 107,   /* 6 x u8 */
     OFFICER_STATS                    = 113,   /* 5 x u8: leadership, war, intelligence, politics, charm */
@@ -209,6 +211,12 @@ struct officer_record
     b32 has_save_fields;
     u16 per_stat_experience[OFFICER_STAT_COUNT];
     u8  order_kind;
+    /* HYPOTHESIS (Q-005, G2-035): +104 is the loyalty. The spec calls the
+       byte unknown (100 for rulers, 0 for inactive officers, 78..255
+       otherwise). In sample.s11 the four officers of the player with a value
+       below 100 (97, 97, 98, 99) are the four that the reward list of the
+       original shows, with these numbers. The game shows at most 100. */
+    u8  loyalty;
 };
 
 /* ---- city record (save-file.md, City record) ---------------------------- */
@@ -225,6 +233,7 @@ enum save_city_offset
     SAVE_CITY_EQUIPMENT_STOCKS        = 32,   /* 10 x u32 */
     SAVE_CITY_LARGE_CITY_FLAG         = 77,   /* u8, hypothesis */
     SAVE_CITY_DURABILITY_MAXIMUM      = 80,   /* u16, hypothesis */
+    SAVE_CITY_MORALE                  = 84,   /* u8: the morale of the city (spec 2026-10-18; G2-012) */
     SAVE_CITY_PUBLIC_ORDER            = 85    /* u8, hypothesis */
 };
 
@@ -262,6 +271,8 @@ struct city_record
     u32 equipment_stocks[CITY_EQUIPMENT_STOCK_COUNT];
     u8  large_city_flag;         /* hypothesis */
     u16 durability_maximum;      /* hypothesis */
+    u8  morale;                  /* save only: the 81 bytes of a scenario record stop before +84 */
+    b32 has_morale;              /* false for a scenario record */
     u8  public_order;            /* hypothesis; save only */
 };
 

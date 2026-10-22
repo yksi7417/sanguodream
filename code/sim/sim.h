@@ -760,7 +760,7 @@ struct city_component
     u16 durability_maximum;              /* hypothesis */
     u8  public_order;                    /* hypothesis */
     /* the state of the city commands (M3) */
-    u8  morale;                          /* 氣力; the save field is not decoded: city.start_morale (assumed) */
+    u8  morale;                          /* 氣力; save +84 (G2-012); a scenario city starts at city.start_morale (assumed) */
     u32 patrolled_turn;                  /* sim turn + 1 of the last patrol; 0 = never */
     u32 trained_turn;                    /* sim turn + 1 of the last train */
     /* M4: the disasters that run in the city: turns left, 0 = none */
@@ -1171,7 +1171,7 @@ struct sim_state
     u8            *fire;            /* the turns of fire left on each cell of the map; 0 = no fire */
     sim_map_layers map_layers;      /* M10: the real map; loaded = false on the placeholder map */
     sim_ruleset    ruleset;
-    u32            technique_points[SIM_FORCE_CAPACITY];   /* 技巧P of each faction; the save field is not decoded */
+    u32            technique_points[SIM_FORCE_CAPACITY];   /* 技巧P of each faction; the save gives it (table B, +61) */
     u64            techniques[SIM_FORCE_CAPACITY];         /* bit t: the faction has technique t (CONTENT_TECHNIQUE_CAPACITY = 64) */
     sim_research_job research[SIM_FORCE_CAPACITY];
     sim_settings   settings;
@@ -1222,7 +1222,7 @@ internal sim_command sim_make_command(sim_state *sim, sim_command_kind kind);
 internal void        sim_apply(sim_state *sim, sim_command command, sim_event_sink *events);
 internal void        sim_advance_turn(sim_state *sim, u32 cause, sim_event_sink *events);
 internal b32         sim_load_save(sim_state *sim, save_file *save, sim_command command, sim_event_sink *events);
-internal b32         sim_resume_save(sim_state *sim, save_file *save, sim_command command, sim_event_sink *events);   /* M13: the replay of a save pair */
+internal b32         sim_load_new_game(sim_state *sim, save_file *save, sim_command command, sim_event_sink *events);   /* a scenario: the AI acts, the pools recover */
 internal void        sim_unload_world(sim_state *sim);
 internal b32         sim_add_officer(sim_state *sim, officer_component officer);   /* false if full or the id is taken */
 internal b32         sim_add_city(sim_state *sim, city_component city);

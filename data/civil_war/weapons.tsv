@@ -15,5 +15,5 @@ id	key	name_zh	cost	facility	specialty	stock	min_days	max_days	technique	replace
 5	wood_beast	Mortar	1700	siege	siege	4	30	90	wood_beasts	ram
 6	tower	Balloon	1600	siege	siege	5	30	90	-	-
 7	catapult	Field gun	1800	siege	siege	6	30	90	catapults	tower
-8	tower_ship	Ironclad	1800	ships	navy	7	30	90	-	-
+8	tower_ship	Ironclad	1800	ships	navy	9	30	90	-	-
 9	battle_ship	Frigate	2000	ships	navy	8	30	90	catapults	tower_ship
