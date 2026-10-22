@@ -478,6 +478,26 @@ feature_faction_plot_tests(test_counts *counts, feature_city_setup *setup)
                "the governor rules the new faction and its city");
 }
 
+/* G2-039: a search gives one result to the player: an officer found,
+   gold found, or the line of a failure. */
+internal void
+feature_search_result_tests(test_counts *counts, feature_city_setup *setup)
+{
+    engine_api *api = setup->api;
+    void *e = api->engine;
+    api->set_actions(e, setup->force, 255);
+    u16 ids[3];
+    TEST_CHECK(counts, feature_take_officers(api, setup->city, ids, 1) >= 1, "a free officer searches");
+    engine_court_order order = feature_court_order(setup->city, ids[0], ENGINE_NO_OFFICER);
+    u32 mark = api->ledger_count(e);
+    engine_command_result result = api->command_court(e, ENGINE_COMMAND_SEARCH, &order);
+    u32 found  = feature_count_events(api, SIM_EVENT_OFFICER_FOUND, mark);
+    u32 gold   = feature_count_events(api, SIM_EVENT_GOLD_FOUND, mark);
+    u32 failed = feature_count_events(api, SIM_EVENT_SEARCH_FAILED, mark);
+    TEST_CHECK(counts, result.refusal == SIM_REFUSAL_NONE && found + gold + failed == 1,
+               "探索 gives one result: an officer, gold, or the line of a failure (G2-039)");
+}
+
 internal void
 feature_court_tests_main(test_counts *counts)
 {
@@ -485,6 +505,7 @@ feature_court_tests_main(test_counts *counts)
     feature_city_setup_init(&setup);
     feature_court_table_tests(counts, &setup);
     feature_reward_and_post_tests(counts, &setup);
+    feature_search_result_tests(counts, &setup);
     feature_recruit_and_item_tests(counts, &setup);
     feature_match_release_tests(counts, &setup);
     engine_fixture_destroy(&setup.fixture);

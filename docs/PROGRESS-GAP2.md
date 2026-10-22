@@ -49,7 +49,11 @@ task reads it at the start of each run. The order of the work is section
 | G2-047 | Esc, or a left click outside a context menu, closes it. | P2 batch 2 | ui |
 | G2-050 | 攻擊 is grey without an enemy next to the unit, and the unit panel shows no line after the attack (see G2-045). The speech of the leader, the battle show and the target hexes on the map stay open. | P2 batch 2 | ui |
 | G2-051 | The tab 部隊 lists the units that can act first, then the units that acted in grey (the list of M22). | M22 | ui |
-| G2-053 | The unit panel opens at the left edge of the screen under the status area, not at the centre of the map. | P2 batch 2 | ui |
+| G2-053 | The unit panel opens at the left edge of the screen under the status area, not at the centre of the map. | a5ffabb | ui |
+| G2-039 | A search with no find gives the log line 蒯良在江陵的探索失敗. A find gives 發現人才. The executor list with 軍師推薦, 政治 and 眼力 stays open. | P2 batch 3 | feature/court |
+| G2-038 | The log line of a failed 登庸 names both officers (高長恭登庸卞氏失敗). A failure gives 0 技巧 (group 4). The dialog with a target list that has columns, and the speech of the executor, stay open. | P2 batch 3 | feature/court |
+| G2-059 | A force that loses its last city falls: the ledger has 張楊軍滅亡, the log shows it, and the turn start shows it as a message to every player. The picture of a burning castle stays open: the clone has no such picture. | P2 batch 3 | feature/combat |
+| G2-040 | Open. The clone rewards up to three officers of the city in one order for 5 行動力 and 100 gold each, as the spec says. The original rewards a set of the whole force in one dialog. The list with 忠誠 below 100 and the check boxes stay open. | - | - |
 
 ## In progress
 
@@ -80,11 +84,13 @@ task reads it at the start of each run. The order of the work is section
   for the corps fields of the save (the questions of group 1).
 - P2 batch 1 (f4e7fbc): the greys of the city menu, the counts of the
   city panel, the list header, the log and the Diplomacy panel.
-- P2 batch 2: the produce and merchant dialogs, the unit menu, the
-  context menus and the place of the unit panel.
+- P2 batch 2 (a5ffabb): the produce and merchant dialogs, the unit menu,
+  the context menus and the place of the unit panel.
+- P2 batch 3: the results of 探索 and 登庸 in the log, and the end of a
+  force.
 - Next: the other P2 rows, then P3. These rows are the dialogs of 出征,
-  登庸, 探索 and 褒賞, the tactics column, the research window and the
-  end of a force.
+  登庸, 探索 and 褒賞, the tactics column, the research window, the
+  city menu layout and the AI round.
 
 ## Questions for the observer
 

@@ -410,6 +410,15 @@ sim_capture_city(sim_state *sim, city_component *city, u32 attacker_id, u32 caus
     sim_city_site *site = sim->sites + city->city_id;
     for (u32 slot = 0; slot < site->slot_count; ++slot) built += site->slots[slot].state == SIM_SLOT_BUILT;
     sim_add_technique_points(sim, old_owner, (s32)(rules->technique_city_lost + rules->technique_city_lost_facility * built), cause, events);
+    /* G2-059: a force that loses its last city falls (張楊軍滅亡). The message of the turn start shows it to every player. */
+    if (old_owner != SIM_NO_FORCE && sim_faction_city_count(sim, old_owner) == 0)
+    {
+        sim_event fell = sim_event_make(sim, SIM_EVENT_FACTION_FELL, cause);
+        fell.faction = old_owner;
+        fell.detail  = attacker->force_id;
+        fell.subject = sim_city_entity(sim, city->city_id);
+        sim_emit(events, fell);
+    }
     sim_unit_enter_city(sim, attacker_id, city->city_id, SIM_EVENT_NONE, cause, events);
 }
 

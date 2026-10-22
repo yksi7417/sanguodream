@@ -1271,7 +1271,9 @@ log.officer_captured	{subject}：被俘
 log.officer_escaped	{subject}：逃脫
 log.officer_left	{subject}：離開勢力
 log.officer_recruited	{subject}：加入勢力
-log.recruit_failed	{subject}：拒絕招攬
+log.recruit_failed	{speaker}登庸{subject}失敗
+log.search_failed	{speaker}在{subject}的探索失敗
+log.faction_fell	{faction}軍滅亡。
 log.officer_released	{subject}：完成任務
 city.durability	耐久
 city.market_price	市價

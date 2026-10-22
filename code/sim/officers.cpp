@@ -884,6 +884,8 @@ sim_search(sim_state *sim, city_component *city, sim_court_order *order, u32 cau
         city->gold += rules->search_gold;
         sim_emit_city(sim, SIM_EVENT_GOLD_FOUND, city, (s32)rules->search_gold, 0, true, cause, events);
     }
+    /* G2-039: a search with no find gives the log line 蒯良在江陵的探索失敗. */
+    if (!success) sim_emit_city(sim, SIM_EVENT_SEARCH_FAILED, city, 0, 0, true, cause, events);
     /* 探索 gives technique points only when it finds an officer (tech-tree.md). */
     sim_reward_officer(sim, city->owner_force_id, searcher->officer_id, found && success ? rules->technique_search_found : 0u,
                        CONTENT_ABILITY_POLITICS, cause, events);

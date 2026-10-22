@@ -379,10 +379,20 @@ feature_siege_tests(test_counts *counts)
     feature_next_own_turn(api, force);
     TEST_CHECK(counts, api->city_siege(e, target).durability == after.durability, "a base with an enemy next to it does not recover");
     api->set_city_resource(e, target, SIM_RESOURCE_SOLDIERS, 0, 1);
+    /* G2-059: the target is the last city of its force: the force falls with the capture. */
+    u8 loser = api->city_at(e, target).owner_force_id;
+    for (u32 index = 0; index < api->city_count(e); ++index)
+    {
+        engine_city other_city = api->city_at(e, index);
+        if (other_city.owner_force_id == loser && other_city.city_id != target) api->set_city_owner(e, other_city.city_id, force);
+    }
     mark = api->ledger_count(e);
     result = api->command_attack(e, unit_id, site.q, site.r);
     TEST_CHECK(counts, result.refusal == SIM_REFUSAL_NONE && feature_count_events(api, SIM_EVENT_BASE_CAPTURED, mark) == 1 && api->unit_at(e, unit_id).id == ENGINE_NO_UNIT,
                "the base falls when its soldiers end; the unit enters it");
+    sim_event fell = {};
+    TEST_CHECK(counts, feature_find_event(api, SIM_EVENT_FACTION_FELL, mark, &fell) && fell.faction == loser && fell.detail == force,
+               "the force that loses its last city falls, and the ledger names the force that took it (G2-059)");
     b32 owned = false;
     for (u32 index = 0; index < api->city_count(e); ++index)
     {

@@ -1273,7 +1273,9 @@ log.officer_captured	{subject}: was taken captive
 log.officer_escaped	{subject}: escaped
 log.officer_left	{subject}: left the faction
 log.officer_recruited	{subject}: joined the faction
-log.recruit_failed	{subject}: refused the offer
+log.recruit_failed	{speaker} failed to recruit {subject}
+log.search_failed	{speaker} found nobody in {subject}
+log.faction_fell	The force of {faction} has fallen.
 log.officer_released	{subject}: finished the job
 city.durability	Durability
 city.market_price	Market

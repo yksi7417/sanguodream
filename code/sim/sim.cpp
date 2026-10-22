@@ -724,6 +724,8 @@ sim_event_name(sim_event_kind kind)
         case SIM_EVENT_PRICE_CHANGED:           return "price_changed";
         case SIM_EVENT_TRANSPORT_ARRIVED:       return "transport_arrived";
         case SIM_EVENT_ENVOY_ARRIVED:           return "envoy_arrived";
+        case SIM_EVENT_SEARCH_FAILED:           return "search_failed";
+        case SIM_EVENT_FACTION_FELL:            return "faction_fell";
         case SIM_EVENT_FACTION_PLOT:            return "faction_plot";
         case SIM_EVENT_FACTION_FOUNDED:         return "faction_founded";
         case SIM_EVENT_ORDER_DROPPED:           return "order_dropped";

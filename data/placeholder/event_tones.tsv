@@ -96,3 +96,5 @@ officer_arrived	calm	good	no	yes	assumed
 mission_started	neutral	neutral	no	no	assumed
 faction_plot	proud	good	no	yes	assumed
 faction_plot_failed	humble	bad	no	yes	assumed
+search_failed	humble	bad	yes	yes	assumed
+faction_fell	grim	bad	yes	yes	assumed

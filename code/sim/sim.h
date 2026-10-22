@@ -196,6 +196,8 @@ enum sim_event_kind
     SIM_EVENT_PRICE_CHANGED,        /* subject = city; delta = the change of the price; detail = the new price (G2-013; assumed drift) */
     SIM_EVENT_TRANSPORT_ARRIVED,    /* subject = the leader; faction; detail = the city; delta = the home city (G2-027) */
     SIM_EVENT_ENVOY_ARRIVED,        /* subject = the envoy; faction; detail = the target faction: the result follows (G2-063) */
+    SIM_EVENT_SEARCH_FAILED,        /* subject = city; faction; the speaker is the searcher of the command (G2-039) */
+    SIM_EVENT_FACTION_FELL,         /* faction = the force that lost its last city; detail = the force that took it (G2-059) */
     SIM_EVENT_COUNT
 };
 

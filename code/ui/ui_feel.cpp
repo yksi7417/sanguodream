@@ -105,6 +105,7 @@ ui_feel_is_report(engine_api *api, u32 ledger_index, sim_event *event, u8 force)
     if (ui_feel_bookkeeping(event->kind)) return false;
     engine_event_report report = api->event_report(api->engine, ledger_index);
     if (!report.report) return false;
+    if (event->kind == SIM_EVENT_FACTION_FELL) return true;   /* G2-059: the end of a force is news for every player */
     if (event->faction == force) return true;
     if (!ui_feel_hostile(event->kind) || report.subject.kind != ENGINE_SUBJECT_CITY) return false;
     return api->city_at(api->engine, (u8)report.subject.id).owner_force_id == force;
