@@ -26,9 +26,24 @@ pushd "%ROOT%build"
 set ERR=0
 echo building > lock.tmp
 
+REM The static libs carry their debug information in the objects (/Z7). With /Zi
+REM they point at build\vc140.pdb, and each later compile replaces that file, so
+REM the linker warned LNK4204 for each object of the libs. A change of the lib
+REM flags below rebuilds both libs through the stamp file lib_flags.txt.
+set LIBFLAGS=/nologo /Z7 /O2 /W3 /GR- /MT /c
+echo %LIBFLAGS%> lib_flags.new
+fc lib_flags.new lib_flags.txt >nul 2>&1
+if errorlevel 1 (
+  del imgui.lib >nul 2>&1
+  del imgui_te.lib >nul 2>&1
+  del te\*.obj >nul 2>&1
+  copy /y lib_flags.new lib_flags.txt >nul
+)
+del lib_flags.new >nul 2>&1
+
 REM Dear ImGui static lib for the game, built once. Delete build\imgui.lib to rebuild it.
 if not exist imgui.lib (
-  cl /nologo /Zi /O2 /W3 /EHsc- /GR- /MT /c /I..\third_party\imgui /I..\third_party\imgui\backends ^
+  cl %LIBFLAGS% /EHsc- /I..\third_party\imgui /I..\third_party\imgui\backends ^
     ..\third_party\imgui\imgui.cpp ..\third_party\imgui\imgui_draw.cpp ..\third_party\imgui\imgui_tables.cpp ^
     ..\third_party\imgui\imgui_widgets.cpp ..\third_party\imgui\imgui_demo.cpp ^
     ..\third_party\imgui\backends\imgui_impl_win32.cpp ..\third_party\imgui\backends\imgui_impl_dx11.cpp
@@ -52,7 +67,7 @@ if exist imgui_te.lib (
 )
 if not exist imgui_te.lib (
   if not exist te mkdir te
-  cl /nologo /Zi /O2 /W3 /EHsc /GR- /MT /c /Fote\ %TE_INCLUDES% %TE_DEFINES% /I..\third_party\imgui ^
+  cl %LIBFLAGS% /EHsc /Fote\ %TE_INCLUDES% %TE_DEFINES% /I..\third_party\imgui ^
     ..\third_party\imgui\imgui.cpp ..\third_party\imgui\imgui_draw.cpp ..\third_party\imgui\imgui_tables.cpp ^
     ..\third_party\imgui\imgui_widgets.cpp ..\third_party\imgui\imgui_demo.cpp ^
     ..\third_party\imgui_test_engine\imgui_test_engine\imgui_te_context.cpp ^
