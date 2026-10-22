@@ -31,14 +31,29 @@ ui_report_player(engine_api *api)
     return ENGINE_NO_FACTION;
 }
 
-/* The value of the city after the event, for the templates that show it. */
+/* The value of the city or the officer after the event, for the templates
+   that show it. */
 internal s64
 ui_report_value(engine_api *api, const engine_event_report *report)
 {
-    if (!report->key || report->subject.kind != ENGINE_SUBJECT_CITY) return TEXT_NO_VALUE;
+    if (!report->key) return TEXT_NO_VALUE;
+    const char *key = report->key;
+    if (report->subject.kind == ENGINE_SUBJECT_OFFICER)
+    {
+        engine_officer officer = api->officer_by_id(api->engine, report->subject.id);
+        if (strcmp(key, "loyalty_changed") == 0) return api->officer_detail(api->engine, report->subject.id).loyalty;
+        if (strcmp(key, "merit_gained") == 0)    return officer.merit;
+        if (strcmp(key, "ability_changed") == 0)
+        {
+            u8 values[] = { officer.leadership, officer.war, officer.intelligence, officer.politics, officer.charm };
+            return report->detail < ArrayCount(values) ? values[report->detail] : TEXT_NO_VALUE;
+        }
+        return TEXT_NO_VALUE;
+    }
+    if (report->subject.kind != ENGINE_SUBJECT_CITY) return TEXT_NO_VALUE;
+    if (strcmp(key, "price_changed") == 0) return report->detail;   /* the new price */
     engine_city city = api->city_at(api->engine, report->subject.id);
     if (city.city_id == ENGINE_NO_CITY) return TEXT_NO_VALUE;
-    const char *key = report->key;
     if (strcmp(key, "patrolled") == 0 || strcmp(key, "order_lost") == 0 || strcmp(key, "order_dropped") == 0) return city.public_order;
     if (strcmp(key, "conscripted") == 0)                                  return city.troops;
     if (strcmp(key, "trained") == 0 || strcmp(key, "morale_lost") == 0)  return city.morale;
@@ -78,11 +93,35 @@ ui_report_line(ui_state *ui, engine_api *api, u32 ledger_index, s64 value, u32 f
     }
     speaker[0] = faction[0] = 0;
     if (report.speaker != ENGINE_NO_OFFICER) ui_officer_text(ui, api, report.speaker, speaker, sizeof(speaker));
-    if (report.kind == SIM_EVENT_WEAPONS_PRODUCED && form == TEXT_LINE_LOG)
+    if ((report.kind == SIM_EVENT_WEAPONS_PRODUCED || report.kind == SIM_EVENT_WEAPONS_FREE) && form == TEXT_LINE_LOG)
     {
         /* G2-029: the log line names the weapon (新野之槍庫存數變為29644). */
         engine_weapon_kind weapon = api->weapon_kind_at(api->engine, report.detail);
         if (weapon.id != ENGINE_NO_WEAPON && weapon.key[0]) snprintf(speaker, sizeof(speaker), "%s", ui_text_with_key(ui, "weapon", weapon.key));
+    }
+    if (form == TEXT_LINE_LOG)
+    {
+        /* The lines that name a thing of the event through the speaker slot:
+           the item, the post, the other officer or the ability. */
+        if (report.kind == SIM_EVENT_ITEM_GIVEN)
+        {
+            engine_item item = api->item_at(api->engine, report.detail);
+            if (item.key[0]) snprintf(speaker, sizeof(speaker), "%s", ui_text_with_key(ui, "item", item.key));
+        }
+        else if (report.kind == SIM_EVENT_POST_APPOINTED)
+        {
+            engine_post_kind post = api->post_kind_at(api->engine, report.detail);
+            if (post.id != ENGINE_NO_ROW) snprintf(speaker, sizeof(speaker), "%s", ui_text_with_key(ui, "post", post.key));
+        }
+        else if (report.kind == SIM_EVENT_SWORN || report.kind == SIM_EVENT_MARRIED)
+        {
+            ui_officer_text(ui, api, (u16)report.detail, speaker, sizeof(speaker));
+        }
+        else if (report.kind == SIM_EVENT_ABILITY_CHANGED)
+        {
+            static const char *abilities[] = { "leadership", "war", "intelligence", "politics", "charm" };
+            if (report.detail < ArrayCount(abilities)) snprintf(speaker, sizeof(speaker), "%s", ui_text_with_key(ui, "picker", abilities[report.detail]));
+        }
     }
     if (report.faction != ENGINE_NO_FACTION) ui_force_text(ui, api, report.faction, faction, sizeof(faction));
     if (!subject[0]) memcpy(subject, faction, sizeof(subject));   /* an event of a faction names the faction */
@@ -129,10 +168,12 @@ ui_report_feedback(ui_state *ui, engine_api *api, const engine_event_report *rep
     }
     if (report->sign == ENGINE_SIGN_NEUTRAL || !report->delta || ui->report.float_count >= UI_FLOAT_CAPACITY) return;
     u32 place = ui->report.float_count++;
-    ui->report.floats[place].city    = (u8)report->subject.id;
-    ui->report.floats[place].delta   = report->delta;
-    ui->report.floats[place].sign    = report->sign;
-    ui->report.floats[place].seconds = UI_FLOAT_SECONDS;
+    ui->report.floats[place].city         = (u8)report->subject.id;
+    ui->report.floats[place].delta        = report->delta;
+    ui->report.floats[place].sign         = report->sign;
+    ui->report.floats[place].seconds      = UI_FLOAT_SECONDS;
+    ui->report.floats[place].resource     = report->resource;
+    ui->report.floats[place].resource_key = report->resource_key;
 }
 
 /* Each frame: reads the new ledger events into the log, opens the
@@ -299,8 +340,18 @@ ui_draw_feedback(ui_state *ui, engine_api *api)
     {
         ImVec2 anchor = ui_report_anchor(ui, api, ui->report.floats[index].city);
         f32 progress = 1.0f - ui->report.floats[index].seconds / UI_FLOAT_SECONDS;
-        char value[32];
-        snprintf(value, sizeof(value), "%+d", ui->report.floats[index].delta);
+        /* The field of the value comes first (資金收入 +2047), so that the
+           player knows what the number is. */
+        const char *field = "";
+        char id[48];
+        if (ui->report.floats[index].resource != SIM_RESOURCE_NONE && ui->report.floats[index].resource_key)
+        {
+            snprintf(id, sizeof(id), "resource.%s", ui->report.floats[index].resource_key);
+            field = text_get(ui->text, id);
+        }
+        char value[96];
+        if (field[0]) snprintf(value, sizeof(value), "%s %+d", field, ui->report.floats[index].delta);
+        else          snprintf(value, sizeof(value), "%+d", ui->report.floats[index].delta);
         ImVec4 colour = ui_report_colour(ui->report.floats[index].sign);
         colour.w = 1.0f - progress * 0.6f;
         f32 rise = progress * UI_FLOAT_RISE + 16.0f * (f32)index;

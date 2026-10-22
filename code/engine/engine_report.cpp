@@ -154,6 +154,8 @@ engine_api_event_report(void *opaque, u32 ledger_index)
     report.ledger_index = ledger_index;
     report.kind         = (u8)event->kind;
     report.key          = sim_event_name(event->kind);
+    report.resource     = (u8)sim_event_resource(event->kind);
+    report.resource_key = sim_resource_name(sim_event_resource(event->kind));
     report.turn         = event->turn;
     report.date         = engine_date_of_turn(e, event->turn);
     report.subject      = engine_api_subject_of(e, event->subject);

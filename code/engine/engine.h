@@ -152,6 +152,8 @@ struct engine_event_report
     u32            ledger_index;   /* ENGINE_NO_EVENT for an index out of range */
     u8             kind;           /* sim_event_kind */
     const char    *key;            /* the stable key of the kind, for example "conscripted" */
+    u8             resource;       /* sim_resource: the field that the amount changes; SIM_RESOURCE_NONE for none */
+    const char    *resource_key;   /* the key of that field, for example "soldiers"; the text id is "resource.<key>" */
     u32            turn;
     engine_date    date;           /* the date of the turn of the event */
     engine_subject subject;

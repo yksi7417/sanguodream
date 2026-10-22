@@ -1389,3 +1389,109 @@ event.city	Base	據點
 event_question.transport_arrived	The transport unit has arrived. Where do its officers go?	輸送隊到達了。要如何安置部隊？
 event_choice.transport_arrived.0	Keep them in this base	將其留在該據點
 event_choice.transport_arrived.1	Send them back home	令其返回原據點
+# The log lines of the event kinds that fell back to log.generic (the player asked what +11 means, 2026-10-22).
+log.year_started	A new year begins
+log.month_started	A new month begins
+log.season_started	The season changes
+log.salaries_paid	{subject}: salaries {delta}
+log.grain_consumed	{subject}: grain eaten {delta}
+log.hook_bandits	Bandits stir in the land
+log.hook_locusts	Locusts swarm
+log.hook_plague	A plague spreads
+log.hook_good_harvest	A good harvest
+log.hook_officers_age	The officers grow one year older
+log.hook_new_officers	New officers appear
+log.black_market_removed	{subject}: the black market is gone
+log.gold_over_cap	{subject}: gold over the cap {delta}
+log.grain_over_cap	{subject}: grain over the cap {delta}
+log.salaries_unpaid	{subject}: cannot pay the salaries
+log.soldiers_deserted	{subject}: soldiers deserted {delta}, no grain
+log.weapons_free	{subject}: free {speaker} {delta}
+log.facility_repaired	{subject}: a facility repaired, durability {delta}
+log.facility_damaged	{subject}: a facility damaged, durability {delta}
+log.facility_destroyed	{subject}: a facility destroyed
+log.technique_spent	{faction}: technique points {delta}
+log.merge_started	{subject}: a merge started
+log.facility_merged	{subject}: a facility merged, level {delta}
+log.disaster_ended	{subject}: the disaster ended
+log.grain_lost	{subject}: grain lost {delta}
+log.grain_harvest	{subject}: a good harvest, grain {delta}
+log.soldiers_lost	{subject}: soldiers lost {delta}
+log.game_won	{faction}: the land is united
+log.game_lost	{faction}: the game is lost
+log.unit_supplies	{subject}: gold to a unit {delta}
+log.unit_grain_taken	{subject}: grain to a unit {delta}
+log.unit_weapons_taken	{subject}: weapons to a unit {delta}
+log.unit_moved	{faction}: a unit moved
+log.unit_soldiers_lost	{faction}: a unit lost {amount} soldiers on the way
+log.unit_waited	{faction}: a unit waits
+log.unit_gold_returned	{subject}: gold from a unit {delta}
+log.unit_grain_returned	{subject}: grain from a unit {delta}
+log.unit_supplied	{faction}: a unit received soldiers {delta}
+log.unit_grain_eaten	{faction}: a unit ate {amount} grain
+log.unit_deserted	{faction}: {amount} soldiers deserted a unit
+log.plot_used	{faction}: a unit used a plot
+log.morale_changed	{faction}: the morale of a unit {delta}
+log.unit_pushed	{faction}: a unit falls back {delta} hexes
+log.fire_started	{faction}: a fire starts
+log.fire_ended	A fire went out
+log.building_started	{faction}: a building goes up
+log.building_completed	{faction}: a building is complete
+log.building_damaged	{faction}: a building, durability {delta}
+log.building_destroyed	{faction}: a building fell
+log.trap_triggered	{faction}: a trap sprang
+log.base_soldiers_lost	{subject}: soldiers lost in the base {delta}
+log.base_recovered	{subject}: durability recovered {delta}
+log.unit_loot	{faction}: a unit looted gold {delta}
+log.gold_found	{subject}: gold found {delta}
+log.loyalty_changed	{subject}: loyalty {delta}, now {value}
+log.item_given	{subject}: receives {speaker}
+log.post_appointed	{subject}: appointed {speaker}
+log.rank_changed	{faction}: a new rank
+log.sworn	{subject}: sworn to {speaker}
+log.married	{subject}: married {speaker}
+log.captive_released	{subject}: released
+log.officer_exiled	{subject}: exiled
+log.ability_changed	{subject}: {speaker} {delta}, now {value}
+log.health_changed	{subject}: the health changed
+log.ruler_succeeded	{subject}: now rules {faction}
+log.friendliness_changed	{faction}: friendliness {delta}
+log.relation_changed	{faction}: the relation changed
+log.diplomacy_failed	{faction}: the diplomacy failed
+log.faction_surrendered	{faction}: a force surrendered
+log.captive_exchanged	{subject}: exchanged and home
+log.aid_arrived	{faction}: allied aid arrived
+log.faction_founded	{subject}: {faction} rises
+log.duel_started	{subject}: a duel begins
+log.duel_refused	{subject}: the duel is refused
+log.duel_strike	{subject}: hit, stamina {delta}
+log.duel_special	{subject}: a special move
+log.duel_ended	{subject}: wins the duel
+log.debate_started	{subject}: a debate begins
+log.debate_exchange	{subject}: loses ground {delta}
+log.debate_ended	{subject}: wins the debate
+log.corps_created	{faction}: a corps formed
+log.corps_changed	{faction}: a corps changed
+log.corps_dissolved	{faction}: a corps dissolved
+log.adviser_appointed	{subject}: adviser of {faction}
+log.emperor_changed	The seat of the emperor changed
+log.event_fired	{faction}: an event
+log.event_chosen	{faction}: the choice is made
+log.base_income	{subject}: income of a base {delta}
+log.ai_planned	{faction}: {delta} commands this turn
+log.officer_created	{subject}: a new officer
+log.ability_research_started	{faction}: ability research started
+log.ability_researched	{faction}: ability research complete
+log.training_started	{subject}: training started
+log.officer_trained	{subject}: training complete, ability {delta}
+log.history_fired	{faction}: a historical event
+log.ending	{faction}: the end
+log.bandit_site	{subject}: bandits appeared
+log.rockfall_returned	A rockfall is set again
+log.save_map_loaded	The map of the save loaded
+log.unit_ordered	{faction}: a unit took a long order
+log.unit_order_done	{faction}: a long order ended
+log.mission_started	{subject}: leaves on a mission, {delta} days
+log.price_changed	{subject}: the grain price moves {delta}, now {value}
+log.transport_arrived	{subject}: the transport arrived
+log.envoy_arrived	{subject}: the envoy arrived

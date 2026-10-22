@@ -596,6 +596,63 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_STR_EQ(text_label(&v.text, "status", 0, label, sizeof(label)), "ruler");                      /* en: the gloss */
     };
 
+    /* The log has a form of its own for every event kind that reaches it.
+       The generic forms "{subject}: {delta}" and "{subject}: news" say
+       nothing about the field (the player asked what "+11" means). */
+    t = IM_REGISTER_TEST(e, "ui", "each_locale_has_a_log_line_for_each_event_kind");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        for (u32 index = 0; index < v.text.locale_count; ++index)
+        {
+            IM_CHECK(text_catalog_set_locale(&v.text, v.text.locales[index].code));
+            if (!text_catalog_has_strings(&v.text)) continue;
+            for (u32 kind = 1; kind < SIM_EVENT_COUNT; ++kind)
+            {
+                if (ui_feel_bookkeeping((sim_event_kind)kind)) continue;
+                char id[64];
+                snprintf(id, sizeof(id), "log.%s", sim_event_name((sim_event_kind)kind));
+                if (!text_find_string(&v.text, id)) ctx->LogError("%s lacks %s", v.text.locales[index].code, id);
+                IM_CHECK(text_find_string(&v.text, id) != 0);
+            }
+        }
+        IM_CHECK(text_catalog_set_locale(&v.text, "zh-TW"));
+    };
+
+    /* A value that rises over a city names its field (資金收入 +2047, not
+       +2047 alone), and a log line of an officer names the field too. */
+    t = IM_REGISTER_TEST(e, "ui", "a_rising_value_and_a_log_line_name_the_field");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        ui_enter_game(&v.ui);
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        sim_event income = {};
+        income.kind = SIM_EVENT_GOLD_INCOME; income.faction = 1; income.subject = 1; income.delta = 2047; income.cause = 7;
+        sim_event loyalty = {};
+        loyalty.kind = SIM_EVENT_LOYALTY_CHANGED; loyalty.faction = 1; loyalty.subject = 9; loyalty.delta = 11; loyalty.cause = 8;
+        v.recorder.events[v.recorder.event_count++] = income;
+        v.recorder.events[v.recorder.event_count++] = loyalty;
+        ctx->Yield(2);
+        engine_event_report report = v.api.event_report(v.api.engine, 0);
+        IM_CHECK_EQ(report.resource, (u8)SIM_RESOURCE_GOLD);
+        IM_CHECK_STR_EQ(report.resource_key, "gold");
+        IM_CHECK_EQ(v.ui.report.float_count, 1u);
+        IM_CHECK_EQ(v.ui.report.floats[0].resource, (u8)SIM_RESOURCE_GOLD);
+        char line[256];
+        ui_report_line(&v.ui, &v.api, 1, TEXT_NO_VALUE, TEXT_LINE_LOG, line, sizeof(line));
+        IM_CHECK(strstr(line, "\xE5\xBF\xA0\xE8\xAA\xA0") != 0);   /* zh-TW: 忠誠 */
+        IM_CHECK(strstr(line, "+11") != 0);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
     t = IM_REGISTER_TEST(e, "ui", "language_combo_changes_the_locale_and_commands_nothing");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;

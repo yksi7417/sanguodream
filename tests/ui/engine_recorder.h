@@ -758,6 +758,8 @@ internal engine_event_report recorder_event_report(void *o, u32 index)
     report.ledger_index = index;
     report.kind         = (u8)event->kind;
     report.key          = sim_event_name(event->kind);
+    report.resource     = (u8)sim_event_resource(event->kind);
+    report.resource_key = sim_resource_name(sim_event_resource(event->kind));
     report.turn         = event->turn;
     report.date.year    = 194;
     report.date.month   = 6;

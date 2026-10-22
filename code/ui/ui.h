@@ -449,6 +449,8 @@ struct ui_state
             s32 delta;
             u8  sign;             /* engine_event_sign */
             f32 seconds;
+            u8  resource;         /* sim_resource: the field of the value; the label names it */
+            const char *resource_key;   /* "resource.<key>" is its text id */
         } floats[UI_FLOAT_CAPACITY];
         u32  float_count;
         u32  feedback_count;      /* the bubbles that the UI opened; the tests read it */

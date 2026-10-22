@@ -38,6 +38,9 @@ Thus the engine gives facts, and the front end writes words.
 ## The facts: event_report
 engine_api.event_report takes the index of a ledger event. It gives:
 - the kind and its stable key, for example "conscripted";
+- the resource that the amount changes (gold, soldiers, public order
+  and the others of sim_resource) and its key, so that a value names
+  its field;
 - the subject (a city or an officer), the faction, the amount;
 - the date of the turn of the event;
 - the speaker: the first officer of the command, else the officer of
@@ -59,7 +62,13 @@ function takes the facts and a form:
 
 The template provider looks up these strings in the locale:
 1. a log line: "log.<key>", then "log.generic.quiet" for an event
-   without an amount, then "log.generic";
+   without an amount, then "log.generic". Every kind that reaches the
+   log has its own line in both locales: the generic lines say nothing
+   about the field, and the player asked what "+11" means. The test
+   each_locale_has_a_log_line_for_each_event_kind keeps it so. The
+   speaker slot of a line can hold a thing of the event: the weapon of
+   the free weapons, the item, the post, the other officer of an oath or
+   a marriage, or the ability that changed;
 2. a speech: "say.<key>", then "say.tone.<tone>", then
    "say.sign.<sign>".
 
@@ -87,7 +96,8 @@ template provider.
   in the tone of the event. It does not take the mouse, and it closes
   after UI_BUBBLE_SECONDS.
 - The values (main-map.md, "Floating value") rise over the base for each
-  event of the command with a sign.
+  event of the command with a sign. Each value names its field first
+  (資金收入 +2047), from the resource of the report.
 - The turn start shows only the events with the report flag. A turn
   without a report opens no window. The window shows the speaker of each
   report and no counter.
