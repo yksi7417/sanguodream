@@ -195,6 +195,7 @@ enum sim_event_kind
     SIM_EVENT_FACTION_PLOT_FAILED,  /* subject = the target city; faction; detail = the kind; the cause is the command of the plot */
     SIM_EVENT_PRICE_CHANGED,        /* subject = city; delta = the change of the price; detail = the new price (G2-013; assumed drift) */
     SIM_EVENT_TRANSPORT_ARRIVED,    /* subject = the leader; faction; detail = the city; delta = the home city (G2-027) */
+    SIM_EVENT_ENVOY_ARRIVED,        /* subject = the envoy; faction; detail = the target faction: the result follows (G2-063) */
     SIM_EVENT_COUNT
 };
 
@@ -1093,9 +1094,16 @@ struct sim_base_state
 /* A plot on the road (travel.cpp): its order, its chance from the check,
    and the turns until the arrival. The result comes then. */
 #define SIM_MISSION_CAPACITY 32
+enum sim_mission_kind
+{
+    MISSION_PLOT,          /* 二虎競食, 驅虎吞狼, 流言 (G2-065) */
+    MISSION_DIPLOMACY      /* the envoy of a diplomacy command (G2-063) */
+};
+
 struct sim_mission
 {
     b32             active;
+    u8              kind;                /* sim_mission_kind */
     sim_court_order order;
     u8              force;
     u8              turns_left;
@@ -1474,9 +1482,11 @@ internal u32              sim_travel_days(sim_state *sim, u8 from_base, u8 to_ba
 internal sim_check        sim_check_move_officers(sim_state *sim, sim_command_kind kind, sim_move_order *order);
 internal void             sim_move_officers_command(sim_state *sim, sim_command command, sim_event_sink *events);
 internal void             sim_run_travel(sim_state *sim, u32 cause, sim_event_sink *events);
-internal b32              sim_start_mission(sim_state *sim, sim_court_order *order, u8 force, u32 chance, u32 cause, sim_event_sink *events);
+internal b32              sim_start_mission(sim_state *sim, sim_court_order *order, u8 force, u32 chance, u8 kind, u32 cause,
+                                            sim_event_sink *events);
 internal void             sim_run_missions(sim_state *sim, u32 cause, sim_event_sink *events);
-internal void             sim_resolve_plot(sim_state *sim, sim_mission *mission, sim_event_sink *events);   /* diplomacy.cpp */
+internal void             sim_resolve_plot(sim_state *sim, sim_mission *mission, sim_event_sink *events);        /* diplomacy.cpp */
+internal void             sim_resolve_diplomacy(sim_state *sim, sim_mission *mission, sim_event_sink *events);   /* diplomacy.cpp */
 internal sim_check        sim_check_sortie(sim_state *sim, sim_sortie_order *order, b32 transport);
 internal void             sim_sortie(sim_state *sim, sim_command command, sim_event_sink *events);
 internal sim_check        sim_check_unit_order(sim_state *sim, sim_command_kind kind, sim_unit_order *order, memory_arena *scratch);

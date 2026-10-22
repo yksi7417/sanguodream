@@ -456,6 +456,7 @@ diplomacy.aid	請求援軍
 diplomacy.captive	被俘武將
 diplomacy.second	第二勢力
 diplomacy.city	目標都市
+diplomacy.days	抵達日數
 plot_cmd.two_tigers	二虎競食
 plot_cmd.drive_tiger	驅虎吞狼
 plot_cmd.rumour	流言

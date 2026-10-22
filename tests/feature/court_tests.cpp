@@ -301,6 +301,19 @@ feature_match_release_tests(test_counts *counts, feature_city_setup *setup)
                "流放 of an own officer: it becomes a free officer, and the faction pays the points");
 }
 
+/* G2-063: the envoy goes on the road, and the result comes at its
+   arrival. Ends the turns of the faction until the arrival (at most 12). */
+internal b32
+feature_wait_envoy(engine_api *api, u8 force, u32 mark)
+{
+    for (u32 turn = 0; turn < 12; ++turn)
+    {
+        if (feature_count_events(api, SIM_EVENT_ENVOY_ARRIVED, mark)) return true;
+        if (!feature_next_own_turn(api, force)) return false;
+    }
+    return feature_count_events(api, SIM_EVENT_ENVOY_ARRIVED, mark) > 0;
+}
+
 internal void
 feature_diplomacy_tests(test_counts *counts, feature_city_setup *setup)
 {
@@ -322,10 +335,16 @@ feature_diplomacy_tests(test_counts *counts, feature_city_setup *setup)
     order.kind  = SIM_DIPLOMACY_GOODWILL;
     u32 before = api->diplomacy(e, setup->force, other).friendliness;
     engine_check check = feature_court_check(api, ENGINE_COMMAND_DIPLOMACY, &order);
+    u32 mark = api->ledger_count(e);
     engine_command_result result = api->command_court(e, ENGINE_COMMAND_DIPLOMACY, &order);
+    sim_event started = {};
     TEST_CHECK(counts, before == 50 && check.gold == 1000 && check.action_points == 30 && check.quantity == 100 && result.refusal == SIM_REFUSAL_NONE &&
+                       api->diplomacy(e, setup->force, other).friendliness == before &&
+                       feature_find_event(api, SIM_EVENT_MISSION_STARTED, mark, &started) && started.delta > 0,
+               "親善: 1000 gold and 30 action points; the envoy goes on the road, and nothing changes at the order (G2-063)");
+    TEST_CHECK(counts, feature_wait_envoy(api, setup->force, mark) &&
                        api->diplomacy(e, setup->force, other).friendliness > before && api->diplomacy(e, other, setup->force).friendliness > before,
-               "親善: 1000 gold and 30 action points; it never fails and raises the friendliness of both sides");
+               "親善 never fails: at the arrival of the envoy the friendliness of both sides rises");
 
     feature_next_own_turn(api, setup->force);
     api->set_actions(e, setup->force, 255);
@@ -335,9 +354,12 @@ feature_diplomacy_tests(test_counts *counts, feature_city_setup *setup)
     TEST_CHECK(counts, feature_court_check(api, ENGINE_COMMAND_DIPLOMACY, &order).refusal == SIM_REFUSAL_NO_AMOUNT, "refused: 同盟 needs 1000 gold or more");
     order.gold = 20000;
     check = feature_court_check(api, ENGINE_COMMAND_DIPLOMACY, &order);
+    mark = api->ledger_count(e);
     result = api->command_court(e, ENGINE_COMMAND_DIPLOMACY, &order);
-    TEST_CHECK(counts, check.quantity == 100 && result.refusal == SIM_REFUSAL_NONE && api->diplomacy(e, setup->force, other).relation == RELATION_ALLIANCE,
-               "同盟: high friendliness and much gold give an alliance (assumed chance)");
+    TEST_CHECK(counts, check.quantity == 100 && result.refusal == SIM_REFUSAL_NONE && feature_wait_envoy(api, setup->force, mark) &&
+                       api->diplomacy(e, setup->force, other).relation == RELATION_ALLIANCE,
+               "同盟: high friendliness and much gold give an alliance at the arrival of the envoy (assumed chance)");
+    api->set_actions(e, setup->force, 255);
     feature_take_officers(api, setup->city, envoys, 1);
     order.officer = envoys[0];
     TEST_CHECK(counts, feature_court_check(api, ENGINE_COMMAND_DIPLOMACY, &order).refusal == SIM_REFUSAL_RELATION, "refused: the factions are allies");
@@ -351,12 +373,13 @@ feature_diplomacy_tests(test_counts *counts, feature_city_setup *setup)
     aid.kind = SIM_DIPLOMACY_AID;
     aid.target_city = setup->city;
     aid.gold = 10000;
-    u32 mark = api->ledger_count(e);
+    mark = api->ledger_count(e);
     result = api->command_court(e, ENGINE_COMMAND_DIPLOMACY, &aid);
     sim_event arrived = {};
-    b32 found = feature_find_event(api, SIM_EVENT_AID_ARRIVED, mark, &arrived);
-    TEST_CHECK(counts, result.refusal == SIM_REFUSAL_NONE && found && api->unit_at(e, arrived.detail).force_id == other,
-               "請求援軍: the ally sends a unit next to the city (aid.turns = 18)");
+    b32 found = result.refusal == SIM_REFUSAL_NONE && feature_wait_envoy(api, setup->force, mark) &&
+                feature_find_event(api, SIM_EVENT_AID_ARRIVED, mark, &arrived);
+    TEST_CHECK(counts, found && api->unit_at(e, arrived.detail).force_id == other,
+               "請求援軍: at the arrival of the envoy the ally sends a unit next to the city (aid.turns = 18)");
 
     /* 摒棄 */
     feature_next_own_turn(api, setup->force);
@@ -366,10 +389,12 @@ feature_diplomacy_tests(test_counts *counts, feature_city_setup *setup)
     engine_court_order brk = feature_court_order(setup->city, envoys[0], ENGINE_NO_OFFICER);
     brk.force = other;
     brk.kind  = SIM_DIPLOMACY_BREAK;
+    mark = api->ledger_count(e);
     result = api->command_court(e, ENGINE_COMMAND_DIPLOMACY, &brk);
-    TEST_CHECK(counts, result.refusal == SIM_REFUSAL_NONE && api->diplomacy(e, setup->force, other).relation == RELATION_NONE &&
-                       api->technique_points(e, setup->force) == 1050,
-               "摒棄: the alliance ends and the side that proposes it gains 50 technique points (tech-tree.md)");
+    TEST_CHECK(counts, result.refusal == SIM_REFUSAL_NONE && feature_wait_envoy(api, setup->force, mark) &&
+                       api->diplomacy(e, setup->force, other).relation == RELATION_NONE && api->technique_points(e, setup->force) == 1050,
+               "摒棄: at the arrival of the envoy the alliance ends, and the side that proposes it gains 50 technique points (tech-tree.md)");
+    api->set_actions(e, setup->force, 255);
     engine_court_order ceasefire = brk;
     ceasefire.kind   = SIM_DIPLOMACY_CEASEFIRE;
     ceasefire.months = 30;
@@ -381,7 +406,7 @@ feature_diplomacy_tests(test_counts *counts, feature_city_setup *setup)
     TEST_CHECK(counts, feature_court_check(api, ENGINE_COMMAND_DIPLOMACY, &ceasefire).refusal == SIM_REFUSAL_NO_FACTION, "refused: diplomacy with the own faction");
 
     /* 交換俘虜 */
-    u16 prisoner = feature_find_officer(api, setup->force, ENGINE_NO_OFFICER, ENGINE_NO_OFFICER);
+    u16 prisoner = feature_find_officer(api, setup->force, envoys[0], ENGINE_NO_OFFICER);   /* not the envoy */
     engine_officer_edit edit = feature_edit_of(api, prisoner);
     edit.captor = other;
     api->set_officer(e, prisoner, &edit);
@@ -393,9 +418,14 @@ feature_diplomacy_tests(test_counts *counts, feature_city_setup *setup)
     feature_officer_by_id(api, envoys[0], &envoy_officer);
     if (envoy_officer.skill_number + 1 != FEATURE_SKILL_DEBATER)
     {
+        mark = api->ledger_count(e);
         result = api->command_court(e, ENGINE_COMMAND_DIPLOMACY, &exchange);
-        TEST_CHECK(counts, result.refusal == SIM_REFUSAL_NONE && feature_officer_force(api, prisoner) == setup->force && !api->officer_detail(e, prisoner).captive,
-                   "交換俘虜: for much gold the other faction gives the captive back");
+        b32 waited = result.refusal == SIM_REFUSAL_NONE && feature_wait_envoy(api, setup->force, mark);
+        /* On the road the other faction can recruit the captive (its AI): then the envoy finds no captive. */
+        b32 back  = feature_officer_force(api, prisoner) == setup->force && !api->officer_detail(e, prisoner).captive;
+        b32 taken = feature_officer_force(api, prisoner) == other && !api->officer_detail(e, prisoner).captive;
+        TEST_CHECK(counts, waited && (back || taken),
+                   "交換俘虜: for much gold the other faction gives the captive back at the arrival of the envoy, unless it recruited the captive first");
     }
 }
 

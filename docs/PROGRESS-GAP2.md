@@ -31,7 +31,9 @@ task reads it at the start of each run. The order of the work is section
 | G2-028 | The clone of the report rolled a plague (10 治安, 5 percent of the soldiers) because its date was wrong before G2-001. A plague starts only in the months 1, 4, 7 and 10. A regression test loads the sample, reaches 197/11/1 and checks that 江夏 keeps its soldiers and its public order. The gold income and the free weapons stay open: see the questions. | 0ac20d2 | feature/turns |
 | G2-027 | A transport of the save with the task 移動 keeps a long order to its city and moves at 進行. At the city the cargo, the soldiers, the gold and the grain go into the city. Then the question 輸送隊到達 waits for the player with the leader, the city and two choices: 將其留在該據點, or 令其返回原據點 (the officers go back on the road, 10 days for each city region). The dialog of an event now names its base. A step of a long order resets the scratch arena between the plan and the reach: the real map overflowed it. | group 5 | feature/people, feature/rivals, feature/playable |
 | G2-055 | An officer past its death year rolls its death at each month start, not at the year start (朱儁, death year 195, died at the change to 197/12/1). The chance for each month is assumed (age.death_month_chance 10, Q-029). The deputy leads the unit after the death. The death is a message of the turn start with the portrait of the officer, and a line of the log. | group 5 | feature/turns |
-| G2-062 | The log line of a complete research names the technique (開發投石的技巧研究完畢), and the turn start shows it as a message. The research of 劉表 in the sample does not load: the spec marks the research fields of the save as open (Q-202, see the questions). | group 5 | ui/report (the line), feature/growth |
+| G2-062 | The log line of a complete research names the technique (開發投石的技巧研究完畢), and the turn start shows it as a message. The research of 劉表 in the sample does not load: the spec marks the research fields of the save as open (Q-202, see the questions). | 196a186 | ui/report (the line), feature/growth |
+| G2-063 | The envoy of a diplomacy command goes on the road for the days of 抵達日數 to the capital of the target (travel.cpp, as the plots). The result comes at the turn start of the arrival, with the command as its cause. The dialog lists only the free officers of the city that did not act, and shows 抵達日數 for the chosen faction. The relations of the save stay open (see the questions of group 1). | P1 rest | feature/court, feature/replay |
+| G2-048 | The 技巧 of a battle came with group 4: a destroyed unit gives 25, a tactic 15 (0ac20d2). The merit and the experience of a battle stay open (Q-225, see the questions). | 0ac20d2 | feature/combat |
 
 ## In progress
 
@@ -57,7 +59,10 @@ task reads it at the start of each run. The order of the work is section
   transport after 進行 and before the date changes, as the original. The
   death of an officer is a message of the turn start, not a picture of a
   death bed: the clone has no such picture.
-- Next: the other P1 rows of the report, then P2, then P3.
+- The other P1 rows. G2-022 (訓練), G2-026 (生產兵裝) and G2-043 (the
+  unit values) have no rule in the spec: see the questions. G2-061 waits
+  for the corps fields of the save (the questions of group 1).
+- Next: the P2 rows, then P3.
 
 ## Questions for the observer
 
@@ -179,6 +184,36 @@ task reads it at the start of each run. The order of the work is section
   hold 128 to 130 at +70. Please read 技巧表 of three forces of the sample with a
   research in progress, with the technique and the days left. Then the
   analysis side can match the bytes, and the clone can load the research.
+- G2-048, the merit and the experience of a battle. An attack that
+  destroyed a unit of 319 soldiers gave merit +320 to each officer. It
+  gave 統率 +3 and 武力 +1. 殲滅 that destroyed 1170 soldiers gave +350,
+  統率 +3 and 武力 +3. An attack that took 1888 soldiers with no destroy
+  gave +100 (G2-052). 火矢 that took 750 gave +50 and 武力 +3. The clone
+  gives no merit for a battle. What parts make the merit? Possible parts
+  are a base for the attack, a base for a destroyed unit and a share of
+  the soldiers. Please read the merit of the officers before and after
+  three attacks with no destroy. Please also note the soldiers that each
+  attack took.
+- G2-022, the gain of 訓練. The original gave +15 for the war sum 135
+  in 江陵. That city has a barracks and 氣力 74. It gave +9 for the sum
+  140 in 長沙, a city with no barracks. The clone gives 10 percent of the
+  sum (assumed, Q-154). Please read three more 訓練 predictions. One is in
+  江陵 with one officer. One is in a city with a level-1 barracks. One is
+  in a city with 氣力 below 50. Then the builder can fit the line and the
+  factor of the barracks.
+- G2-026, the quantity of 生產兵裝. The original gave 3315 槍 in 新野
+  for the intellect sum 176, with the politics sum 155 and the cost 560.
+  The clone gives 15 for each point of the sum (assumed, Q-023, Q-156).
+  Please read the level of the 鍛冶廠 of 新野. Please read two more
+  predictions with one officer each, one with a high intellect and one
+  with a low intellect. Then the builder can see whether the intellect or
+  the politics sets the quantity.
+- G2-043, the values of a unit. The original shows 攻擊 59, 防禦 78 and
+  建設 95 for 王翦 alone with 槍兵 A and 2043 soldiers. The officer has
+  統率 92, 武力 71, 智力 75 and 政治 68. The spec names the inputs but no formula
+  (Q-224). Please read the five values for the same officer with 戟兵 and
+  with 騎兵. Please read them for one more officer with 槍兵 A. Then the
+  builder can fit the weights of the abilities and the aptitude.
 - G2-027, the unit of 吳巨. The report says that the clone of run 5
   showed no unit near 江陵 for the transport of 吳巨 (3790 soldiers). The
   save holds it as unit 53 at the map hex 69,148 with the task 移動 to

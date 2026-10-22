@@ -133,6 +133,11 @@ An envoy with 論客 goes to a debate for 同盟, 停戰協定 and 交換俘虜.
 unit of an ally stands next to the own city for aid.turns turns. A
 faction that accepts a surrender gives its cities, officers and units.
 
+The envoy goes on the road for the days of 抵達日數 to the capital of the
+target (travel.cpp, G2-063). The result comes at the turn start of the
+arrival, as the result of a plot does. A debate of a player starts at
+the arrival. A computer faction rolls the chance.
+
 ## The plots of factions
 二虎競食, 驅虎吞狼 and 流言 cost 30 AP and 200 gold. Two tigers lowers the
 friendliness of two other factions. Drive the tiger makes the governor of
@@ -180,7 +185,9 @@ and the command that started the debate gets its result.
 - The Court panel shows the rank and one officer, and sends 褒賞, 流放,
   官職, 探索, 登庸, 授與, 仲介 and the release of a captive.
 - The Diplomacy panel lists the factions with friendliness and relation,
-  and sends the seven diplomacy commands and the three plots.
+  and sends the seven diplomacy commands and the three plots. The envoy
+  is a free officer of the city that did not act. The panel shows
+  抵達日數 for the chosen faction.
 - The duel screen opens when a duel runs: the gauges, the policies, the
   special commands, the substitutes, a round and the automatic play.
 - The debate screen opens when a debate runs: the gauges, the topic, the

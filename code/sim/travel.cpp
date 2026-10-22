@@ -220,9 +220,10 @@ sim_run_travel(sim_state *sim, u32 cause, sim_event_sink *events)
 /* The base that a plot aims at: the target city, or the capital of the
    first target faction of 二虎競食. */
 internal u8
-sim_mission_target(sim_state *sim, sim_court_order *order)
+sim_mission_target(sim_state *sim, sim_court_order *order, u8 kind)
 {
-    if (order->kind != SIM_PLOT_TWO_TIGERS) return order->target_city;
+    if (kind == MISSION_PLOT && order->kind != SIM_PLOT_TWO_TIGERS) return order->target_city;
+    /* 二虎競食 and the envoy of a diplomacy command go to the capital of the target faction. */
     officer_component *ruler = sim_find_officer(sim, sim_force_ruler(sim, order->force));
     return ruler && ruler->base_location < SAVE_CITY_COUNT ? (u8)ruler->base_location : order->city_id;
 }
@@ -230,7 +231,7 @@ sim_mission_target(sim_state *sim, sim_court_order *order)
 /* Starts the mission of a plot: the officer goes for the days of the
    journey, and the result comes at the arrival. */
 internal b32
-sim_start_mission(sim_state *sim, sim_court_order *order, u8 force, u32 chance, u32 cause, sim_event_sink *events)
+sim_start_mission(sim_state *sim, sim_court_order *order, u8 force, u32 chance, u8 kind, u32 cause, sim_event_sink *events)
 {
     sim_mission *mission = 0;
     for (u32 index = 0; index < SIM_MISSION_CAPACITY && !mission; ++index)
@@ -238,15 +239,16 @@ sim_start_mission(sim_state *sim, sim_court_order *order, u8 force, u32 chance, 
         if (!sim->missions[index].active) mission = sim->missions + index;
     }
     if (!mission) return false;
-    u32 days = sim_travel_days(sim, order->city_id, sim_mission_target(sim, order));
+    u32 days = sim_travel_days(sim, order->city_id, sim_mission_target(sim, order, kind));
     mission->active     = true;
+    mission->kind       = kind;
     mission->order      = *order;
     mission->force      = force;
     mission->chance     = chance;
     mission->command_id = cause;
     mission->turns_left = (u8)Maximum(days / CALENDAR_DAYS_PER_TURN, 1u);
     officer_component *actor = sim_find_officer(sim, order->officer);
-    if (actor) sim_emit_officer(sim, SIM_EVENT_MISSION_STARTED, actor, (s32)days, sim_mission_target(sim, order), true, cause, events);
+    if (actor) sim_emit_officer(sim, SIM_EVENT_MISSION_STARTED, actor, (s32)days, sim_mission_target(sim, order, kind), true, cause, events);
     return true;
 }
 
@@ -262,7 +264,8 @@ sim_run_missions(sim_state *sim, u32 cause, sim_event_sink *events)
         if (mission->turns_left) mission->turns_left--;
         if (mission->turns_left) continue;
         mission->active = false;
-        sim_resolve_plot(sim, mission, events);
+        if (mission->kind == MISSION_DIPLOMACY) sim_resolve_diplomacy(sim, mission, events);
+        else                                    sim_resolve_plot(sim, mission, events);
     }
     (void)cause;
 }

@@ -425,16 +425,50 @@ sim_diplomacy(sim_state *sim, sim_command command, sim_event_sink *events)
     officer_component *envoy = sim_find_officer(sim, order->officer);
     envoy->acted_turn = sim->turn + 1;
     sim_pay_command(sim, city, &check, command.id, events);
+    /* G2-063: the envoy goes on the road for the days of 抵達日數 (travel.cpp). The result comes at the arrival. */
+    sim_start_mission(sim, order, force, check.quantity, MISSION_DIPLOMACY, command.id, events);
+}
+
+/* The result of a diplomacy command at the arrival of the envoy. An envoy
+   with 論客 of a player goes to a debate for 同盟, 停戰協定 and 交換俘虜
+   (skills.md #87); the others roll the chance of the order. A target that
+   is gone, a captive that is gone or a city that changed hands gives no
+   result. */
+internal void
+sim_resolve_diplomacy(sim_state *sim, sim_mission *mission, sim_event_sink *events)
+{
+    sim_court_order *order = &mission->order;
+    u8 force = mission->force;
+    u32 cause = mission->command_id;
+    officer_component *envoy = sim_find_officer(sim, order->officer);
+    sim_event arrived = sim_event_make(sim, SIM_EVENT_ENVOY_ARRIVED, cause);
+    arrived.subject = envoy ? sim_officer_entity(sim, envoy->officer_id) : 0;
+    arrived.faction = force;
+    arrived.detail  = order->force;
+    arrived.assumed = true;
+    sim_emit(events, arrived);
+    if (!envoy || !sim_officer_is_active(envoy) || envoy->force_id != force) return;
+    if (!sim_faction_exists(sim, force) || !sim_faction_exists(sim, order->force)) return;
+    if (order->kind == SIM_DIPLOMACY_EXCHANGE)
+    {
+        officer_component *captive = sim_find_officer(sim, order->target);
+        if (!captive || captive->status != SIM_STATUS_CAPTIVE || captive->force_id != order->force) return;
+    }
+    if (order->kind == SIM_DIPLOMACY_AID)
+    {
+        city_component *target = sim_find_city(sim, order->target_city);
+        if (!target || target->owner_force_id != force) return;
+    }
     b32 debater = sim_officer_has_skill(envoy, sim->content.rules.skill_debater) &&
                   (order->kind == SIM_DIPLOMACY_ALLIANCE || order->kind == SIM_DIPLOMACY_CEASEFIRE || order->kind == SIM_DIPLOMACY_EXCHANGE);
     u16 their_ruler = sim_force_ruler(sim, order->force);
-    if (debater && their_ruler != SIM_NO_OFFICER)
+    if (debater && their_ruler != SIM_NO_OFFICER && force < SIM_FORCE_CAPACITY && sim->turns.human[force] && !sim_busy(sim))
     {
-        sim_begin_debate(sim, envoy->officer_id, their_ruler, DEBATE_FOR_DIPLOMACY, order, force, command.id, events);
+        sim_begin_debate(sim, envoy->officer_id, their_ruler, DEBATE_FOR_DIPLOMACY, order, force, cause, events);
         return;
     }
-    b32 success = check.quantity >= 100 || sim_random_below(sim, 100) < check.quantity;
-    sim_diplomacy_result(sim, force, order, success, command.id, events);
+    b32 success = mission->chance >= 100 || sim_random_below(sim, 100) < mission->chance;
+    sim_diplomacy_result(sim, force, order, success, cause, events);
 }
 
 /* ---- the plots of factions ---------------------------------------------------------- */
@@ -560,7 +594,7 @@ sim_faction_plot(sim_state *sim, sim_command command, sim_event_sink *events)
     officer_component *actor = sim_find_officer(sim, order->officer);
     actor->acted_turn = sim->turn + 1;
     sim_pay_command(sim, city, &check, command.id, events);
-    sim_start_mission(sim, order, force, check.quantity, command.id, events);
+    sim_start_mission(sim, order, force, check.quantity, MISSION_PLOT, command.id, events);
 }
 
 /* The result of a plot at the arrival of its officer. The events carry the

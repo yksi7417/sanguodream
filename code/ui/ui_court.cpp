@@ -19,6 +19,7 @@ enum ui_officer_filter
     UI_OFFICERS_RECRUITABLE, /* officers that the acting faction can recruit now */
     UI_OFFICERS_CAPTIVES,    /* captives that the acting faction holds */
     UI_OFFICERS_HELD,        /* own officers that the diplomacy target holds */
+    UI_OFFICERS_CITY_FREE,   /* G2-063: the officers of the city (other) that did not act and have no job */
 };
 
 internal b32
@@ -34,6 +35,9 @@ ui_officer_matches(engine_api *api, engine_officer *officer, u8 force, u8 filter
             engine_officer_detail detail = api->officer_detail(api->engine, officer->officer_id);
             return officer->force_id == other && detail.captive && detail.former_force == force;
         }
+        case UI_OFFICERS_CITY_FREE:
+            return officer->force_id == force && officer->status <= 3 && officer->current_position == other && !officer->acted &&
+                   officer->job_city == ENGINE_NO_CITY;
         default: return false;
     }
 }
@@ -294,7 +298,17 @@ ui_draw_diplomacy(ui_state *ui, engine_api *api)
         }
         ImGui::EndTable();
     }
-    ui_officer_pick(ui, api, "diplomacy.envoy", "envoy", &ui->diplomacy.envoy, UI_OFFICERS_OWN, ENGINE_NO_FACTION);
+    /* G2-063: the envoy is a free officer of the city, and the days of 抵達日數 go to the capital of the target. */
+    u8 envoy_city = ui_court_order(api, ENGINE_NO_OFFICER, ENGINE_NO_OFFICER).city_id;
+    ui_officer_pick(ui, api, "diplomacy.envoy", "envoy", &ui->diplomacy.envoy, UI_OFFICERS_CITY_FREE, envoy_city);
+    if (ui->diplomacy.force != ENGINE_NO_FACTION && envoy_city != ENGINE_NO_CITY)
+    {
+        engine_officer ruler = api->officer_by_id(e, api->force_ruler(e, ui->diplomacy.force));
+        if (ruler.base_location < SAVE_CITY_COUNT + CONTENT_BASE_COUNT)
+        {
+            ImGui::Text("%s: %u", text_get(ui->text, "diplomacy.days"), api->travel_days(e, envoy_city, (u8)ruler.base_location));
+        }
+    }
     ImGui::InputInt(ui_label(label, sizeof(label), ui, "diplomacy.gold", "dip_gold"), &ui->diplomacy.gold, 100, 1000);
     ImGui::InputInt(ui_label(label, sizeof(label), ui, "diplomacy.months", "dip_months"), &ui->diplomacy.months, 1, 6);
     if (ui->diplomacy.gold < 0) ui->diplomacy.gold = 0;
