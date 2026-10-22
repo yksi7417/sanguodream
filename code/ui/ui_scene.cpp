@@ -163,6 +163,38 @@ ui_scene_handle_keys(ui_state *ui, f32 dt_seconds)
 
 internal hex_coord ui_round_unit_hex(ui_state *ui, engine_unit *unit);   /* ui_round.cpp (M20); ui_locate.cpp uses it too */
 
+/* The placeholder model of each slot of a city that has a facility
+   (ui/main-map.md, "Map labels": the slots are building models on their
+   own hexes). A built facility is the shape of its kind, in its colour. A
+   build in progress is a scaffold with the shape of the kind inside,
+   smaller and dimmed, so the player sees what the slot becomes. */
+internal void
+ui_scene_push_slots(render_commands *rc, engine_api *api, engine_terrain_view view, u8 city_id)
+{
+    engine_city_slots slots = api->city_slots(api->engine, city_id);
+    for (u32 slot = 0; slot < slots.slot_count; ++slot)
+    {
+        engine_facility facility = api->facility_at(api->engine, city_id, (u8)slot);
+        if (facility.city_id == ENGINE_NO_CITY || facility.facility == ENGINE_NO_FACILITY || facility.state == SIM_SLOT_EMPTY) continue;
+        hex_coord h = hex_make(facility.q, facility.r);
+        hex_offset o = hex_to_offset(h);
+        if (o.col < 0 || o.row < 0 || (u32)o.col >= view.width || (u32)o.row >= view.height) continue;
+        u32 cell = (u32)o.row * view.width + (u32)o.col;
+        v3 ground = hex_world_center(h, terrain_level_y(view.level[cell]));
+        engine_facility_kind kind = api->facility_kind_at(api->engine, facility.facility);
+        ui_facility_look look = ui_facility_look_of(kind.key);
+        if (facility.state == SIM_SLOT_BUILDING)
+        {
+            render_push_mesh(rc, RENDER_MESH_SCAFFOLD, ground, 0.0f, UI_FACILITY_MODEL_SCALE, UI_SCAFFOLD_RGBA);
+            render_push_mesh(rc, look.mesh, ground, 0.0f, UI_FACILITY_BUILDING_SCALE, ui_rgba_dim(look.rgba, 0.55f));
+        }
+        else
+        {
+            render_push_mesh(rc, look.mesh, ground, 0.0f, UI_FACILITY_MODEL_SCALE, look.rgba);
+        }
+    }
+}
+
 /* Fills the frame's render commands from the engine: the terrain, the
    overlay colours for the selection and the hover, and placeholder models
    and units until the spec gives real positions. */
@@ -227,7 +259,8 @@ ui_scene_push(ui_state *ui, engine_api *api, ui_frame_info *frame)
         hex_offset o = hex_to_offset(h);
         if (o.col < 0 || o.row < 0 || (u32)o.col >= view.width || (u32)o.row >= view.height) continue;
         u32 cell = (u32)o.row * view.width + (u32)o.col;
-        render_push_mesh(rc, 0, hex_world_center(h, terrain_level_y(view.level[cell])), 0.0f, 1.0f, ui_faction_rgba(city.owner_force_id));
+        render_push_mesh(rc, RENDER_MESH_SETTLEMENT, hex_world_center(h, terrain_level_y(view.level[cell])), 0.0f, 1.0f, ui_faction_rgba(city.owner_force_id));
+        ui_scene_push_slots(rc, api, view, city.city_id);
     }
     for (u32 id = 0; id < api->unit_count(api->engine); ++id)
     {

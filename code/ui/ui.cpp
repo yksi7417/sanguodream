@@ -16,6 +16,7 @@ ui_label(char *out, u32 out_size, ui_state *ui, const char *text_id, const char 
 }
 
 #include "ui/ui_context.cpp"  /* the dialogs on demand of the game mode */
+#include "ui/ui_facility_look.cpp"   /* the shape and the colour of each facility kind */
 #include "ui/ui_map.cpp"
 #include "ui/ui_world.cpp"   /* includes ui_table.cpp for its tables */
 #include "ui/ui_settings.cpp"

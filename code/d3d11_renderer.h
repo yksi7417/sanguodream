@@ -11,9 +11,10 @@
 #include "base.h"
 #include "render/render.h"
 #include "render/terrain_mesh.h"
+#include "render/placeholder_meshes.h"
 #include "render/png.h"
 
-#define D3D11_MAX_MESHES        8
+#define D3D11_MAX_MESHES        16
 #define D3D11_MAX_SPRITES       8
 #define D3D11_ATLAS_TILES       8      /* material tiles in one row of the atlas */
 #define D3D11_ATLAS_TILE_SIZE   64     /* pixels, for the generated placeholder atlas */
@@ -42,12 +43,7 @@ struct d3d11_frame_constants
     f32 mode;                 /* 0 terrain, 1 grid lines */
 };
 
-struct d3d11_mesh_vertex
-{
-    v3  position;
-    v3  normal;
-    f32 u, v;
-};
+typedef render_mesh_vertex d3d11_mesh_vertex;   /* the layout of placeholder_meshes.h and of the mesh files */
 
 struct d3d11_mesh_instance
 {
@@ -284,41 +280,16 @@ d3d11_placeholder_sprite(memory_arena *arena)
     return rgba;
 }
 
-/* A placeholder model: a box with a pyramid roof, one unit wide, Y up. */
-internal void
-d3d11_placeholder_house(memory_arena *arena, d3d11_mesh_vertex **vertices_out, u32 *vertex_count, u32 **indices_out, u32 *index_count)
+/* A placeholder shape of placeholder_meshes.h as a GPU mesh. */
+internal b32
+d3d11_placeholder_mesh(d3d11_renderer *r, u32 mesh_id, memory_arena *arena, d3d11_mesh *mesh)
 {
-    d3d11_mesh_vertex *vx = PushArray(arena, 64, d3d11_mesh_vertex);
-    u32 *ix = PushArray(arena, 128, u32);
-    u32 vc = 0, ic = 0;
-    f32 half = 0.45f, wall = 0.5f, roof = 0.85f;
-    struct face_def { v3 a, b, c, d; v3 n; };
-    face_def faces[4] = {
-        { v3_make( half, 0, -half), v3_make( half, 0,  half), v3_make( half, wall,  half), v3_make( half, wall, -half), v3_make( 1, 0,  0) },
-        { v3_make(-half, 0,  half), v3_make(-half, 0, -half), v3_make(-half, wall, -half), v3_make(-half, wall,  half), v3_make(-1, 0,  0) },
-        { v3_make( half, 0,  half), v3_make(-half, 0,  half), v3_make(-half, wall,  half), v3_make( half, wall,  half), v3_make( 0, 0,  1) },
-        { v3_make(-half, 0, -half), v3_make( half, 0, -half), v3_make( half, wall, -half), v3_make(-half, wall, -half), v3_make( 0, 0, -1) } };
-    for (u32 f = 0; f < 4; ++f)
-    {
-        v3 corners[4] = { faces[f].a, faces[f].b, faces[f].c, faces[f].d };
-        u32 base = vc;
-        for (u32 k = 0; k < 4; ++k) { vx[vc].position = corners[k]; vx[vc].normal = faces[f].n; vx[vc].u = (f32)(k & 1); vx[vc].v = (f32)(k >> 1); vc++; }
-        ix[ic++] = base; ix[ic++] = base + 2; ix[ic++] = base + 1;
-        ix[ic++] = base; ix[ic++] = base + 3; ix[ic++] = base + 2;
-    }
-    v3 apex = v3_make(0, roof, 0);
-    v3 ring[4] = { v3_make(half, wall, -half), v3_make(half, wall, half), v3_make(-half, wall, half), v3_make(-half, wall, -half) };
-    for (u32 k = 0; k < 4; ++k)
-    {
-        v3 a = ring[k], b = ring[(k + 1) % 4];
-        v3 n = v3_normalize(v3_cross(v3_sub(b, a), v3_sub(apex, a)));
-        u32 base = vc;
-        vx[vc].position = a; vx[vc].normal = n; vx[vc].u = 0; vx[vc].v = 1; vc++;
-        vx[vc].position = b; vx[vc].normal = n; vx[vc].u = 1; vx[vc].v = 1; vc++;
-        vx[vc].position = apex; vx[vc].normal = n; vx[vc].u = 0.5f; vx[vc].v = 0; vc++;
-        ix[ic++] = base; ix[ic++] = base + 2; ix[ic++] = base + 1;
-    }
-    *vertices_out = vx; *vertex_count = vc; *indices_out = ix; *index_count = ic;
+    placeholder_mesh shape = {};
+    if (!placeholder_mesh_build(mesh_id, arena, &shape)) return false;
+    mesh->vertices    = d3d11_make_buffer(r, shape.vertices, shape.vertex_count * (u32)sizeof(d3d11_mesh_vertex), D3D11_BIND_VERTEX_BUFFER, false);
+    mesh->indices     = d3d11_make_buffer(r, shape.indices, shape.index_count * 4, D3D11_BIND_INDEX_BUFFER, false);
+    mesh->index_count = shape.index_count;
+    return mesh->vertices && mesh->indices;
 }
 
 /* The engine's flat mesh file: "HXM1", u32 vertex count, u32 index count,
@@ -438,16 +409,18 @@ d3d11_renderer_init(d3d11_renderer *r, ID3D11Device *device, ID3D11DeviceContext
         r->atlas_view = d3d11_make_texture(r, atlas, D3D11_ATLAS_TILES * D3D11_ATLAS_TILE_SIZE, D3D11_ATLAS_TILE_SIZE, false, 0);
     }
 
-    /* mesh 0: the settlement, from settlement.hxm or the placeholder house */
+    /* mesh 0: the settlement, from settlement.hxm or the placeholder house.
+       The other meshes are the placeholder shapes of the facility slots. */
     if (!d3d11_load_mesh_file(r, "settlement.hxm", scratch, r->meshes + 0))
     {
-        d3d11_mesh_vertex *vx; u32 vc; u32 *ix; u32 ic;
-        d3d11_placeholder_house(scratch, &vx, &vc, &ix, &ic);
-        r->meshes[0].vertices = d3d11_make_buffer(r, vx, vc * (u32)sizeof(d3d11_mesh_vertex), D3D11_BIND_VERTEX_BUFFER, false);
-        r->meshes[0].indices  = d3d11_make_buffer(r, ix, ic * 4, D3D11_BIND_INDEX_BUFFER, false);
-        r->meshes[0].index_count = ic;
+        d3d11_placeholder_mesh(r, RENDER_MESH_SETTLEMENT, scratch, r->meshes + 0);
     }
     r->mesh_count = 1;
+    for (u32 mesh_id = 1; mesh_id < RENDER_MESH_COUNT && mesh_id < D3D11_MAX_MESHES; ++mesh_id)
+    {
+        if (!d3d11_placeholder_mesh(r, mesh_id, scratch, r->meshes + mesh_id)) break;
+        r->mesh_count = mesh_id + 1;
+    }
 
     /* sprite 0: the unit, from unit.png or the placeholder figure */
     r->sprites[0].view = d3d11_load_png_texture(r, "unit.png", scratch);

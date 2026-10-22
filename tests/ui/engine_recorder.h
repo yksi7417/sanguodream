@@ -579,6 +579,7 @@ recorder_set_cell_terrain(void *o, s32 q, s32 r, u8 kind, u8 level)
 /* ---- M1 develop and M2 turns: one faction (force 1) acts; 10 empty slots
    in each city; 3 facility kinds; can_issue answers can_issue_refusal. */
 #define RECORDER_SLOTS 10
+#define RECORDER_BUILDING_SLOT 9   /* the slot with the farm under construction */
 global_variable const char *recorder_facility_keys[] = { "market", "farm", "mint" };
 
 internal engine_date recorder_date(void *o)
@@ -615,6 +616,7 @@ internal engine_city_slots recorder_city_slots(void *o, u8 city_id)
     engine_city_slots slots = {};
     slots.city_id = city_id < r->city_count ? city_id : ENGINE_NO_CITY;
     slots.slot_count = slots.city_id == ENGINE_NO_CITY ? 0 : RECORDER_SLOTS;
+    slots.built = 2; slots.building = 1; slots.used = 3;   /* two built markets and a farm under construction (facility_at) */
     slots.gold_income = 100; slots.grain_income = 500; slots.governor_id = 100;
     slots.q = (s32)city_id * 2 + 1;   /* M11: each city has its own centre, so a frame is visible */
     slots.r = 1;
@@ -628,11 +630,20 @@ internal engine_facility recorder_facility_at(void *o, u8 city_id, u8 slot)
     facility.slot     = slot;
     facility.state    = SIM_SLOT_EMPTY;
     facility.facility = ENGINE_NO_FACILITY;
+    facility.q        = (s32)(slot % 4) + 2;   /* on the 8 x 6 map of the recorder, so the scene draws the slot */
+    facility.r        = 1;
     if (slot == 2 || slot == 3)   /* two built markets: the merge dialog lists them */
     {
         facility.state    = SIM_SLOT_BUILT;
         facility.facility = 0;
         facility.level    = 1;
+    }
+    if (slot == RECORDER_BUILDING_SLOT)   /* a farm under construction: the counts and the scene show it */
+    {
+        facility.state      = SIM_SLOT_BUILDING;
+        facility.facility   = 1;
+        facility.level      = 1;
+        facility.turns_left = 2;
     }
     return facility;
 }

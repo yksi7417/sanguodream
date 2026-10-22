@@ -83,7 +83,26 @@ ui_test_gui(ImGuiTestContext *ctx)
         v.ui.show_city = false;   /* the City panel asks for city names too; its tests open it */
     }
     v.frame.dt_seconds = ImGui::GetIO().DeltaTime;
+    if (v.frame.frame_arena)   /* a test of the scene: fresh render commands each frame, as the platform makes them */
+    {
+        v.frame.frame_arena->used = 0;
+        v.frame.render = render_commands_begin(v.frame.frame_arena, 800.0f, 600.0f);
+    }
     ui_draw(&v.ui, &v.api, &v.frame);
+}
+
+/* The mesh instances of one mesh id in the frame's render commands. */
+internal u32
+ui_test_count_meshes(render_commands *rc, u32 mesh_id, f32 *scale_out)
+{
+    u32 count = 0;
+    for (u32 index = 0; rc && index < rc->mesh_instance_count; ++index)
+    {
+        if (rc->mesh_instances[index].mesh_id != mesh_id) continue;
+        if (scale_out) *scale_out = rc->mesh_instances[index].scale;
+        count++;
+    }
+    return count;
 }
 
 /* The five city command dialogs of M3: the window, the City panel button,
@@ -1551,8 +1570,8 @@ register_ui_tests(ImGuiTestEngine *e)
         v.ui.show_develop        = true;
         v.ui.develop.city        = 0;
         ctx->Yield(2);
-        u32 counts[256];
-        ui_count_built_facilities(&v.api, 0, counts, ArrayCount(counts));
+        u32 counts[256], in_progress[256];
+        ui_count_built_facilities(&v.api, 0, counts, in_progress, ArrayCount(counts));
         IM_CHECK_EQ(counts[0], 2u);                                                   /* the two built markets of the script */
         ctx->SetRef("###Develop");
         IM_CHECK(ctx->ItemExists("###fac0") && ctx->ItemExists("###fac2"));
@@ -3635,9 +3654,65 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->Yield(2);
         ui_facility_count rows[UI_FACILITY_COUNT_CAPACITY];
         u32 count = ui_count_facilities(&v.api, 0, rows, ArrayCount(rows));
-        IM_CHECK_EQ(count, 1u);                                           /* the recorder has two markets of level 1 */
-        IM_CHECK(rows[0].facility == 0 && rows[0].level == 1 && rows[0].count == 2);
+        IM_CHECK_EQ(count, 2u);                                           /* two markets of level 1, and a farm under construction */
+        IM_CHECK(rows[0].facility == 0 && rows[0].level == 1 && rows[0].count == 2 && rows[0].building == 0);
+        IM_CHECK(rows[1].facility == 1 && rows[1].level == 1 && rows[1].count == 0 && rows[1].building == 1);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* The counts show the builds in progress next to the built facilities:
+       "5 (+2)". The 開發 grid counts each kind the same way. */
+    t = IM_REGISTER_TEST(e, "ui", "facility_counts_show_the_builds_in_progress_and_command_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.city_count = 2;
+        v.ui.show_city = true;
+        ctx->Yield(2);
+        char number[32];
+        ui_format_facility_count(number, sizeof(number), 5, 2);
+        IM_CHECK_STR_EQ(number, "5 (+2)");
+        ui_format_facility_count(number, sizeof(number), 5, 0);
+        IM_CHECK_STR_EQ(number, "5");
+        u32 built[256], building[256];
+        ui_count_built_facilities(&v.api, 0, built, building, ArrayCount(built));
+        IM_CHECK(built[0] == 2 && building[0] == 0);                      /* the markets */
+        IM_CHECK(built[1] == 0 && building[1] == 1);                      /* the farm under construction */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* The scene draws a model on each slot with a facility: the shape of
+       the kind for a built one, and a scaffold with a smaller shape inside
+       for a build in progress. The scene asks city_slots and facility_at
+       and commands nothing. */
+    t = IM_REGISTER_TEST(e, "ui", "scene_draws_a_model_on_each_facility_and_a_scaffold_on_a_build_in_progress");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        memory_arena frame_arena = test_arena_create(Megabytes(2));
+        v.recorder.city_count = 2;
+        v.ui.scene.headless   = true;
+        v.frame.frame_arena   = &frame_arena;
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK(v.frame.render && v.frame.render->scene_enabled);
+        IM_CHECK_EQ(ui_test_count_meshes(v.frame.render, RENDER_MESH_SETTLEMENT, 0), 2u);   /* one settlement for each city */
+        f32 built_scale = 0.0f, building_scale = 0.0f;
+        IM_CHECK_EQ(ui_test_count_meshes(v.frame.render, RENDER_MESH_STALL, &built_scale), 4u);        /* two markets in each city */
+        IM_CHECK_EQ(ui_test_count_meshes(v.frame.render, RENDER_MESH_SCAFFOLD, 0), 2u);                /* the farm under construction of each city */
+        IM_CHECK_EQ(ui_test_count_meshes(v.frame.render, RENDER_MESH_FIELD, &building_scale), 2u);     /* the farm itself, smaller */
+        IM_CHECK_LT(building_scale, built_scale);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_CITY_SLOTS), 2u);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_FACILITY_AT), 2u * RECORDER_SLOTS);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        v.frame.frame_arena = 0;
+        v.frame.render      = 0;
+        test_arena_destroy(&frame_arena);
     };
 
     /* M10: a click on a city hex selects the city; the panel frames its

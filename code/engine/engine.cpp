@@ -941,6 +941,11 @@ engine_api_city_slots(void *opaque, u8 city_id)
     result.city_id      = city_id;
     result.slot_count   = site->slot_count;
     result.used         = (u8)sim_city_used_slots(sim, city_id);
+    for (u32 slot = 0; slot < site->slot_count; ++slot)
+    {
+        if (site->slots[slot].state == SIM_SLOT_BUILT)    result.built++;
+        if (site->slots[slot].state == SIM_SLOT_BUILDING) result.building++;
+    }
     result.q            = site->hex.q;
     result.r            = site->hex.r;
     sim_income_forecast forecast = sim_city_forecast(sim, city_id);

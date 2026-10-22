@@ -11,11 +11,16 @@ ROADMAP.md lists the six milestones G1 to G6 of this plan.
 - The scene is 3D. code/render/terrain_mesh.h builds one hex prism for
   each cell. The orbit camera turns freely and tilts from 30 to 75
   degrees (code/render/render.h).
-- The platform layer has one mesh and one sprite (code/d3d11_renderer.h).
-  Mesh 0 is settlement.hxm or a placeholder house. Sprite 0 is unit.png or
-  a placeholder figure of 64 x 64 pixels.
+- The platform layer has a mesh table and one sprite (code/d3d11_renderer.h).
+  Mesh 0 is settlement.hxm or a placeholder house. The other meshes are
+  the placeholder shapes of the facility slots, from
+  code/render/placeholder_meshes.h. Tutorial 32 lists the shapes. Sprite
+  0 is unit.png or a placeholder figure of 64 x 64 pixels.
 - code/ui/ui_scene.cpp pushes one house for each base and one billboard
-  for each unit. A faction colour tints both.
+  for each unit. A faction colour tints both. It pushes one shape on
+  each slot with a facility, in the colour of the kind
+  (code/ui/ui_facility_look.cpp). A build in progress is a scaffold with
+  the shape at half size, dimmed.
 - A unit jumps from its old hex to its new hex. Nothing moves between
   two frames of the sim.
 - The sim is instant and deterministic. Commands go in and events come

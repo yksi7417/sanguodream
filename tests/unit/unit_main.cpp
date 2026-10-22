@@ -12,6 +12,7 @@
 #include "sim/sim.cpp"
 #include "render/render.h"
 #include "render/terrain_mesh.h"
+#include "render/placeholder_meshes.h"
 #include "render/png.h"
 #include "render/zip.h"
 #include "render/jpeg.h"

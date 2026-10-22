@@ -307,7 +307,8 @@ ui_draw_unit_plate(ui_state *ui, engine_api *api, ImDrawList *draw, f32 x, f32 y
 }
 
 /* A glyph on each slot of a city in view: the first character of the
-   facility and its level, or a ring for a free slot. */
+   facility and its level, or a ring for a free slot. A build in progress
+   shows the turns left after the character, on an orange plate. */
 internal void
 ui_draw_slot_glyphs(ui_state *ui, engine_api *api, m4 view_projection, ImDrawList *draw, u8 city_id)
 {
@@ -316,7 +317,8 @@ ui_draw_slot_glyphs(ui_state *ui, engine_api *api, m4 view_projection, ImDrawLis
     {
         engine_facility facility = api->facility_at(api->engine, city_id, (u8)slot);
         f32 x = 0.0f, y = 0.0f;
-        if (facility.city_id == ENGINE_NO_CITY || !ui_scene_screen(api, view_projection, hex_make(facility.q, facility.r), 0.3f, &x, &y)) continue;
+        f32 lift = facility.facility == ENGINE_NO_FACILITY ? 0.3f : UI_FACILITY_GLYPH_LIFT;
+        if (facility.city_id == ENGINE_NO_CITY || !ui_scene_screen(api, view_projection, hex_make(facility.q, facility.r), lift, &x, &y)) continue;
         if (facility.facility == ENGINE_NO_FACILITY)
         {
             draw->AddCircle(ImVec2(x, y), 4.0f, IM_COL32(230, 230, 230, 200), 0, 1.5f);
@@ -325,10 +327,12 @@ ui_draw_slot_glyphs(ui_state *ui, engine_api *api, m4 view_projection, ImDrawLis
         engine_facility_kind kind = api->facility_kind_at(api->engine, facility.facility);
         char initial[16], glyph[24];
         ui_first_character(ui_text_with_key(ui, "facility", kind.key), initial, sizeof(initial));
-        snprintf(glyph, sizeof(glyph), "%s%u", initial, facility.level);
+        b32 in_progress = facility.state == SIM_SLOT_BUILDING;
+        if (in_progress) snprintf(glyph, sizeof(glyph), "%s-%u", initial, facility.turns_left);
+        else             snprintf(glyph, sizeof(glyph), "%s%u", initial, facility.level);
         ImVec2 size = ImGui::CalcTextSize(glyph);
-        draw->AddRectFilled(ImVec2(x - size.x * 0.5f - 2.0f, y - size.y * 0.5f), ImVec2(x + size.x * 0.5f + 2.0f, y + size.y * 0.5f),
-                            facility.state == SIM_SLOT_BUILT ? IM_COL32(40, 60, 120, 220) : IM_COL32(90, 90, 90, 220), 2.0f);
+        ImU32 plate = facility.state == SIM_SLOT_BUILT ? IM_COL32(40, 60, 120, 220) : (in_progress ? IM_COL32(170, 100, 20, 220) : IM_COL32(90, 90, 90, 220));
+        draw->AddRectFilled(ImVec2(x - size.x * 0.5f - 2.0f, y - size.y * 0.5f), ImVec2(x + size.x * 0.5f + 2.0f, y + size.y * 0.5f), plate, 2.0f);
         draw->AddText(ImVec2(x - size.x * 0.5f, y - size.y * 0.5f), IM_COL32(255, 255, 255, 255), glyph);
     }
 }
@@ -487,11 +491,13 @@ struct ui_facility_count
 {
     u8  facility;
     u8  level;
-    u32 count;
+    u32 count;      /* built */
+    u32 building;   /* builds in progress of the kind and the level */
 };
 
-/* The built facilities of the city, one row for each kind and level, in
-   the order of the facility table and the level. Returns the rows. */
+/* The facilities of the city, built or in progress, one row for each kind
+   and level, in the order of the facility table and the level. Returns
+   the rows. */
 internal u32
 ui_count_facilities(engine_api *api, u8 city_id, ui_facility_count *out, u32 capacity)
 {
@@ -500,7 +506,8 @@ ui_count_facilities(engine_api *api, u8 city_id, ui_facility_count *out, u32 cap
     for (u32 slot = 0; slot < site.slot_count; ++slot)
     {
         engine_facility facility = api->facility_at(api->engine, city_id, (u8)slot);
-        if (facility.city_id == ENGINE_NO_CITY || facility.state != SIM_SLOT_BUILT || facility.facility == ENGINE_NO_FACILITY) continue;
+        if (facility.city_id == ENGINE_NO_CITY || facility.facility == ENGINE_NO_FACILITY) continue;
+        if (facility.state != SIM_SLOT_BUILT && facility.state != SIM_SLOT_BUILDING) continue;
         u32 row = 0;
         while (row < rows && (out[row].facility != facility.facility || out[row].level != facility.level)) row++;
         if (row == rows)
@@ -515,9 +522,11 @@ ui_count_facilities(engine_api *api, u8 city_id, ui_facility_count *out, u32 cap
             out[at].facility = facility.facility;
             out[at].level    = facility.level;
             out[at].count    = 0;
+            out[at].building = 0;
             row = at;
         }
-        out[row].count++;
+        if (facility.state == SIM_SLOT_BUILT) out[row].count++;
+        else                                  out[row].building++;
     }
     return rows;
 }
@@ -529,20 +538,23 @@ ui_draw_city_facility_counts(ui_state *ui, engine_api *api, u8 city_id)
     ui_facility_count counts[UI_FACILITY_COUNT_CAPACITY];
     u32 rows = ui_count_facilities(api, city_id, counts, ArrayCount(counts));
     engine_city_slots site = api->city_slots(api->engine, city_id);
+    char number[32];
+    ui_format_facility_count(number, sizeof(number), site.built, site.building);
     ImGui::SeparatorText(text_get(ui->text, "city.facility_counts"));
-    ImGui::Text("%s %u / %u", text_get(ui->text, "city.slots_used"), site.used, site.slot_count);
+    ImGui::Text("%s %s / %u", text_get(ui->text, "city.slots_used"), number, site.slot_count);
     if (ImGui::BeginTable("facility_counts", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV))
     {
         for (u32 row = 0; row < rows; ++row)
         {
             engine_facility_kind kind = api->facility_kind_at(api->engine, counts[row].facility);
+            ui_format_facility_count(number, sizeof(number), counts[row].count, counts[row].building);
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             ImGui::TextUnformatted(ui_text_with_key(ui, "facility", kind.key));
             ImGui::TableNextColumn();
             ImGui::Text("Lv%u", counts[row].level);
             ImGui::TableNextColumn();
-            ImGui::Text("%u", counts[row].count);
+            ImGui::TextUnformatted(number);
         }
         ImGui::EndTable();
     }

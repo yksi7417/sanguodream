@@ -279,6 +279,8 @@ struct engine_city_slots
     u8  city_id;            /* ENGINE_NO_CITY if the city is not loaded */
     u8  slot_count;
     u8  used;               /* slots with a facility, built or under construction */
+    u8  built;              /* slots with a complete facility */
+    u8  building;           /* slots with a build in progress; used = built + building + the absorbed side of a merge */
     u8  specialty;          /* city_specialty */
     b32 has_port;
     s32 q, r;               /* the centre hex of the city */

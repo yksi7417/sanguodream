@@ -178,5 +178,29 @@ unit_render_tests(test_counts *counts)
     TEST_CHECK(counts, rc->mesh_instance_count == 1 && rc->mesh_instances[0].mesh_id == 1 && rc->billboard_count == 1, "pushes record instances");
     for (u32 i = 0; i < RENDER_MAX_BILLBOARDS + 10; ++i) render_push_billboard(rc, 0, v3_make(0, 0, 0), 1, 1, 0);
     TEST_CHECK(counts, rc->billboard_count == RENDER_MAX_BILLBOARDS, "a full buffer drops pushes");
+
+    /* the placeholder shapes of the facility slots: each mesh id has a
+       closed list of triangles inside one hex, on the ground */
+    b32 shapes_ok = true;
+    for (u32 mesh_id = 0; mesh_id < RENDER_MESH_COUNT; ++mesh_id)
+    {
+        placeholder_mesh shape = {};
+        if (!placeholder_mesh_build(mesh_id, &arena, &shape) || shape.index_count % 3 != 0) { shapes_ok = false; continue; }
+        for (u32 i = 0; i < shape.index_count; ++i) if (shape.indices[i] >= shape.vertex_count) shapes_ok = false;
+        for (u32 i = 0; i < shape.vertex_count; ++i)
+        {
+            v3 at = shape.vertices[i].position;
+            if (at.x < -0.55f || at.x > 0.55f || at.z < -0.55f || at.z > 0.55f || at.y < 0.0f || at.y > 1.2f) shapes_ok = false;
+            f32 length = v3_dot(shape.vertices[i].normal, shape.vertices[i].normal);
+            if (length < 0.99f || length > 1.01f) shapes_ok = false;
+        }
+    }
+    TEST_CHECK(counts, shapes_ok, "every placeholder mesh builds inside its hex with unit normals");
+    placeholder_mesh unknown = {};
+    TEST_CHECK(counts, !placeholder_mesh_build(RENDER_MESH_COUNT, &arena, &unknown), "an unknown mesh id builds nothing");
+    placeholder_mesh scaffold = {}, stall = {};
+    placeholder_mesh_build(RENDER_MESH_SCAFFOLD, &arena, &scaffold);
+    placeholder_mesh_build(RENDER_MESH_STALL, &arena, &stall);
+    TEST_CHECK(counts, scaffold.index_count != stall.index_count, "the scaffold and a facility are different shapes");
     test_arena_destroy(&arena);
 }

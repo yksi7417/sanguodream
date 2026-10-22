@@ -216,8 +216,10 @@ ui_draw_city_game_fields(ui_state *ui, engine_api *api, u8 city_id)
     ImGui::TextColored(ImVec4(0.62f, 0.82f, 0.96f, 1.0f), "%s", name);
     ImGui::Separator();
     ImGui::Text("%s %u   %s %u", text_get(ui->text, "column.gold"), city.gold, text_get(ui->text, "column.food"), city.food);
-    ImGui::Text("%s %u / 100   %s %u / %u", text_get(ui->text, "command.order"), economy.public_order,
-                text_get(ui->text, "city.slots"), slots.used, slots.slot_count);
+    char number[32];
+    ui_format_facility_count(number, sizeof(number), slots.built, slots.building);   /* 設施數 built (+in progress) / slots */
+    ImGui::Text("%s %u / 100   %s %s / %u", text_get(ui->text, "command.order"), economy.public_order,
+                text_get(ui->text, "city.slots"), number, slots.slot_count);
     ImGui::Text("%s %u / %u", text_get(ui->text, "city.durability"), siege.durability, siege.durability_max);
     ImGui::Text("%s %u   %s %u / 100", text_get(ui->text, "command.soldiers"), economy.soldiers, text_get(ui->text, "command.morale"),
                 economy.morale);
@@ -295,8 +297,10 @@ ui_draw_city(ui_state *ui, engine_api *api)
         ImGui::Text("%s:", text_get(ui->text, "city.specialty"));
         ImGui::SameLine();
         ui_code_cell(ui, api, UI_CODE_SPECIALTY, slots.specialty, U32_MAX);
+        char number[32];
+        ui_format_facility_count(number, sizeof(number), slots.built, slots.building);
         ImGui::SameLine();
-        ImGui::Text("  %s: %u / %u", text_get(ui->text, "city.slots"), slots.used, slots.slot_count);
+        ImGui::Text("  %s: %s / %u", text_get(ui->text, "city.slots"), number, slots.slot_count);
         ImGui::Text("%s: %u   %s: %u", text_get(ui->text, "city.gold_income"), slots.gold_income,
                     text_get(ui->text, "city.grain_income"), slots.grain_income);
         ImGui::Text("%s:", text_get(ui->text, "city.governor"));
