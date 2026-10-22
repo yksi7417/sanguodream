@@ -37,6 +37,7 @@
 #include "save_map_tests.cpp"
 #include "replay_tests.cpp"
 #include "ai_tests.cpp"
+#include "order_tests.cpp"     /* the long orders of a unit (clone gap report 2) */
 #include "content_source_tests.cpp"
 #include "report_tests.cpp"     /* M18 */
 #include "fixture_tests.cpp"
@@ -116,6 +117,9 @@ main(int argc, char **argv)
     test_counts ai_counts = {};
     feature_ai_tests(&ai_counts);
     failed |= test_report("feature/ai", &ai_counts);
+    test_counts order_counts = {};
+    feature_order_tests(&order_counts);
+    failed |= test_report("feature/orders", &order_counts);
     test_counts content_counts = {};
     feature_content_source_tests(&content_counts);
     failed |= test_report("feature/content_source", &content_counts);

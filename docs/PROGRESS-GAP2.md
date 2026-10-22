@@ -14,7 +14,11 @@ task reads it at the start of each run. The order of the work is section
 | G2-003 | The load runs no AI command, recovers no action points and starts no delegated corps. It gives the turn to the player at once and emits the turn start. The cities keep the soldiers of the file. | group 1 | feature/turns |
 | G2-004 | The load takes the acted flag of each officer (+148 bit 0). A unit whose leader acted has acted, so its plate shows 完 and 進行 asks no question. | group 1 | feature/turns, feature/save_map |
 | G2-012 | The load reads the morale of the city (+84). The third ship field (+68) is the stock of the 樓船: 江陵 4, 江夏 1. | group 1 | unit/save_format, feature/load_save |
-| G2-035 | The load reads the loyalty of each officer from +104 (a hypothesis, Q-005). The game shows at most 100. 英布 97, 劉辟 97, 董承 98, 呂蒙 99, the others 100. | group 1 | unit/save_format, feature/load_save, feature/court |
+| G2-035 | The load reads the loyalty of each officer from +104 (a hypothesis, Q-005). The game shows at most 100. 英布 97, 劉辟 97, 董承 98, 呂蒙 99, the others 100. | 4a1d459 | unit/save_format, feature/load_save, feature/court |
+| G2-042 | After 決定 of 出征 the new unit is selected and its range shows. A left click on the plate of a unit is a click on its hex. A click on an own unit with no selection selects it. | group 2 | ui |
+| G2-052 | A left click on an enemy unit while an own unit is selected opens 殲滅 and 驅趕, with the panel 預定抵達時間, 所有兵糧 and 通過據點. 殲滅 marches on the target and attacks it in the same turn when it is in reach, then at each 進行 until it is gone. The plate shows 委. A left click on an own unit asks for the follow order with 是 and 否. | group 2 | feature/orders, ui |
+| G2-056 | A land unit enters a river hex as a 走舸 at the cost of the boat row. The far-hex order 移動 takes it onto the river over several turns. | group 2 | feature/orders |
+| G2-058 | A left click on a hex out of the range opens 移動 (and 設置, grey) with the days to arrive. 移動 moves the unit to the end of its range in the same turn, marks it 委, and moves it on at each 進行 until it arrives. 委任部隊行動 runs the steps now and is white when a unit has an order. | group 2 | feature/orders, feature/march, ui |
 
 ## In progress
 
@@ -22,7 +26,11 @@ task reads it at the start of each run. The order of the work is section
   the spec does not support (see the questions). The corps of a save still act as
   the factions 0 and 12, and the adviser and the relations keep their
   start values.
-- Next: group 2, the unit orders (G2-042, G2-052, G2-056, G2-058).
+- Group 2 has no open work. In the original, 殲滅 used a tactic (G2-052).
+  The long order of the clone uses the normal attack of the class. The
+  rule that picks the tactic is a question below.
+- Next: group 3, the commands that the clone lacks (G2-036, G2-037,
+  G2-060, G2-065).
 
 ## Questions for the observer
 
@@ -58,3 +66,16 @@ task reads it at the start of each run. The order of the work is section
   holds the 鬥艦, and what field holds the 木獸? The clone keeps the
   鬥艦 at the second ship field and the 木獸 with the 衝車 (assumed,
   Q-006).
+- G2-052, the attack of 殲滅. In run 7 the order used a tactic. The
+  氣力 went from 100 to 85, and the target went into 混亂. In run 8
+  夏侯淵隊 shot from two hexes. The clone attacks with the normal attack
+  of the class.
+  What picks the tactic of a long order? Does the unit use its best
+  tactic when the morale allows it, and the normal attack otherwise?
+- G2-052, the end of 驅趕. The clone ends 驅趕 after one attack (an
+  assumption). When does the original end 驅趕: after one attack, when
+  the target leaves the area of the base, or when the target is gone?
+- G2-058, the path of a long order. The clone plans the lowest-cost
+  path over the terrain and treats own cities and bases as waypoints
+  (Q-227). Does the unit of the original stop in an own base on the
+  way, as a move of one turn does?

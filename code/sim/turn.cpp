@@ -303,6 +303,8 @@ sim_end_faction_turn(sim_state *sim, u32 cause, sim_event_sink *events)
     sim_turn_state *turns = &sim->turns;
     if (turns->acting < turns->order_count)
     {
+        /* The units with a long order do their step at 進行 (orders.cpp; manual p.24). */
+        sim_run_unit_orders(sim, turns->order[turns->acting].force_id, cause, events);
         sim_event ended = sim_event_make(sim, SIM_EVENT_FACTION_TURN_ENDED, cause);
         ended.faction = turns->order[turns->acting].force_id;
         ended.delta   = (s32)turns->acting;

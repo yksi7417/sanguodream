@@ -388,6 +388,7 @@ ui_event_detail_kind(sim_event_kind kind)
         case SIM_EVENT_PLOT_USED:           case SIM_EVENT_MORALE_CHANGED:     case SIM_EVENT_UNIT_PUSHED:
         case SIM_EVENT_UNIT_STATE:          case SIM_EVENT_UNIT_DESTROYED:     case SIM_EVENT_UNIT_LOOT:
         case SIM_EVENT_AID_ARRIVED:         case SIM_EVENT_AID_LEFT:
+        case SIM_EVENT_UNIT_ORDERED:        case SIM_EVENT_UNIT_ORDER_DONE:
             return UI_DETAIL_UNIT;
         case SIM_EVENT_WEAPONS_FREE: case SIM_EVENT_PRODUCTION_STARTED: case SIM_EVENT_WEAPONS_PRODUCED:
             return UI_DETAIL_WEAPON;
@@ -643,6 +644,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->show_transport)  ui_draw_march_dialog(ui, api, true);
     if (ui->show_unit)       ui_draw_unit_panel(ui, api);
     if (ui->show_unit_menu)  ui_draw_unit_menu(ui, api);
+    if (ui->units.target_kind != UI_TARGET_NONE) ui_draw_unit_target_menu(ui, api);   /* G2-052, G2-058 */
     if (ui->show_minimap && !ui_feel_in_transition(ui) && !panels_hidden) ui_draw_minimap(ui, api);
     if (ui->show_units)      ui_draw_units_panel(ui, api);   /* M11 */
     ui_draw_hex_info_box(ui, api);                           /* M11: opens after a pick in the scene */

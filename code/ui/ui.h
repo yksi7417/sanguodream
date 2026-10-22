@@ -34,6 +34,12 @@ enum ui_context_kind
     UI_CONTEXT_COUNT
 };
 
+/* The target menu of a selected unit after a click out of its range
+   (clone gap report 2: G2-052 on an enemy unit, the follow order on an
+   own unit, G2-058 on a far hex). */
+enum ui_target_kind { UI_TARGET_NONE, UI_TARGET_ENEMY, UI_TARGET_FOLLOW, UI_TARGET_FAR };
+#define UI_PLATE_CAPACITY 128   /* the unit plates of one frame that a click can hit (G2-042) */
+
 /* M22, screen-flow.md, rule 7: the pitch of the rows of a list, of the
    items of a menu, and of the tabs. */
 #define UI_LIST_PITCH  20.0f
@@ -284,6 +290,11 @@ struct ui_state
         u32 supply_target;       /* the unit that 補給 gives to */
         int supply_gold, supply_grain, supply_soldiers;
         char message[96];        /* the result of the last unit command */
+        u8  target_kind;         /* ui_target_kind: the menu at target_hex (G2-052, G2-058) */
+        hex_coord target_hex;
+        u32 target_unit;         /* the unit at target_hex, or ENGINE_NO_UNIT */
+        struct { u32 unit; f32 x0, y0, x1, y1; } plates[UI_PLATE_CAPACITY];   /* the plate rectangles of the last frame (G2-042) */
+        u32 plate_count;
     } units;
     /* M6: the unit command that waits for a target hex, and the list of
        tactics, plots or buildings that chooses its row */

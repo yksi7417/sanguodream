@@ -1328,3 +1328,16 @@ political.cities	都市
 political.bases	港關
 political.units	部隊
 hover.deputy	副將
+unit_target.title	目標
+unit_target.destroy	殲滅
+unit_target.drive	驅趕
+unit_target.move	移動
+unit_target.build	設置
+unit_target.follow_before	即將隨
+unit_target.follow_after	前進。確定嗎？
+unit_target.yes	是
+unit_target.no	否
+unit_target.days	預定抵達時間
+unit_target.grain	所有兵糧
+unit_target.bases	通過據點
+unit_target.day_unit	日

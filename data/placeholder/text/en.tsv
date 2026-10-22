@@ -1330,3 +1330,16 @@ political.cities	Cities	M21: 都市
 political.bases	Gates and ports	M21: 港關
 political.units	Units	M21: 部隊
 hover.deputy	Deputy	M21: 副將
+unit_target.title	Target	G2-052: the target menu of a selected unit
+unit_target.destroy	Destroy	殲滅
+unit_target.drive	Drive away	驅趕
+unit_target.move	Move	移動 to a far hex (G2-058)
+unit_target.build	Build	設置 at a far hex
+unit_target.follow_before	Follow 	the follow order: before the unit name
+unit_target.follow_after	?	the follow order: after the unit name
+unit_target.yes	Yes	是
+unit_target.no	No	否
+unit_target.days	Days to arrive	預定抵達時間
+unit_target.grain	Days of grain	所有兵糧
+unit_target.bases	Bases on the way	通過據點
+unit_target.day_unit	 days	the unit after a number of days

@@ -1948,6 +1948,96 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK(v.ui.show_unit_menu);                                                    /* the command menu opens after the move */
     };
 
+    /* ---- clone gap report 2, group 2: the unit orders ---------------------- */
+
+    /* G2-052: a click on an enemy unit out of the range opens the target
+       menu; 殲滅 sends one command_destroy and ends the selection. */
+    t = IM_REGISTER_TEST(e, "ui", "target_menu_on_an_enemy_unit_sends_one_destroy_command");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.recorder.unit0_rival   = true;   /* unit 0 at 1,2 belongs to force 2 */
+        ctx->Yield();
+        ui_test_click_cell(ctx, v, hex_make(1, 3));   /* selects the own unit 1; its range is its hex */
+        IM_CHECK(v.ui.units.selected == 1);
+        recorder_reset(&v.recorder);
+        ui_test_click_cell(ctx, v, hex_make(1, 2));
+        ctx->Yield(2);
+        IM_CHECK(v.ui.units.target_kind == UI_TARGET_ENEMY && v.ui.units.target_unit == 0);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        IM_CHECK(ctx->WindowInfo("//###UnitTarget").Window != 0);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_PATH_TO), 1u);   /* the panel shows the plan */
+        ctx->ItemClick("//###UnitTarget/###destroy");
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_DESTROY), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(v.recorder.last_unit_command.unit == 1 && v.recorder.last_unit_command.target_unit == 0);
+        IM_CHECK(v.ui.units.target_kind == UI_TARGET_NONE && v.ui.units.selected == ENGINE_NO_UNIT);
+    };
+
+    /* G2-052: a click on an own unit with a unit selected asks for the
+       follow order; 是 sends one command_follow, 否 keeps the selection. */
+    t = IM_REGISTER_TEST(e, "ui", "a_click_on_an_own_unit_asks_for_the_follow_order");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        ctx->Yield();
+        ui_test_click_cell(ctx, v, hex_make(1, 2));   /* selects the own unit 0 */
+        IM_CHECK(v.ui.units.selected == 0);
+        recorder_reset(&v.recorder);
+        ui_test_click_cell(ctx, v, hex_make(1, 3));   /* unit 1, own */
+        ctx->Yield(2);
+        IM_CHECK(v.ui.units.target_kind == UI_TARGET_FOLLOW && v.ui.units.target_unit == 1 && v.ui.units.selected == 0);
+        ctx->ItemClick("//###UnitTarget/###follow_no");
+        ctx->Yield(2);
+        IM_CHECK(v.ui.units.target_kind == UI_TARGET_NONE && v.ui.units.selected == 0);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        ui_test_click_cell(ctx, v, hex_make(1, 3));
+        ctx->Yield(2);
+        ctx->ItemClick("//###UnitTarget/###follow_yes");
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_FOLLOW), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(v.recorder.last_unit_command.unit == 0 && v.recorder.last_unit_command.target_unit == 1);
+    };
+
+    /* G2-058: a click on a far hex opens 移動 and 設置; 移動 sends one
+       command_move to that hex. */
+    t = IM_REGISTER_TEST(e, "ui", "target_menu_on_a_far_hex_sends_one_move_command");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        ctx->Yield();
+        ui_test_click_cell(ctx, v, hex_make(1, 2));   /* selects the own unit 0 */
+        IM_CHECK(v.ui.units.selected == 0);
+        recorder_reset(&v.recorder);
+        ui_test_click_cell(ctx, v, hex_make(6, 2));   /* out of the range 1,2 .. 3,2 */
+        ctx->Yield(2);
+        IM_CHECK(v.ui.units.target_kind == UI_TARGET_FAR && v.ui.units.target_hex.q == 6 && v.ui.units.target_hex.r == 2);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        ImGuiTestItemInfo build = ctx->ItemInfo("//###UnitTarget/###far_build");
+        IM_CHECK(build.ID != 0 && (build.ItemFlags & ImGuiItemFlags_Disabled) != 0);
+        ctx->ItemClick("//###UnitTarget/###far_move");
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_MOVE), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(v.recorder.last_unit_command.q == 6 && v.recorder.last_unit_command.r == 2);
+        IM_CHECK(v.ui.units.target_kind == UI_TARGET_NONE && v.ui.units.selected == ENGINE_NO_UNIT);
+    };
+
+
     t = IM_REGISTER_TEST(e, "ui", "unit_menu_wait_and_retreat_issue_one_command_each");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;
@@ -3813,6 +3903,67 @@ register_ui_tests(ImGuiTestEngine *e)
         ui_set_text_provider(&v.ui, empty);
         IM_CHECK_STR_EQ(v.ui.report.provider.name, "template");
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* G2-042: a point on a plate finds its unit; a unit with a long order
+       shows 委 before 完. The map menu offers 委任部隊行動 only with an
+       ordered unit, and the item sends one command_delegate. */
+    t = IM_REGISTER_TEST(e, "ui", "plate_hit_and_the_mark_of_an_ordered_unit_and_the_delegate_item");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.ui.units.plate_count = 1;
+        v.ui.units.plates[0].unit = 7;
+        v.ui.units.plates[0].x0 = 10.0f; v.ui.units.plates[0].y0 = 10.0f;
+        v.ui.units.plates[0].x1 = 50.0f; v.ui.units.plates[0].y1 = 30.0f;
+        IM_CHECK_EQ(ui_plate_unit_at(&v.ui, 20.0f, 20.0f), 7u);
+        IM_CHECK_EQ(ui_plate_unit_at(&v.ui, 60.0f, 20.0f), (u32)ENGINE_NO_UNIT);
+        engine_unit unit = {};
+        unit.order = UNIT_ORDER_MOVE;
+        unit.acted = true;
+        IM_CHECK_EQ(ui_unit_mark_of(&unit, 0), (u32)UI_UNIT_MARK_DELEGATED);
+
+        v.ui.hud_mode = true;
+        ctx->Yield();
+        ui_context_open(&v.ui, &v.api, UI_CONTEXT_MAP_MENU, 400.0f, 300.0f);
+        ctx->Yield(2);
+        ImGuiTestItemInfo grey = ctx->ItemInfo("//###MapMenu/###delegate");
+        IM_CHECK(grey.ID != 0 && (grey.ItemFlags & ImGuiItemFlags_Disabled) != 0);   /* no unit has an order */
+        ui_context_close(&v.ui);
+        v.recorder.unit_order = UNIT_ORDER_MOVE;
+        ctx->Yield();
+        ui_context_open(&v.ui, &v.api, UI_CONTEXT_MAP_MENU, 400.0f, 300.0f);
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("//###MapMenu/###delegate");
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_DELEGATE), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+    };
+
+    /* G2-042: after 決定 of 出征 the new unit is selected, so that its
+       range shows at once. The recorder reports unit 0 as the unit of the
+       commander 100. */
+    t = IM_REGISTER_TEST(e, "ui", "sortie_decide_selects_the_new_unit");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_sortie         = true;
+        ctx->SetRef("###Sortie");
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.sortie.order.officers[0], 100u);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###decide");
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_SORTIE), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(v.ui.units.selected == 0 && !v.ui.show_sortie);
     };
 
     /* ---- end to end: real engine behind the real panels ------------------- */

@@ -265,16 +265,17 @@ sim_unit_cost_type(sim_state *sim, sim_unit *unit, hex_coord hex)
 
 /* The cost for a unit of the force to enter the hex, or 0 if it cannot.
    self is the unit that moves; unit_type is CONTENT_NO_UNIT_TYPE for the
-   class costs only. */
+   class costs only. ignore_units: a plan over several turns (orders.cpp)
+   does not stop at the units of today. */
 internal u32
-sim_entry_cost_of(sim_state *sim, u8 force, movement_class movement, u8 unit_type, hex_coord hex, u32 self)
+sim_entry_cost_of(sim_state *sim, u8 force, movement_class movement, u8 unit_type, hex_coord hex, u32 self, b32 ignore_units)
 {
     terrain_kind *terrain = sim_terrain_at(sim, hex);
     if (!terrain) return 0;
     u32 cost = sim_terrain_cost(sim, movement, unit_type, sim->map.kind[hex_map_index(&sim->map, hex)]);
     if (!cost) return 0;
     if (terrain->needs_technique != CONTENT_NO_TECHNIQUE && !sim_has_technique(sim, force, terrain->needs_technique)) return 0;
-    u32 other = sim_unit_at(sim, hex);
+    u32 other = ignore_units ? SIM_NO_UNIT : sim_unit_at(sim, hex);
     if (other != SIM_NO_UNIT && other != self) return 0;
     u8 city_id = sim_city_at(sim, hex);
     if (city_id != SIM_NO_CITY && sim_find_city(sim, city_id)->owner_force_id != force) return 0;
@@ -305,7 +306,7 @@ sim_entry_cost_of(sim_state *sim, u8 force, movement_class movement, u8 unit_typ
 internal u32
 sim_entry_cost(sim_state *sim, u8 force, movement_class movement, hex_coord hex, u32 self)
 {
-    return sim_entry_cost_of(sim, force, movement, CONTENT_NO_UNIT_TYPE, hex, self);
+    return sim_entry_cost_of(sim, force, movement, CONTENT_NO_UNIT_TYPE, hex, self, false);
 }
 
 /* True if an enemy unit or a complete enemy military building stands next
@@ -331,11 +332,14 @@ sim_in_enemy_zone(sim_state *sim, u8 force, hex_coord hex, u32 self)
     return false;
 }
 
-/* The hexes that the unit can reach in this turn: a search of the lowest
-   cost from its hex within its movement. A hex in an enemy zone of control
-   and an own city end the move there. Arrays come from the scratch arena. */
+/* The search of the lowest cost from the hex of the unit. The reach of
+   this turn (plan = false) stops at its movement, in an enemy zone of
+   control, in an own city and at an own base. A plan (plan = true,
+   orders.cpp) has no cap, treats a city and a base as waypoints, does
+   not stop at the units of today, and ends at the goal. Arrays come from
+   the scratch arena. */
 internal sim_reach
-sim_unit_reach(sim_state *sim, u32 unit_id, memory_arena *scratch)
+sim_unit_search(sim_state *sim, u32 unit_id, memory_arena *scratch, b32 plan, hex_coord goal)
 {
     sim_reach reach = {};
     sim_unit *unit = sim_find_unit(sim, unit_id);
@@ -371,8 +375,9 @@ sim_unit_reach(sim_state *sim, u32 unit_id, memory_arena *scratch)
         reach.costs[reach.count] = current.cost;
         reach.from[reach.count]  = previous;
         reach.count++;
+        if (plan && hex_equal(here, goal)) break;
         /* A unit stops next to an enemy and in an own city. */
-        if (current.index != start)
+        if (!plan && current.index != start)
         {
             if (!values.ignores_zoc && sim_in_enemy_zone(sim, unit->force_id, here, unit_id)) continue;
             if (sim_city_at(sim, here) != SIM_NO_CITY) continue;
@@ -382,17 +387,31 @@ sim_unit_reach(sim_state *sim, u32 unit_id, memory_arena *scratch)
         {
             hex_coord next = hex_neighbor(here, d);
             if (!hex_map_contains(&sim->map, next)) continue;
-            u32 cost = sim_entry_cost_of(sim, unit->force_id, type->movement, sim_unit_cost_type(sim, unit, next), next, unit_id);
+            u32 cost = sim_entry_cost_of(sim, unit->force_id, type->movement, sim_unit_cost_type(sim, unit, next), next, unit_id, plan);
             if (!cost) continue;
             u32 next_index = hex_map_index(&sim->map, next);
             u32 total = current.cost + cost;
-            if (total > values.move || total >= best[next_index] || slot[next_index] != U32_MAX) continue;
+            if ((!plan && total > values.move) || total >= best[next_index] || slot[next_index] != U32_MAX) continue;
             best[next_index]   = total;
             parent[next_index] = current.index;
             hex_heap_push(&open, total, next_index);
         }
     }
     return reach;
+}
+
+/* The hexes that the unit can reach in this turn. */
+internal sim_reach
+sim_unit_reach(sim_state *sim, u32 unit_id, memory_arena *scratch)
+{
+    return sim_unit_search(sim, unit_id, scratch, false, hex_make(0, 0));
+}
+
+/* The path of a long order to the goal, over several turns (orders.cpp). */
+internal sim_reach
+sim_unit_plan(sim_state *sim, u32 unit_id, hex_coord goal, memory_arena *scratch)
+{
+    return sim_unit_search(sim, unit_id, scratch, true, goal);
 }
 
 /* The place of a hex in the reach, or U32_MAX. */
@@ -672,6 +691,10 @@ sim_check_unit_order(sim_state *sim, sim_command_kind kind, sim_unit_order *orde
 {
     switch (kind)   /* the orders of M6 have their own checks (combat.cpp, field.cpp) */
     {
+        case SIM_COMMAND_DESTROY_TARGET:
+        case SIM_COMMAND_DRIVE_TARGET:
+        case SIM_COMMAND_FOLLOW:
+        case SIM_COMMAND_DELEGATE:     return sim_check_long_order(sim, kind, order, scratch);   /* orders.cpp */
         case SIM_COMMAND_ATTACK:       return sim_check_attack(sim, order);
         case SIM_COMMAND_JOINT_ATTACK: return sim_check_joint_attack(sim, order);
         case SIM_COMMAND_TACTIC:       return sim_check_tactic(sim, order);
@@ -695,9 +718,22 @@ sim_check_unit_order(sim_state *sim, sim_command_kind kind, sim_unit_order *orde
             if (unit->moved_turn == sim->turn + 1) return sim_refuse(check, SIM_REFUSAL_UNIT_ACTED);
             sim_reach reach = sim_unit_reach(sim, order->unit, scratch);
             u32 place = sim_reach_find(&reach, order->to);
-            if (place == U32_MAX || place == 0) return sim_refuse(check, SIM_REFUSAL_UNREACHABLE);
-            check.days    = reach.costs[place];
+            if (place == 0) return sim_refuse(check, SIM_REFUSAL_UNREACHABLE);
             check.assumed = true;
+            if (place != U32_MAX)
+            {
+                check.days = reach.costs[place];
+                return check;
+            }
+            /* G2-058: a hex out of the range is a long order 移動. The days
+               are the turns of the plan (orders.cpp). A hex with a unit is
+               no goal. */
+            if (sim_unit_at(sim, order->to) != SIM_NO_UNIT) return sim_refuse(check, SIM_REFUSAL_UNREACHABLE);
+            sim_reach plan = sim_unit_plan(sim, order->unit, order->to, scratch);
+            place = sim_reach_find(&plan, order->to);
+            if (place == U32_MAX) return sim_refuse(check, SIM_REFUSAL_UNREACHABLE);
+            check.days  = sim_plan_days(sim, unit, plan.costs[place]);
+            check.turns = check.days / CALENDAR_DAYS_PER_TURN;
             return check;
         }
         case SIM_COMMAND_WAIT:
@@ -765,6 +801,16 @@ sim_move_unit(sim_state *sim, sim_command command, memory_arena *scratch, sim_ev
     scratch->used = mark;
     sim_reach reach = sim_unit_reach(sim, order->unit, scratch);
     u32 place = sim_reach_find(&reach, order->to);
+    if (place == U32_MAX)
+    {
+        /* G2-058: the hex is out of the range. The unit takes the long
+           order 移動 and does its first step now (orders.cpp). */
+        sim_give_unit_order(sim, order->unit, UNIT_ORDER_MOVE, order->to, SIM_NO_UNIT, command.id, events);
+        sim_unit_step(sim, order->unit, order->to, false, command.id, events);
+        sim_unit *walker = sim_find_unit(sim, order->unit);
+        if (walker && hex_equal(walker->hex, order->to)) sim_end_unit_order(sim, order->unit, command.id, events);
+        return;
+    }
     u32 path[SIM_UNIT_PATH_CAPACITY];
     u32 length = 0;
     for (u32 at = place; at != U32_MAX && at != 0 && length < SIM_UNIT_PATH_CAPACITY; at = reach.from[at]) path[length++] = at;

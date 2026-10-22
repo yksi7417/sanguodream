@@ -38,6 +38,7 @@ struct engine
     u32           tiles_version;   /* the map version of tiles */
     hex_coord    *reach_cells;     /* the answer of reachable; one entry for each cell */
     u32          *reach_costs;
+    hex_coord     path_cells[SIM_UNIT_PLAN_CAPACITY];   /* the answer of path_to */
     platform_read_entire_file *read_entire_file;
     engine_content_status      content;   /* what engine_create loaded from the content pack */
     platform_write_entire_file *write_entire_file;   /* M9 */
@@ -842,6 +843,9 @@ engine_unit_command_kind(engine_command_kind kind)
         case ENGINE_COMMAND_BUILD:        return SIM_COMMAND_BUILD;
         case ENGINE_COMMAND_REPAIR:       return SIM_COMMAND_REPAIR;
         case ENGINE_COMMAND_DISMANTLE:    return SIM_COMMAND_DISMANTLE;
+        case ENGINE_COMMAND_DESTROY:      return SIM_COMMAND_DESTROY_TARGET;
+        case ENGINE_COMMAND_DRIVE:        return SIM_COMMAND_DRIVE_TARGET;
+        case ENGINE_COMMAND_FOLLOW:       return SIM_COMMAND_FOLLOW;
         default:                     return SIM_COMMAND_NONE;
     }
 }
@@ -898,6 +902,9 @@ engine_api_can_issue(void *opaque, const engine_command *command)
         case ENGINE_COMMAND_BUILD:
         case ENGINE_COMMAND_REPAIR:
         case ENGINE_COMMAND_DISMANTLE:
+        case ENGINE_COMMAND_DESTROY:
+        case ENGINE_COMMAND_DRIVE:
+        case ENGINE_COMMAND_FOLLOW:
         {
             sim_unit_order order = engine_unit_order(command->unit, command->q, command->r, command->target_unit,
                                                      command->soldiers, command->gold, command->grain);

@@ -213,12 +213,14 @@ ui_first_character(const char *text, char *out, u32 out_size)
 
 enum ui_unit_mark { UI_UNIT_MARK_READY, UI_UNIT_MARK_DONE, UI_UNIT_MARK_DELEGATED, UI_UNIT_MARK_COUNT };
 
-/* The status mark of a unit: 完 after it acted in this turn, 委 when its
-   home city is in a delegated corps (not corps 0), else 未. The meaning of
-   委 and the order of the marks are assumed (Q-215). */
+/* The status mark of a unit: 委 when it has a long order (the original
+   shows 委 after 殲滅 and after a far 移動, G2-052 and G2-058), 完 after it
+   acted in this turn, 委 when its home city is in a delegated corps (not
+   corps 0; assumed, Q-215), else 未. */
 internal u32
 ui_unit_mark_of(engine_unit *unit, u8 corps)
 {
+    if (unit->order) return UI_UNIT_MARK_DELEGATED;
     if (unit->acted) return UI_UNIT_MARK_DONE;
     if (corps != 0)  return UI_UNIT_MARK_DELEGATED;
     return UI_UNIT_MARK_READY;
@@ -266,6 +268,13 @@ ui_draw_unit_plate(ui_state *ui, engine_api *api, ImDrawList *draw, f32 x, f32 y
     f32 height = portrait + pad * 2.0f;
     ImVec2 top(x - width * 0.5f, y - height - 4.0f), bottom(x + width * 0.5f, y - 4.0f);
     ImU32 faction = ui_faction_color(unit->force_id), white = IM_COL32(255, 255, 255, 255);
+    if (ui->units.plate_count < UI_PLATE_CAPACITY)   /* G2-042: a click on the plate reaches the unit */
+    {
+        u32 place = ui->units.plate_count++;
+        ui->units.plates[place].unit = unit->id;
+        ui->units.plates[place].x0 = top.x;    ui->units.plates[place].y0 = top.y;
+        ui->units.plates[place].x1 = bottom.x; ui->units.plates[place].y1 = bottom.y;
+    }
     draw->AddRectFilled(top, bottom, IM_COL32(0, 0, 0, 170), 3.0f);
     draw->AddRect(top, bottom, selected ? IM_COL32(255, 230, 60, 255) : faction, 3.0f, 0, selected ? 2.0f : 1.0f);
 
@@ -336,6 +345,7 @@ ui_draw_scene_labels(ui_state *ui, engine_api *api)
     m4 view_projection = camera_view_projection(&ui->scene.cam, io.DisplaySize.x, io.DisplaySize.y);
     ImDrawList *draw = ImGui::GetBackgroundDrawList();
     bool close_up = ui->scene.cam.distance < UI_PLATE_SLOT_DISTANCE;
+    ui->units.plate_count = 0;
     for (u32 index = 0; index < api->city_count(api->engine); ++index)
     {
         engine_city city = api->city_at(api->engine, index);

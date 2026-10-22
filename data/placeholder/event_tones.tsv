@@ -89,3 +89,5 @@ unit_gold_returned	neutral	neutral	no	no	assumed
 unit_grain_returned	neutral	neutral	no	no	assumed
 morale_changed	neutral	amount	no	no	assumed
 base_income	calm	amount	no	no	assumed
+unit_ordered	neutral	neutral	no	no	assumed
+unit_order_done	neutral	neutral	no	no	assumed

@@ -313,7 +313,9 @@ feature_move_tests(test_counts *counts)
     move.unit = unit_id;
     hex_coord third = feature_along(start, d, 3);
     move.q = third.q; move.r = third.r;
-    TEST_CHECK(counts, api->can_issue(e, &move).refusal == SIM_REFUSAL_UNREACHABLE, "refused: the hex is out of the range");
+    engine_check far_check = api->can_issue(e, &move);
+    TEST_CHECK(counts, far_check.refusal == SIM_REFUSAL_NONE && far_check.days == 10,
+               "G2-058: a hex out of the range is a long order of one more turn, not a refusal");
     TEST_CHECK(counts, api->command_move(e, unit_id, enemy.q, enemy.r).refusal == SIM_REFUSAL_UNREACHABLE, "refused: another unit stands there");
     (void)enemy_id;
 

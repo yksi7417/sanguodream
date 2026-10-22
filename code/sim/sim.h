@@ -185,6 +185,9 @@ enum sim_event_kind
     SIM_EVENT_ROCKFALL_RETURNED,    /* detail = the building of the rockfall */
     /* M11 */
     SIM_EVENT_SAVE_MAP_LOADED,      /* delta = the facilities, buildings and traps of the save on the map; detail = the units; subject = the units on a fallback hex; assumed when a fallback, an unknown land class or event sites (Q-205) */
+    /* The long orders of a unit (G2-052, G2-058) */
+    SIM_EVENT_UNIT_ORDERED,         /* detail = unit; delta = the sim_unit_order_kind */
+    SIM_EVENT_UNIT_ORDER_DONE,      /* detail = unit; delta = the sim_unit_order_kind that ended */
     SIM_EVENT_COUNT
 };
 
@@ -287,6 +290,11 @@ enum sim_command_kind
     SIM_COMMAND_RESEARCH_ABILITY,/* 研究能力 (PK) */
     SIM_COMMAND_TRAIN_OFFICER,   /* 培育武將 (PK) */
     SIM_COMMAND_TRIGGER_HISTORY, /* a test and editor command: a row of history.tsv fires now for a faction (m8: force, value = row) */
+    /* The long orders of a unit (city-commands.md, "Long orders"; G2-052, G2-058) */
+    SIM_COMMAND_DESTROY_TARGET,  /* 殲滅: unit = the unit, target = the enemy unit */
+    SIM_COMMAND_DRIVE_TARGET,    /* 驅趕: unit = the unit, target = the enemy unit */
+    SIM_COMMAND_FOLLOW,          /* follow: unit = the unit, target = the own unit */
+    SIM_COMMAND_DELEGATE,        /* 委任部隊行動: the units with a long order act now */
     SIM_COMMAND_COUNT
 };
 
@@ -879,6 +887,21 @@ struct sim_unit
     b32       grain_unknown;                      /* M11: a unit without a known grain does not eat (a save now gives the grain) */
     b32       has_ship;                           /* a unit of a save: it has its own ship class (record +41) */
     u8        ship_type;                          /* the unit type of that ship; on water it moves and fights as it */
+    /* The long order (city-commands.md, "Long orders"; orders.cpp): the
+       unit does one step at each 進行 of its faction until the order ends. */
+    u8        order;                              /* sim_unit_order_kind */
+    hex_coord order_hex;                          /* UNIT_ORDER_MOVE: the goal */
+    u16       order_target;                       /* destroy, drive, follow: the unit; SIM_NO_UNIT */
+};
+
+enum sim_unit_order_kind
+{
+    UNIT_ORDER_NONE,
+    UNIT_ORDER_MOVE,            /* 移動 to a hex out of the range (G2-058) */
+    UNIT_ORDER_DESTROY,         /* 殲滅: march on an enemy unit and attack it until it is gone (G2-052) */
+    UNIT_ORDER_DRIVE,           /* 驅趕: march on an enemy unit and attack it one time (assumed) */
+    UNIT_ORDER_FOLLOW,          /* follow an own unit: stay next to it */
+    UNIT_ORDER_COUNT
 };
 
 enum sim_unit_state
@@ -1377,11 +1400,23 @@ internal sim_unit_values  sim_unit_values_of(sim_state *sim, u8 force, u8 unit_t
 internal u32              sim_unit_soldier_cap(sim_state *sim, u8 force);
 internal terrain_kind    *sim_terrain_at(sim_state *sim, hex_coord hex);
 internal u32              sim_entry_cost(sim_state *sim, u8 force, movement_class movement, hex_coord hex, u32 self);
-internal u32              sim_entry_cost_of(sim_state *sim, u8 force, movement_class movement, u8 unit_type, hex_coord hex, u32 self);   /* M10: the armament row */
+internal u32              sim_entry_cost_of(sim_state *sim, u8 force, movement_class movement, u8 unit_type, hex_coord hex, u32 self, b32 ignore_units);   /* M10: the armament row */
 internal u32              sim_terrain_cost(sim_state *sim, movement_class movement, u8 unit_type, u8 terrain_id);   /* M10: no fire, no unit; 0 = cannot enter */
 internal b32              sim_in_enemy_zone(sim_state *sim, u8 force, hex_coord hex, u32 self);
 internal sim_reach        sim_unit_reach(sim_state *sim, u32 unit_id, memory_arena *scratch);
+internal sim_reach        sim_unit_plan(sim_state *sim, u32 unit_id, hex_coord goal, memory_arena *scratch);   /* orders.cpp: the path over several turns */
 internal u32              sim_reach_find(sim_reach *reach, hex_coord hex);
+/* The long orders of a unit (orders.cpp; G2-052, G2-056, G2-058). */
+#define SIM_UNIT_PLAN_CAPACITY 400   /* the hexes of a plan: the whole map across */
+internal u32              sim_plan_path(sim_reach *plan, hex_coord goal, hex_coord *out, u32 capacity);
+internal u32              sim_plan_days(sim_state *sim, sim_unit *unit, u32 cost);
+internal sim_check        sim_check_long_order(sim_state *sim, sim_command_kind kind, sim_unit_order *order, memory_arena *scratch);
+internal void             sim_long_order(sim_state *sim, sim_command command, sim_event_sink *events);
+internal void             sim_give_unit_order(sim_state *sim, u32 unit_id, u8 kind, hex_coord hex, u32 target, u32 cause, sim_event_sink *events);
+internal void             sim_end_unit_order(sim_state *sim, u32 unit_id, u32 cause, sim_event_sink *events);
+internal b32              sim_unit_step(sim_state *sim, u32 unit_id, hex_coord goal, b32 stop_before_goal, u32 cause, sim_event_sink *events);
+internal void             sim_run_unit_orders(sim_state *sim, u8 force, u32 cause, sim_event_sink *events);
+internal b32              sim_ai_attack(sim_state *sim, u32 unit_id, hex_coord hex, sim_event_sink *events);   /* ai.cpp */
 internal sim_check        sim_check_sortie(sim_state *sim, sim_sortie_order *order, b32 transport);
 internal void             sim_sortie(sim_state *sim, sim_command command, sim_event_sink *events);
 internal sim_check        sim_check_unit_order(sim_state *sim, sim_command_kind kind, sim_unit_order *order, memory_arena *scratch);

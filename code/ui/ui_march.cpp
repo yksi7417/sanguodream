@@ -207,6 +207,20 @@ ui_draw_march_dialog(ui_state *ui, engine_api *api, b32 transport)
             {
                 dialog->prepared_city = ENGINE_NO_CITY;
                 *show = false;
+                /* G2-042: the move step of the new unit starts at once. The
+                   unit is the one that the commander of the order leads. */
+                u32 new_unit = ENGINE_NO_UNIT;
+                for (u32 id = 0; id < api->unit_count(api->engine); ++id)
+                {
+                    engine_unit unit = api->unit_at(api->engine, id);
+                    if (unit.id != ENGINE_NO_UNIT && unit.officers[0] == dialog->order.officers[0]) new_unit = id;
+                }
+                if (!transport && new_unit != ENGINE_NO_UNIT)
+                {
+                    ui_select_unit(ui, new_unit);
+                    ui->scene.framed_unit = new_unit;   /* the camera stays at the city */
+                    if (ui->hud_mode) ui_context_open(ui, api, UI_CONTEXT_UNIT, ui->context.x, ui->context.y);
+                }
             }
         }
     }
@@ -261,28 +275,43 @@ ui_select_unit(ui_state *ui, u32 unit_id)
 {
     ui->units.selected      = unit_id;
     ui->units.supply_target = ENGINE_NO_UNIT;
+    ui->units.target_kind   = UI_TARGET_NONE;
+    ui->units.target_unit   = ENGINE_NO_UNIT;
     ui->show_unit           = unit_id != ENGINE_NO_UNIT;
     ui->show_unit_menu      = false;
 }
 
+/* Opens the target menu of the selected unit at a hex out of its range. */
+internal void
+ui_open_target_menu(ui_state *ui, u8 kind, hex_coord hex, u32 unit_id)
+{
+    ui->units.target_kind = kind;
+    ui->units.target_hex  = hex;
+    ui->units.target_unit = unit_id;
+    ui->show_unit_menu    = false;
+}
+
 /* A click on the map with a unit of the faction that acts selected: a hex
    of the range moves it there (one command_move), then the command menu
-   opens; its own hex opens the menu. Returns true if the click was for the
-   unit. */
+   opens; its own hex opens the menu. With no unit selected, a click on an
+   own unit selects it (G2-042). With a unit selected, a click out of the
+   range opens the target menu (ui_draw_unit_target_menu): on an enemy
+   unit 殲滅 and 驅趕 (G2-052), on an own unit the follow order, on a far
+   hex 移動 (G2-058). Returns true if the click was for the unit. */
 internal b32
 ui_unit_click(ui_state *ui, engine_api *api, hex_coord hex)
 {
     if (ui_combat_click(ui, api, hex)) return true;   /* a target of 攻擊 .. 撤除 (ui_combat.cpp) */
     u32 on_hex = api->unit_at_hex(api->engine, hex.q, hex.r);
     u8 acting = api->whose_turn(api->engine);
-    if (on_hex != ENGINE_NO_UNIT && on_hex != ui->units.selected && api->unit_at(api->engine, on_hex).force_id == acting)
+    b32 has_selection = ui->units.selected != ENGINE_NO_UNIT && api->unit_at(api->engine, ui->units.selected).id != ENGINE_NO_UNIT;
+    if (!has_selection && on_hex != ENGINE_NO_UNIT && api->unit_at(api->engine, on_hex).force_id == acting)
     {
         ui_select_unit(ui, on_hex);
         return true;
     }
-    if (ui->units.selected == ENGINE_NO_UNIT) return false;
+    if (!has_selection) { ui_select_unit(ui, ENGINE_NO_UNIT); return false; }
     engine_unit unit = api->unit_at(api->engine, ui->units.selected);
-    if (unit.id == ENGINE_NO_UNIT) { ui_select_unit(ui, ENGINE_NO_UNIT); return false; }
     if (unit.q == hex.q && unit.r == hex.r)
     {
         ui->show_unit_menu = true;
@@ -296,6 +325,17 @@ ui_unit_click(ui_state *ui, engine_api *api, hex_coord hex)
         ui_growth_result(ui, "unit.move_done", result);
         snprintf(ui->units.message, sizeof(ui->units.message), "%s", ui->command_message);
         if (result.refusal == SIM_REFUSAL_NONE) ui->show_unit_menu = api->unit_at(api->engine, unit.id).id != ENGINE_NO_UNIT;
+        return true;
+    }
+    if (on_hex != ENGINE_NO_UNIT)
+    {
+        engine_unit other = api->unit_at(api->engine, on_hex);
+        ui_open_target_menu(ui, (u8)(other.force_id == unit.force_id ? UI_TARGET_FOLLOW : UI_TARGET_ENEMY), hex, on_hex);
+        return true;
+    }
+    if (api->path_to(api->engine, unit.id, hex.q, hex.r).found)
+    {
+        ui_open_target_menu(ui, UI_TARGET_FAR, hex, ENGINE_NO_UNIT);
         return true;
     }
     ui_select_unit(ui, ENGINE_NO_UNIT);
@@ -530,6 +570,119 @@ ui_draw_unit_menu(ui_state *ui, engine_api *api)
         }
     }
     ImGui::End();
+}
+
+/* The lines of the panel under the target menu (G2-052): the days to
+   arrive, the days of grain and the bases on the way. */
+internal void
+ui_draw_path_panel(ui_state *ui, engine_api *api, engine_path_view *path)
+{
+    const char *day = text_get(ui->text, "unit_target.day_unit");
+    ImGui::Separator();
+    ImGui::Text("%s %u%s", text_get(ui->text, "unit_target.days"), path->days, day);
+    if (path->grain_days == ENGINE_GRAIN_TURNS_ENDLESS) ImGui::Text("%s -", text_get(ui->text, "unit_target.grain"));
+    else ImGui::Text("%s %u%s", text_get(ui->text, "unit_target.grain"), path->grain_days, day);
+    ImGui::Text("%s", text_get(ui->text, "unit_target.bases"));
+    for (u32 index = 0; index < path->base_count; ++index)
+    {
+        engine_base base = api->base_at(api->engine, path->bases[index]);
+        if (base.id == ENGINE_NO_ROW) continue;
+        ImGui::SameLine();
+        ImGui::TextUnformatted(ui_text_with_key(ui, "base", base.key));
+    }
+}
+
+/* The target menu at a hex out of the range of the selected unit
+   (ui_unit_click). An enemy unit: 殲滅 and 驅趕 (G2-052). An own unit: the
+   question of the follow order with 是 and 否 (G2-052). A far hex: 移動
+   (G2-058; 設置 at a far hex has no rule yet and stays grey). The panel
+   shows the plan. One click sends one command. */
+internal void
+ui_draw_unit_target_menu(ui_state *ui, engine_api *api)
+{
+    if (ui->units.target_kind == UI_TARGET_NONE) return;
+    engine_unit unit = api->unit_at(api->engine, ui->units.selected);
+    if (unit.id == ENGINE_NO_UNIT) { ui->units.target_kind = UI_TARGET_NONE; return; }
+    char title[128], label[160];
+    bool open = true;
+    hex_coord hex = ui->units.target_hex;
+    ImGui::SetNextWindowSize(ImVec2(260, 0), ImGuiCond_Always);
+    ui_context_place(ui, 0);
+    if (ImGui::Begin(ui_label(title, sizeof(title), ui, "unit_target.title", "UnitTarget"), &open, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        ui_context_track(ui);
+        engine_path_view path = api->path_to(api->engine, unit.id, hex.q, hex.r);
+        engine_command_result result = {};
+        b32 sent = false;
+        const char *text_id = "unit_target.title";
+        u8 kind = ui->units.target_kind;
+        if (kind == UI_TARGET_ENEMY)
+        {
+            if (ImGui::Button(ui_label(label, sizeof(label), ui, "unit_target.destroy", "destroy"), ImVec2(120.0f, 0.0f)))
+            {
+                result = api->command_destroy(api->engine, unit.id, ui->units.target_unit); sent = true; text_id = "unit_target.destroy";
+            }
+            if (ImGui::Button(ui_label(label, sizeof(label), ui, "unit_target.drive", "drive"), ImVec2(120.0f, 0.0f)))
+            {
+                result = api->command_drive(api->engine, unit.id, ui->units.target_unit); sent = true; text_id = "unit_target.drive";
+            }
+        }
+        else if (kind == UI_TARGET_FOLLOW)
+        {
+            engine_unit target = api->unit_at(api->engine, ui->units.target_unit);
+            char name[128] = "?";
+            if (target.id != ENGINE_NO_UNIT) ui_unit_label(ui, api, &target, name, sizeof(name));
+            ImGui::Text("%s%s%s", text_get(ui->text, "unit_target.follow_before"), name, text_get(ui->text, "unit_target.follow_after"));
+            if (ImGui::Button(ui_label(label, sizeof(label), ui, "unit_target.yes", "follow_yes"), ImVec2(80.0f, 0.0f)))
+            {
+                result = api->command_follow(api->engine, unit.id, ui->units.target_unit); sent = true; text_id = "unit_target.follow_before";
+            }
+            ImGui::SameLine();
+            if (ImGui::Button(ui_label(label, sizeof(label), ui, "unit_target.no", "follow_no"), ImVec2(80.0f, 0.0f))) open = false;
+        }
+        else
+        {
+            if (ImGui::Button(ui_label(label, sizeof(label), ui, "unit_target.move", "far_move"), ImVec2(120.0f, 0.0f)))
+            {
+                result = api->command_move(api->engine, unit.id, hex.q, hex.r); sent = true; text_id = "unit_target.move";
+            }
+            ImGui::BeginDisabled(true);
+            ImGui::Button(ui_label(label, sizeof(label), ui, "unit_target.build", "far_build"), ImVec2(120.0f, 0.0f));
+            ImGui::EndDisabled();
+        }
+        if (kind != UI_TARGET_FOLLOW || path.found) ui_draw_path_panel(ui, api, &path);
+        if (sent)
+        {
+            ui_growth_result(ui, text_id, result);
+            snprintf(ui->units.message, sizeof(ui->units.message), "%s", ui->command_message);
+            open = false;
+            if (result.refusal == SIM_REFUSAL_NONE)
+            {
+                /* The unit has its order: the selection ends, as after 待命 (the plate shows 委). */
+                ui_select_unit(ui, ENGINE_NO_UNIT);
+                if (ui->context.kind == UI_CONTEXT_UNIT) ui_context_close(ui);
+            }
+        }
+    }
+    ImGui::End();
+    if (!open) ui->units.target_kind = UI_TARGET_NONE;
+}
+
+/* The unit that a point of the screen hits on a plate of the last frame,
+   or ENGINE_NO_UNIT (G2-042: a click on a plate is a click on the hex of
+   its unit). */
+internal u32
+ui_plate_unit_at(ui_state *ui, f32 x, f32 y)
+{
+    for (u32 index = 0; index < ui->units.plate_count; ++index)
+    {
+        if (x >= ui->units.plates[index].x0 && x <= ui->units.plates[index].x1 &&
+            y >= ui->units.plates[index].y0 && y <= ui->units.plates[index].y1)
+        {
+            return ui->units.plates[index].unit;
+        }
+    }
+    return ENGINE_NO_UNIT;
 }
 
 /* ---- the map overlays -------------------------------------------------------- */

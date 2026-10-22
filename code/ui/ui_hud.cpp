@@ -296,7 +296,8 @@ ui_begin_menu_window(ui_state *ui, const char *name)
     return open;
 }
 
-/* True if a unit of the faction that acts has not acted in this turn. */
+/* True if a unit of the faction that acts has not acted in this turn. A
+   unit with a long order acts at 進行 by itself. */
 internal bool
 ui_hud_units_waiting(engine_api *api)
 {
@@ -304,7 +305,21 @@ ui_hud_units_waiting(engine_api *api)
     for (u32 id = 0; id < api->unit_count(api->engine); ++id)
     {
         engine_unit unit = api->unit_at(api->engine, id);
-        if (unit.id != ENGINE_NO_UNIT && unit.force_id == force && !unit.acted) return true;
+        if (unit.id != ENGINE_NO_UNIT && unit.force_id == force && !unit.acted && !unit.order) return true;
+    }
+    return false;
+}
+
+/* True if a unit of the faction that acts has a long order: 委任部隊行動
+   is white (main-map.md, "Map context menu"). */
+internal bool
+ui_hud_units_ordered(engine_api *api)
+{
+    u8 force = api->whose_turn(api->engine);
+    for (u32 id = 0; id < api->unit_count(api->engine); ++id)
+    {
+        engine_unit unit = api->unit_at(api->engine, id);
+        if (unit.id != ENGINE_NO_UNIT && unit.force_id == force && unit.order) return true;
     }
     return false;
 }
@@ -324,7 +339,12 @@ ui_draw_map_menu(ui_state *ui, engine_api *api)
             if (ui_hud_units_waiting(api)) ui->round.confirm = true;
             else                           ui_round_proceed(ui, api);   /* M20 */
         }
-        if (ui_menu_item(ui, "hud.delegate", "delegate", false))         { ui_context_close(ui); }   /* no long orders yet (Q-215) */
+        if (ui_menu_item(ui, "hud.delegate", "delegate", ui_hud_units_ordered(api)))
+        {
+            ui_context_close(ui);
+            engine_command_result result = api->command_delegate(api->engine);   /* the long orders run now (manual p.24) */
+            ui_growth_result(ui, "hud.delegate", result);
+        }
         if (ui_menu_item(ui, "topbar.info", "open_info", true))          ui_context_open(ui, api, UI_CONTEXT_INFO, x, y);
         if (ui_menu_item(ui, "topbar.save", "open_save", true))         { ui_open_saveload(ui, api, true);  ui_context_open(ui, api, UI_CONTEXT_SAVELOAD, x, y); }
         if (ui_menu_item(ui, "topbar.load", "open_load", true))          { ui_open_saveload(ui, api, false); ui_context_open(ui, api, UI_CONTEXT_SAVELOAD, x, y); }
@@ -365,6 +385,14 @@ ui_hud_scene_clicks(ui_state *ui, engine_api *api)
     bool right = ui_right_clicked() && !ui->context.consumed;
     if (!left && !right) return;
     hex_coord hex = ui->scene.hover;
+    /* G2-042: the plate of a unit sits above its hex and covers other hexes.
+       A click on a plate is a click on the hex of its unit. */
+    u32 plated = ui_plate_unit_at(ui, io.MousePos.x, io.MousePos.y);
+    if (plated != ENGINE_NO_UNIT)
+    {
+        engine_unit on_plate = api->unit_at(api->engine, plated);
+        if (on_plate.id != ENGINE_NO_UNIT) hex = hex_make(on_plate.q, on_plate.r);
+    }
     engine_hex data = api->hex_at(api->engine, hex.q, hex.r);
     f32 x = io.MousePos.x, y = io.MousePos.y;
     if (ui->placement.active)   /* M19: a 開發 waits for its slot (ui_placement.cpp) */

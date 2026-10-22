@@ -162,6 +162,37 @@ is an enemy until diplomacy (M7). The military facilities come in M6.
 Each turn a unit eats one grain for 100 soldiers, as a city does. Without
 grain its soldiers leave (`unit_deserted`).
 
+## The long orders (code/sim/orders.cpp)
+The second clone gap report (G2-042, G2-052, G2-056, G2-058) added the
+long orders of city-commands.md. A unit keeps an order and does one step
+at each 進行 of its faction until the order ends. The item 委任部隊行動
+of the map menu runs the steps now (manual p.24). The plate of a unit
+with an order shows 委.
+- 移動 to a hex out of the range: `command_move` to that hex gives the
+  order. The unit goes to the end of its range in the same turn and
+  moves on at each 進行. The order ends at the hex.
+- 殲滅 (`command_destroy`): the unit marches on an enemy unit and attacks
+  it with the normal attack of its class when the target is in range. The
+  order ends when the target is gone.
+- 驅趕 (`command_drive`): as 殲滅, but the order ends after one attack
+  (assumed, Q-227).
+- The follow order (`command_follow`): the unit stays next to an own
+  unit.
+The path is a search without a cap over the terrain (`sim_unit_plan`).
+Own cities and bases are waypoints, and the units of today do not block
+the plan. A step moves the unit to the hex of the path that is farthest
+along it and in the reach of this turn. `path_to` gives the plan to a
+front end. The plan has the hexes, the cost, the days of 10 for each
+turn, the days of grain and the bases on the way. The target menu of the
+map shows them as 預定抵達時間, 所有兵糧 and 通過據點.
+
+In the game mode, with an own unit under selection, a left click on an
+enemy unit opens 殲滅 and 驅趕. A left click on an own unit asks for the
+follow order. A left click on a far hex opens 移動. A land unit enters a
+river hex as a 走舸 (the boat row of movement_costs.tsv). A click on the
+plate of a unit is a click on its hex. After 決定 of 出征 the dialog
+selects the new unit, so that its range shows on the map.
+
 ## engine_api
 - `terrain_kind_count`, `terrain_kind_at`, `unit_type_count`,
   `unit_type_at`;
@@ -171,6 +202,8 @@ grain its soldiers leave (`unit_deserted`).
 - `unit_values` and `sortie_proposal`;
 - `command_sortie`, `command_transport`, `command_move`, `command_wait`,
   `command_retreat` and `command_supply`. `can_issue` checks each of them.
+- `path_to`, `command_destroy`, `command_drive`, `command_follow` and
+  `command_delegate`: the long orders (see above).
 
 ## The panels
 - The City panel has the buttons 出征 and 輸送. The sortie dialog has the
@@ -205,9 +238,14 @@ grain its soldiers leave (`unit_deserted`).
   - a small path with and without 難所行軍, and the losses of a plank road
     and a poison spring;
   - 輸送, 補給, and a unit that enters an own city.
+- order_tests.cpp (feature) checks the long orders. It checks the plan
+  and its days, a far 移動 and its steps at 進行, and 殲滅 until the
+  target is gone. It also checks the follow order with 委任部隊行動, and
+  a river hex in the range.
 - ui_tests.cpp checks that the dialogs, the map clicks, the menu and the
-  Unit panel each send one command. The panels that only show data send
-  nothing.
+  Unit panel each send one command. The target menu sends one command
+  for 殲滅, the follow order and a far 移動. The panels that only show
+  data send nothing.
 - demo/m5_march sends a unit out, moves it twice with 待命, and shows the
   mini map.
 

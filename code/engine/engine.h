@@ -228,6 +228,9 @@ enum engine_command_kind
     ENGINE_COMMAND_DUEL,           /* unit at the hex q, r */
     ENGINE_COMMAND_DUEL_ACTION,    /* row: the action; value: amount */
     ENGINE_COMMAND_DEBATE_ACTION,
+    ENGINE_COMMAND_DESTROY,        /* the long orders (G2-052): unit and target_unit */
+    ENGINE_COMMAND_DRIVE,
+    ENGINE_COMMAND_FOLLOW,
     ENGINE_COMMAND_KIND_COUNT
 };
 
@@ -471,6 +474,28 @@ struct engine_unit
     u8  state_turns;
     u32 grain_turns;        /* M12: the turns that the grain lasts at the rate of grain.soldiers (the supply icon) */
     u8  ship_type;          /* the ship class of a unit of a save (record +41); ENGINE_NO_UNIT_TYPE = the ship row of unit_type */
+    u8  order;              /* the long order (sim_unit_order_kind; UNIT_ORDER_NONE = none): the plate shows 委 */
+    s32 order_q, order_r;   /* UNIT_ORDER_MOVE: the goal */
+    u32 order_target;       /* destroy, drive, follow: the unit; ENGINE_NO_UNIT */
+};
+
+/* The plan of a unit to a hex over several turns (orders.cpp; G2-052,
+   G2-058): the path, its cost, the days to arrive, the days that the grain
+   of the unit lasts, and the bases on the way (the panel 預定抵達時間,
+   所有兵糧 and 通過據點 of the original). */
+#define ENGINE_PATH_BASES 8
+struct engine_path_view
+{
+    u32              unit;
+    b32              found;        /* a path exists */
+    b32              in_reach;     /* the hex is in the range of this turn: a move, not a long order */
+    u32              count;        /* the hexes of the path, without the hex of the unit */
+    const hex_coord *cells;
+    u32              cost;
+    u32              days;         /* 10 for each turn of the plan */
+    u32              grain_days;   /* ENGINE_GRAIN_TURNS_ENDLESS times 10 when the unit eats nothing */
+    u32              base_count;
+    u32              bases[ENGINE_PATH_BASES];   /* the rows of base_at on the way */
 };
 
 #define ENGINE_GRAIN_TURNS_UNKNOWN U32_MAX         /* the save gives no grain for the unit (Q-211) */
@@ -1145,6 +1170,12 @@ typedef engine_sortie_order engine_sortie_proposal_fn(void *engine, u8 city_id, 
 typedef engine_command_result engine_command_sortie_fn(void *engine, const engine_sortie_order *order);
 typedef engine_command_result engine_command_move_fn(void *engine, u32 unit_id, s32 q, s32 r);
 typedef engine_command_result engine_command_unit_fn(void *engine, u32 unit_id);   /* 待命, 退卻 */
+/* The long orders (orders.cpp; G2-052, G2-058). command_move to a hex out
+   of the range gives the order 移動. path_to is the plan that the panel of
+   the target menu shows. */
+typedef engine_path_view      engine_path_to_fn(void *engine, u32 unit_id, s32 q, s32 r);
+typedef engine_command_result engine_command_unit_target_fn(void *engine, u32 unit_id, u32 target_unit);   /* 殲滅, 驅趕, follow */
+typedef engine_command_result engine_command_delegate_fn(void *engine);                              /* 委任部隊行動 */
 typedef engine_command_result engine_command_supply_fn(void *engine, u32 unit_id, u32 target_unit, u32 soldiers, u32 gold, u32 grain);
 typedef b32                 engine_set_facility_level_fn(void *engine, u8 city_id, u8 slot, u8 level);  /* a built market, farm, barracks, smithy or stable; level 1 to 3 */
 typedef void                engine_set_city_resource_fn(void *engine, u8 city_id, u8 resource, u32 index, u32 value); /* index: the weapon stock */
@@ -1569,6 +1600,11 @@ struct engine_api
     engine_command_unit_fn          *command_wait;
     engine_command_unit_fn          *command_retreat;
     engine_command_supply_fn        *command_supply;
+    engine_path_to_fn               *path_to;            /* the long orders (G2-052, G2-058) */
+    engine_command_unit_target_fn   *command_destroy;
+    engine_command_unit_target_fn   *command_drive;
+    engine_command_unit_target_fn   *command_follow;
+    engine_command_delegate_fn      *command_delegate;
     /* M6 combat: attacks, tactics, plots, fire, buildings, siege */
     engine_tactic_kind_count_fn     *tactic_kind_count;
     engine_tactic_kind_at_fn        *tactic_kind_at;

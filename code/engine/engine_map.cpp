@@ -200,7 +200,7 @@ engine_api_move_cost(void *opaque, u8 unit_type, u8 force_id, s32 q, s32 r)
     movement_class movement = type ? type->movement : MOVEMENT_FOOT;
     hex_coord hex = hex_make(q, r);
     if (!hex_map_contains(&sim->map, hex)) return 0;
-    return sim_entry_cost_of(sim, force_id, movement, unit_type, hex, SIM_NO_UNIT);
+    return sim_entry_cost_of(sim, force_id, movement, unit_type, hex, SIM_NO_UNIT, false);
 }
 
 internal engine_bandit_sites

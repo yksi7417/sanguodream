@@ -128,6 +128,7 @@ ui_context_back(ui_state *ui)
     }
     if (ui->context.kind == UI_CONTEXT_UNIT)
     {
+        if (ui->units.target_kind != UI_TARGET_NONE) { ui->units.target_kind = UI_TARGET_NONE; return; }   /* the target menu goes back to the selection */
         if (ui->combat.pick != UI_PICK_NONE || ui->show_actions)
         {
             ui->combat.pick    = UI_PICK_NONE;

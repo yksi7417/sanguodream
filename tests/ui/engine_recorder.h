@@ -62,6 +62,7 @@ enum recorder_call_kind
     RECORDER_UNIT_AT,
     RECORDER_UNIT_AT_HEX,
     RECORDER_REACHABLE,
+    RECORDER_PATH_TO,              /* G2-052: the plan of a unit to a hex */
     RECORDER_UNIT_VALUES,
     RECORDER_SORTIE_PROPOSAL,
     RECORDER_TACTIC_KIND_COUNT,
@@ -170,6 +171,10 @@ enum recorder_call_kind
     RECORDER_COMMAND_WAIT,
     RECORDER_COMMAND_RETREAT,
     RECORDER_COMMAND_SUPPLY,
+    RECORDER_COMMAND_DESTROY,      /* G2-052: arg = unit | target << 16 */
+    RECORDER_COMMAND_DRIVE,
+    RECORDER_COMMAND_FOLLOW,
+    RECORDER_COMMAND_DELEGATE,
     RECORDER_COMMAND_ATTACK,
     RECORDER_COMMAND_JOINT_ATTACK,
     RECORDER_COMMAND_TACTIC,
@@ -257,6 +262,8 @@ struct engine_recorder
     engine_sortie_order last_sortie;  /* the order of the last command_sortie or command_transport */
     engine_command last_unit_command; /* the last move, wait, retreat or supply: unit, q, r, target_unit, amounts */
     hex_coord     reach_cells[3];
+    hex_coord     path_cells[2];      /* the answer of path_to */
+    u8            unit_order;         /* the long order of both units (sim_unit_order_kind) */
     u32           reach_costs[3];
     u8            fire[64];           /* the fire_view answer: one burning cell */
     b32           duel_active;        /* M7: the duel_view and debate_view answers */
@@ -1006,6 +1013,8 @@ internal engine_unit recorder_unit_at(void *o, u32 unit_id)
     unit.grain_turns = 120;          /* M12: 3000 grain at 25 each turn */
     unit.ship_type   = ENGINE_NO_UNIT_TYPE;
     unit.acted       = r->units_acted;
+    unit.order       = r->unit_order;
+    unit.order_target = ENGINE_NO_UNIT;
     return unit;
 }
 internal u32 recorder_unit_at_hex(void *o, s32 q, s32 r)
@@ -1064,6 +1073,50 @@ internal engine_command_result recorder_command_transport(void *o, const engine_
     engine_recorder *r = (engine_recorder *)o;
     recorder_record(r, RECORDER_COMMAND_TRANSPORT, order->city_id);
     r->last_sortie = *order;
+    return recorder_unit_result(r);
+}
+/* G2-052, G2-058: the plan to a hex is two hexes, 30 points, 20 days; the hex is never in the reach. */
+internal engine_path_view recorder_path_to(void *o, u32 unit_id, s32 q, s32 rr)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_PATH_TO, unit_id);
+    engine_path_view view = {};
+    view.unit  = unit_id;
+    view.found = unit_id < 2;
+    r->path_cells[0] = hex_make(2, 2);
+    r->path_cells[1] = hex_make(q, rr);
+    view.count = 2;
+    view.cells = r->path_cells;
+    view.cost  = 30;
+    view.days  = 20;
+    view.grain_days = 1200;
+    return view;
+}
+internal engine_command_result recorder_command_target(engine_recorder *r, recorder_call_kind kind, engine_command_kind command, u32 unit_id, u32 target)
+{
+    recorder_record(r, kind, (unit_id & 0xFFFF) | (target << 16));
+    r->last_unit_command = {};
+    r->last_unit_command.kind        = command;
+    r->last_unit_command.unit        = unit_id;
+    r->last_unit_command.target_unit = target;
+    return recorder_unit_result(r);
+}
+internal engine_command_result recorder_command_destroy(void *o, u32 unit_id, u32 target)
+{
+    return recorder_command_target((engine_recorder *)o, RECORDER_COMMAND_DESTROY, ENGINE_COMMAND_DESTROY, unit_id, target);
+}
+internal engine_command_result recorder_command_drive(void *o, u32 unit_id, u32 target)
+{
+    return recorder_command_target((engine_recorder *)o, RECORDER_COMMAND_DRIVE, ENGINE_COMMAND_DRIVE, unit_id, target);
+}
+internal engine_command_result recorder_command_follow(void *o, u32 unit_id, u32 target)
+{
+    return recorder_command_target((engine_recorder *)o, RECORDER_COMMAND_FOLLOW, ENGINE_COMMAND_FOLLOW, unit_id, target);
+}
+internal engine_command_result recorder_command_delegate(void *o)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_COMMAND_DELEGATE, 0);
     return recorder_unit_result(r);
 }
 internal engine_command_result recorder_command_move(void *o, u32 unit_id, s32 q, s32 rr)
@@ -1894,6 +1947,11 @@ recorder_make_api(engine_recorder *r)
     api.command_wait         = recorder_command_wait;
     api.command_retreat      = recorder_command_retreat;
     api.command_supply       = recorder_command_supply;
+    api.path_to              = recorder_path_to;
+    api.command_destroy      = recorder_command_destroy;
+    api.command_drive        = recorder_command_drive;
+    api.command_follow       = recorder_command_follow;
+    api.command_delegate     = recorder_command_delegate;
     api.tactic_kind_count    = recorder_tactic_kind_count;
     api.tactic_kind_at       = recorder_tactic_kind_at;
     api.plot_kind_count      = recorder_plot_kind_count;

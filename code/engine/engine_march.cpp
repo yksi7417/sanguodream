@@ -225,6 +225,10 @@ engine_api_unit_at(void *opaque, u32 unit_id)
     result.state       = unit->state;
     result.state_turns = unit->state_turns;
     result.ship_type   = unit->has_ship ? unit->ship_type : (u8)ENGINE_NO_UNIT_TYPE;
+    result.order        = unit->order;
+    result.order_q      = unit->order_hex.q;
+    result.order_r      = unit->order_hex.r;
+    result.order_target = unit->order_target < SIM_UNIT_CAPACITY ? unit->order_target : ENGINE_NO_UNIT;
     /* M12: the supply icon of the plate. A unit eats one grain for each grain.soldiers soldiers each turn (units.cpp). */
     u32 eaten = sim->content.rules.grain_soldiers ? unit->soldiers / sim->content.rules.grain_soldiers : 0;
     if (unit->grain_unknown) result.grain_turns = ENGINE_GRAIN_TURNS_UNKNOWN;
@@ -361,6 +365,68 @@ engine_api_command_supply(void *opaque, u32 unit_id, u32 target_unit, u32 soldie
     return engine_run_unit_order((engine *)opaque, SIM_COMMAND_SUPPLY, engine_unit_order(unit_id, 0, 0, target_unit, soldiers, gold, grain));
 }
 
+/* ---- the long orders (orders.cpp; G2-052, G2-056, G2-058) ------------------------ */
+
+/* A query: the plan of the unit to the hex. The grain days follow the
+   rate of grain.soldiers, as the supply icon does. */
+internal engine_path_view
+engine_api_path_to(void *opaque, u32 unit_id, s32 q, s32 r)
+{
+    engine *e = (engine *)opaque;
+    sim_state *sim = e->sim;
+    engine_path_view view = {};
+    view.unit  = unit_id;
+    view.cells = e->path_cells;
+    sim_unit *unit = sim_find_unit(sim, unit_id);
+    if (!unit) return view;
+    hex_coord goal = hex_make(q, r);
+    arena_reset(&sim->scratch);
+    sim_reach reach = sim_unit_reach(sim, unit_id, &sim->scratch);
+    u32 place = sim_reach_find(&reach, goal);
+    view.in_reach = place != U32_MAX && place != 0;
+    arena_reset(&sim->scratch);
+    sim_reach plan = sim_unit_plan(sim, unit_id, goal, &sim->scratch);
+    view.count = sim_plan_path(&plan, goal, e->path_cells, ArrayCount(e->path_cells));
+    if (!view.count) return view;
+    view.found = true;
+    view.cost  = plan.costs[sim_reach_find(&plan, goal)];
+    view.days  = sim_plan_days(sim, unit, view.cost);
+    u32 eaten = sim->content.rules.grain_soldiers ? unit->soldiers / sim->content.rules.grain_soldiers : 0;
+    view.grain_days = eaten && !unit->grain_unknown ? unit->grain / eaten * CALENDAR_DAYS_PER_TURN : ENGINE_GRAIN_TURNS_ENDLESS;
+    for (u32 index = 0; index < view.count && view.base_count < ENGINE_PATH_BASES; ++index)
+    {
+        u32 base = sim_base_at(sim, e->path_cells[index]);
+        if (base != SIM_NO_BASE) view.bases[view.base_count++] = base;
+    }
+    return view;
+}
+
+internal engine_command_result
+engine_api_command_destroy(void *opaque, u32 unit_id, u32 target_unit)
+{
+    return engine_run_unit_order((engine *)opaque, SIM_COMMAND_DESTROY_TARGET, engine_unit_order(unit_id, 0, 0, target_unit, 0, 0, 0));
+}
+
+internal engine_command_result
+engine_api_command_drive(void *opaque, u32 unit_id, u32 target_unit)
+{
+    return engine_run_unit_order((engine *)opaque, SIM_COMMAND_DRIVE_TARGET, engine_unit_order(unit_id, 0, 0, target_unit, 0, 0, 0));
+}
+
+internal engine_command_result
+engine_api_command_follow(void *opaque, u32 unit_id, u32 target_unit)
+{
+    return engine_run_unit_order((engine *)opaque, SIM_COMMAND_FOLLOW, engine_unit_order(unit_id, 0, 0, target_unit, 0, 0, 0));
+}
+
+/* 委任部隊行動: the units of the faction that acts do the step of their
+   long order now (manual p.24). */
+internal engine_command_result
+engine_api_command_delegate(void *opaque)
+{
+    return engine_run_unit_order((engine *)opaque, SIM_COMMAND_DELEGATE, engine_unit_order(ENGINE_NO_UNIT, 0, 0, ENGINE_NO_UNIT, 0, 0, 0));
+}
+
 internal void
 engine_bind_march_api(engine_api *api)
 {
@@ -380,4 +446,9 @@ engine_bind_march_api(engine_api *api)
     api->command_wait       = engine_api_command_wait;
     api->command_retreat    = engine_api_command_retreat;
     api->command_supply     = engine_api_command_supply;
+    api->path_to            = engine_api_path_to;
+    api->command_destroy    = engine_api_command_destroy;
+    api->command_drive      = engine_api_command_drive;
+    api->command_follow     = engine_api_command_follow;
+    api->command_delegate   = engine_api_command_delegate;
 }
