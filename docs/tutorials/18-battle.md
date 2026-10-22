@@ -226,7 +226,10 @@ them, and it reads the facts through engine_api.
   time of the show.
 - The sprite. ui_unit_sprite maps the key of the unit class to a
   render_sprite. The scene draws that picture on the hex of the unit
-  (docs/ASSETS.md, "Unit sprites").
+  (docs/ASSETS.md, "Unit sprites"). A land unit on a river or on the
+  sea is a 走舸, so it shows the boat and not its weapon. The water
+  rule is the one of the sim: the terrain has a navy cost and no foot
+  cost (ui_hex_is_water).
 
 ## The tests, line by line
 - combat_tests.cpp (unit) checks the parsers of the four tables, the

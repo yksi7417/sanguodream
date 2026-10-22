@@ -239,13 +239,27 @@ ui_hit_colour(s32 mark, ImU32 plain)
 
 /* ---- the sprite of a unit ------------------------------------------------ */
 
+/* True when the terrain of the hex carries ships and no foot soldier: a
+   river or the sea (the rule of the sim for a 走舸). */
+internal b32
+ui_hex_is_water(engine_api *api, s32 q, s32 r)
+{
+    engine_hex hex = api->hex_at(api->engine, q, r);
+    if (!hex.on_map) return false;
+    engine_terrain_kind terrain = api->terrain_kind_at(api->engine, hex.terrain);
+    return terrain.cost[MOVEMENT_NAVY] && !terrain.cost[MOVEMENT_FOOT];
+}
+
 /* The render_sprite of a unit from the key of its class (unit_types.tsv).
-   A class without a picture of its own gets the figure of sprite 0. */
+   A class without a picture of its own gets the figure of sprite 0. A land
+   unit on water is a 走舸 (18-battle.md), so it shows the boat, not its
+   weapon. */
 internal u32
 ui_unit_sprite(engine_api *api, engine_unit *unit)
 {
     engine_unit_type type = api->unit_type_at(api->engine, unit->unit_type);
     if (type.id == ENGINE_NO_UNIT_TYPE) return RENDER_SPRITE_UNIT;
+    if (type.movement != MOVEMENT_NAVY && ui_hex_is_water(api, unit->q, unit->r)) return RENDER_SPRITE_BOAT;
     if (!strcmp(type.key, "sword"))     return RENDER_SPRITE_SWORD;
     if (!strcmp(type.key, "pike"))      return RENDER_SPRITE_PIKE;
     if (!strcmp(type.key, "halberd"))   return RENDER_SPRITE_HALBERD;

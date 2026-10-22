@@ -2078,6 +2078,21 @@ register_ui_tests(ImGuiTestEngine *e)
         unit.unit_type = ENGINE_NO_UNIT_TYPE;
         IM_CHECK_EQ(ui_unit_sprite(&v.api, &unit), (u32)RENDER_SPRITE_UNIT);
         IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_UNIT_TYPE_AT), (u32)ArrayCount(expected));
+        /* A land unit on water is a 走舸 (18-battle.md): its sprite is the
+           boat, not its weapon. A ship on water keeps its own sprite, and
+           a land unit on land keeps its weapon. */
+        v.recorder.has_water = true;
+        v.recorder.water_q = 5; v.recorder.water_r = 1;
+        unit.q = 5; unit.r = 1;
+        unit.unit_type = 1;   /* pike */
+        IM_CHECK_EQ(ui_unit_sprite(&v.api, &unit), (u32)RENDER_SPRITE_BOAT);
+        unit.unit_type = 4;   /* cavalry */
+        IM_CHECK_EQ(ui_unit_sprite(&v.api, &unit), (u32)RENDER_SPRITE_BOAT);
+        unit.unit_type = 10;  /* tower ship */
+        IM_CHECK_EQ(ui_unit_sprite(&v.api, &unit), (u32)RENDER_SPRITE_SHIP);
+        unit.q = 2; unit.r = 2;
+        unit.unit_type = 1;
+        IM_CHECK_EQ(ui_unit_sprite(&v.api, &unit), (u32)RENDER_SPRITE_PIKE);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 

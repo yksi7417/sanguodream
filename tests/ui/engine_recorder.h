@@ -251,6 +251,8 @@ struct engine_recorder
     b32           units_acted;        /* M22: both units acted in this turn */
     u32           officer_count;      /* scripted rows for the Officers and Cities panels */
     u32           city_count;
+    b32           has_water;          /* hex_at reports the river kind (2) at water_q, water_r */
+    s32           water_q, water_r;
     char          last_load_path[RECORDER_MAX_PATH];
     b32           load_fails;         /* script a refused load */
     b32           has_names;          /* city_name_at answers only after a name index load */
@@ -992,9 +994,10 @@ internal engine_terrain_kind recorder_terrain_kind_at(void *o, u32 index)
 {
     recorder_record((engine_recorder *)o, RECORDER_TERRAIN_KIND_AT, index);
     engine_terrain_kind kind = {};
-    kind.id = index < 2 ? (u8)index : ENGINE_NO_TERRAIN;
-    snprintf(kind.key, sizeof(kind.key), "%s", index == 0 ? "grass" : "forest");
-    kind.cost[MOVEMENT_FOOT] = 4;
+    kind.id = index < 3 ? (u8)index : ENGINE_NO_TERRAIN;
+    snprintf(kind.key, sizeof(kind.key), "%s", index == 0 ? "grass" : index == 1 ? "forest" : "river");
+    if (index == 2) kind.cost[MOVEMENT_NAVY] = 5;   /* water: no foot cost, a navy cost */
+    else            kind.cost[MOVEMENT_FOOT] = 4;
     return kind;
 }
 internal u32 recorder_unit_type_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_UNIT_TYPE_COUNT, 0); return ArrayCount(recorder_unit_type_keys); }
@@ -1009,6 +1012,7 @@ internal engine_unit_type recorder_unit_type_at(void *o, u32 index)
     type.move      = 22;
     type.transport = index == 12;
     type.weapon    = ENGINE_NO_WEAPON;
+    type.movement  = (u8)(index >= 9 && index <= 11 ? MOVEMENT_NAVY : index == 4 ? MOVEMENT_CAVALRY : index >= 5 && index <= 8 ? MOVEMENT_SIEGE : MOVEMENT_FOOT);
     return type;
 }
 internal u32 recorder_unit_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_UNIT_COUNT, 0); return 2; }
@@ -1683,7 +1687,8 @@ internal engine_hex recorder_hex_at(void *o, s32 q, s32 r)
     recorder_record((engine_recorder *)o, RECORDER_HEX_AT, (u32)(offset.col & 0xFFFF) | ((u32)(offset.row & 0xFFFF) << 16));
     engine_hex hex = {};
     hex.on_map      = offset.col >= 0 && offset.row >= 0 && offset.col < 8 && offset.row < 6;
-    hex.terrain     = 1;
+    engine_recorder *rec = (engine_recorder *)o;
+    hex.terrain     = (u8)(rec->has_water && q == rec->water_q && r == rec->water_r ? 2 : 1);
     hex.region      = ENGINE_NO_REGION;
     hex.region_city = ENGINE_NO_CITY;
     hex.city_id     = offset.col == RECORDER_CITY_COL && offset.row == RECORDER_CITY_ROW ? 0 : ENGINE_NO_CITY;
