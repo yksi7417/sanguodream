@@ -486,7 +486,7 @@ sim_load_save_world(sim_state *sim, save_file *save, sim_command command, sim_ev
         if (!added) continue;
         sim_init_officer_state(sim, added, record);   /* M7: character and relations */
         /* G2-035: the loyalty of a save record (+104, hypothesis Q-005). The game shows at most 100. */
-        if (record->has_save_fields) added->loyalty = (u8)Minimum(record->loyalty, 100u);
+        if (record->has_save_fields) added->loyalty = record->loyalty;   /* the surplus above 100 stays; the views show 100 */
     }
     sim_load_items(sim, save);
     for (u32 index = 0; index < save->city_count; ++index)

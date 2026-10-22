@@ -677,6 +677,16 @@ struct sim_rules
     u32 merchant_price_min, merchant_price_max;   /* the city price (city-commands.md) */
     u32 merchant_effect_scale, merchant_effect_offset, merchant_sale_percent;   /* E = scale / (offset - politics); a sale gets sale_percent */
     u32 conscript_base_soldiers, conscript_charm_tenths;   /* city-commands.md: F x (1000 + 5.6 x S) */
+    /* The rules of the run of 2026-10-22 (spec/experiments/gap2-answers-2026-10-22.md). */
+    u32 conscript_charm_order;                          /* F x (1000 + 6 x S x order / 100) */
+    u32 train_base, train_divisor, train_drill_base, train_drill_permille;
+    u32 produce_base_quantity;
+    u32 class_attack_pike, class_attack_halberd, class_attack_crossbow, class_attack_cavalry;
+    u32 class_defence_pike, class_defence_halberd, class_defence_crossbow, class_defence_cavalry;
+    u32 sword_percent, build_base, build_percent;
+    u32 merit_attack, merit_arrow, merit_tactic, merit_destroy, merit_tactic_destroy;
+    u32 experience_attack_war, experience_tactic_war, experience_destroy_leadership, experience_hit_leadership;
+    u32 technique_drill_ground_turn;
     u32 merit_per_command;
     u32 facility_recovery;
     u32 develop_officers;

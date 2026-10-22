@@ -243,6 +243,15 @@ sim_recover_all_action_points(sim_state *sim, u32 cause, sim_event_sink *events)
         event.delta   = (s32)(*pool - before);
         event.assumed = true;
         sim_emit(events, event);
+        /* The run of 2026-10-22: each 鍊兵所 of the force gives technique points at the turn start
+           (劉表 with two gained +30; calendar-and-turn.md, a hypothesis). */
+        u32 drill_grounds = 0;
+        for (u32 city = 0; city < sim->cities.count; ++city)
+        {
+            city_component *owned = sim->cities.data + city;
+            if (owned->owner_force_id == faction->force_id) drill_grounds += sim_count_built(sim, owned->city_id, FACILITY_EFFECT_DRILL);
+        }
+        sim_add_technique_points(sim, faction->force_id, (s32)(drill_grounds * sim->content.rules.technique_drill_ground_turn), cause, events);
     }
 }
 

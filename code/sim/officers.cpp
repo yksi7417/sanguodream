@@ -168,7 +168,8 @@ sim_change_loyalty(sim_state *sim, officer_component *officer, s32 change, u32 c
 {
     s32 value = (s32)officer->loyalty + change;
     if (value < 0) value = 0;
-    if (value > 100) value = 100;
+    /* A save holds loyalty above 100 (113, 242; G2-035). The game keeps the surplus: a rise stops at 100, a loss comes off the surplus. */
+    if (value > 100 && change > 0) value = (s32)Maximum((u32)officer->loyalty, 100u);
     s32 delta = value - (s32)officer->loyalty;
     officer->loyalty = (u8)value;
     if (delta) sim_emit_officer(sim, SIM_EVENT_LOYALTY_CHANGED, officer, delta, 0, true, cause, events);

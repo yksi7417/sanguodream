@@ -80,12 +80,18 @@ unit_city_command_rule_tests(test_counts *counts)
     TEST_CHECK(counts, sim_patrol_rise(5, false, &rules) == 1, "patrol: one officer always gives at least 1 order");
 
     /* 徵兵: floor(F x (1000 + 5.6 x S)) (city-commands.md; the dialogs of the sample, G2-011). */
-    TEST_CHECK(counts, sim_conscript_soldiers(231, 3, false, &rules) == 3440, "conscript: a charm sum of 231 at a level-3 barracks gives 3440 soldiers (the dialog of 江陵: 3439)");
-    TEST_CHECK(counts, sim_conscript_soldiers(79, 3, false, &rules) == 2163 && sim_conscript_soldiers(47, 3, false, &rules) == 1894,
+    TEST_CHECK(counts, sim_conscript_soldiers(231, 3, 92, false, &rules) == 3440, "conscript: a charm sum of 231 at a level-3 barracks gives 3440 soldiers (the dialog of 江陵: 3439)");
+    TEST_CHECK(counts, sim_conscript_soldiers(79, 3, 92, false, &rules) == 2163 && sim_conscript_soldiers(47, 3, 97, false, &rules) == 1894,
                "conscript: 79 gives 2163 and 47 gives 1894 at level 3 (the dialogs of 江陵 and 新野)");
-    TEST_CHECK(counts, sim_conscript_soldiers(91, 1, false, &rules) == 1509 && sim_conscript_soldiers(240, 2, false, &rules) == 2812,
+    TEST_CHECK(counts, sim_conscript_soldiers(91, 1, 98, false, &rules) == 1509 && sim_conscript_soldiers(240, 2, 90, false, &rules) == 2812,
                "conscript: a level-1 barracks gives 1000 + 5.6 x S, a level-2 barracks 1.2 times");
-    TEST_CHECK(counts, sim_conscript_soldiers(231, 3, true, &rules) == 1720, "conscript: an enemy within 2 hexes gives fewer soldiers (assumed half)");
+    TEST_CHECK(counts, sim_conscript_soldiers(231, 3, 92, true, &rules) == 1720, "conscript: an enemy within 2 hexes gives fewer soldiers (assumed half)");
+    /* The run of 2026-10-22: F x (1000 + 6 x S x public order / 100) (conscript.charm_order). */
+    rules.conscript_charm_order = 6;
+    TEST_CHECK(counts, sim_conscript_soldiers(89, 3, 97, false, &rules) == 2276 && sim_conscript_soldiers(79, 3, 92, false, &rules) == 2154 &&
+                       sim_conscript_soldiers(91, 1, 98, false, &rules) == 1535,
+               "conscript: with the public order rule 89 at order 97 gives 2276 (the dialog: 2280), 79 at 92 gives 2154 (2163), 91 at level 1 and 98 gives 1535 (1536)");
+    rules.conscript_charm_order = 0;
     TEST_CHECK(counts, sim_conscript_technique(500, &rules) == 2 && sim_conscript_technique(1536, &rules) == 3 &&
                        sim_conscript_technique(3439, &rules) == 5 && sim_conscript_technique(9000, &rules) == 5,
                "conscript: the technique points go from 2 to 5 with the soldiers (G2-014: 5 for 3439)");
@@ -93,6 +99,13 @@ unit_city_command_rule_tests(test_counts *counts)
     /* 訓練: the sum of force raises morale (assumed amount). */
     TEST_CHECK(counts, sim_train_rise(240, false, &rules) == 24, "train: a force sum of 240 gives 24 morale (assumed)");
     TEST_CHECK(counts, sim_train_rise(240, true, &rules) == 36, "train: a drill ground gives a larger effect (assumed 1.5 times)");
+    /* The run of 2026-10-22 (fixtures/train.tsv): floor(4 + 0.115 x S) with a drill ground, floor(3 + S / 15) without. */
+    rules.train_base = 3; rules.train_divisor = 15; rules.train_drill_base = 4; rules.train_drill_permille = 115;
+    TEST_CHECK(counts, sim_train_rise(101, true, &rules) == 15 && sim_train_rise(70, true, &rules) == 12 && sim_train_rise(3, true, &rules) == 4,
+               "train: with a drill ground 101 gives 15, 70 gives 12, 3 gives 4 (the dialogs of the sample)");
+    TEST_CHECK(counts, sim_train_rise(103, false, &rules) == 9 && sim_train_rise(21, false, &rules) == 4 && sim_train_rise(63, false, &rules) == 7,
+               "train: without one 103 gives 9, 21 gives 4, 63 gives 7 (the play run of 2026-10-20)");
+    rules.train_divisor = 0;
     TEST_CHECK(counts, sim_train_rise(3, false, &rules) == 1, "train: one officer always gives at least 1 morale");
 
     /* 商人: E = 400 / (450 - P) at the city price R (city-commands.md "Merchant rate"; the dialogs of the sample, G2-025). */
@@ -118,6 +131,12 @@ unit_city_command_rule_tests(test_counts *counts)
 
     /* 生產兵裝: the sum of intellect sets the quantity, or the period of siege weapons and ships. */
     TEST_CHECK(counts, sim_produce_quantity(240, 1, false, &rules) == 2400, "produce: an intellect sum of 240 gives 2400 weapons (assumed)");
+    /* The run of 2026-10-22 (fixtures/produce.tsv): 1500 + 15 x I at level 3. */
+    rules.produce_base_quantity = 1000;
+    TEST_CHECK(counts, sim_produce_quantity(121, 3, false, &rules) == 3315 && sim_produce_quantity(69, 3, false, &rules) == 2535 &&
+                       sim_produce_quantity(1, 3, false, &rules) == 1515,
+               "produce: a level-3 smithy gives 1500 + 15 x the intellect (3315 for 121, 2535 for 69, 1515 for 1)");
+    rules.produce_base_quantity = 0;
     TEST_CHECK(counts, sim_produce_quantity(240, 3, true, &rules) == 5400,
                "produce: a level-3 smithy and the skill 能吏 give 1.5 times 1.5 (skill amount assumed)");
     TEST_CHECK(counts, sim_produce_days(0, 30, 90, false, &rules) == 90 && sim_produce_days(100, 30, 90, false, &rules) == 30 &&

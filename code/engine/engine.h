@@ -797,6 +797,8 @@ struct engine_officer_edit
     u8  captor;                     /* a faction: the officer becomes its captive; ENGINE_NO_FACTION: no change */
     b32 set_abilities;              /* true: the five abilities below replace those of the officer (a test setter) */
     u8  leadership, war, intelligence, politics, charm;
+    b32 set_aptitudes;              /* true: the aptitudes below replace those of the officer (a test setter; 0 C .. 3 S) */
+    u8  aptitudes[OFFICER_UNIT_APTITUDE_COUNT];
 };
 
 struct engine_skill_kind

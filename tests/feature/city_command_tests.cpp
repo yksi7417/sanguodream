@@ -179,8 +179,8 @@ feature_conscript_tests(test_counts *counts)
     feature_take_officers(api, city, ids, 3);
     engine_command command = feature_city_command(ENGINE_COMMAND_CONSCRIPT, city, ids[0], ids[1], ids[2]);
     engine_check check = api->can_issue(e, &command);
-    /* city-commands.md: floor(F x (1000 + 5.6 x S)); a new barracks is level 1 (F = 1.0). */
-    u32 soldiers = (10000 + feature_officer_sum(api, ids, FEATURE_CHARM) * 56) / 10;
+    /* The run of 2026-10-22: F x (1000 + 6 x S x public order / 100); a new barracks is level 1 (F = 1.0), the order is 60. */
+    u32 soldiers = (100000 + feature_officer_sum(api, ids, FEATURE_CHARM) * 6 * 60) / 100;
     TEST_CHECK(counts, check.refusal == SIM_REFUSAL_NONE && check.gold == FEATURE_CONSCRIPT_GOLD && check.action_points == FEATURE_COMMAND_AP &&
                        check.value_before == 10000 && check.value_after == 10000 + soldiers && check.slot == barracks,
                "conscript: 300 gold, 20 points, and soldiers now -> after: 1000 + 5.6 x the sum of charm (G2-011)");
@@ -232,7 +232,9 @@ feature_conscript_tests(test_counts *counts)
     api->set_facility_level(e, city, barracks, 3);
     command = feature_city_command(ENGINE_COMMAND_CONSCRIPT, city, ids[0]);
     check = api->can_issue(e, &command);
-    u32 level3 = (10000 + feature_officer_sum(api, ids, FEATURE_CHARM) * 56) * 150 / 1000;   /* floor(1.5 x (1000 + 5.6 x S)) */
+    u16 single[3] = { ids[0], ENGINE_NO_OFFICER, ENGINE_NO_OFFICER };
+    u32 order_now = api->city_economy(e, city).public_order;
+    u32 level3 = (100000 + feature_officer_sum(api, single, FEATURE_CHARM) * 6 * order_now) * 150 / 10000;   /* floor(1.5 x (1000 + 6 x S x order / 100)) */
     TEST_CHECK(counts, check.slot == barracks && check.value_after == level3,
                "a level-3 barracks gives 1.5 times the soldiers and is used first (city-commands.md)");
     engine_city_slots site = api->city_slots(e, city);
@@ -256,7 +258,19 @@ feature_train_tests(test_counts *counts)
     api->set_city_resource(e, city, SIM_RESOURCE_MORALE, 0, 40);
     engine_command command = feature_city_command(ENGINE_COMMAND_TRAIN, city, ids[0], ids[1], ids[2]);
     engine_check check = api->can_issue(e, &command);
-    u32 rise = Maximum(1u, feature_officer_sum(api, ids, FEATURE_FORCE) * 10 / 100);
+    /* The run of 2026-10-22: floor(3 + S / 15) without a drill ground, floor(4 + 0.115 x S) with one; S is the first officer plus half of the others. */
+    engine_officer first_officer = {}, second_officer = {}, third_officer = {};
+    feature_officer_by_id(api, ids[0], &first_officer);
+    feature_officer_by_id(api, ids[1], &second_officer);
+    feature_officer_by_id(api, ids[2], &third_officer);
+    u32 force_sum = first_officer.war + (second_officer.war + third_officer.war) / 2;
+    b32 drill_ground = false;
+    for (u32 slot = 0; slot < api->city_slots(e, city).slot_count; ++slot)
+    {
+        engine_facility built = api->facility_at(e, city, (u8)slot);
+        if (built.state == SIM_SLOT_BUILT && built.facility == 17) drill_ground = true;   /* facilities.tsv: drill_ground */
+    }
+    u32 rise = drill_ground ? 4 + force_sum * 115 / 1000 : 3 + force_sum / 15;
     TEST_CHECK(counts, check.refusal == SIM_REFUSAL_NONE && check.gold == 0 && check.action_points == FEATURE_COMMAND_AP &&
                        check.value_before == 40 && check.value_after == Minimum(100u, 40 + rise),
                "train: no gold, 20 points, and morale now -> after from the sum of force (assumed)");
@@ -387,7 +401,12 @@ feature_produce_tests(test_counts *counts)
     command.weapon = FEATURE_WEAPON_PIKE;
     engine_check check = api->can_issue(e, &command);
     engine_city_economy economy = api->city_economy(e, city);
-    u32 quantity = feature_officer_sum(api, ids, FEATURE_INTELLECT) * 10;
+    /* The run of 2026-10-22: 1000 + 10 x I at a level-1 smithy; I is the first officer plus half of the others. */
+    engine_officer maker_a = {}, maker_b = {}, maker_c = {};
+    feature_officer_by_id(api, ids[0], &maker_a);
+    feature_officer_by_id(api, ids[1], &maker_b);
+    feature_officer_by_id(api, ids[2], &maker_c);
+    u32 quantity = 1000 + 10 * (maker_a.intelligence + (maker_b.intelligence + maker_c.intelligence) / 2);
     b32 specialty = api->city_slots(e, city).specialty == CITY_SPECIALTY_PIKE;
     TEST_CHECK(counts, check.refusal == SIM_REFUSAL_NONE && check.gold == (specialty ? 560u : 700u) && check.action_points == FEATURE_COMMAND_AP &&
                        check.days == 0 && check.slot == smithy && check.value_before == economy.stocks[0] &&

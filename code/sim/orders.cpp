@@ -122,7 +122,20 @@ sim_order_attack(sim_state *sim, u32 unit_id, sim_event_sink *events)
 {
     sim_unit *unit = sim->units + unit_id;
     sim_unit *target = sim_find_unit(sim, unit->order_target);
-    if (!target || (u32)hex_distance(unit->hex, target->hex) > sim_attack_range(sim, unit)) return false;
+    if (!target) return false;
+    /* The run of 2026-10-22: a unit with a long order uses a tactic when the order allows it,
+       and the normal attack otherwise (G2-052). The first tactic that the check allows runs. */
+    for (u32 tactic = 0; tactic < sim->content.tactic_count; ++tactic)
+    {
+        sim_command use = sim_make_command(sim, SIM_COMMAND_TACTIC);
+        use.unit.unit = (u16)unit_id;
+        use.unit.kind = (u8)tactic;
+        use.unit.to   = target->hex;
+        if (sim_check_tactic(sim, &use.unit).refusal != SIM_REFUSAL_NONE) continue;
+        sim_apply(sim, use, events);
+        return true;
+    }
+    if ((u32)hex_distance(unit->hex, target->hex) > sim_attack_range(sim, unit)) return false;
     return sim_ai_attack(sim, unit_id, target->hex, events);
 }
 

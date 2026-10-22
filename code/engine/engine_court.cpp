@@ -14,7 +14,7 @@ engine_api_officer_detail(void *opaque, u16 officer_id)
     officer_component *officer = sim_find_officer(sim, officer_id);
     if (!officer) return result;
     result.officer_id   = officer_id;
-    result.loyalty      = officer->loyalty;
+    result.loyalty      = (u8)Minimum((u32)officer->loyalty, 100u);   /* the screen shows 100 for every value of 100 or more (G2-035) */
     result.ambition     = officer->ambition;
     result.justice      = officer->justice;
     result.personality  = officer->personality;
@@ -429,6 +429,10 @@ engine_api_set_officer(void *opaque, u16 officer_id, const engine_officer_edit *
         officer->intelligence = edit->intelligence;
         officer->politics     = edit->politics;
         officer->charm        = edit->charm;
+    }
+    if (edit->set_aptitudes)
+    {
+        for (u32 index = 0; index < OFFICER_UNIT_APTITUDE_COUNT; ++index) officer->unit_aptitudes[index] = edit->aptitudes[index];
     }
     if (edit->captor != ENGINE_NO_FACTION && edit->captor != officer->force_id && officer->status != SIM_STATUS_CAPTIVE)
     {

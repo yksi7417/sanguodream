@@ -194,15 +194,36 @@ sim_unit_values_of(sim_state *sim, u8 force, u8 unit_type, const u16 *officers)
     sim_rules *rules = &sim->content.rules;
     values.aptitude = sim_unit_aptitude(sim, officers, type);
     u32 aptitude_percent = values.aptitude <= 3 && rules->aptitude_percent[values.aptitude] ? rules->aptitude_percent[values.aptitude] : 100;
-    values.attack  = (u32)((u64)sim_unit_ability(sim, officers, SIM_ABILITY_FORCE) * aptitude_percent * rules->grade_percent[type->attack] / 10000);
-    values.defence = (u32)((u64)sim_unit_ability(sim, officers, SIM_ABILITY_LEADERSHIP) * aptitude_percent * rules->grade_percent[type->defence] / 10000);
+    u32 attack_percent = rules->grade_percent[type->attack], defence_percent = rules->grade_percent[type->defence];
+    /* The run of 2026-10-22 (military-units-and-tactics.md): attack = force x aptitude x class and
+       defence = leadership x aptitude x class, within one point. The class factors are rules of
+       the pack (class.attack_*, class.defence_*); without them the grade of the class holds. A
+       unit without a weapon (劍兵) has 0.36 of the force and the leadership. */
+    switch (sim_class_of_aptitude(type->aptitude))
+    {
+        case CONTENT_CLASS_PIKE:     if (rules->class_attack_pike)     { attack_percent = rules->class_attack_pike;     defence_percent = rules->class_defence_pike; }     break;
+        case CONTENT_CLASS_HALBERD:  if (rules->class_attack_halberd)  { attack_percent = rules->class_attack_halberd;  defence_percent = rules->class_defence_halberd; }  break;
+        case CONTENT_CLASS_CROSSBOW: if (rules->class_attack_crossbow) { attack_percent = rules->class_attack_crossbow; defence_percent = rules->class_defence_crossbow; } break;
+        case CONTENT_CLASS_CAVALRY:  if (rules->class_attack_cavalry)  { attack_percent = rules->class_attack_cavalry;  defence_percent = rules->class_defence_cavalry; }  break;
+        default:
+            if (rules->sword_percent && type->weapon == CONTENT_NO_WEAPON && !type->transport && type->movement == MOVEMENT_FOOT)
+            {
+                attack_percent = defence_percent = rules->sword_percent;
+                aptitude_percent = 100;
+            }
+            break;
+    }
+    values.attack  = (u32)((u64)sim_unit_ability(sim, officers, SIM_ABILITY_FORCE) * aptitude_percent * attack_percent / 10000);
+    values.defence = (u32)((u64)sim_unit_ability(sim, officers, SIM_ABILITY_LEADERSHIP) * aptitude_percent * defence_percent / 10000);
     for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place)
     {
         officer_component *officer = sim_find_officer(sim, officers[place]);
         if (officer && officer->intelligence > values.intellect) values.intellect = officer->intelligence;
     }
     if (sim_unit_has_dislike(sim, officers)) values.intellect = sim_percent_of(values.intellect, 100 - Minimum(rules->relation_disliked_intellect, 100u));
-    values.build = sim_unit_ability(sim, officers, SIM_ABILITY_POLITICS);
+    /* 建設 is 50 plus two thirds of the politics (run of 2026-10-22; unit.build_base, unit.build_percent). */
+    u32 politics = sim_unit_ability(sim, officers, SIM_ABILITY_POLITICS);
+    values.build = rules->build_percent ? rules->build_base + politics * rules->build_percent / 100 : politics;
     values.move  = sim_unit_move(sim, force, officers, type);
     values.ignores_zoc = type->movement != MOVEMENT_SIEGE && type->movement != MOVEMENT_NAVY &&
                          (sim_unit_has_skill(sim, officers, rules->skill_ignore_zoc) || sim_unit_has_skill(sim, officers, rules->skill_escape));

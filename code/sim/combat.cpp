@@ -662,6 +662,47 @@ sim_check_attack(sim_state *sim, sim_unit_order *order)
     return check;
 }
 
+/* The merit and the experience of a battle (fixtures/battle-merit.tsv, run
+   of 2026-10-22). Each officer of the attacker gains merit.attack for a
+   melee attack, merit.arrow for an arrow attack and merit.tactic for a
+   tactic, or merit.destroy (merit.tactic_destroy) when the target unit is
+   destroyed. The attackers gain force experience, the destroyers also
+   leadership experience. The officers of a target that stands gain
+   leadership experience. */
+internal void
+sim_reward_battle(sim_state *sim, u32 attacker_id, u32 target_id, b32 arrow, b32 tactic, b32 destroyed, u32 cause, sim_event_sink *events)
+{
+    sim_rules *rules = &sim->content.rules;
+    if (attacker_id >= sim->unit_count || !sim->units[attacker_id].alive) return;
+    sim_unit *attacker = sim->units + attacker_id;
+    u32 merit = destroyed ? (tactic ? rules->merit_tactic_destroy : rules->merit_destroy)
+                          : tactic ? rules->merit_tactic : arrow ? rules->merit_arrow : rules->merit_attack;
+    for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place)
+    {
+        officer_component *officer = sim_find_officer(sim, attacker->officers[place]);
+        if (!officer) continue;
+        if (merit)
+        {
+            u32 total = Minimum((u32)officer->merit + merit, 0xFFFFu);
+            sim_event event = sim_event_make(sim, SIM_EVENT_MERIT_GAINED, cause);
+            event.subject = sim_officer_entity(sim, officer->officer_id);
+            event.faction = attacker->force_id;
+            event.delta   = (s32)(total - officer->merit);
+            officer->merit = (u16)total;
+            sim_emit(events, event);
+        }
+        sim_gain_experience(sim, officer, CONTENT_ABILITY_FORCE, tactic ? rules->experience_tactic_war : rules->experience_attack_war, cause, events);
+        if (destroyed) sim_gain_experience(sim, officer, CONTENT_ABILITY_LEADERSHIP, rules->experience_destroy_leadership, cause, events);
+    }
+    sim_unit *target = sim_find_unit(sim, target_id);
+    if (!target) return;
+    for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place)
+    {
+        officer_component *officer = sim_find_officer(sim, target->officers[place]);
+        if (officer) sim_gain_experience(sim, officer, CONTENT_ABILITY_LEADERSHIP, rules->experience_hit_leadership, cause, events);
+    }
+}
+
 internal void
 sim_attack(sim_state *sim, sim_command command, sim_event_sink *events)
 {
@@ -670,7 +711,10 @@ sim_attack(sim_state *sim, sim_command command, sim_event_sink *events)
     sim_unit *unit = sim->units + order->unit;
     sim_target target = sim_target_at(sim, unit->force_id, order->to);
     unit->acted_turn = sim->turn + 1;
+    u32 target_unit = target.unit;
+    b32 arrow = hex_distance(unit->hex, order->to) > 1;
     sim_strike(sim, order->unit, order->to, &target, 100, CRITICAL_ATTACK, true, false, command.id, events);
+    sim_reward_battle(sim, order->unit, target_unit, arrow, false, target_unit != SIM_NO_UNIT && !sim->units[target_unit].alive, command.id, events);
 }
 
 /* The units of the force that can join an attack on the hex now. */
@@ -716,7 +760,10 @@ sim_joint_attack(sim_state *sim, sim_command command, sim_event_sink *events)
         unit->acted_turn = sim->turn + 1;
         sim_target target = sim_target_at(sim, unit->force_id, order->to);
         if (!sim_target_any(&target)) break;
+        u32 target_unit = target.unit;
+        b32 arrow = hex_distance(unit->hex, order->to) > 1;
         sim_strike(sim, ids[index], order->to, &target, 100, CRITICAL_ATTACK, false, false, command.id, events);
+        sim_reward_battle(sim, ids[index], target_unit, arrow, false, target_unit != SIM_NO_UNIT && !sim->units[target_unit].alive, command.id, events);
     }
 }
 
@@ -1002,4 +1049,5 @@ sim_use_tactic(sim_state *sim, sim_command command, sim_event_sink *events)
         }
     }
     if (unit->alive) sim_tactic_effect(sim, order->unit, tactic, order->to, first_unit, command.id, events);
+    sim_reward_battle(sim, order->unit, first_unit, false, true, first_unit != SIM_NO_UNIT && !sim->units[first_unit].alive, command.id, events);
 }

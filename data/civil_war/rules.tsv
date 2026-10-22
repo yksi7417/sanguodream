@@ -70,10 +70,10 @@ grade.b	100	assumed	Q-168
 grade.c	90	assumed	Q-168
 grade.d	80	assumed	Q-168
 grade.e	70	assumed	Q-168
-aptitude.s	120	assumed	Q-170: the percent of the officer aptitude S
-aptitude.a	110	assumed	Q-170
-aptitude.b	100	assumed	Q-170
-aptitude.c	90	assumed	Q-170
+aptitude.s	95	observed	military-units-and-tactics.md: the aptitude factor of the unit values (run 2026-10-22)
+aptitude.a	85	observed	military-units-and-tactics.md
+aptitude.b	75	observed	military-units-and-tactics.md
+aptitude.c	65	observed	military-units-and-tactics.md
 move.bonus	4	assumed	Q-169: the movement that one technique or skill adds (出產良馬, 精銳, 強化車軸, 木牛流馬, 強行, 長驅, 運搬)
 # M6: combat, plots, buildings and siege. Every amount is assumed (Q-172 to Q-176) unless the status says documented.
 combat.damage_percent	20	assumed	Q-172: the soldiers of one attack = attacker soldiers x attack / (attack + defence) x this percent
@@ -315,3 +315,30 @@ merchant.effect_scale	400	observed	city-commands.md: the trade effect E = 400 / 
 merchant.effect_offset	450	observed	city-commands.md: the same rule
 merchant.sale_percent	80	observed	city-commands.md: a sale gives N x E x 0.8 / R gold
 age.death_month_chance	10	assumed	G2-055: an officer past the death year rolls its death at each month start (朱儁 died at 197/12/1, death year 195); the chance is assumed (Q-029)
+conscript.charm_order	6	observed	city-commands.md: F x (1000 + 6 x S x public order / 100) fits 13 rows within 10 soldiers (run 2026-10-22)
+train.base	3	observed	fixtures/train.tsv: floor(3 + S / 15) without a drill ground; S is the first officer plus half of each other
+train.divisor	15	observed	fixtures/train.tsv
+train.drill_base	4	observed	fixtures/train.tsv: floor(4 + 0.115 x S) with a drill ground
+train.drill_permille	115	observed	fixtures/train.tsv
+produce.base_quantity	1000	observed	fixtures/produce.tsv: 1500 + 15 x I at a level-3 smithy; I is the first officer plus half of each other; the level 1 rule is a hypothesis
+class.attack_pike	100	observed	military-units-and-tactics.md: attack = force x aptitude x class, within one point (run 2026-10-22)
+class.attack_halberd	95	observed	military-units-and-tactics.md
+class.attack_crossbow	90	observed	military-units-and-tactics.md
+class.attack_cavalry	110	observed	military-units-and-tactics.md
+class.defence_pike	100	observed	military-units-and-tactics.md: defence = leadership x aptitude x class
+class.defence_halberd	110	observed	military-units-and-tactics.md
+class.defence_crossbow	95	observed	military-units-and-tactics.md
+class.defence_cavalry	95	observed	military-units-and-tactics.md
+unit.sword_percent	36	observed	military-units-and-tactics.md: the sword values are 0.36 x the force and the leadership
+unit.build_base	50	observed	military-units-and-tactics.md: build = 50 + two thirds of the politics
+unit.build_percent	67	observed	military-units-and-tactics.md: two thirds (the clone uses 2/3 exactly)
+merit.attack	20	observed	fixtures/battle-merit.tsv: a melee attack gives 20 merit to each officer
+merit.arrow	10	observed	fixtures/battle-merit.tsv: an arrow attack gives 10
+merit.tactic	50	observed	fixtures/battle-merit.tsv: a tactic gives 50
+merit.destroy	320	observed	fixtures/battle-merit.tsv: an attack that destroys the unit gives 320
+merit.tactic_destroy	350	claimed	clone-gap-report-2.md G2-048: a tactic that destroys the unit gives 350
+experience.attack_war	1	observed	fixtures/battle-merit.tsv: the force experience of an attack; the scale of the clone is assumed
+experience.tactic_war	3	observed	fixtures/battle-merit.tsv
+experience.destroy_leadership	3	observed	gap2-answers-2026-10-22.md section 7: a destroy gives 3 leadership experience
+experience.hit_leadership	1	observed	gap2-answers-2026-10-22.md section 7: the officers of the target gain 1 leadership experience
+technique.drill_ground_turn	15	observed	calendar-and-turn.md: 15 technique points for each drill ground at each turn start (hypothesis of the run 2026-10-22)

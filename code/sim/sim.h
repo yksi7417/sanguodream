@@ -1382,6 +1382,7 @@ internal u32                 sim_city_soldier_cap(sim_state *sim, u8 city_id);
 internal void                sim_reward_command(sim_state *sim, u8 force, const u16 *officers, u32 technique,
                                                 u32 cause, sim_event_sink *events);
 internal void                sim_add_technique_points(sim_state *sim, u8 force, s32 points, u32 cause, sim_event_sink *events);
+internal content_unit_class  sim_class_of_aptitude(u32 aptitude);   /* combat.cpp */
 internal void                sim_transport_arrived(sim_state *sim, const u16 *officers, u8 city, u8 home, u8 force, u32 cause,
                                                    sim_event_sink *events);
 internal void                sim_emit_city(sim_state *sim, sim_event_kind kind, city_component *city, s32 delta, u32 detail,
@@ -1396,7 +1397,7 @@ internal void                sim_damage_facility(sim_state *sim, sim_command com
 /* city_commands.cpp: patrol, conscript, train, merchant and produce
    (city-commands.md, weapons-and-production.md) */
 internal u32       sim_patrol_rise(u32 leadership_sum, b32 enemy_near, sim_rules *rules);
-internal u32       sim_conscript_soldiers(u32 charm_sum, u32 level, b32 enemy_near, sim_rules *rules);
+internal u32       sim_conscript_soldiers(u32 charm_sum, u32 level, u32 public_order, b32 enemy_near, sim_rules *rules);
 internal u32       sim_train_rise(u32 force_sum, b32 drill_ground, sim_rules *rules);
 internal u32       sim_conscript_technique(u32 soldiers, sim_rules *rules);
 internal u32       sim_merchant_percent(u32 politics, sim_rules *rules);

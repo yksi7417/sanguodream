@@ -129,7 +129,9 @@ feature_destroy_order_tests(test_counts *counts)
                "G2-052: 殲滅 moves the unit next to the target in the same turn");
     TEST_CHECK(counts, target.soldiers < 300 && unit.acted && feature_count_events(api, SIM_EVENT_UNIT_DAMAGED, mark) >= 1,
                "and attacks it in the same turn");
-    TEST_CHECK(counts, unit.order == UNIT_ORDER_DESTROY && unit.order_target == enemy, "the unit keeps the order 殲滅 on the target");
+    /* The first attack of the order can use a tactic (run of 2026-10-22). A target that it destroys ends the order. */
+    TEST_CHECK(counts, target.id == ENGINE_NO_UNIT ? unit.order == UNIT_ORDER_NONE : (unit.order == UNIT_ORDER_DESTROY && unit.order_target == enemy),
+               "the unit keeps the order 殲滅 on the target while the target lives");
 
     u32 turns = 0;
     while (turns < 12 && api->unit_at(e, enemy).id != ENGINE_NO_UNIT && feature_next_own_turn(api, force)) turns++;

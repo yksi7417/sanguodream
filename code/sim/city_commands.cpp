@@ -57,11 +57,33 @@ sim_patrol_rise(u32 leadership_sum, b32 enemy_near, sim_rules *rules)
    within 7 soldiers. With an enemy within 2 hexes fewer soldiers come:
    conscript.enemy_percent of them (assumed, Q-153). */
 internal u32
-sim_conscript_soldiers(u32 charm_sum, u32 level, b32 enemy_near, sim_rules *rules)
+sim_conscript_soldiers(u32 charm_sum, u32 level, u32 public_order, b32 enemy_near, sim_rules *rules)
 {
-    u64 tenths   = (u64)rules->conscript_base_soldiers * 10 + (u64)charm_sum * rules->conscript_charm_tenths;
-    u32 soldiers = (u32)(tenths * sim_level_percent(level, rules) / 1000);
+    /* The run of 2026-10-22: F x (1000 + 6 x S x 治安 / 100) fits 13 rows within 10 soldiers
+       (conscript.charm_order). Without that rule the old line 5.6 x S holds. */
+    u64 hundredths = (u64)rules->conscript_base_soldiers * 100;
+    if (rules->conscript_charm_order) hundredths += (u64)rules->conscript_charm_order * charm_sum * public_order;
+    else                              hundredths += (u64)charm_sum * rules->conscript_charm_tenths * 10;
+    u32 soldiers = (u32)(hundredths * sim_level_percent(level, rules) / 10000);
     return enemy_near ? sim_percent_of(soldiers, rules->conscript_enemy_percent) : soldiers;
+}
+
+/* The sum of an ability for a command of the run of 2026-10-22: the first
+   officer counts in full and each other officer at half (fixtures/train.tsv
+   and produce.tsv). */
+internal u32
+sim_command_ability_sum(sim_state *sim, const u16 *officers, sim_ability ability)
+{
+    u32 first = 0, others = 0;
+    b32 has_first = false;
+    for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place)
+    {
+        officer_component *officer = sim_find_officer(sim, officers[place]);
+        if (!officer) continue;
+        if (!has_first) { first = sim_officer_ability(officer, ability); has_first = true; }
+        else            others += sim_officer_ability(officer, ability);
+    }
+    return first + others / 2;
 }
 
 /* The technique points of one 徵兵: technique.conscript_min, plus one for
@@ -80,6 +102,13 @@ sim_conscript_technique(u32 soldiers, sim_rules *rules)
 internal u32
 sim_train_rise(u32 force_sum, b32 drill_ground, sim_rules *rules)
 {
+    /* The run of 2026-10-22 (fixtures/train.tsv): floor(4 + 0.115 x S) with a drill ground,
+       floor(3 + S / 15) without. S is the first officer plus half of each other. */
+    if (rules->train_divisor)
+    {
+        return drill_ground ? rules->train_drill_base + force_sum * rules->train_drill_permille / 1000
+                            : rules->train_base + force_sum / rules->train_divisor;
+    }
     u32 rise = sim_percent_of(force_sum, rules->train_force_percent);
     if (rise < 1) rise = 1;
     return drill_ground ? sim_percent_of(rise, rules->train_drill_percent) : rise;
@@ -146,7 +175,9 @@ sim_run_prices_month(sim_state *sim, u32 cause, sim_event_sink *events)
 internal u32
 sim_produce_quantity(u32 intellect_sum, u32 level, b32 skill, sim_rules *rules)
 {
-    u32 quantity = sim_percent_of(intellect_sum * rules->produce_intellect_quantity, sim_level_percent(level, rules));
+    /* The run of 2026-10-22 (fixtures/produce.tsv): 1500 + 15 x I at level 3, that is
+       (1000 + 10 x I) x 1.5. I is the first officer plus half of each other. */
+    u32 quantity = sim_percent_of(rules->produce_base_quantity + intellect_sum * rules->produce_intellect_quantity, sim_level_percent(level, rules));
     return skill ? sim_percent_of(quantity, rules->produce_skill_percent) : quantity;
 }
 
@@ -286,7 +317,7 @@ sim_check_conscript(sim_state *sim, city_component *city, sim_city_order *order,
     check.action_points = rules->ap_conscript;
     check.slot          = (u8)slot;
     check.value_before  = city->troops;
-    u32 soldiers = sim_conscript_soldiers(charm, level, sim_enemy_near(sim, city), rules);
+    u32 soldiers = sim_conscript_soldiers(charm, level, city->public_order, sim_enemy_near(sim, city), rules);
     if (sim_order_has_skill(sim, order->officers, rules->skill_fame) && rules->skill_fame_percent) soldiers = sim_percent_of(soldiers, rules->skill_fame_percent);   /* 名聲 #80 */
     check.value_after   = sim_add_within(city->troops, soldiers, cap);
     check.quantity      = check.value_after - check.value_before;
@@ -316,6 +347,7 @@ sim_check_train(sim_state *sim, city_component *city, sim_city_order *order, sim
     u32 action_points = sim_military_ap(sim, city, rules->ap_train);
     if (sim->turns.action_points[city->owner_force_id] < action_points) return sim_refuse(check, SIM_REFUSAL_NO_ACTION_POINTS);
     b32 drill = sim_city_has_built(sim, city->city_id, FACILITY_EFFECT_DRILL);
+    if (rules->train_divisor) force = sim_command_ability_sum(sim, order->officers, SIM_ABILITY_FORCE);   /* the first in full, the others at half */
     check.action_points = action_points;
     check.value_before  = city->morale;
     check.value_after   = sim_add_within(city->morale, sim_train_rise(force, drill, rules), morale_max);
@@ -388,6 +420,7 @@ sim_check_produce(sim_state *sim, city_component *city, sim_city_order *order, s
     {
         u32 skill = weapon->facility == FACILITY_EFFECT_HORSES ? rules->skill_breeding : rules->skill_capable;
         u32 level = sim->sites[city->city_id].slots[slot].level;
+        if (rules->produce_base_quantity) intellect = sim_command_ability_sum(sim, order->officers, SIM_ABILITY_INTELLECT);   /* the first in full, the others at half */
         check.quantity = sim_produce_quantity(intellect, level, sim_order_has_skill(sim, order->officers, skill), rules);
     }
     else

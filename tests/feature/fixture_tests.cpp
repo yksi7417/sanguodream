@@ -472,7 +472,7 @@ fixture_list_values(const char *list, u32 *values, u32 capacity)
     return count;
 }
 
-/* Gives the officer the charm or the politics of a row through the editor. */
+/* Gives the officer one ability of a row through the editor. */
 internal void
 fixture_set_ability(engine_api *api, u16 officer_id, u32 ability, u32 value)
 {
@@ -480,12 +480,43 @@ fixture_set_ability(engine_api *api, u16 officer_id, u32 ability, u32 value)
     feature_officer_by_id(api, officer_id, &officer);
     engine_officer_edit edit = feature_edit_of(api, officer_id);
     edit.set_abilities = true;
-    edit.leadership    = officer.leadership;
-    edit.war           = officer.war;
-    edit.intelligence  = officer.intelligence;
-    edit.politics      = ability == FEATURE_POLITICS ? (u8)value : officer.politics;
-    edit.charm         = ability == FEATURE_CHARM    ? (u8)value : officer.charm;
+    edit.leadership    = ability == FEATURE_LEADERSHIP ? (u8)value : officer.leadership;
+    edit.war           = ability == FEATURE_FORCE      ? (u8)value : officer.war;
+    edit.intelligence  = ability == FEATURE_INTELLECT  ? (u8)value : officer.intelligence;
+    edit.politics      = ability == FEATURE_POLITICS   ? (u8)value : officer.politics;
+    edit.charm         = ability == FEATURE_CHARM      ? (u8)value : officer.charm;
     api->set_officer(api->engine, officer_id, &edit);
+}
+
+/* Gives the officer the same aptitude (0 C .. 3 S) for every class. */
+internal void
+fixture_set_aptitudes(engine_api *api, u16 officer_id, u8 aptitude)
+{
+    engine_officer_edit edit = feature_edit_of(api, officer_id);
+    edit.set_aptitudes = true;
+    for (u32 index = 0; index < OFFICER_UNIT_APTITUDE_COUNT; ++index) edit.aptitudes[index] = aptitude;
+    api->set_officer(api->engine, officer_id, &edit);
+}
+
+/* The public order of a city of the fixtures: city-income.tsv at 197年10月1日,
+   and 長沙 of the 孫堅 game of 190年 (gap2-answers-2026-10-22.md). */
+internal u32
+fixture_city_order_of(const char *city)
+{
+    struct city_order { const char *name; u32 order; };
+    city_order orders[] = { { "江陵", 92 }, { "新野", 97 }, { "長安", 89 }, { "宛", 90 }, { "長沙", 98 } };
+    for (u32 index = 0; index < ArrayCount(orders); ++index)
+    {
+        if (strcmp(orders[index].name, city) == 0) return orders[index].order;
+    }
+    return 90;
+}
+
+/* True if the city holds a built facility of this id. */
+internal b32
+fixture_city_has_facility(engine_api *api, u8 city, u8 facility)
+{
+    return fixture_built_slot(api, city, facility) != ENGINE_ANY_SLOT;
 }
 
 /* conscript.tsv: 徵兵 costs 300 gold and 20 action points, and gives
@@ -514,34 +545,259 @@ fixture_conscript(tsv_table *table, engine_api *api, test_counts *counts)
         u32 taken = feature_take_officers(api, city, ids, wanted);
         for (u32 place = 0; place < taken; ++place) fixture_set_ability(api, ids[place], FEATURE_CHARM, charm[place]);
         b32 leveled = barracks != ENGINE_ANY_SLOT && api->set_facility_level(e, city, barracks, (u8)level);
+        /* The skill 名聲 of 程普 gives 1.5 times the soldiers. The clone has no skills yet. */
+        if (strstr(tsv_cell(table, row, "source"), "名聲")) { pending++; continue; }
+        /* The run of 2026-10-22: the public order of the city is a factor of the gain. */
+        u32 order = fixture_city_order_of(tsv_cell(table, row, "city"));
+        api->set_city_resource(e, city, SIM_RESOURCE_PUBLIC_ORDER, 0, order);
         engine_command command = feature_city_command(ENGINE_COMMAND_CONSCRIPT, city, ids[0], ids[1], ids[2]);
         engine_check check = api->can_issue(e, &command);
         char name[200];
-        snprintf(name, sizeof(name), "conscript row %u: %u officers at barracks level %u, %u action points, %u gold, %u soldiers (got %u)", row,
-                 wanted, level, FIXTURE_CITY_COMMAND_AP, gold, gain, check.quantity);
+        snprintf(name, sizeof(name), "conscript row %u: %u officers at barracks level %u and order %u, %u action points, %u gold, %u soldiers (got %u)", row,
+                 wanted, level, order, FIXTURE_CITY_COMMAND_AP, gold, gain, check.quantity);
         b32 costs = parsed && taken == wanted && leveled && check.refusal == SIM_REFUSAL_NONE &&
                     check.action_points == FIXTURE_CITY_COMMAND_AP && check.gold == gold;
-        if (level == 3)
-        {
-            u32 error = check.quantity > gain ? check.quantity - gain : gain - check.quantity;
-            TEST_CHECK(counts, costs && error <= 7, name);
-        }
-        else
-        {
-            TEST_CHECK(counts, costs, name);
-            pending++;
-        }
+        /* F x (1000 + 6 x S x order / 100) fits the single officers within 10 and the sets of three within 1 percent. */
+        u32 error = check.quantity > gain ? check.quantity - gain : gain - check.quantity;
+        TEST_CHECK(counts, costs && error <= Maximum(10u, gain / 100), name);
     }
-    printf("  PENDING %u rows x the soldiers at barracks level 1: the factor of the level (docs/PROGRESS-GAP2.md)\n", pending);
+    printf("  PENDING %u rows x the skill 名聲 of an officer: 1.5 times the soldiers (no skills in the clone yet)\n", pending);
 }
 
-/* train.tsv: 訓練 costs no gold and 20 action points. The morale gain by
-   the force of the officers has no formula yet (Q-154). */
+/* train.tsv: 訓練 costs no gold and 20 action points. The gain is
+   floor(4 + 0.115 x S) with a drill ground (the rows of 江陵) and
+   floor(3 + S / 15) without one (the rows of 長沙). S is the force of the
+   first officer plus half of the force of each other officer (run of
+   2026-10-22). The handler builds a drill ground in the first city and
+   uses a second own city without one. */
 internal void
 fixture_train(tsv_table *table, engine_api *api, test_counts *counts)
 {
-    fixture_city_cost_rows(table, api, counts, ENGINE_COMMAND_TRAIN, "train", 0,
-                           "morale gained: no formula yet (Q-154)");
+    void *e = api->engine;
+    u8 city = fixture_city_ready(api);
+    u8 force = api->city_at(e, city).owner_force_id;
+    TEST_CHECK(counts, !fixture_city_has_facility(api, city, 17), "train: the city starts without a drill ground");
+    /* Pass 0 checks the rows without a drill ground. Pass 1 builds one and checks the other rows. */
+    for (u32 pass = 0; pass < 2; ++pass)
+    {
+        if (pass == 1)
+        {
+            u8 drill = feature_build(api, city, 17, force);   /* facilities.tsv: drill_ground */
+            TEST_CHECK(counts, drill != ENGINE_ANY_SLOT, "train: the city builds a drill ground");
+            api->set_city_gold(e, city, 50000);
+            api->set_actions(e, force, 255);
+        }
+        for (u32 row = 0; row < table->row_count; ++row)
+        {
+            b32 with_drill = strcmp(tsv_cell(table, row, "city"), "長沙") != 0;   /* the rows of 長沙 have none */
+            if (with_drill != (pass == 1)) continue;
+            u32 values[SIM_DEVELOP_OFFICERS] = {};
+            u32 wanted = fixture_list_values(tsv_cell(table, row, "force_values"), values, SIM_DEVELOP_OFFICERS);
+            u32 before = 0, after = 0;
+            b32 parsed = wanted > 0 && tsv_cell_u32(table, row, "morale_before", &before) && tsv_cell_u32(table, row, "morale_after", &after);
+            api->set_city_resource(e, city, SIM_RESOURCE_MORALE, 0, before);
+            u16 ids[SIM_DEVELOP_OFFICERS];
+            u32 taken = feature_take_officers(api, city, ids, wanted);
+            for (u32 place = 0; place < taken; ++place) fixture_set_ability(api, ids[place], FEATURE_FORCE, values[place]);
+            engine_command command = feature_city_command(ENGINE_COMMAND_TRAIN, city, ids[0], ids[1], ids[2]);
+            engine_check check = api->can_issue(e, &command);
+            char name[200];
+            snprintf(name, sizeof(name), "train row %u: %u officers, drill ground %s, %u action points, morale %u to %u (got %u)", row, wanted,
+                     with_drill ? "yes" : "no", FIXTURE_CITY_COMMAND_AP, before, after, check.value_after);
+            TEST_CHECK(counts, parsed && taken == wanted && check.refusal == SIM_REFUSAL_NONE && check.gold == 0 &&
+                               check.action_points == FIXTURE_CITY_COMMAND_AP && check.value_after == after, name);
+        }
+    }
+}
+
+/* produce.tsv: 生產兵裝 of 槍 at a level-3 smithy gives 1500 + 15 x I. I is
+   the intellect of the first officer plus half of the intellect of each
+   other officer (run of 2026-10-22). The handler sets the smithies of the
+   city to the level of the row and the intellect of the officers. */
+internal void
+fixture_produce(tsv_table *table, engine_api *api, test_counts *counts)
+{
+    void *e = api->engine;
+    u8 city = fixture_city_ready(api);
+    u8 force = api->city_at(e, city).owner_force_id;
+    u8 built = feature_build(api, city, FEATURE_FACILITY_SMITHY, force);
+    api->set_city_gold(e, city, 50000);
+    api->set_actions(e, force, 255);
+    TEST_CHECK(counts, built != ENGINE_ANY_SLOT, "produce: the city has a smithy");
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        u32 values[SIM_DEVELOP_OFFICERS] = {};
+        u32 wanted = fixture_list_values(tsv_cell(table, row, "intellect_values"), values, SIM_DEVELOP_OFFICERS);
+        u32 level = 0, quantity = 0;
+        b32 parsed = wanted > 0 && tsv_cell_u32(table, row, "smithy_level", &level) && tsv_cell_u32(table, row, "quantity", &quantity);
+        for (u32 slot = 0; slot < api->city_slots(e, city).slot_count; ++slot)
+        {
+            engine_facility facility = api->facility_at(e, city, (u8)slot);
+            if (facility.state == SIM_SLOT_BUILT && facility.facility == FEATURE_FACILITY_SMITHY) api->set_facility_level(e, city, (u8)slot, (u8)level);
+        }
+        u16 ids[SIM_DEVELOP_OFFICERS];
+        u32 taken = feature_take_officers(api, city, ids, wanted);
+        for (u32 place = 0; place < taken; ++place) fixture_set_ability(api, ids[place], FEATURE_INTELLECT, values[place]);
+        engine_command command = feature_city_command(ENGINE_COMMAND_PRODUCE, city, ids[0], ids[1], ids[2]);
+        command.weapon = 0;   /* weapons.tsv: the pike */
+        engine_check check = api->can_issue(e, &command);
+        char name[200];
+        snprintf(name, sizeof(name), "produce row %u: %u officers at smithy level %u, %u action points, %u weapons (got %u)", row, wanted, level,
+                 FIXTURE_CITY_COMMAND_AP, quantity, check.quantity);
+        TEST_CHECK(counts, parsed && taken == wanted && check.refusal == SIM_REFUSAL_NONE && check.action_points == FIXTURE_CITY_COMMAND_AP &&
+                           check.quantity == quantity, name);
+    }
+}
+
+/* battle-merit.tsv: a melee attack gives 20 merit to each officer of the
+   attacker and 1 force experience; an attack that destroys the unit gives
+   320 merit and 3 leadership experience (run of 2026-10-22). The handler
+   sorties a pike unit, places an enemy next to it and attacks two times.
+   The rows of the arrow attacks and of the long orders are pending: the
+   handler has no crossbow unit and no tactic. */
+internal void
+fixture_battle_merit(tsv_table *table, engine_api *api, test_counts *counts)
+{
+    void *e = api->engine;
+    u8 city = fixture_city_ready(api);
+    u8 force = api->city_at(e, city).owner_force_id;
+    api->set_city_resource(e, city, SIM_RESOURCE_WEAPONS, 0, 5000);
+    u32 unit_id = feature_sortie_unit(api, city, 2);
+    u32 enemy = feature_sortie_unit(api, city, 1);   /* a placed test unit has no type and never dies */
+    u8 other = feature_other_faction(api, force, 0);
+    hex_coord enemy_hex = {};
+    b32 placed = false;
+    if (unit_id != ENGINE_NO_UNIT && enemy != ENGINE_NO_UNIT)
+    {
+        engine_unit unit = api->unit_at(e, unit_id);
+        for (u32 direction = 0; direction < HEX_DIRECTION_COUNT && !placed; ++direction)
+        {
+            enemy_hex = hex_neighbor(hex_make(unit.q, unit.r), direction);
+            placed = api->set_unit_place(e, enemy, other, enemy_hex.q, enemy_hex.r);
+        }
+    }
+    TEST_CHECK(counts, placed, "battle-merit: an own unit with a unit of another faction next to it");
+    if (!placed) return;
+    api->set_unit(e, enemy, 5000, 100);
+    engine_unit unit = api->unit_at(e, unit_id);
+    engine_officer before[SIM_COMMAND_OFFICERS] = {}, after[SIM_COMMAND_OFFICERS] = {};
+    engine_officer_detail detail_before[SIM_COMMAND_OFFICERS] = {}, detail_after[SIM_COMMAND_OFFICERS] = {};
+    u32 pending = 0;
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        u32 merit = 0, war = 0;
+        b32 parsed = tsv_cell_u32(table, row, "merit_each", &merit) && tsv_cell_u32(table, row, "war_exp_each", &war);
+        b32 destroyed = strcmp(tsv_cell(table, row, "destroyed"), "yes") == 0;
+        b32 attack = strcmp(tsv_cell(table, row, "action"), "攻擊") == 0, arrow = strcmp(tsv_cell(table, row, "range"), "1") != 0;
+        if (!attack || (arrow && !destroyed)) { pending++; continue; }
+        feature_next_own_turn(api, force);
+        if (destroyed) api->set_unit(e, enemy, 1, 100);
+        engine_unit target = api->unit_at(e, enemy);
+        enemy_hex = hex_make(target.q, target.r);
+        for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place)
+        {
+            if (unit.officers[place] == ENGINE_NO_OFFICER) continue;
+            feature_officer_by_id(api, unit.officers[place], before + place);
+            detail_before[place] = api->officer_detail(e, unit.officers[place]);
+        }
+        engine_command_result result = api->command_attack(e, unit_id, enemy_hex.q, enemy_hex.r);
+        b32 same = result.refusal == SIM_REFUSAL_NONE;
+        for (u32 place = 0; place < SIM_COMMAND_OFFICERS && same; ++place)
+        {
+            if (unit.officers[place] == ENGINE_NO_OFFICER) continue;
+            feature_officer_by_id(api, unit.officers[place], after + place);
+            detail_after[place] = api->officer_detail(e, unit.officers[place]);
+            same = after[place].merit == before[place].merit + merit &&
+                   detail_after[place].experience[CONTENT_ABILITY_FORCE] == detail_before[place].experience[CONTENT_ABILITY_FORCE] + war &&
+                   (!destroyed || detail_after[place].experience[CONTENT_ABILITY_LEADERSHIP] ==
+                                      detail_before[place].experience[CONTENT_ABILITY_LEADERSHIP] + 3);
+        }
+        char name[200];
+        snprintf(name, sizeof(name), "battle-merit row %u: a melee attack%s gives %u merit and %u force experience to each officer (refusal %u)", row,
+                 destroyed ? " that destroys the unit" : "", merit, war, result.refusal);
+        b32 gone = api->unit_at(e, enemy).id == ENGINE_NO_UNIT;
+        snprintf(name + strlen(name), sizeof(name) - strlen(name), " [merit %u->%u, war %u->%u, lead %u->%u, gone %u]", before[0].merit, after[0].merit,
+                 detail_before[0].experience[CONTENT_ABILITY_FORCE], detail_after[0].experience[CONTENT_ABILITY_FORCE],
+                 detail_before[0].experience[CONTENT_ABILITY_LEADERSHIP], detail_after[0].experience[CONTENT_ABILITY_LEADERSHIP], gone);
+        TEST_CHECK(counts, parsed && same && destroyed == gone, name);
+        if (destroyed) { pending += table->row_count - row - 1; break; }   /* the attacker has acted; the later rows wait */
+    }
+    printf("  PENDING %u rows x the arrow attacks and the long orders: no crossbow unit and no tactic in the handler\n", pending);
+}
+
+/* journey-days.tsv: the 日數 of the 移動 dialog of 江陵 and of the 流言
+   dialog of 新野 for each base (run of 2026-10-22). The handler reads the
+   names of the pack tables and asks travel_days on the real map. */
+internal void
+fixture_journey_days(tsv_table *table, engine_api *api, test_counts *counts)
+{
+    (void)api;
+    memory_arena arena = test_arena_create(Megabytes(4));
+    tsv_table cities = {}, bases = {};
+    char exe_dir[MAX_PATH], city_path[MAX_PATH], base_path[MAX_PATH];
+    test_exe_dir(exe_dir, MAX_PATH);
+    snprintf(city_path, MAX_PATH, "%s\\" HEXDOM_DATA_ROOT "\\placeholder\\cities.tsv", exe_dir);
+    snprintf(base_path, MAX_PATH, "%s\\" HEXDOM_DATA_ROOT "\\placeholder\\bases.tsv", exe_dir);
+    test_file city_file = test_read_file(city_path, &arena);
+    test_file base_file = test_read_file(base_path, &arena);
+    b32 tables = city_file.contents && base_file.contents && tsv_parse((char *)city_file.contents, &arena, &cities) &&
+                 tsv_parse((char *)base_file.contents, &arena, &bases);
+    TEST_CHECK(counts, tables, "journey-days: the city and base tables of the pack parse");
+    engine_fixture f;
+    engine_fixture_init_real(&f, 1, 64);
+    engine_api *real = &f.api;
+    void *e = real->engine;
+    TEST_CHECK(counts, real->load_save(e, SAMPLE_SAVE_RELATIVE_PATH).status == ENGINE_LOAD_OK, "journey-days: the sample loads on the real map");
+    u32 farther = 0, fitted = 0;
+    for (u32 row = 0; row < table->row_count && tables; ++row)
+    {
+        u32 from = U32_MAX, to = U32_MAX, days = 0;
+        b32 parsed = tsv_cell_u32(table, row, "days", &days);
+        const char *from_name = tsv_cell(table, row, "from"), *to_name = tsv_cell(table, row, "to");
+        for (u32 index = 0; index < cities.row_count; ++index)
+        {
+            u32 id = 0;
+            if (!tsv_cell_u32(&cities, index, "id", &id)) continue;
+            if (strcmp(tsv_cell(&cities, index, "name_zh"), from_name) == 0) from = id;
+            if (strcmp(tsv_cell(&cities, index, "name_zh"), to_name) == 0)   to = id;
+        }
+        for (u32 index = 0; index < bases.row_count; ++index)
+        {
+            u32 id = 0;
+            if (!tsv_cell_u32(&bases, index, "id", &id)) continue;
+            if (strcmp(tsv_cell(&bases, index, "name_zh"), from_name) == 0) from = id;
+            if (strcmp(tsv_cell(&bases, index, "name_zh"), to_name) == 0)   to = id;
+        }
+        u32 got = from != U32_MAX && to != U32_MAX ? real->travel_days(e, (u8)from, (u8)to) : 0;
+        char name[200];
+        snprintf(name, sizeof(name), "journey-days row %u: %s from base %u to base %u takes %u days (got %u)", row, tsv_cell(table, row, "dialog"),
+                 from, to, days, got);
+        /* The assumed rule (Q-228) gives 10 days for the bases of the regions that touch.
+           The rule for the farther bases is open: the handler counts the rows it fits. */
+        if (days == 10) TEST_CHECK(counts, parsed && from != U32_MAX && to != U32_MAX && got == days, name);
+        else { farther++; if (parsed && got == days) fitted++; }
+    }
+    printf("  PENDING %u rows x the days of the farther bases: the assumed region rule fits %u of them (Q-228)\n", farther, fitted);
+    engine_fixture_destroy(&f);
+    test_arena_destroy(&arena);
+}
+
+/* city-income.tsv: the income of eleven cities with their facilities. The
+   formula of the income is open (Q-021): pending. */
+internal void
+fixture_city_income(tsv_table *table, engine_api *api, test_counts *counts)
+{
+    (void)api; (void)counts;
+    printf("  PENDING %u rows x the gold and the grain income by the facilities and the public order: no formula yet (Q-021)\n", table->row_count);
+}
+
+/* free-weapons.tsv: the weapons that a specialty city gains at a month
+   start. The amount by the governor is open (Q-022): pending. */
+internal void
+fixture_free_weapons(tsv_table *table, engine_api *api, test_counts *counts)
+{
+    (void)api; (void)counts;
+    printf("  PENDING %u rows x the free weapons of a month start by the governor: no formula yet (Q-022)\n", table->row_count);
 }
 
 /* merchant.tsv: one 商人 trade by one officer costs 20 action points. The
@@ -616,9 +872,11 @@ fixture_develop_period(tsv_table *table, engine_api *api, test_counts *counts)
 }
 
 /* unit-values-sortie.tsv: the values that the 出征 dialog predicts. The
-   handler checks the movement of each weapon against unit_types.tsv. The
-   attack, the defence, the intellect and the build need the officers of
-   the 孫堅 game, and the engine's formula is assumed (Q-170). */
+   handler checks the movement of each weapon against unit_types.tsv, and
+   the five values for one officer with no deputy through unit_values: the
+   attack and the defence within one point (force x aptitude x class, run
+   of 2026-10-22), the intellect and the build exact. The ship rows keep
+   the attack and the defence pending. */
 internal void
 fixture_unit_values_sortie(tsv_table *table, engine_api *api, test_counts *counts)
 {
@@ -627,6 +885,14 @@ fixture_unit_values_sortie(tsv_table *table, engine_api *api, test_counts *count
         { "sword", "sword" }, { "spear", "pike" }, { "halberd", "halberd" }, { "crossbow", "crossbow" },
         { "horse", "cavalry" }, { "ship-small", "boat" }, { "ship-large", "tower_ship" },
     };
+    void *e = api->engine;
+    u8 city = fixture_city_ready(api);
+    u8 force = api->city_at(e, city).owner_force_id;
+    u16 ids[SIM_DEVELOP_OFFICERS];
+    u32 taken = feature_take_officers(api, city, ids, 1);
+    u16 officers[SIM_COMMAND_OFFICERS] = { ids[0], ENGINE_NO_OFFICER, ENGINE_NO_OFFICER };
+    TEST_CHECK(counts, taken == 1, "unit-values-sortie: a free officer of the sample takes the values of each row");
+    u32 pending = 0;
     for (u32 row = 0; row < table->row_count; ++row)
     {
         const char *weapon = tsv_cell(table, row, "weapon");
@@ -635,24 +901,52 @@ fixture_unit_values_sortie(tsv_table *table, engine_api *api, test_counts *count
         {
             if (strcmp(classes[index].weapon, weapon) == 0) key = classes[index].unit_type;
         }
-        u32 expected = 0, move = 0;
-        for (u32 index = 0; key && index < api->unit_type_count(api->engine); ++index)
+        u32 expected = 0, move = 0, type_index = U32_MAX;
+        for (u32 index = 0; key && index < api->unit_type_count(e); ++index)
         {
-            engine_unit_type type = api->unit_type_at(api->engine, index);
-            if (strcmp(type.key, key) == 0) expected = type.move;
+            engine_unit_type type = api->unit_type_at(e, index);
+            if (strcmp(type.key, key) == 0) { expected = type.move; type_index = index; }
         }
         b32 parsed = tsv_cell_u32(table, row, "move", &move);
-        char name[160];
+        char name[200];
         snprintf(name, sizeof(name), "unit-values-sortie row %u (%s): movement %u", row, weapon, move);
         TEST_CHECK(counts, parsed && expected != 0 && move == expected, name);
+
+        u32 leadership = 0, war = 0, intellect = 0, politics = 0, attack = 0, defence = 0, unit_intellect = 0, build = 0;
+        b32 values_parsed = tsv_cell_u32(table, row, "leadership", &leadership) && tsv_cell_u32(table, row, "force", &war) &&
+                            tsv_cell_u32(table, row, "intellect", &intellect) && tsv_cell_u32(table, row, "politics", &politics) &&
+                            tsv_cell_u32(table, row, "attack", &attack) && tsv_cell_u32(table, row, "defence", &defence) &&
+                            tsv_cell_u32(table, row, "unit_intellect", &unit_intellect) && tsv_cell_u32(table, row, "build", &build);
+        b32 ship = strncmp(weapon, "ship", 4) == 0;
+        if (!values_parsed || taken != 1 || type_index == U32_MAX || ship) { pending++; continue; }
+        const char *letter = tsv_cell(table, row, "aptitude");
+        u8 aptitude = letter[0] == 'S' ? 3 : letter[0] == 'A' ? 2 : letter[0] == 'B' ? 1 : 0;
+        fixture_set_ability(api, ids[0], FEATURE_LEADERSHIP, leadership);
+        fixture_set_ability(api, ids[0], FEATURE_FORCE, war);
+        fixture_set_ability(api, ids[0], FEATURE_INTELLECT, intellect);
+        fixture_set_ability(api, ids[0], FEATURE_POLITICS, politics);
+        fixture_set_aptitudes(api, ids[0], aptitude);
+        engine_unit_values values = api->unit_values(e, force, (u8)type_index, officers);
+        u32 attack_error = values.attack > attack ? values.attack - attack : attack - values.attack;
+        u32 defence_error = values.defence > defence ? values.defence - defence : defence - values.defence;
+        /* The fit is within one point for the pike, the halberd and the sword rows. The
+           class factors of the crossbow and the cavalry are approximate (within two). */
+        u32 tolerance = strcmp(weapon, "crossbow") == 0 || strcmp(weapon, "horse") == 0 ? 2 : 1;
+        snprintf(name, sizeof(name), "unit-values-sortie row %u (%s %s): attack %u, defence %u, intellect %u, build %u (got %u, %u, %u, %u)", row,
+                 weapon, letter, attack, defence, unit_intellect, build, values.attack, values.defence, values.intellect, values.build);
+        TEST_CHECK(counts, attack_error <= tolerance && defence_error <= tolerance && values.intellect == unit_intellect && values.build == build, name);
     }
-    printf("  PENDING %u rows x attack, defence, intellect, build, tactics: the officers of the 孫堅 game and Q-170\n",
-           table->row_count);
+    printf("  PENDING %u rows x attack and defence of the ships, and the tactics (Q-170)\n", pending);
 }
 
 global_variable fixture_handler g_fixture_handlers[] = {
     { "conscript",             fixture_conscript },
     { "train",                 fixture_train },
+    { "produce",               fixture_produce },
+    { "battle-merit",          fixture_battle_merit },
+    { "journey-days",          fixture_journey_days },
+    { "city-income",           fixture_city_income },
+    { "free-weapons",          fixture_free_weapons },
     { "merchant",              fixture_merchant },
     { "develop-period",        fixture_develop_period },
     { "unit-values-sortie",    fixture_unit_values_sortie },
