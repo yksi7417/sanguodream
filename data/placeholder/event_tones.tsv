@@ -91,3 +91,8 @@ morale_changed	neutral	amount	no	no	assumed
 base_income	calm	amount	no	no	assumed
 unit_ordered	neutral	neutral	no	no	assumed
 unit_order_done	neutral	neutral	no	no	assumed
+officer_moved	neutral	neutral	no	yes	assumed
+officer_arrived	calm	good	no	yes	assumed
+mission_started	neutral	neutral	no	no	assumed
+faction_plot	proud	good	no	yes	assumed
+faction_plot_failed	humble	bad	no	yes	assumed

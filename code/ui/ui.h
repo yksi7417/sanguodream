@@ -330,6 +330,32 @@ struct ui_state
         int gold;
         int months;
     } diplomacy;
+    /* The dialogs of group 3 of the clone gap report 2 (ui_people.cpp):
+       移動, 召喚, 官職, 流放, and the plots with a target base list. */
+    bool show_move_officers, show_summon, show_posts, show_exile, show_plot;
+    struct
+    {
+        u8  city;                /* the city of the command */
+        u8  target;              /* 移動: the own city to go to; ENGINE_NO_CITY */
+        u16 officers[SIM_MOVE_OFFICERS];
+        u32 count;
+    } move, summon;
+    struct
+    {
+        u8  post;                /* the selected row of the post table; ENGINE_NO_ROW */
+        u16 officer;             /* the selected officer without a post; ENGINE_NO_OFFICER */
+        u16 staged_officer[32];  /* the changes before 決定 */
+        u8  staged_post[32];     /* ENGINE_NO_ROW: a dismissal */
+        u32 staged_count;
+    } posts;
+    struct { u16 officer; } exile;
+    struct
+    {
+        u8  city;
+        u8  kind;                /* sim_faction_plot_kind */
+        u8  target_city;         /* ENGINE_NO_CITY until a click */
+        u16 officer;             /* ENGINE_NO_OFFICER until a click */
+    } plot;
     /* M8: the Ruler panel (軍團, 軍師, 評定), the Bases panel, and the event dialog */
     bool show_ruler;
     bool show_bases;

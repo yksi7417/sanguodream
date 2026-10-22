@@ -13,6 +13,8 @@ enum ui_base_menu
     UI_BASE_MENU_CITY,       /* 都市 */
     UI_BASE_MENU_MILITARY,   /* 軍事 */
     UI_BASE_MENU_PEOPLE,     /* 人材 */
+    UI_BASE_MENU_PLOT,       /* 計略 (G2-065) */
+    UI_BASE_MENU_RULER,      /* 君主 (G2-060) */
     UI_BASE_MENU_COUNT
 };
 
@@ -25,7 +27,15 @@ enum ui_base_open
     UI_BASE_OPEN_SORTIE,
     UI_BASE_OPEN_TRANSPORT,
     UI_BASE_OPEN_COURT,
-    UI_BASE_OPEN_NO_API      /* 移動 and 召喚: the engine has no command yet */
+    UI_BASE_OPEN_NO_API,     /* 仲介: the dialog is not built yet */
+    UI_BASE_OPEN_MOVE,       /* 移動 (G2-036, ui_people.cpp) */
+    UI_BASE_OPEN_SUMMON,     /* 召喚 (G2-037) */
+    UI_BASE_OPEN_DIPLOMACY,  /* 二虎競食: the diplomacy panel */
+    UI_BASE_OPEN_PLOT,       /* 驅虎吞狼, 流言: the plot dialog; ui_kind is the sim_faction_plot_kind */
+    UI_BASE_OPEN_RULER,      /* 評定, 軍團, 軍師: the ruler panel */
+    UI_BASE_OPEN_POSTS,      /* 官職 (G2-060) */
+    UI_BASE_OPEN_EXILE,      /* 流放 */
+    UI_BASE_OPEN_ABILITIES   /* 研究能力, 培育武將: the abilities window */
 };
 
 struct ui_base_item
@@ -51,12 +61,23 @@ global_variable const ui_base_item ui_base_items[] =
     { UI_BASE_MENU_MILITARY, "city.train",          "base_train",     UI_BASE_OPEN_COMMAND,   UI_COMMAND_TRAIN,     ENGINE_COMMAND_TRAIN },
     { UI_BASE_MENU_MILITARY, "city.sortie",         "base_sortie",    UI_BASE_OPEN_SORTIE,    0,                    ENGINE_COMMAND_SORTIE },
     { UI_BASE_MENU_MILITARY, "city.transport",      "base_transport", UI_BASE_OPEN_TRANSPORT, 0,                    ENGINE_COMMAND_TRANSPORT },
-    { UI_BASE_MENU_PEOPLE,   "base_menu.move",      "base_move",      UI_BASE_OPEN_NO_API,    0,                    ENGINE_COMMAND_KIND_COUNT },
-    { UI_BASE_MENU_PEOPLE,   "base_menu.summon",    "base_summon",    UI_BASE_OPEN_NO_API,    0,                    ENGINE_COMMAND_KIND_COUNT },
+    { UI_BASE_MENU_PEOPLE,   "base_menu.move",      "base_move",      UI_BASE_OPEN_MOVE,      0,                    ENGINE_COMMAND_KIND_COUNT },
+    { UI_BASE_MENU_PEOPLE,   "base_menu.summon",    "base_summon",    UI_BASE_OPEN_SUMMON,    0,                    ENGINE_COMMAND_KIND_COUNT },
     { UI_BASE_MENU_PEOPLE,   "base_menu.search",    "base_search",    UI_BASE_OPEN_COURT,     0,                    ENGINE_COMMAND_KIND_COUNT },
     { UI_BASE_MENU_PEOPLE,   "base_menu.recruit",   "base_recruit",   UI_BASE_OPEN_COURT,     0,                    ENGINE_COMMAND_KIND_COUNT },
     { UI_BASE_MENU_PEOPLE,   "base_menu.reward",    "base_reward",    UI_BASE_OPEN_COURT,     0,                    ENGINE_COMMAND_KIND_COUNT },
     { UI_BASE_MENU_PEOPLE,   "base_menu.give",      "base_give",      UI_BASE_OPEN_COURT,     0,                    ENGINE_COMMAND_KIND_COUNT },
+    { UI_BASE_MENU_PLOT,     "plot_cmd.two_tigers", "base_two_tigers", UI_BASE_OPEN_DIPLOMACY, 0,                   ENGINE_COMMAND_KIND_COUNT },
+    { UI_BASE_MENU_PLOT,     "plot_cmd.drive_tiger", "base_drive_tiger", UI_BASE_OPEN_PLOT,    SIM_PLOT_DRIVE_TIGER, ENGINE_COMMAND_KIND_COUNT },
+    { UI_BASE_MENU_PLOT,     "plot_cmd.rumour",     "base_rumour",    UI_BASE_OPEN_PLOT,      SIM_PLOT_RUMOUR,      ENGINE_COMMAND_KIND_COUNT },
+    { UI_BASE_MENU_RULER,    "ruler.council",       "base_council",   UI_BASE_OPEN_RULER,     0,                    ENGINE_COMMAND_KIND_COUNT },
+    { UI_BASE_MENU_RULER,    "ruler.corps",         "base_corps",     UI_BASE_OPEN_RULER,     0,                    ENGINE_COMMAND_KIND_COUNT },
+    { UI_BASE_MENU_RULER,    "ruler.adviser",       "base_adviser",   UI_BASE_OPEN_RULER,     0,                    ENGINE_COMMAND_KIND_COUNT },
+    { UI_BASE_MENU_RULER,    "posts.title",         "base_posts",     UI_BASE_OPEN_POSTS,     0,                    ENGINE_COMMAND_KIND_COUNT },
+    { UI_BASE_MENU_RULER,    "base_menu.matchmake", "base_matchmake", UI_BASE_OPEN_NO_API,    0,                    ENGINE_COMMAND_KIND_COUNT },
+    { UI_BASE_MENU_RULER,    "exile.title",         "base_exile",     UI_BASE_OPEN_EXILE,     0,                    ENGINE_COMMAND_KIND_COUNT },
+    { UI_BASE_MENU_RULER,    "base_menu.research_ability", "base_research_ability", UI_BASE_OPEN_ABILITIES, 0,      ENGINE_COMMAND_KIND_COUNT },
+    { UI_BASE_MENU_RULER,    "base_menu.train_officer", "base_train_officer", UI_BASE_OPEN_ABILITIES, 0,            ENGINE_COMMAND_KIND_COUNT },
 };
 
 /* Opens the dialog of an item for the selected city. */
@@ -78,6 +99,30 @@ ui_base_open_item(ui_state *ui, const ui_base_item *item, u16 first_officer)
         case UI_BASE_OPEN_RESEARCH:  ui->show_research = true;  ui->research.city = city;  break;
         case UI_BASE_OPEN_SORTIE:    ui->show_sortie = true;    ui->sortie.city = city;    break;
         case UI_BASE_OPEN_TRANSPORT: ui->show_transport = true; ui->transport.city = city; break;
+        case UI_BASE_OPEN_MOVE:
+            ui->show_move_officers = true;
+            ui->move.city   = city;
+            ui->move.target = ENGINE_NO_CITY;
+            ui->move.count  = 0;
+            break;
+        case UI_BASE_OPEN_SUMMON:    ui->show_summon = true; ui->summon.city = city; ui->summon.count = 0; break;
+        case UI_BASE_OPEN_DIPLOMACY: ui->show_diplomacy = true; break;
+        case UI_BASE_OPEN_PLOT:
+            ui->show_plot        = true;
+            ui->plot.city        = city;
+            ui->plot.kind        = item->ui_kind;
+            ui->plot.target_city = ENGINE_NO_CITY;
+            ui->plot.officer     = ENGINE_NO_OFFICER;
+            break;
+        case UI_BASE_OPEN_RULER:     ui->show_ruler = true; break;
+        case UI_BASE_OPEN_POSTS:
+            ui->show_posts         = true;
+            ui->posts.post         = ENGINE_NO_ROW;
+            ui->posts.officer      = ENGINE_NO_OFFICER;
+            ui->posts.staged_count = 0;
+            break;
+        case UI_BASE_OPEN_EXILE:     ui->show_exile = true; ui->exile.officer = ENGINE_NO_OFFICER; break;
+        case UI_BASE_OPEN_ABILITIES: ui->show_abilities = true; break;
         case UI_BASE_OPEN_COMMAND:
             ui->show_command[item->ui_kind] = true;
             ui->commands[item->ui_kind].city = city;
@@ -105,19 +150,23 @@ ui_base_main_item(ui_state *ui, const char *text_id, const char *stable_id, b32 
 internal void
 ui_draw_base_menu(ui_state *ui, engine_api *api, u16 first_officer)
 {
-    static const char *main_text[UI_BASE_MENU_COUNT]   = { 0, "base_menu.city", "base_menu.military", "base_menu.people" };
-    static const char *main_stable[UI_BASE_MENU_COUNT] = { 0, "menu_city", "menu_military", "menu_people" };
+    /* The six main items in the order of ui/city-commands.md. 外交 opens its
+       panel; 計略 and 君主 open a second column (G2-060, G2-065). */
+    static const char *main_text[UI_BASE_MENU_COUNT]   = { 0, "base_menu.city", "base_menu.military", "base_menu.people", "base_menu.plot", "base_menu.ruler" };
+    static const char *main_stable[UI_BASE_MENU_COUNT] = { 0, "menu_city", "menu_military", "menu_people", "menu_plot", "menu_ruler" };
     ImGui::BeginGroup();
     for (u32 menu = UI_BASE_MENU_CITY; menu < UI_BASE_MENU_COUNT; ++menu)
     {
+        if (menu == UI_BASE_MENU_PLOT && ui_base_main_item(ui, "base_menu.diplomacy", "menu_diplomacy", false))
+        {
+            ui->show_diplomacy = true;
+            ui->city.menu = UI_BASE_MENU_NONE;
+        }
         if (ui_base_main_item(ui, main_text[menu], main_stable[menu], ui->city.menu == menu))
         {
             ui->city.menu = (u8)(ui->city.menu == menu ? UI_BASE_MENU_NONE : menu);
         }
     }
-    if (ui_base_main_item(ui, "base_menu.diplomacy", "menu_diplomacy", false)) { ui->show_diplomacy = true; ui->city.menu = UI_BASE_MENU_NONE; }
-    if (ui_base_main_item(ui, "base_menu.plot", "menu_plot", false))           { ui->show_diplomacy = true; ui->city.menu = UI_BASE_MENU_NONE; }
-    if (ui_base_main_item(ui, "base_menu.ruler", "menu_ruler", false))         { ui->show_ruler = true;     ui->city.menu = UI_BASE_MENU_NONE; }
     ImGui::EndGroup();
     if (ui->city.menu == UI_BASE_MENU_NONE || ui->city.menu >= UI_BASE_MENU_COUNT) return;
 

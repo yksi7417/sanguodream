@@ -471,6 +471,8 @@ engine_officer_view(engine *e, officer_component *officer)
     result.sworn_brother_group_head = officer->sworn_brother_group_head;
     result.job_city                 = officer->job_city;
     result.acted                    = officer->acted_turn == e->sim->turn + 1;
+    result.travel_city              = officer->travel_turns ? officer->travel_city : (u8)ENGINE_NO_CITY;
+    result.travel_days              = (u32)officer->travel_turns * CALENDAR_DAYS_PER_TURN;
     return result;
 }
 
@@ -890,6 +892,12 @@ engine_api_can_issue(void *opaque, const engine_command *command)
         {
             sim_sortie_order order = engine_sim_sortie_order(e, &command->sortie, command->kind == ENGINE_COMMAND_TRANSPORT);
             return sim_check_sortie(e->sim, &order, command->kind == ENGINE_COMMAND_TRANSPORT);
+        }
+        case ENGINE_COMMAND_MOVE_OFFICERS:
+        case ENGINE_COMMAND_SUMMON:
+        {
+            sim_move_order order = command->move;
+            return sim_check_move_officers(e->sim, command->kind == ENGINE_COMMAND_SUMMON ? SIM_COMMAND_SUMMON : SIM_COMMAND_MOVE_OFFICERS, &order);
         }
         case ENGINE_COMMAND_MOVE:
         case ENGINE_COMMAND_WAIT:

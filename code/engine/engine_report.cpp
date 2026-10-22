@@ -66,6 +66,10 @@ engine_note_speaker(engine *e, const sim_command *command)
         case SIM_COMMAND_MERCHANT:
         case SIM_COMMAND_PRODUCE:  officer = command->city.officers[0];     break;
         case SIM_COMMAND_RESEARCH: officer = command->research.officers[0]; break;
+        case SIM_COMMAND_FACTION_PLOT:
+        case SIM_COMMAND_DIPLOMACY: officer = command->court.officer;        break;   /* the result comes later with this cause (travel.cpp) */
+        case SIM_COMMAND_MOVE_OFFICERS:
+        case SIM_COMMAND_SUMMON:   officer = command->move.officers[0];     break;
         default: break;
     }
     if (officer == SIM_NO_OFFICER || !command->id) return;

@@ -163,6 +163,7 @@ sim_check_develop_officer(sim_state *sim, city_component *city, officer_componen
     }
     if (officer->acted_turn == sim->turn + 1) return SIM_REFUSAL_OFFICER_ALREADY_ACTED;
     if (officer->job_city != SIM_NO_CITY)     return SIM_REFUSAL_OFFICER_BUSY;
+    if (officer->travel_turns)                return SIM_REFUSAL_OFFICER_BUSY;   /* on the road (travel.cpp) */
     return SIM_REFUSAL_NONE;
 }
 

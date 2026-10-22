@@ -406,6 +406,8 @@ sim_run_calendar(sim_state *sim, u32 cause, sim_event_sink *events)
     sim_run_units_turn(sim, cause, events);
     sim_run_field_turn(sim, cause, events);
     sim_run_officers_turn(sim, cause, events);
+    sim_run_travel(sim, cause, events);     /* the officers on the road (travel.cpp) */
+    sim_run_missions(sim, cause, events);   /* the plots on the road */
     sim_run_durability(sim, cause, events);
     sim_run_disasters_turn(sim, cause, events);
 }

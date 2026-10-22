@@ -29,6 +29,7 @@ ui_label(char *out, u32 out_size, ui_state *ui, const char *text_id, const char 
 #include "ui/ui_combat.cpp"
 #include "ui/ui_content.cpp"  /* M16: before ui_court.cpp, for the portrait of the officer view */
 #include "ui/ui_court.cpp"
+#include "ui/ui_people.cpp"   /* clone gap report 2, group 3 */
 #include "ui/ui_rivals.cpp"
 #include "ui/ui_fidelity.cpp"  /* M13 */
 #include "ui/ui_base_menu.cpp" /* M14: the base command menu of the game mode */
@@ -651,6 +652,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->show_actions)    ui_draw_actions(ui, api);
     if (ui->show_court)      ui_draw_court(ui, api);
     if (ui->show_diplomacy)  ui_draw_diplomacy(ui, api);
+    ui_draw_people_dialogs(ui, api);   /* 移動, 召喚, 官職, 流放, the plots (clone gap report 2, group 3) */
     ui_draw_mini_games(ui, api);   /* the duel and debate screens open when one runs */
     if (ui->show_ruler)      ui_draw_ruler(ui, api);
     if (ui->show_bases)      ui_draw_bases(ui, api);

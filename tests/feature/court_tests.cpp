@@ -423,13 +423,18 @@ feature_faction_plot_tests(test_counts *counts, feature_city_setup *setup)
     engine_check check = feature_court_check(api, ENGINE_COMMAND_FACTION_PLOT, &plot);
     u32 mark = api->ledger_count(e);
     engine_command_result result = api->command_court(e, ENGINE_COMMAND_FACTION_PLOT, &plot);
+    /* G2-065: the plot goes on the road; its result comes at the turn start of the arrival (travel.cpp). */
+    u32 turns = 0;
+    while (turns < 12 && feature_count_events(api, SIM_EVENT_FACTION_PLOT, mark) + feature_count_events(api, SIM_EVENT_FACTION_PLOT_FAILED, mark) == 0 &&
+           feature_next_own_turn(api, setup->force)) turns++;
     sim_event founded = {};
     b32 success = feature_find_event(api, SIM_EVENT_FACTION_FOUNDED, mark, &founded);
     u8 new_owner = ENGINE_NO_FACTION;
     for (u32 index = 0; index < api->city_count(e); ++index) if (api->city_at(e, index).city_id == target_city) new_owner = api->city_at(e, index).owner_force_id;
     TEST_CHECK(counts, target_city != ENGINE_NO_CITY && check.gold == 200 && check.action_points == 30 && result.refusal == SIM_REFUSAL_NONE &&
-                       feature_count_events(api, SIM_EVENT_FACTION_PLOT, mark) == 1 && (check.quantity < 100 || success),
-               "驅虎吞狼: 200 gold, 30 action points; an ambitious governor with low loyalty founds a faction");
+                       feature_count_events(api, SIM_EVENT_FACTION_PLOT, mark) + feature_count_events(api, SIM_EVENT_FACTION_PLOT_FAILED, mark) == 1 &&
+                       (check.quantity < 100 || success),
+               "驅虎吞狼: 200 gold, 30 action points; an ambitious governor with low loyalty founds a faction at the arrival of the plot");
     TEST_CHECK(counts, !success || (new_owner == founded.faction && new_owner != old_owner && api->force_ruler(e, new_owner) != ENGINE_NO_OFFICER),
                "the governor rules the new faction and its city");
 }

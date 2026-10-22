@@ -188,6 +188,11 @@ enum sim_event_kind
     /* The long orders of a unit (G2-052, G2-058) */
     SIM_EVENT_UNIT_ORDERED,         /* detail = unit; delta = the sim_unit_order_kind */
     SIM_EVENT_UNIT_ORDER_DONE,      /* detail = unit; delta = the sim_unit_order_kind that ended */
+    /* The journeys of officers (travel.cpp; G2-036, G2-037, G2-065) */
+    SIM_EVENT_OFFICER_MOVED,        /* subject = officer; detail = the city that it goes to; delta = the days */
+    SIM_EVENT_OFFICER_ARRIVED,      /* subject = officer; detail = the city */
+    SIM_EVENT_MISSION_STARTED,      /* subject = the officer of a plot; detail = the target base; delta = the days */
+    SIM_EVENT_FACTION_PLOT_FAILED,  /* subject = the target city; faction; detail = the kind; the cause is the command of the plot */
     SIM_EVENT_COUNT
 };
 
@@ -295,6 +300,8 @@ enum sim_command_kind
     SIM_COMMAND_DRIVE_TARGET,    /* 驅趕: unit = the unit, target = the enemy unit */
     SIM_COMMAND_FOLLOW,          /* follow: unit = the unit, target = the own unit */
     SIM_COMMAND_DELEGATE,        /* 委任部隊行動: the units with a long order act now */
+    SIM_COMMAND_MOVE_OFFICERS,   /* 移動: officers of the city go to another own city (travel.cpp) */
+    SIM_COMMAND_SUMMON,          /* 召喚: officers of other own cities come to the city */
     SIM_COMMAND_COUNT
 };
 
@@ -398,6 +405,17 @@ struct sim_court_order
     u32 months;                             /* 停戰協定 */
 };
 
+/* The orders 移動 and 召喚 (city-commands.md, "Personnel commands";
+   travel.cpp): the officers of the city go to another own city, or
+   officers of other own cities come to the city. */
+#define SIM_MOVE_OFFICERS 8
+struct sim_move_order
+{
+    u8  city_id;                            /* the city of the command */
+    u8  target_city;                        /* 移動: the own city that the officers go to */
+    u16 officers[SIM_MOVE_OFFICERS];        /* SIM_NO_OFFICER for an empty place */
+};
+
 enum sim_match_kind { SIM_MATCH_SWORN, SIM_MATCH_MARRIAGE, SIM_MATCH_KIND_COUNT };
 
 enum sim_diplomacy_kind
@@ -494,6 +512,7 @@ struct sim_command
     sim_corps_order    corps;     /* SIM_COMMAND_CORPS */
     sim_m8_order       m8;        /* SIM_COMMAND_ADVISER .. SIM_COMMAND_TRIGGER_EVENT */
     sim_court_order    court;     /* SIM_COMMAND_SEARCH .. SIM_COMMAND_FACTION_PLOT */
+    sim_move_order     move;      /* SIM_COMMAND_MOVE_OFFICERS, SIM_COMMAND_SUMMON */
     sim_mini_order     mini;      /* SIM_COMMAND_DUEL_ACTION .. SIM_COMMAND_DEBATE_ACTION */
     sim_develop_order  develop;   /* SIM_COMMAND_DEVELOP */
     sim_city_order     city;      /* SIM_COMMAND_PATROL .. SIM_COMMAND_PRODUCE */
@@ -622,6 +641,8 @@ struct officer_component
     u32 acted_turn;                      /* sim turn + 1 of the last command; 0 = never */
     u8  job_city;                        /* the city of the develop job, SIM_NO_CITY = free */
     u8  job_slot;
+    u8  travel_city;                     /* 移動, 召喚 (travel.cpp): the city that the officer goes to */
+    u8  travel_turns;                    /* the turns until the arrival; 0 = not on the road */
     /* M7: character, state and relations (officers-and-relations.md). The
        save fields of loyalty, ambition, justice, personality, growth, sex
        and health are not decoded: they start at assumed values (Q-177). */
@@ -1064,6 +1085,19 @@ struct sim_base_state
     hex_coord hex;                       /* the base hex of the real map (M10); else near its owner city */
 };
 
+/* A plot on the road (travel.cpp): its order, its chance from the check,
+   and the turns until the arrival. The result comes then. */
+#define SIM_MISSION_CAPACITY 32
+struct sim_mission
+{
+    b32             active;
+    sim_court_order order;
+    u8              force;
+    u8              turns_left;
+    u32             chance;              /* percent */
+    u32             command_id;          /* the command of the plot: the cause of its result */
+};
+
 #define SIM_CORPS_CAPACITY 8             /* corps 0 is the corps of the ruler */
 
 /* A delegated corps (factions-corps-and-posts.md, "Delegated corps"). */
@@ -1212,6 +1246,10 @@ struct sim_state
     sim_corps      corps[SIM_FORCE_CAPACITY][SIM_CORPS_CAPACITY];
     u32            corps_ap[SIM_FORCE_CAPACITY][SIM_CORPS_CAPACITY];
     u16            adviser[SIM_FORCE_CAPACITY];
+    sim_mission    missions[SIM_MISSION_CAPACITY];       /* the plots on the road (travel.cpp) */
+    u8             region_links[SIM_MAP_REGION_CAPACITY][SIM_MAP_REGION_CAPACITY];   /* 1 when two regions touch (sim_travel_days) */
+    b32            region_links_built;
+    u32            region_links_version;
     sim_emperor    emperor;
     sim_relic      relics[SIM_RELIC_COUNT];
     sim_pending_event pending;
@@ -1417,6 +1455,14 @@ internal void             sim_end_unit_order(sim_state *sim, u32 unit_id, u32 ca
 internal b32              sim_unit_step(sim_state *sim, u32 unit_id, hex_coord goal, b32 stop_before_goal, u32 cause, sim_event_sink *events);
 internal void             sim_run_unit_orders(sim_state *sim, u8 force, u32 cause, sim_event_sink *events);
 internal b32              sim_ai_attack(sim_state *sim, u32 unit_id, hex_coord hex, sim_event_sink *events);   /* ai.cpp */
+/* The journeys of officers and the missions of the plots (travel.cpp). */
+internal u32              sim_travel_days(sim_state *sim, u8 from_base, u8 to_base);
+internal sim_check        sim_check_move_officers(sim_state *sim, sim_command_kind kind, sim_move_order *order);
+internal void             sim_move_officers_command(sim_state *sim, sim_command command, sim_event_sink *events);
+internal void             sim_run_travel(sim_state *sim, u32 cause, sim_event_sink *events);
+internal b32              sim_start_mission(sim_state *sim, sim_court_order *order, u8 force, u32 chance, u32 cause, sim_event_sink *events);
+internal void             sim_run_missions(sim_state *sim, u32 cause, sim_event_sink *events);
+internal void             sim_resolve_plot(sim_state *sim, sim_mission *mission, sim_event_sink *events);   /* diplomacy.cpp */
 internal sim_check        sim_check_sortie(sim_state *sim, sim_sortie_order *order, b32 transport);
 internal void             sim_sortie(sim_state *sim, sim_command command, sim_event_sink *events);
 internal sim_check        sim_check_unit_order(sim_state *sim, sim_command_kind kind, sim_unit_order *order, memory_arena *scratch);

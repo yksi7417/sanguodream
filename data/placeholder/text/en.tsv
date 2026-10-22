@@ -1343,3 +1343,34 @@ unit_target.days	Days to arrive	預定抵達時間
 unit_target.grain	Days of grain	所有兵糧
 unit_target.bases	Bases on the way	通過據點
 unit_target.day_unit	 days	the unit after a number of days
+move.title	Move	G2-036: 移動 of officers to another base
+move.target	Target base	移動目標
+move.days	Days to arrive	抵達日數
+move.executors	Officers	執行武將
+summon.title	Summon	G2-037: 召喚
+posts.title	Posts	G2-060: 官職
+posts.post	Post	官職名
+posts.merit	Merit	功績
+posts.soldiers	Command	指揮
+posts.effect	Effect	效果
+posts.holder	Officer	武將
+posts.free_officers	Officers without a post	the right table of 官職
+posts.appoint	Appoint	任命
+posts.dismiss	Dismiss	免職
+posts.clear_all	Clear all	全解除
+posts.reset	Reset	回復原狀
+exile.title	Exile	G2-060: 流放
+exile.officer	Officer	對象武將
+plot.target	Target base	G2-065: 對象據點
+plot.governor	Governor	太守
+plot.active	Active	現役
+plot.order	Order	治安
+plot.days	Days	日數
+plot.executor	Officer	執行武將
+base_menu.matchmake	Matchmaking	君主 submenu: 仲介
+base_menu.research_ability	Research ability	君主 submenu: 研究能力
+base_menu.train_officer	Train officer	君主 submenu: 培育武將
+log.officer_moved	{subject} leaves for another base	G2-036
+log.officer_arrived	{subject} arrives	G2-036: the log line of the original names the base
+log.faction_plot	{speaker}: the plot on {subject} succeeds	G2-065
+log.faction_plot_failed	{speaker}: the plot on {subject} fails	G2-065

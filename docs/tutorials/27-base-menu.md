@@ -18,10 +18,18 @@ In the game mode the City dialog shows six main items in a column:
 - 人材: 移動, 召喚, 探索人材, 登庸武將, 褒賞, 授與沒收;
 - 外交, 計略 and 君主.
 
-A click on 都市, 軍事 or 人材 opens its submenu at the right. The clicked
-button stays highlighted. A second click closes the submenu. The spec
-did not observe the submenus of 外交, 計略 and 君主. Thus these items open
-the Diplomacy panel and the Ruler panel directly.
+A click on 都市, 軍事, 人材, 計略 or 君主 opens its submenu at the right.
+The clicked button stays highlighted. A second click closes the submenu.
+外交 opens the Diplomacy panel directly. The second clone gap report
+(G2-060, G2-065) gave the submenus of 計略 and 君主:
+- 計略: 二虎競食 (the Diplomacy panel), 驅虎吞狼 and 流言 (the plot dialog
+  of ui_people.cpp with the target base list);
+- 君主: 評定, 軍團 and 軍師 (the Ruler panel), 官職 (the post window), 仲介
+  (grey), 流放 (the exile dialog), 研究能力 and 培育武將 (the abilities
+  window).
+The items 移動 and 召喚 of 人材 open the dialogs of ui_people.cpp (G2-036,
+G2-037). The officers travel for the days of the journey, and the
+engine gives the days through travel_days (assumed rule, Q-228).
 
 The table ui_base_items gives each submenu item: its main item, its text,
 its stable id and the dialog that it opens. A click opens that dialog for
@@ -29,8 +37,8 @@ the selected city and closes the submenu. The dialog then proposes its
 officers and sends the command, as in the debug layout.
 
 An item is grey in two cases:
-- The engine has no command for it. 移動 and 召喚 are grey, because the
-  spec gives no travel time for them.
+- The engine has no command for it. 仲介 is grey, because the clone has
+  no dialog for it yet.
 - can_issue refuses the trial order for a cost: the action points, the
   gold or the technique points. The tooltip names the reason.
 

@@ -538,58 +538,80 @@ sim_found_faction(sim_state *sim, city_component *city, officer_component *gover
     sim_emit(events, event);
 }
 
+/* The order of a plot: the officer acts, the city pays, and the plot goes
+   on the road (travel.cpp). The result comes at the arrival (G2-065). */
 internal void
 sim_faction_plot(sim_state *sim, sim_command command, sim_event_sink *events)
 {
     sim_court_order *order = &command.court;
     sim_check check = sim_check_faction_plot(sim, order);
     if (check.refusal != SIM_REFUSAL_NONE) return;
-    sim_rules *rules = &sim->content.rules;
     city_component *city = sim_find_city(sim, order->city_id);
     u8 force = city->owner_force_id;
     officer_component *actor = sim_find_officer(sim, order->officer);
     actor->acted_turn = sim->turn + 1;
     sim_pay_command(sim, city, &check, command.id, events);
-    b32 success = check.quantity >= 100 || sim_random_below(sim, 100) < check.quantity;
-    sim_event event = sim_event_make(sim, SIM_EVENT_FACTION_PLOT, command.id);
+    sim_start_mission(sim, order, force, check.quantity, command.id, events);
+}
+
+/* The result of a plot at the arrival of its officer. The events carry the
+   command of the plot as their cause, so that the report names the
+   officer. A target that changed hands on the way gives a failure. */
+internal void
+sim_resolve_plot(sim_state *sim, sim_mission *mission, sim_event_sink *events)
+{
+    sim_court_order *order = &mission->order;
+    sim_rules *rules = &sim->content.rules;
+    u8 force = mission->force;
+    u32 cause = mission->command_id;
+    city_component *target = sim_find_city(sim, order->target_city);
+    b32 valid = order->kind == SIM_PLOT_TWO_TIGERS ? sim_faction_exists(sim, order->force) && sim_faction_exists(sim, order->force_2)
+                                                   : target && target->owner_force_id != force && target->owner_force_id != SIM_NO_FORCE;
+    b32 success = valid && (mission->chance >= 100 || sim_random_below(sim, 100) < mission->chance);
+    sim_event event = sim_event_make(sim, success ? SIM_EVENT_FACTION_PLOT : SIM_EVENT_FACTION_PLOT_FAILED, cause);
     event.faction = force;
     event.detail  = order->kind;
     event.delta   = success ? 1 : 0;
+    event.subject = target ? sim_city_entity(sim, target->city_id) : 0;
     event.assumed = true;
     sim_emit(events, event);
-    city_component *target = sim_find_city(sim, order->target_city);
+    if (!valid) return;
     if (!success)
     {
         u8 victim = order->kind == SIM_PLOT_TWO_TIGERS ? order->force : target->owner_force_id;
-        sim_change_friendliness(sim, force, victim, -(s32)rules->diplomacy_fail_loss, command.id, events);
-        if (order->kind == SIM_PLOT_TWO_TIGERS) sim_change_friendliness(sim, force, order->force_2, -(s32)rules->diplomacy_fail_loss, command.id, events);
+        sim_change_friendliness(sim, force, victim, -(s32)rules->diplomacy_fail_loss, cause, events);
+        if (order->kind == SIM_PLOT_TWO_TIGERS) sim_change_friendliness(sim, force, order->force_2, -(s32)rules->diplomacy_fail_loss, cause, events);
     }
     else if (order->kind == SIM_PLOT_TWO_TIGERS)
     {
-        sim_change_friendliness(sim, order->force, order->force_2, -(s32)rules->two_tigers_loss, command.id, events);
+        sim_change_friendliness(sim, order->force, order->force_2, -(s32)rules->two_tigers_loss, cause, events);
         if (sim_relation(sim, order->force, order->force_2) == RELATION_ALLIANCE)
         {
-            sim_set_relation(sim, order->force, order->force_2, RELATION_NONE, 0, command.id, events);
+            sim_set_relation(sim, order->force, order->force_2, RELATION_NONE, 0, cause, events);
         }
     }
     else if (order->kind == SIM_PLOT_DRIVE_TIGER)
     {
-        sim_found_faction(sim, target, sim_find_officer(sim, sim_city_governor(sim, target->city_id)), command.id, events);
+        officer_component *governor = sim_find_officer(sim, sim_city_governor(sim, target->city_id));
+        if (governor && governor->status != OFFICER_STATUS_RULER && sim_free_force_id(sim) != SIM_NO_FORCE)
+        {
+            sim_found_faction(sim, target, governor, cause, events);
+        }
     }
     else
     {
         u32 lost = Minimum((u32)target->public_order, rules->rumour_order_loss);
         target->public_order = (u8)(target->public_order - lost);
-        if (lost) sim_emit_city(sim, SIM_EVENT_ORDER_DROPPED, target, -(s32)lost, 0, true, command.id, events);
+        if (lost) sim_emit_city(sim, SIM_EVENT_ORDER_DROPPED, target, -(s32)lost, 0, true, cause, events);
         for (u32 index = 0; index < sim->officers.count; ++index)
         {
             officer_component *officer = sim->officers.data + index;
             if (sim_officer_is_active(officer) && officer->force_id == target->owner_force_id && officer->current_position == target->city_id &&
                 officer->status != OFFICER_STATUS_RULER)
             {
-                sim_change_loyalty(sim, officer, -(s32)rules->rumour_loyalty_loss, command.id, events);
+                sim_change_loyalty(sim, officer, -(s32)rules->rumour_loyalty_loss, cause, events);
             }
         }
     }
-    sim_reward_officer(sim, force, actor->officer_id, false, CONTENT_ABILITY_INTELLECT, command.id, events);
+    if (sim_find_officer(sim, order->officer)) sim_reward_officer(sim, force, order->officer, false, CONTENT_ABILITY_INTELLECT, cause, events);
 }

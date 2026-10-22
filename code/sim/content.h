@@ -729,6 +729,7 @@ struct sim_rules
     u32 skill_ambush_critical, skill_long_plot, skill_surprise, skill_sweep, skill_awe, skill_archer;
     /* M7: officers, personnel, posts, duel, debate, diplomacy, faction plots */
     u32 ap_search, ap_recruit, ap_reward, ap_give_item, ap_diplomacy, ap_faction_plot;
+    u32 ap_move_officers, ap_summon;   /* 移動, 召喚 (travel.cpp) */
     u32 reward_gold, reward_loyalty, reward_compatibility_divisor;
     u32 search_base, search_politics_percent, search_gold_chance, search_gold, search_debate_intellect;
     u32 recruit_base, recruit_charm_percent, recruit_captive_bonus, recruit_relation_bonus, recruit_new_loyalty;

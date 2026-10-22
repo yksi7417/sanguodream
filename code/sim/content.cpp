@@ -381,6 +381,7 @@ global_variable content_rule_field content_rule_fields[] = {
     CONTENT_RULE("skill.archer",          skill_archer),
     /* M7 */
     CONTENT_RULE("ap.search", ap_search), CONTENT_RULE("ap.recruit", ap_recruit), CONTENT_RULE("ap.reward", ap_reward),
+    CONTENT_RULE("ap.move", ap_move_officers), CONTENT_RULE("ap.summon", ap_summon),
     CONTENT_RULE("ap.give_item", ap_give_item), CONTENT_RULE("ap.diplomacy", ap_diplomacy), CONTENT_RULE("ap.faction_plot", ap_faction_plot),
     CONTENT_RULE("reward.gold", reward_gold), CONTENT_RULE("reward.loyalty", reward_loyalty),
     CONTENT_RULE("reward.compatibility_divisor", reward_compatibility_divisor),

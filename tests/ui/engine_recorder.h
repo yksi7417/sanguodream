@@ -63,6 +63,7 @@ enum recorder_call_kind
     RECORDER_UNIT_AT_HEX,
     RECORDER_REACHABLE,
     RECORDER_PATH_TO,              /* G2-052: the plan of a unit to a hex */
+    RECORDER_TRAVEL_DAYS,          /* G2-036: the days between two bases */
     RECORDER_UNIT_VALUES,
     RECORDER_SORTIE_PROPOSAL,
     RECORDER_TACTIC_KIND_COUNT,
@@ -175,6 +176,8 @@ enum recorder_call_kind
     RECORDER_COMMAND_DRIVE,
     RECORDER_COMMAND_FOLLOW,
     RECORDER_COMMAND_DELEGATE,
+    RECORDER_COMMAND_MOVE_OFFICERS, /* G2-036: arg = the city */
+    RECORDER_COMMAND_SUMMON,        /* G2-037 */
     RECORDER_COMMAND_ATTACK,
     RECORDER_COMMAND_JOINT_ATTACK,
     RECORDER_COMMAND_TACTIC,
@@ -264,6 +267,7 @@ struct engine_recorder
     hex_coord     reach_cells[3];
     hex_coord     path_cells[2];      /* the answer of path_to */
     u8            unit_order;         /* the long order of both units (sim_unit_order_kind) */
+    engine_move_order last_move;      /* the last 移動 or 召喚 */
     u32           reach_costs[3];
     u8            fire[64];           /* the fire_view answer: one burning cell */
     b32           duel_active;        /* M7: the duel_view and debate_view answers */
@@ -1350,6 +1354,26 @@ internal engine_debate_view recorder_debate_view(void *o)
     }
     return view;
 }
+/* G2-036, G2-037: one command for the officers of the order; the days between two bases are 10. */
+internal engine_command_result recorder_command_move_officers(void *o, const engine_move_order *order)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_COMMAND_MOVE_OFFICERS, order->city_id);
+    r->last_move = *order;
+    return recorder_unit_result(r);
+}
+internal engine_command_result recorder_command_summon(void *o, const engine_move_order *order)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_COMMAND_SUMMON, order->city_id);
+    r->last_move = *order;
+    return recorder_unit_result(r);
+}
+internal u32 recorder_travel_days(void *o, u8 from, u8 to)
+{
+    recorder_record((engine_recorder *)o, RECORDER_TRAVEL_DAYS, (u32)from | ((u32)to << 8));
+    return from == to ? 0 : 10;
+}
 internal engine_command_result recorder_command_court(void *o, engine_command_kind kind, const engine_court_order *order)
 {
     engine_recorder *r = (engine_recorder *)o;
@@ -1989,6 +2013,9 @@ recorder_make_api(engine_recorder *r)
     api.duel_view             = recorder_duel_view;
     api.debate_view           = recorder_debate_view;
     api.command_court         = recorder_command_court;
+    api.command_move_officers = recorder_command_move_officers;
+    api.command_summon        = recorder_command_summon;
+    api.travel_days           = recorder_travel_days;
     api.command_duel          = recorder_command_duel;
     api.command_duel_action   = recorder_command_duel_action;
     api.command_debate_action = recorder_command_debate_action;

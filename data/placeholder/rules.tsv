@@ -136,6 +136,8 @@ ap.reward	5	documented	city-commands.md, 褒賞: 5 AP for each officer
 ap.give_item	10	documented	city-commands.md, 授與: 10 AP
 ap.diplomacy	30	documented	city-commands.md, each diplomacy command: 30 AP
 ap.faction_plot	30	documented	city-commands.md, 二虎競食, 驅虎吞狼, 流言: 30 AP
+ap.move	20	documented	city-commands.md, 移動: 20 AP for each order (G2-036)
+ap.summon	20	documented	city-commands.md, 召喚: 20 AP
 reward.gold	100	documented	city-commands.md, 褒賞: 100 gold for each officer
 reward.loyalty	10	assumed	the loyalty that one reward gives at the ruler's compatibility (Q-028)
 reward.compatibility_divisor	15	assumed	one loyalty less for each 15 of compatibility distance to the ruler (Q-028)

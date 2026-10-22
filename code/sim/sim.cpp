@@ -307,6 +307,8 @@ sim_apply(sim_state *sim, sim_command command, sim_event_sink *events)
         case SIM_COMMAND_DRIVE_TARGET:
         case SIM_COMMAND_FOLLOW:
         case SIM_COMMAND_DELEGATE:     sim_long_order(sim, command, events);   break;   /* orders.cpp */
+        case SIM_COMMAND_MOVE_OFFICERS:
+        case SIM_COMMAND_SUMMON:       sim_move_officers_command(sim, command, events); break;   /* travel.cpp */
         case SIM_COMMAND_ATTACK:       sim_attack(sim, command, events);       break;
         case SIM_COMMAND_JOINT_ATTACK: sim_joint_attack(sim, command, events); break;
         case SIM_COMMAND_TACTIC:       sim_use_tactic(sim, command, events);   break;
@@ -713,6 +715,10 @@ sim_event_name(sim_event_kind kind)
         case SIM_EVENT_AID_LEFT:                return "aid_left";
         case SIM_EVENT_UNIT_ORDERED:            return "unit_ordered";
         case SIM_EVENT_UNIT_ORDER_DONE:         return "unit_order_done";
+        case SIM_EVENT_OFFICER_MOVED:           return "officer_moved";
+        case SIM_EVENT_OFFICER_ARRIVED:         return "officer_arrived";
+        case SIM_EVENT_MISSION_STARTED:         return "mission_started";
+        case SIM_EVENT_FACTION_PLOT_FAILED:     return "faction_plot_failed";
         case SIM_EVENT_FACTION_PLOT:            return "faction_plot";
         case SIM_EVENT_FACTION_FOUNDED:         return "faction_founded";
         case SIM_EVENT_ORDER_DROPPED:           return "order_dropped";
@@ -774,6 +780,8 @@ sim_command_name(sim_command_kind kind)
         case SIM_COMMAND_DRIVE_TARGET:    return "drive_target";
         case SIM_COMMAND_FOLLOW:          return "follow";
         case SIM_COMMAND_DELEGATE:        return "delegate";
+        case SIM_COMMAND_MOVE_OFFICERS:   return "move_officers";
+        case SIM_COMMAND_SUMMON:          return "summon";
         case SIM_COMMAND_WAIT:            return "wait";
         case SIM_COMMAND_RETREAT:         return "retreat";
         case SIM_COMMAND_SUPPLY:          return "supply";
@@ -900,6 +908,7 @@ sim_refusal_name(sim_refusal refusal)
 #include "sim/events.cpp"
 #include "sim/ai.cpp"
 #include "sim/orders.cpp"
+#include "sim/travel.cpp"
 #include "sim/pk.cpp"
 #include "sim/history.cpp"
 #include "sim/save_map.cpp"

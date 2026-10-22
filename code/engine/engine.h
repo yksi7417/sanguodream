@@ -59,6 +59,8 @@ struct engine_officer
     u16 sworn_brother_group_head;   /* 0xFFFF = none */
     u8  job_city;                   /* the city of a develop job; ENGINE_NO_CITY if free */
     b32 acted;                      /* the officer gave a command in this turn */
+    u8  travel_city;                /* on the road after 移動 or 召喚: the city; ENGINE_NO_CITY if not */
+    u32 travel_days;                /* the days until the arrival; 0 if not on the road */
 };
 
 /* A city of the loaded game, as a front end sees it. */
@@ -231,6 +233,8 @@ enum engine_command_kind
     ENGINE_COMMAND_DESTROY,        /* the long orders (G2-052): unit and target_unit */
     ENGINE_COMMAND_DRIVE,
     ENGINE_COMMAND_FOLLOW,
+    ENGINE_COMMAND_MOVE_OFFICERS,  /* 移動 (G2-036): the order is move */
+    ENGINE_COMMAND_SUMMON,         /* 召喚 (G2-037) */
     ENGINE_COMMAND_KIND_COUNT
 };
 
@@ -254,6 +258,7 @@ struct engine_command
     u8  row;                                /* ENGINE_COMMAND_TACTIC, _PLOT, _BUILD: the row of its table; DUEL_ACTION, DEBATE_ACTION: the action */
     u8  value;                              /* ENGINE_COMMAND_DUEL_ACTION, DEBATE_ACTION: the policy, special, place or choice */
     sim_court_order court;                  /* ENGINE_COMMAND_SEARCH .. ENGINE_COMMAND_FACTION_PLOT */
+    sim_move_order  move;                   /* ENGINE_COMMAND_MOVE_OFFICERS, ENGINE_COMMAND_SUMMON */
 };
 
 /* The answer of can_issue: the refusal reason, or SIM_REFUSAL_NONE with
@@ -753,6 +758,8 @@ struct engine_ancient
 
 /* The order of the personnel, court, diplomacy and plot commands. */
 typedef sim_court_order engine_court_order;
+/* The order of 移動 and 召喚 (travel.cpp; G2-036, G2-037). */
+typedef sim_move_order engine_move_order;
 
 /* The M7 state of an officer (officers-and-relations.md). */
 struct engine_officer_detail
@@ -1223,6 +1230,10 @@ typedef engine_debate_view    engine_debate_view_fn(void *engine);
    court order names the city of the acting officer. kind: the
    ENGINE_COMMAND_SEARCH .. ENGINE_COMMAND_FACTION_PLOT command. */
 typedef engine_command_result engine_command_court_fn(void *engine, engine_command_kind kind, const engine_court_order *order);
+/* 移動 and 召喚 (travel.cpp), and the days of a journey between two bases
+   (抵達日數; assumed, Q-228). */
+typedef engine_command_result engine_command_move_officers_fn(void *engine, const engine_move_order *order);
+typedef u32                   engine_travel_days_fn(void *engine, u8 from_base, u8 to_base);
 typedef engine_command_result engine_command_duel_fn(void *engine, u32 unit_id, s32 q, s32 r);          /* 單挑 */
 typedef engine_command_result engine_command_mini_fn(void *engine, u8 action, u8 value);               /* sim_duel_action, sim_debate_action */
 /* Test and editor commands. They ledger nothing, except the debate that
@@ -1644,6 +1655,9 @@ struct engine_api
     engine_duel_view_fn             *duel_view;
     engine_debate_view_fn           *debate_view;
     engine_command_court_fn         *command_court;
+    engine_command_move_officers_fn *command_move_officers;   /* 移動 (G2-036) */
+    engine_command_move_officers_fn *command_summon;          /* 召喚 (G2-037) */
+    engine_travel_days_fn           *travel_days;
     engine_command_duel_fn          *command_duel;
     engine_command_mini_fn          *command_duel_action;
     engine_command_mini_fn          *command_debate_action;

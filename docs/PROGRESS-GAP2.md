@@ -18,7 +18,11 @@ task reads it at the start of each run. The order of the work is section
 | G2-042 | After 決定 of 出征 the new unit is selected and its range shows. A left click on the plate of a unit is a click on its hex. A click on an own unit with no selection selects it. | group 2 | ui |
 | G2-052 | A left click on an enemy unit while an own unit is selected opens 殲滅 and 驅趕, with the panel 預定抵達時間, 所有兵糧 and 通過據點. 殲滅 marches on the target and attacks it in the same turn when it is in reach, then at each 進行 until it is gone. The plate shows 委. A left click on an own unit asks for the follow order with 是 and 否. | group 2 | feature/orders, ui |
 | G2-056 | A land unit enters a river hex as a 走舸 at the cost of the boat row. The far-hex order 移動 takes it onto the river over several turns. | group 2 | feature/orders |
-| G2-058 | A left click on a hex out of the range opens 移動 (and 設置, grey) with the days to arrive. 移動 moves the unit to the end of its range in the same turn, marks it 委, and moves it on at each 進行 until it arrives. 委任部隊行動 runs the steps now and is white when a unit has an order. | group 2 | feature/orders, feature/march, ui |
+| G2-058 | A left click on a hex out of the range opens 移動 (and 設置, grey) with the days to arrive. 移動 moves the unit to the end of its range in the same turn, marks it 委, and moves it on at each 進行 until it arrives. 委任部隊行動 runs the steps now and is white when a unit has an order. | 3a621c8 | feature/orders, feature/march, ui |
+| G2-036 | 人材 > 移動 opens a dialog with the target city and its days, the free officers of the city with check marks, and 行動力 20. The officers travel for the days and arrive at a turn start, with a log line. The days are 10 for each city region that the journey enters (assumed, Q-228): 江陵 to 江夏 gives 10, as the report. | group 3 | feature/people, ui |
+| G2-037 | 人材 > 召喚 opens a dialog with the officers of the other cities of the faction, their base and days, and 行動力 20. The officers travel to the city. | group 3 | feature/people, ui |
+| G2-060 | 君主 opens a second column: 評定, 軍團, 軍師, 官職, 仲介 (grey), 流放, 研究能力, 培育武將. 官職 opens a window with the posts (官職名, 功績, 指揮, 效果, 武將), the officers without a post, 任命, 免職, 全解除, 回復原狀 and 決定. The clone selects a post and an officer in place of a drag. 流放 opens a list of the officers. 研究能力 and 培育武將 open the abilities window. | group 3 | ui |
+| G2-065 | 計略 opens a second column: 二虎競食, 驅虎吞狼, 流言. 驅虎吞狼 and 流言 open a dialog with the bases of the other forces (據點, 太守, 現役, 治安, 日數), one executor from the free officers of the city in the order of 智力, the gold, the days and 行動力. The plot goes on the road for the days, and the result comes at the turn start of the arrival with a log line that names the officer and the base. | group 3 | feature/people, feature/court, ui |
 
 ## In progress
 
@@ -29,8 +33,11 @@ task reads it at the start of each run. The order of the work is section
 - Group 2 has no open work. In the original, 殲滅 used a tactic (G2-052).
   The long order of the clone uses the normal attack of the class. The
   rule that picks the tactic is a question below.
-- Next: group 3, the commands that the clone lacks (G2-036, G2-037,
-  G2-060, G2-065).
+- Group 3 has no open work. 仲介 stays grey. The 移動 and 召喚 dialogs
+  list cities only, not ports and passes. The log line of an arrival
+  names the officer but not the base.
+- Next: group 4, the numbers (G2-005, G2-011, G2-013, G2-014, G2-025,
+  G2-028, G2-049) and the table of technique points.
 
 ## Questions for the observer
 
@@ -79,3 +86,20 @@ task reads it at the start of each run. The order of the work is section
   path over the terrain and treats own cities and bases as waypoints
   (Q-227). Does the unit of the original stop in an own base on the
   way, as a move of one turn does?
+- G2-036, G2-063, G2-065, the days of a journey (抵達日數). The spec
+  gives no rule. The clone counts 10 days for each city region that
+  the journey enters. Two regions are neighbours when they touch, and
+  the regions of gates and ports on the way are free (Q-228). This
+  gives 10 days for 江陵 to 江夏, as the report. The report also gives
+  10 for 新野 to 汝南, and 50 for 襄陽 to the capital of 袁紹. Please read
+  the 日數 column of the 移動 dialog of 江陵 for all bases of 劉表. Please
+  also read the 日數 of the 流言 dialog of 新野 for five bases. Then the
+  builder can check the rule against more than three numbers.
+- G2-065, the result of a plot. The clone rolls the chance at the
+  arrival, with the chance of the order. Does the original roll at the
+  order or at the arrival? A plot on a base that changed hands on the
+  way fails in the clone.
+- G2-060, the window 官職. The original drags an officer onto a row.
+  The clone selects a row and an officer, then clicks 任命. What does
+  the original do when the player drops an officer on a row with a
+  holder: a swap, a refusal, or a dismissal?

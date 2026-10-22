@@ -113,6 +113,12 @@ enum ui_base_menu_expect
     UI_EXPECT_COURT,
     UI_EXPECT_DIPLOMACY,
     UI_EXPECT_RULER,
+    UI_EXPECT_MOVE,        /* G2-036: show_move_officers */
+    UI_EXPECT_SUMMON,      /* G2-037 */
+    UI_EXPECT_PLOT,        /* G2-065: show_plot with the kind ui_kind */
+    UI_EXPECT_POSTS,       /* G2-060 */
+    UI_EXPECT_EXILE,
+    UI_EXPECT_ABILITIES,
     UI_EXPECT_GREY
 };
 
@@ -136,15 +142,20 @@ global_variable ui_base_menu_case ui_base_menu_cases[] = {
     { "base_menu_military_train_opens_its_dialog",   "###menu_military",  "###base_train",     UI_EXPECT_COMMAND,   UI_COMMAND_TRAIN },
     { "base_menu_military_sortie_opens_its_dialog",  "###menu_military",  "###base_sortie",    UI_EXPECT_SORTIE,    0 },
     { "base_menu_military_transport_opens_its_dialog", "###menu_military", "###base_transport", UI_EXPECT_TRANSPORT, 0 },
-    { "base_menu_people_move_is_grey",               "###menu_people",    "###base_move",      UI_EXPECT_GREY,      0 },
-    { "base_menu_people_summon_is_grey",             "###menu_people",    "###base_summon",    UI_EXPECT_GREY,      0 },
+    { "base_menu_people_move_opens_its_dialog",      "###menu_people",    "###base_move",      UI_EXPECT_MOVE,      0 },
+    { "base_menu_people_summon_opens_its_dialog",    "###menu_people",    "###base_summon",    UI_EXPECT_SUMMON,    0 },
     { "base_menu_people_search_opens_the_court",     "###menu_people",    "###base_search",    UI_EXPECT_COURT,     0 },
     { "base_menu_people_recruit_opens_the_court",    "###menu_people",    "###base_recruit",   UI_EXPECT_COURT,     0 },
     { "base_menu_people_reward_opens_the_court",     "###menu_people",    "###base_reward",    UI_EXPECT_COURT,     0 },
     { "base_menu_people_give_opens_the_court",       "###menu_people",    "###base_give",      UI_EXPECT_COURT,     0 },
     { "base_menu_diplomacy_opens_its_panel",         "###menu_diplomacy", "###menu_diplomacy", UI_EXPECT_DIPLOMACY, 0 },
-    { "base_menu_plot_opens_the_diplomacy_panel",    "###menu_plot",      "###menu_plot",      UI_EXPECT_DIPLOMACY, 0 },
-    { "base_menu_ruler_opens_its_panel",             "###menu_ruler",     "###menu_ruler",     UI_EXPECT_RULER,     0 },
+    { "base_menu_plot_two_tigers_opens_the_diplomacy_panel", "###menu_plot", "###base_two_tigers", UI_EXPECT_DIPLOMACY, 0 },
+    { "base_menu_plot_rumour_opens_its_dialog",      "###menu_plot",      "###base_rumour",    UI_EXPECT_PLOT,      SIM_PLOT_RUMOUR },
+    { "base_menu_ruler_corps_opens_the_ruler_panel", "###menu_ruler",     "###base_corps",     UI_EXPECT_RULER,     0 },
+    { "base_menu_ruler_posts_opens_its_window",      "###menu_ruler",     "###base_posts",     UI_EXPECT_POSTS,     0 },
+    { "base_menu_ruler_exile_opens_its_dialog",      "###menu_ruler",     "###base_exile",     UI_EXPECT_EXILE,     0 },
+    { "base_menu_ruler_matchmake_is_grey",           "###menu_ruler",     "###base_matchmake", UI_EXPECT_GREY,      0 },
+    { "base_menu_ruler_train_officer_opens_the_abilities", "###menu_ruler", "###base_train_officer", UI_EXPECT_ABILITIES, 0 },
 };
 
 global_variable ui_command_case ui_command_cases[] = {
@@ -2584,7 +2595,9 @@ register_ui_tests(ImGuiTestEngine *e)
             {
                 ctx->ItemClick(test_case->menu);
                 ctx->Yield();
-                IM_CHECK_EQ(v.ui.city.menu, (u8)(1 + (strstr(test_case->menu, "military") ? 1 : strstr(test_case->menu, "people") ? 2 : 0)));
+                u8 expected_menu = (u8)(strstr(test_case->menu, "military") ? UI_BASE_MENU_MILITARY : strstr(test_case->menu, "people") ? UI_BASE_MENU_PEOPLE :
+                                        strstr(test_case->menu, "plot") ? UI_BASE_MENU_PLOT : strstr(test_case->menu, "ruler") ? UI_BASE_MENU_RULER : UI_BASE_MENU_CITY);
+                IM_CHECK_EQ(v.ui.city.menu, expected_menu);
             }
             if (test_case->expect == UI_EXPECT_GREY)
             {
@@ -2615,6 +2628,13 @@ register_ui_tests(ImGuiTestEngine *e)
                 case UI_EXPECT_COURT:     IM_CHECK(v.ui.show_court); break;
                 case UI_EXPECT_DIPLOMACY: IM_CHECK(v.ui.show_diplomacy); break;
                 case UI_EXPECT_RULER:     IM_CHECK(v.ui.show_ruler); break;
+                case UI_EXPECT_MOVE:      IM_CHECK(v.ui.show_move_officers && v.ui.move.city == 1 && v.ui.move.count == 0); break;
+                case UI_EXPECT_SUMMON:    IM_CHECK(v.ui.show_summon && v.ui.summon.city == 1); break;
+                case UI_EXPECT_PLOT:      IM_CHECK(v.ui.show_plot && v.ui.plot.city == 1 && v.ui.plot.kind == test_case->ui_kind &&
+                                                   v.ui.plot.target_city == ENGINE_NO_CITY); break;
+                case UI_EXPECT_POSTS:     IM_CHECK(v.ui.show_posts && v.ui.posts.staged_count == 0); break;
+                case UI_EXPECT_EXILE:     IM_CHECK(v.ui.show_exile && v.ui.exile.officer == ENGINE_NO_OFFICER); break;
+                case UI_EXPECT_ABILITIES: IM_CHECK(v.ui.show_abilities); break;
                 default:                  IM_CHECK(false); break;
             }
             IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
@@ -3964,6 +3984,113 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_SORTIE), 1u);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
         IM_CHECK(v.ui.units.selected == 0 && !v.ui.show_sortie);
+    };
+
+    /* ---- clone gap report 2, group 3: the dialogs of ui_people.cpp -------- */
+
+    /* G2-036: 決定 of 移動 sends one command_move_officers with the city,
+       the target and the checked officers. */
+    t = IM_REGISTER_TEST(e, "ui", "move_officers_decide_issues_one_command");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_move_officers  = true;
+        v.ui.move.city           = 0;
+        v.ui.move.target         = 1;
+        v.ui.move.officers[0]    = 100;
+        v.ui.move.count          = 1;
+        ctx->SetRef("###MoveOfficers");
+        ctx->Yield(2);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_TRAVEL_DAYS), 0u);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###decide");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_MOVE_OFFICERS), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(v.recorder.last_move.city_id == 0 && v.recorder.last_move.target_city == 1 && v.recorder.last_move.officers[0] == 100 &&
+                 v.recorder.last_move.officers[1] == ENGINE_NO_OFFICER);
+        IM_CHECK(!v.ui.show_move_officers);
+    };
+
+    /* G2-060: 決定 of 官職 sends one command_court APPOINT for each staged change. */
+    t = IM_REGISTER_TEST(e, "ui", "posts_decide_issues_one_command_court_for_each_staged_change");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_posts          = true;
+        v.ui.posts.post          = ENGINE_NO_ROW;
+        v.ui.posts.officer       = ENGINE_NO_OFFICER;
+        v.ui.posts.staged_officer[0] = 101; v.ui.posts.staged_post[0] = 1;
+        v.ui.posts.staged_officer[1] = 102; v.ui.posts.staged_post[1] = ENGINE_NO_ROW;
+        v.ui.posts.staged_count  = 2;
+        ctx->SetRef("###Posts");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###decide");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_COURT), 2u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_COMMAND_COURT), (u32)ENGINE_COMMAND_APPOINT);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 2u);
+        IM_CHECK(v.recorder.last_court.target == 102 && v.recorder.last_court.post == ENGINE_NO_ROW);
+        IM_CHECK(!v.ui.show_posts && v.ui.posts.staged_count == 0);
+    };
+
+    /* G2-060: 決定 of 流放 sends one command_court EXILE. */
+    t = IM_REGISTER_TEST(e, "ui", "exile_decide_issues_one_command_court");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_exile          = true;
+        v.ui.exile.officer       = 101;
+        ctx->SetRef("###Exile");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###decide");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_COURT), 1u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_COMMAND_COURT), (u32)ENGINE_COMMAND_EXILE);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(v.recorder.last_court.target == 101 && !v.ui.show_exile);
+    };
+
+    /* G2-065: 決定 of the plot dialog sends one command_court FACTION_PLOT
+       with the kind, the target base and the executor. */
+    t = IM_REGISTER_TEST(e, "ui", "plot_dialog_decide_issues_one_command_faction_plot");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_plot           = true;
+        v.ui.plot.city           = 0;
+        v.ui.plot.kind           = SIM_PLOT_RUMOUR;
+        v.ui.plot.target_city    = 1;
+        v.ui.plot.officer        = 100;
+        ctx->SetRef("###PlotDialog");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###decide");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_COURT), 1u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_COMMAND_COURT), (u32)ENGINE_COMMAND_FACTION_PLOT);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(v.recorder.last_court.kind == SIM_PLOT_RUMOUR && v.recorder.last_court.target_city == 1 && v.recorder.last_court.officer == 100 &&
+                 v.recorder.last_court.city_id == 0);
+        IM_CHECK(!v.ui.show_plot);
     };
 
     /* ---- end to end: real engine behind the real panels ------------------- */

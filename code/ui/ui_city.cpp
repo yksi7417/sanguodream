@@ -340,7 +340,7 @@ ui_free_officers(engine_api *api, u8 city_id, u16 *ids, u32 capacity)
     {
         engine_officer officer = api->officer_at(api->engine, index);
         if (officer.status <= 3 && officer.force_id == city.owner_force_id && officer.current_position == city_id &&
-            officer.job_city == ENGINE_NO_CITY && !officer.acted)
+            officer.job_city == ENGINE_NO_CITY && !officer.acted && !officer.travel_days)
         {
             ids[found++] = officer.officer_id;
         }
