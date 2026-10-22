@@ -609,6 +609,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     ui_apply_pending_locale(ui);
     ui->portraits        = frame->portraits;
     ui->portrait_texture = frame->portrait_texture;
+    ui->face_texture     = frame->face_texture;
     if (!ui->show_map) ui->map.focused = false;   /* a closed panel takes no keys */
     /* The game mode hides the debug menu bar and the debug tools; F12 shows them. */
     if (ui->hud_mode && ImGui::IsKeyPressed(ImGuiKey_F12, false)) ui->show_debug_panels = !ui->show_debug_panels;

@@ -280,7 +280,7 @@ ui_draw_unit_plate(ui_state *ui, engine_api *api, ImDrawList *draw, f32 x, f32 y
 
     ImVec2 face_top(top.x + pad, top.y + pad), face_bottom(top.x + pad + portrait, top.y + pad + portrait);
     draw->AddRectFilled(face_top, face_bottom, faction, 2.0f);
-    ImTextureID face = commander.officer_id != ENGINE_NO_OFFICER ? ui_officer_portrait(ui, &commander) : 0;
+    ImTextureID face = commander.officer_id != ENGINE_NO_OFFICER ? ui_officer_portrait(ui, api, &commander) : 0;
     if (face)
     {
         /* A square from the 4:5 picture: the full width, from near the top. */

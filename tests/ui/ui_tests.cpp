@@ -179,6 +179,20 @@ internal PLATFORM_PORTRAIT_TEXTURE(ui_test_portrait_texture)
     return 1;   /* any nonzero id: the headless tests draw no texture */
 }
 
+/* A double of the generated faces of the platform: it records the officer
+   and the key that the UI asks for. */
+global_variable u32 g_ui_test_face_requests;
+global_variable u32 g_ui_test_face_last_officer;
+global_variable u32 g_ui_test_face_last_key;
+
+internal PLATFORM_FACE_TEXTURE(ui_test_face_texture)
+{
+    g_ui_test_face_requests    += 1;
+    g_ui_test_face_last_officer = officer_id;
+    g_ui_test_face_last_key     = key;
+    return 2;
+}
+
 /* Clicks the header of a column of a sortable table. The column labels of
    the panels have a "###" stable id, which the test engine's own
    TableClickHeader does not hash the way ImGui does; this helper does. */
@@ -2270,6 +2284,66 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->Yield();
         IM_CHECK(g_ui_test_portrait_requests > 0);
         IM_CHECK_EQ(g_ui_test_portrait_last, 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* An officer without a picture of its name gets a generated face
+       (render/faces.h): the UI asks the platform for the face of the
+       officer with the key of its description, and for no picture. */
+    t = IM_REGISTER_TEST(e, "ui", "court_officer_view_asks_for_a_generated_face_without_a_picture");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_court          = true;
+        v.ui.court.officer       = 101;
+        memset(&g_ui_test_portraits, 0, sizeof(g_ui_test_portraits));
+        const char *other = "Test/01 Other \xE7\x84\xA1.jpg";
+        portrait_list_add(&g_ui_test_portraits, 0, other, (u32)strlen(other));
+        g_ui_test_portrait_requests = 0;
+        g_ui_test_face_requests     = 0;
+        v.frame.portraits        = &g_ui_test_portraits;
+        v.frame.portrait_texture = ui_test_portrait_texture;
+        v.frame.face_texture     = ui_test_face_texture;
+        ctx->SetRef("###Court");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK_EQ(g_ui_test_portrait_requests, 0u);
+        IM_CHECK(g_ui_test_face_requests > 0);
+        IM_CHECK_EQ(g_ui_test_face_last_officer, 101u);
+        /* The recorder gives officer 101 the age 30, a man, with no personality tint. */
+        face_description expected = face_describe(101, false, 30, 0);
+        IM_CHECK_EQ(g_ui_test_face_last_key, face_key_pack(&expected));
+        IM_CHECK(recorder_count(&v.recorder, RECORDER_OFFICER_DETAIL) > 0);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* Without the archive, the face stands in for every officer. */
+    t = IM_REGISTER_TEST(e, "ui", "court_officer_view_asks_for_a_generated_face_without_the_archive");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_court          = true;
+        v.ui.court.officer       = 102;
+        g_ui_test_face_requests  = 0;
+        v.frame.portraits        = 0;
+        v.frame.portrait_texture = 0;
+        v.frame.face_texture     = ui_test_face_texture;
+        ctx->SetRef("###Court");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK(g_ui_test_face_requests > 0);
+        IM_CHECK_EQ(g_ui_test_face_last_officer, 102u);
+        IM_CHECK(g_ui_test_face_last_key & FACE_KEY_VALID);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 

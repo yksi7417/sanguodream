@@ -85,21 +85,29 @@ ui_officer_name(ui_state *ui, engine_officer *officer, char *out, u32 out_size)
     snprintf(out, out_size, "%s%s", family, given);
 }
 
-/* The texture of the default portrait of an officer, or 0. The picture
-   with the Chinese name of the officer comes first, else the officer id
-   picks a numbered picture (render/portraits.h). The name comes from the
-   Big5 bytes, not from the locale, so each locale shows the same face. */
+/* The texture of the portrait of an officer, or 0. The picture with the
+   Chinese name of the officer comes first (render/portraits.h). The name
+   comes from the Big5 bytes, not from the locale, so each locale shows the
+   same picture. An officer without a picture gets a generated face
+   (render/faces.h). The id, the sex, the age and the personality of the
+   officer make the face. The platform paints it one time and keeps it. */
 internal ImTextureID
-ui_officer_portrait(ui_state *ui, engine_officer *officer)
+ui_officer_portrait(ui_state *ui, engine_api *api, engine_officer *officer)
 {
-    if (!ui->portraits || !ui->portrait_texture || officer->officer_id == ENGINE_NO_OFFICER) return 0;
-    char family[UI_NAME_SIZE], given[UI_NAME_SIZE], name[UI_NAME_SIZE * 2];
-    text_decode_big5_into(officer->family_name, sizeof(officer->family_name), family, sizeof(family));
-    text_decode_big5_into(officer->given_name, sizeof(officer->given_name), given, sizeof(given));
-    snprintf(name, sizeof(name), "%s%s", family, given);
-    u32 picture = portrait_pick(ui->portraits, name, officer->officer_id);
-    if (picture == PORTRAIT_NONE) return 0;
-    return (ImTextureID)ui->portrait_texture(picture);
+    if (officer->officer_id == ENGINE_NO_OFFICER) return 0;
+    if (ui->portraits && ui->portrait_texture)
+    {
+        char family[UI_NAME_SIZE], given[UI_NAME_SIZE], name[UI_NAME_SIZE * 2];
+        text_decode_big5_into(officer->family_name, sizeof(officer->family_name), family, sizeof(family));
+        text_decode_big5_into(officer->given_name, sizeof(officer->given_name), given, sizeof(given));
+        snprintf(name, sizeof(name), "%s%s", family, given);
+        u32 picture = portrait_pick(ui->portraits, name);
+        if (picture != PORTRAIT_NONE) return (ImTextureID)ui->portrait_texture(picture);
+    }
+    if (!ui->face_texture) return 0;
+    engine_officer_detail detail = api->officer_detail(api->engine, officer->officer_id);
+    face_description face = face_describe(officer->officer_id, detail.female, detail.age, detail.personality);
+    return (ImTextureID)ui->face_texture(officer->officer_id, face_key_pack(&face));
 }
 
 /* M19, the request of the player (2026-10-20): a small portrait in front
@@ -112,7 +120,7 @@ ui_draw_officer_face(ui_state *ui, engine_api *api, u16 officer_id, f32 height)
     if (officer_id != ENGINE_NO_OFFICER)
     {
         engine_officer officer = api->officer_by_id(api->engine, officer_id);
-        face = ui_officer_portrait(ui, &officer);
+        face = ui_officer_portrait(ui, api, &officer);
     }
     ImVec2 size(height * 4.0f / 5.0f, height);
     if (face) ImGui::Image(face, size);

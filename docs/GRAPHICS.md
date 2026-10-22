@@ -172,6 +172,16 @@ the DLL and the platform: the DLL pushes commands, the platform draws.
 | Projectiles | none | Billboards that turn along the velocity: arrow, fire arrow, stone |
 | Blob shadow | none | A dark ellipse under each figure, so that units sit on the ground |
 | Numbers and icons | ImGui plates | ImGui overlay at the world-to-screen point of the actor |
+| Generated faces | A face for each officer without a picture (code/render/faces.h, 2026-10-22) | Stays. A later art pass can add hats and robes by rank |
+
+The generated faces are the one picture that the code draws itself. A
+hash of the officer id picks each trait of the face. The traits are the
+head shape, the skin and hair tones, the hair style, the eyes, the beard,
+the background and one of five emotions. The sex and the age of the officer change the hair and the
+beard. The platform paints each face one time at 48 x 60 pixels and keeps
+its texture by officer id. docs/ASSETS.md has the details. The palette
+of the faces follows the art direction of section 3: ochre, slate blue,
+pine green and plum backgrounds, lacquer black hair.
 
 ### 5.1 How a unit looks
 - A unit is a dense crowd of small figures that fills its hex, as in the

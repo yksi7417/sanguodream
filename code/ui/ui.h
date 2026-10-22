@@ -9,6 +9,7 @@
 #include "base.h"
 #include "hexdom.h"               /* the font size limits that the platform shares */
 #include "render/portraits.h"     /* the default portraits: the picture of an officer */
+#include "render/faces.h"         /* the generated face of an officer without a picture */
 #include "engine/engine.h"
 #include "render/render.h"
 #include "render/terrain_mesh.h"   /* terrain_level_y: the scene places models on the cell tops */
@@ -529,10 +530,12 @@ struct ui_state
         bool cities, bases, units;   /* 顯示 */
     } political;
     bool quit_requested;       /* 結束遊戲: the platform closes the window */
-    /* The default portraits of this frame (ui_frame_info). Zero: the panels
-       show the first character of the name in place of a portrait. */
+    /* The default portraits and the generated faces of this frame
+       (ui_frame_info). Without both, the panels show the first character
+       of the name in place of a portrait. */
     const portrait_list       *portraits;
     platform_portrait_texture *portrait_texture;
+    platform_face_texture     *face_texture;
     /* The game mode (main-map.md): the HUD at the top left with the list of
        the bases, officers and units, the mini map at the bottom right, and
        one dialog on demand at the entity that the player clicks. */
@@ -609,6 +612,7 @@ struct ui_frame_info
     memory_arena    *frame_arena;   /* for per-frame arrays such as the overlay colours */
     const portrait_list       *portraits;          /* the default portraits; zero without the archive */
     platform_portrait_texture *portrait_texture;   /* zero in the headless tests: no texture */
+    platform_face_texture     *face_texture;       /* the generated faces (render/faces.h); zero in the headless tests */
 };
 
 /* The caller loads a locale into the catalog before the first frame. */
