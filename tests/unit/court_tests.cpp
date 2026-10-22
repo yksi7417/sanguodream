@@ -98,6 +98,31 @@ unit_relation_and_debate_tests(test_counts *counts)
                "on the topic 道理 a 道理 小 beats a 故事 大; on one topic 大 > 小; equal cards draw");
 }
 
+/* The rise of one 褒賞 (G2-040, assumed Q-028) and the bands of the clue of
+   the adviser, from the rules alone. */
+internal void
+unit_reward_and_clue_tests(test_counts *counts)
+{
+    sim_rules rules = {};
+    rules.reward_loyalty = 10;
+    rules.reward_compatibility_divisor = 15;
+    rules.reward_loyalty_min = 1;
+    TEST_CHECK(counts, sim_reward_loyalty_rise(&rules, 0) == 10 && sim_reward_loyalty_rise(&rules, 14) == 10 && sim_reward_loyalty_rise(&rules, 15) == 9 &&
+                       sim_reward_loyalty_rise(&rules, 75) == 5,
+               "the rise of a reward is reward.loyalty less one for each reward.compatibility_divisor of the distance to the ruler");
+    rules.reward_loyalty = 3;
+    TEST_CHECK(counts, sim_reward_loyalty_rise(&rules, 75) == 1, "the rise is at least reward.loyalty_min");
+    rules.reward_loyalty = 10;
+    rules.reward_compatibility_divisor = 0;
+    TEST_CHECK(counts, sim_reward_loyalty_rise(&rules, 75) == 10, "a divisor of 0 turns the penalty of the compatibility off");
+    rules.clue_low_below = 34;
+    rules.clue_high_from = 67;
+    TEST_CHECK(counts, sim_chance_clue(&rules, 0) == SIM_CLUE_LOW && sim_chance_clue(&rules, 33) == SIM_CLUE_LOW &&
+                       sim_chance_clue(&rules, 34) == SIM_CLUE_MIDDLE && sim_chance_clue(&rules, 66) == SIM_CLUE_MIDDLE &&
+                       sim_chance_clue(&rules, 67) == SIM_CLUE_HIGH && sim_chance_clue(&rules, 100) == SIM_CLUE_HIGH,
+               "the clue of the adviser: low below advice.low_below, high from advice.high_from, middle between them");
+}
+
 internal void
 unit_court_tests(test_counts *counts, memory_arena *arena)
 {
@@ -105,4 +130,5 @@ unit_court_tests(test_counts *counts, memory_arena *arena)
     unit_rank_and_post_tests(counts, arena);
     unit_item_table_tests(counts, arena);
     unit_relation_and_debate_tests(counts);
+    unit_reward_and_clue_tests(counts);
 }

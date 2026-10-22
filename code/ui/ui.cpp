@@ -136,6 +136,8 @@ ui_init(ui_state *ui, text_catalog *text)
     ui->court.officer = ui->court.target = ui->court.partner = ui->court.captive = ENGINE_NO_OFFICER;
     ui->court.post            = ENGINE_NO_ROW;
     ui->court.item            = ENGINE_NO_ROW;
+    ui->show_reward           = false;
+    ui->reward                = {};
     ui->diplomacy             = {};
     ui->diplomacy.force       = ENGINE_NO_FACTION;
     ui->diplomacy.second      = ENGINE_NO_FACTION;
@@ -652,6 +654,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     ui_draw_hex_info_box(ui, api);                           /* M11: opens after a pick in the scene */
     if (ui->show_actions)    ui_draw_actions(ui, api);
     if (ui->show_court)      ui_draw_court(ui, api);
+    if (ui->show_reward)     ui_draw_reward(ui, api);   /* 褒賞 (G2-040) */
     if (ui->show_diplomacy)  ui_draw_diplomacy(ui, api);
     ui_draw_people_dialogs(ui, api);   /* 移動, 召喚, 官職, 流放, the plots (clone gap report 2, group 3) */
     ui_draw_mini_games(ui, api);   /* the duel and debate screens open when one runs */

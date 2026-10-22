@@ -99,9 +99,21 @@ The post adds its bonus to its ability.
   uses charm, loyalty, compatibility, captivity and relations. The ruler
   recruits its own sworn brothers and spouse without a roll. A target
   with a high intellect answers with a debate.
-- 褒賞 (5 AP and 100 gold for each officer): loyalty rises, less with a
-  large distance of compatibility. Each officer gets one reward in a
-  turn.
+- 褒賞 (5 AP and 100 gold for each officer): one order rewards a set
+  of officers of the whole force (G2-040). The city of the order pays.
+  An officer in a unit, an officer away, the ruler and an officer at
+  loyalty 100 get no reward. Each officer gets one reward in a turn.
+  The rise is the formula `sim_reward_loyalty_rise`: reward.loyalty,
+  less one for each reward.compatibility_divisor of the distance of
+  compatibility to the ruler, at least reward.loyalty_min. The spec
+  names the compatibility as the one factor and gives no numbers
+  (Q-028). The rows have the status assumed. docs/PROGRESS-GAP2.md asks
+  the observer for the data of a fit.
+- The clue of the adviser (ui/city-commands.md: the estimate after the
+  choice of a target): `court_advice` gives the chance of 探索 or 登庸
+  and its band. The bands are advice.low_below and advice.high_from of
+  rules.tsv (assumed). The words of the original are a question in
+  docs/PROGRESS-GAP2.md.
 - 授與 (10 AP): the item goes to the officer, and loyalty rises by its
   value.
 - 仲介 (500 technique points): two officers with merit 500 become sworn
@@ -176,9 +188,10 @@ winner chooses 施予同情 (technique points) or 進逼 (perhaps 1 intellect),
 and the command that started the debate gets its result.
 
 ## engine_api
-- `officer_detail`, `skill_kind_*`, `post_kind_*`, `rank_kind_*`,
+- `officer_detail` (with `recruit_chance` and `reward_rise` for the
+  faction that acts), `skill_kind_*`, `post_kind_*`, `rank_kind_*`,
   `faction_rank`, `post_holder`, `item_count`, `item_at`, `diplomacy`,
-  `duel_view` and `debate_view`;
+  `duel_view`, `debate_view` and `court_advice`;
 - `command_court(kind, order)` for the commands ENGINE_COMMAND_SEARCH to
   ENGINE_COMMAND_FACTION_PLOT, `command_duel`, `command_duel_action` and
   `command_debate_action`. `can_issue` checks each of them;
@@ -187,7 +200,15 @@ and the command that started the debate gets its result.
 
 ## The panels
 - The Court panel shows the rank and one officer, and sends 褒賞, 流放,
-  官職, 探索, 登庸, 授與, 仲介 and the release of a captive.
+  官職, 探索, 登庸, 授與, 仲介 and the release of a captive. Next to 探索
+  and 登庸 it shows the clue of the adviser in the colour of the band,
+  with the name of the 軍師. A hover shows the chance.
+- The 褒賞 dialog (人材 > 褒賞) lists the officers of the force that can
+  get a reward. Each row has a check box, 忠誠 and the rise. The dialog
+  checks every row when it opens. 一併 and 一併解除 check and clear the
+  rows.
+  The cost line shows the gold and the action points of the checked
+  set. 決定 sends one 褒賞 order with the set.
 - The Diplomacy panel lists the factions with friendliness and relation,
   and sends the seven diplomacy commands and the three plots. The envoy
   is a free officer of the city that did not act. The panel shows
@@ -200,17 +221,22 @@ and the command that started the debate gets its result.
 
 ## The tests, line by line
 - court_tests.cpp (unit) checks the parsers of the four tables, the
-  wheel of compatibility, the hand size and the order of the cards.
+  wheel of compatibility, the hand size and the order of the cards. It
+  also checks the rise of a reward and the bands of the clue.
 - court_tests.cpp (feature) checks these items through engine_api:
   - the tables, the rank and the start state of the officers;
-  - 褒賞, 官職 and their refusals;
+  - 褒賞 of a set of four officers, the rise of each, 官職 and their
+    refusals;
+  - the estimate of the adviser for 探索 and 登庸;
   - 登庸, 授與, 仲介 and 流放;
   - 親善, 同盟, 請求援軍, 摒棄 and 交換俘虜;
   - 驅虎吞狼;
   - a duel and a debate through their actions;
   - the loyalty of one month.
 - ui_tests.cpp checks that each button of the Court panel, the Diplomacy
-  panel and the two screens sends one command.
+  panel and the two screens sends one command. It also checks that the
+  褒賞 dialog sends one order with the checked set. The Court panel must
+  ask for the clue of the adviser.
 - demo/m7_court shows the Court panel, the Diplomacy panel, a duel and a
   debate.
 

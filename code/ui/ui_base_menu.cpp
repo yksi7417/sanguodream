@@ -35,7 +35,8 @@ enum ui_base_open
     UI_BASE_OPEN_RULER,      /* 評定, 軍團, 軍師: the ruler panel */
     UI_BASE_OPEN_POSTS,      /* 官職 (G2-060) */
     UI_BASE_OPEN_EXILE,      /* 流放 */
-    UI_BASE_OPEN_ABILITIES   /* 研究能力, 培育武將: the abilities window */
+    UI_BASE_OPEN_ABILITIES,  /* 研究能力, 培育武將: the abilities window */
+    UI_BASE_OPEN_REWARD      /* 褒賞 (G2-040, ui_court.cpp) */
 };
 
 struct ui_base_item
@@ -65,7 +66,7 @@ global_variable const ui_base_item ui_base_items[] =
     { UI_BASE_MENU_PEOPLE,   "base_menu.summon",    "base_summon",    UI_BASE_OPEN_SUMMON,    0,                    ENGINE_COMMAND_KIND_COUNT },
     { UI_BASE_MENU_PEOPLE,   "base_menu.search",    "base_search",    UI_BASE_OPEN_COURT,     0,                    ENGINE_COMMAND_KIND_COUNT },
     { UI_BASE_MENU_PEOPLE,   "base_menu.recruit",   "base_recruit",   UI_BASE_OPEN_COURT,     0,                    ENGINE_COMMAND_KIND_COUNT },
-    { UI_BASE_MENU_PEOPLE,   "base_menu.reward",    "base_reward",    UI_BASE_OPEN_COURT,     0,                    ENGINE_COMMAND_KIND_COUNT },
+    { UI_BASE_MENU_PEOPLE,   "base_menu.reward",    "base_reward",    UI_BASE_OPEN_REWARD,    0,                    ENGINE_COMMAND_KIND_COUNT },
     { UI_BASE_MENU_PEOPLE,   "base_menu.give",      "base_give",      UI_BASE_OPEN_COURT,     0,                    ENGINE_COMMAND_KIND_COUNT },
     { UI_BASE_MENU_PLOT,     "plot_cmd.two_tigers", "base_two_tigers", UI_BASE_OPEN_DIPLOMACY, 0,                   ENGINE_COMMAND_KIND_COUNT },
     { UI_BASE_MENU_PLOT,     "plot_cmd.drive_tiger", "base_drive_tiger", UI_BASE_OPEN_PLOT,    SIM_PLOT_DRIVE_TIGER, ENGINE_COMMAND_KIND_COUNT },
@@ -122,6 +123,7 @@ ui_base_open_item(ui_state *ui, const ui_base_item *item, u16 first_officer)
             ui->posts.staged_count = 0;
             break;
         case UI_BASE_OPEN_EXILE:     ui->show_exile = true; ui->exile.officer = ENGINE_NO_OFFICER; break;
+        case UI_BASE_OPEN_REWARD:    ui->show_reward = true; ui->reward.city = city; ui->reward.count = 0; ui->reward.fill = true; break;   /* G2-040 */
         case UI_BASE_OPEN_ABILITIES: ui->show_abilities = true; break;
         case UI_BASE_OPEN_COMMAND:
             ui->show_command[item->ui_kind] = true;

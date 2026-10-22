@@ -351,6 +351,15 @@ struct ui_state
         u32 staged_count;
     } posts;
     struct { u16 officer; } exile;
+    /* 褒賞 (G2-040, ui_court.cpp): the checked officers of the force */
+    bool show_reward;
+    struct
+    {
+        u8  city;                            /* the city that pays */
+        u16 checked[SIM_REWARD_OFFICERS];
+        u32 count;
+        b32 fill;                            /* true after the open: the first draw checks every row */
+    } reward;
     struct
     {
         u8  city;

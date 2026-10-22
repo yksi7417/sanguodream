@@ -43,7 +43,6 @@ sim_ai_court_order(city_component *city, u16 officer)
     order.city_id     = city->city_id;
     order.officer     = officer;
     order.target      = SIM_NO_OFFICER;
-    order.officers[0] = order.officers[1] = order.officers[2] = SIM_NO_OFFICER;
     order.item        = 0xFF;
     order.post        = CONTENT_NO_POST;
     order.force       = order.force_2 = SIM_NO_FORCE;
@@ -227,18 +226,18 @@ sim_ai_command_for(sim_state *sim, city_component *city, ai_priority *row)
         }
         case SIM_COMMAND_REWARD:
         {
+            /* The AI rewards up to three officers of the city in one order. */
             sim_court_order order = sim_ai_court_order(city, SIM_NO_OFFICER);
-            u32 count = 0;
-            for (u32 index = 0; index < sim->officers.count && count < SIM_COMMAND_OFFICERS; ++index)
+            for (u32 index = 0; index < sim->officers.count && order.reward_count < SIM_COMMAND_OFFICERS; ++index)
             {
                 officer_component *officer = sim->officers.data + index;
-                if (sim_officer_is_active(officer) && officer->force_id == city->owner_force_id && officer->current_position == city->city_id &&
-                    officer->status != OFFICER_STATUS_RULER && officer->loyalty < row->threshold && officer->rewarded_turn != sim->turn + 1)
+                if (officer->current_position == city->city_id && officer->loyalty < row->threshold &&
+                    sim_check_reward_officer(sim, city->owner_force_id, officer) == SIM_REFUSAL_NONE)
                 {
-                    order.officers[count++] = officer->officer_id;
+                    order.rewards[order.reward_count++] = officer->officer_id;
                 }
             }
-            if (!count || sim_check_court(sim, SIM_COMMAND_REWARD, &order).refusal != SIM_REFUSAL_NONE) return command;
+            if (!order.reward_count || sim_check_court(sim, SIM_COMMAND_REWARD, &order).refusal != SIM_REFUSAL_NONE) return command;
             command.kind  = SIM_COMMAND_REWARD;
             command.court = order;
             return command;

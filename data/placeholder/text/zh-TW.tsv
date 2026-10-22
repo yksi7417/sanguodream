@@ -437,6 +437,14 @@ court.marriage_kind	婚姻
 court.matchmake	仲介
 court.captive	俘虜
 court.release	釋放
+court.clue_low	成功的希望不大。
+court.clue_middle	成敗難料。
+court.clue_high	大有成功的希望。
+reward.title	褒賞
+reward.rise	上升
+reward.gold	資金
+reward.ap	行動力
+reward.no_officer	沒有能夠給予褒賞的武將
 personality.0	小心
 personality.1	冷靜
 personality.2	剛膽

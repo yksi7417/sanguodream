@@ -64,6 +64,7 @@ enum recorder_call_kind
     RECORDER_REACHABLE,
     RECORDER_PATH_TO,              /* G2-052: the plan of a unit to a hex */
     RECORDER_TRAVEL_DAYS,          /* G2-036: the days between two bases */
+    RECORDER_COURT_ADVICE,         /* the clue of the adviser; arg = the engine_command_kind */
     RECORDER_UNIT_VALUES,
     RECORDER_SORTIE_PROPOSAL,
     RECORDER_TACTIC_KIND_COUNT,
@@ -1282,7 +1283,19 @@ internal engine_officer_detail recorder_officer_detail(void *o, u16 officer_id)
     detail.former_force = ENGINE_NO_FACTION; detail.age = 30;
     for (u32 slot = 0; slot < OFFICER_RELATION_SLOTS; ++slot) detail.liked[slot] = detail.disliked[slot] = ENGINE_NO_OFFICER;
     detail.recruit_chance = officer_id == 102 ? 60 : 0;
+    detail.reward_rise    = officer_id == 101 ? 8 : (officer_id == 102 ? 10 : 0);   /* G2-040: the ruler 100 gets no reward */
     return detail;
+}
+
+/* The estimate of the adviser 100: 探索 is low, 登庸 of 102 is middle. */
+internal engine_court_advice recorder_court_advice(void *o, engine_command_kind kind, const engine_court_order *order)
+{
+    recorder_record((engine_recorder *)o, RECORDER_COURT_ADVICE, kind);
+    engine_court_advice advice = {};
+    advice.adviser = ENGINE_NO_OFFICER;
+    if (kind == ENGINE_COMMAND_SEARCH) { advice.chance = 20; advice.clue = SIM_CLUE_LOW; advice.adviser = 100; }
+    if (kind == ENGINE_COMMAND_RECRUIT && order->target == 102) { advice.chance = 60; advice.clue = SIM_CLUE_MIDDLE; advice.adviser = 100; }
+    return advice;
 }
 internal u32 recorder_skill_kind_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_SKILL_KIND_COUNT, 0); return 0; }
 internal engine_skill_kind recorder_skill_kind_at(void *o, u32 index) { recorder_record((engine_recorder *)o, RECORDER_SKILL_KIND_AT, index); engine_skill_kind kind = {}; return kind; }
@@ -2019,6 +2032,7 @@ recorder_make_api(engine_recorder *r)
     api.command_move_officers = recorder_command_move_officers;
     api.command_summon        = recorder_command_summon;
     api.travel_days           = recorder_travel_days;
+    api.court_advice          = recorder_court_advice;
     api.command_duel          = recorder_command_duel;
     api.command_duel_action   = recorder_command_duel_action;
     api.command_debate_action = recorder_command_debate_action;
