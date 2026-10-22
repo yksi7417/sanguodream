@@ -3,17 +3,16 @@
    A scenario of the install has a Start button. The panel reads
    content_source and commands nothing else. Included by ui.cpp. */
 
-/* The officer view frames the portrait of its officer. No source gives a
-   picture yet, so the frame shows the first character of the name and the
-   source that content_source reports. Each source has its own item id. */
+/* The officer view frames the portrait of its officer: the picture of the
+   default portraits, else the generated face (ui_officer_portrait).
+   Without a texture, the frame shows the first character of the name and
+   the source that content_source reports. Each source has its own item id.
+   That frame stays for the headless tests. */
 internal void
 ui_draw_officer_portrait(ui_state *ui, engine_api *api, u16 officer_id)
 {
-    /* The default portraits (docs/ASSETS.md): the picture when the archive
-       has one for the officer. The frame with the first character stays
-       for a game without the archive and for the tests. */
     engine_officer officer = api->officer_by_id(api->engine, officer_id);
-    ImTextureID face = ui_officer_portrait(ui, &officer);
+    ImTextureID face = ui_officer_portrait(ui, api, &officer);
     if (face)
     {
         f32 width = ImGui::GetTextLineHeightWithSpacing() * UI_PORTRAIT_LINES * 4.0f / 5.0f;

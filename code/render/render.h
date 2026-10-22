@@ -409,18 +409,62 @@ struct render_terrain
     const u8 *grid;        /* M11: per cell, 1 = draw the grid outline; 0 (no pointer) = every cell */
 };
 
+/* The mesh table of the platform. Mesh 0 is the settlement. The other ids
+   are the placeholder models of the facility slots (placeholder_meshes.h).
+   The scene picks a shape for each facility kind and tints it. */
+enum render_mesh_id
+{
+    RENDER_MESH_SETTLEMENT,   /* settlement.hxm, or the placeholder house */
+    RENDER_MESH_SCAFFOLD,     /* four posts with rails: a build in progress */
+    RENDER_MESH_STALL,        /* a tent: the markets */
+    RENDER_MESH_FIELD,        /* a plate with ridges: the farms */
+    RENDER_MESH_HALL,         /* a long house with a gable roof: the barracks, the drill ground */
+    RENDER_MESH_FORGE,        /* a house with a chimney: the smithy, the workshop */
+    RENDER_MESH_DOCK,         /* a plank with a hull and a mast: the shipyard */
+    RENDER_MESH_SILO,         /* a round tower with a cone: the mint, the granary */
+    RENDER_MESH_TOWER,        /* a tall tower on a base: the bronze sparrow tower */
+    RENDER_MESH_OFFICE,       /* a two-tier house: the offices */
+    RENDER_MESH_SHED,         /* a low open house: the stable */
+    RENDER_MESH_COUNT
+};
+
 struct render_mesh_instance
 {
-    u32 mesh_id;           /* index into the platform's mesh table */
+    u32 mesh_id;           /* render_mesh_id: index into the platform's mesh table */
     v3  position;
     f32 yaw;
     f32 scale;
     u32 tint;              /* RGBA8, 0xFFFFFFFF for none */
 };
 
+/* The sprites of the platform's sprite table. Sprite 0 is the figure of a
+   unit without a class. The others are one placeholder picture for each
+   class of unit (docs/ASSETS.md, "Unit sprites"). The platform loads
+   render_sprite_files[id] from the content pack. If a file is absent, the
+   platform uses the figure of sprite 0. */
+enum render_sprite
+{
+    RENDER_SPRITE_UNIT,
+    RENDER_SPRITE_SWORD,
+    RENDER_SPRITE_PIKE,
+    RENDER_SPRITE_HALBERD,
+    RENDER_SPRITE_CROSSBOW,
+    RENDER_SPRITE_CAVALRY,
+    RENDER_SPRITE_SIEGE,
+    RENDER_SPRITE_BOAT,
+    RENDER_SPRITE_SHIP,
+    RENDER_SPRITE_TRANSPORT,
+    RENDER_SPRITE_COUNT
+};
+
+global_variable const char *render_sprite_files[RENDER_SPRITE_COUNT] = {
+    "sprites\\unit.png", "sprites\\sword.png", "sprites\\pike.png", "sprites\\halberd.png", "sprites\\crossbow.png",
+    "sprites\\cavalry.png", "sprites\\siege.png", "sprites\\boat.png", "sprites\\ship.png", "sprites\\transport.png",
+};
+
 struct render_billboard
 {
-    u32 sprite_id;         /* index into the platform's sprite table */
+    u32 sprite_id;         /* render_sprite: index into the platform's sprite table */
     v3  position;          /* bottom center */
     f32 width;
     f32 height;

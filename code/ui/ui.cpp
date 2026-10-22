@@ -16,6 +16,7 @@ ui_label(char *out, u32 out_size, ui_state *ui, const char *text_id, const char 
 }
 
 #include "ui/ui_context.cpp"  /* the dialogs on demand of the game mode */
+#include "ui/ui_facility_look.cpp"   /* the shape and the colour of each facility kind */
 #include "ui/ui_map.cpp"
 #include "ui/ui_world.cpp"   /* includes ui_table.cpp for its tables */
 #include "ui/ui_settings.cpp"
@@ -49,6 +50,7 @@ ui_scene_mark(u32 *overlay, engine_terrain_view view, hex_coord h, u32 rgba)
 #include "ui/ui_locate.cpp"   /* M11 */
 #include "ui/ui_report.cpp"   /* M18: the log, the speech bubble and the values; needs ui_locate.cpp */
 #include "ui/ui_round.cpp"    /* M20: the show of the AI round; needs ui_report.cpp */
+#include "ui/ui_war.cpp"      /* the walk, the strikes and the hits; needs ui_round.cpp */
 #include "ui/ui_minimap.cpp"  /* M12: the round mini map */
 #include "ui/ui_hud.cpp"      /* the HUD and the list of the game mode */
 #include "ui/ui_information.cpp" /* M21: the information menu, the tables and the detail panels */
@@ -92,6 +94,7 @@ ui_init(ui_state *ui, text_catalog *text)
     ui->round                 = {};   /* M20: the show is off by default */
     ui->round.force           = ENGINE_NO_FACTION;
     ui->round.move_unit       = ENGINE_NO_UNIT;
+    ui_war_init(ui);
     ui->show_economy          = false;
     ui->report                = {};   /* M18 */
     ui->report.provider       = text_template_provider();
@@ -136,6 +139,8 @@ ui_init(ui_state *ui, text_catalog *text)
     ui->court.officer = ui->court.target = ui->court.partner = ui->court.captive = ENGINE_NO_OFFICER;
     ui->court.post            = ENGINE_NO_ROW;
     ui->court.item            = ENGINE_NO_ROW;
+    ui->show_reward           = false;
+    ui->reward                = {};
     ui->diplomacy             = {};
     ui->diplomacy.force       = ENGINE_NO_FACTION;
     ui->diplomacy.second      = ENGINE_NO_FACTION;
@@ -609,6 +614,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     ui_apply_pending_locale(ui);
     ui->portraits        = frame->portraits;
     ui->portrait_texture = frame->portrait_texture;
+    ui->face_texture     = frame->face_texture;
     if (!ui->show_map) ui->map.focused = false;   /* a closed panel takes no keys */
     /* The game mode hides the debug menu bar and the debug tools; F12 shows them. */
     if (ui->hud_mode && ImGui::IsKeyPressed(ImGuiKey_F12, false)) ui->show_debug_panels = !ui->show_debug_panels;
@@ -618,6 +624,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     bool hud_ready = ui->hud_mode && in_game && !ui_feel_in_transition(ui);
     if (in_game) ui_report_update(ui, api, frame->dt_seconds);   /* M18: the log and the feedback read the new events */
     if (in_game) ui_round_update(ui, api, frame->dt_seconds);    /* M20: the next step of the show of the AI round */
+    if (in_game) ui_war_update(ui, api, frame->dt_seconds);      /* the walk, the strikes and the hits */
     if (tools) ui_draw_menu_bar(ui, api, frame);
     if (tools && ui->show_demo)   ImGui::ShowDemoWindow(&ui->show_demo);
     if (tools && ui->show_sim)    ui_draw_simulation(ui, api);
@@ -651,6 +658,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     ui_draw_hex_info_box(ui, api);                           /* M11: opens after a pick in the scene */
     if (ui->show_actions)    ui_draw_actions(ui, api);
     if (ui->show_court)      ui_draw_court(ui, api);
+    if (ui->show_reward)     ui_draw_reward(ui, api);   /* 褒賞 (G2-040) */
     if (ui->show_diplomacy)  ui_draw_diplomacy(ui, api);
     ui_draw_people_dialogs(ui, api);   /* 移動, 召喚, 官職, 流放, the plots (clone gap report 2, group 3) */
     ui_draw_mini_games(ui, api);   /* the duel and debate screens open when one runs */
@@ -692,6 +700,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
         if (ui->show_ai) ui_draw_ai_lines(ui, api);   /* M15: each unit of the AI view to its goal */
     }
     if (hud_ready) ui_draw_feedback(ui, api);   /* M18: the speech bubble and the values over the base of a command */
+    if (in_game)   ui_draw_war(ui, api);        /* the strikes and the values over the units */
     ui_draw_status_bar(ui, api);        /* M11: the terrain, the coordinates and what can stand on the hex under the mouse */
     ui_scene_push(ui, api, frame);
 }

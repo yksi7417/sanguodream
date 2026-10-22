@@ -97,8 +97,8 @@ the image generator give that licence.
 
 The archive is larger than 20 MB, so git does not hold it. .gitignore
 lists it. To use the portraits, copy the archive to
-data\civil_war\Portraits.zip. If the file is absent, the UI shows the
-first character of the name in place of a portrait.
+data\civil_war\Portraits.zip. If the file is absent, every officer gets a
+generated face (the next section).
 
 ### How the game uses the archive
 1. At start, the platform layer maps the archive into memory
@@ -106,17 +106,74 @@ first character of the name in place of a portrait.
    code/render/zip.h.
 2. code/render/portraits.h makes a list of the pictures from the member
    names: the number and the Chinese name.
-3. The UI picks the picture of an officer (ui_officer_portrait):
-   - the picture with the Chinese name of the officer, if there is one;
-   - else the numbered picture at (officer id modulo 120), in the order of
-     the numbers. The same id always gets the same picture.
+3. The UI picks the picture of an officer (ui_officer_portrait): the
+   picture with the Chinese name of the officer. An officer without one
+   gets a generated face, not the picture of another officer.
 4. When the UI first asks for a picture, the platform decodes it with
    code/render/jpeg.h at one eighth of its size, 224 x 280 pixels. It
    decodes one picture in each frame at most. The texture stays until the
    game closes.
 
-The unit plates and the officer view of the Court panel show the
-portraits.
+The unit plates, the officer lists and the officer view of the Court
+panel show the portraits.
+
+## Generated faces (code/render/faces.h)
+An officer without a picture of its name gets a face that the engine
+draws on the spot. The face is not an asset. The code makes it, so it
+has no licence of its own. The user asked for it on 2026-10-22. The face
+must be fast to make and must show an emotion. Before, a minor officer
+got the picture of another officer.
+
+| Item | Value |
+|---|---|
+| Size | 48 x 60 pixels, the 4:5 ratio of the default portraits |
+| Traits | head shape (3), skin tone (4), hair tone (3 and grey), hair style (4), eyes (3), beard (3), background (4) |
+| Emotions | calm, happy, angry, sad, surprised |
+| Inputs | the officer id, the sex, the age and the personality from engine_api |
+
+How the face comes to the screen:
+1. The UI reads the sex, the age and the personality of the officer
+   (officer_detail). face_describe hashes the officer id with a salt for
+   each trait and picks the traits. The same id always gives the same
+   face. A woman gets long hair and no beard. An officer under 25 gets no
+   beard. An officer of 50 or more gets grey hair and lines under the
+   eyes. The personality tints the emotion of one officer in two: bold
+   smiles, reckless glares, careful and calm are calm.
+2. face_key_pack folds the description into one u32. The UI passes the
+   officer id and the key to the platform (platform_api.face_texture).
+3. The platform paints the face (face_paint) and makes a texture
+   (code/win32_faces.h). It keeps the texture by officer id until the
+   game closes. If the key of an officer changes, for example when the
+   officer turns 50, the platform paints the face again. It paints at
+   most 64 faces in one frame.
+
+The hash is its own function (face_hash). The faces never touch the PRNG
+of the sim. tests/unit/faces_tests.cpp checks the generator, and
+tests/ui/ui_tests.cpp checks that the UI asks for a face when no picture
+has the name of the officer.
+
+## Unit sprites (data/placeholder/sprites)
+The scene draws one picture on the hex of each unit. The picture shows
+the class of the unit, so the player finds the hex of the unit under its
+plate. The pictures are placeholders until the art of docs/GRAPHICS.md
+exists.
+
+| Item | Value |
+|---|---|
+| Files | unit.png, sword.png, pike.png, halberd.png, crossbow.png, cavalry.png, siege.png, boat.png, ship.png, transport.png |
+| Size | 64 x 64 pixels, RGBA, a light figure with a dark outline on a transparent background |
+| Source | misc/make_unit_sprites.py draws them with Pillow. They are project work, not art of the original game. |
+| Licence | the licence of this repository |
+
+The table render_sprite_files in code/render/render.h names the file of
+each render_sprite. The renderer loads the files at start and multiplies
+each picture by the colour of the faction. If a file is absent, the
+renderer uses the figure of a head over a body. The UI picks the sprite of a unit from the
+key of its class (ui_unit_sprite in code/ui/ui_war.cpp). The four siege
+weapons share siege.png. 樓船 and 鬥艦 share ship.png.
+
+To draw the pictures again, run `python -X utf8 misc\make_unit_sprites.py`
+from the root of the repository.
 
 ## Text of the content pack (data/placeholder)
 The project wrote these files. They contain no text from the original game.

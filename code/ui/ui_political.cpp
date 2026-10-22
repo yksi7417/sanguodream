@@ -249,8 +249,14 @@ internal void
 ui_draw_hover_panel(ui_state *ui, engine_api *api)
 {
     ImGuiIO &io = ImGui::GetIO();
-    if (!ui->scene.has_hover || io.WantCaptureMouse) return;
-    engine_hex data = api->hex_at(api->engine, ui->scene.hover.q, ui->scene.hover.r);
+    if (io.WantCaptureMouse) return;
+    /* The plate of a unit (the portrait and the name) counts as its hex. */
+    u32 plated = ui_plate_unit_at(ui, io.MousePos.x, io.MousePos.y);
+    engine_hex data = {};
+    data.unit_id = ENGINE_NO_UNIT;
+    data.city_id = ENGINE_NO_CITY;
+    if (plated != ENGINE_NO_UNIT)          data.unit_id = plated;
+    else if (ui->scene.has_hover)          data = api->hex_at(api->engine, ui->scene.hover.q, ui->scene.hover.r);
     if (data.unit_id == ENGINE_NO_UNIT && data.city_id == ENGINE_NO_CITY) return;
     ImGui::SetNextWindowPos(ImVec2(io.MousePos.x + UI_HOVER_OFFSET, io.MousePos.y + UI_HOVER_OFFSET), ImGuiCond_Always);
     ImGui::SetNextWindowBgAlpha(0.9f);

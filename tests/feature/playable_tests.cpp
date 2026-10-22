@@ -486,6 +486,105 @@ feature_scenario_tests(test_counts *counts)
     engine_fixture_destroy(&fixture);
 }
 
+/* 武將一覽 of the original after a new game of 群雄割據 (194) as 曹操
+   (force 0), 2026-10-22: the loyalty, the merit and the skill of each
+   officer of 陳留. skill is the number of skills.md, 0 for none. The
+   values are the bytes of SCEN002 (officer +104, +105, +124). */
+struct feature_start_officer
+{
+    u16 officer_id;
+    u8  loyalty;     /* the byte; the screen shows at most 100 */
+    u16 merit;
+    u8  skill;
+};
+
+global_variable feature_start_officer feature_cao_cao_officers[] =
+{
+    { 631,  98, 4000,  0 },   /* 劉岱 */
+    { 641,  99, 2000, 24 },   /* 劉曄 射程 */
+    { 655,  99, 2000, 43 },   /* 呂虔 射手 */
+    {   6,  99, 3000, 73 },   /* 于禁 規律 */
+    { 567,  99, 2000, 86 },   /* 毛玠 眼力 */
+    { 126,  99, 3000,  0 },   /* 戲志才 */
+    { 253,  99, 1000,  0 },   /* 朱靈 */
+    { 336, 120, 6000, 13 },   /* 曹洪 連戰 (連擊 in the original) */
+    {  78, 120, 6000, 14 },   /* 夏侯淵 急襲 (突襲 in the original) */
+    {  69, 100, 3000, 17 },   /* 樂進 攻城 */
+    { 461, 100, 4000, 18 },   /* 程昱 掎角 */
+    { 609, 100, 2000, 24 },   /* 李典 射程 */
+    { 566, 100, 2000, 26 },   /* 滿寵 輔佐 */
+    {  85, 120, 7000, 30 },   /* 夏侯惇 騎將 */
+    { 331, 120, 2000, 43 },   /* 曹休 射手 */
+    { 144, 120, 1000, 46 },   /* 許褚 金剛 */
+    { 341, 120, 6000, 47 },   /* 曹仁 鐵壁 */
+    { 335, 150, 1000, 51 },   /* 曹昂 血路 */
+    { 471, 150, 1000, 52 },   /* 典韋 護衛 */
+    { 259, 100, 6000, 65 },   /* 荀攸 百出 */
+    {  63, 120, 2000, 66 },   /* 郭嘉 鬼謀 */
+    { 548, 150, 2000, 76 },   /* 卞氏 樂奏 */
+    { 254, 100, 8000, 86 },   /* 荀彧 眼力 */
+    { 233, 100, 1000,  0 },   /* 司馬朗 */
+    { 343, 100, 16000, 58 },  /* 曹操 虛實, the ruler */
+};
+
+#define FEATURE_CAO_CAO_FORCE          0
+#define FEATURE_CHENLIU_CITY_ID        12
+#define FEATURE_CAO_CAO_OFFICER_COUNT  27   /* the 24 rows of the list, 曹操, 夏侯恩 and 曹純: force 0 in SCEN002 */
+
+/* The state after a new game: the values of the scenario file. No
+   faction acts before the player chooses the ruler. */
+internal void
+feature_scenario_start_tests(test_counts *counts)
+{
+    engine_fixture fixture;
+    engine_fixture_init(&fixture, 1, 65536);
+    engine_api *api = &fixture.api;
+    void *e = api->engine;
+    engine_scenario warlords = api->scenario_at(e, 1);
+    TEST_CHECK(counts, api->load_scenario(e, warlords.file).status == ENGINE_LOAD_OK, "the new game of 群雄割據 loads");
+    TEST_CHECK(counts, api->whose_turn(e) == ENGINE_NO_FACTION, "after the load no faction acts: the player first chooses the rulers");
+    TEST_CHECK(counts, feature_play_as(api, FEATURE_CAO_CAO_FORCE), "the player chooses 曹操; the first turn starts");
+    engine_date date = api->date(e);
+    TEST_CHECK(counts, date.year == 194 && date.month == 6 && date.day == 1 && date.days_since_start == 0,
+               "the player acts in the first turn of the scenario, 194 June 1");
+
+    engine_city chenliu = {};
+    for (u32 index = 0; index < api->city_count(e); ++index)
+    {
+        engine_city city = api->city_at(e, index);
+        if (city.city_id == FEATURE_CHENLIU_CITY_ID) chenliu = city;
+    }
+    TEST_CHECK(counts, chenliu.owner_force_id == FEATURE_CAO_CAO_FORCE && chenliu.troops == 28000 && chenliu.gold == 5600 && chenliu.food == 56000,
+               "陳留 starts with 28,000 troops, 5,600 gold and 56,000 grain");
+
+    b32 loyalty_agrees = true, merit_agrees = true, skill_agrees = true, force_agrees = true;
+    for (u32 index = 0; index < ArrayCount(feature_cao_cao_officers); ++index)
+    {
+        feature_start_officer *expected = feature_cao_cao_officers + index;
+        engine_officer officer = {};
+        if (!feature_officer_by_id(api, expected->officer_id, &officer)) { force_agrees = false; continue; }
+        engine_officer_detail detail = api->officer_detail(e, expected->officer_id);
+        u8 skill = officer.skill_number == OFFICER_SKILL_NONE ? 0 : (u8)(officer.skill_number + 1);
+        if (officer.force_id != FEATURE_CAO_CAO_FORCE) force_agrees = false;
+        if (officer.status != 0 && detail.loyalty != Minimum(expected->loyalty, 100)) loyalty_agrees = false;   /* the detail shows at most 100 */
+        if (officer.merit != expected->merit) merit_agrees = false;
+        if (skill != expected->skill) skill_agrees = false;
+    }
+    TEST_CHECK(counts, force_agrees, "the 25 officers of the list of the original are officers of 曹操");
+    TEST_CHECK(counts, loyalty_agrees, "each officer has the loyalty of the scenario: 98 for 劉岱, 99 for six officers, 100 or more for the rest");
+    TEST_CHECK(counts, merit_agrees, "each officer has the merit of the scenario, for example 8,000 for 荀彧 and 16,000 for 曹操");
+    TEST_CHECK(counts, skill_agrees, "each officer has the skill of the original, for example 曹昂 血路, 夏侯惇 騎將, 許褚 金剛");
+
+    u32 members = 0;
+    for (u32 index = 0; index < api->officer_count(e); ++index)
+    {
+        engine_officer officer = api->officer_at(e, index);
+        if (officer.force_id == FEATURE_CAO_CAO_FORCE && officer.status <= OFFICER_STATUS_REGULAR_OFFICER) members++;
+    }
+    TEST_CHECK(counts, members == FEATURE_CAO_CAO_OFFICER_COUNT, "曹操 has the 27 officers of force 0 in SCEN002");
+    engine_fixture_destroy(&fixture);
+}
+
 /* ---- the second content pack -------------------------------------------------------------- */
 
 internal void
@@ -529,6 +628,7 @@ feature_playable_tests(test_counts *counts)
 {
     feature_civil_war_tests(counts);
     feature_scenario_tests(counts);
+    feature_scenario_start_tests(counts);
     feature_history_tests(counts);
     feature_ending_tests(counts);
     feature_save_load_tests(counts);

@@ -289,8 +289,8 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
     memory.platform.imgui_free       = win32_imgui_free;
     memory.platform.imgui_alloc_user = 0;
 
-    /* The default portraits (docs/ASSETS.md). Without the archive the UI
-       shows the first character of each name. */
+    /* The default portraits (docs/ASSETS.md). An officer without a picture
+       in the archive gets a generated face (win32_faces.h). */
     char portrait_path[MAX_PATH], portrait_message[MAX_PATH + 128];
     snprintf(portrait_path, MAX_PATH, "%s\\%s", g_win32.exe_dir, HEXDOM_PORTRAIT_ARCHIVE);
     if (win32_portraits_open(&g_win32_portraits, window.device, portrait_path, win32_log, portrait_message, sizeof(portrait_message)))
@@ -299,6 +299,8 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
         memory.platform.portrait_texture = win32_portrait_texture;
     }
     win32_log(portrait_message);
+    win32_faces_init(&g_win32_faces, window.device);
+    memory.platform.face_texture = win32_face_texture;
 
     win32_game_code game = win32_load_game_code(&g_win32);
     win32_log(game.is_valid ? "platform: loaded hexdom.dll" : "platform: hexdom.dll not loaded yet");
@@ -341,6 +343,7 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
 
         win32_begin_frame(&window);
         win32_portraits_begin_frame(&g_win32_portraits);
+        win32_faces_begin_frame(&g_win32_faces);
 
         arena_reset(&frame);
         ImVec2 display = ImGui::GetIO().DisplaySize;
@@ -384,6 +387,7 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
 
     d3d11_renderer_destroy(&renderer);
     win32_portraits_close(&g_win32_portraits);
+    win32_faces_close(&g_win32_faces);
     win32_close_window(&window);
     ImGui::DestroyContext();
     win32_unload_game_code(&game);

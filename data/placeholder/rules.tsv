@@ -131,8 +131,11 @@ ap.faction_plot	30	documented	city-commands.md, 二虎競食, 驅虎吞狼, 流�
 ap.move	20	documented	city-commands.md, 移動: 20 AP for each order (G2-036)
 ap.summon	20	documented	city-commands.md, 召喚: 20 AP
 reward.gold	100	documented	city-commands.md, 褒賞: 100 gold for each officer
-reward.loyalty	10	assumed	the loyalty that one reward gives at the ruler's compatibility (Q-028)
+reward.loyalty	10	assumed	the rise of one 褒賞: reward.loyalty - distance of compatibility to the ruler / reward.compatibility_divisor, at least reward.loyalty_min (Q-028; the spec names the compatibility only, officers-and-relations.md; the fit is a question in docs/PROGRESS-GAP2.md)
 reward.compatibility_divisor	15	assumed	one loyalty less for each 15 of compatibility distance to the ruler (Q-028)
+reward.loyalty_min	1	assumed	the smallest rise of one 褒賞 (Q-028)
+advice.low_below	34	assumed	the clue of the adviser on a chance in percent: below this the chance is low (ui/city-commands.md names the estimate and no words or thresholds; docs/PROGRESS-GAP2.md)
+advice.high_from	67	assumed	the clue of the adviser: from this the chance is high; between the two it is middle
 search.base	20	assumed	the chance of a search in percent, plus politics x search.politics_percent / 100 (Q-178)
 search.politics_percent	50	assumed	see search.base
 search.gold_chance	30	assumed	the chance to find gold when no free officer is found (Q-178)
@@ -145,7 +148,7 @@ recruit.relation_bonus	30	assumed	more chance for a blood relation or a liked of
 recruit.new_loyalty	70	assumed	the loyalty of a recruited officer (Q-178)
 recruit.compatibility_divisor	3	assumed	see recruit.base
 recruit.debate_intellect	85	assumed	a target with this intellect or more answers a recruit with a debate (Q-178)
-loyalty.start	80	assumed	the loyalty of an officer after a save loads; the save field is not decoded (Q-177); a ruler has 100
+loyalty.start	80	assumed	the loyalty of an officer whose record has no loyalty byte; a scenario or a save record gives the byte +104 (2026-10-22); a ruler has 100
 loyalty.monthly	1	assumed	the loyalty that an officer loses each month (Q-028)
 loyalty.ambition	1	assumed	more loss each month for each step of ambition above normal; justice lowers the loss in the same way (Q-028)
 loyalty.unpaid	5	assumed	the loyalty that each officer of a city loses when the city cannot pay the salaries (Q-028)

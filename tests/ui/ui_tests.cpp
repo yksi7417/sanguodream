@@ -83,7 +83,26 @@ ui_test_gui(ImGuiTestContext *ctx)
         v.ui.show_city = false;   /* the City panel asks for city names too; its tests open it */
     }
     v.frame.dt_seconds = ImGui::GetIO().DeltaTime;
+    if (v.frame.frame_arena)   /* a test of the scene: fresh render commands each frame, as the platform makes them */
+    {
+        v.frame.frame_arena->used = 0;
+        v.frame.render = render_commands_begin(v.frame.frame_arena, 800.0f, 600.0f);
+    }
     ui_draw(&v.ui, &v.api, &v.frame);
+}
+
+/* The mesh instances of one mesh id in the frame's render commands. */
+internal u32
+ui_test_count_meshes(render_commands *rc, u32 mesh_id, f32 *scale_out)
+{
+    u32 count = 0;
+    for (u32 index = 0; rc && index < rc->mesh_instance_count; ++index)
+    {
+        if (rc->mesh_instances[index].mesh_id != mesh_id) continue;
+        if (scale_out) *scale_out = rc->mesh_instances[index].scale;
+        count++;
+    }
+    return count;
 }
 
 /* The five city command dialogs of M3: the window, the City panel button,
@@ -119,6 +138,7 @@ enum ui_base_menu_expect
     UI_EXPECT_POSTS,       /* G2-060 */
     UI_EXPECT_EXILE,
     UI_EXPECT_ABILITIES,
+    UI_EXPECT_REWARD,      /* G2-040: show_reward */
     UI_EXPECT_GREY
 };
 
@@ -146,7 +166,7 @@ global_variable ui_base_menu_case ui_base_menu_cases[] = {
     { "base_menu_people_summon_opens_its_dialog",    "###menu_people",    "###base_summon",    UI_EXPECT_SUMMON,    0 },
     { "base_menu_people_search_opens_the_court",     "###menu_people",    "###base_search",    UI_EXPECT_COURT,     0 },
     { "base_menu_people_recruit_opens_the_court",    "###menu_people",    "###base_recruit",   UI_EXPECT_COURT,     0 },
-    { "base_menu_people_reward_opens_the_court",     "###menu_people",    "###base_reward",    UI_EXPECT_COURT,     0 },
+    { "base_menu_people_reward_opens_its_dialog",    "###menu_people",    "###base_reward",    UI_EXPECT_REWARD,    0 },
     { "base_menu_people_give_opens_the_court",       "###menu_people",    "###base_give",      UI_EXPECT_COURT,     0 },
     { "base_menu_diplomacy_opens_its_panel",         "###menu_diplomacy", "###menu_diplomacy", UI_EXPECT_DIPLOMACY, 0 },
     { "base_menu_plot_two_tigers_opens_the_diplomacy_panel", "###menu_plot", "###base_two_tigers", UI_EXPECT_DIPLOMACY, 0 },
@@ -177,6 +197,20 @@ internal PLATFORM_PORTRAIT_TEXTURE(ui_test_portrait_texture)
     g_ui_test_portrait_requests += 1;
     g_ui_test_portrait_last      = picture;
     return 1;   /* any nonzero id: the headless tests draw no texture */
+}
+
+/* A double of the generated faces of the platform: it records the officer
+   and the key that the UI asks for. */
+global_variable u32 g_ui_test_face_requests;
+global_variable u32 g_ui_test_face_last_officer;
+global_variable u32 g_ui_test_face_last_key;
+
+internal PLATFORM_FACE_TEXTURE(ui_test_face_texture)
+{
+    g_ui_test_face_requests    += 1;
+    g_ui_test_face_last_officer = officer_id;
+    g_ui_test_face_last_key     = key;
+    return 2;
 }
 
 /* Clicks the header of a column of a sortable table. The column labels of
@@ -1536,8 +1570,8 @@ register_ui_tests(ImGuiTestEngine *e)
         v.ui.show_develop        = true;
         v.ui.develop.city        = 0;
         ctx->Yield(2);
-        u32 counts[256];
-        ui_count_built_facilities(&v.api, 0, counts, ArrayCount(counts));
+        u32 counts[256], in_progress[256];
+        ui_count_built_facilities(&v.api, 0, counts, in_progress, ArrayCount(counts));
         IM_CHECK_EQ(counts[0], 2u);                                                   /* the two built markets of the script */
         ctx->SetRef("###Develop");
         IM_CHECK(ctx->ItemExists("###fac0") && ctx->ItemExists("###fac2"));
@@ -2009,7 +2043,157 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_MOVE), 1u);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
         IM_CHECK(v.recorder.last_unit_command.unit == 0 && v.recorder.last_unit_command.q == 3 && v.recorder.last_unit_command.r == 2);
-        IM_CHECK(v.ui.show_unit_menu);                                                    /* the command menu opens after the move */
+        /* The unit walks the plan of path_to hex by hex: (1,2), (2,2), (3,2).
+           The command menu opens when the walk ends. */
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_PATH_TO), 1u);
+        IM_CHECK(ui_walk_active(&v.ui) && v.ui.war.walk.unit == 0 && v.ui.war.walk.count == 3);
+        IM_CHECK(!v.ui.show_unit_menu);
+        hex_coord shown = hex_make(0, 0);
+        IM_CHECK(ui_walk_hex(&v.ui, 0, &shown) && shown.q == 1 && shown.r == 2);   /* the start hex first */
+        u32 frames = 0;
+        for (; frames < 600 && ui_walk_active(&v.ui); ++frames) ctx->Yield();
+        IM_CHECK(frames > 2 && !ui_walk_active(&v.ui));                                   /* the pause of the steps took frames */
+        IM_CHECK(v.ui.show_unit_menu);                                                    /* the command menu opens after the walk */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);                             /* the walk commanded nothing */
+    };
+
+    /* The sprite of a unit follows the key of its class (ui_war.cpp). The
+       siege weapons share one picture, the two ships share one. */
+    t = IM_REGISTER_TEST(e, "ui", "unit_sprite_follows_the_class_of_the_unit");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ctx->Yield();
+        u32 expected[] = { RENDER_SPRITE_SWORD, RENDER_SPRITE_PIKE, RENDER_SPRITE_HALBERD, RENDER_SPRITE_CROSSBOW, RENDER_SPRITE_CAVALRY,
+                           RENDER_SPRITE_SIEGE, RENDER_SPRITE_SIEGE, RENDER_SPRITE_SIEGE, RENDER_SPRITE_SIEGE,
+                           RENDER_SPRITE_BOAT, RENDER_SPRITE_SHIP, RENDER_SPRITE_SHIP, RENDER_SPRITE_TRANSPORT };
+        engine_unit unit = {};
+        for (u32 type = 0; type < ArrayCount(expected); ++type)
+        {
+            unit.unit_type = (u8)type;
+            IM_CHECK_EQ(ui_unit_sprite(&v.api, &unit), expected[type]);
+        }
+        unit.unit_type = ENGINE_NO_UNIT_TYPE;
+        IM_CHECK_EQ(ui_unit_sprite(&v.api, &unit), (u32)RENDER_SPRITE_UNIT);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_UNIT_TYPE_AT), (u32)ArrayCount(expected));
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* A left click on the plate of an own unit (the portrait and the name)
+       selects it, also when the plate covers the sky. A second click on
+       the plate opens the command menu. The clicks command nothing. */
+    t = IM_REGISTER_TEST(e, "ui", "a_click_on_a_unit_plate_selects_the_unit_and_a_second_click_opens_its_menu");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.hud_mode         = true;
+        v.ui.scene.headless   = true;
+        v.ui.show_city        = false;
+        v.ui.show_map         = false;
+        v.ui.show_officers    = v.ui.show_cities = false;   /* nothing covers the map */
+        ctx->Yield(2);
+        ui_frame_unit(&v.ui, 0);   /* the camera looks at unit 0, so its plate is on the screen */
+        ctx->Yield(3);
+        ui_select_unit(&v.ui, ENGINE_NO_UNIT);   /* then nothing is selected; the camera stays */
+        v.ui.scene.framed_unit = ENGINE_NO_UNIT;
+        ctx->Yield(3);
+        /* The plate of unit 0, as the last frame drew it. The portrait is at its left edge. */
+        u32 plate = UI_PLATE_CAPACITY;
+        for (u32 index = 0; index < v.ui.units.plate_count; ++index) if (v.ui.units.plates[index].unit == 0) plate = index;
+        IM_CHECK(plate != UI_PLATE_CAPACITY);
+        ImVec2 portrait(v.ui.units.plates[plate].x0 + 10.0f, (v.ui.units.plates[plate].y0 + v.ui.units.plates[plate].y1) * 0.5f);
+        ImVec2 name(v.ui.units.plates[plate].x1 - 30.0f, v.ui.units.plates[plate].y0 + 6.0f);
+        ctx->MouseMoveToPos(portrait);
+        ctx->Yield(2);
+        IM_CHECK(!ImGui::GetIO().WantCaptureMouse);
+        recorder_reset(&v.recorder);
+        ctx->MouseClick(ImGuiMouseButton_Left);
+        IM_CHECK(v.ui.units.selected == 0 && v.ui.show_unit && !v.ui.show_unit_menu);   /* the portrait selects */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        ctx->Yield(2);
+        ctx->MouseMoveToPos(name);
+        ctx->Yield(2);
+        IM_CHECK(!ImGui::GetIO().WantCaptureMouse);   /* the Unit panel does not cover the plate */
+        ctx->MouseClick(ImGuiMouseButton_Left);
+        IM_CHECK(v.ui.units.selected == 0 && v.ui.show_unit_menu);                    /* the name opens the menu */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* An attack pick sends one command_attack and shows a strike on the
+       target hex for a few seconds (ui_war.cpp). */
+    t = IM_REGISTER_TEST(e, "ui", "an_attack_shows_a_strike_on_the_target_hex_for_a_few_seconds");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.recorder.unit1_rival   = true;
+        v.ui.units.selected      = 0;
+        v.ui.combat.pick         = UI_PICK_ATTACK;
+        ctx->Yield();
+        recorder_reset(&v.recorder);
+        ui_test_click_cell(ctx, v, hex_make(1, 3));
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_ATTACK), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(v.ui.war.strike_count == 1 && v.ui.war.strikes[0].kind == UI_STRIKE_ATTACK);
+        IM_CHECK(v.ui.war.strikes[0].hex.q == 1 && v.ui.war.strikes[0].hex.r == 3);
+        IM_CHECK(v.ui.war.strikes[0].seconds > UI_STRIKE_SECONDS - 0.1f);
+        u32 frames = 0;
+        for (; frames < 1200 && v.ui.war.strike_count; ++frames) ctx->Yield();
+        IM_CHECK(frames > 60 && v.ui.war.strike_count == 0);   /* it stays for seconds and then ends */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK_EQ(ui_strike_of_pick(UI_PICK_TACTIC), (u8)UI_STRIKE_TACTIC);
+        IM_CHECK_EQ(ui_strike_of_pick(UI_PICK_PLOT), (u8)UI_STRIKE_PLOT);
+        IM_CHECK_EQ(ui_strike_of_pick(UI_PICK_BUILD), (u8)UI_STRIKE_KIND_COUNT);
+    };
+
+    /* The soldiers and the morale that a unit loses or gains rise as values
+       over the unit, read from the ledger. After the value, the plate marks
+       the changed soldiers for a few seconds. */
+    t = IM_REGISTER_TEST(e, "ui", "unit_hits_rise_from_the_ledger_and_then_mark_the_plate");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.scene.headless      = true;
+        ui_frame_unit(&v.ui, 0);   /* the camera looks at unit 0 */
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        sim_event damaged = {};
+        damaged.kind = SIM_EVENT_UNIT_DAMAGED; damaged.faction = 1; damaged.detail = 0; damaged.delta = -495; damaged.cause = 7; damaged.turn = 1;
+        sim_event morale = damaged;
+        morale.kind = SIM_EVENT_MORALE_CHANGED; morale.delta = -10;
+        sim_event quiet = damaged;
+        quiet.kind = SIM_EVENT_UNIT_MOVED; quiet.delta = 12;   /* no hit */
+        v.recorder.events[v.recorder.event_count++] = damaged;
+        v.recorder.events[v.recorder.event_count++] = morale;
+        v.recorder.events[v.recorder.event_count++] = quiet;
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.war.hit_count, 2u);
+        IM_CHECK(v.ui.war.hits[0].unit == 0 && v.ui.war.hits[0].kind == UI_HIT_SOLDIERS && v.ui.war.hits[0].delta == -495);
+        IM_CHECK(v.ui.war.hits[1].unit == 0 && v.ui.war.hits[1].kind == UI_HIT_MORALE && v.ui.war.hits[1].delta == -10);
+        IM_CHECK_EQ(ui_hit_mark(&v.ui, 0, (u8)UI_HIT_SOLDIERS), 0);   /* the value rises first; the plate marks nothing yet */
+        u32 frames = 0;
+        for (; frames < 1200 && ui_hit_mark(&v.ui, 0, (u8)UI_HIT_SOLDIERS) == 0 && v.ui.war.hit_count; ++frames) ctx->Yield();
+        IM_CHECK(frames > 30 && ui_hit_mark(&v.ui, 0, (u8)UI_HIT_SOLDIERS) == -495);   /* then the plate marks the loss */
+        IM_CHECK_EQ(ui_hit_mark(&v.ui, 0, (u8)UI_HIT_MORALE), -10);
+        IM_CHECK(ui_hit_colour(-495, IM_COL32_WHITE) != IM_COL32_WHITE && ui_hit_colour(10, IM_COL32_WHITE) != ui_hit_colour(-10, IM_COL32_WHITE));
+        IM_CHECK_EQ(ui_hit_colour(0, IM_COL32_WHITE), (ImU32)IM_COL32_WHITE);
+        for (frames = 0; frames < 1200 && v.ui.war.hit_count; ++frames) ctx->Yield();
+        IM_CHECK(frames > 30 && v.ui.war.hit_count == 0);                             /* and the mark ends */
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_UNIT_AT), 1u);                /* the value sits over the unit */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
     /* ---- clone gap report 2, group 2: the unit orders ---------------------- */
@@ -2273,6 +2457,66 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
+    /* An officer without a picture of its name gets a generated face
+       (render/faces.h): the UI asks the platform for the face of the
+       officer with the key of its description, and for no picture. */
+    t = IM_REGISTER_TEST(e, "ui", "court_officer_view_asks_for_a_generated_face_without_a_picture");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_court          = true;
+        v.ui.court.officer       = 101;
+        memset(&g_ui_test_portraits, 0, sizeof(g_ui_test_portraits));
+        const char *other = "Test/01 Other \xE7\x84\xA1.jpg";
+        portrait_list_add(&g_ui_test_portraits, 0, other, (u32)strlen(other));
+        g_ui_test_portrait_requests = 0;
+        g_ui_test_face_requests     = 0;
+        v.frame.portraits        = &g_ui_test_portraits;
+        v.frame.portrait_texture = ui_test_portrait_texture;
+        v.frame.face_texture     = ui_test_face_texture;
+        ctx->SetRef("###Court");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK_EQ(g_ui_test_portrait_requests, 0u);
+        IM_CHECK(g_ui_test_face_requests > 0);
+        IM_CHECK_EQ(g_ui_test_face_last_officer, 101u);
+        /* The recorder gives officer 101 the age 30, a man, with no personality tint. */
+        face_description expected = face_describe(101, false, 30, 0);
+        IM_CHECK_EQ(g_ui_test_face_last_key, face_key_pack(&expected));
+        IM_CHECK(recorder_count(&v.recorder, RECORDER_OFFICER_DETAIL) > 0);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* Without the archive, the face stands in for every officer. */
+    t = IM_REGISTER_TEST(e, "ui", "court_officer_view_asks_for_a_generated_face_without_the_archive");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_court          = true;
+        v.ui.court.officer       = 102;
+        g_ui_test_face_requests  = 0;
+        v.frame.portraits        = 0;
+        v.frame.portrait_texture = 0;
+        v.frame.face_texture     = ui_test_face_texture;
+        ctx->SetRef("###Court");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK(g_ui_test_face_requests > 0);
+        IM_CHECK_EQ(g_ui_test_face_last_officer, 102u);
+        IM_CHECK(g_ui_test_face_last_key & FACE_KEY_VALID);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
     t = IM_REGISTER_TEST(e, "ui", "court_reward_and_appoint_issue_one_command_court_each");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;
@@ -2291,7 +2535,7 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_COURT), 1u);
         IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_COMMAND_COURT), (u32)ENGINE_COMMAND_REWARD);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
-        IM_CHECK(v.recorder.last_court.officers[0] == 101 && v.recorder.last_court.city_id == 0);
+        IM_CHECK(v.recorder.last_court.rewards[0] == 101 && v.recorder.last_court.reward_count == 1 && v.recorder.last_court.city_id == 0);
         ctx->ComboClick("###post/###p1");
         ctx->Yield();
         recorder_reset(&v.recorder);
@@ -2323,6 +2567,32 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_COMMAND_COURT), (u32)ENGINE_COMMAND_DIPLOMACY);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
         IM_CHECK(v.recorder.last_court.kind == SIM_DIPLOMACY_GOODWILL && v.recorder.last_court.force == 2 && v.recorder.last_court.officer == 101);
+    };
+
+    /* G2-063: the envoy picker lists the free officers of the selected
+       city. The scripted officers stand in city 0, so city 1 lists none. */
+    t = IM_REGISTER_TEST(e, "ui", "diplomacy_envoy_picker_lists_the_free_officers_of_the_selected_city");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_diplomacy      = true;
+        v.ui.city.selected       = 0;
+        ctx->SetRef("###Diplomacy");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ComboClick("###envoy/###o101");
+        IM_CHECK_EQ(v.ui.diplomacy.envoy, (u16)101);
+        v.ui.city.selected = 1;
+        ctx->Yield(2);
+        ctx->ItemClick("###envoy");
+        ctx->Yield();
+        IM_CHECK(ctx->ItemInfo("//##Combo_00/**/###o101", ImGuiTestOpFlags_NoError).ID == 0);
+        ctx->KeyPress(ImGuiKey_Escape);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
     t = IM_REGISTER_TEST(e, "ui", "duel_screen_policy_special_and_round_issue_one_command_each");
@@ -2692,6 +2962,7 @@ register_ui_tests(ImGuiTestEngine *e)
                 case UI_EXPECT_POSTS:     IM_CHECK(v.ui.show_posts && v.ui.posts.staged_count == 0); break;
                 case UI_EXPECT_EXILE:     IM_CHECK(v.ui.show_exile && v.ui.exile.officer == ENGINE_NO_OFFICER); break;
                 case UI_EXPECT_ABILITIES: IM_CHECK(v.ui.show_abilities); break;
+                case UI_EXPECT_REWARD:    IM_CHECK(v.ui.show_reward && v.ui.reward.city == 1 && v.ui.reward.count == 2); break;   /* the open checks 101 and 102 */
                 default:                  IM_CHECK(false); break;
             }
             IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
@@ -3559,9 +3830,65 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->Yield(2);
         ui_facility_count rows[UI_FACILITY_COUNT_CAPACITY];
         u32 count = ui_count_facilities(&v.api, 0, rows, ArrayCount(rows));
-        IM_CHECK_EQ(count, 1u);                                           /* the recorder has two markets of level 1 */
-        IM_CHECK(rows[0].facility == 0 && rows[0].level == 1 && rows[0].count == 2);
+        IM_CHECK_EQ(count, 2u);                                           /* two markets of level 1, and a farm under construction */
+        IM_CHECK(rows[0].facility == 0 && rows[0].level == 1 && rows[0].count == 2 && rows[0].building == 0);
+        IM_CHECK(rows[1].facility == 1 && rows[1].level == 1 && rows[1].count == 0 && rows[1].building == 1);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* The counts show the builds in progress next to the built facilities:
+       "5 (+2)". The 開發 grid counts each kind the same way. */
+    t = IM_REGISTER_TEST(e, "ui", "facility_counts_show_the_builds_in_progress_and_command_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.city_count = 2;
+        v.ui.show_city = true;
+        ctx->Yield(2);
+        char number[32];
+        ui_format_facility_count(number, sizeof(number), 5, 2);
+        IM_CHECK_STR_EQ(number, "5 (+2)");
+        ui_format_facility_count(number, sizeof(number), 5, 0);
+        IM_CHECK_STR_EQ(number, "5");
+        u32 built[256], building[256];
+        ui_count_built_facilities(&v.api, 0, built, building, ArrayCount(built));
+        IM_CHECK(built[0] == 2 && building[0] == 0);                      /* the markets */
+        IM_CHECK(built[1] == 0 && building[1] == 1);                      /* the farm under construction */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* The scene draws a model on each slot with a facility: the shape of
+       the kind for a built one, and a scaffold with a smaller shape inside
+       for a build in progress. The scene asks city_slots and facility_at
+       and commands nothing. */
+    t = IM_REGISTER_TEST(e, "ui", "scene_draws_a_model_on_each_facility_and_a_scaffold_on_a_build_in_progress");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        memory_arena frame_arena = test_arena_create(Megabytes(2));
+        v.recorder.city_count = 2;
+        v.ui.scene.headless   = true;
+        v.frame.frame_arena   = &frame_arena;
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK(v.frame.render && v.frame.render->scene_enabled);
+        IM_CHECK_EQ(ui_test_count_meshes(v.frame.render, RENDER_MESH_SETTLEMENT, 0), 2u);   /* one settlement for each city */
+        f32 built_scale = 0.0f, building_scale = 0.0f;
+        IM_CHECK_EQ(ui_test_count_meshes(v.frame.render, RENDER_MESH_STALL, &built_scale), 4u);        /* two markets in each city */
+        IM_CHECK_EQ(ui_test_count_meshes(v.frame.render, RENDER_MESH_SCAFFOLD, 0), 2u);                /* the farm under construction of each city */
+        IM_CHECK_EQ(ui_test_count_meshes(v.frame.render, RENDER_MESH_FIELD, &building_scale), 2u);     /* the farm itself, smaller */
+        IM_CHECK_LT(building_scale, built_scale);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_CITY_SLOTS), 2u);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_FACILITY_AT), 2u * RECORDER_SLOTS);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        v.frame.frame_arena = 0;
+        v.frame.render      = 0;
+        test_arena_destroy(&frame_arena);
     };
 
     /* M10: a click on a city hex selects the city; the panel frames its
@@ -4120,6 +4447,95 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_COMMAND_COURT), (u32)ENGINE_COMMAND_EXILE);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
         IM_CHECK(v.recorder.last_court.target == 101 && !v.ui.show_exile);
+    };
+
+    /* G2-040: the 褒賞 dialog checks every officer that the recorder marks
+       with a rise (101 and 102) when it opens. A click on a row clears it.
+       決定 sends one command_court REWARD with the checked set. */
+    t = IM_REGISTER_TEST(e, "ui", "reward_dialog_decide_issues_one_command_court_with_the_checked_set");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_reward         = true;
+        v.ui.reward.city         = 0;
+        v.ui.reward.count        = 0;
+        v.ui.reward.fill         = true;
+        ctx->SetRef("###Reward");
+        ctx->Yield(2);
+        IM_CHECK(v.ui.reward.count == 2 && v.ui.reward.checked[0] == 101 && v.ui.reward.checked[1] == 102);
+        IM_CHECK(ctx->ItemExists("reward_rows/###reward_row101") && ctx->ItemExists("reward_rows/###reward_row102"));
+        IM_CHECK(!ctx->ItemExists("reward_rows/###reward_row100"));   /* the ruler is not in the list */
+        ctx->ItemClick("reward_rows/###reward_row101");
+        ctx->Yield();
+        IM_CHECK(v.ui.reward.count == 1 && v.ui.reward.checked[0] == 102);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###decide");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_COURT), 1u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_COMMAND_COURT), (u32)ENGINE_COMMAND_REWARD);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(v.recorder.last_court.reward_count == 1 && v.recorder.last_court.rewards[0] == 102 && v.recorder.last_court.city_id == 0);
+        IM_CHECK(!v.ui.show_reward);
+    };
+
+    /* G2-040: 一併解除 clears the set and greys 決定, 一併 checks every row,
+       and 返回 closes the dialog. None of them commands anything. */
+    t = IM_REGISTER_TEST(e, "ui", "reward_dialog_check_all_clear_all_and_back_command_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_reward         = true;
+        v.ui.reward.city         = 0;
+        v.ui.reward.count        = 0;
+        v.ui.reward.fill         = true;
+        ctx->SetRef("###Reward");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###reward_clear_all");
+        ctx->Yield();
+        IM_CHECK(v.ui.reward.count == 0);
+        IM_CHECK((ctx->ItemInfo("###decide").ItemFlags & ImGuiItemFlags_Disabled) != 0);
+        ctx->ItemClick("###reward_check_all");
+        ctx->Yield();
+        IM_CHECK(v.ui.reward.count == 2);
+        ctx->ItemClick("###back");
+        ctx->Yield();
+        IM_CHECK(!v.ui.show_reward);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* The Court panel asks court_advice for 探索 and for 登庸 and shows the
+       clue of the adviser next to each, without a command. */
+    t = IM_REGISTER_TEST(e, "ui", "court_search_and_recruit_show_the_clue_of_the_adviser");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_court          = true;
+        v.ui.court.officer       = 101;
+        v.ui.court.target        = 102;
+        ctx->SetRef("###Court");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield(2);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_COURT_ADVICE), 2u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_COURT_ADVICE), (u32)ENGINE_COMMAND_SEARCH);
+        IM_CHECK(ctx->ItemExists("###advice_search") && ctx->ItemExists("###advice_recruit"));
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        v.ui.court.target = ENGINE_NO_OFFICER;   /* no target: the recruit clue goes away */
+        ctx->Yield(6);                           /* the item table of the test engine forgets an item after some frames */
+        IM_CHECK(ctx->ItemExists("###advice_search") && !ctx->ItemExists("###advice_recruit"));
     };
 
     /* G2-065: 決定 of the plot dialog sends one command_court FACTION_PLOT

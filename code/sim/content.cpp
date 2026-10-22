@@ -417,7 +417,8 @@ global_variable content_rule_field content_rule_fields[] = {
     CONTENT_RULE("ap.move", ap_move_officers), CONTENT_RULE("ap.summon", ap_summon),
     CONTENT_RULE("ap.give_item", ap_give_item), CONTENT_RULE("ap.diplomacy", ap_diplomacy), CONTENT_RULE("ap.faction_plot", ap_faction_plot),
     CONTENT_RULE("reward.gold", reward_gold), CONTENT_RULE("reward.loyalty", reward_loyalty),
-    CONTENT_RULE("reward.compatibility_divisor", reward_compatibility_divisor),
+    CONTENT_RULE("reward.compatibility_divisor", reward_compatibility_divisor), CONTENT_RULE("reward.loyalty_min", reward_loyalty_min),
+    CONTENT_RULE("advice.low_below", clue_low_below), CONTENT_RULE("advice.high_from", clue_high_from),
     CONTENT_RULE("search.base", search_base), CONTENT_RULE("search.politics_percent", search_politics_percent),
     CONTENT_RULE("search.gold_chance", search_gold_chance), CONTENT_RULE("search.gold", search_gold),
     CONTENT_RULE("search.debate_intellect", search_debate_intellect),
@@ -1263,16 +1264,20 @@ global_variable const char *content_item_type_names[ITEM_TYPE_COUNT] = {
 global_variable const char *content_polearm_names[POLEARM_COUNT] = { "plain", "sky_halberd", "snake_spear", "dragon_blade" };
 
 /* One row of skills.tsv for each number 1 to 100, in order. A hooked skill
-   names the rule hook "skill.<effect>"; the loader writes its number there. */
+   names the rule hook "skill.<effect>"; the loader writes its number there.
+   The column file_id is the skill byte of a scenario or save record. The
+   order of the file is not the order of skills.md, so each row names its
+   file id, and no two rows have the same one. */
 internal b32
 content_load_skills(sim_content *content, tsv_table *table, u32 *bad_row)
 {
     content->skill_count = 0;
+    memset(content->skill_of_file_id, OFFICER_SKILL_NONE, sizeof(content->skill_of_file_id));
     if (table->row_count != CONTENT_SKILL_COUNT) { *bad_row = table->row_count; return false; }
     for (u32 row = 0; row < table->row_count; ++row)
     {
         skill_kind kind = {};
-        u32 number = 0;
+        u32 number = 0, file_id = 0;
         const char *key = tsv_cell(table, row, "key"), *effect = tsv_cell(table, row, "effect");
         kind.category = (u8)content_find_name(content_skill_category_names, SKILL_CATEGORY_COUNT, tsv_cell(table, row, "category"));
         const char *applies = tsv_cell(table, row, "applies");
@@ -1280,21 +1285,42 @@ content_load_skills(sim_content *content, tsv_table *table, u32 *bad_row)
         kind.hooked   = by_rule || strcmp(applies, "table") == 0;
         b32 bad = !tsv_cell_u32(table, row, "number", &number) || number != row + 1 || !key[0] || strlen(key) >= CONTENT_KEY_SIZE ||
                   strlen(effect) >= CONTENT_KEY_SIZE || kind.category == SKILL_CATEGORY_COUNT ||
-                  (!kind.hooked && strcmp(applies, "none") != 0);
+                  (!kind.hooked && strcmp(applies, "none") != 0) ||
+                  !tsv_cell_u32(table, row, "file_id", &file_id) || file_id >= CONTENT_SKILL_COUNT ||
+                  content->skill_of_file_id[file_id] != OFFICER_SKILL_NONE;
         if (!bad && by_rule)
         {
             char rule[CONTENT_KEY_SIZE + 8] = "skill.";
             memcpy(rule + 6, effect, strlen(effect) + 1);
             bad = !content_set_rule(&content->rules, rule, number);
         }
-        if (bad) { *bad_row = row; content->skill_count = 0; return false; }
-        kind.number = (u8)number;
+        if (bad)
+        {
+            *bad_row = row;
+            content->skill_count = 0;
+            memset(content->skill_of_file_id, OFFICER_SKILL_NONE, sizeof(content->skill_of_file_id));
+            return false;
+        }
+        kind.number  = (u8)number;
+        kind.file_id = (u8)file_id;
         memcpy(kind.key, key, strlen(key) + 1);
         memcpy(kind.effect, effect, strlen(effect) + 1);
         content->skills[row] = kind;
         content->skill_count = row + 1;
+        content->skill_of_file_id[file_id] = (u8)row;   /* the sim keeps the number - 1 */
     }
     return true;
+}
+
+/* The skill byte of a scenario or save record gives the number - 1 that
+   the sim keeps (officer_component.skill_number). A pack without
+   skills.tsv keeps the byte. */
+internal u8
+content_skill_of_file_id(const sim_content *content, u8 file_id)
+{
+    if (file_id == OFFICER_SKILL_NONE) return OFFICER_SKILL_NONE;
+    if (content->skill_count != CONTENT_SKILL_COUNT) return file_id;
+    return file_id < CONTENT_SKILL_COUNT ? content->skill_of_file_id[file_id] : (u8)OFFICER_SKILL_NONE;
 }
 
 internal b32

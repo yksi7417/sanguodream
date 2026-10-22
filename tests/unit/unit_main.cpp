@@ -12,10 +12,12 @@
 #include "sim/sim.cpp"
 #include "render/render.h"
 #include "render/terrain_mesh.h"
+#include "render/placeholder_meshes.h"
 #include "render/png.h"
 #include "render/zip.h"
 #include "render/jpeg.h"
 #include "render/portraits.h"
+#include "render/faces.h"
 #include "text/text.h"
 #include "text/text.cpp"
 
@@ -34,6 +36,7 @@
 #include "zip_tests.cpp"
 #include "jpeg_tests.cpp"
 #include "portraits_tests.cpp"
+#include "faces_tests.cpp"
 #include "text_tests.cpp"
 #include "calendar_tests.cpp"
 #include "content_tests.cpp"
@@ -105,6 +108,10 @@ main(void)
     test_counts portraits = {};
     unit_portraits_tests(&portraits);
     failed |= test_report("unit/portraits", &portraits);
+
+    test_counts faces = {};
+    unit_faces_tests(&faces);
+    failed |= test_report("unit/faces", &faces);
 
     test_counts text = {};
     unit_text_tests(&text);

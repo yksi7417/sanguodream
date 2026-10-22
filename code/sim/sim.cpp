@@ -477,6 +477,7 @@ sim_load_save_world(sim_state *sim, save_file *save, sim_command command, sim_ev
     }
 
     sim_unload_world(sim);
+    sim->turns.start_pending = false;
     for (u32 slot = 0; slot < save->officer_slot_count; ++slot)
     {
         officer_record *record = save->officers + slot;
@@ -485,8 +486,10 @@ sim_load_save_world(sim_state *sim, save_file *save, sim_command command, sim_ev
         officer_component *added = sim_find_officer(sim, (u16)slot);
         if (!added) continue;
         sim_init_officer_state(sim, added, record);   /* M7: character and relations */
-        /* G2-035: the loyalty of a save record (+104, hypothesis Q-005). The game shows at most 100. */
-        if (record->has_save_fields) added->loyalty = record->loyalty;   /* the surplus above 100 stays; the views show 100 */
+        /* G2-035: the loyalty of a save or scenario record (+104). The game shows at most 100. */
+        if (record->has_loyalty) added->loyalty = record->loyalty;   /* the surplus above 100 stays; the views show 100 */
+        /* The skill byte is a file id: skills.tsv gives its number (2026-10-22). */
+        added->skill_number = content_skill_of_file_id(&sim->content, record->skill_number);
     }
     sim_load_items(sim, save);
     for (u32 index = 0; index < save->city_count; ++index)
@@ -522,14 +525,20 @@ sim_load_save_world(sim_state *sim, save_file *save, sim_command command, sim_ev
     return true;
 }
 
-/* A new game from a scenario (engine_api_load_scenario): the world, then
-   the start of a turn. The AI factions before the player act, and every
-   faction recovers its action points. */
+/* A new game from a scenario (engine_api_load_scenario): the world and the
+   order of the factions. No faction acts yet, because the player chooses
+   the rulers after the load (set_faction_human). The first end_turn starts
+   the first turn: the AI factions before the player act, and every faction
+   recovers its action points. Before 2026-10-22 the load started the turn
+   at once. Then the AI played every faction, also the faction of the
+   player, and each officer got the merit of a command before the start. */
 internal b32
 sim_load_new_game(sim_state *sim, save_file *save, sim_command command, sim_event_sink *events)
 {
     if (!sim_load_save_world(sim, save, command, events)) return false;
-    sim_start_turn(sim, command.id, events);
+    sim_compute_turn_order(sim);
+    sim->turns.acting        = sim->turns.order_count;   /* whose_turn: no faction */
+    sim->turns.start_pending = true;
     return true;
 }
 

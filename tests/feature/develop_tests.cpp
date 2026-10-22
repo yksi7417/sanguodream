@@ -344,6 +344,7 @@ feature_develop_completion_tests(test_counts *counts, engine_api *api, u8 city, 
     u32 gold_before = api->city_at(e, city).gold;
     u32 points_before = api->actions_left(e, force);
     u32 mark = api->ledger_count(e);
+    engine_city_slots site_before = api->city_slots(e, city);
     engine_command_result result = api->command_develop(e, city, FEATURE_FACILITY_FARM, command.officers, ENGINE_ANY_SLOT);
     TEST_CHECK(counts, result.refusal == SIM_REFUSAL_NONE && result.command_id != 0, "the develop starts");
     TEST_CHECK(counts, api->city_at(e, city).gold == gold_before - 200 && api->actions_left(e, force) == points_before - FEATURE_DEVELOP_AP,
@@ -360,6 +361,10 @@ feature_develop_completion_tests(test_counts *counts, engine_api *api, u8 city, 
     TEST_CHECK(counts, feature_officer_by_id(api, ids[0], &worker) && worker.job_city == city && worker.acted,
                "the officer has the job and acted in this turn");
     TEST_CHECK(counts, api->city_slots(e, city).used >= 1, "the slot is in use");
+    engine_city_slots site_started = api->city_slots(e, city);
+    TEST_CHECK(counts, site_started.building == site_before.building + 1 && site_started.built == site_before.built &&
+                       site_started.used == site_before.used + 1,
+               "city_slots counts the build in progress apart from the built facilities");
 
     for (u32 turn = 1; turn < turns; ++turn)
     {
@@ -372,6 +377,10 @@ feature_develop_completion_tests(test_counts *counts, engine_api *api, u8 city, 
     feature_next_own_turn(api, force);
     slot = api->facility_at(e, city, check.slot);
     TEST_CHECK(counts, slot.state == SIM_SLOT_BUILT && slot.turns_left == 0, "the facility is complete after the period");
+    engine_city_slots site_finished = api->city_slots(e, city);
+    TEST_CHECK(counts, site_finished.built >= site_started.built + 1 && site_finished.building <= site_started.building - 1 &&
+                       site_finished.used == site_finished.built + site_finished.building,
+               "city_slots moves the complete facility from building to built");
     sim_event completed = {}, released = {};
     TEST_CHECK(counts, feature_find_event(api, SIM_EVENT_FACILITY_COMPLETED, mark, &completed) &&
                        completed.delta == FEATURE_FACILITY_FARM && completed.cause != 0,

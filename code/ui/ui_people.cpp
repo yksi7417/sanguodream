@@ -276,7 +276,6 @@ ui_draw_posts(ui_state *ui, engine_api *api)
             engine_court_order order = {};
             order.city_id = city;
             order.officer = ENGINE_NO_OFFICER;
-            order.officers[0] = order.officers[1] = order.officers[2] = ENGINE_NO_OFFICER;
             order.target  = ui->posts.staged_officer[index];
             order.post    = ui->posts.staged_post[index];
             order.item    = 0xFF;
@@ -317,7 +316,6 @@ ui_draw_exile(ui_state *ui, engine_api *api)
     command.kind = ENGINE_COMMAND_EXILE;
     command.court.city_id = ui->city.selected;
     command.court.officer = ENGINE_NO_OFFICER;
-    command.court.officers[0] = command.court.officers[1] = command.court.officers[2] = ENGINE_NO_OFFICER;
     command.court.target  = ui->exile.officer;
     command.court.item    = 0xFF;
     command.court.post    = 0xFF;
@@ -407,7 +405,6 @@ ui_draw_plot_dialog(ui_state *ui, engine_api *api)
     command.kind = ENGINE_COMMAND_FACTION_PLOT;
     command.court.city_id     = city;
     command.court.officer     = ui->plot.officer;
-    command.court.officers[0] = command.court.officers[1] = command.court.officers[2] = ENGINE_NO_OFFICER;
     command.court.target      = ENGINE_NO_OFFICER;
     command.court.kind        = ui->plot.kind;
     command.court.target_city = ui->plot.target_city;

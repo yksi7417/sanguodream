@@ -2,7 +2,8 @@
 
 Files: code/sim/combat.cpp, code/sim/field.cpp, code/sim/content.cpp
 (tactics.tsv, plots.tsv, buildings.tsv and critical_skills.tsv),
-code/engine/engine_combat.cpp, code/ui/ui_combat.cpp and ui_march.cpp.
+code/engine/engine_combat.cpp, code/ui/ui_combat.cpp, ui_march.cpp and
+ui_war.cpp (the feedback of war).
 The data is in data/placeholder/tactics.tsv, plots.tsv, buildings.tsv,
 critical_skills.tsv and rules.tsv.
 Tests: tests/unit/combat_tests.cpp, tests/feature/combat_tests.cpp, the
@@ -197,6 +198,36 @@ the spec come with the map data (Q-034).
 - The Unit panel shows the state of the unit and a button that cancels
   the pick.
 
+## The feedback of war
+code/ui/ui_war.cpp gives the player four signs of a battle. The user asked
+for them on 2026-10-22. The sim stays instant. Only the front end plays
+them, and it reads the facts through engine_api.
+- The walk. A click in the range of a unit calls path_to before its
+  command_move. ui_walk_plan keeps the hex of the unit and the cells of
+  the plan. ui_walk_begin trims the plan to the hex that the unit reached.
+  The unit then stands on each hex of the plan for UI_WALK_HEX_SECONDS.
+  ui_round_unit_hex gives the hex of the walk to the scene, the plates and
+  the Hex map. The command menu opens when the walk ends. The far 移動 of
+  the target menu walks the part of the way of this turn.
+- The strike. After a 攻擊, 齊攻, 單挑, 戰法 or 計略 that the engine
+  accepts, ui_combat_click pushes a strike on the target hex. The strike
+  shows for UI_STRIKE_SECONDS: a ring that grows, and three slashes for
+  an attack, rays for a tactic, or two rings for a plot. A
+  SIM_EVENT_UNIT_DAMAGED of another faction pushes a strike on the hit
+  unit, so the player sees the attacks of the AI too.
+- The hit. ui_war_update reads the new events of the ledger. Each
+  SIM_EVENT_UNIT_DAMAGED, UNIT_SOLDIERS_LOST, UNIT_DESERTED and
+  UNIT_SUPPLIED is a hit of the soldiers. Each SIM_EVENT_MORALE_CHANGED is
+  a hit of the morale. The value rises over the unit as "-495 兵" or
+  "-10 氣力" for UI_HIT_FLOAT_SECONDS. Then ui_hit_mark gives the change to
+  the plate and to the Unit panel. They show the value in red for a loss
+  or in green for a gain, for UI_HIT_MARK_SECONDS. During the show of the AI
+  round, ui_round_play_event raises the hits of the AI factions in the
+  time of the show.
+- The sprite. ui_unit_sprite maps the key of the unit class to a
+  render_sprite. The scene draws that picture on the hex of the unit
+  (docs/ASSETS.md, "Unit sprites").
+
 ## The tests, line by line
 - combat_tests.cpp (unit) checks the parsers of the four tables, the
   assumed damage rule and its hook, the class triangle and the hexes of
@@ -213,6 +244,15 @@ the spec come with the map data (Q-034).
   - a land unit that enters a river.
 - ui_tests.cpp checks that each pick and each list sends one command,
   and that the map sends nothing when it draws.
+- ui_tests.cpp, the feedback of war:
+  "map_click_selects_a_unit_and_moves_it_with_one_command" checks the
+  walk and the menu after it.
+  "an_attack_shows_a_strike_on_the_target_hex_for_a_few_seconds" checks
+  the strike and its end.
+  "unit_hits_rise_from_the_ledger_and_then_mark_the_plate" checks the
+  values and the mark.
+  "unit_sprite_follows_the_class_of_the_unit" checks the sprite of each
+  class.
 - demo/m6_battle sends a unit out, attacks an enemy unit, sets a hex on
   fire and destroys the enemy in a later turn.
 

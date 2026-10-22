@@ -310,6 +310,13 @@ sim_end_faction_turn(sim_state *sim, u32 cause, sim_event_sink *events)
 {
     if (sim_game_over(sim)) return;
     sim_turn_state *turns = &sim->turns;
+    if (turns->start_pending)
+    {
+        /* A new game (sim_load_new_game): no faction acted yet. This end_turn starts the first turn. */
+        turns->start_pending = false;
+        sim_start_turn(sim, cause, events);
+        return;
+    }
     if (turns->acting < turns->order_count)
     {
         /* The units with a long order do their step at 進行 (orders.cpp; manual p.24). */

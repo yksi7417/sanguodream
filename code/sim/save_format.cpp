@@ -94,6 +94,8 @@ officer_decode_shared(const u8 *record, u16 id, officer_record *out)
     out->politics     = stats[3];
     out->charm        = stats[4];
     out->skill_number = record[OFFICER_SKILL_NUMBER];
+    out->loyalty      = record[OFFICER_LOYALTY];
+    out->has_loyalty  = true;
     out->flags               = format_read_u16(record + OFFICER_FLAGS);
     out->has_acted_this_turn = (out->flags & OFFICER_FLAG_HAS_ACTED) != 0;
 }
@@ -106,7 +108,6 @@ save_decode_officer(const u8 *record, u16 id, officer_record *out)
     out->has_save_fields = true;
     format_read_u16_array(record + OFFICER_PER_STAT_EXPERIENCE, out->per_stat_experience, OFFICER_STAT_COUNT);
     out->order_kind = record[OFFICER_ORDER_KIND];
-    out->loyalty    = record[OFFICER_LOYALTY];
 }
 
 internal void

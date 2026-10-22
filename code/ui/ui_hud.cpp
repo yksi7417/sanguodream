@@ -397,19 +397,22 @@ internal void
 ui_hud_scene_clicks(ui_state *ui, engine_api *api)
 {
     ImGuiIO &io = ImGui::GetIO();
-    if (io.WantCaptureMouse || !ui->scene.has_hover) return;
+    if (io.WantCaptureMouse) return;
     bool left  = ImGui::IsMouseClicked(ImGuiMouseButton_Left);
     bool right = ui_right_clicked() && !ui->context.consumed;
     if (!left && !right) return;
     hex_coord hex = ui->scene.hover;
-    /* G2-042: the plate of a unit sits above its hex and covers other hexes.
-       A click on a plate is a click on the hex of its unit. */
+    bool on_map = ui->scene.has_hover;
+    /* G2-042: the plate of a unit (the portrait and the name) sits above
+       its hex and covers other hexes, or the sky. A click on a plate is a
+       click on the hex of its unit. */
     u32 plated = ui_plate_unit_at(ui, io.MousePos.x, io.MousePos.y);
     if (plated != ENGINE_NO_UNIT)
     {
         engine_unit on_plate = api->unit_at(api->engine, plated);
-        if (on_plate.id != ENGINE_NO_UNIT) hex = hex_make(on_plate.q, on_plate.r);
+        if (on_plate.id != ENGINE_NO_UNIT) { hex = hex_make(on_plate.q, on_plate.r); on_map = true; }
     }
+    if (!on_map) return;
     engine_hex data = api->hex_at(api->engine, hex.q, hex.r);
     f32 x = io.MousePos.x, y = io.MousePos.y;
     if (ui->placement.active)   /* M19: a 開發 waits for its slot (ui_placement.cpp) */

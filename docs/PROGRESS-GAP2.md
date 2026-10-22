@@ -56,10 +56,12 @@ run of 2026-10-22".
 | G2-039 | A search with no find gives the log line 蒯良在江陵的探索失敗. A find gives 發現人才. The executor list with 軍師推薦, 政治 and 眼力 stays open. | P2 batch 3 | feature/court |
 | G2-038 | The log line of a failed 登庸 names both officers (高長恭登庸卞氏失敗). A failure gives 0 技巧 (group 4). The dialog with a target list that has columns, and the speech of the executor, stay open. | P2 batch 3 | feature/court |
 | G2-059 | A force that loses its last city falls: the ledger has 張楊軍滅亡, the log shows it, and the turn start shows it as a message to every player. The picture of a burning castle stays open: the clone has no such picture. | P2 batch 3 | feature/combat |
-| G2-040 | Open. The clone rewards up to three officers of the city in one order for 5 行動力 and 100 gold each, as the spec says. The original rewards a set of the whole force in one dialog. The list with 忠誠 below 100 and the check boxes stay open. | - | - |
+| G2-040 | 人材 > 褒賞 opens a dialog with the officers of the whole force that can get a reward (忠誠 below 100, not the ruler, not in a unit, not away, no reward this turn), each with a check box, the columns 武將, 忠誠, the rise, 所在, 身份 and 功績, the buttons 一併 and 一併解除, the cost of the set and 決定. The dialog checks every row when it opens, as the original does. One order rewards the set for 5 行動力 and 100 gold for each officer, and the city of the order pays. The rise of 忠誠 is a formula of rules.tsv (reward.loyalty 10, less one for each reward.compatibility_divisor 15 of the distance of compatibility to the ruler, at least reward.loyalty_min 1). The spec names the compatibility as the one factor and gives no numbers (Q-028): the rows are assumed, and the fit is a question below. | feat/court-feedback | unit/court, feature/court, ui |
+| G2-038, G2-039 (the dialogs) | The Court panel shows the clue of the adviser next to 探索 and next to 登庸 (ui/city-commands.md: the estimate after the choice of a target). The clue has three bands of the chance in percent (advice.low_below 34, advice.high_from 67, assumed) in three colours, with the name of the 軍師. A hover shows the chance. The words and the thresholds of the original are a question below. | feat/court-feedback | unit/court, feature/court, ui |
 | G2-022 | 訓練 raises the morale by floor(4 + 0.115 x S) in a city with a 鍊兵所 and by floor(3 + S / 15) without one. S is the force of the first officer plus half of the force of each other officer (the run of 2026-10-22, 17 rows). The fixture handler checks the rows without a drill ground, builds one, then checks the rows with it. | settled rules | unit/economy, feature/city_commands, fixture/train |
 | G2-026 | 生產兵裝 gives F x (1000 + 10 x I) weapons, with F 1.5 for a level-3 smithy. I is the intellect of the first officer plus half of the intellect of each other officer (the run of 2026-10-22, 6 rows). | settled rules | unit/economy, feature/city_commands, fixture/produce |
 | G2-043 | The attack of a unit is 武力 x A x C, and the defence is 統率 x A x D. A is the aptitude factor (S 0.95, A 0.85, B 0.75, C 0.65). C and D are the class factors (槍兵 1.0 and 1.0, 戟兵 0.95 and 1.1, 弩兵 0.9 and 0.95, 騎兵 1.1 and 0.95). A sword unit uses 0.36 with no aptitude. 建設 is 50 plus two thirds of 政治. 智力 is the intellect of the officer. The rows are rules.tsv (class.*, unit.*, aptitude.*). The fixture handler sets the abilities and the aptitudes of one officer through the editor: the pike, the halberd and the sword rows fit within one point, the crossbow and the cavalry rows within two. The ship rows stay pending. | settled rules | unit/units, feature/march, fixture/unit-values-sortie |
+| start of 194 | The player compared 武將一覽 of a new game of 群雄割據 as 曹操 in the original and in the clone (2026-10-22). The scenario loader reads +13 of a city as the troops and +17 as the gold: 陳留 has 28,000 troops and 5,600 gold. It reads the loyalty +104 of a scenario officer. The skill byte is a file id, and skills.tsv gives its number (column file_id). load_scenario starts no turn: the first end_turn after the choice of the rulers starts it, so no officer gets the merit of an AI command before the start. Tutorial 21 gives the details. | fix/scenario-start | unit/scenario_format, unit/court, feature/scenario_fixture, feature/playable |
 | G2-005 | The gain of 技巧 at the turn start: each built 鍊兵所 of the force gives 15 (the run of 2026-10-22, rules.tsv technique.drill_ground_turn). The recovery of 行動力 stays open: see the questions. | settled rules | feature/turns |
 
 ## In progress
@@ -107,6 +109,29 @@ run of 2026-10-22".
   2026-10-22). 鮑叔牙 (99, in a unit) was not in the 褒賞 list of the
   original. What is the second filter of the list: the officers in a
   unit, the officers away, or another rule?
+- G2-040, the rise of 忠誠 of one 褒賞 (Q-028). The clone uses 10, less
+  one for each 15 of the distance of compatibility to the ruler, at
+  least 1. The spec names the compatibility only. To fit the formula,
+  please read these items for each rewarded officer:
+  - 忠誠 before the reward and after it (武將一覽). Read it again after
+    the next 進行. The videos claim that the reward settles at the end
+    of the season.
+  - The 相性 of the officer and of the ruler (武將情報).
+  - The 性格 of the officer and the 魅力 of the ruler.
+  - Whether the force has a 符節台.
+  Reward at least four officers. Take one near the 相性 of the ruler
+  and one far from it (a distance near 75). Take one with 忠誠 below 50
+  and one with 忠誠 above 90. Then the builder can fit the base and the
+  slope of the compatibility. The data also shows a part of the current
+  loyalty, the personality or the charm of the ruler.
+- G2-038, G2-039, the estimate of the adviser. The clone shows three
+  bands of the chance (below 34 low, 67 and more high) with assumed
+  words. Please record the exact words of the 軍師 after the choice of a
+  target in 登庸 and after the open of 探索. Take a sure case, a
+  doubtful case and a hopeless case. For each case, note the 魅力 of the
+  recruiter, the 忠誠 and the 相性 of the target, and the 政治 of the
+  searcher. Does the message change with the 智力 of the 軍師, or
+  without a 軍師?
 - G2-061, the corps. The save marks 長沙 with the owner 0 and 武陵 with
   the owner 12. Table A record 0 has the leader 蘇飛, 255 action points
   and the bytes 1 and 1 at +13 and +14. Record 12 has the leader 吳巨,
@@ -216,3 +241,24 @@ run of 2026-10-22".
   save holds it as unit 53 at the map hex 69,148 with the task 移動 to
   the base 29. Please compare the units near 江陵 again with the new
   build, and name the hex of the unit of 吳巨 on the status bar.
+- Start of 194, the officers of 曹操. SCEN002 puts 27 officers in force
+  0, with status 3 for 夏侯恩 (appears 194) and 曹純 (appears 189). The
+  武將一覽 of the original showed 24 rows and a scroll bar. Please scroll
+  the list down and name the rows below 司馬朗. Are 曹操, 夏侯恩 and 曹純
+  there? The clone keeps the 27 officers until then.
+- Start of 194, the gold and the troops. scenario-file.md still names
+  the city field +13 the gold and +17 the troops. The swap of the save
+  fields +16 and +20 (2026-10-17) applies to the scenario too: 陳留 has
+  28,000 at +13 and 5,600 at +17. Please correct the table of the city
+  record in scenario-file.md.
+- Start of 194, the skill ids. The skill byte +124 is not the number of
+  skills.md - 1. The clone matched the holders of skills.md against
+  SCEN002. It wrote a file id for each number in skills.tsv. The guide
+  book names a holder for each of 97 numbers. The skills 槍神 (35), 霸王
+  (41) and 看破 (61) have no holder. The clone gave them the free ids 42,
+  48 and 60 by the order of their neighbours. Please add the table of the skill ids to skills.md, and
+  confirm the three ids with an officer that has one of these skills.
+- Start of 194, the ports. The plate of 官渡港 shows 3000 soldiers, the
+  assumed rule base.start_troops. The scenario file has no mapped record
+  of a gate or a port (scenario-file.md, 0x2764E "to map"). Please read
+  the soldiers of 官渡港 and of two other ports at the start of 194.

@@ -15,34 +15,39 @@
 internal void ui_frame_hex(ui_state *ui, engine_api *api, hex_coord hex);                         /* ui_locate.cpp */
 internal void ui_growth_result(ui_state *ui, const char *title_id, engine_command_result result);   /* ui_growth.cpp */
 
-/* The built facilities of a city, counted by the facility id. */
+/* The facilities of a city, counted by the facility id: the built ones in
+   counts, the builds in progress in building. */
 internal void
-ui_count_built_facilities(engine_api *api, u8 city_id, u32 *counts, u32 count_size)
+ui_count_built_facilities(engine_api *api, u8 city_id, u32 *counts, u32 *building, u32 count_size)
 {
-    for (u32 index = 0; index < count_size; ++index) counts[index] = 0;
+    for (u32 index = 0; index < count_size; ++index) counts[index] = building[index] = 0;
     engine_city_slots slots = api->city_slots(api->engine, city_id);
     for (u32 index = 0; index < slots.slot_count; ++index)
     {
         engine_facility slot = api->facility_at(api->engine, city_id, (u8)index);
-        if (slot.state == SIM_SLOT_BUILT && slot.facility < count_size) counts[slot.facility]++;
+        if (slot.facility >= count_size) continue;
+        if (slot.state == SIM_SLOT_BUILT)    counts[slot.facility]++;
+        if (slot.state == SIM_SLOT_BUILDING) building[slot.facility]++;
     }
 }
 
-/* The grid of the facilities: the name with the built count, and the cost.
-   A click selects the facility, and a frame of colour marks it. */
+/* The grid of the facilities: the name with the built count and the builds
+   in progress, and the cost. A click selects the facility, and a frame of
+   colour marks it. */
 internal void
 ui_draw_develop_grid(ui_state *ui, engine_api *api)
 {
-    u32 counts[256];
-    ui_count_built_facilities(api, ui->develop.city, counts, ArrayCount(counts));
+    u32 counts[256], building[256];
+    ui_count_built_facilities(api, ui->develop.city, counts, building, ArrayCount(counts));
     ImGui::TextUnformatted(text_get(ui->text, "develop.facility"));
     u32 kind_count = api->facility_kind_count(api->engine);
     for (u32 index = 0; index < kind_count; ++index)
     {
         engine_facility_kind kind = api->facility_kind_at(api->engine, index);
         if (kind.id == ENGINE_NO_FACILITY) continue;
-        char label[128];
-        snprintf(label, sizeof(label), "%s (%u)\n%u###fac%u", ui_text_with_key(ui, "facility", kind.key), counts[kind.id], kind.cost, kind.id);
+        char label[128], number[32];
+        ui_format_facility_count(number, sizeof(number), counts[kind.id], building[kind.id]);
+        snprintf(label, sizeof(label), "%s (%s)\n%u###fac%u", ui_text_with_key(ui, "facility", kind.key), number, kind.cost, kind.id);
         if (index % UI_DEVELOP_GRID_COLUMNS != 0) ImGui::SameLine();
         bool selected = ui->develop.facility == kind.id;
         if (selected) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.5f, 0.8f, 1.0f));

@@ -8,6 +8,11 @@ internal void ui_draw_supply(ui_state *ui, engine_api *api, engine_unit *transpo
 internal b32  ui_combat_click(ui_state *ui, engine_api *api, hex_coord hex);                                       /* ui_combat.cpp */
 internal void ui_start_pick(ui_state *ui, u8 pick, u8 row);
 internal void ui_draw_map_combat(ui_state *ui, engine_api *api, ImDrawList *draw, f32 cell, hex_point origin);
+internal void ui_walk_plan(ui_state *ui, engine_api *api, u32 unit_id, s32 q, s32 r);                  /* ui_war.cpp */
+internal void ui_walk_begin(ui_state *ui, engine_api *api, u32 unit_id, bool open_menu);
+internal void ui_walk_cancel(ui_state *ui);
+internal s32  ui_hit_mark(ui_state *ui, u32 unit_id, u8 kind);
+internal ImU32 ui_hit_colour(s32 mark, ImU32 plain);
 
 /* ---- faction colours (placeholder palette; terrain-and-map.md, "Map display") */
 
@@ -321,10 +326,13 @@ ui_unit_click(ui_state *ui, engine_api *api, hex_coord hex)
     for (u32 index = 1; index < reach.count; ++index)
     {
         if (reach.cells[index].q != hex.q || reach.cells[index].r != hex.r) continue;
+        ui_walk_plan(ui, api, unit.id, hex.q, hex.r);   /* the path, before the move changes the hex */
         engine_command_result result = api->command_move(api->engine, unit.id, hex.q, hex.r);
         ui_growth_result(ui, "unit.move_done", result);
         ui_units_note_result(ui, result);
-        if (result.refusal == SIM_REFUSAL_NONE) ui->show_unit_menu = api->unit_at(api->engine, unit.id).id != ENGINE_NO_UNIT;
+        /* The unit walks hex by hex, and the command menu opens when it arrives. */
+        if (result.refusal == SIM_REFUSAL_NONE) ui_walk_begin(ui, api, unit.id, true);
+        else                                    ui_walk_cancel(ui);
         return true;
     }
     if (on_hex != ENGINE_NO_UNIT)
@@ -417,7 +425,15 @@ ui_draw_unit_panel(ui_state *ui, engine_api *api)
             ui_code_cell(ui, api, UI_CODE_OFFICER, unit.officers[place], UI_NO_ID_16);
         }
         ImGui::Text("%s %u  %s %u", text_get(ui->text, "command.gold"), unit.gold, text_get(ui->text, "command.grain"), unit.grain);
-        ImGui::Text("%s %u  %s %u", text_get(ui->text, "command.soldiers"), unit.soldiers, text_get(ui->text, "command.morale"), unit.morale);
+        /* A changed value keeps its colour for a few seconds after its hit (ui_war.cpp). */
+        ImU32 plain = ImGui::GetColorU32(ImGuiCol_Text);
+        ImGui::Text("%s", text_get(ui->text, "command.soldiers"));
+        ImGui::SameLine();
+        ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(ui_hit_colour(ui_hit_mark(ui, unit.id, (u8)UI_HIT_SOLDIERS), plain)), "%u", unit.soldiers);
+        ImGui::SameLine();
+        ImGui::Text(" %s", text_get(ui->text, "command.morale"));
+        ImGui::SameLine();
+        ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(ui_hit_colour(ui_hit_mark(ui, unit.id, (u8)UI_HIT_MORALE), plain)), "%u", unit.morale);
         engine_unit_type type = api->unit_type_at(api->engine, unit.unit_type);
         ImGui::Text("%s: %s (%s)", text_get(ui->text, "unit.class"), type.id == ENGINE_NO_UNIT_TYPE ? "-" : ui_text_with_key(ui, "unit_type", type.key),
                     ui_grade_text(unit.values.aptitude));
@@ -655,7 +671,10 @@ ui_draw_unit_target_menu(ui_state *ui, engine_api *api)
         {
             if (ImGui::Button(ui_label(label, sizeof(label), ui, "unit_target.move", "far_move"), ImVec2(120.0f, 0.0f)))
             {
+                ui_walk_plan(ui, api, unit.id, hex.q, hex.r);
                 result = api->command_move(api->engine, unit.id, hex.q, hex.r); sent = true; text_id = "unit_target.move";
+                if (result.refusal == SIM_REFUSAL_NONE) ui_walk_begin(ui, api, unit.id, false);   /* the part of the way of this turn */
+                else                                    ui_walk_cancel(ui);
             }
             ImGui::BeginDisabled(true);
             ImGui::Button(ui_label(label, sizeof(label), ui, "unit_target.build", "far_build"), ImVec2(120.0f, 0.0f));
@@ -727,7 +746,7 @@ ui_draw_map_units(ui_state *ui, engine_api *api, ImDrawList *draw, f32 cell, hex
     {
         engine_unit unit = api->unit_at(api->engine, id);
         if (unit.id == ENGINE_NO_UNIT) continue;
-        hex_point center = hex_to_pixel(hex_make(unit.q, unit.r), cell, origin);
+        hex_point center = hex_to_pixel(ui_round_unit_hex(ui, &unit), cell, origin);   /* a walk shows hex by hex */
         f32 half = cell * 0.55f;
         ImVec2 diamond[4] = { ImVec2(center.x, center.y - half), ImVec2(center.x + half, center.y), ImVec2(center.x, center.y + half),
                               ImVec2(center.x - half, center.y) };

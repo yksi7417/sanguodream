@@ -1,104 +1,107 @@
-number	key	name_zh	category	effect	applies	note
+number	key	name_zh	category	effect	applies	note	file_id
 # The 100 skills of skills.md (guide book p.254, p.255). One row for each number, in order.
 # applies: rule = the engine reads the rule field skill.<effect>, and the loader writes the number there;
 # table = another table names the number (critical_skills.tsv, terrain.tsv, plots.tsv, disasters.tsv); none = no effect yet.
-1	flying_general	飛將	movement	ignore_zoc	rule	documented
-2	escape	遁走	movement	escape	rule	documented
-3	forced_march	強行	movement	forced_march	rule	documented
-4	long_drive	長驅	movement	long_drive	rule	documented
-5	push_on	推進	movement	-	none	documented; no effect yet
-6	helmsman	操舵	movement	-	none	documented; no effect yet
-7	trailblazer	踏破	movement	-	table	documented; terrain.tsv
-8	haul	運搬	movement	haul	rule	documented
-9	antidote	解毒	movement	-	table	documented; terrain.tsv
-10	sweep	掃討	attack	sweep	rule	documented
-11	awe	威風	attack	awe	rule	documented
-12	elation	昂揚	attack	morale_up	rule	documented
-13	double_attack	連戰	attack	double_attack	rule	documented
-14	surprise	急襲	attack	surprise	rule	documented
-15	raid	強襲	attack	-	none	documented; no effect yet
-16	melee	亂戰	attack	-	table	documented; critical_skills.tsv
-17	siege_master	攻城	attack	-	table	documented; critical_skills.tsv
-18	pincer	掎角	attack	-	none	documented; no effect yet
-19	capture	捕縛	attack	capture	rule	documented
-20	subtle	精妙	attack	subtle	rule	documented
-21	plunder	強奪	attack	-	none	documented; no effect yet
-22	heart_attack	心攻	attack	heart_attack	rule	documented
-23	expel	驅逐	attack	-	table	documented; critical_skills.tsv
-24	range	射程	attack	-	none	documented; no effect yet
-25	white_horse	白馬	attack	-	table	documented; critical_skills.tsv
-26	aide	輔佐	attack	-	none	documented; no effect yet
-27	pike_general	槍將	attack	-	table	documented; critical_skills.tsv
-28	halberd_general	戟將	attack	-	table	documented; critical_skills.tsv
-29	bow_general	弓將	attack	-	table	documented; critical_skills.tsv
-30	cavalry_general	騎將	attack	-	table	documented; critical_skills.tsv
-31	navy_general	水將	attack	-	table	documented; critical_skills.tsv
-32	brave_general	勇將	attack	-	table	documented; critical_skills.tsv
-33	divine_general	神將	attack	-	table	documented; critical_skills.tsv
-34	battle_god	鬥神	attack	-	table	documented; critical_skills.tsv
-35	pike_god	槍神	attack	-	table	documented; critical_skills.tsv
-36	halberd_god	戟神	attack	-	table	documented; critical_skills.tsv
-37	bow_god	弓神	attack	-	table	documented; critical_skills.tsv
-38	cavalry_god	騎神	attack	-	table	documented; critical_skills.tsv
-39	engineer_god	工神	attack	-	table	documented; critical_skills.tsv
-40	navy_god	水神	attack	-	table	documented; critical_skills.tsv
-41	overlord	霸王	attack	-	table	documented; critical_skills.tsv
-42	gallop	疾走	attack	-	none	documented; no effect yet
-43	archer	射手	attack	archer	rule	documented
-44	fierce	猛者	attack	-	none	documented; no effect yet
-45	unyielding	不屈	defence	unyielding	rule	documented
-46	diamond	金剛	defence	diamond	rule	documented
-47	iron_wall	鐵壁	defence	iron_wall	rule	documented
-48	fury	怒髮	defence	fury	rule	documented
-49	rattan	藤甲	defence	rattan	rule	documented
-50	fortune	強運	defence	fortune	rule	documented
-51	blood_path	血路	defence	escape_capture	rule	documented
-52	guard	護衛	defence	guard	rule	documented
-53	ambush	待伏	plot	ambush_critical	rule	documented
-54	fire_attack	火攻	plot	-	none	documented; no effect yet
-55	false_word	言毒	plot	-	none	documented; no effect yet
-56	tactician	機略	plot	-	none	documented; no effect yet
-57	trickery	詭計	plot	-	none	documented; no effect yet
-58	feint	虛實	plot	feint	rule	documented
-59	clever_plan	妙計	plot	-	none	documented; no effect yet
-60	secret_plan	秘計	plot	-	none	documented; no effect yet
-61	see_through	看破	plot	-	none	documented; no effect yet
-62	insight	洞察	plot	insight	rule	documented
-63	fire_god	火神	plot	fire_god	rule	documented
-64	strategist	神算	plot	strategist	rule	documented
-65	many_plans	百出	plot	plot_thrift	rule	documented
-66	cunning	鬼謀	plot	long_plot	rule	documented
-67	chain	連環	plot	-	none	documented; no effect yet
-68	deep_plan	深謀	plot	-	none	documented; no effect yet
-69	counter_plot	反計	plot	-	none	documented; no effect yet
-70	beauty	傾國	plot	-	none	documented; no effect yet
-71	sorcery	妖術	plot	-	table	documented; plots.tsv
-72	demon_gate	鬼門	plot	-	table	documented; plots.tsv
-73	discipline	規律	support	discipline	rule	documented
-74	composure	沈著	support	calm	rule	documented
-75	clear_mirror	明鏡	support	mirror	rule	documented
-76	music	樂奏	support	music	rule	documented
-77	poetry	詩想	support	-	none	documented; no effect yet
-78	fortify	築城	support	-	none	documented; no effect yet
-79	farming	屯田	support	-	none	documented; no effect yet
-80	fame	名聲	domestic	fame	rule	documented
-81	capable	能吏	domestic	capable	rule	documented
-82	breeding	繁殖	domestic	breeding	rule	documented
-83	invention	發明	domestic	invention	rule	documented
-84	shipbuilding	造船	domestic	shipbuilding	rule	documented
-85	teaching	指導	domestic	teaching	rule	documented
-86	keen_eye	眼力	domestic	search	rule	documented
-87	debater	論客	domestic	debater	rule	documented
-88	rich	富豪	income	rich	rule	documented
-89	rice	米道	income	rice	rule	documented
-90	tax	徵稅	income	tax	rule	documented
-91	levy	徵收	income	levy	rule	documented
-92	wuhuan_friend	親烏	disaster	-	none	documented; no effect yet
-93	qiang_friend	親羌	disaster	-	none	documented; no effect yet
-94	yue_friend	親越	disaster	-	none	documented; no effect yet
-95	man_friend	親蠻	disaster	-	none	documented; no effect yet
-96	intimidate	威壓	disaster	-	table	documented; disasters.tsv
-97	benevolence	仁政	disaster	benevolence	rule	documented
-98	fengshui	風水	disaster	-	table	documented; disasters.tsv
-99	prayer	祈願	disaster	-	table	documented; disasters.tsv
-100	wife_help	內助	relation	wife_help	rule	documented
+# file_id: the skill byte of a scenario or save record (officer +124). The order of the file is not the order of the book.
+# The clone matched the holders of skills.md against the bytes of spec/fixtures/scenarios/SCEN002.s11 (2026-10-22): 97 numbers agree,
+# no byte has two numbers. 35, 41 and 61 have no holder; their ids 42, 48 and 60 follow from the order of their neighbours (assumed).
+1	flying_general	飛將	movement	ignore_zoc	rule	documented	0
+2	escape	遁走	movement	escape	rule	documented	1
+3	forced_march	強行	movement	forced_march	rule	documented	2
+4	long_drive	長驅	movement	long_drive	rule	documented	3
+5	push_on	推進	movement	-	none	documented; no effect yet	4
+6	helmsman	操舵	movement	-	none	documented; no effect yet	5
+7	trailblazer	踏破	movement	-	table	documented; terrain.tsv	6
+8	haul	運搬	movement	haul	rule	documented	7
+9	antidote	解毒	movement	-	table	documented; terrain.tsv	8
+10	sweep	掃討	attack	sweep	rule	documented	9
+11	awe	威風	attack	awe	rule	documented	10
+12	elation	昂揚	attack	morale_up	rule	documented	11
+13	double_attack	連戰	attack	double_attack	rule	documented	12
+14	surprise	急襲	attack	surprise	rule	documented	13
+15	raid	強襲	attack	-	none	documented; no effect yet	14
+16	melee	亂戰	attack	-	table	documented; critical_skills.tsv	15
+17	siege_master	攻城	attack	-	table	documented; critical_skills.tsv	17
+18	pincer	掎角	attack	-	none	documented; no effect yet	18
+19	capture	捕縛	attack	capture	rule	documented	19
+20	subtle	精妙	attack	subtle	rule	documented	20
+21	plunder	強奪	attack	-	none	documented; no effect yet	21
+22	heart_attack	心攻	attack	heart_attack	rule	documented	22
+23	expel	驅逐	attack	-	table	documented; critical_skills.tsv	23
+24	range	射程	attack	-	none	documented; no effect yet	24
+25	white_horse	白馬	attack	-	table	documented; critical_skills.tsv	25
+26	aide	輔佐	attack	-	none	documented; no effect yet	26
+27	pike_general	槍將	attack	-	table	documented; critical_skills.tsv	34
+28	halberd_general	戟將	attack	-	table	documented; critical_skills.tsv	35
+29	bow_general	弓將	attack	-	table	documented; critical_skills.tsv	36
+30	cavalry_general	騎將	attack	-	table	documented; critical_skills.tsv	37
+31	navy_general	水將	attack	-	table	documented; critical_skills.tsv	38
+32	brave_general	勇將	attack	-	table	documented; critical_skills.tsv	39
+33	divine_general	神將	attack	-	table	documented; critical_skills.tsv	40
+34	battle_god	鬥神	attack	-	table	documented; critical_skills.tsv	41
+35	pike_god	槍神	attack	-	table	documented; critical_skills.tsv	42
+36	halberd_god	戟神	attack	-	table	documented; critical_skills.tsv	43
+37	bow_god	弓神	attack	-	table	documented; critical_skills.tsv	44
+38	cavalry_god	騎神	attack	-	table	documented; critical_skills.tsv	45
+39	engineer_god	工神	attack	-	table	documented; critical_skills.tsv	46
+40	navy_god	水神	attack	-	table	documented; critical_skills.tsv	47
+41	overlord	霸王	attack	-	table	documented; critical_skills.tsv	48
+42	gallop	疾走	attack	-	none	documented; no effect yet	49
+43	archer	射手	attack	archer	rule	documented	50
+44	fierce	猛者	attack	-	none	documented; no effect yet	51
+45	unyielding	不屈	defence	unyielding	rule	documented	27
+46	diamond	金剛	defence	diamond	rule	documented	28
+47	iron_wall	鐵壁	defence	iron_wall	rule	documented	29
+48	fury	怒髮	defence	fury	rule	documented	30
+49	rattan	藤甲	defence	rattan	rule	documented	31
+50	fortune	強運	defence	fortune	rule	documented	32
+51	blood_path	血路	defence	escape_capture	rule	documented	33
+52	guard	護衛	defence	guard	rule	documented	52
+53	ambush	待伏	plot	ambush_critical	rule	documented	16
+54	fire_attack	火攻	plot	-	none	documented; no effect yet	53
+55	false_word	言毒	plot	-	none	documented; no effect yet	54
+56	tactician	機略	plot	-	none	documented; no effect yet	55
+57	trickery	詭計	plot	-	none	documented; no effect yet	56
+58	feint	虛實	plot	feint	rule	documented	57
+59	clever_plan	妙計	plot	-	none	documented; no effect yet	58
+60	secret_plan	秘計	plot	-	none	documented; no effect yet	59
+61	see_through	看破	plot	-	none	documented; no effect yet	60
+62	insight	洞察	plot	insight	rule	documented	61
+63	fire_god	火神	plot	fire_god	rule	documented	62
+64	strategist	神算	plot	strategist	rule	documented	63
+65	many_plans	百出	plot	plot_thrift	rule	documented	64
+66	cunning	鬼謀	plot	long_plot	rule	documented	65
+67	chain	連環	plot	-	none	documented; no effect yet	66
+68	deep_plan	深謀	plot	-	none	documented; no effect yet	67
+69	counter_plot	反計	plot	-	none	documented; no effect yet	68
+70	beauty	傾國	plot	-	none	documented; no effect yet	69
+71	sorcery	妖術	plot	-	table	documented; plots.tsv	70
+72	demon_gate	鬼門	plot	-	table	documented; plots.tsv	71
+73	discipline	規律	support	discipline	rule	documented	72
+74	composure	沈著	support	calm	rule	documented	73
+75	clear_mirror	明鏡	support	mirror	rule	documented	74
+76	music	樂奏	support	music	rule	documented	75
+77	poetry	詩想	support	-	none	documented; no effect yet	76
+78	fortify	築城	support	-	none	documented; no effect yet	77
+79	farming	屯田	support	-	none	documented; no effect yet	78
+80	fame	名聲	domestic	fame	rule	documented	79
+81	capable	能吏	domestic	capable	rule	documented	80
+82	breeding	繁殖	domestic	breeding	rule	documented	81
+83	invention	發明	domestic	invention	rule	documented	82
+84	shipbuilding	造船	domestic	shipbuilding	rule	documented	83
+85	teaching	指導	domestic	teaching	rule	documented	84
+86	keen_eye	眼力	domestic	search	rule	documented	85
+87	debater	論客	domestic	debater	rule	documented	86
+88	rich	富豪	income	rich	rule	documented	87
+89	rice	米道	income	rice	rule	documented	88
+90	tax	徵稅	income	tax	rule	documented	89
+91	levy	徵收	income	levy	rule	documented	90
+92	wuhuan_friend	親烏	disaster	-	none	documented; no effect yet	91
+93	qiang_friend	親羌	disaster	-	none	documented; no effect yet	92
+94	yue_friend	親越	disaster	-	none	documented; no effect yet	93
+95	man_friend	親蠻	disaster	-	none	documented; no effect yet	94
+96	intimidate	威壓	disaster	-	table	documented; disasters.tsv	95
+97	benevolence	仁政	disaster	benevolence	rule	documented	96
+98	fengshui	風水	disaster	-	table	documented; disasters.tsv	97
+99	prayer	祈願	disaster	-	table	documented; disasters.tsv	98
+100	wife_help	內助	relation	wife_help	rule	documented	99

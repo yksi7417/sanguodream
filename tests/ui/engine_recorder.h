@@ -64,6 +64,7 @@ enum recorder_call_kind
     RECORDER_REACHABLE,
     RECORDER_PATH_TO,              /* G2-052: the plan of a unit to a hex */
     RECORDER_TRAVEL_DAYS,          /* G2-036: the days between two bases */
+    RECORDER_COURT_ADVICE,         /* the clue of the adviser; arg = the engine_command_kind */
     RECORDER_UNIT_VALUES,
     RECORDER_SORTIE_PROPOSAL,
     RECORDER_TACTIC_KIND_COUNT,
@@ -578,6 +579,7 @@ recorder_set_cell_terrain(void *o, s32 q, s32 r, u8 kind, u8 level)
 /* ---- M1 develop and M2 turns: one faction (force 1) acts; 10 empty slots
    in each city; 3 facility kinds; can_issue answers can_issue_refusal. */
 #define RECORDER_SLOTS 10
+#define RECORDER_BUILDING_SLOT 9   /* the slot with the farm under construction */
 global_variable const char *recorder_facility_keys[] = { "market", "farm", "mint" };
 
 internal engine_date recorder_date(void *o)
@@ -614,6 +616,7 @@ internal engine_city_slots recorder_city_slots(void *o, u8 city_id)
     engine_city_slots slots = {};
     slots.city_id = city_id < r->city_count ? city_id : ENGINE_NO_CITY;
     slots.slot_count = slots.city_id == ENGINE_NO_CITY ? 0 : RECORDER_SLOTS;
+    slots.built = 2; slots.building = 1; slots.used = 3;   /* two built markets and a farm under construction (facility_at) */
     slots.gold_income = 100; slots.grain_income = 500; slots.governor_id = 100;
     slots.q = (s32)city_id * 2 + 1;   /* M11: each city has its own centre, so a frame is visible */
     slots.r = 1;
@@ -627,11 +630,20 @@ internal engine_facility recorder_facility_at(void *o, u8 city_id, u8 slot)
     facility.slot     = slot;
     facility.state    = SIM_SLOT_EMPTY;
     facility.facility = ENGINE_NO_FACILITY;
+    facility.q        = (s32)(slot % 4) + 2;   /* on the 8 x 6 map of the recorder, so the scene draws the slot */
+    facility.r        = 1;
     if (slot == 2 || slot == 3)   /* two built markets: the merge dialog lists them */
     {
         facility.state    = SIM_SLOT_BUILT;
         facility.facility = 0;
         facility.level    = 1;
+    }
+    if (slot == RECORDER_BUILDING_SLOT)   /* a farm under construction: the counts and the scene show it */
+    {
+        facility.state      = SIM_SLOT_BUILDING;
+        facility.facility   = 1;
+        facility.level      = 1;
+        facility.turns_left = 2;
     }
     return facility;
 }
@@ -1133,6 +1145,7 @@ internal engine_command_result recorder_command_move(void *o, u32 unit_id, s32 q
     r->last_unit_command = {};
     r->last_unit_command.kind = ENGINE_COMMAND_MOVE;
     r->last_unit_command.unit = unit_id; r->last_unit_command.q = q; r->last_unit_command.r = rr;
+    if (unit_id == 0 && r->can_issue_refusal == SIM_REFUSAL_NONE) r->unit_shift = q - 1;   /* unit 0 stands on the goal: the walk of ui_war.cpp has an end */
     return recorder_unit_result(r);
 }
 internal engine_command_result recorder_command_wait(void *o, u32 unit_id)
@@ -1282,7 +1295,19 @@ internal engine_officer_detail recorder_officer_detail(void *o, u16 officer_id)
     detail.former_force = ENGINE_NO_FACTION; detail.age = 30;
     for (u32 slot = 0; slot < OFFICER_RELATION_SLOTS; ++slot) detail.liked[slot] = detail.disliked[slot] = ENGINE_NO_OFFICER;
     detail.recruit_chance = officer_id == 102 ? 60 : 0;
+    detail.reward_rise    = officer_id == 101 ? 8 : (officer_id == 102 ? 10 : 0);   /* G2-040: the ruler 100 gets no reward */
     return detail;
+}
+
+/* The estimate of the adviser 100: 探索 is low, 登庸 of 102 is middle. */
+internal engine_court_advice recorder_court_advice(void *o, engine_command_kind kind, const engine_court_order *order)
+{
+    recorder_record((engine_recorder *)o, RECORDER_COURT_ADVICE, kind);
+    engine_court_advice advice = {};
+    advice.adviser = ENGINE_NO_OFFICER;
+    if (kind == ENGINE_COMMAND_SEARCH) { advice.chance = 20; advice.clue = SIM_CLUE_LOW; advice.adviser = 100; }
+    if (kind == ENGINE_COMMAND_RECRUIT && order->target == 102) { advice.chance = 60; advice.clue = SIM_CLUE_MIDDLE; advice.adviser = 100; }
+    return advice;
 }
 internal u32 recorder_skill_kind_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_SKILL_KIND_COUNT, 0); return 0; }
 internal engine_skill_kind recorder_skill_kind_at(void *o, u32 index) { recorder_record((engine_recorder *)o, RECORDER_SKILL_KIND_AT, index); engine_skill_kind kind = {}; return kind; }
@@ -2019,6 +2044,7 @@ recorder_make_api(engine_recorder *r)
     api.command_move_officers = recorder_command_move_officers;
     api.command_summon        = recorder_command_summon;
     api.travel_days           = recorder_travel_days;
+    api.court_advice          = recorder_court_advice;
     api.command_duel          = recorder_command_duel;
     api.command_duel_action   = recorder_command_duel_action;
     api.command_debate_action = recorder_command_debate_action;

@@ -616,6 +616,79 @@ sim_check_points(sim_state *sim, u8 force, sim_check check)
     return check;
 }
 
+/* The loyalty that one reward gives (assumed, Q-028). The spec names one
+   factor: an officer near the compatibility of the ruler gets more
+   (officers-and-relations.md, "Relations"). The rise is reward.loyalty,
+   less one for each reward.compatibility_divisor of the distance on the
+   wheel, and at least reward.loyalty_min. */
+internal u32
+sim_reward_loyalty_rise(sim_rules *rules, u32 compatibility_distance)
+{
+    u32 penalty = rules->reward_compatibility_divisor ? compatibility_distance / rules->reward_compatibility_divisor : 0;
+    u32 rise    = rules->reward_loyalty > penalty ? rules->reward_loyalty - penalty : 0;
+    return rise < rules->reward_loyalty_min ? rules->reward_loyalty_min : rise;
+}
+
+/* The rise of one reward of the faction for the officer. */
+internal u32
+sim_reward_rise_of(sim_state *sim, u8 force, officer_component *officer)
+{
+    officer_component *ruler = sim_find_officer(sim, sim_force_ruler(sim, force));
+    u32 distance = ruler ? sim_compatibility_distance(officer->compatibility, ruler->compatibility) : 0;
+    return sim_reward_loyalty_rise(&sim->content.rules, distance);
+}
+
+/* Whether the faction can reward the officer now (city-commands.md, 褒賞:
+   not at loyalty 100, not for an officer in a unit, one time in a turn).
+   The ruler gets no reward. */
+internal sim_refusal
+sim_check_reward_officer(sim_state *sim, u8 force, officer_component *officer)
+{
+    if (!officer || !sim_officer_is_active(officer) || officer->force_id != force) return SIM_REFUSAL_OFFICER_NOT_IN_CITY;
+    if (officer->current_position >= SIM_UNIT_POSITION_BASE || officer->training_turns) return SIM_REFUSAL_OFFICER_NOT_IN_CITY;
+    if (officer->loyalty >= 100 || officer->status == OFFICER_STATUS_RULER) return SIM_REFUSAL_VALUE_AT_MAXIMUM;
+    if (officer->rewarded_turn == sim->turn + 1) return SIM_REFUSAL_LIMIT_REACHED;
+    return SIM_REFUSAL_NONE;
+}
+
+/* The band of a chance in percent for the clue of the adviser (assumed). */
+internal u8
+sim_chance_clue(sim_rules *rules, u32 chance)
+{
+    if (chance < rules->clue_low_below) return SIM_CLUE_LOW;
+    if (chance >= rules->clue_high_from) return SIM_CLUE_HIGH;
+    return SIM_CLUE_MIDDLE;
+}
+
+/* The free officer that a search in the city can find, or 0. */
+internal officer_component *
+sim_search_target(sim_state *sim, city_component *city)
+{
+    for (u32 index = 0; index < sim->officers.count; ++index)
+    {
+        officer_component *officer = sim->officers.data + index;
+        if (officer->status == OFFICER_STATUS_FREE_OR_NOT_APPEARED && officer->base_location == city->city_id &&
+            officer->appearance_year <= sim->turns.date.year)
+        {
+            return officer;
+        }
+    }
+    return 0;
+}
+
+/* The chance of a search in percent (assumed, Q-178): search.base plus a
+   part of the politics, 100 with 眼力, and 0 when the city hides no free
+   officer. */
+internal u32
+sim_search_chance(sim_state *sim, city_component *city, officer_component *searcher)
+{
+    sim_rules *rules = &sim->content.rules;
+    if (!sim_search_target(sim, city)) return 0;
+    if (sim_officer_has_skill(searcher, rules->skill_search)) return 100;
+    u32 chance = rules->search_base + searcher->politics * rules->search_politics_percent / 100;
+    return chance > 100 ? 100 : chance;
+}
+
 /* The chance of a recruit, in percent (assumed, Q-178). */
 internal u32
 sim_recruit_chance(sim_state *sim, officer_component *recruiter, officer_component *target)
@@ -752,6 +825,7 @@ sim_check_court(sim_state *sim, sim_command_kind kind, sim_court_order *order)
             refusal = sim_check_develop_officer(sim, city, sim_find_officer(sim, order->officer));
             if (refusal != SIM_REFUSAL_NONE) return sim_refuse(check, refusal);
             check.action_points = sim_office_ap(sim, city, FACILITY_EFFECT_PERSONNEL, kind == SIM_COMMAND_SEARCH ? rules->ap_search : rules->ap_recruit);
+            if (kind == SIM_COMMAND_SEARCH) check.quantity = sim_search_chance(sim, city, sim_find_officer(sim, order->officer));
             if (kind == SIM_COMMAND_RECRUIT)
             {
                 officer_component *target = sim_find_officer(sim, order->target);
@@ -763,27 +837,21 @@ sim_check_court(sim_state *sim, sim_command_kind kind, sim_court_order *order)
         }
         case SIM_COMMAND_REWARD:
         {
-            u32 count = 0;
-            for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place)
+            /* G2-040: a set of officers of the whole force. The quantity is the loyalty that the set gets. */
+            if (!order->reward_count || order->reward_count > SIM_REWARD_OFFICERS) return sim_refuse(check, SIM_REFUSAL_NO_OFFICER);
+            for (u32 place = 0; place < order->reward_count; ++place)
             {
-                if (order->officers[place] == SIM_NO_OFFICER) continue;
-                officer_component *officer = sim_find_officer(sim, order->officers[place]);
-                if (!officer || !sim_officer_is_active(officer) || officer->force_id != force || officer->current_position != city->city_id)
-                {
-                    return sim_refuse(check, SIM_REFUSAL_OFFICER_NOT_IN_CITY);
-                }
-                if (officer->loyalty >= 100 || officer->status == OFFICER_STATUS_RULER) return sim_refuse(check, SIM_REFUSAL_VALUE_AT_MAXIMUM);
-                if (officer->rewarded_turn == sim->turn + 1) return sim_refuse(check, SIM_REFUSAL_LIMIT_REACHED);
+                officer_component *officer = sim_find_officer(sim, order->rewards[place]);
+                refusal = sim_check_reward_officer(sim, force, officer);
+                if (refusal != SIM_REFUSAL_NONE) return sim_refuse(check, refusal);
                 for (u32 earlier = 0; earlier < place; ++earlier)
                 {
-                    if (order->officers[earlier] == order->officers[place]) return sim_refuse(check, SIM_REFUSAL_DUPLICATE_OFFICER);
+                    if (order->rewards[earlier] == order->rewards[place]) return sim_refuse(check, SIM_REFUSAL_DUPLICATE_OFFICER);
                 }
-                count++;
+                check.quantity += sim_reward_rise_of(sim, force, officer);
             }
-            if (!count) return sim_refuse(check, SIM_REFUSAL_NO_OFFICER);
-            check.gold          = rules->reward_gold * count;
-            check.action_points = rules->ap_reward * count;
-            check.quantity      = rules->reward_loyalty;
+            check.gold          = rules->reward_gold * order->reward_count;
+            check.action_points = rules->ap_reward * order->reward_count;
             if (city->gold < check.gold) return sim_refuse(check, SIM_REFUSAL_NO_GOLD);
             return sim_check_points(sim, force, check);
         }
@@ -848,18 +916,8 @@ sim_search(sim_state *sim, city_component *city, sim_court_order *order, u32 cau
 {
     sim_rules *rules = &sim->content.rules;
     officer_component *searcher = sim_find_officer(sim, order->officer);
-    officer_component *found = 0;
-    for (u32 index = 0; index < sim->officers.count && !found; ++index)
-    {
-        officer_component *officer = sim->officers.data + index;
-        if (officer->status == OFFICER_STATUS_FREE_OR_NOT_APPEARED && officer->base_location == city->city_id &&
-            officer->appearance_year <= sim->turns.date.year)
-        {
-            found = officer;
-        }
-    }
-    u32 chance = rules->search_base + searcher->politics * rules->search_politics_percent / 100;
-    if (found && sim_officer_has_skill(searcher, rules->skill_search)) chance = 100;
+    officer_component *found = sim_search_target(sim, city);
+    u32 chance = sim_search_chance(sim, city, searcher);
     b32 success = found && (chance >= 100 || sim_random_below(sim, 100) < chance);
     if (success)
     {
@@ -1024,16 +1082,13 @@ sim_court_command(sim_state *sim, sim_command command, sim_event_sink *events)
         case SIM_COMMAND_RECRUIT: sim_recruit(sim, city, order, &check, command.id, events); break;
         case SIM_COMMAND_REWARD:
         {
-            officer_component *ruler = sim_find_officer(sim, sim_force_ruler(sim, force));
-            for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place)
+            for (u32 place = 0; place < order->reward_count; ++place)
             {
-                officer_component *officer = sim_find_officer(sim, order->officers[place]);
+                officer_component *officer = sim_find_officer(sim, order->rewards[place]);
                 if (!officer) continue;
-                u32 distance = ruler ? sim_compatibility_distance(officer->compatibility, ruler->compatibility) : 0;
-                u32 penalty = rules->reward_compatibility_divisor ? distance / rules->reward_compatibility_divisor : 0;
-                s32 rise = (s32)rules->reward_loyalty - (s32)penalty;
+                u32 rise = sim_reward_rise_of(sim, force, officer);
                 officer->rewarded_turn = sim->turn + 1;
-                sim_change_loyalty(sim, officer, rise < 1 ? 1 : rise, command.id, events);
+                sim_change_loyalty(sim, officer, (s32)rise, command.id, events);
             }
             break;
         }

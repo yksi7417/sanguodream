@@ -446,6 +446,7 @@ struct disaster_kind
 struct skill_kind
 {
     u8   number;                      /* 1 .. 100 */
+    u8   file_id;                     /* 0 .. 99: the skill byte of a scenario or save record (officer +124) */
     char key[CONTENT_KEY_SIZE];
     char effect[CONTENT_KEY_SIZE];
     u8   category;                    /* skill_category */
@@ -750,7 +751,8 @@ struct sim_rules
     /* M7: officers, personnel, posts, duel, debate, diplomacy, faction plots */
     u32 ap_search, ap_recruit, ap_reward, ap_give_item, ap_diplomacy, ap_faction_plot;
     u32 ap_move_officers, ap_summon;   /* 移動, 召喚 (travel.cpp) */
-    u32 reward_gold, reward_loyalty, reward_compatibility_divisor;
+    u32 reward_gold, reward_loyalty, reward_compatibility_divisor, reward_loyalty_min;   /* 褒賞: sim_reward_loyalty_rise */
+    u32 clue_low_below, clue_high_from;   /* the bands of the clue of the adviser (sim_chance_clue) */
     u32 search_base, search_politics_percent, search_gold_chance, search_gold, search_debate_intellect;
     u32 recruit_base, recruit_charm_percent, recruit_captive_bonus, recruit_relation_bonus, recruit_new_loyalty;
     u32 recruit_compatibility_divisor, recruit_debate_intellect;
@@ -818,6 +820,7 @@ struct sim_content
     u32            critical_count;
     skill_kind     skills[CONTENT_SKILL_COUNT];
     u32            skill_count;
+    u8             skill_of_file_id[CONTENT_SKILL_COUNT];   /* the number - 1 for each file id; OFFICER_SKILL_NONE if no row */
     post_kind      posts[CONTENT_POST_CAPACITY];
     u32            post_count;
     rank_kind      ranks[CONTENT_RANK_CAPACITY];
@@ -860,6 +863,7 @@ internal b32 content_load_plots(sim_content *content, tsv_table *table, u32 *bad
 internal b32 content_load_buildings(sim_content *content, tsv_table *table, u32 *bad_row);   /* after the techniques */
 internal b32 content_load_criticals(sim_content *content, tsv_table *table, u32 *bad_row);
 internal b32 content_load_skills(sim_content *content, tsv_table *table, u32 *bad_row);   /* after the rules: it sets the skill.* rules */
+internal u8  content_skill_of_file_id(const sim_content *content, u8 file_id);           /* the skill byte of a record -> the number - 1 */
 internal b32 content_load_ranks(sim_content *content, tsv_table *table, u32 *bad_row);
 internal b32 content_load_posts(sim_content *content, tsv_table *table, u32 *bad_row);    /* after the ranks */
 internal b32 content_load_items(sim_content *content, tsv_table *table, u32 *bad_row);

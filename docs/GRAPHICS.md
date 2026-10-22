@@ -11,11 +11,16 @@ ROADMAP.md lists the six milestones G1 to G6 of this plan.
 - The scene is 3D. code/render/terrain_mesh.h builds one hex prism for
   each cell. The orbit camera turns freely and tilts from 30 to 75
   degrees (code/render/render.h).
-- The platform layer has one mesh and one sprite (code/d3d11_renderer.h).
-  Mesh 0 is settlement.hxm or a placeholder house. Sprite 0 is unit.png or
-  a placeholder figure of 64 x 64 pixels.
+- The platform layer has a mesh table and one sprite (code/d3d11_renderer.h).
+  Mesh 0 is settlement.hxm or a placeholder house. The other meshes are
+  the placeholder shapes of the facility slots, from
+  code/render/placeholder_meshes.h. Tutorial 32 lists the shapes. Sprite
+  0 is unit.png or a placeholder figure of 64 x 64 pixels.
 - code/ui/ui_scene.cpp pushes one house for each base and one billboard
-  for each unit. A faction colour tints both.
+  for each unit. A faction colour tints both. It pushes one shape on
+  each slot with a facility, in the colour of the kind
+  (code/ui/ui_facility_look.cpp). A build in progress is a scaffold with
+  the shape at half size, dimmed.
 - A unit jumps from its old hex to its new hex. Nothing moves between
   two frames of the sim.
 - The sim is instant and deterministic. Commands go in and events come
@@ -172,6 +177,16 @@ the DLL and the platform: the DLL pushes commands, the platform draws.
 | Projectiles | none | Billboards that turn along the velocity: arrow, fire arrow, stone |
 | Blob shadow | none | A dark ellipse under each figure, so that units sit on the ground |
 | Numbers and icons | ImGui plates | ImGui overlay at the world-to-screen point of the actor |
+| Generated faces | A face for each officer without a picture (code/render/faces.h, 2026-10-22) | Stays. A later art pass can add hats and robes by rank |
+
+The generated faces are the one picture that the code draws itself. A
+hash of the officer id picks each trait of the face. The traits are the
+head shape, the skin and hair tones, the hair style, the eyes, the beard,
+the background and one of five emotions. The sex and the age of the officer change the hair and the
+beard. The platform paints each face one time at 48 x 60 pixels and keeps
+its texture by officer id. docs/ASSETS.md has the details. The palette
+of the faces follows the art direction of section 3: ochre, slate blue,
+pine green and plum backgrounds, lacquer black hair.
 
 ### 5.1 How a unit looks
 - A unit is a dense crowd of small figures that fills its hex, as in the

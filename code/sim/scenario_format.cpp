@@ -53,8 +53,8 @@ scenario_decode_city(const u8 *record, u8 id, city_record *out)
     out->commanding_officer_id = CITY_COMMANDER_NONE;
     out->owner_force_id        = record[SCENARIO_CITY_OWNER_FORCE];
     out->capacity_constant     = format_read_u32(record + SCENARIO_CITY_CAPACITY_CONSTANT);
-    out->gold                  = format_read_u32(record + SCENARIO_CITY_STARTING_GOLD);
     out->troops                = format_read_u32(record + SCENARIO_CITY_STARTING_TROOPS);
+    out->gold                  = format_read_u32(record + SCENARIO_CITY_STARTING_GOLD);
     out->food                  = format_read_u32(record + SCENARIO_CITY_STARTING_FOOD);
     for (u32 stock = 0; stock < CITY_EQUIPMENT_STOCK_COUNT; ++stock)
     {

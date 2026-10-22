@@ -8,6 +8,7 @@
 internal void ui_draw_map_units(ui_state *ui, engine_api *api, ImDrawList *draw, f32 cell, hex_point origin);
 internal b32  ui_unit_click(ui_state *ui, engine_api *api, hex_coord hex);
 internal void ui_draw_hex_lines(ui_state *ui, engine_api *api, hex_coord hex);   /* ui_locate.cpp (M11) */
+internal hex_coord ui_round_unit_hex(ui_state *ui, engine_unit *unit);           /* ui_round.cpp: the hex of a walk */
 
 #define UI_MAP_ZOOM_MIN         4.0f
 #define UI_MAP_ZOOM_MAX         30.0f
@@ -174,7 +175,9 @@ ui_draw_map(ui_state *ui, engine_api *api)
             }
         }
 
-        /* M10: the slots of the selected city (開發地 of the map). */
+        /* M10: the slots of the selected city (開發地 of the map). A slot
+           with a facility fills with the colour of its kind. A build in
+           progress fills dimmer, with a small ring in the centre. */
         if (ui->map.has_city)
         {
             engine_city_slots slots = api->city_slots(api->engine, ui->map.city);
@@ -182,7 +185,16 @@ ui_draw_map(ui_state *ui, engine_api *api)
             {
                 engine_facility facility = api->facility_at(api->engine, ui->map.city, (u8)slot);
                 if (facility.city_id == ENGINE_NO_CITY) continue;
-                ui_draw_hexagon(draw, hex_to_pixel(hex_make(facility.q, facility.r), cell, origin), cell - 1.5f, IM_COL32(0, 0, 0, 0), IM_COL32(255, 230, 40, 255));
+                hex_point center = hex_to_pixel(hex_make(facility.q, facility.r), cell, origin);
+                ImU32 fill = IM_COL32(0, 0, 0, 0);
+                if (facility.facility != ENGINE_NO_FACILITY && facility.state != SIM_SLOT_EMPTY)
+                {
+                    engine_facility_kind kind = api->facility_kind_at(api->engine, facility.facility);
+                    fill = ui_facility_look_of(kind.key).rgba;
+                    if (facility.state == SIM_SLOT_BUILDING) fill = ui_rgba_dim(fill, 0.55f);
+                }
+                ui_draw_hexagon(draw, center, cell - 1.5f, fill, IM_COL32(255, 230, 40, 255));
+                if (facility.state == SIM_SLOT_BUILDING) draw->AddCircle(ImVec2(center.x, center.y), cell * 0.35f, UI_SCAFFOLD_RGBA, 0, 1.5f);
             }
         }
 

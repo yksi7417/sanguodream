@@ -32,6 +32,7 @@ global_variable memory_arena    *g_demo_frame_arena;
 /* The default portraits; demo_player.cpp opens the archive. Zero without it. */
 global_variable const portrait_list       *g_demo_portraits;
 global_variable platform_portrait_texture *g_demo_portrait_texture;
+global_variable platform_face_texture     *g_demo_face_texture;      /* the generated faces (render/faces.h) */
 
 struct demo_vars
 {
@@ -90,6 +91,7 @@ demo_gui(ImGuiTestContext *ctx)
     v.frame.frame_arena = g_demo_frame_arena;
     v.frame.portraits        = g_demo_portraits;
     v.frame.portrait_texture = g_demo_portrait_texture;
+    v.frame.face_texture     = g_demo_face_texture;
     ui_draw(&v.ui, &v.api, &v.frame);
 }
 
@@ -1017,6 +1019,21 @@ demo_court_officer(engine_api *api, u8 force, u8 city, u16 exclude)
     return ENGINE_NO_OFFICER;
 }
 
+/* A regular officer of the force in the city that did not act and has no
+   job: the officers that the envoy picker of the Diplomacy panel lists
+   (G2-063). A loaded save marks the officers that acted before the save. */
+internal u16
+demo_free_officer(engine_api *api, u8 force, u8 city, u16 exclude)
+{
+    for (u32 index = 0; index < api->officer_count(api->engine); ++index)
+    {
+        engine_officer officer = api->officer_at(api->engine, index);
+        if (officer.force_id == force && officer.status == 3 && officer.current_position == city && officer.officer_id != exclude &&
+            !officer.acted && officer.job_city == ENGINE_NO_CITY) return officer.officer_id;
+    }
+    return ENGINE_NO_OFFICER;
+}
+
 /* M7, court: the Court panel (褒賞, 官職), the Diplomacy panel (親善), a
    duel from the unit menu on its screen, and a debate on its screen. */
 internal void
@@ -1048,7 +1065,20 @@ demo_m7_court(ImGuiTestContext *ctx)
     snprintf(item, sizeof(item), "###court_officer/###o%u", officer);
     ctx->ComboClick(item);
     ctx->SleepStandard();
+    /* G2-035: the views show 100 for every loyalty of 100 or more, so a
+       reward to such an officer shows no rise. The editor puts the loyalty
+       of the officer at 90 first. */
+    engine_officer_detail before = api->officer_detail(e, officer);
+    if (before.loyalty >= 100)
+    {
+        engine_officer first = api->officer_by_id(e, officer);
+        engine_officer_edit lower = {};
+        lower.loyalty = 90; lower.ambition = before.ambition; lower.justice = before.justice; lower.personality = before.personality;
+        lower.growth = before.growth; lower.female = before.female; lower.merit = first.merit; lower.captor = ENGINE_NO_FACTION;
+        api->set_officer(e, officer, &lower);
+    }
     u32 loyalty = api->officer_detail(e, officer).loyalty;
+    IM_CHECK(loyalty < 100);
     ctx->ItemClick("###reward");
     IM_CHECK(api->officer_detail(e, officer).loyalty > loyalty);
     engine_officer_detail detail = api->officer_detail(e, officer);
@@ -1075,12 +1105,14 @@ demo_m7_court(ImGuiTestContext *ctx)
     ctx->SetRef("###Diplomacy");
     snprintf(item, sizeof(item), "factions/###f%u", other);
     ctx->ItemClick(item);
-    u16 envoy = demo_court_officer(api, player, city, officer);
+    u16 envoy = demo_free_officer(api, player, city, officer);
+    IM_CHECK(envoy != ENGINE_NO_OFFICER);
     snprintf(item, sizeof(item), "###envoy/###o%u", envoy);
     ctx->ComboClick(item);
-    u32 friendliness = api->diplomacy(e, player, other).friendliness;
     ctx->ItemClick("###goodwill");
-    IM_CHECK(api->diplomacy(e, player, other).friendliness > friendliness);
+    /* G2-063: the envoy goes on a mission to the capital of the target, and
+       the result comes at the arrival. The command marks the envoy as acted. */
+    IM_CHECK(api->officer_by_id(e, envoy).acted);
     ctx->SleepStandard();
     v.ui.show_court = v.ui.show_diplomacy = false;
 
@@ -1158,7 +1190,7 @@ demo_m7_court(ImGuiTestContext *ctx)
         sim_event_kind kind = api->ledger_at(e, index).kind;
         rewarded  |= kind == SIM_EVENT_LOYALTY_CHANGED;
         appointed |= kind == SIM_EVENT_POST_APPOINTED;
-        goodwill  |= kind == SIM_EVENT_FRIENDLINESS_CHANGED;
+        goodwill  |= kind == SIM_EVENT_MISSION_STARTED;   /* G2-063: the friendliness changes at the arrival of the envoy */
         duel      |= kind == SIM_EVENT_DUEL_ENDED;
         debate    |= kind == SIM_EVENT_DEBATE_ENDED;
     }
@@ -1744,19 +1776,26 @@ demo_m12_main_map(ImGuiTestContext *ctx)
     IM_CHECK_EQ(v.ui.scene.cam.distance, before.distance);
     ctx->SleepStandard();
 
-    /* A unit plate: frame a unit of the save from the Units panel. */
+    /* A unit plate: frame a unit of the save from the Units panel. The
+       unit did not act before the save and has no order, so its mark is 未. */
     u32 unit_id = ENGINE_NO_UNIT;
-    for (u32 id = 0; id < api->unit_count(e) && unit_id == ENGINE_NO_UNIT; ++id) if (api->unit_at(e, id).id != ENGINE_NO_UNIT) unit_id = id;
+    for (u32 id = 0; id < api->unit_count(e) && unit_id == ENGINE_NO_UNIT; ++id)
+    {
+        engine_unit candidate = api->unit_at(e, id);
+        if (candidate.id != ENGINE_NO_UNIT && ui_unit_mark_of(&candidate, api->city_corps(e, candidate.home_city)) == UI_UNIT_MARK_READY) unit_id = id;
+    }
     IM_CHECK(unit_id != ENGINE_NO_UNIT);
     IM_CHECK(demo_open_panel(ctx, "###Units", &v.ui.show_units));
     char row[32];
     snprintf(row, sizeof(row), "**/###unit%u", unit_id);
+    ctx->WindowResize("//###Units", ImVec2(360.0f, 720.0f));   /* the test engine finds no row that the table scrolls out of view */
     ctx->SetRef("###Units");
     ctx->ItemClick(row);
     ctx->Yield(2);
     engine_unit unit = api->unit_at(e, unit_id);
     IM_CHECK(demo_camera_on(v, hex_make(unit.q, unit.r)));
-    IM_CHECK(unit.grain_turns != ENGINE_GRAIN_TURNS_UNKNOWN && unit.grain_turns == unit.grain / (unit.soldiers / 40));   /* the grain of the record */
+    /* The grain of the record: one grain feeds 10 soldiers each turn (G2-049, unit.grain_soldiers of rules.tsv). */
+    IM_CHECK(unit.soldiers >= 10 && unit.grain_turns != ENGINE_GRAIN_TURNS_UNKNOWN && unit.grain_turns == unit.grain / (unit.soldiers / 10));
     IM_CHECK_EQ(ui_unit_mark_of(&unit, api->city_corps(e, unit.home_city)), (u32)UI_UNIT_MARK_READY);   /* 未 */
     v.ui.show_units = false;
     ctx->SleepStandard();

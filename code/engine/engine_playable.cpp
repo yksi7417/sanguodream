@@ -286,7 +286,8 @@ engine_api_scenario_at(void *opaque, u32 index)
 /* A new game from a scenario file: the records of the scenario become a
    save in the scratch arena, and the save loader takes it. The scenario has
    no public order and no player: each city starts with
-   scenario.public_order (assumed, Q-189), and no faction is human. */
+   scenario.public_order (assumed, Q-189), and no faction is human. No
+   faction acts before the first end_turn (sim_load_new_game). */
 internal engine_load_result
 engine_api_load_scenario(void *opaque, const char *path)
 {

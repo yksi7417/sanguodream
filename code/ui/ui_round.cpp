@@ -18,6 +18,8 @@
 #define UI_ROUND_HEX_SECONDS     0.18f   /* one hex of a move */
 
 internal bool ui_feel_bookkeeping(sim_event_kind kind);   /* ui_feel.cpp */
+internal b32  ui_walk_hex(ui_state *ui, u32 unit_id, hex_coord *out);                                   /* ui_war.cpp */
+internal b32  ui_war_take_event(ui_state *ui, engine_api *api, const sim_event *event, u8 player);     /* ui_war.cpp */
 
 /* 進行: the turn of the player ends. With the show on, the UI keeps the
    hex of each unit and the start of the round in the ledger first. */
@@ -65,6 +67,7 @@ internal hex_coord
 ui_round_unit_hex(ui_state *ui, engine_unit *unit)
 {
     hex_coord now = hex_make(unit->q, unit->r);
+    if (ui_walk_hex(ui, unit->id, &now)) return now;   /* a unit of the player walks its move */
     if (!ui->round.playing || unit->id >= SIM_UNIT_CAPACITY) return now;
     if (ui->round.move_unit == unit->id && ui->round.move_steps > 0)
     {
@@ -110,6 +113,11 @@ ui_round_play_event(ui_state *ui, engine_api *api, u32 index, sim_event *event)
         ui->round.move_step  = 0;
         ui->round.move_steps = steps;
         ui->round.wait       = UI_ROUND_HEX_SECONDS;
+        return true;
+    }
+    if (ui_war_take_event(ui, api, event, ui_report_player(api)))   /* a hit of a unit rises in the time of the show */
+    {
+        ui->round.wait = UI_ROUND_EVENT_SECONDS;
         return true;
     }
     engine_event_report report = api->event_report(api->engine, index);
