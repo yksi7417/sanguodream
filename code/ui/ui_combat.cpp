@@ -29,6 +29,9 @@ ui_pick_text_id(u8 pick)
     return pick < UI_PICK_COUNT ? ids[pick] : "unit.menu";
 }
 
+internal void ui_strike_push(ui_state *ui, u8 kind, hex_coord hex);   /* ui_war.cpp */
+internal u8   ui_strike_of_pick(u8 pick);
+
 /* Starts a pick: the next click on the Hex map is the target. */
 internal void
 ui_start_pick(ui_state *ui, u8 pick, u8 row)
@@ -65,6 +68,8 @@ ui_combat_click(ui_state *ui, engine_api *api, hex_coord hex)
     ui_growth_result(ui, ui_pick_text_id(pick), result);
     ui_units_note_result(ui, result);
     ui->combat.pick = UI_PICK_NONE;
+    /* The strike effect on the target hex, so that the player sees the action. */
+    if (result.refusal == SIM_REFUSAL_NONE && ui_strike_of_pick(pick) != UI_STRIKE_KIND_COUNT) ui_strike_push(ui, ui_strike_of_pick(pick), hex);
     return true;
 }
 

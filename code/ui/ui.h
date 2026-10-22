@@ -72,6 +72,17 @@ enum ui_hud_tab { UI_HUD_TAB_BASES, UI_HUD_TAB_OFFICERS, UI_HUD_TAB_UNITS, UI_HU
 #define UI_FLOAT_SECONDS           1.6f   /* a value rises over the base for this time */
 #define UI_FLOAT_RISE              40.0f  /* pixels */
 #define UI_FLOAT_CAPACITY          8
+/* The feedback of war (ui_war.cpp): the walk of a unit of the player, the
+   strike effect on a target hex and the hits (the values over a unit). */
+#define UI_WALK_CAPACITY           64     /* the hexes of one walk, with the start hex */
+#define UI_WALK_HEX_SECONDS        0.22f  /* the pause on each hex of a walk */
+#define UI_STRIKE_CAPACITY         4
+#define UI_STRIKE_SECONDS          2.5f   /* a strike effect shows this long */
+#define UI_HIT_CAPACITY            16
+#define UI_HIT_FLOAT_SECONDS       2.2f   /* a value rises over the unit this long */
+#define UI_HIT_MARK_SECONDS        2.0f   /* then the plate marks the changed value this long */
+enum ui_hit_kind    { UI_HIT_SOLDIERS, UI_HIT_MORALE };
+enum ui_strike_kind { UI_STRIKE_ATTACK, UI_STRIKE_TACTIC, UI_STRIKE_PLOT, UI_STRIKE_KIND_COUNT };
 /* M19: the command dialogs of the game mode (ui/city-commands.md). */
 #define UI_DIALOG_DIM_ALPHA        110    /* the dark map behind a dialog, of 255 */
 #define UI_SLOT_PORTRAIT_LINES     4.0f   /* the height of a portrait slot, in text lines */
@@ -539,6 +550,28 @@ struct ui_state
         bool cities, bases, units;   /* 顯示 */
     } political;
     bool quit_requested;       /* 結束遊戲: the platform closes the window */
+    /* The feedback of war (ui_war.cpp). The walk shows a move of the
+       player hex by hex. A strike shows an attack, a tactic or a plot on
+       its target hex. A hit is a change of the soldiers or the morale of
+       a unit: the value rises over the unit, then the plate marks it. */
+    struct
+    {
+        struct
+        {
+            u32       unit;      /* the unit that walks; ENGINE_NO_UNIT */
+            hex_coord cells[UI_WALK_CAPACITY];   /* [0] the start hex */
+            u32       count;
+            u32       step;      /* the hex that the unit stands on now */
+            f32       wait;      /* the seconds until the next step */
+            bool      planned;   /* a plan waits for the result of its command_move */
+            bool      open_menu; /* the command menu opens when the walk ends */
+        } walk;
+        struct { u8 kind; hex_coord hex; f32 seconds; } strikes[UI_STRIKE_CAPACITY];   /* ui_strike_kind */
+        u32 strike_count;
+        struct { u32 unit; u8 kind; s32 delta; f32 seconds; } hits[UI_HIT_CAPACITY];   /* ui_hit_kind */
+        u32 hit_count;
+        u32 ledger_mark;         /* the ledger count that the hits have read */
+    } war;
     /* The default portraits and the generated faces of this frame
        (ui_frame_info). Without both, the panels show the first character
        of the name in place of a portrait. */

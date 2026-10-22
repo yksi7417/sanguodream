@@ -437,9 +437,34 @@ struct render_mesh_instance
     u32 tint;              /* RGBA8, 0xFFFFFFFF for none */
 };
 
+/* The sprites of the platform's sprite table. Sprite 0 is the figure of a
+   unit without a class. The others are one placeholder picture for each
+   class of unit (docs/ASSETS.md, "Unit sprites"). The platform loads
+   render_sprite_files[id] from the content pack. If a file is absent, the
+   platform uses the figure of sprite 0. */
+enum render_sprite
+{
+    RENDER_SPRITE_UNIT,
+    RENDER_SPRITE_SWORD,
+    RENDER_SPRITE_PIKE,
+    RENDER_SPRITE_HALBERD,
+    RENDER_SPRITE_CROSSBOW,
+    RENDER_SPRITE_CAVALRY,
+    RENDER_SPRITE_SIEGE,
+    RENDER_SPRITE_BOAT,
+    RENDER_SPRITE_SHIP,
+    RENDER_SPRITE_TRANSPORT,
+    RENDER_SPRITE_COUNT
+};
+
+global_variable const char *render_sprite_files[RENDER_SPRITE_COUNT] = {
+    "sprites\\unit.png", "sprites\\sword.png", "sprites\\pike.png", "sprites\\halberd.png", "sprites\\crossbow.png",
+    "sprites\\cavalry.png", "sprites\\siege.png", "sprites\\boat.png", "sprites\\ship.png", "sprites\\transport.png",
+};
+
 struct render_billboard
 {
-    u32 sprite_id;         /* index into the platform's sprite table */
+    u32 sprite_id;         /* render_sprite: index into the platform's sprite table */
     v3  position;          /* bottom center */
     f32 width;
     f32 height;

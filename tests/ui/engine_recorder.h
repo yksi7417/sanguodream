@@ -1145,6 +1145,7 @@ internal engine_command_result recorder_command_move(void *o, u32 unit_id, s32 q
     r->last_unit_command = {};
     r->last_unit_command.kind = ENGINE_COMMAND_MOVE;
     r->last_unit_command.unit = unit_id; r->last_unit_command.q = q; r->last_unit_command.r = rr;
+    if (unit_id == 0 && r->can_issue_refusal == SIM_REFUSAL_NONE) r->unit_shift = q - 1;   /* unit 0 stands on the goal: the walk of ui_war.cpp has an end */
     return recorder_unit_result(r);
 }
 internal engine_command_result recorder_command_wait(void *o, u32 unit_id)

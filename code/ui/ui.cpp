@@ -50,6 +50,7 @@ ui_scene_mark(u32 *overlay, engine_terrain_view view, hex_coord h, u32 rgba)
 #include "ui/ui_locate.cpp"   /* M11 */
 #include "ui/ui_report.cpp"   /* M18: the log, the speech bubble and the values; needs ui_locate.cpp */
 #include "ui/ui_round.cpp"    /* M20: the show of the AI round; needs ui_report.cpp */
+#include "ui/ui_war.cpp"      /* the walk, the strikes and the hits; needs ui_round.cpp */
 #include "ui/ui_minimap.cpp"  /* M12: the round mini map */
 #include "ui/ui_hud.cpp"      /* the HUD and the list of the game mode */
 #include "ui/ui_information.cpp" /* M21: the information menu, the tables and the detail panels */
@@ -93,6 +94,7 @@ ui_init(ui_state *ui, text_catalog *text)
     ui->round                 = {};   /* M20: the show is off by default */
     ui->round.force           = ENGINE_NO_FACTION;
     ui->round.move_unit       = ENGINE_NO_UNIT;
+    ui_war_init(ui);
     ui->show_economy          = false;
     ui->report                = {};   /* M18 */
     ui->report.provider       = text_template_provider();
@@ -622,6 +624,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     bool hud_ready = ui->hud_mode && in_game && !ui_feel_in_transition(ui);
     if (in_game) ui_report_update(ui, api, frame->dt_seconds);   /* M18: the log and the feedback read the new events */
     if (in_game) ui_round_update(ui, api, frame->dt_seconds);    /* M20: the next step of the show of the AI round */
+    if (in_game) ui_war_update(ui, api, frame->dt_seconds);      /* the walk, the strikes and the hits */
     if (tools) ui_draw_menu_bar(ui, api, frame);
     if (tools && ui->show_demo)   ImGui::ShowDemoWindow(&ui->show_demo);
     if (tools && ui->show_sim)    ui_draw_simulation(ui, api);
@@ -697,6 +700,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
         if (ui->show_ai) ui_draw_ai_lines(ui, api);   /* M15: each unit of the AI view to its goal */
     }
     if (hud_ready) ui_draw_feedback(ui, api);   /* M18: the speech bubble and the values over the base of a command */
+    if (in_game)   ui_draw_war(ui, api);        /* the strikes and the values over the units */
     ui_draw_status_bar(ui, api);        /* M11: the terrain, the coordinates and what can stand on the hex under the mouse */
     ui_scene_push(ui, api, frame);
 }

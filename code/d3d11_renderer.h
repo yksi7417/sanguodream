@@ -15,7 +15,7 @@
 #include "render/png.h"
 
 #define D3D11_MAX_MESHES        16
-#define D3D11_MAX_SPRITES       8
+#define D3D11_MAX_SPRITES       16     /* at least RENDER_SPRITE_COUNT */
 #define D3D11_ATLAS_TILES       8      /* material tiles in one row of the atlas */
 #define D3D11_ATLAS_TILE_SIZE   64     /* pixels, for the generated placeholder atlas */
 #define D3D11_SPRITE_SIZE       64
@@ -106,6 +106,7 @@ struct d3d11_renderer
     ID3D11Buffer            *instances;         /* dynamic, shared by meshes and billboards */
     u32                      instance_capacity;
     ID3D11Buffer            *billboard_quad;
+    ID3D11RasterizerState   *rasterizer_no_cull;   /* the billboards: the quad faces the camera from both sides */
     b32                      ready;
     char                     last_error[256];
 };
@@ -387,6 +388,8 @@ d3d11_renderer_init(d3d11_renderer *r, ID3D11Device *device, ID3D11DeviceContext
     D3D11_RASTERIZER_DESC raster = {};
     raster.FillMode = D3D11_FILL_SOLID; raster.CullMode = D3D11_CULL_BACK; raster.DepthClipEnable = TRUE;
     device->CreateRasterizerState(&raster, &r->rasterizer);
+    raster.CullMode = D3D11_CULL_NONE;
+    device->CreateRasterizerState(&raster, &r->rasterizer_no_cull);
 
     D3D11_DEPTH_STENCIL_DESC depth = {};
     depth.DepthEnable = TRUE; depth.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL; depth.DepthFunc = D3D11_COMPARISON_LESS;
@@ -422,14 +425,19 @@ d3d11_renderer_init(d3d11_renderer *r, ID3D11Device *device, ID3D11DeviceContext
         r->mesh_count = mesh_id + 1;
     }
 
-    /* sprite 0: the unit, from unit.png or the placeholder figure */
-    r->sprites[0].view = d3d11_load_png_texture(r, "unit.png", scratch);
-    if (!r->sprites[0].view)
+    /* The sprites: one picture for each render_sprite, from the sprites
+       folder of the content pack. If a picture is absent, the renderer
+       uses the placeholder figure (docs/ASSETS.md, "Unit sprites"). */
+    for (u32 sprite_id = 0; sprite_id < RENDER_SPRITE_COUNT && sprite_id < D3D11_MAX_SPRITES; ++sprite_id)
     {
-        u32 *sprite = d3d11_placeholder_sprite(scratch);
-        r->sprites[0].view = d3d11_make_texture(r, sprite, D3D11_SPRITE_SIZE, D3D11_SPRITE_SIZE, false, 0);
+        r->sprites[sprite_id].view = d3d11_load_png_texture(r, render_sprite_files[sprite_id], scratch);
+        if (!r->sprites[sprite_id].view)
+        {
+            u32 *sprite = d3d11_placeholder_sprite(scratch);
+            r->sprites[sprite_id].view = d3d11_make_texture(r, sprite, D3D11_SPRITE_SIZE, D3D11_SPRITE_SIZE, false, 0);
+        }
+        r->sprite_count = sprite_id + 1;
     }
-    r->sprite_count = 1;
 
     r->instance_capacity = RENDER_MAX_MESH_INSTANCES > RENDER_MAX_BILLBOARDS ? RENDER_MAX_MESH_INSTANCES : RENDER_MAX_BILLBOARDS;
     r->instances = d3d11_make_buffer(r, 0, r->instance_capacity * (u32)sizeof(d3d11_mesh_instance), D3D11_BIND_VERTEX_BUFFER, true);
@@ -456,6 +464,7 @@ d3d11_renderer_destroy(d3d11_renderer *r)
     d3d11_release((IUnknown **)&r->mesh_vs); d3d11_release((IUnknown **)&r->mesh_ps); d3d11_release((IUnknown **)&r->mesh_layout);
     d3d11_release((IUnknown **)&r->billboard_vs); d3d11_release((IUnknown **)&r->billboard_ps); d3d11_release((IUnknown **)&r->billboard_layout);
     d3d11_release((IUnknown **)&r->constants); d3d11_release((IUnknown **)&r->sampler); d3d11_release((IUnknown **)&r->rasterizer);
+    d3d11_release((IUnknown **)&r->rasterizer_no_cull);
     d3d11_release((IUnknown **)&r->depth_on); d3d11_release((IUnknown **)&r->blend_alpha);
     d3d11_release((IUnknown **)&r->depth_view); d3d11_release((IUnknown **)&r->depth_texture);
     d3d11_release((IUnknown **)&r->terrain_vertices); d3d11_release((IUnknown **)&r->terrain_indices); d3d11_release((IUnknown **)&r->grid_indices);
@@ -635,8 +644,11 @@ d3d11_renderer_draw(d3d11_renderer *r, render_commands *rc, ID3D11RenderTargetVi
         ctx->DrawIndexedInstanced(r->meshes[mesh_id].index_count, n, 0, 0, 0);
     }
 
-    /* billboards: one instanced draw per sprite id, alpha tested, drawn last */
+    /* billboards: one instanced draw per sprite id, alpha tested, drawn last.
+       The quad winds counter-clockwise on the screen, so the back-face cull
+       of the meshes drops it: the pass culls nothing. */
     ctx->OMSetBlendState(r->blend_alpha, 0, 0xFFFFFFFF);
+    ctx->RSSetState(r->rasterizer_no_cull);
     for (u32 sprite_id = 0; sprite_id < r->sprite_count; ++sprite_id)
     {
         d3d11_billboard_instance *batch = PushArray(scratch, r->instance_capacity, d3d11_billboard_instance);
@@ -661,6 +673,7 @@ d3d11_renderer_draw(d3d11_renderer *r, render_commands *rc, ID3D11RenderTargetVi
         ctx->DrawInstanced(6, n, 0, 0);
     }
     ctx->OMSetBlendState(0, 0, 0xFFFFFFFF);
+    ctx->RSSetState(r->rasterizer);
     ctx->OMSetRenderTargets(1, &target, 0);   /* ImGui draws without depth */
 }
 

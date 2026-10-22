@@ -1503,3 +1503,5 @@ log.mission_started	{subject}: leaves on a mission, {delta} days
 log.price_changed	{subject}: the grain price moves {delta}, now {value}
 log.transport_arrived	{subject}: the transport arrived
 log.envoy_arrived	{subject}: the envoy arrived
+war.soldiers	soldiers	the value that rises over a unit after a hit: "-495 soldiers"
+war.morale	morale	the value that rises over a unit after a hit: "-10 morale"

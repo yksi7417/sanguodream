@@ -162,6 +162,9 @@ ui_scene_handle_keys(ui_state *ui, f32 dt_seconds)
 }
 
 internal hex_coord ui_round_unit_hex(ui_state *ui, engine_unit *unit);   /* ui_round.cpp (M20); ui_locate.cpp uses it too */
+internal u32       ui_unit_sprite(engine_api *api, engine_unit *unit);   /* ui_war.cpp: the sprite of the class of the unit */
+
+#define UI_SCENE_UNIT_SPRITE_SIZE 1.4f   /* world units; the square picture of a unit on its hex */
 
 /* The placeholder model of each slot of a city that has a facility
    (ui/main-map.md, "Map labels": the slots are building models on their
@@ -270,6 +273,7 @@ ui_scene_push(ui_state *ui, engine_api *api, ui_frame_info *frame)
         hex_offset o = hex_to_offset(h);
         if (o.col < 0 || o.row < 0 || (u32)o.col >= view.width || (u32)o.row >= view.height) continue;
         u32 cell = (u32)o.row * view.width + (u32)o.col;
-        render_push_billboard(rc, 0, hex_world_center(h, terrain_level_y(view.level[cell])), 1.0f, 1.6f, ui_faction_rgba(unit.force_id));
+        render_push_billboard(rc, ui_unit_sprite(api, &unit), hex_world_center(h, terrain_level_y(view.level[cell])),
+                              UI_SCENE_UNIT_SPRITE_SIZE, UI_SCENE_UNIT_SPRITE_SIZE, ui_faction_rgba(unit.force_id));
     }
 }

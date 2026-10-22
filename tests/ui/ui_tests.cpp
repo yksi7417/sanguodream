@@ -2043,7 +2043,157 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_MOVE), 1u);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
         IM_CHECK(v.recorder.last_unit_command.unit == 0 && v.recorder.last_unit_command.q == 3 && v.recorder.last_unit_command.r == 2);
-        IM_CHECK(v.ui.show_unit_menu);                                                    /* the command menu opens after the move */
+        /* The unit walks the plan of path_to hex by hex: (1,2), (2,2), (3,2).
+           The command menu opens when the walk ends. */
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_PATH_TO), 1u);
+        IM_CHECK(ui_walk_active(&v.ui) && v.ui.war.walk.unit == 0 && v.ui.war.walk.count == 3);
+        IM_CHECK(!v.ui.show_unit_menu);
+        hex_coord shown = hex_make(0, 0);
+        IM_CHECK(ui_walk_hex(&v.ui, 0, &shown) && shown.q == 1 && shown.r == 2);   /* the start hex first */
+        u32 frames = 0;
+        for (; frames < 600 && ui_walk_active(&v.ui); ++frames) ctx->Yield();
+        IM_CHECK(frames > 2 && !ui_walk_active(&v.ui));                                   /* the pause of the steps took frames */
+        IM_CHECK(v.ui.show_unit_menu);                                                    /* the command menu opens after the walk */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);                             /* the walk commanded nothing */
+    };
+
+    /* The sprite of a unit follows the key of its class (ui_war.cpp). The
+       siege weapons share one picture, the two ships share one. */
+    t = IM_REGISTER_TEST(e, "ui", "unit_sprite_follows_the_class_of_the_unit");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ctx->Yield();
+        u32 expected[] = { RENDER_SPRITE_SWORD, RENDER_SPRITE_PIKE, RENDER_SPRITE_HALBERD, RENDER_SPRITE_CROSSBOW, RENDER_SPRITE_CAVALRY,
+                           RENDER_SPRITE_SIEGE, RENDER_SPRITE_SIEGE, RENDER_SPRITE_SIEGE, RENDER_SPRITE_SIEGE,
+                           RENDER_SPRITE_BOAT, RENDER_SPRITE_SHIP, RENDER_SPRITE_SHIP, RENDER_SPRITE_TRANSPORT };
+        engine_unit unit = {};
+        for (u32 type = 0; type < ArrayCount(expected); ++type)
+        {
+            unit.unit_type = (u8)type;
+            IM_CHECK_EQ(ui_unit_sprite(&v.api, &unit), expected[type]);
+        }
+        unit.unit_type = ENGINE_NO_UNIT_TYPE;
+        IM_CHECK_EQ(ui_unit_sprite(&v.api, &unit), (u32)RENDER_SPRITE_UNIT);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_UNIT_TYPE_AT), (u32)ArrayCount(expected));
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* A left click on the plate of an own unit (the portrait and the name)
+       selects it, also when the plate covers the sky. A second click on
+       the plate opens the command menu. The clicks command nothing. */
+    t = IM_REGISTER_TEST(e, "ui", "a_click_on_a_unit_plate_selects_the_unit_and_a_second_click_opens_its_menu");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.hud_mode         = true;
+        v.ui.scene.headless   = true;
+        v.ui.show_city        = false;
+        v.ui.show_map         = false;
+        v.ui.show_officers    = v.ui.show_cities = false;   /* nothing covers the map */
+        ctx->Yield(2);
+        ui_frame_unit(&v.ui, 0);   /* the camera looks at unit 0, so its plate is on the screen */
+        ctx->Yield(3);
+        ui_select_unit(&v.ui, ENGINE_NO_UNIT);   /* then nothing is selected; the camera stays */
+        v.ui.scene.framed_unit = ENGINE_NO_UNIT;
+        ctx->Yield(3);
+        /* The plate of unit 0, as the last frame drew it. The portrait is at its left edge. */
+        u32 plate = UI_PLATE_CAPACITY;
+        for (u32 index = 0; index < v.ui.units.plate_count; ++index) if (v.ui.units.plates[index].unit == 0) plate = index;
+        IM_CHECK(plate != UI_PLATE_CAPACITY);
+        ImVec2 portrait(v.ui.units.plates[plate].x0 + 10.0f, (v.ui.units.plates[plate].y0 + v.ui.units.plates[plate].y1) * 0.5f);
+        ImVec2 name(v.ui.units.plates[plate].x1 - 30.0f, v.ui.units.plates[plate].y0 + 6.0f);
+        ctx->MouseMoveToPos(portrait);
+        ctx->Yield(2);
+        IM_CHECK(!ImGui::GetIO().WantCaptureMouse);
+        recorder_reset(&v.recorder);
+        ctx->MouseClick(ImGuiMouseButton_Left);
+        IM_CHECK(v.ui.units.selected == 0 && v.ui.show_unit && !v.ui.show_unit_menu);   /* the portrait selects */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        ctx->Yield(2);
+        ctx->MouseMoveToPos(name);
+        ctx->Yield(2);
+        IM_CHECK(!ImGui::GetIO().WantCaptureMouse);   /* the Unit panel does not cover the plate */
+        ctx->MouseClick(ImGuiMouseButton_Left);
+        IM_CHECK(v.ui.units.selected == 0 && v.ui.show_unit_menu);                    /* the name opens the menu */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* An attack pick sends one command_attack and shows a strike on the
+       target hex for a few seconds (ui_war.cpp). */
+    t = IM_REGISTER_TEST(e, "ui", "an_attack_shows_a_strike_on_the_target_hex_for_a_few_seconds");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.recorder.unit1_rival   = true;
+        v.ui.units.selected      = 0;
+        v.ui.combat.pick         = UI_PICK_ATTACK;
+        ctx->Yield();
+        recorder_reset(&v.recorder);
+        ui_test_click_cell(ctx, v, hex_make(1, 3));
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_ATTACK), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(v.ui.war.strike_count == 1 && v.ui.war.strikes[0].kind == UI_STRIKE_ATTACK);
+        IM_CHECK(v.ui.war.strikes[0].hex.q == 1 && v.ui.war.strikes[0].hex.r == 3);
+        IM_CHECK(v.ui.war.strikes[0].seconds > UI_STRIKE_SECONDS - 0.1f);
+        u32 frames = 0;
+        for (; frames < 1200 && v.ui.war.strike_count; ++frames) ctx->Yield();
+        IM_CHECK(frames > 60 && v.ui.war.strike_count == 0);   /* it stays for seconds and then ends */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK_EQ(ui_strike_of_pick(UI_PICK_TACTIC), (u8)UI_STRIKE_TACTIC);
+        IM_CHECK_EQ(ui_strike_of_pick(UI_PICK_PLOT), (u8)UI_STRIKE_PLOT);
+        IM_CHECK_EQ(ui_strike_of_pick(UI_PICK_BUILD), (u8)UI_STRIKE_KIND_COUNT);
+    };
+
+    /* The soldiers and the morale that a unit loses or gains rise as values
+       over the unit, read from the ledger. After the value, the plate marks
+       the changed soldiers for a few seconds. */
+    t = IM_REGISTER_TEST(e, "ui", "unit_hits_rise_from_the_ledger_and_then_mark_the_plate");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.scene.headless      = true;
+        ui_frame_unit(&v.ui, 0);   /* the camera looks at unit 0 */
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        sim_event damaged = {};
+        damaged.kind = SIM_EVENT_UNIT_DAMAGED; damaged.faction = 1; damaged.detail = 0; damaged.delta = -495; damaged.cause = 7; damaged.turn = 1;
+        sim_event morale = damaged;
+        morale.kind = SIM_EVENT_MORALE_CHANGED; morale.delta = -10;
+        sim_event quiet = damaged;
+        quiet.kind = SIM_EVENT_UNIT_MOVED; quiet.delta = 12;   /* no hit */
+        v.recorder.events[v.recorder.event_count++] = damaged;
+        v.recorder.events[v.recorder.event_count++] = morale;
+        v.recorder.events[v.recorder.event_count++] = quiet;
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.war.hit_count, 2u);
+        IM_CHECK(v.ui.war.hits[0].unit == 0 && v.ui.war.hits[0].kind == UI_HIT_SOLDIERS && v.ui.war.hits[0].delta == -495);
+        IM_CHECK(v.ui.war.hits[1].unit == 0 && v.ui.war.hits[1].kind == UI_HIT_MORALE && v.ui.war.hits[1].delta == -10);
+        IM_CHECK_EQ(ui_hit_mark(&v.ui, 0, (u8)UI_HIT_SOLDIERS), 0);   /* the value rises first; the plate marks nothing yet */
+        u32 frames = 0;
+        for (; frames < 1200 && ui_hit_mark(&v.ui, 0, (u8)UI_HIT_SOLDIERS) == 0 && v.ui.war.hit_count; ++frames) ctx->Yield();
+        IM_CHECK(frames > 30 && ui_hit_mark(&v.ui, 0, (u8)UI_HIT_SOLDIERS) == -495);   /* then the plate marks the loss */
+        IM_CHECK_EQ(ui_hit_mark(&v.ui, 0, (u8)UI_HIT_MORALE), -10);
+        IM_CHECK(ui_hit_colour(-495, IM_COL32_WHITE) != IM_COL32_WHITE && ui_hit_colour(10, IM_COL32_WHITE) != ui_hit_colour(-10, IM_COL32_WHITE));
+        IM_CHECK_EQ(ui_hit_colour(0, IM_COL32_WHITE), (ImU32)IM_COL32_WHITE);
+        for (frames = 0; frames < 1200 && v.ui.war.hit_count; ++frames) ctx->Yield();
+        IM_CHECK(frames > 30 && v.ui.war.hit_count == 0);                             /* and the mark ends */
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_UNIT_AT), 1u);                /* the value sits over the unit */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
     /* ---- clone gap report 2, group 2: the unit orders ---------------------- */

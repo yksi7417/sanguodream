@@ -8,6 +8,7 @@
 internal void ui_draw_map_units(ui_state *ui, engine_api *api, ImDrawList *draw, f32 cell, hex_point origin);
 internal b32  ui_unit_click(ui_state *ui, engine_api *api, hex_coord hex);
 internal void ui_draw_hex_lines(ui_state *ui, engine_api *api, hex_coord hex);   /* ui_locate.cpp (M11) */
+internal hex_coord ui_round_unit_hex(ui_state *ui, engine_unit *unit);           /* ui_round.cpp: the hex of a walk */
 
 #define UI_MAP_ZOOM_MIN         4.0f
 #define UI_MAP_ZOOM_MAX         30.0f

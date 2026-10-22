@@ -152,6 +152,29 @@ of the sim. tests/unit/faces_tests.cpp checks the generator, and
 tests/ui/ui_tests.cpp checks that the UI asks for a face when no picture
 has the name of the officer.
 
+## Unit sprites (data/placeholder/sprites)
+The scene draws one picture on the hex of each unit. The picture shows
+the class of the unit, so the player finds the hex of the unit under its
+plate. The pictures are placeholders until the art of docs/GRAPHICS.md
+exists.
+
+| Item | Value |
+|---|---|
+| Files | unit.png, sword.png, pike.png, halberd.png, crossbow.png, cavalry.png, siege.png, boat.png, ship.png, transport.png |
+| Size | 64 x 64 pixels, RGBA, a light figure with a dark outline on a transparent background |
+| Source | misc/make_unit_sprites.py draws them with Pillow. They are project work, not art of the original game. |
+| Licence | the licence of this repository |
+
+The table render_sprite_files in code/render/render.h names the file of
+each render_sprite. The renderer loads the files at start and multiplies
+each picture by the colour of the faction. If a file is absent, the
+renderer uses the figure of a head over a body. The UI picks the sprite of a unit from the
+key of its class (ui_unit_sprite in code/ui/ui_war.cpp). The four siege
+weapons share siege.png. 樓船 and 鬥艦 share ship.png.
+
+To draw the pictures again, run `python -X utf8 misc\make_unit_sprites.py`
+from the root of the repository.
+
 ## Text of the content pack (data/placeholder)
 The project wrote these files. They contain no text from the original game.
 - text/locales.tsv, text/zh-TW.tsv and text/en.tsv: the UI strings.

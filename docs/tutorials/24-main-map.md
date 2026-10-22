@@ -62,6 +62,19 @@ ui_draw_unit_plate draws a plate over each unit:
 The clean room assumes what 委 and the colours of the supply icon show
 (Q-215).
 
+The plate takes clicks for its unit. ui_draw_unit_plate records the
+rectangle of each plate of the frame. ui_hud_scene_clicks and
+ui_draw_hover_panel ask ui_plate_unit_at for the unit under the mouse
+first. A left click on the portrait or the name of an own unit selects it.
+A second click opens its command menu. This works also when the plate
+covers the sky, where no hex is under the mouse (G2-042).
+
+After a hit, the plate shows the soldiers in red or green for a few
+seconds, with a line under the number (tutorial 18, "The feedback of
+war"). The scene draws a sprite of the class of the unit on its hex
+(docs/ASSETS.md, "Unit sprites"). With it, the player finds the hex of
+the unit under its plate.
+
 ## Tests to read
 - unit/render: the mini map axes at nine headings.
 - ui: "scene_keys_move_turn_and_tilt_and_command_nothing" checks the smooth
@@ -70,3 +83,4 @@ The clean room assumes what 委 and the colours of the supply icon show
 - feature/save_map: a unit of the save has no known grain.
 - ui: "minimap_click_moves_the_camera_and_commands_nothing" and
   "unit_plates_read_the_commander_and_the_corps_and_command_nothing".
+- ui: "a_click_on_a_unit_plate_selects_the_unit_and_a_second_click_opens_its_menu".

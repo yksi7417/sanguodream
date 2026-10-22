@@ -7,6 +7,7 @@
 
 #define UI_FRAME_DISTANCE    24.0f   /* the camera distance after a frame */
 #define UI_LABEL_LIFT        1.2f    /* world units above the top of the hex */
+#define UI_UNIT_PLATE_LIFT   2.6f    /* the plate of a unit sits above its sprite (UI_SCENE_UNIT_SPRITE_SIZE) */
 #define UI_FACILITY_COUNT_CAPACITY 32
 
 /* ---- frame a city or a unit --------------------------------------------------------- */
@@ -207,6 +208,9 @@ ui_first_character(const char *text, char *out, u32 out_size)
 
 /* ---- M12: the unit plates (ui/main-map.md, "Map labels") ----------------------------- */
 
+internal s32   ui_hit_mark(ui_state *ui, u32 unit_id, u8 kind);   /* ui_war.cpp */
+internal ImU32 ui_hit_colour(s32 mark, ImU32 plain);
+
 #define UI_PLATE_GRAIN_LOW_TURNS   3    /* the supply icon is red below this (assumed, Q-215) */
 #define UI_PLATE_GRAIN_SAFE_TURNS  10   /* the supply icon is green from this (assumed, Q-215) */
 #define UI_PLATE_PAD               2.0f
@@ -303,7 +307,11 @@ ui_draw_unit_plate(ui_state *ui, engine_api *api, ImDrawList *draw, f32 x, f32 y
     f32 second = top.y + pad * 2.0f + line;
     draw->AddRectFilled(ImVec2(text_x, second), ImVec2(text_x + supply_size.x + pad * 2.0f, second + line), ui_grain_colour(unit->grain_turns), 2.0f);
     draw->AddText(ImVec2(text_x + pad, second), white, supply_text);
-    draw->AddText(ImVec2(text_x + supply_size.x + pad * 4.0f, second), white, soldiers);
+    /* After a hit, the soldiers show in red (a loss) or green (a gain) for a few seconds (ui_war.cpp). */
+    s32 hit = ui_hit_mark(ui, unit->id, (u8)UI_HIT_SOLDIERS);
+    ImVec2 soldiers_at(text_x + supply_size.x + pad * 4.0f, second);
+    draw->AddText(soldiers_at, ui_hit_colour(hit, white), soldiers);
+    if (hit) draw->AddLine(ImVec2(soldiers_at.x, second + line), ImVec2(soldiers_at.x + soldier_size.x, second + line), ui_hit_colour(hit, white), 2.0f);
 }
 
 /* A glyph on each slot of a city in view: the first character of the
@@ -376,7 +384,7 @@ ui_draw_scene_labels(ui_state *ui, engine_api *api)
     {
         engine_unit unit = api->unit_at(api->engine, id);
         f32 x = 0.0f, y = 0.0f;
-        if (unit.id == ENGINE_NO_UNIT || !ui_scene_screen(api, view_projection, ui_round_unit_hex(ui, &unit), UI_LABEL_LIFT, &x, &y)) continue;   /* M20 */
+        if (unit.id == ENGINE_NO_UNIT || !ui_scene_screen(api, view_projection, ui_round_unit_hex(ui, &unit), UI_UNIT_PLATE_LIFT, &x, &y)) continue;   /* M20 */
         ui_draw_unit_plate(ui, api, draw, x, y, &unit, unit.id == ui->units.selected);   /* M12 */
     }
     if (ui->scene.has_hover && !io.WantCaptureMouse && !ui->hud_mode)   /* M21: the game mode shows the hover panel */

@@ -1501,3 +1501,5 @@ log.mission_started	{subject}：出發執行計略，{delta}日
 log.price_changed	{subject}：米價變動 {delta}，現為 {value}
 log.transport_arrived	{subject}：輸送隊到達
 log.envoy_arrived	{subject}：使者到達
+war.soldiers	兵
+war.morale	氣力
