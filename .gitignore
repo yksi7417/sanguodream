@@ -8,5 +8,3 @@ build/
 *.stackdump
 
 
-# The default portraits: 115 MB, larger than the limit of docs/ASSETS.md
-data/civil_war/Portraits.zip

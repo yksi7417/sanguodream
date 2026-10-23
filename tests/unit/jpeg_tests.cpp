@@ -1,8 +1,9 @@
-/* Unit tests for code/render/jpeg.h: hand-built baseline JPEG files with
-   only DC coefficients. The DC table has a 4-bit code for each category
-   0..11 (the code is the category). The AC table has one code, "0", for
-   the end of block. With a quantization of 1, a block of mean M has the
-   DC coefficient 8 * (M - 128), so the expected output is exact. */
+/* Unit tests for code/render/jpeg.h: hand-built baseline JPEG files. The
+   DC table has a 4-bit code for each category 0..11 (the code is the
+   category). The AC table has two codes: "0" for the end of block and
+   "10" for one coefficient of five bits (run 0, size 5). With a
+   quantization of 1, a block of mean M has the DC coefficient
+   8 * (M - 128), so the expected output of the eighth decode is exact. */
 
 struct jpeg_test_writer
 {
@@ -60,11 +61,32 @@ jpeg_test_block(jpeg_test_writer *writer, s32 difference)
     jpeg_test_bits(writer, 0, 1);
 }
 
+/* One block with a DC difference, one AC coefficient of five bits at the
+   first zigzag place (the horizontal frequency 1), and the end of block. */
+internal void
+jpeg_test_block_with_ac(jpeg_test_writer *writer, s32 difference, s32 ac)
+{
+    u32 magnitude = (u32)(difference < 0 ? -difference : difference), category = 0;
+    while (magnitude >> category) category += 1;
+    jpeg_test_bits(writer, category, 4);
+    if (category) jpeg_test_bits(writer, (u32)(difference < 0 ? difference + (1 << category) - 1 : difference), category);
+    jpeg_test_bits(writer, 2, 2);   /* "10": run 0, size 5 */
+    jpeg_test_bits(writer, (u32)(ac < 0 ? ac + 31 : ac), 5);
+    jpeg_test_bits(writer, 0, 1);
+}
+
 /* The DC coefficient of a block with this mean, at quantization 1. */
 internal s32
 jpeg_test_dc(s32 mean)
 {
     return 8 * (mean - 128);
+}
+
+/* The pixel (x, y) of an RGBA image. */
+internal const u8 *
+jpeg_test_pixel(jpeg_image *image, u32 x, u32 y)
+{
+    return image->rgba + ((u64)y * image->width + x) * 4;
 }
 
 /* SOI, DQT, SOF0, DHT, an optional DRI, and SOS. sampling[] has one byte
@@ -83,13 +105,14 @@ jpeg_test_header(jpeg_test_writer *writer, u32 width, u32 height, u32 component_
     {
         jpeg_test_byte(writer, index + 1); jpeg_test_byte(writer, sampling[index]); jpeg_test_byte(writer, 0);
     }
-    jpeg_test_u16(writer, 0xFFC4); jpeg_test_u16(writer, 2 + 17 + 12 + 17 + 1);
+    jpeg_test_u16(writer, 0xFFC4); jpeg_test_u16(writer, 2 + 17 + 12 + 17 + 2);
     jpeg_test_byte(writer, 0x00);
     for (u32 length = 1; length <= 16; ++length) jpeg_test_byte(writer, length == 4 ? 12 : 0);
     for (u32 symbol = 0; symbol < 12; ++symbol) jpeg_test_byte(writer, symbol);
     jpeg_test_byte(writer, 0x10);
-    for (u32 length = 1; length <= 16; ++length) jpeg_test_byte(writer, length == 1 ? 1 : 0);
-    jpeg_test_byte(writer, 0x00);
+    for (u32 length = 1; length <= 16; ++length) jpeg_test_byte(writer, length == 1 || length == 2 ? 1 : 0);
+    jpeg_test_byte(writer, 0x00);   /* "0": the end of block */
+    jpeg_test_byte(writer, 0x05);   /* "10": run 0, size 5 */
     if (restart_interval) { jpeg_test_u16(writer, 0xFFDD); jpeg_test_u16(writer, 4); jpeg_test_u16(writer, restart_interval); }
     jpeg_test_u16(writer, 0xFFDA); jpeg_test_u16(writer, 6 + 2 * component_count); jpeg_test_byte(writer, component_count);
     for (u32 index = 0; index < component_count; ++index) { jpeg_test_byte(writer, index + 1); jpeg_test_byte(writer, 0x00); }
@@ -153,6 +176,55 @@ unit_jpeg_tests(test_counts *counts)
     TEST_CHECK(counts, jpeg_test_near(image.rgba[0], 254) && jpeg_test_near(image.rgba[1], 0) && jpeg_test_near(image.rgba[2], 0), "Y 76, Cb 85, Cr 255 is red");
     TEST_CHECK(counts, jpeg_test_near(image.rgba[4], 255) && jpeg_test_near(image.rgba[5], 74) && jpeg_test_near(image.rgba[6], 74), "the second Y block with the same chroma");
     TEST_CHECK(counts, image.rgba[8] == image.rgba[0] && image.rgba[12] == image.rgba[4], "the chroma block covers all four pixels");
+
+    /* The full decode: every pixel of a flat block is its mean, the
+       output has the size of the frame, and the chroma of 4:2:0 covers
+       two pixels across and down. */
+    memset(writer, 0, sizeof(*writer));
+    jpeg_test_header(writer, 12, 8, 1, grey, 0, JPEG_SOF0);
+    jpeg_test_block(writer, jpeg_test_dc(200));
+    jpeg_test_block(writer, jpeg_test_dc(50) - jpeg_test_dc(200));
+    jpeg_test_end(writer);
+    image = jpeg_decode_full(writer->bytes, writer->size, &arena);
+    TEST_CHECK(counts, image.error == 0 && image.width == 12 && image.height == 8, "the full decode gives the size of the frame, not of the blocks");
+    TEST_CHECK(counts, jpeg_test_near(jpeg_test_pixel(&image, 0, 0)[0], 200) && jpeg_test_near(jpeg_test_pixel(&image, 7, 7)[1], 200) &&
+                       jpeg_test_near(jpeg_test_pixel(&image, 8, 0)[2], 50) && jpeg_test_near(jpeg_test_pixel(&image, 11, 7)[0], 50),
+               "every pixel of a flat block is the mean of the block");
+    memset(writer, 0, sizeof(*writer));
+    jpeg_test_header(writer, 16, 16, 3, colour, 0, JPEG_SOF0);
+    previous = 0;
+    for (u32 block = 0; block < 4; ++block) { jpeg_test_block(writer, jpeg_test_dc(luma[block]) - previous); previous = jpeg_test_dc(luma[block]); }
+    jpeg_test_block(writer, jpeg_test_dc(85));
+    jpeg_test_block(writer, jpeg_test_dc(255));
+    jpeg_test_end(writer);
+    image = jpeg_decode_full(writer->bytes, writer->size, &arena);
+    TEST_CHECK(counts, image.error == 0 && image.width == 16 && image.height == 16, "a 4:2:0 file decodes at full size");
+    TEST_CHECK(counts, jpeg_test_near(jpeg_test_pixel(&image, 3, 5)[0], 254) && jpeg_test_near(jpeg_test_pixel(&image, 3, 5)[1], 0) &&
+                       jpeg_test_near(jpeg_test_pixel(&image, 12, 2)[0], 255) && jpeg_test_near(jpeg_test_pixel(&image, 12, 2)[1], 74) &&
+                       jpeg_test_near(jpeg_test_pixel(&image, 3, 13)[1], 0) && jpeg_test_near(jpeg_test_pixel(&image, 12, 13)[2], 74),
+               "the chroma block covers all four luma blocks at full size");
+
+    /* One AC coefficient: F(1, 0) = 31 at quantization 1 adds a cosine
+       across the block, +5.4 at the left edge and -5.4 at the right edge,
+       the same in every row. */
+    memset(writer, 0, sizeof(*writer));
+    jpeg_test_header(writer, 8, 8, 1, grey, 0, JPEG_SOF0);
+    jpeg_test_block_with_ac(writer, 0, 31);
+    jpeg_test_end(writer);
+    image = jpeg_decode_full(writer->bytes, writer->size, &arena);
+    TEST_CHECK(counts, image.error == 0 && jpeg_test_near(jpeg_test_pixel(&image, 0, 0)[0], 133) && jpeg_test_near(jpeg_test_pixel(&image, 7, 0)[0], 123) &&
+                       jpeg_test_pixel(&image, 0, 7)[0] == jpeg_test_pixel(&image, 0, 0)[0] && jpeg_test_near(jpeg_test_pixel(&image, 3, 4)[0], 129),
+               "the inverse DCT puts a horizontal frequency across the block");
+    TEST_CHECK(counts, jpeg_decode_eighth(writer->bytes, writer->size, &arena).rgba[0] == 128, "the eighth decode of the same block keeps its mean");
+
+    /* The fitted decode: one eighth when that gives the target width, else full. */
+    memset(writer, 0, sizeof(*writer));
+    jpeg_test_header(writer, 16, 8, 1, grey, 0, JPEG_SOF0);
+    jpeg_test_block(writer, jpeg_test_dc(200));
+    jpeg_test_block(writer, jpeg_test_dc(50) - jpeg_test_dc(200));
+    jpeg_test_end(writer);
+    TEST_CHECK(counts, jpeg_decode_fitted(writer->bytes, writer->size, &arena, 2).width == 2, "a target of 2 pixels across takes the eighth of a 16 wide file");
+    TEST_CHECK(counts, jpeg_decode_fitted(writer->bytes, writer->size, &arena, 3).width == 16, "a target of 3 pixels across takes the full size of a 16 wide file");
 
     /* refusals */
     memset(writer, 0, sizeof(*writer));

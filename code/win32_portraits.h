@@ -3,8 +3,9 @@
 /* The default portraits for the platform layer (docs/ASSETS.md). It maps
    the portrait archive into memory and lists its pictures. It makes a
    D3D11 texture of a picture when the game first asks for it. A picture
-   decodes at one eighth of its size (render/jpeg.h), so a 1792 x 2240
-   file gives a 224 x 280 texture. Include it after win32_window.h. */
+   of the archive is 224 x 280 and decodes at full size (render/jpeg.h). A
+   1792 x 2240 picture of an older archive decodes at one eighth, to the
+   same 224 x 280. Include it after win32_window.h. */
 
 #include "hexdom.h"               /* PLATFORM_PORTRAIT_TEXTURE */
 #include "win32_faces.h"          /* win32_make_rgba_texture, and the generated faces */
@@ -13,6 +14,7 @@
 #include "render/portraits.h"
 
 #define WIN32_PORTRAIT_SCRATCH_SIZE    Megabytes(24)   /* the largest member, its inflate state and the decoder */
+#define WIN32_PORTRAIT_TARGET_WIDTH    224             /* the texture of a portrait: the full size of a picture of the archive */
 #define WIN32_PORTRAIT_LOADS_PER_FRAME 1               /* one picture takes approximately 35 ms at /O2: one for each frame at most */
 
 struct win32_portraits
@@ -90,7 +92,7 @@ win32_portraits_make_texture(win32_portraits *portraits, u32 picture)
     if (!file.data) error = file.error;
     else
     {
-        image = jpeg_decode_eighth(file.data, file.size, &portraits->scratch);
+        image = jpeg_decode_fitted(file.data, file.size, &portraits->scratch, WIN32_PORTRAIT_TARGET_WIDTH);
         if (!image.rgba) error = image.error;
     }
     ID3D11ShaderResourceView *view = 0;

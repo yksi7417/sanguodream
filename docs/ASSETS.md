@@ -74,31 +74,41 @@ The game does not read BIG5.TXT at run time. See data/unicode/README.md.
 
 ## Default portraits (data/civil_war/Portraits.zip)
 The game shows these pictures as the portraits of the officers in each
-content pack. The owner of this repository added the archive on
-2026-10-18.
+content pack. The owner of this repository added the first 124 pictures
+on 2026-10-18 and 159 more on 2026-10-23.
 
 | Item | Value |
 |---|---|
-| Contents | 124 JPEG files: 120 numbered pictures and 4 extras ("EXTRA - ...") |
+| Contents | 279 JPEG files, numbered 1 to 279, one for each officer |
 | Names | `Three Kingdoms Portraits/<faction>/<number> <English name> <Chinese name>.jpg` |
-| Size | 1792 x 2240 or 1856 x 2304 pixels each, 115 MB in all |
+| Size | 224 x 280 pixels each, baseline JPEG, quality 85, 4:2:0; 3.4 MB in all |
 | Source | generated pictures, not art of the original game |
 | Licence | not recorded yet |
 
+The sources are two archives of 1792 x 2240 pictures (a few are 1856 x
+2304), 115 MB and 149 MB. The game shows a portrait at 6 text lines at
+most, approximately 130 pixels tall. A 224 x 280 picture is more than two
+times that size. misc/make_portraits.py makes the archive of the pack
+from the sources. It fits each picture to 224 x 280 and writes a baseline
+JPEG at quality 85 with 4:2:0 chroma. It stores the files in the zip
+without deflate, because a JPEG does not compress. The re-encode drops
+the metadata of the sources. The four extras of the
+first archive have numbered pictures in the second, so the pack holds the
+numbered ones only. Two officers share the name 馬忠, one of Shu and one
+of Wu. Both have a picture, and the game shows the first for both.
+
 The source facts come from a check on 2026-10-18:
-- Five files have a C2PA manifest from Google. The manifest marks them as
-  "trainedAlgorithmicMedia", that is, made by an image generator.
+- Five source files have a C2PA manifest from Google. The manifest marks
+  them as "trainedAlgorithmicMedia", that is, made by an image generator.
 - The other files have no metadata. They have the same size and style.
-- Each picture shows a bust in a painted style at high resolution. No
-  picture is a portrait from the original game.
+- Each picture shows a bust in a painted style. No picture is a portrait
+  from the original game.
 
 Before a release, record the licence of the pictures here. The terms of
 the image generator give that licence.
 
-The archive is larger than 20 MB, so git does not hold it. .gitignore
-lists it. To use the portraits, copy the archive to
-data\civil_war\Portraits.zip. If the file is absent, every officer gets a
-generated face (the next section).
+The archive is smaller than 20 MB, so git holds it. If the file is
+absent, every officer gets a generated face (the next section).
 
 ### How the game uses the archive
 1. At start, the platform layer maps the archive into memory
@@ -110,9 +120,10 @@ generated face (the next section).
    picture with the Chinese name of the officer. An officer without one
    gets a generated face, not the picture of another officer.
 4. When the UI first asks for a picture, the platform decodes it with
-   code/render/jpeg.h at one eighth of its size, 224 x 280 pixels. It
-   decodes one picture in each frame at most. The texture stays until the
-   game closes.
+   code/render/jpeg.h at full size, 224 x 280 pixels. A picture of an
+   older archive, 1792 pixels wide, decodes at one eighth to the same
+   size. The platform decodes one picture in each frame at most. The
+   texture stays until the game closes.
 
 The unit plates, the officer lists and the officer view of the Court
 panel show the portraits.

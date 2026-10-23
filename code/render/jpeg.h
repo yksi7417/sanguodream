@@ -1,12 +1,14 @@
 #ifndef JPEG_H
 #define JPEG_H
-/* A small decoder of baseline JPEG files at one eighth of their size. It
-   decodes the Huffman data of each 8x8 block and keeps only the DC
-   coefficient, that is the mean of the block. The output has one pixel for
-   each block of the full image, so a 1792 x 2240 file gives 224 x 280
-   pixels. That size is sufficient for a portrait on the screen, and the
-   decoder needs no inverse DCT. The output is RGBA8, row-major, in the
-   arena. The platform layer uses it for the default portraits.
+/* A small decoder of baseline JPEG files, at one eighth of their size or at
+   full size. The eighth decode keeps only the DC coefficient of each 8x8
+   block, that is the mean of the block, and gives one pixel for each block:
+   a 1792 x 2240 file gives 224 x 280 pixels. The full decode runs the
+   inverse DCT of each block and gives every pixel of the frame: the 224 x
+   280 pictures of the portrait archive decode at full size. The fitted
+   decode picks the eighth when it gives the target width. The output is
+   RGBA8, row-major, in the arena. The platform layer uses it for the
+   default portraits.
 
    The decoder reads 8-bit sequential Huffman files (SOF0, SOF1) with one
    component (grey) or three (YCbCr), any sampling factors from 1 to 4, and
@@ -47,7 +49,7 @@ enum jpeg_marker
 
 struct jpeg_image
 {
-    u32         width;      /* of the output: one eighth of the file, rounded up */
+    u32         width;      /* of the output: one eighth of the file, rounded up, or the full size */
     u32         height;
     u8         *rgba;       /* width * height * 4 bytes, or zero on failure */
     const char *error;
@@ -77,6 +79,15 @@ struct jpeg_component
     u32  blocks_across;
     u32  blocks_down;
     u8  *means;               /* one mean sample for each block */
+    u8  *samples;             /* the full decode: blocks_across * 8 samples in each of blocks_down * 8 rows */
+};
+
+/* The natural index (row * 8 + column) of each zigzag position (figure A.6). */
+global_variable const u8 jpeg_zigzag[JPEG_COEFFICIENTS] = {
+     0,  1,  8, 16,  9,  2,  3, 10, 17, 24, 32, 25, 18, 11,  4,  5,
+    12, 19, 26, 33, 40, 48, 41, 34, 27, 20, 13,  6,  7, 14, 21, 28,
+    35, 42, 49, 56, 57, 50, 43, 36, 29, 22, 15, 23, 30, 37, 44, 51,
+    58, 59, 52, 45, 38, 31, 39, 46, 53, 60, 61, 54, 47, 55, 62, 63,
 };
 
 /* The bit reader of the entropy data. It removes the stuffed zero after
@@ -99,11 +110,12 @@ struct jpeg_decoder
     u32            height;
     u32            component_count;
     jpeg_component components[JPEG_MAX_COMPONENTS];
-    u16            quant_dc[JPEG_TABLE_SLOTS];   /* only the DC entry of each table */
+    u16            quant[JPEG_TABLE_SLOTS][JPEG_COEFFICIENTS];   /* in zigzag order, as the file stores them */
     jpeg_huffman   dc_tables[JPEG_TABLE_SLOTS];
     jpeg_huffman   ac_tables[JPEG_TABLE_SLOTS];
     u32            restart_interval;
     b32            has_frame;
+    b32            full;                                        /* decode every sample, not only the means */
     const char    *error;
 };
 
@@ -221,7 +233,11 @@ jpeg_read_quant(jpeg_decoder *decoder, const u8 *body, u32 length)
         u32 precision = body[at] >> 4, slot = body[at] & 0x0F;
         u32 entry_size = precision ? 2 : 1;
         if (slot >= JPEG_TABLE_SLOTS || at + 1 + JPEG_COEFFICIENTS * entry_size > length) return false;
-        decoder->quant_dc[slot] = precision ? jpeg_read_u16(body + at + 1) : body[at + 1];
+        for (u32 entry = 0; entry < JPEG_COEFFICIENTS; ++entry)
+        {
+            const u8 *value = body + at + 1 + entry * entry_size;
+            decoder->quant[slot][entry] = precision ? jpeg_read_u16(value) : *value;
+        }
         at += 1 + JPEG_COEFFICIENTS * entry_size;
     }
     return true;
@@ -282,13 +298,20 @@ jpeg_read_frame(jpeg_decoder *decoder, const u8 *body, u32 length)
     return true;
 }
 
-/* Decodes one block and keeps the mean of its samples. */
+/* Decodes one block: the mean of its samples, and with coefficients the 64
+   dequantized coefficients in natural order for the inverse DCT. */
 internal b32
-jpeg_decode_block(jpeg_bits *bits, jpeg_decoder *decoder, jpeg_component *component, u8 *mean)
+jpeg_decode_block(jpeg_bits *bits, jpeg_decoder *decoder, jpeg_component *component, u8 *mean, s32 *coefficients)
 {
+    const u16 *quant = decoder->quant[component->quant_table];
     s32 category = jpeg_bits_symbol(bits, decoder->dc_tables + component->dc_table);
     if (category < 0 || category > JPEG_MAX_CATEGORY) return false;
     component->predictor += jpeg_bits_signed(bits, (u32)category);
+    if (coefficients)
+    {
+        memset(coefficients, 0, JPEG_COEFFICIENTS * sizeof(*coefficients));
+        coefficients[0] = component->predictor * quant[0];
+    }
 
     for (u32 coefficient = 1; coefficient < JPEG_COEFFICIENTS;)
     {
@@ -303,14 +326,57 @@ jpeg_decode_block(jpeg_bits *bits, jpeg_decoder *decoder, jpeg_component *compon
         }
         coefficient += run;
         if (coefficient >= JPEG_COEFFICIENTS) return false;
-        jpeg_bits_take(bits, size);   /* the value of an AC coefficient is not needed */
+        s32 value = jpeg_bits_signed(bits, size);
+        if (coefficients) coefficients[jpeg_zigzag[coefficient]] = value * quant[coefficient];
         coefficient += 1;
     }
 
     /* F(0,0) is eight times the mean of the 64 shifted samples. */
-    s32 level = component->predictor * decoder->quant_dc[component->quant_table] / JPEG_BLOCK_SIDE + JPEG_LEVEL_SHIFT;
+    s32 level = component->predictor * quant[0] / JPEG_BLOCK_SIDE + JPEG_LEVEL_SHIFT;
     *mean = (u8)(level < 0 ? 0 : level > 255 ? 255 : level);
     return true;
+}
+
+/* The inverse DCT of one block (A.3.3), separable, in floats: the rows
+   first, then the columns. out is the top left sample of the block in a
+   plane with this stride. */
+internal void
+jpeg_idct_block(const s32 *coefficients, u8 *out, u32 stride)
+{
+    local_persist f32 basis[JPEG_BLOCK_SIDE][JPEG_BLOCK_SIDE];   /* basis[x][u] = C(u) cos((2x + 1) u pi / 16) */
+    local_persist b32 basis_ready = false;
+    if (!basis_ready)
+    {
+        for (u32 x = 0; x < JPEG_BLOCK_SIDE; ++x)
+        {
+            for (u32 u = 0; u < JPEG_BLOCK_SIDE; ++u)
+            {
+                f32 scale = u == 0 ? 0.70710678f : 1.0f;
+                basis[x][u] = scale * cosf((2.0f * (f32)x + 1.0f) * (f32)u * 3.14159265f / 16.0f);
+            }
+        }
+        basis_ready = true;
+    }
+    f32 rows[JPEG_BLOCK_SIDE][JPEG_BLOCK_SIDE];   /* rows[v][x]: the row transform of each frequency row */
+    for (u32 v = 0; v < JPEG_BLOCK_SIDE; ++v)
+    {
+        for (u32 x = 0; x < JPEG_BLOCK_SIDE; ++x)
+        {
+            f32 sum = 0.0f;
+            for (u32 u = 0; u < JPEG_BLOCK_SIDE; ++u) sum += basis[x][u] * (f32)coefficients[v * JPEG_BLOCK_SIDE + u];
+            rows[v][x] = sum;
+        }
+    }
+    for (u32 y = 0; y < JPEG_BLOCK_SIDE; ++y)
+    {
+        for (u32 x = 0; x < JPEG_BLOCK_SIDE; ++x)
+        {
+            f32 sum = 0.0f;
+            for (u32 v = 0; v < JPEG_BLOCK_SIDE; ++v) sum += basis[y][v] * rows[v][x];
+            s32 level = (s32)(sum * 0.25f + (sum < 0.0f ? -0.5f : 0.5f)) + JPEG_LEVEL_SHIFT;
+            out[y * stride + x] = (u8)(level < 0 ? 0 : level > 255 ? 255 : level);
+        }
+    }
 }
 
 /* At a restart marker: skip it, empty the bit reader and reset the DC predictors. */
@@ -366,8 +432,10 @@ jpeg_read_scan(jpeg_decoder *decoder, const u8 *body, u32 length, u64 data_start
         component->blocks_across = mcus_across * component->horizontal;
         component->blocks_down   = mcus_down * component->vertical;
         component->means         = PushArray(arena, (u64)component->blocks_across * component->blocks_down, u8);
+        component->samples       = decoder->full ? PushArray(arena, (u64)component->blocks_across * component->blocks_down * JPEG_COEFFICIENTS, u8) : 0;
         component->predictor     = 0;
     }
+    s32 coefficients[JPEG_COEFFICIENTS];
 
     jpeg_bits bits = {};
     bits.data     = decoder->data;
@@ -396,10 +464,16 @@ jpeg_read_scan(jpeg_decoder *decoder, const u8 *body, u32 length, u64 data_start
                     {
                         u32 block_x = mcu_x * component->horizontal + column;
                         u32 block_y = mcu_y * component->vertical + row;
-                        if (!jpeg_decode_block(&bits, decoder, component, component->means + block_y * component->blocks_across + block_x))
+                        if (!jpeg_decode_block(&bits, decoder, component, component->means + block_y * component->blocks_across + block_x,
+                                               decoder->full ? coefficients : 0))
                         {
                             decoder->error = "bad Huffman data";
                             return false;
+                        }
+                        if (decoder->full)
+                        {
+                            u32 stride = component->blocks_across * JPEG_BLOCK_SIDE;
+                            jpeg_idct_block(coefficients, component->samples + (u64)block_y * JPEG_BLOCK_SIDE * stride + block_x * JPEG_BLOCK_SIDE, stride);
                         }
                     }
                 }
@@ -409,7 +483,8 @@ jpeg_read_scan(jpeg_decoder *decoder, const u8 *body, u32 length, u64 data_start
     return true;
 }
 
-/* The mean samples of the blocks as RGBA. A component with less sampling
+/* The samples as RGBA: the means of the blocks, one pixel for each block,
+   or with full the samples of the frame. A component with less sampling
    than the most covers more output pixels. */
 internal void
 jpeg_write_pixels(jpeg_decoder *decoder, jpeg_image *image, memory_arena *arena)
@@ -420,8 +495,16 @@ jpeg_write_pixels(jpeg_decoder *decoder, jpeg_image *image, memory_arena *arena)
         if (decoder->components[index].horizontal > most_across) most_across = decoder->components[index].horizontal;
         if (decoder->components[index].vertical   > most_down)   most_down   = decoder->components[index].vertical;
     }
-    image->width  = (decoder->width  + JPEG_BLOCK_SIDE - 1) / JPEG_BLOCK_SIDE;
-    image->height = (decoder->height + JPEG_BLOCK_SIDE - 1) / JPEG_BLOCK_SIDE;
+    if (decoder->full)
+    {
+        image->width  = decoder->width;
+        image->height = decoder->height;
+    }
+    else
+    {
+        image->width  = (decoder->width  + JPEG_BLOCK_SIDE - 1) / JPEG_BLOCK_SIDE;
+        image->height = (decoder->height + JPEG_BLOCK_SIDE - 1) / JPEG_BLOCK_SIDE;
+    }
     image->rgba   = PushArray(arena, (u64)image->width * image->height * 4, u8);
     for (u32 pixel_y = 0; pixel_y < image->height; ++pixel_y)
     {
@@ -431,9 +514,10 @@ jpeg_write_pixels(jpeg_decoder *decoder, jpeg_image *image, memory_arena *arena)
             for (u32 index = 0; index < decoder->component_count; ++index)
             {
                 jpeg_component *component = decoder->components + index;
-                u32 block_x = pixel_x * component->horizontal / most_across;
-                u32 block_y = pixel_y * component->vertical / most_down;
-                samples[index] = component->means[block_y * component->blocks_across + block_x];
+                u32 sample_x = pixel_x * component->horizontal / most_across;
+                u32 sample_y = pixel_y * component->vertical / most_down;
+                samples[index] = decoder->full ? component->samples[(u64)sample_y * component->blocks_across * JPEG_BLOCK_SIDE + sample_x]
+                                               : component->means[sample_y * component->blocks_across + sample_x];
             }
             s32 red = samples[0], green = samples[0], blue = samples[0];
             if (decoder->component_count == 3)
@@ -453,16 +537,17 @@ jpeg_write_pixels(jpeg_decoder *decoder, jpeg_image *image, memory_arena *arena)
     }
 }
 
-/* Decodes a JPEG file at one eighth of its size. The decoder state and the
-   output go into the arena. */
+/* Decodes a JPEG file at one eighth of its size, or with full at its full
+   size. The decoder state and the output go into the arena. */
 internal jpeg_image
-jpeg_decode_eighth(const u8 *data, u64 size, memory_arena *arena)
+jpeg_decode(const u8 *data, u64 size, memory_arena *arena, b32 full)
 {
     jpeg_image image = {};
     if (size < 4 || data[0] != 0xFF || data[1] != JPEG_SOI) { image.error = "not a JPEG file"; return image; }
     jpeg_decoder *decoder = PushStruct(arena, jpeg_decoder);
     decoder->data = data;
     decoder->size = size;
+    decoder->full = full;
 
     u64 at = 2;
     for (;;)
@@ -493,6 +578,49 @@ jpeg_decode_eighth(const u8 *data, u64 size, memory_arena *arena)
         if (!good) { image.error = "a bad table or frame header"; return image; }
         at += 2 + length;
     }
+}
+
+internal jpeg_image
+jpeg_decode_eighth(const u8 *data, u64 size, memory_arena *arena)
+{
+    return jpeg_decode(data, size, arena, false);
+}
+
+internal jpeg_image
+jpeg_decode_full(const u8 *data, u64 size, memory_arena *arena)
+{
+    return jpeg_decode(data, size, arena, true);
+}
+
+/* The width of the frame, from the frame header, or 0 when the file has
+   none before the scan. */
+internal u32
+jpeg_frame_width(const u8 *data, u64 size)
+{
+    if (size < 4 || data[0] != 0xFF || data[1] != JPEG_SOI) return 0;
+    u64 at = 2;
+    while (at + 4 <= size && data[at] == 0xFF)
+    {
+        u8  marker = data[at + 1];
+        if (marker == 0xFF) { at += 1; continue; }
+        if (marker == JPEG_SOS || marker == JPEG_EOI) return 0;
+        u32 length = jpeg_read_u16(data + at + 2);
+        if (length < 2 || at + 2 + length > size) return 0;
+        if ((marker == JPEG_SOF0 || marker == JPEG_SOF1) && length >= 7) return jpeg_read_u16(data + at + 4 + 3);
+        at += 2 + length;
+    }
+    return 0;
+}
+
+/* Decodes at one eighth when the eighth of the frame is at least
+   target_width pixels across, else at full size. The pictures of the
+   portrait archive are 224 x 280, so they decode at full size, and a
+   1792 x 2240 picture of an older archive decodes at one eighth. */
+internal jpeg_image
+jpeg_decode_fitted(const u8 *data, u64 size, memory_arena *arena, u32 target_width)
+{
+    u32 width = jpeg_frame_width(data, size);
+    return jpeg_decode(data, size, arena, width / JPEG_BLOCK_SIDE < target_width);
 }
 
 #endif /* JPEG_H */
