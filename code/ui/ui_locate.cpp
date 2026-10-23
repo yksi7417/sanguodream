@@ -450,6 +450,13 @@ ui_draw_status_bar(ui_state *ui, engine_api *api)
         ImGui::SameLine();
         if (red) ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.25f, 1.0f), "%s", place);
         else     ImGui::TextUnformatted(place);
+        /* G2-054: during a target pick, the bar names the pick (以戰法進行攻擊). */
+        if (ui->combat.pick != UI_PICK_NONE)
+        {
+            ImGui::SameLine();
+            ImGui::TextColored(ImVec4(0.96f, 0.86f, 0.42f, 1.0f), "    %s",
+                               text_get(ui->text, ui->combat.pick == UI_PICK_TACTIC ? "pick.tactic" : "pick.target"));
+        }
     }
     ImGui::End();
 }

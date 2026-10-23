@@ -1503,5 +1503,12 @@ log.mission_started	{subject}: leaves on a mission, {delta} days
 log.price_changed	{subject}: the grain price moves {delta}, now {value}
 log.transport_arrived	{subject}: the transport arrived
 log.envoy_arrived	{subject}: the envoy arrived
+# G2-054 and G2-064: the status bar during a target pick, and the state of a technique.
+pick.tactic	Attack with a tactic	以戰法進行攻擊
+pick.target	Choose the target	the status bar during the other target picks
+research.state_owned	Researched	the faction has the technique
+research.state_running	In progress	the research runs on the technique
+research.state_locked	Locked	the line needs the level before it
+research.state_open	Open	the technique can be researched now
 war.soldiers	soldiers	the value that rises over a unit after a hit: "-495 soldiers"
 war.morale	morale	the value that rises over a unit after a hit: "-10 morale"

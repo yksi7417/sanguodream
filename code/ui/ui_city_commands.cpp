@@ -375,7 +375,21 @@ ui_probe_city_command(engine_api *api, u8 city, engine_command_kind kind, u16 fi
     {
         case ENGINE_COMMAND_DEVELOP:  command.facility = api->facility_kind_at(api->engine, 0).id; break;
         case ENGINE_COMMAND_PRODUCE:  command.weapon = api->weapon_kind_at(api->engine, 0).id; break;
-        case ENGINE_COMMAND_RESEARCH: command.technique = api->technique_kind_at(api->engine, 0).id; break;
+        case ENGINE_COMMAND_RESEARCH:
+        {
+            /* The menu item asks whether the city can research at all, not one
+               technique: the probe skips the techniques that the force has or
+               that need the level before them (G2-064). */
+            engine_check last = {};
+            last.refusal = SIM_REFUSAL_VALUE_AT_MAXIMUM;
+            for (u32 index = 0; index < api->technique_kind_count(api->engine); ++index)
+            {
+                command.technique = api->technique_kind_at(api->engine, index).id;
+                last = api->can_issue(api->engine, &command);
+                if (last.refusal != SIM_REFUSAL_VALUE_AT_MAXIMUM && last.refusal != SIM_REFUSAL_NEEDS_TECHNIQUE) break;
+            }
+            return last.refusal;
+        }
         case ENGINE_COMMAND_MERCHANT:
         {
             command.merchant_mode = SIM_MERCHANT_BUY;

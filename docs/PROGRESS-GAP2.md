@@ -57,6 +57,9 @@ run of 2026-10-22".
 | G2-038 | The log line of a failed 登庸 names both officers (高長恭登庸卞氏失敗). A failure gives 0 技巧 (group 4). The dialog with a target list that has columns, and the speech of the executor, stay open. | P2 batch 3 | feature/court |
 | G2-059 | A force that loses its last city falls: the ledger has 張楊軍滅亡, the log shows it, and the turn start shows it as a message to every player. The picture of a burning castle stays open: the clone has no such picture. | P2 batch 3 | feature/combat |
 | G2-040 | 人材 > 褒賞 opens a dialog with the officers of the whole force that can get a reward (忠誠 below 100, not the ruler, not in a unit, not away, no reward this turn), each with a check box, the columns 武將, 忠誠, the rise, 所在, 身份 and 功績, the buttons 一併 and 一併解除, the cost of the set and 決定. The dialog checks every row when it opens, as the original does. One order rewards the set for 5 行動力 and 100 gold for each officer, and the city of the order pays. The rise of 忠誠 is a formula of rules.tsv (reward.loyalty 10, less one for each reward.compatibility_divisor 15 of the distance of compatibility to the ruler, at least reward.loyalty_min 1). The spec names the compatibility as the one factor and gives no numbers (Q-028): the rows are assumed, and the fit is a question below. | feat/court-feedback | unit/court, feature/court, ui |
+| G2-054 | 戰法 opens the tactics as a column next to the unit menu, and the menu stays. A row shows the cost in 氣力 in brackets. A tactic with no target in its pattern is grey (the probe of the command over the hexes within 3). A choice closes the menu and starts the pick. During the pick the scene shows the hexes that the tactic can hit in red, and the status bar says 以戰法進行攻擊. The speech of the leader, the dark map with the cross icon and the show of the shot stay open (G2-050). | P2 batch 4 | ui |
+| G2-064 | The research window stays on the screen: a dialog of a known size clamps its place to the display (ui_context_place_sized). Each technique shows its state: green and grey when the force has it, blue with the turns left while the research runs on it, grey when its line needs the level before it, white when it is open. A hover names the state with the points and the gold. The menu item 研究技巧 probes every technique, not the first one, so a force that owns the first technique still sees the item white. | P2 batch 4 | ui |
+| G2-024 | The city window opens at its top each time, so the menu buttons stand at the same place at each open. | P2 batch 4 | ui |
 | G2-038, G2-039 (the dialogs) | The Court panel shows the clue of the adviser next to 探索 and next to 登庸 (ui/city-commands.md: the estimate after the choice of a target). The clue has three bands of the chance in percent (advice.low_below 34, advice.high_from 67, assumed) in three colours, with the name of the 軍師. A hover shows the chance. The words and the thresholds of the original are a question below. | feat/court-feedback | unit/court, feature/court, ui |
 | G2-022 | 訓練 raises the morale by floor(4 + 0.115 x S) in a city with a 鍊兵所 and by floor(3 + S / 15) without one. S is the force of the first officer plus half of the force of each other officer (the run of 2026-10-22, 17 rows). The fixture handler checks the rows without a drill ground, builds one, then checks the rows with it. | settled rules | unit/economy, feature/city_commands, fixture/train |
 | G2-026 | 生產兵裝 gives F x (1000 + 10 x I) weapons, with F 1.5 for a level-3 smithy. I is the intellect of the first officer plus half of the intellect of each other officer (the run of 2026-10-22, 6 rows). | settled rules | unit/economy, feature/city_commands, fixture/produce |
@@ -99,9 +102,21 @@ run of 2026-10-22".
   the context menus and the place of the unit panel.
 - P2 batch 3: the results of 探索 and 登庸 in the log, and the end of a
   force.
-- Next: the other P2 rows, then P3. These rows are the dialogs of 出征,
-  登庸, 探索 and 褒賞, the tactics column, the research window, the
-  city menu layout and the AI round.
+- P2 batch 4: the tactic column, the research window and the city
+  window at its top.
+- Next: the other P2 rows, then P3. The P2 rows are:
+  - the 出征 dialog with its presets, weapon icons and ships (G2-044,
+    G2-057);
+  - the unit panel with the skills, the ship class and the captives
+    (G2-046);
+  - the skill row and the speech of the command dialogs (G2-017,
+    G2-018);
+  - the messages of the load, the turn start and the month start
+    (G2-006, G2-007, G2-032);
+  - the durability maximum (G2-009, Q-222).
+  The P3 rows are the glyph of 儁 (G2-010), the portraits of 蔡和
+  (G2-020) and the ghost text of the city panel (G2-021). The default
+  portraits by name make G2-020 moot.
 
 ## Questions for the observer
 
@@ -236,6 +251,17 @@ run of 2026-10-22".
   second officer stay open (Q-170). Please read the five values of one
   officer with 走舸 and with 樓船, and of two officers together with
   槍兵.
+- G2-010, the glyph of 儁. The clone shows 朱?隊 because the name decoder
+  gives a private-use code point for the byte pair of 儁. The standard
+  Big5 table (data/unicode/BIG5.TXT) has no 儁, and neither has cp950.
+  Big5-HKSCS has it at 0xFA67. Two questions for the analysis side. What
+  two bytes does the officer record of 朱儁 hold for 儁? Do other names of
+  the scenario files use bytes outside the standard Big5 table? With the
+  list, the clone adds a supplement table of the pack.
+- G2-021, the ghost text of the city panel. The window clears the back
+  buffer in each frame, so the copy of the text is not an old frame. The
+  builder did not reproduce it headless. Does it still show after the
+  build of 2026-10-23? If yes, a screenshot of the first second helps.
 - G2-027, the unit of 吳巨. The report says that the clone of run 5
   showed no unit near 江陵 for the transport of 吳巨 (3790 soldiers). The
   save holds it as unit 53 at the map hex 69,148 with the task 移動 to

@@ -264,6 +264,7 @@ ui_draw_city(ui_state *ui, engine_api *api)
     if (ImGui::Begin(ui_label(title, sizeof(title), ui, "city.title", "City"), &ui->show_city))
     {
         ui_context_track(ui);
+        if (ImGui::IsWindowAppearing()) ImGui::SetScrollY(0.0f);   /* G2-024: the menu opens at its top each time */
         if (api->city_count(api->engine) == 0)
         {
             ImGui::TextWrapped("%s", text_get(ui->text, "city.none"));

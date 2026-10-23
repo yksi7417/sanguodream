@@ -572,9 +572,9 @@ ui_draw_unit_menu(ui_state *ui, engine_api *api)
             {
                 if (pick == UI_PICK_TACTIC || pick == UI_PICK_PLOT || pick == UI_PICK_BUILD)
                 {
-                    ui->combat.list    = pick;
-                    ui->show_actions   = true;
-                    ui->show_unit_menu = false;
+                    /* G2-054: the list opens as a column next to the menu, and the menu stays. */
+                    ui->combat.list  = pick;
+                    ui->show_actions = true;
                 }
                 else if (pick != UI_PICK_NONE)
                 {

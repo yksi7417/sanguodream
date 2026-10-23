@@ -100,6 +100,26 @@ ui_context_place(ui_state *ui, u32 slot)
     ImGui::SetNextWindowPos(at, cond, ImVec2(right ? 1.0f : 0.0f, bottom ? 1.0f : 0.0f));
 }
 
+/* As ui_context_place, for a window of a known size: the window stays on
+   the screen (G2-064: the research window of a city at the left edge
+   opened partly outside the screen). */
+internal void
+ui_context_place_sized(ui_state *ui, u32 slot, ImVec2 size)
+{
+    if (!ui->hud_mode || ui->context.kind == UI_CONTEXT_NONE) return;
+    ImGuiIO &io = ImGui::GetIO();
+    bool right  = ui->context.x > io.DisplaySize.x * 0.6f;
+    bool bottom = ui->context.y > io.DisplaySize.y * 0.6f;
+    f32 shift = UI_CONTEXT_OFFSET + (f32)slot * UI_CONTEXT_SECOND_X;
+    ImVec2 top_left(ui->context.x + (right ? -shift - size.x : shift), ui->context.y + (bottom ? -UI_CONTEXT_OFFSET - size.y : UI_CONTEXT_OFFSET));
+    if (top_left.x + size.x > io.DisplaySize.x) top_left.x = io.DisplaySize.x - size.x;
+    if (top_left.y + size.y > io.DisplaySize.y) top_left.y = io.DisplaySize.y - size.y;
+    if (top_left.x < 0.0f) top_left.x = 0.0f;
+    if (top_left.y < 0.0f) top_left.y = 0.0f;
+    ImGuiCond cond = ImGui::GetFrameCount() == ui->context.place_frame + 1 ? ImGuiCond_Always : ImGuiCond_Appearing;
+    ImGui::SetNextWindowPos(top_left, cond);
+}
+
 /* Inside a window of the dialog: the mouse over it keeps the dialog open
    on a right click. */
 internal void

@@ -162,6 +162,7 @@ ui_scene_handle_keys(ui_state *ui, f32 dt_seconds)
 }
 
 internal hex_coord ui_round_unit_hex(ui_state *ui, engine_unit *unit);   /* ui_round.cpp (M20); ui_locate.cpp uses it too */
+internal b32       ui_pick_allows(ui_state *ui, engine_api *api, u8 pick, u8 row, hex_coord hex);   /* ui_combat.cpp: the probe of a target */
 internal u32       ui_unit_sprite(engine_api *api, engine_unit *unit);   /* ui_war.cpp: the sprite of the class of the unit */
 
 #define UI_SCENE_UNIT_SPRITE_SIZE 1.4f   /* world units; the square picture of a unit on its hex */
@@ -268,6 +269,20 @@ ui_scene_push(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->scene.has_hover) ui_scene_mark(overlay, view, ui->scene.hover, 0x60FFFFFFu);
     if (ui->map.has_from)    ui_scene_mark(overlay, view, ui->map.from, 0xB03CDCFFu);
     if (ui->map.has_to)      ui_scene_mark(overlay, view, ui->map.to,   0xB03C5AFFu);
+    /* G2-054: during a target pick, the hexes that the command can hit show red. */
+    if (ui->combat.pick != UI_PICK_NONE && ui->units.selected != ENGINE_NO_UNIT)
+    {
+        engine_unit picker = api->unit_at(api->engine, ui->units.selected);
+        for (s32 dq = -3; picker.id != ENGINE_NO_UNIT && dq <= 3; ++dq)
+        {
+            for (s32 dr = -3; dr <= 3; ++dr)
+            {
+                hex_coord hex = hex_make(picker.q + dq, picker.r + dr);
+                if (hex_distance(hex, hex_make(picker.q, picker.r)) > 3) continue;
+                if (ui_pick_allows(ui, api, ui->combat.pick, ui->combat.row, hex)) ui_scene_mark(overlay, view, hex, 0xB03C3CFFu);
+            }
+        }
+    }
     /* M10: the slots of the city that the Hex map panel selected: yellow. */
     if (ui->map.has_city)
     {

@@ -111,12 +111,19 @@ ui_technique_name(ui_state *ui, engine_api *api, u8 technique)
     return kind.id == ENGINE_NO_TECHNIQUE ? "-" : ui_text_with_key(ui, "technique", kind.key);
 }
 
-/* The tree: one row for each line, one button for each level. A technique
-   that the faction has is green; the chosen one is blue. */
+/* The tree: one row for each line, one button for each level. The state
+   of each technique shows (G2-064): the faction has it (green, grey), the
+   research runs on it (blue, with the turns left, grey), its line needs
+   the level before it (grey), or it is open (white). The chosen one is
+   blue. The probe of the command gives the lock. */
 internal void
 ui_draw_technique_grid(ui_state *ui, engine_api *api, engine_faction_techniques *owned)
 {
     u32 count = api->technique_kind_count(api->engine);
+    engine_command probe = {};
+    probe.kind    = ENGINE_COMMAND_RESEARCH;
+    probe.city_id = ui->research.city;
+    for (u32 place = 0; place < SIM_DEVELOP_OFFICERS; ++place) probe.officers[place] = ui->research.officers[place];
     for (u32 line = 0; line < TECHNIQUE_LINE_COUNT; ++line)
     {
         ImGui::Text("%-6s", ui_text_with_key(ui, "line", content_line_name((technique_line)line)));
@@ -126,13 +133,26 @@ ui_draw_technique_grid(ui_state *ui, engine_api *api, engine_faction_techniques 
             if (kind.line != line) continue;
             ImGui::SameLine();
             b32 has = (owned->owned >> kind.id) & 1;
+            b32 running = owned->researching == kind.id;
             b32 chosen = ui->research.technique == kind.id;
+            probe.technique = kind.id;
+            b32 locked = !has && !running && api->can_issue(api->engine, &probe).refusal == SIM_REFUSAL_NEEDS_TECHNIQUE;
             char label[96];
-            snprintf(label, sizeof(label), "%s###t%u", ui_text_with_key(ui, "technique", kind.key), kind.id);
-            if (has)         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.5f, 0.25f, 1.0f));
-            else if (chosen) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.4f, 0.8f, 1.0f));
+            if (running) snprintf(label, sizeof(label), "%s (%u)###t%u", ui_text_with_key(ui, "technique", kind.key), owned->turns_left, kind.id);
+            else         snprintf(label, sizeof(label), "%s###t%u", ui_text_with_key(ui, "technique", kind.key), kind.id);
+            if (has)          ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.5f, 0.25f, 1.0f));
+            else if (running) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.35f, 0.7f, 1.0f));
+            else if (chosen)  ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.4f, 0.8f, 1.0f));
+            ImGui::BeginDisabled(has || running || locked);
             if (ImGui::Button(label)) ui->research.technique = kind.id;
-            if (has || chosen) ImGui::PopStyleColor();
+            ImGui::EndDisabled();
+            if (has || running || chosen) ImGui::PopStyleColor();
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+            {
+                const char *state = has ? "research.state_owned" : running ? "research.state_running" : locked ? "research.state_locked" : "research.state_open";
+                ImGui::SetTooltip("%s  %s %u  %s %u", text_get(ui->text, state), text_get(ui->text, "research.points"), kind.points,
+                                  text_get(ui->text, "command.gold"), kind.gold);
+            }
         }
     }
 }
@@ -166,7 +186,7 @@ ui_draw_research(ui_state *ui, engine_api *api)
 {
     char title[128];
     ImGui::SetNextWindowSize(ImVec2(760, 460), ImGuiCond_FirstUseEver);
-    ui_context_place(ui, 1);   /* the game mode: the dialog opens next to its entity */
+    ui_context_place_sized(ui, 1, ImVec2(760, 460));   /* the game mode: next to its entity, and on the screen (G2-064) */
     if (ImGui::Begin(ui_label(title, sizeof(title), ui, "research.title", "Research"), &ui->show_research))
     {
         ui_context_track(ui);

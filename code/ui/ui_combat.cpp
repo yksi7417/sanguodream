@@ -30,6 +30,7 @@ ui_pick_text_id(u8 pick)
 }
 
 internal void ui_strike_push(ui_state *ui, u8 kind, hex_coord hex);   /* ui_war.cpp */
+internal b32  ui_pick_allows(ui_state *ui, engine_api *api, u8 pick, u8 row, hex_coord hex);   /* below: the probe of a target */
 internal u8   ui_strike_of_pick(u8 pick);
 
 /* Starts a pick: the next click on the Hex map is the target. */
@@ -113,31 +114,64 @@ ui_draw_map_combat(ui_state *ui, engine_api *api, ImDrawList *draw, f32 cell, he
     if (ui->combat.pick == UI_PICK_NONE || ui->units.selected == ENGINE_NO_UNIT) return;
     engine_unit unit = api->unit_at(e, ui->units.selected);
     if (unit.id == ENGINE_NO_UNIT) return;
-    engine_command command = {};
-    command.kind = ui_pick_command_kind(ui->combat.pick);
-    command.unit = unit.id;
-    command.row  = ui->combat.row;
     for (s32 dq = -3; dq <= 3; ++dq)
     {
         for (s32 dr = -3; dr <= 3; ++dr)
         {
             hex_coord hex = hex_make(unit.q + dq, unit.r + dr);
             if (hex_distance(hex, hex_make(unit.q, unit.r)) > 3) continue;
-            command.q = hex.q;
-            command.r = hex.r;
-            if (api->can_issue(e, &command).refusal != SIM_REFUSAL_NONE) continue;
+            if (!ui_pick_allows(ui, api, ui->combat.pick, ui->combat.row, hex)) continue;
             ui_draw_hexagon(draw, hex_to_pixel(hex, cell, origin), cell - 2.5f, IM_COL32(0, 0, 0, 0), IM_COL32(240, 60, 50, 255));
         }
     }
 }
 
-/* One row of the Actions list. */
+/* True when the pick of the selected unit can hit the hex (the probe of
+   the command). The 2D map, the scene and the tactic column use it. */
+internal b32
+ui_pick_allows(ui_state *ui, engine_api *api, u8 pick, u8 row, hex_coord hex)
+{
+    if (pick == UI_PICK_NONE || ui->units.selected == ENGINE_NO_UNIT) return false;
+    engine_command command = {};
+    command.kind = ui_pick_command_kind(pick);
+    command.unit = ui->units.selected;
+    command.row  = row;
+    command.q    = hex.q;
+    command.r    = hex.r;
+    return api->can_issue(api->engine, &command).refusal == SIM_REFUSAL_NONE;
+}
+
+/* True when a hex within 3 of the unit holds a target of the tactic
+   (G2-054: a tactic without a target in its pattern is grey). */
+internal b32
+ui_tactic_has_target(ui_state *ui, engine_api *api, engine_unit *unit, u32 row)
+{
+    for (s32 dq = -3; dq <= 3; ++dq)
+    {
+        for (s32 dr = -3; dr <= 3; ++dr)
+        {
+            hex_coord hex = hex_make(unit->q + dq, unit->r + dr);
+            if (hex_distance(hex, hex_make(unit->q, unit->r)) > 3) continue;
+            if (ui_pick_allows(ui, api, UI_PICK_TACTIC, (u8)row, hex)) return true;
+        }
+    }
+    return false;
+}
+
+/* One row of the Actions list. A row that no target allows is grey. A
+   choice closes the list and the unit menu, and starts the pick. */
 internal void
-ui_action_row(ui_state *ui, u32 row, const char *prefix, const char *key, const char *detail)
+ui_action_row(ui_state *ui, u32 row, const char *prefix, const char *key, const char *detail, b32 enabled)
 {
     char label[160];
     snprintf(label, sizeof(label), "%s  %s###a%u", ui_text_with_key(ui, prefix, key), detail, row);
-    if (ImGui::Selectable(label, false)) ui_start_pick(ui, ui->combat.list, (u8)row);
+    ImGui::BeginDisabled(!enabled);
+    if (ImGui::Selectable(label, false))
+    {
+        ui_start_pick(ui, ui->combat.list, (u8)row);
+        ui->show_unit_menu = false;
+    }
+    ImGui::EndDisabled();
 }
 
 /* The tactics of the class of the unit, the plots, or the buildings that
@@ -162,13 +196,13 @@ ui_draw_actions(ui_state *ui, engine_api *api)
         char detail[64];
         if (ui->combat.list == UI_PICK_TACTIC)
         {
+            /* G2-054: the cost in 氣力 in brackets, as the column of the original. */
             for (u32 row = 0; row < api->tactic_kind_count(e); ++row)
             {
                 engine_tactic_kind tactic = api->tactic_kind_at(e, row);
                 if (!((tactic.unit_types >> unit.unit_type) & 1)) continue;
-                snprintf(detail, sizeof(detail), "%s %u  %s %s", text_get(ui->text, "command.morale"), tactic.morale,
-                         text_get(ui->text, "actions.grade"), ui_grade_text(tactic.aptitude));
-                ui_action_row(ui, row, "tactic", tactic.key, detail);
+                snprintf(detail, sizeof(detail), "(%u)  %s %s", tactic.morale, text_get(ui->text, "actions.grade"), ui_grade_text(tactic.aptitude));
+                ui_action_row(ui, row, "tactic", tactic.key, detail, ui_tactic_has_target(ui, api, &unit, row));
             }
         }
         else if (ui->combat.list == UI_PICK_PLOT)
@@ -176,8 +210,8 @@ ui_draw_actions(ui_state *ui, engine_api *api)
             for (u32 row = 0; row < api->plot_kind_count(e); ++row)
             {
                 engine_plot_kind plot = api->plot_kind_at(e, row);
-                snprintf(detail, sizeof(detail), "%s %u", text_get(ui->text, "command.morale"), plot.morale);
-                ui_action_row(ui, row, "plot", plot.key, detail);
+                snprintf(detail, sizeof(detail), "(%u)", plot.morale);
+                ui_action_row(ui, row, "plot", plot.key, detail, true);
             }
         }
         else
@@ -187,7 +221,7 @@ ui_draw_actions(ui_state *ui, engine_api *api)
                 engine_building_kind building = api->building_kind_at(e, row);
                 if (building.natural) continue;
                 snprintf(detail, sizeof(detail), "%s %u", text_get(ui->text, "command.gold"), building.gold);
-                ui_action_row(ui, row, "building", building.key, detail);
+                ui_action_row(ui, row, "building", building.key, detail, true);
             }
         }
     }

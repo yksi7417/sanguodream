@@ -644,6 +644,39 @@ register_ui_tests(ImGuiTestEngine *e)
     /* The log has a form of its own for every event kind that reaches it.
        The generic forms "{subject}: {delta}" and "{subject}: news" say
        nothing about the field (the player asked what "+11" means). */
+    /* G2-024: the city window opens at its top each time, so the menu
+       buttons stand at the same place at each open. */
+    t = IM_REGISTER_TEST(e, "ui", "city_window_opens_at_the_top_each_time");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.hud_mode            = true;
+        v.ui.show_city           = true;
+        v.ui.city.selected       = 0;
+        ctx->Yield(2);
+        ctx->WindowResize("###City", ImVec2(300.0f, 120.0f));   /* smaller than its content */
+        ctx->Yield();
+        ImGuiWindow *window = ctx->WindowInfo("###City").Window;
+        IM_CHECK(window != 0);
+        ImGui::SetScrollY(window, 60.0f);
+        ctx->Yield(2);
+        IM_CHECK_GT(window->Scroll.y, 0.0f);
+        v.ui.show_city = false;
+        ctx->Yield(2);
+        v.ui.show_city = true;
+        ctx->Yield(3);
+        window = ctx->WindowInfo("###City").Window;
+        IM_CHECK(window != 0);
+        IM_CHECK_EQ(window->Scroll.y, 0.0f);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        ctx->WindowResize("###City", ImVec2(440.0f, 420.0f));   /* ImGui keeps the size by name: give the later tests the default back */
+        ctx->Yield();
+    };
+
     t = IM_REGISTER_TEST(e, "ui", "each_locale_has_a_log_line_for_each_event_kind");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;
@@ -1803,6 +1836,35 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
+    /* G2-064: the research window stays on the screen in the game mode,
+       also when the city menu opened at the left edge. Each technique
+       shows its state: the faction has it (grey, green), its line needs
+       the level before (grey), or it is open to research (white). */
+    t = IM_REGISTER_TEST(e, "ui", "research_window_stays_on_screen_and_shows_the_state_of_each_technique");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.hud_mode            = true;
+        ui_context_open(&v.ui, &v.api, UI_CONTEXT_MAP_MENU, 10.0f, 300.0f);   /* a click at the left edge */
+        v.ui.show_research       = true;
+        v.ui.research.city       = 0;
+        ctx->Yield(3);
+        ImGuiWindow *window = ctx->WindowInfo("###Research").Window;
+        IM_CHECK(window != 0);
+        IM_CHECK_GE(window->Pos.x, 0.0f);
+        IM_CHECK_LE(window->Pos.x + window->Size.x, ImGui::GetIO().DisplaySize.x + 0.5f);
+        ctx->SetRef("###Research");
+        IM_CHECK((ctx->ItemInfo("###t0").ItemFlags & ImGuiItemFlags_Disabled) != 0);   /* the faction has technique 0 */
+        IM_CHECK((ctx->ItemInfo("###t1").ItemFlags & ImGuiItemFlags_Disabled) == 0);   /* level 2 after level 1: open */
+        IM_CHECK((ctx->ItemInfo("###t2").ItemFlags & ImGuiItemFlags_Disabled) != 0);   /* level 3 needs level 2: locked */
+        IM_CHECK((ctx->ItemInfo("###t4").ItemFlags & ImGuiItemFlags_Disabled) == 0);   /* level 1 of the other line: open */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
     t = IM_REGISTER_TEST(e, "ui", "research_decide_issues_one_command_research");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;
@@ -2389,16 +2451,57 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->ItemClick("###tactic");
         ctx->Yield(2);
         IM_CHECK(v.ui.show_actions && v.ui.combat.list == UI_PICK_TACTIC);
+        IM_CHECK(v.ui.show_unit_menu);                                                    /* G2-054: the tactics are a column next to the menu */
         ctx->SetRef("###Actions");
         IM_CHECK(ctx->ItemExists("###a0") && !ctx->ItemExists("###a1"));               /* only the tactics of the class of the unit */
         ctx->ItemClick("###a0");
         ctx->Yield();
-        IM_CHECK(v.ui.combat.pick == UI_PICK_TACTIC && v.ui.combat.row == 0 && !v.ui.show_actions);
+        IM_CHECK(v.ui.combat.pick == UI_PICK_TACTIC && v.ui.combat.row == 0 && !v.ui.show_actions && !v.ui.show_unit_menu);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
-        ui_test_click_cell(ctx, v, hex_make(2, 2));
+        ui_test_click_cell(ctx, v, hex_make(1, 3));                                        /* the rival unit 1 */
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_TACTIC), 1u);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
-        IM_CHECK(v.recorder.last_unit_command.row == 0 && v.recorder.last_unit_command.q == 2);
+        IM_CHECK(v.recorder.last_unit_command.row == 0 && v.recorder.last_unit_command.q == 1 && v.recorder.last_unit_command.r == 3);
+    };
+
+    /* G2-054: a tactic without a target in its pattern is grey. The row
+       shows the cost in brackets. During the pick, the scene marks the
+       hexes that the tactic can hit, and the status bar names the pick. */
+    t = IM_REGISTER_TEST(e, "ui", "tactic_column_greys_a_tactic_without_a_target_and_marks_the_targets");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        memory_arena frame_arena = test_arena_create(Megabytes(2));
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.recorder.unit1_rival   = true;
+        v.ui.scene.headless      = true;
+        v.frame.frame_arena      = &frame_arena;
+        v.ui.units.selected      = 0;
+        v.ui.show_unit_menu      = true;
+        ctx->SetRef("###UnitMenu");
+        ctx->Yield(2);
+        v.recorder.can_issue_refusal = SIM_REFUSAL_UNREACHABLE;   /* no hex of the pattern holds a target */
+        ctx->ItemClick("###tactic");
+        ctx->Yield(2);
+        ctx->SetRef("###Actions");
+        IM_CHECK(ctx->ItemExists("###a0"));
+        IM_CHECK((ctx->ItemInfo("###a0").ItemFlags & ImGuiItemFlags_Disabled) != 0);   /* grey */
+        v.recorder.can_issue_refusal = SIM_REFUSAL_NONE;             /* the rival at 1,3 is a target */
+        ctx->Yield(2);
+        IM_CHECK((ctx->ItemInfo("###a0").ItemFlags & ImGuiItemFlags_Disabled) == 0);
+        ctx->ItemClick("###a0");
+        ctx->Yield(2);
+        IM_CHECK(v.ui.combat.pick == UI_PICK_TACTIC);
+        IM_CHECK(v.frame.render && v.frame.render->overlay);
+        hex_offset rival = hex_to_offset(hex_make(1, 3)), empty = hex_to_offset(hex_make(2, 2));
+        IM_CHECK_EQ(v.frame.render->overlay[(u32)rival.row * 8 + (u32)rival.col], 0xB03C3CFFu);   /* the target hex shows red */
+        IM_CHECK_NE(v.frame.render->overlay[(u32)empty.row * 8 + (u32)empty.col], 0xB03C3CFFu);   /* an empty hex keeps the range colour */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        v.frame.frame_arena = 0;
+        test_arena_destroy(&frame_arena);
     };
 
     t = IM_REGISTER_TEST(e, "ui", "unit_menu_build_list_and_hex_issue_one_command_build");

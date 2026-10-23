@@ -608,6 +608,21 @@ internal engine_check recorder_can_issue(void *o, const engine_command *command)
     recorder_record(r, RECORDER_CAN_ISSUE, command->facility);
     engine_check check = {};
     check.refusal = r->can_issue_refusal;
+    if (command->kind == ENGINE_COMMAND_RESEARCH)
+    {
+        /* The scripted techniques: the faction has technique 0; a level
+           above 1 needs the level before it (recorder_technique_kind_at). */
+        u8 technique = command->technique;
+        if (technique == 0)                              check.refusal = SIM_REFUSAL_VALUE_AT_MAXIMUM;
+        else if (technique % 4 != 0 && technique != 1)   check.refusal = SIM_REFUSAL_NEEDS_TECHNIQUE;
+    }
+    else if (command->kind == ENGINE_COMMAND_ATTACK || command->kind == ENGINE_COMMAND_JOINT_ATTACK || command->kind == ENGINE_COMMAND_TACTIC ||
+             command->kind == ENGINE_COMMAND_PLOT || command->kind == ENGINE_COMMAND_DUEL)
+    {
+        /* A target command works on the hex of the rival unit 1 only. */
+        b32 at_rival = r->unit1_rival && command->q == 1 && command->r == 3;
+        if (!at_rival) check.refusal = SIM_REFUSAL_UNREACHABLE;
+    }
     if (check.refusal == SIM_REFUSAL_NONE) { check.gold = 200; check.action_points = 20; check.turns = 3; check.days = 30; check.slot = 0; }
     return check;
 }

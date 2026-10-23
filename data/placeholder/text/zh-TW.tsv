@@ -1501,5 +1501,12 @@ log.mission_started	{subject}：出發執行計略，{delta}日
 log.price_changed	{subject}：米價變動 {delta}，現為 {value}
 log.transport_arrived	{subject}：輸送隊到達
 log.envoy_arrived	{subject}：使者到達
+# G2-054 and G2-064: the status bar during a target pick, and the state of a technique.
+pick.tactic	以戰法進行攻擊
+pick.target	選擇目標
+research.state_owned	已研究
+research.state_running	研究中
+research.state_locked	未開放
+research.state_open	可研究
 war.soldiers	兵
 war.morale	氣力

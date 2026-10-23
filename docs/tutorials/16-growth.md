@@ -26,6 +26,16 @@ The features are these rows of FEATURES.md:
 - F-028 (siege weapons and ships with their techniques);
 - F-040 to F-043 (the techniques).
 
+## The research window (G2-064)
+The window of 研究技巧 shows the state of each technique. A technique
+that the force has is green and grey. The technique of the research in
+progress is blue with the turns left, and grey. A technique whose line
+needs the level before it is grey: the probe of the command answers
+NEEDS_TECHNIQUE. An open technique is white. A hover names the state
+with the points and the gold. In the game mode the window keeps itself
+on the screen (ui_context_place_sized), because a city at the left edge
+opened it partly outside the screen.
+
 ## The technique table
 techniques.tsv has one row for each technique. A row has the line, the
 level, the technique points and the gold. It also has the ability that

@@ -158,6 +158,18 @@ with the chance combat.capture_percent, more with a halberd tactic and always wi
 捕縛. 強運 and 血路 always escape. An officer that escapes goes to a city
 of the faction. The victor gains technique points.
 
+## The tactic column (G2-054)
+戰法 of the unit menu opens the tactics of the class as a column next to
+the menu, and the menu stays. A row shows the name and the cost in 氣力
+in brackets. A tactic with no target in its pattern is grey:
+ui_tactic_has_target probes the command on each hex within 3 of the unit
+(ui_pick_allows). A choice closes the menu and the column, and starts
+the pick. During a pick, the scene marks the hexes that the command can
+hit in red, and the status bar names the pick. The ui test
+"tactic_column_greys_a_tactic_without_a_target_and_marks_the_targets"
+covers the grey row and the marks. In the recorder, only the hex of the
+rival unit allows a target command.
+
 ## The merit and the experience of a battle
 The run of 2026-10-22 settled the rewards of a battle (G2-048,
 fixtures/battle-merit.tsv). `sim_reward_battle` gives them after an
