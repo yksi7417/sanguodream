@@ -111,6 +111,7 @@ enum sim_event_kind
     SIM_EVENT_UNIT_DESTROYED,       /* detail = unit */
     SIM_EVENT_OFFICER_CAPTURED,     /* subject = officer; faction = the captor */
     SIM_EVENT_OFFICER_ESCAPED,      /* subject = officer */
+    SIM_EVENT_CAPTIVE_ESCAPED,      /* G2-032: subject = officer; a captive escaped to its force at a month start */
     SIM_EVENT_FIRE_STARTED,         /* detail = the cell; delta = turns */
     SIM_EVENT_FIRE_ENDED,           /* detail = the cell */
     SIM_EVENT_BUILDING_STARTED,     /* detail = the building id; delta = the kind */
@@ -1585,6 +1586,7 @@ internal sim_check sim_check_court(sim_state *sim, sim_command_kind kind, sim_co
 internal void      sim_court_command(sim_state *sim, sim_command command, sim_event_sink *events);
 internal void      sim_run_officers_turn(sim_state *sim, u32 cause, sim_event_sink *events);
 internal void      sim_run_officers_month(sim_state *sim, u32 cause, sim_event_sink *events);
+internal void      sim_run_captives_month(sim_state *sim, u32 cause, sim_event_sink *events);   /* G2-032 */
 internal void      sim_run_officers_year(sim_state *sim, u32 cause, sim_event_sink *events);
 internal void      sim_run_deaths_month(sim_state *sim, u32 cause, sim_event_sink *events);   /* G2-055 */
 internal void      sim_unpaid_loyalty(sim_state *sim, city_component *city, u32 cause, sim_event_sink *events);

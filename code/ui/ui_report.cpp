@@ -355,7 +355,18 @@ ui_draw_feedback(ui_state *ui, engine_api *api)
         ImVec4 colour = ui_report_colour(ui->report.floats[index].sign);
         colour.w = 1.0f - progress * 0.6f;
         f32 rise = progress * UI_FLOAT_RISE + 16.0f * (f32)index;
-        draw->AddText(ImGui::GetFont(), ImGui::GetFontSize() * 1.4f, ImVec2(anchor.x + 24.0f, anchor.y - 30.0f - rise),
-                      ImGui::ColorConvertFloat4ToU32(colour), value);
+        ImVec2 at(anchor.x + 24.0f, anchor.y - 30.0f - rise);
+        f32 size = ImGui::GetFontSize() * 1.4f;
+        /* G2-018: an arrow before the value, down and red for a loss, up for a gain. */
+        u8 sign = ui->report.floats[index].sign;
+        if (sign == ENGINE_SIGN_GOOD || sign == ENGINE_SIGN_BAD)
+        {
+            f32 half = size * 0.22f, mid = at.y + size * 0.5f;
+            ImVec2 tip(at.x - half - 4.0f, sign == ENGINE_SIGN_BAD ? mid + half : mid - half);
+            ImVec2 left(at.x - 2.0f * half - 4.0f, sign == ENGINE_SIGN_BAD ? mid - half : mid + half);
+            ImVec2 right(at.x - 4.0f, left.y);
+            draw->AddTriangleFilled(tip, left, right, ImGui::ColorConvertFloat4ToU32(colour));
+        }
+        draw->AddText(ImGui::GetFont(), size, at, ImGui::ColorConvertFloat4ToU32(colour), value);
     }
 }

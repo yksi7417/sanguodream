@@ -122,6 +122,10 @@ The post adds its bonus to its ability.
 - 流放: a captive goes back to its faction and the faction gains
   technique points; an own officer becomes free and the faction loses
   technique points.
+- The escape (G2-032): at each month start, `sim_run_captives_month`
+  rolls captive.escape_percent (assumed 10) for each captive. An escape
+  sends the captive back to its faction with the event `captive_escaped`.
+  The turn start reports it, and the log says 逃亡.
 
 ## Relations
 Compatibility is a wheel of 150. The distance on the wheel lowers the

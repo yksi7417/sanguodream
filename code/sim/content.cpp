@@ -359,6 +359,7 @@ global_variable content_rule_field content_rule_fields[] = {
     CONTENT_RULE("combat.siege_percent",  combat_siege_percent),
     CONTENT_RULE("combat.base_counter",   combat_base_counter),
     CONTENT_RULE("combat.capture_percent", combat_capture_percent),
+    CONTENT_RULE("captive.escape_percent", captive_escape_percent),
     CONTENT_RULE("combat.halberd_capture", combat_halberd_capture),
     CONTENT_RULE("plot.base_success",     plot_base_success),
     CONTENT_RULE("fire.turns",            fire_turns),

@@ -69,9 +69,11 @@ an arrow only with 還射. A critical hit (`critical_hit`) multiplies the
 damage. A skill of critical_skills.tsv forces it, else the chance is
 combat.critical_chance.
 
-齊攻 (joint attack) strikes with every unit of the faction that can attack
-the hex. It needs two units (`no_partner`). The target answers none of
-them (assumed).
+齊攻 (joint attack) strikes with every unit of the faction next to the
+hex that can attack it (military-units-and-tactics.md: "several adjacent
+units"). A crossbow unit two hexes away keeps its turn. It needs two
+units (`no_partner`). The target answers none of them (assumed). When
+the target is gone before a unit strikes, that unit keeps its turn.
 
 ## 戰法
 `sim_check_tactic` needs the class of the tactic, the aptitude grade,

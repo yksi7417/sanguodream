@@ -688,6 +688,7 @@ sim_event_name(sim_event_kind kind)
         case SIM_EVENT_UNIT_DESTROYED:          return "unit_destroyed";
         case SIM_EVENT_OFFICER_CAPTURED:        return "officer_captured";
         case SIM_EVENT_OFFICER_ESCAPED:         return "officer_escaped";
+        case SIM_EVENT_CAPTIVE_ESCAPED:         return "captive_escaped";
         case SIM_EVENT_FIRE_STARTED:            return "fire_started";
         case SIM_EVENT_FIRE_ENDED:              return "fire_ended";
         case SIM_EVENT_BUILDING_STARTED:        return "building_started";

@@ -50,6 +50,7 @@ ui_enter_game(ui_state *ui)
     ui->scene.has_pick = false;
     ui->context = {};
     ui_feel_reset_turn(ui);   /* M17: the first turn start shows its messages */
+    ui->feel.first_turn = true;   /* G2-006: the camera goes to the capital, and the adviser says that it is our turn */
 }
 
 internal void

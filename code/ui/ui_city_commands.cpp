@@ -335,8 +335,21 @@ ui_draw_city_command(ui_state *ui, engine_api *api, u32 kind)
         u16 free_ids[UI_DEVELOP_OFFICER_LIST];
         u32 free_count = ui_free_officers(api, dialog->city, free_ids, ArrayCount(free_ids));
         /* M19: the portrait slots of the chosen officers, as in the original. */
+        f32 face_height = ImGui::GetTextLineHeightWithSpacing() * UI_SLOT_PORTRAIT_LINES;
+        f32 face_pitch  = face_height * 4.0f / 5.0f + ImGui::GetStyle().ItemSpacing.x;
+        f32 faces_x     = ImGui::GetCursorPosX();
+        for (u32 place = 0; place < info->max_officers; ++place) ui_draw_officer_face(ui, api, dialog->officers[place], face_height);
+        ImGui::NewLine();
+        /* G2-017: the skill of each officer under its portrait. */
         for (u32 place = 0; place < info->max_officers; ++place)
-            ui_draw_officer_face(ui, api, dialog->officers[place], ImGui::GetTextLineHeightWithSpacing() * UI_SLOT_PORTRAIT_LINES);
+        {
+            if (dialog->officers[place] == ENGINE_NO_OFFICER) continue;
+            engine_officer officer = api->officer_by_id(api->engine, dialog->officers[place]);
+            if (officer.skill_number == 255 || officer.skill_number >= api->skill_kind_count(api->engine)) continue;
+            ImGui::SetCursorPosX(faces_x + (f32)place * face_pitch);
+            ImGui::TextColored(ImVec4(1.0f, 0.55f, 0.5f, 1.0f), "%s", ui_text_with_key(ui, "skill", api->skill_kind_at(api->engine, officer.skill_number).key));
+            ImGui::SameLine();
+        }
         ImGui::NewLine();
         for (u32 place = 0; place < info->max_officers; ++place) ui_draw_command_officer(ui, api, kind, place, free_ids, free_count);
 

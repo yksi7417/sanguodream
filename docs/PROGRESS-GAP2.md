@@ -69,6 +69,13 @@ run of 2026-10-22".
 | G2-043 | The attack of a unit is 武力 x A x C, and the defence is 統率 x A x D. A is the aptitude factor (S 0.95, A 0.85, B 0.75, C 0.65). C and D are the class factors (槍兵 1.0 and 1.0, 戟兵 0.95 and 1.1, 弩兵 0.9 and 0.95, 騎兵 1.1 and 0.95). A sword unit uses 0.36 with no aptitude. 建設 is 50 plus two thirds of 政治. 智力 is the intellect of the officer. The rows are rules.tsv (class.*, unit.*, aptitude.*). The fixture handler sets the abilities and the aptitudes of one officer through the editor: the pike, the halberd and the sword rows fit within one point, the crossbow and the cavalry rows within two. The ship rows stay pending. | settled rules | unit/units, feature/march, fixture/unit-values-sortie |
 | start of 194 | The player compared 武將一覽 of a new game of 群雄割據 as 曹操 in the original and in the clone (2026-10-22). The scenario loader reads +13 of a city as the troops and +17 as the gold: 陳留 has 28,000 troops and 5,600 gold. It reads the loyalty +104 of a scenario officer. The skill byte is a file id, and skills.tsv gives its number (column file_id). load_scenario starts no turn: the first end_turn after the choice of the rulers starts it, so no officer gets the merit of an AI command before the start. Tutorial 21 gives the details. | fix/scenario-start | unit/scenario_format, unit/court, feature/scenario_fixture, feature/playable |
 | G2-005 | The gain of 技巧 at the turn start: each built 鍊兵所 of the force gives 15 (the run of 2026-10-22, rules.tsv technique.drill_ground_turn). The recovery of 行動力 stays open: see the questions. | settled rules | feature/turns |
+| G2-017 | The command dialogs of the city show the skill of each chosen officer under its portrait. | P2 batch 6 | ui (build) |
+| G2-018 | The last officer of a city command speaks its result (assumed from two observations of the run). The float of a value shows an arrow before the number, down for a loss and up for a gain. 徵兵 speaks the warning of the public order, and 巡察 the line of the third officer. | P2 batch 6 | feature/report |
+| G2-006 | After the load, the camera stands at the capital. The adviser says 可終於輪到我們了啊 after the heading of the first turn. | P2 batch 6 | ui |
+| G2-007 | The turn start ends with the lines of the adviser: the threat, when an enemy city 10 days from an own city has more soldiers (assumed), and 請下達下一個指示. The adviser speaks them with the name of the ruler first. The camera moves to the city of each message. The messages of a turn that the player did not read close when the turn ends. | P2 batch 6 | ui |
+| G2-032 | At a month start each captive escapes with the chance captive.escape_percent (assumed 10). The event captive_escaped has a report, the log line 逃亡 and the speech 我已摸清了警備的編制. | P2 batch 6 | feature/court |
+| 齊攻 (play report of 2026-10-23) | 齊攻 takes only the units next to the target. A crossbow unit two hexes away keeps its turn. A unit after a destroyed target keeps its turn. | P2 batch 6 | feature/combat |
+| unit log lines (play report of 2026-10-23) | The log names a unit by its commander (周泰隊：士兵 -232) in place of 一支部隊. The commander is the subject of a unit event, so the name stays after the unit is gone. | P2 batch 6 | feature/combat |
 
 ## In progress
 
@@ -289,3 +296,17 @@ run of 2026-10-22".
   assumed rule base.start_troops. The scenario file has no mapped record
   of a gate or a port (scenario-file.md, 0x2764E "to map"). Please read
   the soldiers of 官渡港 and of two other ports at the start of 194.
+- G2-017, the officers of a command dialog. The clone shows the skill of
+  each chosen officer. The rule that picks the three officers of the
+  original is open: the ability of the command, then the skill? Please
+  open 徵兵 in two cities and write down the three officers and their
+  abilities and skills.
+- G2-018, the speaker. The clone makes the last officer of a city command
+  speak, from two observations. Please run 徵兵 and 巡察 with one, two and
+  three officers, and write down who speaks each time.
+- G2-007, the threat. The clone names the enemy city 10 days from an own
+  city with more soldiers. Please note the threat line of three turn
+  starts with the soldiers of the two cities.
+- G2-032, the escape. The clone rolls 10 percent for each captive at each
+  month start. Please count the captives and the escapes over 12 months
+  of one game.

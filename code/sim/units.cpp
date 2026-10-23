@@ -453,6 +453,11 @@ sim_emit_unit(sim_state *sim, sim_event_kind kind, u32 unit_id, u8 city_id, s32 
 {
     sim_event event = sim_event_make(sim, kind, cause);
     event.subject = city_id != SIM_NO_CITY ? sim_city_entity(sim, city_id) : 0;
+    if (city_id == SIM_NO_CITY && unit_id < sim->unit_count && sim->units[unit_id].officers[0] != SIM_NO_OFFICER)
+    {
+        /* The commander names the unit in the log (周泰隊：士兵 -232), also after the unit is gone. */
+        event.subject = sim_officer_entity(sim, sim->units[unit_id].officers[0]);
+    }
     event.faction = unit_id < sim->unit_count ? sim->units[unit_id].force_id : SIM_NO_FORCE;
     event.detail  = unit_id;
     event.delta   = delta;

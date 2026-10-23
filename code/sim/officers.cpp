@@ -1030,8 +1030,10 @@ sim_matchmake(sim_state *sim, u8 force, sim_court_order *order, u32 cause, sim_e
     }
 }
 
+/* A captive goes back to its force, to a refuge city, or becomes free
+   when the force is gone. kind says why: a release or an escape. */
 internal void
-sim_release_captive(sim_state *sim, officer_component *officer, u32 cause, sim_event_sink *events)
+sim_free_captive(sim_state *sim, officer_component *officer, sim_event_kind kind, u32 cause, sim_event_sink *events)
 {
     u8 force = officer->former_force;
     u8 refuge = force != SIM_NO_FORCE ? sim_refuge_city(sim, force, SIM_NO_CITY) : SIM_NO_CITY;
@@ -1047,7 +1049,30 @@ sim_release_captive(sim_state *sim, officer_component *officer, u32 cause, sim_e
         officer->base_location    = refuge;
     }
     officer->former_force = SIM_NO_FORCE;
-    sim_emit_officer(sim, SIM_EVENT_CAPTIVE_RELEASED, officer, 0, 0, false, cause, events);
+    sim_emit_officer(sim, kind, officer, 0, 0, kind == SIM_EVENT_CAPTIVE_ESCAPED, cause, events);
+}
+
+internal void
+sim_release_captive(sim_state *sim, officer_component *officer, u32 cause, sim_event_sink *events)
+{
+    sim_free_captive(sim, officer, SIM_EVENT_CAPTIVE_RELEASED, cause, events);
+}
+
+/* G2-032: at a month start, each captive rolls an escape with the chance
+   captive.escape_percent (assumed). The original showed two escapes at
+   one month start, each with a message and a log line. */
+internal void
+sim_run_captives_month(sim_state *sim, u32 cause, sim_event_sink *events)
+{
+    u32 chance = sim->content.rules.captive_escape_percent;
+    if (!chance) return;
+    for (u32 index = 0; index < sim->officers.count; ++index)
+    {
+        officer_component *officer = sim->officers.data + index;
+        if (officer->status != SIM_STATUS_CAPTIVE) continue;
+        if (sim_random_below(sim, 100) >= chance) continue;
+        sim_free_captive(sim, officer, SIM_EVENT_CAPTIVE_ESCAPED, cause, events);
+    }
 }
 
 /* Runs one of the M7 commands of officers. It checks first: a refused order

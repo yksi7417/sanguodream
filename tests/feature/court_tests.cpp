@@ -764,6 +764,38 @@ feature_month_tests(test_counts *counts)
     engine_fixture_destroy(&setup.fixture);
 }
 
+/* G2-032: a captive escapes to its force at a month start, by the chance
+   of captive.escape_percent (assumed, 10). Within 72 months the escape
+   is near certain. The escape is an event with a report, so the turn
+   start shows it with a message. */
+internal void
+feature_captive_escape_tests(test_counts *counts)
+{
+    feature_city_setup setup;
+    feature_city_setup_init(&setup);
+    engine_api *api = setup.api;
+    void *e = api->engine;
+    u8 other = feature_other_faction(api, setup.force, 0);
+    u16 prisoner = feature_find_officer(api, other, ENGINE_NO_OFFICER, ENGINE_NO_OFFICER);
+    engine_officer_edit edit = feature_edit_of(api, prisoner);
+    edit.captor = setup.force;
+    api->set_officer(e, prisoner, &edit);
+    TEST_CHECK(counts, prisoner != ENGINE_NO_OFFICER && api->officer_detail(e, prisoner).captive, "a captive of the player waits in its city");
+    u32 mark = api->ledger_count(e);
+    u32 turns = 0;
+    for (; turns < 72 * 3 && api->officer_detail(e, prisoner).captive; ++turns) feature_next_own_turn(api, setup.force);
+    b32 escaped = false;
+    for (u32 index = mark; index < api->ledger_count(e); ++index)
+    {
+        sim_event event = api->ledger_at(e, index);
+        if (event.kind == SIM_EVENT_CAPTIVE_ESCAPED && api->event_report(e, index).subject.id == prisoner) escaped = api->event_report(e, index).report;
+    }
+    char name[200];
+    snprintf(name, sizeof(name), "the captive escapes to its force at a month start within 72 months (after %u turns), with a report", turns);
+    TEST_CHECK(counts, escaped && !api->officer_detail(e, prisoner).captive && feature_officer_force(api, prisoner) == other, name);
+    engine_fixture_destroy(&setup.fixture);
+}
+
 internal void
 feature_court_tests(test_counts *counts)
 {
@@ -771,4 +803,5 @@ feature_court_tests(test_counts *counts)
     feature_duel_tests(counts);
     feature_debate_tests(counts);
     feature_month_tests(counts);
+    feature_captive_escape_tests(counts);
 }

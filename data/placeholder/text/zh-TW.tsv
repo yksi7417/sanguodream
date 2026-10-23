@@ -1231,8 +1231,8 @@ weapon_effect.horse	有利於對付弩兵，但不利於槍兵
 log.research_started	{subject}：開始研究技巧
 log.technique_researched	{faction}：{subject}的技巧研究完畢
 log.unit_sortied	{subject}：部隊出征
-log.unit_destroyed	{faction}：一支部隊潰滅
-log.unit_retreated	{faction}：一支部隊撤退
+log.unit_destroyed	{subject}隊：潰滅
+log.unit_retreated	{subject}隊：撤退
 log.base_captured	{subject}：被敵軍攻佔
 log.base_damaged	{subject}：遭到攻擊，耐久 {delta}
 log.disaster_started	{subject}：發生災害
@@ -1240,8 +1240,8 @@ log.gold_income	{subject}：資金收入 {delta}
 log.grain_income	{subject}：兵糧收入 {delta}
 log.officer_found	{subject}：發現人才
 log.officer_died	{subject}：去世
-say.patrolled	我去城中走了一趟，百姓都安心了。
-say.conscripted	新兵已經編入軍中。
+say.patrolled	似乎沒有什麼可疑的人物。
+say.conscripted	因徵兵而使民心動搖可是件大事，得設法讓治安回復才行…
 say.trained	士兵們的操練有了成果。
 say.grain_sold	兵糧已經換成資金了。
 say.grain_bought	資金已經換成兵糧了。
@@ -1263,11 +1263,11 @@ say.sign.neutral	知道了。
 log.title	記錄
 log.filter.all	全部
 log.filter.mine	本勢力
-log.unit_damaged	{faction}：一支部隊損失士兵 {amount}
-log.counterattack	{faction}：部隊反擊
-log.tactic_used	{faction}：部隊施展戰法
+log.unit_damaged	{subject}隊：士兵 {delta}
+log.counterattack	{subject}隊：反擊
+log.tactic_used	{subject}隊：施展戰法
 log.critical_hit	{faction}：攻擊造成重創
-log.unit_state	{faction}：部隊的狀態改變
+log.unit_state	{subject}隊：狀態改變
 log.unit_entered_city	{subject}：部隊入城
 log.merit_gained	{subject}：功績 {delta}
 log.technique_gained	{faction}：技巧 {delta}
@@ -1277,6 +1277,7 @@ log.aid_left	{faction}：援軍返回
 log.generic.quiet	{subject}：有新消息
 log.officer_captured	{subject}：被俘
 log.officer_escaped	{subject}：逃脫
+log.captive_escaped	{subject}：逃亡
 log.officer_left	{subject}：離開勢力
 log.officer_recruited	{subject}：加入勢力
 log.recruit_failed	{speaker}登庸{subject}失敗
@@ -1428,17 +1429,17 @@ log.game_lost	{faction}：敗亡
 log.unit_supplies	{subject}：部隊攜帶資金 {delta}
 log.unit_grain_taken	{subject}：部隊攜帶兵糧 {delta}
 log.unit_weapons_taken	{subject}：部隊攜帶兵裝 {delta}
-log.unit_moved	{faction}：部隊移動
-log.unit_soldiers_lost	{faction}：部隊途中損失士兵 {amount}
-log.unit_waited	{faction}：部隊待命
+log.unit_moved	{subject}隊：移動
+log.unit_soldiers_lost	{subject}隊：途中士兵 {delta}
+log.unit_waited	{subject}隊：待命
 log.unit_gold_returned	{subject}：部隊交回資金 {delta}
 log.unit_grain_returned	{subject}：部隊交回兵糧 {delta}
-log.unit_supplied	{faction}：部隊獲得補給，士兵 {delta}
-log.unit_grain_eaten	{faction}：部隊消耗兵糧 {amount}
-log.unit_deserted	{faction}：部隊士兵逃亡 {amount}
-log.plot_used	{faction}：部隊施展計略
+log.unit_supplied	{subject}隊：補給，士兵 {delta}
+log.unit_grain_eaten	{subject}隊：兵糧 {delta}
+log.unit_deserted	{subject}隊：士兵逃亡 {amount}
+log.plot_used	{subject}隊：施展計略
 log.morale_changed	{faction}：部隊氣力 {delta}
-log.unit_pushed	{faction}：部隊後退 {delta} 格
+log.unit_pushed	{subject}隊：後退 {delta} 格
 log.fire_started	{faction}：起火
 log.fire_ended	火勢熄滅
 log.building_started	{faction}：開始設置建築
@@ -1448,7 +1449,7 @@ log.building_destroyed	{faction}：建築被毀
 log.trap_triggered	{faction}：觸發陷阱
 log.base_soldiers_lost	{subject}：據點士兵損失 {delta}
 log.base_recovered	{subject}：耐久恢復 {delta}
-log.unit_loot	{faction}：部隊掠奪資金 {delta}
+log.unit_loot	{subject}隊：掠奪資金 {delta}
 log.gold_found	{subject}：發現資金 {delta}
 log.loyalty_changed	{subject}：忠誠 {delta}，現為 {value}
 log.item_given	{subject}：獲得{speaker}
@@ -1495,8 +1496,8 @@ log.ending	{faction}：迎來結局
 log.bandit_site	{subject}：盜賊出沒
 log.rockfall_returned	落石重新設置
 log.save_map_loaded	讀取地圖完成
-log.unit_ordered	{faction}：部隊接受委任
-log.unit_order_done	{faction}：委任結束
+log.unit_ordered	{subject}隊：接受委任
+log.unit_order_done	{subject}隊：委任結束
 log.mission_started	{subject}：出發執行計略，{delta}日
 log.price_changed	{subject}：米價變動 {delta}，現為 {value}
 log.transport_arrived	{subject}：輸送隊到達
@@ -1523,5 +1524,11 @@ unit.state	狀態
 unit.state_0	普通
 unit.ship	艦船
 unit.captives	俘虜
+# G2-006, G2-007, G2-032: the lines of the adviser at a turn start, and the speech of an escaped captive.
+turn.lord	%s大人，
+turn.threat	%s的兵力頗具威脅性，請不要疏於警戒。
+turn.next_order	請下達下一個指示。
+turn.our_turn	可終於輪到我們了啊。
+say.captive_escaped	我已摸清了警備的編制，趁現在快點逃吧！
 war.soldiers	兵
 war.morale	氣力

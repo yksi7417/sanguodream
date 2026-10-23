@@ -32,7 +32,15 @@ feature_report_tests(test_counts *counts)
                "report: the report names the kind of the event by its key");
     TEST_CHECK(counts, report.subject.kind == ENGINE_SUBJECT_CITY && report.subject.id == city && report.delta > 0,
                "report: the subject is the city and the amount is the rise of public order");
-    TEST_CHECK(counts, report.speaker == ids[0], "report: the first officer of the command speaks");
+    TEST_CHECK(counts, report.speaker == ids[0], "report: the one officer of the command speaks");
+    /* G2-018: with three officers, the last one speaks the result. */
+    u16 three[SIM_DEVELOP_OFFICERS];
+    feature_take_officers(api, city, three, 3);
+    api->set_city_resource(e, city, SIM_RESOURCE_MORALE, 0, 50);
+    TEST_CHECK(counts, api->command_train(e, city, three).refusal == SIM_REFUSAL_NONE, "report: a train with three officers runs");
+    u32 trained = feature_last_event(api, SIM_EVENT_TRAINED);
+    TEST_CHECK(counts, trained != ENGINE_NO_EVENT && api->event_report(e, trained).speaker == three[2],
+               "report: the last officer of a city command speaks (G2-018, assumed from two observations)");
     TEST_CHECK(counts, report.sign == ENGINE_SIGN_GOOD && strcmp(report.tone, "calm") == 0 && !report.report,
                "report: event_tones.tsv gives the tone calm, the rise is good news, and a patrol is no turn report");
     engine_date today = api->date(e);

@@ -734,6 +734,7 @@ struct sim_rules
     u32 combat_critical_chance, combat_critical_percent, combat_morale_hit, combat_tactic_success;
     u32 combat_building_percent, combat_siege_percent, combat_base_counter;
     u32 combat_capture_percent, combat_halberd_capture, combat_destroy_technique;
+    u32 captive_escape_percent;   /* G2-032: the chance that a captive escapes at a month start (assumed) */
     u32 plot_base_success;
     u32 fire_turns, fire_damage_percent, fire_building_damage, fire_extra_cost;
     u32 fire_cost_multiplier, fire_attack_turns_min, fire_attack_turns_max, fire_other_turns_min, fire_other_turns_max;   /* M10 */

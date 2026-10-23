@@ -403,6 +403,7 @@ sim_run_calendar(sim_state *sim, u32 cause, sim_event_sink *events)
         sim_run_production_month(sim, cause, events);
         sim_run_prices_month(sim, cause, events);     /* G2-013: the city price drifts (assumed, Q-155) */
         sim_run_officers_month(sim, cause, events);   /* M7: loyalty, ranks, ceasefires */
+        sim_run_captives_month(sim, cause, events);   /* G2-032: the escapes of the captives (assumed chance) */
         sim_run_emperor_month(sim, cause, events);    /* M8: the protector of the Han emperor */
         sim_run_events_month(sim, cause, events);     /* M8: the generic events */
         sim_run_history_month(sim, cause, events);    /* M9: the historical events of history.tsv */

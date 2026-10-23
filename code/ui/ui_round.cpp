@@ -28,6 +28,7 @@ ui_round_proceed(ui_state *ui, engine_api *api)
 {
     void *e = api->engine;
     u32 mark = api->ledger_count(e);
+    ui->feel.message_shown = ui->feel.message_count;   /* the turn ends: the messages that the player did not read close */
     if (ui->round.show)
     {
         for (u32 id = 0; id < SIM_UNIT_CAPACITY; ++id) ui->round.known[id] = false;

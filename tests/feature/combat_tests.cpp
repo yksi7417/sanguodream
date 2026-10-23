@@ -7,6 +7,8 @@
 
 #define FEATURE_UNIT_TOWER     7
 #define FEATURE_STOCK_TOWER    5
+#define FEATURE_UNIT_CROSSBOW  3
+#define FEATURE_STOCK_CROSSBOW 2
 #define FEATURE_TACTIC_PIERCE  0
 #define FEATURE_TACTIC_TOWER   14
 #define FEATURE_PLOT_FIRE      0
@@ -164,17 +166,61 @@ feature_turn_two_tests(test_counts *counts, feature_battle *battle)
                "a unit on a burning hex loses 10 percent of its soldiers each turn (assumed)");
 
     hex_coord at_b = hex_make(b.q, b.r);
+    /* A crossbow unit two hexes from the target can attack it, but 齊攻 takes
+       only the units next to the target (military-units-and-tactics.md). The
+       crossbow unit keeps its turn. */
+    hex_coord second   = feature_along(battle->start, battle->d, 2);
+    hex_coord far_side = hex_neighbor(second, (battle->d + 1) % HEX_DIRECTION_COUNT);
+    api->set_cell_terrain(e, far_side.q, far_side.r, feature_terrain_id(api, "grass"), 1);
+    api->set_city_resource(e, battle->setup.city, SIM_RESOURCE_WEAPONS, FEATURE_STOCK_CROSSBOW, 2000);   /* one crossbow for each soldier */
+    /* The corridor made every hex near the city a cliff. The sortie needs one grass hex next to the city. */
+    hex_coord city_hex = battle->start;
+    for (s32 dq = -3; dq <= 3; ++dq)
+    {
+        for (s32 dr = -3; dr <= 3; ++dr)
+        {
+            hex_coord hex = hex_make(battle->start.q + dq, battle->start.r + dr);
+            if (api->hex_at(e, hex.q, hex.r).city_id == battle->setup.city) city_hex = hex;
+        }
+    }
+    for (u32 d = 0; d < HEX_DIRECTION_COUNT; ++d)
+    {
+        hex_coord hex = hex_neighbor(city_hex, d);
+        if (api->unit_at_hex(e, hex.q, hex.r) != ENGINE_NO_UNIT || api->hex_at(e, hex.q, hex.r).city_id != ENGINE_NO_CITY) continue;
+        api->set_cell_terrain(e, hex.q, hex.r, feature_terrain_id(api, "grass"), 1);
+        break;
+    }
+    engine_sortie_order bow_order = feature_pike_order(api, battle->setup.city, 1);
+    bow_order.unit_type = FEATURE_UNIT_CROSSBOW;
+    engine_command_result bow_result = api->command_sortie(e, &bow_order);
+    u32 bow = ENGINE_NO_UNIT;
+    for (u32 id = 0; id < api->unit_count(e); ++id)
+    {
+        engine_unit candidate = api->unit_at(e, id);
+        if (candidate.id != ENGINE_NO_UNIT && candidate.officers[0] == bow_order.officers[0]) bow = id;
+    }
+    b32 bow_placed = bow != ENGINE_NO_UNIT && api->set_unit_place(e, bow, force, far_side.q, far_side.r);
+    if (bow_placed) api->set_unit(e, bow, 1000, 80);
+    engine_command bow_attack = {};
+    bow_attack.kind = ENGINE_COMMAND_ATTACK;
+    bow_attack.unit = bow;
+    bow_attack.q = at_b.q; bow_attack.r = at_b.r;
+    char bow_name[200];
+    snprintf(bow_name, sizeof(bow_name), "a crossbow unit two hexes from the target can attack it (sortie refusal %u, officer %u, unit %u, placed %d, distance %d, refusal %u)",
+             bow_result.refusal, bow_order.officers[0], bow, bow_placed, hex_distance(far_side, at_b), api->can_issue(e, &bow_attack).refusal);
+    TEST_CHECK(counts, bow_placed && hex_distance(far_side, at_b) == 2 && api->can_issue(e, &bow_attack).refusal == SIM_REFUSAL_NONE, bow_name);
     engine_command joint = {};
     joint.kind = ENGINE_COMMAND_JOINT_ATTACK;
     joint.unit = battle->a;
     joint.q = at_b.q; joint.r = at_b.r;
     engine_check check = api->can_issue(e, &joint);
-    TEST_CHECK(counts, check.refusal == SIM_REFUSAL_NONE && check.quantity == 2, "齊攻: the two pike units next to the target join (the tower cannot)");
+    TEST_CHECK(counts, check.refusal == SIM_REFUSAL_NONE && check.quantity == 2, "齊攻: the two pike units next to the target join (the tower and the far crossbow cannot)");
     mark = api->ledger_count(e);
     engine_command_result result = api->command_joint_attack(e, battle->a, at_b.q, at_b.r);
     TEST_CHECK(counts, result.refusal == SIM_REFUSAL_NONE && feature_count_events(api, SIM_EVENT_UNIT_DAMAGED, mark) >= 2 &&
                        feature_count_events(api, SIM_EVENT_COUNTERATTACK, mark) == 0 && api->unit_at(e, battle->a).acted && api->unit_at(e, battle->c).acted,
                "each partner strikes; the target answers none of them (assumed); both units acted");
+    TEST_CHECK(counts, bow_placed && !api->unit_at(e, bow).acted, "the crossbow unit two hexes away did not join and keeps its turn");
 
     /* 計略 from the tower. */
     hex_coord at_c = feature_unit_hex(api, battle->c);

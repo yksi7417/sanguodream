@@ -18,6 +18,7 @@ internal void ui_report_line(ui_state *ui, engine_api *api, u32 ledger_index, s6
 internal s64  ui_report_value(engine_api *api, const engine_event_report *report);
 /* ui_round.cpp (M20): 進行 of the map menu and of the top bar (ui_game.cpp). */
 internal void ui_round_proceed(ui_state *ui, engine_api *api);
+internal void ui_frame_city(ui_state *ui, u8 city_id);   /* ui_locate.cpp; G2-006: the camera to the capital */
 
 internal bool
 ui_feel_messages_open(ui_state *ui)
@@ -111,25 +112,86 @@ ui_feel_is_report(engine_api *api, u32 ledger_index, sim_event *event, u8 force)
     return api->city_at(api->engine, (u8)report.subject.id).owner_force_id == force;
 }
 
+/* G2-007: the enemy city that threatens an own city: a city of another
+   force next to an own city (10 days away) with more soldiers than the
+   own city. The one with the most soldiers wins. ENGINE_NO_CITY if none.
+   The rule is assumed: the original named 廬江 next to 柴桑. */
+internal u8
+ui_feel_threat_city(engine_api *api, u8 force)
+{
+    void *e = api->engine;
+    u8 threat = ENGINE_NO_CITY;
+    u32 most = 0;
+    for (u32 own = 0; own < api->city_count(e); ++own)
+    {
+        engine_city mine = api->city_at(e, own);
+        if (mine.owner_force_id != force) continue;
+        for (u32 other = 0; other < api->city_count(e); ++other)
+        {
+            engine_city theirs = api->city_at(e, other);
+            if (theirs.owner_force_id == force || theirs.owner_force_id == ENGINE_NO_FACTION) continue;
+            if (theirs.troops <= mine.troops || theirs.troops <= most) continue;
+            if (api->travel_days(e, mine.city_id, theirs.city_id) != CALENDAR_DAYS_PER_TURN) continue;
+            most   = theirs.troops;
+            threat = theirs.city_id;
+        }
+    }
+    return threat;
+}
+
 /* The messages of a turn start: the heading, then the reports since the
-   last turn start in ledger order. A turn without a report opens no
-   window. UI_MESSAGE_CAPACITY keeps the first ones. The log keeps all
-   events. */
+   last turn start in ledger order, then the threat report of the adviser
+   when an enemy city threatens an own city, and the closing line of the
+   adviser (G2-006, G2-007). UI_MESSAGE_CAPACITY keeps the first ones. The
+   log keeps all events. */
 internal void
 ui_feel_collect_messages(ui_state *ui, engine_api *api, u8 force)
 {
     u32 count = api->ledger_count(api->engine);
     if (ui->feel.ledger_mark > count) ui->feel.ledger_mark = 0;   /* a load replaced the ledger */
-    ui->feel.message_count = 0;
-    ui->feel.message_shown = 0;
+    ui->feel.message_count  = 0;
+    ui->feel.message_shown  = 0;
+    ui->feel.framed_message = U32_MAX;
     ui->feel.messages[ui->feel.message_count++] = UI_MESSAGE_HEADING;
-    for (u32 index = ui->feel.ledger_mark; index < count && ui->feel.message_count < UI_MESSAGE_CAPACITY; ++index)
+    for (u32 index = ui->feel.ledger_mark; index < count && ui->feel.message_count < UI_MESSAGE_CAPACITY - 2; ++index)
     {
         sim_event event = api->ledger_at(api->engine, index);
         if (ui_feel_is_report(api, index, &event, force)) ui->feel.messages[ui->feel.message_count++] = index;
     }
-    if (ui->feel.message_count == 1) ui->feel.message_count = 0;   /* only the heading: no window */
+    ui->feel.threat_city = ui_feel_threat_city(api, force);
+    if (ui->feel.threat_city != ENGINE_NO_CITY) ui->feel.messages[ui->feel.message_count++] = UI_MESSAGE_THREAT;
+    ui->feel.messages[ui->feel.message_count++] = UI_MESSAGE_NEXT_ORDER;
     ui->feel.ledger_mark = count;
+}
+
+/* The speaker of a message: the adviser for the lines of the adviser,
+   the speaker of a report, else the ruler. */
+internal u16
+ui_feel_message_speaker(ui_state *ui, engine_api *api, u32 message)
+{
+    u16 adviser = api->adviser(api->engine, ui->feel.force);
+    u16 ruler = api->force_ruler(api->engine, ui->feel.force);
+    if (message == UI_MESSAGE_HEADING) return ruler;
+    if (message == UI_MESSAGE_THREAT || message == UI_MESSAGE_NEXT_ORDER) return adviser != ENGINE_NO_OFFICER ? adviser : ruler;
+    u16 reporter = api->event_report(api->engine, message).speaker;
+    return reporter != ENGINE_NO_OFFICER ? reporter : ruler;
+}
+
+/* G2-006, G2-007, G2-032: the camera goes to the place of the message that
+   shows: the enemy city of the threat, or the city of the officer of a
+   report (the prisoner that escaped). One move for each message. */
+internal void
+ui_feel_frame_message(ui_state *ui, engine_api *api)
+{
+    if (!ui_feel_messages_open(ui) || ui->feel.framed_message == ui->feel.message_shown) return;
+    ui->feel.framed_message = ui->feel.message_shown;
+    u32 message = ui->feel.messages[ui->feel.message_shown];
+    if (message == UI_MESSAGE_THREAT) { ui_frame_city(ui, ui->feel.threat_city); return; }
+    if (message == UI_MESSAGE_HEADING || message == UI_MESSAGE_NEXT_ORDER) return;
+    engine_event_report report = api->event_report(api->engine, message);
+    if (report.subject.kind != ENGINE_SUBJECT_OFFICER) return;
+    engine_officer officer = api->officer_by_id(api->engine, report.subject.id);
+    if (officer.base_location < api->city_count(api->engine)) ui_frame_city(ui, (u8)officer.base_location);
 }
 
 /* Is the faction a player, and is any faction a player. */
@@ -170,11 +232,18 @@ ui_feel_turn_start(ui_state *ui, engine_api *api)
     ui->feel.seen_turn = true;
     ui->feel.turn      = turn;
     ui->feel.force     = force;
+    if (ui->feel.first_turn)
+    {
+        /* G2-006: after the load, the camera stands at the capital of the player. */
+        engine_officer ruler = api->officer_by_id(e, api->force_ruler(e, force));
+        if (ruler.base_location < api->city_count(e)) ui_frame_city(ui, (u8)ruler.base_location);
+    }
     if (ui->round.show)
     {
         ui_feel_collect_messages(ui, api, force);
         return;
     }
+    ui->feel.first_turn = false;
     /* M20, the decision of the player: with the show off, the turn starts
        with no message to click. The reports stay in the log. */
     ui->feel.message_count = 0;
@@ -209,6 +278,8 @@ ui_feel_update(ui_state *ui, engine_api *api, f32 dt_seconds, bool in_game)
     /* screen-flow.md, rule 2: a left click anywhere advances a message. */
     if (ui_feel_messages_open(ui) && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !ImGui::GetIO().WantCaptureMouse)
         ui->feel.message_shown++;
+    ui_feel_frame_message(ui, api);
+    if (!ui_feel_messages_open(ui) && ui->feel.seen_turn) ui->feel.first_turn = false;   /* the lines of the first turn are read */
 }
 
 /* The text of one message: the heading 《year month 上旬》 or one report. */
@@ -222,8 +293,31 @@ ui_feel_message_text(ui_state *ui, engine_api *api, u32 message, char *out, u32 
         snprintf(out, out_size, text_get(ui->text, "msg.heading"), date.year, date.month, text_get(ui->text, part));
         return;
     }
+    if (message == UI_MESSAGE_THREAT || message == UI_MESSAGE_NEXT_ORDER)
+    {
+        /* G2-006, G2-007: the lines of the adviser, with the name of the ruler first (劉表大人，...). */
+        char lord[UI_NAME_SIZE * 2], prefix[UI_NAME_SIZE * 3], city[UI_NAME_SIZE * 2];
+        ui_officer_text(ui, api, api->force_ruler(api->engine, ui->feel.force), lord, sizeof(lord));
+        snprintf(prefix, sizeof(prefix), text_get(ui->text, "turn.lord"), lord);
+        if (message == UI_MESSAGE_THREAT)
+        {
+            ui_city_label(ui, api, ui->feel.threat_city, city, sizeof(city));
+            char line[UI_NAME_SIZE * 6];
+            snprintf(line, sizeof(line), text_get(ui->text, "turn.threat"), city);
+            snprintf(out, out_size, "%s%s", prefix, line);
+        }
+        else
+        {
+            snprintf(out, out_size, "%s%s", prefix, text_get(ui->text, ui->feel.first_turn ? "turn.our_turn" : "turn.next_order"));
+        }
+        return;
+    }
     engine_event_report report = api->event_report(api->engine, message);
-    ui_report_line(ui, api, message, ui_report_value(api, &report), TEXT_LINE_LOG, out, out_size);   /* M18 */
+    /* G2-032: a report with a line of its own speaks it (say.<key>); the others read as the log. */
+    char id[64];
+    snprintf(id, sizeof(id), "say.%s", report.key ? report.key : "none");
+    u32 form = text_find_string(ui->text, id) ? TEXT_LINE_SPEECH : TEXT_LINE_LOG;
+    ui_report_line(ui, api, message, ui_report_value(api, &report), form, out, out_size);   /* M18 */
 }
 
 /* main-map.md, "Message window": 689 x 197 at the bottom centre, the
@@ -246,12 +340,7 @@ ui_draw_messages(ui_state *ui, engine_api *api)
         ImVec2 origin = ImGui::GetCursorScreenPos();
         ImVec2 area   = ImGui::GetContentRegionAvail();
         u32 message = ui->feel.messages[ui->feel.message_shown];
-        u16 speaker_id = api->force_ruler(api->engine, ui->feel.force);
-        if (message != UI_MESSAGE_HEADING)
-        {
-            u16 reporter = api->event_report(api->engine, message).speaker;
-            if (reporter != ENGINE_NO_OFFICER) speaker_id = reporter;
-        }
+        u16 speaker_id = ui_feel_message_speaker(ui, api, message);
         if (speaker_id != ENGINE_NO_OFFICER) ui_draw_officer_portrait(ui, api, speaker_id);
         char speaker[UI_NAME_SIZE * 2], text[UI_NAME_SIZE * 6];
         speaker[0] = 0;

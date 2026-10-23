@@ -717,7 +717,10 @@ sim_attack(sim_state *sim, sim_command command, sim_event_sink *events)
     sim_reward_battle(sim, order->unit, target_unit, arrow, false, target_unit != SIM_NO_UNIT && !sim->units[target_unit].alive, command.id, events);
 }
 
-/* The units of the force that can join an attack on the hex now. */
+/* The units of the force that can join an attack on the hex now: the
+   units next to the hex (military-units-and-tactics.md: "a joint attack
+   by several adjacent units"). A crossbow unit two hexes away keeps its
+   turn. */
 internal u32
 sim_joint_partners(sim_state *sim, u8 force, hex_coord hex, u32 *ids, u32 capacity)
 {
@@ -726,6 +729,7 @@ sim_joint_partners(sim_state *sim, u8 force, hex_coord hex, u32 *ids, u32 capaci
     {
         sim_unit *unit = sim->units + index;
         if (!unit->alive || unit->force_id != force || unit->acted_turn == sim->turn + 1 || unit->state != UNIT_STATE_NONE) continue;
+        if (hex_distance(unit->hex, hex) != 1) continue;
         sim_target target;
         if (sim_check_attack_target(sim, unit, hex, &target) == SIM_REFUSAL_NONE) ids[count++] = index;
     }
@@ -757,9 +761,9 @@ sim_joint_attack(sim_state *sim, sim_command command, sim_event_sink *events)
     {
         sim_unit *unit = sim->units + ids[index];
         if (!unit->alive) continue;
-        unit->acted_turn = sim->turn + 1;
         sim_target target = sim_target_at(sim, unit->force_id, order->to);
-        if (!sim_target_any(&target)) break;
+        if (!sim_target_any(&target)) break;   /* the target is gone: the units after it keep their turn */
+        unit->acted_turn = sim->turn + 1;
         u32 target_unit = target.unit;
         b32 arrow = hex_distance(unit->hex, order->to) > 1;
         sim_strike(sim, ids[index], order->to, &target, 100, CRITICAL_ATTACK, false, false, command.id, events);

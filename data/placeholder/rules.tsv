@@ -88,6 +88,7 @@ combat.building_percent	50	assumed	Q-172: the durability damage of a normal atta
 combat.siege_percent	300	assumed	Q-175: the durability damage of a siege weapon, per grade percent of destroy
 combat.base_counter	300	assumed	Q-175: the soldiers that a base kills when a unit attacks it, before 強化防衛
 combat.capture_percent	50	assumed	Q-176: the chance to capture each officer of a destroyed unit
+captive.escape_percent	10	assumed	G2-032: the chance that a captive escapes to its force at a month start (the run of 2026-10-20 saw two escapes at one month start; the rule is open)
 combat.halberd_capture	20	assumed	Q-176: more chance with a halberd tactic (PK, manual p.34)
 plot.base_success	50	assumed	Q-173: the chance of a plot; plus the difference of intellect
 fire.turns	3	assumed	Q-173: the turns of a fire for a pack without the fire.*_turns_* rules

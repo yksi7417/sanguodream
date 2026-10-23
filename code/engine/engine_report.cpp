@@ -64,7 +64,17 @@ engine_note_speaker(engine *e, const sim_command *command)
         case SIM_COMMAND_CONSCRIPT:
         case SIM_COMMAND_TRAIN:
         case SIM_COMMAND_MERCHANT:
-        case SIM_COMMAND_PRODUCE:  officer = command->city.officers[0];     break;
+        case SIM_COMMAND_PRODUCE:
+        {
+            /* G2-018: the last officer of a city command speaks its result
+               (assumed from two observations of the run of 2026-10-20:
+               the third officer spoke after a conscription and a patrol). */
+            officer = command->city.officers[0];
+            for (u32 place = 1; place < SIM_COMMAND_OFFICERS; ++place)
+            {
+                if (command->city.officers[place] != SIM_NO_OFFICER) officer = command->city.officers[place];
+            }
+        } break;
         case SIM_COMMAND_RESEARCH: officer = command->research.officers[0]; break;
         case SIM_COMMAND_FACTION_PLOT:
         case SIM_COMMAND_DIPLOMACY: officer = command->court.officer;        break;   /* the result comes later with this cause (travel.cpp) */

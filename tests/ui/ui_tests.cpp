@@ -4267,9 +4267,11 @@ register_ui_tests(ImGuiTestEngine *e)
         v.ui.round.show         = true;   /* M20: the message window opens only with the show on */
         ui_enter_game(&v.ui);
         ctx->Yield(3);
-        IM_CHECK_EQ(v.ui.feel.message_count, 2u);
+        /* G2-007: the heading, the report, then the closing line of the adviser. The recorder has no threat. */
+        IM_CHECK_EQ(v.ui.feel.message_count, 3u);
         IM_CHECK_EQ(v.ui.feel.messages[0], UI_MESSAGE_HEADING);
         IM_CHECK_EQ(v.ui.feel.messages[1], 0u);
+        IM_CHECK_EQ(v.ui.feel.messages[2], UI_MESSAGE_NEXT_ORDER);
         IM_CHECK(ui_feel_messages_open(&v.ui));
         IM_CHECK(!ctx->ItemExists("//###HUD/###hud_tabs/###hud_bases"));   /* the list panel hides */
         recorder_reset(&v.recorder);
@@ -4277,6 +4279,12 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->ItemClick("###next");
         ctx->Yield();
         IM_CHECK_EQ(v.ui.feel.message_shown, 1u);
+        ctx->ItemClick("###next");
+        ctx->Yield();
+        IM_CHECK_EQ(v.ui.feel.message_shown, 2u);
+        char line[256];
+        ui_feel_message_text(&v.ui, &v.api, UI_MESSAGE_NEXT_ORDER, line, sizeof(line));
+        IM_CHECK(strstr(line, "\xE5\xA4\xA7\xE4\xBA\xBA") != 0);            /* zh-TW: 大人, the line speaks to the ruler */
         ctx->ItemClick("###next");
         ctx->Yield(2);
         IM_CHECK(!ui_feel_messages_open(&v.ui));
@@ -4303,7 +4311,8 @@ register_ui_tests(ImGuiTestEngine *e)
         v.ui.round.show         = true;   /* M20: the message window opens only with the show on */
         ui_enter_game(&v.ui);
         ctx->Yield(3);
-        IM_CHECK_EQ(v.ui.feel.message_count, 2u);              /* the heading and the report */
+        IM_CHECK_EQ(v.ui.feel.message_count, 3u);              /* the heading, the report and the closing line (G2-007) */
+        ctx->ItemClick("//###Messages/###next");
         ctx->ItemClick("//###Messages/###next");
         ctx->ItemClick("//###Messages/###next");
         ctx->Yield(2);
@@ -4317,7 +4326,7 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_END_TURN), 1u);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
         IM_CHECK(ui_feel_messages_open(&v.ui));
-        IM_CHECK_EQ(v.ui.feel.message_count, 2u);              /* the heading and the new report only */
+        IM_CHECK_EQ(v.ui.feel.message_count, 3u);              /* the heading, the new report only, and the closing line */
         IM_CHECK_EQ(v.ui.feel.turn, 1u);
     };
 

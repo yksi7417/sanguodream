@@ -56,6 +56,8 @@ enum ui_hud_tab { UI_HUD_TAB_BASES, UI_HUD_TAB_OFFICERS, UI_HUD_TAB_UNITS, UI_HU
 #define UI_LOAD_TRANSITION_SECONDS 4.0f   /* the dark landscape while a save loads */
 #define UI_MESSAGE_CAPACITY        32     /* the messages of one turn start; the log keeps the rest */
 #define UI_MESSAGE_HEADING         0xFFFFFFFFu   /* a message slot that holds the period heading */
+#define UI_MESSAGE_THREAT          0xFFFFFFFEu   /* G2-006, G2-007: the adviser names the enemy city that threatens an own city */
+#define UI_MESSAGE_NEXT_ORDER      0xFFFFFFFDu   /* G2-007: the adviser asks for the next order; the first turn says that it is our turn */
 #define UI_MESSAGE_WIDTH           689.0f /* main-map.md, "Message window": the frame at the bottom centre */
 #define UI_MESSAGE_HEIGHT          197.0f
 #define UI_MESSAGE_MARGIN          12.0f
@@ -441,6 +443,9 @@ struct ui_state
         u32  messages[UI_MESSAGE_CAPACITY];   /* ledger indices, or UI_MESSAGE_HEADING */
         u32  message_count;
         u32  message_shown;       /* the message on the screen; message_count closes the window */
+        bool first_turn;          /* G2-006: the first turn start after the game opened: the camera goes to the capital, 可終於輪到我們了啊 */
+        u8   threat_city;         /* G2-007: the enemy city of the threat message; ENGINE_NO_CITY if none */
+        u32  framed_message;      /* the message that moved the camera; U32_MAX for none */
     } feel;
     /* M18: the words of the events and the feedback of a command
        (ui_report.cpp). The provider is a plug-in: ui_set_text_provider

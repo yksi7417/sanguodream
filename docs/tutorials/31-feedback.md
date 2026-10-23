@@ -90,17 +90,26 @@ template provider.
   event with the log flag. The colour of a line follows its sign. A
   hover shows the key and the tone. The filter shows all events or only
   those of the player. The log keeps the events of the other factions,
-  as the player decided for M20.
+  as the player decided for M20. A line of a unit event names the unit
+  by its commander (周泰隊：士兵 -232). The commander is the subject of
+  the event, so the name stays after the unit is gone.
 - The speech bubble (main-map.md, "Speech bubble") opens over the base
-  after a command of the player. The first officer of the command speaks
-  in the tone of the event. It does not take the mouse, and it closes
-  after UI_BUBBLE_SECONDS.
+  after a command of the player. The last officer of a city command
+  speaks in the tone of the event (G2-018, assumed from two
+  observations). It does not take the mouse, and it closes after
+  UI_BUBBLE_SECONDS.
 - The values (main-map.md, "Floating value") rise over the base for each
   event of the command with a sign. Each value names its field first
-  (資金收入 +2047), from the resource of the report.
-- The turn start shows only the events with the report flag. A turn
-  without a report opens no window. The window shows the speaker of each
-  report and no counter.
+  (資金收入 +2047), from the resource of the report. An arrow before the
+  number points down for a loss and up for a gain (G2-018).
+- The turn start shows the events with the report flag, then the lines
+  of the adviser (G2-006, G2-007). The threat names an enemy city 10 days
+  from an own city with more soldiers (assumed). The last line is
+  請下達下一個指示. The
+  first turn after the load says 可終於輪到我們了啊 in its place, and
+  the camera stands at the capital. The camera moves to the city of each
+  message. The window shows the speaker of each message and no counter.
+  The messages that the player did not read close when the turn ends.
 
 ## What is assumed
 The spec has no list of the kinds that the original logs or reports.
