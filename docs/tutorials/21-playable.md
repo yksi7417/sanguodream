@@ -49,7 +49,7 @@ same sizeof(sim_state). The old slot loaded, and the game showed the year
 12 and the wrong ruler. Now a file with another layout gets
 ENGINE_SAVE_OTHER_VERSION. The tables and the rules of the pack
 (sim_state.content) come from the pack of this build, never from the
-file, so a new rule does not break a save. A version 1 file has the
+file. So a new rule does not break a save. A version 1 file has the
 layout of 2026-10-22, and the load inserts the four bytes.
 tests/feature/save_compat_tests.cpp loads such a file,
 tests/fixtures/saves/slot_01.hxs, and checks its date and its player.
