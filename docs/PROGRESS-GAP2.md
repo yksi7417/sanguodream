@@ -75,6 +75,7 @@ run of 2026-10-22".
 | G2-007 | The turn start ends with the lines of the adviser: the threat, when an enemy city 10 days from an own city has more soldiers (assumed), and 請下達下一個指示. The adviser speaks them with the name of the ruler first. The camera moves to the city of each message. The messages of a turn that the player did not read close when the turn ends. | P2 batch 6 | ui |
 | G2-032 | At a month start each captive escapes with the chance captive.escape_percent (assumed 10). The event captive_escaped has a report, the log line 逃亡 and the speech 我已摸清了警備的編制. | P2 batch 6 | feature/court |
 | 齊攻 (play report of 2026-10-23) | 齊攻 takes only the units next to the target. A crossbow unit two hexes away keeps its turn. A unit after a destroyed target keeps its turn. | P2 batch 6 | feature/combat |
+| saves of older builds (play report of 2026-10-23) | The header of a save carries the layout of sim_state. A file with another layout does not load. The content comes from the pack, not from the file. The saves of 2026-10-22 load through a migration. tests/fixtures/saves/slot_01.hxs guards the load. | save compat | feature/save_compat |
 | unit log lines (play report of 2026-10-23) | The log names a unit by its commander (周泰隊：士兵 -232) in place of 一支部隊. The commander is the subject of a unit event, so the name stays after the unit is gone. | P2 batch 6 | feature/combat |
 
 ## In progress

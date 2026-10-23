@@ -41,6 +41,21 @@ load, and a refused load changes nothing. The platform layer has a file
 writer for this (`platform_write_entire_file`). The 32 slots are files
 slot_01.hxs to slot_32.hxs in the save folder of engine_config.
 
+The header of version 2 carries the layout of sim_state:
+`engine_save_layout` hashes the offset and the size of each member. The
+struct sizes alone did not protect the player. On 2026-10-23 a new rule
+in sim_rules moved every member after content by four bytes, with the
+same sizeof(sim_state). The old slot loaded, and the game showed the year
+12 and the wrong ruler. Now a file with another layout gets
+ENGINE_SAVE_OTHER_VERSION. The tables and the rules of the pack
+(sim_state.content) come from the pack of this build, never from the
+file, so a new rule does not break a save. A version 1 file has the
+layout of 2026-10-22, and the load inserts the four bytes.
+tests/feature/save_compat_tests.cpp loads such a file,
+tests/fixtures/saves/slot_01.hxs, and checks its date and its player.
+When a change of sim_state breaks that test, add a migration or make the
+load refuse the old files. Do not remove the test.
+
 ## The settings of the start
 engine_settings has the settings of game-setup-and-modes.md:
 - 壽命: none, historical, or long (lifespan.long_years more);

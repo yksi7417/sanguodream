@@ -9,6 +9,12 @@ struct engine_fixture
     engine_api   api;
 };
 
+/* The save folder of the next fixture, relative to the executable. The
+   tests write into test_saves; save_compat_tests.cpp reads the slots of
+   older builds from the fixtures of the repository. */
+#define FEATURE_TEST_SAVE_FOLDER "test_saves"
+global_variable const char *feature_save_folder = FEATURE_TEST_SAVE_FOLDER;
+
 /* Initialises in place: the engine keeps pointers to the fixture's arenas,
    so the fixture must live where the caller put it, never in a temporary. */
 /* real_map: false keeps the placeholder map of map_width x map_height, the
@@ -26,7 +32,7 @@ engine_fixture_init_with(engine_fixture *f, u64 seed, u32 ledger_capacity, u32 m
     config.use_pack_map    = real_map;
     config.read_entire_file = test_platform_read_entire_file;
     config.write_entire_file = test_platform_write_entire_file;
-    config.save_folder      = "test_saves";
+    config.save_folder      = feature_save_folder;
     f->backend = engine_create(&f->permanent, &f->transient, config);
     f->api     = engine_make_api(f->backend);
     /* The random disasters change the numbers of the other tests: they are

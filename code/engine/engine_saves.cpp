@@ -9,13 +9,21 @@
       city tables, the map, the fire;
    4. the ledger.
    The pointers in the file are not used: a load keeps the pointers of the
-   live sim and copies the arrays into them. A file of another build (other
-   struct sizes) or another pack does not load. Included by engine.cpp. */
+   live sim and copies the arrays into them. The tables and the rules of
+   the content pack (sim_state.content) come from the pack of this build,
+   not from the file. A file of another build or another pack does not
+   load: the header carries the layout of sim_state (engine_save_layout),
+   because equal struct sizes do not prove equal layouts. The play report
+   of 2026-10-23 found that: a new rule had moved every member after
+   content by four bytes with the same total size, and the game showed the
+   year 12. Version 1 files have the layout of 2026-10-22, and the load
+   migrates them (see engine_api_load_game). Included by engine.cpp. */
 
 #define ENGINE_SAVE_MAGIC   0x56535848u   /* "HXSV" */
-#define ENGINE_SAVE_VERSION 1
+#define ENGINE_SAVE_VERSION 2
 
-struct engine_save_header
+/* The header of version 1 (the builds until 2026-10-22). */
+struct engine_save_header_v1
 {
     u32  magic;
     u32  version;
@@ -32,6 +40,63 @@ struct engine_save_header
     char pack[128];
     engine_save_slot slot;
 };
+
+struct engine_save_header
+{
+    u32  magic;
+    u32  version;
+    u32  sim_size;
+    u32  officer_size;
+    u32  city_size;
+    u32  event_size;
+    u32  entity_capacity;
+    u32  officer_capacity;
+    u32  city_capacity;
+    u32  map_width;
+    u32  map_height;
+    u32  ledger_count;
+    u32  layout;           /* version 2: engine_save_layout() of the build that wrote the file */
+    u32  reserved;
+    char pack[128];
+    engine_save_slot slot;
+};
+
+/* The layout of sim_state: a hash of the offset and the size of each
+   member, and of the sizes of the structs in the arrays. A member that
+   moves or grows changes it, also when sizeof(sim_state) stays the same.
+   The inside of content does not count: the load takes the content of
+   the pack. */
+#define ENGINE_LAYOUT_MEMBER(member) { (u32)offsetof(sim_state, member), (u32)sizeof(((sim_state *)0)->member) }
+internal u32
+engine_save_layout(void)
+{
+    struct { u32 offset, size; } members[] =
+    {
+        ENGINE_LAYOUT_MEMBER(rng), ENGINE_LAYOUT_MEMBER(turn), ENGINE_LAYOUT_MEMBER(next_command_id), ENGINE_LAYOUT_MEMBER(entities),
+        ENGINE_LAYOUT_MEMBER(map), ENGINE_LAYOUT_MEMBER(officers), ENGINE_LAYOUT_MEMBER(cities), ENGINE_LAYOUT_MEMBER(names),
+        ENGINE_LAYOUT_MEMBER(has_names), ENGINE_LAYOUT_MEMBER(content), ENGINE_LAYOUT_MEMBER(has_content), ENGINE_LAYOUT_MEMBER(turns),
+        ENGINE_LAYOUT_MEMBER(sites), ENGINE_LAYOUT_MEMBER(units), ENGINE_LAYOUT_MEMBER(unit_count), ENGINE_LAYOUT_MEMBER(scratch),
+        ENGINE_LAYOUT_MEMBER(buildings), ENGINE_LAYOUT_MEMBER(building_count), ENGINE_LAYOUT_MEMBER(fire), ENGINE_LAYOUT_MEMBER(map_layers),
+        ENGINE_LAYOUT_MEMBER(ruleset), ENGINE_LAYOUT_MEMBER(technique_points), ENGINE_LAYOUT_MEMBER(techniques), ENGINE_LAYOUT_MEMBER(research),
+        ENGINE_LAYOUT_MEMBER(settings), ENGINE_LAYOUT_MEMBER(outcome), ENGINE_LAYOUT_MEMBER(officer_index), ENGINE_LAYOUT_MEMBER(city_index),
+        ENGINE_LAYOUT_MEMBER(items), ENGINE_LAYOUT_MEMBER(diplomacy), ENGINE_LAYOUT_MEMBER(rank), ENGINE_LAYOUT_MEMBER(duel),
+        ENGINE_LAYOUT_MEMBER(debate), ENGINE_LAYOUT_MEMBER(bases), ENGINE_LAYOUT_MEMBER(corps), ENGINE_LAYOUT_MEMBER(corps_ap),
+        ENGINE_LAYOUT_MEMBER(adviser), ENGINE_LAYOUT_MEMBER(missions), ENGINE_LAYOUT_MEMBER(region_links), ENGINE_LAYOUT_MEMBER(region_links_built),
+        ENGINE_LAYOUT_MEMBER(region_links_version), ENGINE_LAYOUT_MEMBER(emperor), ENGINE_LAYOUT_MEMBER(relics), ENGINE_LAYOUT_MEMBER(pending),
+        ENGINE_LAYOUT_MEMBER(event_turn), ENGINE_LAYOUT_MEMBER(new_officer_count), ENGINE_LAYOUT_MEMBER(ability_uses), ENGINE_LAYOUT_MEMBER(ability_known),
+        ENGINE_LAYOUT_MEMBER(ability_job), ENGINE_LAYOUT_MEMBER(scenario_number), ENGINE_LAYOUT_MEMBER(history_turn), ENGINE_LAYOUT_MEMBER(ai_records),
+        { 0, (u32)sizeof(sim_state) }, { 1, (u32)sizeof(sim_unit) }, { 2, (u32)sizeof(sim_turn_state) }, { 3, (u32)sizeof(officer_component) },
+        { 4, (u32)sizeof(city_component) }, { 5, (u32)sizeof(sim_event) }, { 6, (u32)sizeof(sim_building) }, { 7, (u32)sizeof(sim_base_state) },
+    };
+    u32 hash = 2166136261u;   /* FNV-1a */
+    for (u32 index = 0; index < ArrayCount(members); ++index)
+    {
+        u32 words[2] = { members[index].offset, members[index].size };
+        u8 *bytes = (u8 *)words;
+        for (u32 byte = 0; byte < sizeof(words); ++byte) hash = (hash ^ bytes[byte]) * 16777619u;
+    }
+    return hash;
+}
 
 /* A cursor over a byte buffer: each put or get moves it, and a short
    buffer clears ok. */
@@ -81,6 +146,7 @@ engine_save_header_of(engine *e)
     header.map_width        = sim->map.width;
     header.map_height       = sim->map.height;
     header.ledger_count     = e->ledger_count;
+    header.layout           = engine_save_layout();
     snprintf(header.pack, sizeof(header.pack), "%s", e->content_folder);
     return header;
 }
@@ -171,9 +237,42 @@ engine_read_slot(engine *e, u32 slot, engine_save_header *header, engine_save_cu
     read_file_result file = e->read_entire_file(path, e->transient);
     if (!file.contents) return ENGINE_SAVE_NO_FILE;
     *cursor = { (u8 *)file.contents, (u8 *)file.contents + file.size, true };
-    engine_save_get(cursor, header, sizeof(*header));
-    if (!cursor->ok || header->magic != ENGINE_SAVE_MAGIC) return ENGINE_SAVE_BAD_FILE;
-    if (header->version != ENGINE_SAVE_VERSION || header->sim_size != sizeof(sim_state) || header->officer_size != sizeof(officer_component) ||
+    u32 magic_version[2];
+    engine_save_get(cursor, magic_version, sizeof(magic_version));
+    if (!cursor->ok || magic_version[0] != ENGINE_SAVE_MAGIC) return ENGINE_SAVE_BAD_FILE;
+    cursor->at -= sizeof(magic_version);
+    *header = {};
+    if (magic_version[1] == 1)
+    {
+        /* The header of 2026-10-22, without the layout. The file holds the
+           sim_state of that day: the same size as today, with content four
+           bytes shorter. engine_api_load_game inserts the four bytes. */
+        engine_save_header_v1 old;
+        engine_save_get(cursor, &old, sizeof(old));
+        if (!cursor->ok) return ENGINE_SAVE_BAD_FILE;
+        header->magic            = old.magic;
+        header->version          = 1;
+        header->sim_size         = old.sim_size;
+        header->officer_size     = old.officer_size;
+        header->city_size        = old.city_size;
+        header->event_size       = old.event_size;
+        header->entity_capacity  = old.entity_capacity;
+        header->officer_capacity = old.officer_capacity;
+        header->city_capacity    = old.city_capacity;
+        header->map_width        = old.map_width;
+        header->map_height       = old.map_height;
+        header->ledger_count     = old.ledger_count;
+        header->layout           = 0;
+        memcpy(header->pack, old.pack, sizeof(header->pack));
+        header->slot             = old.slot;
+    }
+    else
+    {
+        engine_save_get(cursor, header, sizeof(*header));
+        if (!cursor->ok) return ENGINE_SAVE_BAD_FILE;
+        if (header->version != ENGINE_SAVE_VERSION || header->layout != engine_save_layout()) return ENGINE_SAVE_OTHER_VERSION;
+    }
+    if (header->sim_size != sizeof(sim_state) || header->officer_size != sizeof(officer_component) ||
         header->city_size != sizeof(city_component) || header->event_size != sizeof(sim_event))
     {
         return ENGINE_SAVE_OTHER_VERSION;
@@ -212,8 +311,27 @@ engine_api_load_game(void *opaque, u32 slot)
 
     sim_state *live = PushStruct(arena, sim_state);
     *live = *sim;
-    engine_save_get(&cursor, sim, sizeof(sim_state));
+    if (header.version == 1)
+    {
+        /* The sim_state of 2026-10-22: its content is four bytes shorter
+           (one rule less), so every member after content sits four bytes
+           earlier, and the tail padding took the difference. The copy
+           inserts four bytes at the end of content. The inside of content
+           does not matter: the load takes the content of the pack. */
+        u8 *old   = PushArray(arena, sizeof(sim_state), u8);
+        u8 *fresh = (u8 *)sim;
+        u64 shift_at = offsetof(sim_state, content) + sizeof(sim_content) - sizeof(u32);
+        engine_save_get(&cursor, old, sizeof(sim_state));
+        memcpy(fresh, old, shift_at);
+        memset(fresh + shift_at, 0, sizeof(u32));
+        memcpy(fresh + shift_at + sizeof(u32), old + shift_at, sizeof(sim_state) - shift_at - sizeof(u32));
+    }
+    else
+    {
+        engine_save_get(&cursor, sim, sizeof(sim_state));
+    }
     /* The pointers and the hooks stay those of the live sim. */
+    sim->content              = live->content;   /* the tables and the rules of the pack of this build */
     sim->entities.generation  = live->entities.generation;
     sim->entities.alive       = live->entities.alive;
     sim->entities.free_list   = live->entities.free_list;
