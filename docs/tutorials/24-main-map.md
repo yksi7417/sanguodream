@@ -73,7 +73,10 @@ After a hit, the plate shows the soldiers in red or green for a few
 seconds, with a line under the number (tutorial 18, "The feedback of
 war"). The scene draws a sprite of the class of the unit on its hex
 (docs/ASSETS.md, "Unit sprites"). With it, the player finds the hex of
-the unit under its plate.
+the unit under its plate. A pass shows a gate (two pillars, a lintel and
+a roof over an open passage) and a port shows a quay with a pier and a
+moored hull, in the colour of the owner. Both are placeholder shapes of
+placeholder_meshes.h until the art of docs/GRAPHICS.md comes.
 
 ## Tests to read
 - unit/render: the mini map axes at nine headings.

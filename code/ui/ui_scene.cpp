@@ -265,6 +265,19 @@ ui_scene_push(ui_state *ui, engine_api *api, ui_frame_info *frame)
         render_push_mesh(rc, RENDER_MESH_SETTLEMENT, hex_world_center(h, terrain_level_y(view.level[cell])), 0.0f, 1.0f, ui_faction_rgba(city.owner_force_id));
         ui_scene_push_slots(rc, api, view, city.city_id);
     }
+    /* A gate on each pass and a pier on each port, in the colour of the
+       owner (the art of the bases comes later, docs/GRAPHICS.md). */
+    for (u32 index = 0; index < api->base_count(api->engine); ++index)
+    {
+        engine_base base = api->base_at(api->engine, index);
+        if (base.id == ENGINE_NO_ROW) continue;
+        hex_coord h = hex_make(base.q, base.r);
+        hex_offset o = hex_to_offset(h);
+        if (o.col < 0 || o.row < 0 || (u32)o.col >= view.width || (u32)o.row >= view.height) continue;
+        u32 cell = (u32)o.row * view.width + (u32)o.col;
+        u32 mesh = base.type == BASE_PORT ? RENDER_MESH_PORT : RENDER_MESH_GATE;
+        render_push_mesh(rc, mesh, hex_world_center(h, terrain_level_y(view.level[cell])), 0.0f, 1.0f, ui_faction_rgba(base.force));
+    }
     for (u32 id = 0; id < api->unit_count(api->engine); ++id)
     {
         engine_unit unit = api->unit_at(api->engine, id);

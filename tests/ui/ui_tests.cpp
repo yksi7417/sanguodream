@@ -3874,6 +3874,32 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
+    /* The scene draws a gate on each pass and a pier on each port, in the
+       colour of the owner. The recorder has one pass and one port. The
+       scene asks base_at and commands nothing. */
+    t = IM_REGISTER_TEST(e, "ui", "scene_draws_a_gate_on_each_pass_and_a_pier_on_each_port");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        memory_arena frame_arena = test_arena_create(Megabytes(2));
+        v.ui.scene.headless = true;
+        v.frame.frame_arena = &frame_arena;
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK(v.frame.render && v.frame.render->scene_enabled);
+        f32 scale = 0.0f;
+        IM_CHECK_EQ(ui_test_count_meshes(v.frame.render, RENDER_MESH_GATE, &scale), 1u);
+        IM_CHECK_EQ(scale, 1.0f);
+        IM_CHECK_EQ(ui_test_count_meshes(v.frame.render, RENDER_MESH_PORT, 0), 1u);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_BASE_AT), 2u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        v.frame.frame_arena = 0;
+        test_arena_destroy(&frame_arena);
+    };
+
     /* The scene draws a model on each slot with a facility: the shape of
        the kind for a built one, and a scaffold with a smaller shape inside
        for a build in progress. The scene asks city_slots and facility_at

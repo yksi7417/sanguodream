@@ -202,5 +202,21 @@ unit_render_tests(test_counts *counts)
     placeholder_mesh_build(RENDER_MESH_SCAFFOLD, &arena, &scaffold);
     placeholder_mesh_build(RENDER_MESH_STALL, &arena, &stall);
     TEST_CHECK(counts, scaffold.index_count != stall.index_count, "the scaffold and a facility are different shapes");
+    /* The gate of a pass has a passage: nothing stands between the pillars
+       below the lintel. The port has a quay on the ground. */
+    placeholder_mesh gate = {}, port = {};
+    b32 passage = placeholder_mesh_build(RENDER_MESH_GATE, &arena, &gate) && gate.vertex_count > 0;
+    f32 top = 0.0f;
+    for (u32 i = 0; i < gate.vertex_count; ++i)
+    {
+        v3 at = gate.vertices[i].position;
+        if (at.x > -0.2f && at.x < 0.2f && at.y < 0.6f) passage = false;   /* a corner inside the passage, below the lintel */
+        if (at.y > top) top = at.y;
+    }
+    TEST_CHECK(counts, passage && top > 0.8f, "the gate of a pass is open below its lintel and has a roof");
+    b32 quay = placeholder_mesh_build(RENDER_MESH_PORT, &arena, &port) && port.vertex_count > 0;
+    u32 ground = 0;
+    for (u32 i = 0; i < port.vertex_count; ++i) ground += port.vertices[i].position.y == 0.0f;
+    TEST_CHECK(counts, quay && ground >= 8 && gate.index_count != port.index_count, "the port has a quay on the ground and differs from the gate");
     test_arena_destroy(&arena);
 }

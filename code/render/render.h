@@ -425,6 +425,8 @@ enum render_mesh_id
     RENDER_MESH_TOWER,        /* a tall tower on a base: the bronze sparrow tower */
     RENDER_MESH_OFFICE,       /* a two-tier house: the offices */
     RENDER_MESH_SHED,         /* a low open house: the stable */
+    RENDER_MESH_GATE,         /* two pillars, a lintel and a roof over a passage: a pass (關) */
+    RENDER_MESH_PORT,         /* a quay with a pier, two mooring posts and a hull: a port (港) */
     RENDER_MESH_COUNT
 };
 
