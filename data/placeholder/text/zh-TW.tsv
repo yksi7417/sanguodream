@@ -1508,5 +1508,20 @@ research.state_owned	已研究
 research.state_running	研究中
 research.state_locked	未開放
 research.state_open	可研究
+# G2-044, G2-057, G2-046: the sortie dialog of the original and the unit panel.
+sortie.preset	編制
+sortie.weapons	武器
+sortie.ships	艦船
+sortie.effect	效果
+sortie.ability	部隊能力
+sortie.land	陸上
+sortie.water	水上
+sortie.tactics	戰法
+sortie.stock	據點庫存
+sortie.days	日
+unit.state	狀態
+unit.state_0	普通
+unit.ship	艦船
+unit.captives	俘虜
 war.soldiers	兵
 war.morale	氣力

@@ -463,10 +463,68 @@ feature_transport_tests(test_counts *counts)
     engine_fixture_destroy(&setup.fixture);
 }
 
+/* G2-057: a sortie takes a ship of the stock for the water. The unit
+   keeps the ship class, the stock loses one, and a city without the
+   ship refuses. A sortie without a ship rows as a 走舸. */
+internal void
+feature_sortie_ship_tests(test_counts *counts)
+{
+    feature_city_setup setup;
+    feature_march_setup(&setup);
+    engine_api *api = setup.api;
+    void *e = api->engine;
+    u8 city = setup.city, force = setup.force;
+    u8 tower_ship = ENGINE_NO_UNIT_TYPE;
+    for (u32 index = 0; index < api->unit_type_count(e); ++index)
+    {
+        if (strcmp(api->unit_type_at(e, index).key, "tower_ship") == 0) tower_ship = (u8)index;
+    }
+    engine_unit_type ship_type = api->unit_type_at(e, tower_ship);
+    engine_weapon_kind ship_weapon = api->weapon_kind_at(e, ship_type.weapon);
+    TEST_CHECK(counts, tower_ship != ENGINE_NO_UNIT_TYPE && ship_weapon.id != ENGINE_NO_WEAPON, "the tower ship is a unit type with a weapon row");
+    api->set_city_resource(e, city, SIM_RESOURCE_WEAPONS, ship_weapon.stock, 2);
+    api->set_actions(e, force, 255);
+
+    engine_sortie_order order = feature_pike_order(api, city, 1);
+    order.ship = tower_ship;
+    engine_command command = {};
+    command.kind   = ENGINE_COMMAND_SORTIE;
+    command.sortie = order;
+    TEST_CHECK(counts, api->can_issue(e, &command).refusal == SIM_REFUSAL_NONE, "a sortie with a ship of the stock is allowed");
+    TEST_CHECK(counts, api->command_sortie(e, &order).refusal == SIM_REFUSAL_NONE, "the sortie with the ship runs");
+    u32 unit_id = ENGINE_NO_UNIT;
+    for (u32 id = 0; id < api->unit_count(e); ++id)
+    {
+        engine_unit unit = api->unit_at(e, id);
+        if (unit.id != ENGINE_NO_UNIT && unit.officers[0] == order.officers[0]) unit_id = id;
+    }
+    engine_unit with_ship = api->unit_at(e, unit_id);
+    TEST_CHECK(counts, unit_id != ENGINE_NO_UNIT && with_ship.ship_type == tower_ship, "the unit keeps the ship class for the water");
+    TEST_CHECK(counts, api->city_economy(e, city).stocks[ship_weapon.stock] == 1, "the stock of the city loses one ship");
+
+    engine_sortie_order plain = feature_pike_order(api, city, 1);
+    TEST_CHECK(counts, api->command_sortie(e, &plain).refusal == SIM_REFUSAL_NONE, "a sortie without a ship runs");
+    u32 plain_id = ENGINE_NO_UNIT;
+    for (u32 id = 0; id < api->unit_count(e); ++id)
+    {
+        engine_unit unit = api->unit_at(e, id);
+        if (unit.id != ENGINE_NO_UNIT && unit.officers[0] == plain.officers[0]) plain_id = id;
+    }
+    TEST_CHECK(counts, plain_id != ENGINE_NO_UNIT && api->unit_at(e, plain_id).ship_type == ENGINE_NO_UNIT_TYPE, "a unit without a ship rows as a boat");
+
+    api->set_city_resource(e, city, SIM_RESOURCE_WEAPONS, ship_weapon.stock, 0);
+    engine_sortie_order none = feature_pike_order(api, city, 1);
+    none.ship = tower_ship;
+    command.sortie = none;
+    TEST_CHECK(counts, api->can_issue(e, &command).refusal == SIM_REFUSAL_NO_WEAPONS, "refused: the city has no ship of that class");
+    engine_fixture_destroy(&setup.fixture);
+}
+
 internal void
 feature_march_tests(test_counts *counts)
 {
     feature_sortie_tests(counts);
+    feature_sortie_ship_tests(counts);
     feature_move_tests(counts);
     feature_terrain_rule_tests(counts);
     feature_transport_tests(counts);

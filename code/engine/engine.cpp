@@ -803,6 +803,7 @@ engine_sim_sortie_order(engine *e, const engine_sortie_order *in, b32 transport)
     order.gold        = in->gold;
     order.grain       = in->grain;
     order.destination = transport ? in->destination : SIM_NO_CITY;
+    order.ship        = transport ? 0 : in->ship;
     for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place) order.officers[place] = in->officers[place];
     for (u32 stock = 0; stock < CITY_EQUIPMENT_STOCK_COUNT; ++stock) order.cargo[stock] = transport ? in->cargo[stock] : 0;
     if (transport)

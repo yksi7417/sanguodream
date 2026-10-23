@@ -380,6 +380,7 @@ struct sim_sortie_order
     u32 grain;
     u8  destination;                        /* 輸送: the own city of the cargo */
     u32 cargo[CITY_EQUIPMENT_STOCK_COUNT];  /* 輸送: the weapons */
+    u8  ship;                               /* 出征: a navy unit type with a weapon row (樓船, 鬥艦) from the stock; 0 = none, a 走舸 */
 };
 
 /* The orders of a unit: move, wait, retreat, supply. */

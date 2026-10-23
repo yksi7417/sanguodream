@@ -616,6 +616,12 @@ internal engine_check recorder_can_issue(void *o, const engine_command *command)
         if (technique == 0)                              check.refusal = SIM_REFUSAL_VALUE_AT_MAXIMUM;
         else if (technique % 4 != 0 && technique != 1)   check.refusal = SIM_REFUSAL_NEEDS_TECHNIQUE;
     }
+    else if (command->kind == ENGINE_COMMAND_SORTIE)
+    {
+        /* The empty dialog, no commander and no soldiers, has a grey 決定 (G2-044). The probe of
+           the city menu sends one soldier, and the scripted refusal rules it. */
+        if (command->sortie.officers[0] == ENGINE_NO_OFFICER && command->sortie.soldiers == 0) check.refusal = SIM_REFUSAL_NO_OFFICER;
+    }
     else if (command->kind == ENGINE_COMMAND_ATTACK || command->kind == ENGINE_COMMAND_JOINT_ATTACK || command->kind == ENGINE_COMMAND_TACTIC ||
              command->kind == ENGINE_COMMAND_PLOT || command->kind == ENGINE_COMMAND_DUEL)
     {
@@ -725,6 +731,9 @@ internal engine_city_economy recorder_city_economy(void *o, u8 city_id)
     economy.morale = 50; economy.morale_max = 100;
     economy.soldiers = 8000; economy.soldier_cap = 100000; economy.weapon_cap = 100000;
     economy.grain_per_gold = 6; economy.barracks = 1; economy.barracks_free = 1;
+    economy.stocks[0] = 3000;   /* pikes: the pike class and its preset are white */
+    economy.stocks[1] = 1000;   /* halberds */
+    economy.stocks[4] = 2;      /* the shared stock of the siege weapons and the ships (recorder_weapon_kind_at) */
     return economy;
 }
 internal engine_income_forecast recorder_city_income_forecast(void *o, u8 city_id)
@@ -1026,7 +1035,8 @@ internal engine_unit_type recorder_unit_type_at(void *o, u32 index)
     snprintf(type.key, sizeof(type.key), "%s", recorder_unit_type_keys[index]);
     type.move      = 22;
     type.transport = index == 12;
-    type.weapon    = ENGINE_NO_WEAPON;
+    /* The weapon row of the class (recorder_weapon_keys): the sword, the boat and the transport carry none. */
+    type.weapon    = (u8)(index >= 1 && index <= 8 ? index - 1 : index == 10 || index == 11 ? index - 2 : ENGINE_NO_WEAPON);
     type.movement  = (u8)(index >= 9 && index <= 11 ? MOVEMENT_NAVY : index == 4 ? MOVEMENT_CAVALRY : index >= 5 && index <= 8 ? MOVEMENT_SIEGE : MOVEMENT_FOOT);
     return type;
 }

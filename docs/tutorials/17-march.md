@@ -176,6 +176,22 @@ Each turn a unit eats one grain for 10 soldiers (G2-049). A city eats one
 grain for 40 soldiers. The preset of 出征 proposes two grain for each
 soldier. Without grain the soldiers of a unit leave (`unit_deserted`).
 
+## The 出征 dialog of the original (G2-044, G2-057)
+The dialog opens with empty slots and a grey 決定. A preset button of a
+class fills the slots with sortie_proposal, two grain for each soldier
+and 1000 gold. A class or a preset without its weapon in the city is
+grey. The row 武器 chooses the land class. The row 艦船 chooses the ship
+for the water. The 走舸 is always there, and 樓船 or 鬥艦 when the city
+holds one. The order carries the ship (engine_sortie_order.ship). The
+sim takes one ship of the stock at the sortie. The unit fights as that
+ship on the water (sim_effective_type). The unit gives the ship back
+when it enters a city. The dialog shows the values on land and on the
+water, the tactics of the class and the stock of the base before and
+after. feature_sortie_ship_tests covers the ship in the sim, and the ui
+tests cover the empty open, the presets, the grey classes and the
+chosen ship. The unit panel shows the ship with its grade, the state
+and the skills of the officers (G2-046).
+
 ## The long orders (code/sim/orders.cpp)
 The second clone gap report (G2-042, G2-052, G2-056, G2-058) added the
 long orders of city-commands.md. A unit keeps an order and does one step

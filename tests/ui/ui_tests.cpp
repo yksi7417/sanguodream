@@ -2054,10 +2054,16 @@ register_ui_tests(ImGuiTestEngine *e)
         v.ui.show_sortie         = true;
         ctx->SetRef("###Sortie");
         ctx->Yield(2);
-        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_SORTIE_PROPOSAL), 1u);       /* the dialog starts from 自動編制 */
-        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_UNIT_VALUES), 1u);           /* it shows the values of the unit */
+        /* G2-044: the slots are empty at the open, and 決定 is grey. The preset of a class fills them. */
+        IM_CHECK_EQ(v.ui.sortie.order.officers[0], (u16)ENGINE_NO_OFFICER);
+        IM_CHECK((ctx->ItemInfo("###decide").ItemFlags & ImGuiItemFlags_Disabled) != 0);
+        ctx->ItemClick("###preset1");
+        ctx->Yield();
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_SORTIE_PROPOSAL), 1u);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_UNIT_VALUES), 2u);           /* the values on land and on the water */
         IM_CHECK_EQ(v.ui.sortie.order.officers[0], 100u);
-        ctx->ComboClick("###unit_type/###u4");
+        IM_CHECK(v.ui.sortie.order.soldiers == 5000 && v.ui.sortie.order.grain == 1500 && v.ui.sortie.order.gold == 1000);
+        ctx->ItemClick("###u2");                                                        /* the halberd class: 1000 halberds in the stock */
         ctx->ComboClick("###officer2/###o101");
         ctx->ItemInputValue("###soldiers", 2000);
         ctx->Yield();
@@ -2068,8 +2074,40 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_SORTIE), 1u);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
         engine_sortie_order sent = v.recorder.last_sortie;
-        IM_CHECK(sent.city_id == 0 && sent.unit_type == 4 && sent.soldiers == 2000 && sent.officers[0] == 100 && sent.officers[1] == 101);
+        IM_CHECK(sent.city_id == 0 && sent.unit_type == 2 && sent.soldiers == 2000 && sent.officers[0] == 100 && sent.officers[1] == 101);
+        IM_CHECK(sent.ship == 0);
         IM_CHECK(!v.ui.show_sortie);
+    };
+
+    /* G2-044, G2-057: a class without weapons in the city is grey, and so
+       is its preset. The ship row offers the boat always and a ship when
+       the city holds one; the chosen ship goes into the order. */
+    t = IM_REGISTER_TEST(e, "ui", "sortie_greys_a_class_without_weapons_and_sends_the_chosen_ship");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_sortie         = true;
+        ctx->SetRef("###Sortie");
+        ctx->Yield(2);
+        IM_CHECK((ctx->ItemInfo("###u1").ItemFlags & ImGuiItemFlags_Disabled) == 0);        /* pikes: 3000 in the stock */
+        IM_CHECK((ctx->ItemInfo("###u3").ItemFlags & ImGuiItemFlags_Disabled) != 0);        /* crossbows: none */
+        IM_CHECK((ctx->ItemInfo("###preset3").ItemFlags & ImGuiItemFlags_Disabled) != 0);   /* and its preset */
+        IM_CHECK((ctx->ItemInfo("###ship9").ItemFlags & ImGuiItemFlags_Disabled) == 0);     /* the boat, always */
+        IM_CHECK((ctx->ItemInfo("###ship10").ItemFlags & ImGuiItemFlags_Disabled) == 0);    /* a tower ship in the stock */
+        ctx->ItemClick("###preset1");
+        ctx->ItemClick("###ship10");
+        ctx->Yield();
+        IM_CHECK_EQ(v.ui.sortie.order.ship, 10u);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###decide");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_SORTIE), 1u);
+        IM_CHECK_EQ(v.recorder.last_sortie.ship, 10u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
     };
 
     t = IM_REGISTER_TEST(e, "ui", "transport_decide_issues_one_command_transport");
@@ -4544,6 +4582,8 @@ register_ui_tests(ImGuiTestEngine *e)
         v.ui.show_sortie         = true;
         ctx->SetRef("###Sortie");
         ctx->Yield(2);
+        ctx->ItemClick("###preset1");                                                   /* G2-044: the preset fills the empty slots */
+        ctx->Yield();
         IM_CHECK_EQ(v.ui.sortie.order.officers[0], 100u);
         recorder_reset(&v.recorder);
         ctx->ItemClick("###decide");
@@ -4551,6 +4591,28 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_SORTIE), 1u);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
         IM_CHECK(v.ui.units.selected == 0 && !v.ui.show_sortie);
+    };
+
+    /* G2-046: the unit panel shows the state, the skill of each officer,
+       the ship with its navy grade and the captives. It asks the values
+       of the ship class and commands nothing. */
+    t = IM_REGISTER_TEST(e, "ui", "unit_panel_shows_the_state_the_ship_and_the_captives_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.units.selected      = 0;
+        v.ui.show_unit           = true;
+        ctx->SetRef("###Unit");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_UNIT_VALUES), 1u);          /* the grade of the ship class */
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_UNIT_VALUES), 9u);     /* the boat: unit 0 has no ship of its own */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
     /* ---- clone gap report 2, group 3: the dialogs of ui_people.cpp -------- */

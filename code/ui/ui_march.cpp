@@ -38,6 +38,10 @@ ui_faction_rgba(u8 force)
 
 /* ---- the 出征 and 輸送 dialogs --------------------------------------------- */
 
+internal const char *ui_info_skill_name(ui_state *ui, engine_api *api, u8 skill);   /* ui_information.cpp */
+internal void        ui_draw_unit_values(ui_state *ui, engine_unit_values *values);  /* below */
+internal const char *ui_grade_text(u32 aptitude);                                    /* below */
+
 internal void
 ui_march_reset(engine_api *api, ui_march_dialog *dialog, b32 transport)
 {
@@ -49,13 +53,24 @@ ui_march_reset(engine_api *api, ui_march_dialog *dialog, b32 transport)
             if (api->unit_type_at(api->engine, index).transport) type = (u8)index;
         }
     }
-    dialog->order = api->sortie_proposal(api->engine, dialog->city, type);
-    dialog->order.unit_type = type;
     if (transport)
     {
+        dialog->order = api->sortie_proposal(api->engine, dialog->city, type);
+        dialog->order.unit_type = type;
         dialog->order.officers[1] = ENGINE_NO_OFFICER;
         dialog->order.officers[2] = ENGINE_NO_OFFICER;
         dialog->order.grain = 0;
+    }
+    else
+    {
+        /* G2-044: 出征 opens with empty slots and no soldiers, so 決定 is
+           grey. A preset button fills the slots. */
+        engine_sortie_order empty = {};
+        empty.city_id     = dialog->city;
+        empty.unit_type   = type;
+        empty.destination = ENGINE_NO_CITY;
+        for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place) empty.officers[place] = ENGINE_NO_OFFICER;
+        dialog->order = empty;
     }
     dialog->soldiers = (int)dialog->order.soldiers;
     dialog->gold     = (int)dialog->order.gold;
@@ -64,22 +79,173 @@ ui_march_reset(engine_api *api, ui_march_dialog *dialog, b32 transport)
     dialog->prepared_city = dialog->city;
 }
 
+/* The stock of the weapon of a class in the city, or U32_MAX for a class
+   without a weapon (the sword, the boat). */
+internal u32
+ui_class_stock(engine_api *api, engine_city_economy *economy, engine_unit_type *type)
+{
+    if (type->weapon == ENGINE_NO_WEAPON) return U32_MAX;
+    engine_weapon_kind weapon = api->weapon_kind_at(api->engine, type->weapon);
+    return weapon.stock < CITY_EQUIPMENT_STOCK_COUNT ? economy->stocks[weapon.stock] : 0;
+}
+
+/* The unit type of the 走舸, the ship of a land unit without a ship of its own. */
+internal u8
+ui_boat_type(engine_api *api)
+{
+    for (u32 index = 0; index < api->unit_type_count(api->engine); ++index)
+    {
+        engine_unit_type type = api->unit_type_at(api->engine, index);
+        if (type.movement == MOVEMENT_NAVY && type.weapon == ENGINE_NO_WEAPON) return type.id;
+    }
+    return ENGINE_NO_UNIT_TYPE;
+}
+
+/* G2-044: the preset of a class fills the slots with the proposal of the
+   engine, two grain for each soldier and 1000 gold (the preset of the
+   original; the gold is what the city can give). */
 internal void
-ui_draw_unit_type_combo(ui_state *ui, engine_api *api, ui_march_dialog *dialog)
+ui_sortie_preset(engine_api *api, ui_march_dialog *dialog, u8 type)
+{
+    engine_sortie_order proposal = api->sortie_proposal(api->engine, dialog->city, type);
+    engine_city city = api->city_at(api->engine, dialog->city);
+    dialog->order.unit_type = type;
+    for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place) dialog->order.officers[place] = proposal.officers[place];
+    dialog->soldiers = (int)proposal.soldiers;
+    dialog->grain    = (int)proposal.grain;
+    dialog->gold     = (int)Minimum(1000u, city.gold);
+}
+
+/* G2-044: the preset buttons 編制槍兵, 編制戟兵, 編制弩兵 and 編制騎兵, grey
+   when the city has no weapon of the class. Then the row 武器: one button
+   for each land class, grey without its weapon, with the 效果 line of the
+   chosen class. */
+internal void
+ui_draw_sortie_classes(ui_state *ui, engine_api *api, ui_march_dialog *dialog, engine_city_economy *economy)
 {
     char label[128];
-    engine_unit_type chosen = api->unit_type_at(api->engine, dialog->order.unit_type);
-    const char *preview = chosen.id == ENGINE_NO_UNIT_TYPE ? "-" : ui_text_with_key(ui, "unit_type", chosen.key);
-    if (ImGui::BeginCombo(ui_label(label, sizeof(label), ui, "sortie.unit_type", "unit_type"), preview))
+    static const char *presets[] = { "pike", "halberd", "crossbow", "cavalry" };
+    for (u32 index = 0; index < api->unit_type_count(api->engine); ++index)
     {
-        for (u32 index = 0; index < api->unit_type_count(api->engine); ++index)
-        {
-            engine_unit_type type = api->unit_type_at(api->engine, index);
-            if (type.transport) continue;
-            snprintf(label, sizeof(label), "%s###u%u", ui_text_with_key(ui, "unit_type", type.key), type.id);
-            if (ImGui::Selectable(label, type.id == dialog->order.unit_type)) dialog->order.unit_type = type.id;
-        }
-        ImGui::EndCombo();
+        engine_unit_type type = api->unit_type_at(api->engine, index);
+        b32 preset = false;
+        for (u32 which = 0; which < ArrayCount(presets); ++which) preset = preset || strcmp(type.key, presets[which]) == 0;
+        if (!preset) continue;
+        if (strcmp(type.key, "pike") != 0) ImGui::SameLine();
+        snprintf(label, sizeof(label), "%s%s###preset%u", text_get(ui->text, "sortie.preset"), ui_text_with_key(ui, "unit_type", type.key), type.id);
+        ImGui::BeginDisabled(ui_class_stock(api, economy, &type) == 0);
+        if (ImGui::Button(label)) ui_sortie_preset(api, dialog, type.id);
+        ImGui::EndDisabled();
+    }
+    ImGui::Text("%s:", text_get(ui->text, "sortie.weapons"));
+    for (u32 index = 0; index < api->unit_type_count(api->engine); ++index)
+    {
+        engine_unit_type type = api->unit_type_at(api->engine, index);
+        if (type.transport || type.movement == MOVEMENT_NAVY) continue;
+        ImGui::SameLine();
+        b32 chosen = type.id == dialog->order.unit_type;
+        snprintf(label, sizeof(label), "%s###u%u", ui_text_with_key(ui, "unit_type", type.key), type.id);
+        if (chosen) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.4f, 0.8f, 1.0f));
+        ImGui::BeginDisabled(ui_class_stock(api, economy, &type) == 0);
+        if (ImGui::SmallButton(label)) dialog->order.unit_type = type.id;
+        ImGui::EndDisabled();
+        if (chosen) ImGui::PopStyleColor();
+    }
+    engine_unit_type chosen = api->unit_type_at(api->engine, dialog->order.unit_type);
+    const char *effect = "-";
+    if (chosen.id != ENGINE_NO_UNIT_TYPE && chosen.weapon != ENGINE_NO_WEAPON)
+    {
+        char id[64];
+        snprintf(id, sizeof(id), "weapon_effect.%s", api->weapon_kind_at(api->engine, chosen.weapon).key);
+        const char *found = text_find_string(ui->text, id);
+        if (found) effect = found;
+    }
+    ImGui::Text("%s: %s", text_get(ui->text, "sortie.effect"), effect);
+}
+
+/* G2-057: the row 艦船: the 走舸 always, a ship with a weapon row when the
+   city holds one. The choice goes into the order. */
+internal void
+ui_draw_sortie_ships(ui_state *ui, engine_api *api, ui_march_dialog *dialog, engine_city_economy *economy)
+{
+    char label[128];
+    ImGui::Text("%s:", text_get(ui->text, "sortie.ships"));
+    for (u32 index = 0; index < api->unit_type_count(api->engine); ++index)
+    {
+        engine_unit_type type = api->unit_type_at(api->engine, index);
+        if (type.movement != MOVEMENT_NAVY) continue;
+        ImGui::SameLine();
+        b32 boat = type.weapon == ENGINE_NO_WEAPON;
+        b32 chosen = boat ? dialog->order.ship == 0 : dialog->order.ship == type.id;
+        snprintf(label, sizeof(label), "%s###ship%u", ui_text_with_key(ui, "unit_type", type.key), type.id);
+        if (chosen) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.4f, 0.8f, 1.0f));
+        ImGui::BeginDisabled(!boat && ui_class_stock(api, economy, &type) == 0);
+        if (ImGui::SmallButton(label)) dialog->order.ship = boat ? 0 : type.id;
+        ImGui::EndDisabled();
+        if (chosen) ImGui::PopStyleColor();
+    }
+}
+
+/* G2-044: 部隊能力 with the tabs 陸上 and 水上, the grade of the class, the
+   morale and the tactics of the class (grey when the grade of the unit is
+   below the grade that the tactic needs). */
+internal void
+ui_draw_sortie_ability(ui_state *ui, engine_api *api, ui_march_dialog *dialog, engine_city *city, engine_city_economy *economy)
+{
+    ImGui::TextUnformatted(text_get(ui->text, "sortie.ability"));
+    u8 ship = dialog->order.ship ? dialog->order.ship : ui_boat_type(api);
+    engine_unit_values land  = api->unit_values(api->engine, city->owner_force_id, dialog->order.unit_type, dialog->order.officers);
+    engine_unit_values water = api->unit_values(api->engine, city->owner_force_id, ship, dialog->order.officers);
+    if (ImGui::BeginTabBar("###ability"))
+    {
+        char tab[64];
+        snprintf(tab, sizeof(tab), "%s###land", text_get(ui->text, "sortie.land"));
+        if (ImGui::BeginTabItem(tab)) { ui_draw_unit_values(ui, &land); ImGui::EndTabItem(); }
+        snprintf(tab, sizeof(tab), "%s###water", text_get(ui->text, "sortie.water"));
+        if (ImGui::BeginTabItem(tab)) { ui_draw_unit_values(ui, &water); ImGui::EndTabItem(); }
+        ImGui::EndTabBar();
+    }
+    engine_unit_type type = api->unit_type_at(api->engine, dialog->order.unit_type);
+    ImGui::Text("%s %s (%s)   %s %u", text_get(ui->text, "unit.class"), type.id == ENGINE_NO_UNIT_TYPE ? "-" : ui_text_with_key(ui, "unit_type", type.key),
+                ui_grade_text(land.aptitude), text_get(ui->text, "command.morale"), economy->morale);
+    ImGui::Text("%s:", text_get(ui->text, "sortie.tactics"));
+    for (u32 row = 0; row < api->tactic_kind_count(api->engine); ++row)
+    {
+        engine_tactic_kind tactic = api->tactic_kind_at(api->engine, row);
+        if (!((tactic.unit_types >> dialog->order.unit_type) & 1)) continue;
+        ImGui::SameLine();
+        ImGui::BeginDisabled(land.aptitude == 255 || tactic.aptitude > land.aptitude);
+        ImGui::TextUnformatted(ui_text_with_key(ui, "tactic", tactic.key));
+        ImGui::EndDisabled();
+    }
+}
+
+/* G2-044: 據點庫存, the stock of the base before and after the sortie: the
+   weapon of the class, the soldiers, the gold and the grain. A line that
+   goes to zero is red. */
+internal void
+ui_draw_sortie_stock(ui_state *ui, engine_api *api, ui_march_dialog *dialog, engine_city *city, engine_city_economy *economy)
+{
+    ImGui::TextUnformatted(text_get(ui->text, "sortie.stock"));
+    engine_unit_type type = api->unit_type_at(api->engine, dialog->order.unit_type);
+    struct stock_line { const char *name; u32 before, taken; } lines[4];
+    u32 count = 0;
+    if (type.id != ENGINE_NO_UNIT_TYPE && type.weapon != ENGINE_NO_WEAPON)
+    {
+        engine_weapon_kind weapon = api->weapon_kind_at(api->engine, type.weapon);
+        u32 stock = ui_class_stock(api, economy, &type);
+        /* A siege weapon or a ship takes one item; a soldier class takes one weapon for each soldier. */
+        u32 taken = weapon.max_days ? 1 : dialog->order.soldiers;
+        lines[count++] = { ui_text_with_key(ui, "weapon", weapon.key), stock, taken };
+    }
+    lines[count++] = { text_get(ui->text, "command.soldiers"), economy->soldiers, dialog->order.soldiers };
+    lines[count++] = { text_get(ui->text, "command.gold"), city->gold, dialog->order.gold };
+    lines[count++] = { text_get(ui->text, "command.grain"), city->food, dialog->order.grain };
+    for (u32 index = 0; index < count; ++index)
+    {
+        u32 after = lines[index].taken > lines[index].before ? 0 : lines[index].before - lines[index].taken;
+        ImVec4 colour = after == 0 ? ImVec4(1.0f, 0.4f, 0.35f, 1.0f) : ImGui::GetStyleColorVec4(ImGuiCol_Text);
+        ImGui::TextColored(colour, "%s %u -> %u", lines[index].name, lines[index].before, after);
     }
 }
 
@@ -130,8 +296,9 @@ ui_draw_march_dialog(ui_state *ui, engine_api *api, b32 transport)
     bool *show = transport ? &ui->show_transport : &ui->show_sortie;
     const char *title_id = transport ? "transport.title" : "sortie.title";
     char title[128];
-    ImGui::SetNextWindowSize(ImVec2(480, 440), ImGuiCond_FirstUseEver);
-    ui_context_place(ui, 1);   /* the game mode: the dialog opens next to its entity */
+    ImVec2 size = transport ? ImVec2(480, 440) : ImVec2(640, 620);
+    ImGui::SetNextWindowSize(size, ImGuiCond_FirstUseEver);
+    ui_context_place_sized(ui, 1, size);   /* the game mode: next to its entity, and on the screen (G2-044) */
     if (ImGui::Begin(ui_label(title, sizeof(title), ui, title_id, transport ? "Transport" : "Sortie"), show))
     {
         ui_context_track(ui);
@@ -140,20 +307,24 @@ ui_draw_march_dialog(ui_state *ui, engine_api *api, b32 transport)
         char city_name[96], label[96];
         ui_city_label(ui, api, dialog->city, city_name, sizeof(city_name));
         ImGui::Text("%s: %s", text_get(ui->text, "city.select"), city_name);
-        if (transport) ui_draw_destination_combo(ui, api, dialog);
-        else           ui_draw_unit_type_combo(ui, api, dialog);
-        if (ImGui::Button(ui_label(label, sizeof(label), ui, "sortie.auto", "auto")))
+        engine_city city = api->city_at(api->engine, dialog->city);
+        engine_city_economy economy = api->city_economy(api->engine, dialog->city);
+        if (transport)
         {
-            u8 destination = dialog->order.destination;
-            u8 type = dialog->order.unit_type;
-            ui_march_reset(api, dialog, transport);
-            dialog->order.destination = destination;
-            if (!transport) dialog->order.unit_type = type;
-            engine_sortie_order proposal = api->sortie_proposal(api->engine, dialog->city, dialog->order.unit_type);
-            for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place) dialog->order.officers[place] = proposal.officers[place];
-            if (!transport) { dialog->soldiers = (int)proposal.soldiers; dialog->grain = (int)proposal.grain; }
+            ui_draw_destination_combo(ui, api, dialog);
+            if (ImGui::Button(ui_label(label, sizeof(label), ui, "sortie.auto", "auto")))
+            {
+                u8 destination = dialog->order.destination;
+                ui_march_reset(api, dialog, transport);
+                dialog->order.destination = destination;
+            }
+            ImGui::SameLine();
         }
-        ImGui::SameLine();
+        else
+        {
+            ui_draw_sortie_classes(ui, api, dialog, &economy);
+            ui_draw_sortie_ships(ui, api, dialog, &economy);
+        }
         ImGui::Button(ui_label(label, sizeof(label), ui, "command.executor", "executor"));
         u16 free_ids[UI_DEVELOP_OFFICER_LIST];
         u32 free_count = ui_free_officers(api, dialog->city, free_ids, ArrayCount(free_ids));
@@ -162,9 +333,30 @@ ui_draw_march_dialog(ui_state *ui, engine_api *api, b32 transport)
         {
             ui_draw_growth_officer(ui, api, dialog->order.officers + place, place, CONTENT_ABILITY_LEADERSHIP, free_ids, free_count);
         }
-        ui_draw_amount(ui, "sortie.soldiers", "soldiers", &dialog->soldiers);
-        ui_draw_amount(ui, "sortie.gold", "gold", &dialog->gold);
-        ui_draw_amount(ui, "sortie.grain", "grain", &dialog->grain);
+        if (transport)
+        {
+            ui_draw_amount(ui, "sortie.soldiers", "soldiers", &dialog->soldiers);
+            ui_draw_amount(ui, "sortie.gold", "gold", &dialog->gold);
+            ui_draw_amount(ui, "sortie.grain", "grain", &dialog->grain);
+        }
+        else
+        {
+            /* G2-044: three sliders, with the days that the grain lasts at one grain for ten soldiers each turn. */
+            ImGui::SetNextItemWidth(260.0f);
+            ImGui::SliderInt(ui_label(label, sizeof(label), ui, "sortie.soldiers", "soldiers"), &dialog->soldiers, 0, (int)economy.soldiers);
+            ImGui::SetNextItemWidth(260.0f);
+            ImGui::SliderInt(ui_label(label, sizeof(label), ui, "sortie.gold", "gold"), &dialog->gold, 0, (int)city.gold);
+            ImGui::SetNextItemWidth(260.0f);
+            ImGui::SliderInt(ui_label(label, sizeof(label), ui, "sortie.grain", "grain"), &dialog->grain, 0, (int)city.food);
+            if (dialog->soldiers >= 10)
+            {
+                ImGui::SameLine();
+                ImGui::Text("%u %s", (u32)dialog->grain / ((u32)dialog->soldiers / 10) * CALENDAR_DAYS_PER_TURN, text_get(ui->text, "sortie.days"));
+            }
+            if (dialog->soldiers < 0) dialog->soldiers = 0;
+            if (dialog->gold < 0) dialog->gold = 0;
+            if (dialog->grain < 0) dialog->grain = 0;
+        }
         if (transport)
         {
             for (u32 index = 0; index < 4; ++index)
@@ -188,11 +380,12 @@ ui_draw_march_dialog(ui_state *ui, engine_api *api, b32 transport)
             if (weapon.stock < CITY_EQUIPMENT_STOCK_COUNT) dialog->order.cargo[weapon.stock] = (u32)dialog->cargo[index];
         }
 
-        engine_city city = api->city_at(api->engine, dialog->city);
         if (!transport)
         {
-            engine_unit_values values = api->unit_values(api->engine, city.owner_force_id, dialog->order.unit_type, dialog->order.officers);
-            ui_draw_unit_values(ui, &values);
+            ImGui::Separator();
+            ui_draw_sortie_ability(ui, api, dialog, &city, &economy);
+            ImGui::Separator();
+            ui_draw_sortie_stock(ui, api, dialog, &city, &economy);
         }
         engine_command command = {};
         command.kind   = transport ? ENGINE_COMMAND_TRANSPORT : ENGINE_COMMAND_SORTIE;
@@ -418,11 +611,22 @@ ui_draw_unit_panel(ui_state *ui, engine_api *api)
         ImGui::Text("%s:", text_get(ui->text, "column.owner"));
         ImGui::SameLine();
         ui_code_cell(ui, api, UI_CODE_FORCE, unit.force_id, ENGINE_NO_FACTION);
+        /* G2-046: 狀態 (普通 when nothing is on the unit) and the skill of each officer in a red box. */
+        char state_id[32];
+        snprintf(state_id, sizeof(state_id), "unit.state_%u", unit.state);
+        ImGui::Text("%s: %s", text_get(ui->text, "unit.state"), text_get(ui->text, state_id));
         for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place)
         {
             ImGui::Text("%s:", text_get(ui->text, place == 0 ? "unit.commander" : "unit.deputy"));
             ImGui::SameLine();
             ui_code_cell(ui, api, UI_CODE_OFFICER, unit.officers[place], UI_NO_ID_16);
+            if (unit.officers[place] == ENGINE_NO_OFFICER) continue;
+            engine_officer officer = api->officer_by_id(api->engine, unit.officers[place]);
+            if (officer.skill_number == 255) continue;
+            ImGui::SameLine();
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.2f, 0.2f, 1.0f));
+            ImGui::SmallButton(ui_info_skill_name(ui, api, officer.skill_number));
+            ImGui::PopStyleColor();
         }
         ImGui::Text("%s %u  %s %u", text_get(ui->text, "command.gold"), unit.gold, text_get(ui->text, "command.grain"), unit.grain);
         /* A changed value keeps its colour for a few seconds after its hit (ui_war.cpp). */
@@ -437,12 +641,22 @@ ui_draw_unit_panel(ui_state *ui, engine_api *api)
         engine_unit_type type = api->unit_type_at(api->engine, unit.unit_type);
         ImGui::Text("%s: %s (%s)", text_get(ui->text, "unit.class"), type.id == ENGINE_NO_UNIT_TYPE ? "-" : ui_text_with_key(ui, "unit_type", type.key),
                     ui_grade_text(unit.values.aptitude));
+        /* G2-046: 艦船 with the navy grade of the officers, and 俘虜. A unit without
+           a ship of its own rows as a 走舸. The clone keeps no captive on a unit:
+           a captured officer goes to a city of the captor (assumed, Q-176). */
+        if (type.id != ENGINE_NO_UNIT_TYPE && type.movement != MOVEMENT_NAVY)
+        {
+            u8 ship = unit.ship_type != ENGINE_NO_UNIT_TYPE ? unit.ship_type : ui_boat_type(api);
+            engine_unit_type ship_kind = api->unit_type_at(api->engine, ship);
+            engine_unit_values afloat = api->unit_values(api->engine, unit.force_id, ship, unit.officers);
+            ImGui::Text("%s: %s (%s)", text_get(ui->text, "unit.ship"), ship_kind.id == ENGINE_NO_UNIT_TYPE ? "-" : ui_text_with_key(ui, "unit_type", ship_kind.key),
+                        ui_grade_text(afloat.aptitude));
+        }
+        ImGui::Text("%s: 0", text_get(ui->text, "unit.captives"));
         ui_draw_unit_values(ui, &unit.values);
         if (type.transport) ui_draw_unit_cargo(ui, api, &unit);
         if (unit.state)
         {
-            char state_id[32];
-            snprintf(state_id, sizeof(state_id), "unit.state_%u", unit.state);
             /* 混亂 ends by a chance each turn (Q-218): it has no count of turns to show. */
             if (unit.state == UNIT_STATE_CONFUSED) ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "%s", text_get(ui->text, state_id));
             else ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "%s (%u)", text_get(ui->text, state_id), unit.state_turns);

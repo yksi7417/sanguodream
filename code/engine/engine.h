@@ -193,6 +193,8 @@ struct engine_sortie_order
     u32 soldiers, gold, grain;
     u8  destination;        /* 輸送 */
     u32 cargo[CITY_EQUIPMENT_STOCK_COUNT];   /* 輸送 */
+    u8  ship;               /* 出征 (G2-057): the navy row of unit_type_at that the unit takes for the water (樓船, 鬥艦), one
+                               from the stock of the city; 0 = none, the unit rows as a 走舸 */
 };
 
 /* A command that a front end can check before it issues it. */

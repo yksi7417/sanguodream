@@ -60,6 +60,9 @@ run of 2026-10-22".
 | G2-054 | 戰法 opens the tactics as a column next to the unit menu, and the menu stays. A row shows the cost in 氣力 in brackets. A tactic with no target in its pattern is grey (the probe of the command over the hexes within 3). A choice closes the menu and starts the pick. During the pick the scene shows the hexes that the tactic can hit in red, and the status bar says 以戰法進行攻擊. The speech of the leader, the dark map with the cross icon and the show of the shot stay open (G2-050). | P2 batch 4 | ui |
 | G2-064 | The research window stays on the screen: a dialog of a known size clamps its place to the display (ui_context_place_sized). Each technique shows its state: green and grey when the force has it, blue with the turns left while the research runs on it, grey when its line needs the level before it, white when it is open. A hover names the state with the points and the gold. The menu item 研究技巧 probes every technique, not the first one, so a force that owns the first technique still sees the item white. | P2 batch 4 | ui |
 | G2-024 | The city window opens at its top each time, so the menu buttons stand at the same place at each open. | P2 batch 4 | ui |
+| G2-044 | 出征 opens on the screen with empty slots and a grey 決定. The presets 編制槍兵, 編制戟兵, 編制弩兵 and 編制騎兵 fill the slots with the proposal of the engine, two grain for each soldier and 1000 gold (the preset of the original; the gold is what the city can give). A preset or a class without its weapon in the city is grey. The row 武器 has one button for each land class with the 效果 line of the chosen weapon. Three sliders give the soldiers, the gold and the grain with the days it lasts. 部隊能力 has the tabs 陸上 and 水上 with the five values, the grade of the class, 氣力 and the tactics of the class (grey when the grade of the unit is below the grade of the tactic). 據點庫存 shows the weapon, the soldiers, the gold and the grain of the base before and after, red when a line goes to zero. The pentagon chart, the icons and 編制建設 stay open: the spec gives no rule for the officers of 編制建設. | P2 batch 5 | feature/march, ui |
+| G2-057 | The row 艦船 offers the 走舸 always, and 樓船 or 鬥艦 when the city holds one. The order carries the ship: the sortie takes one ship of the stock, and the unit rows and fights as that ship on the water (the effective class of the sim). A unit that enters a city gives the ship back. The tab 水上 shows the values on the water, and the unit panel shows the ship with its grade. | P2 batch 5 | feature/march, ui |
+| G2-046 | The unit panel shows 狀態 (普通 when nothing is on the unit), the skill of each officer in a red box, 艦船 with the ship of the unit (the 走舸 without one) and its grade, and 俘虜. The clone keeps no captive on a unit (a captured officer goes to a city of the captor, Q-176), so 俘虜 is 0. | P2 batch 5 | ui |
 | G2-038, G2-039 (the dialogs) | The Court panel shows the clue of the adviser next to 探索 and next to 登庸 (ui/city-commands.md: the estimate after the choice of a target). The clue has three bands of the chance in percent (advice.low_below 34, advice.high_from 67, assumed) in three colours, with the name of the 軍師. A hover shows the chance. The words and the thresholds of the original are a question below. | feat/court-feedback | unit/court, feature/court, ui |
 | G2-022 | 訓練 raises the morale by floor(4 + 0.115 x S) in a city with a 鍊兵所 and by floor(3 + S / 15) without one. S is the force of the first officer plus half of the force of each other officer (the run of 2026-10-22, 17 rows). The fixture handler checks the rows without a drill ground, builds one, then checks the rows with it. | settled rules | unit/economy, feature/city_commands, fixture/train |
 | G2-026 | 生產兵裝 gives F x (1000 + 10 x I) weapons, with F 1.5 for a level-3 smithy. I is the intellect of the first officer plus half of the intellect of each other officer (the run of 2026-10-22, 6 rows). | settled rules | unit/economy, feature/city_commands, fixture/produce |
@@ -104,11 +107,9 @@ run of 2026-10-22".
   force.
 - P2 batch 4: the tactic column, the research window and the city
   window at its top.
+- P2 batch 5: the 出征 dialog of the original with the ships, and the
+  unit panel.
 - Next: the other P2 rows, then P3. The P2 rows are:
-  - the 出征 dialog with its presets, weapon icons and ships (G2-044,
-    G2-057);
-  - the unit panel with the skills, the ship class and the captives
-    (G2-046);
   - the skill row and the speech of the command dialogs (G2-017,
     G2-018);
   - the messages of the load, the turn start and the month start

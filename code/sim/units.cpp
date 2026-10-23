@@ -538,6 +538,13 @@ sim_check_sortie(sim_state *sim, sim_sortie_order *order, b32 transport)
     }
     u32 weapons = sim_sortie_weapons(sim, type, order->soldiers);
     if (weapons && city->equipment_stocks[sim->content.weapons[type->weapon].stock] < weapons) return sim_refuse(check, SIM_REFUSAL_NO_WEAPONS);
+    if (!transport && order->ship)
+    {
+        /* G2-057: the ship for the water is a navy class with a weapon row, one from the stock of the city. */
+        unit_type_kind *ship = sim_unit_type(sim, order->ship);
+        if (!ship || ship->movement != MOVEMENT_NAVY || ship->weapon >= sim->content.weapon_count) return sim_refuse(check, SIM_REFUSAL_NO_UNIT);
+        if (city->equipment_stocks[sim->content.weapons[ship->weapon].stock] < 1) return sim_refuse(check, SIM_REFUSAL_NO_WEAPONS);
+    }
     for (u32 stock = 0; transport && stock < CITY_EQUIPMENT_STOCK_COUNT; ++stock)
     {
         if (order->cargo[stock] > city->equipment_stocks[stock]) return sim_refuse(check, SIM_REFUSAL_NO_WEAPONS);
@@ -618,6 +625,15 @@ sim_sortie(sim_state *sim, sim_command command, sim_event_sink *events)
         sim_city_give(sim, city, city->equipment_stocks + sim->content.weapons[type->weapon].stock, unit->weapons,
                       SIM_EVENT_UNIT_WEAPONS_TAKEN, unit_id, command.id, events);
     }
+    if (!transport && order->ship)
+    {
+        /* G2-057: the unit takes one ship of the stock, and rows as it on the water. */
+        unit_type_kind *ship = sim_unit_type(sim, order->ship);
+        unit->has_ship  = true;
+        unit->ship_type = order->ship;
+        sim_city_give(sim, city, city->equipment_stocks + sim->content.weapons[ship->weapon].stock, 1,
+                      SIM_EVENT_UNIT_WEAPONS_TAKEN, unit_id, command.id, events);
+    }
     for (u32 stock = 0; transport && stock < CITY_EQUIPMENT_STOCK_COUNT; ++stock)
     {
         unit->cargo[stock] = order->cargo[stock];
@@ -665,6 +681,16 @@ sim_unit_enter_city(sim_state *sim, u32 unit_id, u8 city_id, sim_event_kind kind
     {
         sim_city_take(sim, city, &city->troops, sim_city_soldier_cap(sim, city_id), unit->soldiers, SIM_EVENT_UNIT_ENTERED_CITY,
                       SIM_EVENT_NONE, unit_id, cause, events);
+        if (unit->has_ship)
+        {
+            /* G2-057: the ship of the unit goes back to the stock of the city. */
+            unit_type_kind *ship = sim_unit_type(sim, unit->ship_type);
+            if (ship && ship->weapon < sim->content.weapon_count)
+            {
+                u32 *ship_stock = city->equipment_stocks + sim->content.weapons[ship->weapon].stock;
+                *ship_stock = (u32)Minimum((u64)*ship_stock + 1, (u64)rules->city_weapon_cap);
+            }
+        }
         if (type && type->weapon < sim->content.weapon_count && unit->weapons)
         {
             u32 *stock = city->equipment_stocks + sim->content.weapons[type->weapon].stock;
