@@ -425,6 +425,17 @@ feature_siege_tests(test_counts *counts)
     for (u32 d = 0; d < HEX_DIRECTION_COUNT && !api->set_unit_place(e, unit_id, force, next.q, next.r); ++d) next = hex_neighbor(hex_make(site.q, site.r), d);
     api->set_unit(e, unit_id, 1000, 80);
     engine_city_siege siege = api->city_siege(e, target);
+    /* G2-009 (Q-222): the maximum of the wall is the static city constant of the save, and the wall never goes above it. */
+    b32 maxima_hold = true;
+    for (u32 id = 0; id < api->city_count(e); ++id)
+    {
+        engine_city each = api->city_at(e, (u8)id);
+        engine_city_siege wall = api->city_siege(e, (u8)id);
+        if (each.city_id == ENGINE_NO_CITY || each.owner_force_id == ENGINE_NO_FACTION) continue;
+        maxima_hold &= (!each.capacity_constant || wall.durability_max >= each.capacity_constant) && wall.durability <= wall.durability_max;
+    }
+    TEST_CHECK(counts, maxima_hold && siege.durability_max == api->city_at(e, target).capacity_constant,
+               "the maximum of the wall is the static city constant (G2-009, assumed from three cities), and no wall is above it");
     TEST_CHECK(counts, unit_id != ENGINE_NO_UNIT && siege.city_id == target && siege.durability == siege.durability_max && siege.durability_max > 0,
                "a base starts with its full durability");
 

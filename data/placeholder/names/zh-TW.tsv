@@ -1,0 +1,4 @@
+key	text	note
+# Names in Traditional Chinese, keyed by the Big5 bytes of one name field as upper-case hex.
+# The decoder reads standard Big5 by itself. This file holds only the names that use a user-defined Big5 code (lead bytes 0xFA..0xFE), which no table maps.
+FA45	儁	the given name of 朱儁 (officer 249): the scenario writes a user-defined code (G2-010)

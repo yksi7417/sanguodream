@@ -103,6 +103,11 @@ places:
 
 Each name field has its own key: the family name, the given name and the
 city name. One row thus serves each officer with that family name.
+names/zh-TW.tsv holds only the names that use a user-defined Big5 code,
+with the lead bytes 0xFA..0xFE. No table maps those codes. The given
+name of 朱儁 is FA45 in the scenario (G2-010). The font atlas takes its
+glyphs from the text and names files of each locale, so a row there also
+gives the glyph.
 
 ## Labels of enum codes
 The save keeps an enum as a number, for example the officer status.

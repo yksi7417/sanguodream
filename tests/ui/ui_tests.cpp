@@ -5041,6 +5041,11 @@ register_ui_tests(ImGuiTestEngine *e)
             if (strstr(name, needle)) bad_names++;
         }
         IM_CHECK_EQ(bad_names, 0u);
+        /* G2-010: the user-defined code FA45, the given name of the officer 249, reads as its glyph through names/zh-TW.tsv. */
+        text_catalog_set_locale(&v.text, "zh-TW");
+        const u8 jun[5] = { 0xFA, 0x45, 0, 0, 0 };
+        text_name(&v.text, jun, sizeof(jun), name, sizeof(name));
+        IM_CHECK(strcmp(name, "\xE5\x84\x81") == 0);
     };
 
     /* M17: the first hour from the title with the original timing and the

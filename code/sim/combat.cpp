@@ -367,7 +367,12 @@ internal u32
 sim_city_durability_max(sim_state *sim, city_component *city)
 {
     sim_rules *rules = &sim->content.rules;
-    u32 maximum = city->durability_maximum ? city->durability_maximum : rules->siege_default_durability;
+    /* G2-009 (Q-222): the original shows the static city constant as the
+       maximum (4600 for 襄陽, 4000 for 江陵, 2400 for 新野), not the field
+       that the spec named durability_maximum (7000, 6000). Assumed from
+       three cities. */
+    u32 maximum = city->capacity_constant ? city->capacity_constant :
+                  (city->durability_maximum ? city->durability_maximum : rules->siege_default_durability);
     if (sim_has_technique_effect(sim, city->owner_force_id, TECHNIQUE_EFFECT_CITADEL, CONTENT_CLASS_NONE) && rules->siege_wall_percent)
     {
         maximum = sim_percent_of(maximum, rules->siege_wall_percent);

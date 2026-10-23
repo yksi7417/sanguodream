@@ -687,6 +687,7 @@ sim_run_bases(sim_state *sim, u32 cause, sim_event_sink *events)
             continue;
         }
         u32 maximum = sim_city_durability_max(sim, city);
+        if (city->durability > maximum) city->durability = maximum;   /* G2-009: a save of an older rule can hold more */
         if (city->durability >= maximum) continue;
         u32 recovery = rules->siege_recovery;
         u32 engineers = sim_technique_effect_value(sim, city->owner_force_id, TECHNIQUE_EFFECT_FACILITY_RECOVERY);

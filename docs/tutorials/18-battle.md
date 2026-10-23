@@ -145,8 +145,11 @@ technique points.
   Q-034.
 
 ## Sieges
-A base has a durability: the maximum of the save, or
-siege.default_durability. An attack on a base takes soldiers and
+A base has a durability. Its maximum is the static city constant of the
+save, else siege.default_durability (G2-009, Q-222). The original shows
+4600/4600 for 襄陽, where the field that the spec named
+durability_maximum holds 7000. The wall never goes above the maximum. An
+attack on a base takes soldiers and
 durability. The walls answer a melee attack with combat.base_counter
 soldiers. When the soldiers or the durability of a base end, the
 attacker takes the base, its officers become captives and the unit

@@ -414,6 +414,7 @@ sim_add_city(sim_state *sim, city_component city)
     }
     sim->city_index[city.city_id] = (u8)sim->cities.count;
     if (!city.durability) city.durability = sim_city_durability_max(sim, &city);   /* a new base starts whole (M6) */
+    if (city.durability > sim_city_durability_max(sim, &city)) city.durability = sim_city_durability_max(sim, &city);   /* G2-009: never above the maximum */
     table_add(&sim->cities, em_create(&sim->entities), city);
     return true;
 }

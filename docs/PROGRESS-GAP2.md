@@ -77,6 +77,8 @@ run of 2026-10-22".
 | 齊攻 (play report of 2026-10-23) | 齊攻 takes only the units next to the target. A crossbow unit two hexes away keeps its turn. A unit after a destroyed target keeps its turn. | P2 batch 6 | feature/combat |
 | G2-045, G2-050, the flow (play report of 2026-10-23) | A click on a hex of the range opens the command menu at that hex, before the move. The engine checks each item from the destination (can_issue_after_move). The choice sends the move and then the action. A right click leaves the unit in place. The strike of the action waits for the walk. | move flow | feature/combat, ui |
 | 俘虜處置 (play report of 2026-10-23) | After a battle, one dialog for each officer that the player captured: the portrait, the abilities, the age, the skill, and 登庸 (the chance of the ruler, assumed), 俘虜, 釋放 and 處決 (assumed: the officer dies, nothing else). A failed 登庸 opens the dialog again with 登庸 grey. | captive dialog | feature/court, ui |
+| G2-009 | The maximum of the wall of a city is the static city constant of the save (Q-222: 4600, 4000 and 2400 match the original), not the field named durability_maximum. The wall never goes above it, also after a load. | P2 batch 7 | feature/combat |
+| G2-010 | The given name of 朱儁 is the user-defined Big5 code FA45 in the scenario. names/zh-TW.tsv maps it to 儁, and the glyph goes into the font atlas with the names file. | P2 batch 7 | ui |
 | duel sides (play report of 2026-10-23) | The player plays side 0 of the duel screen. When the computer challenges the player, the sides swap. A duel of two computer officers runs to its end at once with no screen. The treason event takes no stale corps record as the 都督. | duel sides | feature/court |
 | saves of older builds (play report of 2026-10-23) | The header of a save carries the layout of sim_state. A file with another layout does not load. The content comes from the pack, not from the file. The saves of 2026-10-22 load through a migration. tests/fixtures/saves/slot_01.hxs guards the load. | save compat | feature/save_compat |
 | unit log lines (play report of 2026-10-23) | The log names a unit by its commander (周泰隊：士兵 -232) in place of 一支部隊. The commander is the subject of a unit event, so the name stays after the unit is gone. | P2 batch 6 | feature/combat |
@@ -321,3 +323,16 @@ run of 2026-10-22".
   captives. What does 處決 change besides the death: the relations, the
   loyalty of the officers of the captive's faction, or the fame of the
   ruler? Please compare the save before and after one 處決.
+- G2-020, the sex of an officer. The spec has no sex field in the officer
+  record (+69 is not the sex). The clone draws a generated face for an
+  officer without a picture in the pack. Every loaded officer counts as
+  a man. The pack of 279 portraits has no picture of 蔡和 and 龔都, so
+  the clone generates their faces. Please find the sex of an officer in
+  the record, or give a list of the female officers. The portrait numbers
+  of the record are not the numbers of the picture files of the pack. The
+  record gives 87 for 蔡瑁 and 336 for 蔡和. So the clone picks the
+  pictures by name.
+- G2-021, the second copy of text in the city panel for one second. The
+  clone draws the panel one time for each frame, and no test draws two
+  copies. Please note the exact words of the ghost text and the panel
+  that was open before, so that the clone can find the source.
