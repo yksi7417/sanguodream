@@ -105,6 +105,17 @@ ui_test_count_meshes(render_commands *rc, u32 mesh_id, f32 *scale_out)
     return count;
 }
 
+/* The yaw of the first instance of one mesh id, or -100 when none. */
+internal f32
+ui_test_mesh_yaw(render_commands *rc, u32 mesh_id)
+{
+    for (u32 index = 0; rc && index < rc->mesh_instance_count; ++index)
+    {
+        if (rc->mesh_instances[index].mesh_id == mesh_id) return rc->mesh_instances[index].yaw;
+    }
+    return -100.0f;
+}
+
 /* The five city command dialogs of M3: the window, the City panel button,
    the UI kind and the engine command that 決定 issues. */
 struct ui_command_case
@@ -3874,6 +3885,28 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
+    /* The axis of the passage of a gate: the axis with a passable hex on
+       both sides wins; a road on both sides wins between two open axes;
+       the axis with fewer passable hexes beside it wins between two open
+       axes without a road (a gap in the cliffs). */
+    t = IM_REGISTER_TEST(e, "ui", "gate_axis_follows_the_open_axis_the_road_and_the_gap");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        (void)ctx;
+        b32 passable[HEX_DIRECTION_COUNT], road[HEX_DIRECTION_COUNT] = {};
+        for (u32 d = 0; d < HEX_DIRECTION_COUNT; ++d) passable[d] = d == 1 || d == 4;   /* cliffs except the axis 1 */
+        IM_CHECK_EQ(ui_gate_axis(passable, road), 1u);
+        for (u32 d = 0; d < HEX_DIRECTION_COUNT; ++d) passable[d] = true;                /* open ground: the road decides */
+        road[2] = road[5] = true;
+        IM_CHECK_EQ(ui_gate_axis(passable, road), 2u);
+        road[2] = road[5] = false;
+        passable[1] = passable[4] = false;                                               /* two open axes, cliffs on axis 1: the gap is axis 0 or 2 */
+        passable[2] = false;                                                             /* axis 2 loses one side */
+        IM_CHECK_EQ(ui_gate_axis(passable, road), 0u);
+    };
+
     /* The scene draws a gate on each pass and a pier on each port, in the
        colour of the owner. The recorder has one pass and one port. The
        scene asks base_at and commands nothing. */
@@ -3894,6 +3927,12 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(ui_test_count_meshes(v.frame.render, RENDER_MESH_GATE, &scale), 1u);
         IM_CHECK_EQ(scale, 1.0f);
         IM_CHECK_EQ(ui_test_count_meshes(v.frame.render, RENDER_MESH_PORT, 0), 1u);
+        /* The pass of the recorder stands at column 4, next to the column 3
+           of unknown terrain that no unit can enter. The only axis with a
+           passable hex on both sides runs along the column, so the passage
+           of the gate points along the world Z axis. */
+        f32 yaw = ui_test_mesh_yaw(v.frame.render, RENDER_MESH_GATE);
+        IM_CHECK_LT(fabsf(sinf(yaw)), 1e-3f);
         IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_BASE_AT), 2u);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
         v.frame.frame_arena = 0;

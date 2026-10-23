@@ -166,6 +166,44 @@ internal u32       ui_unit_sprite(engine_api *api, engine_unit *unit);   /* ui_w
 
 #define UI_SCENE_UNIT_SPRITE_SIZE 1.4f   /* world units; the square picture of a unit on its hex */
 
+/* The axis (0, 1 or 2: the directions d and d + 3) of the road through a
+   pass, from the six neighbours of its hex: the axis with a passable hex
+   on both sides, roads first, with the fewest passable hexes beside it.
+   A pass sits in a gap of the cliffs, so the open axis is the road. */
+internal u32
+ui_gate_axis(const b32 passable[HEX_DIRECTION_COUNT], const b32 road[HEX_DIRECTION_COUNT])
+{
+    u32 best = 0;
+    s32 best_score = -1000;
+    for (u32 axis = 0; axis < HEX_DIRECTION_COUNT / 2; ++axis)
+    {
+        u32 a = axis, b = axis + HEX_DIRECTION_COUNT / 2;
+        s32 score = 100 * ((passable[a] ? 1 : 0) + (passable[b] ? 1 : 0)) + 10 * ((road[a] ? 1 : 0) + (road[b] ? 1 : 0));
+        for (u32 d = 0; d < HEX_DIRECTION_COUNT; ++d) if (d != a && d != b && passable[d]) score -= 1;
+        if (score > best_score) { best_score = score; best = axis; }
+    }
+    return best;
+}
+
+/* The yaw of the gate of a pass: the shader turns the local Z axis of a
+   mesh, the passage of the gate, toward (sin yaw, cos yaw) on the ground. */
+internal f32
+ui_gate_yaw(engine_api *api, engine_terrain_view view, hex_coord h)
+{
+    b32 passable[HEX_DIRECTION_COUNT] = {}, road[HEX_DIRECTION_COUNT] = {};
+    for (u32 d = 0; d < HEX_DIRECTION_COUNT; ++d)
+    {
+        hex_offset o = hex_to_offset(hex_neighbor(h, d));
+        if (o.col < 0 || o.row < 0 || (u32)o.col >= view.width || (u32)o.row >= view.height) continue;
+        engine_terrain_kind terrain = api->terrain_kind_at(api->engine, view.kind[(u32)o.row * view.width + (u32)o.col]);
+        passable[d] = terrain.id != ENGINE_NO_TERRAIN && terrain.cost[MOVEMENT_FOOT] != 0;
+        road[d]     = passable[d] && (!strcmp(terrain.key, "main_road") || !strcmp(terrain.key, "small_path") || !strcmp(terrain.key, "plank_road") ||
+                                      !strcmp(terrain.key, "ford") || !strcmp(terrain.key, "shallows"));
+    }
+    v3 along = v3_sub(hex_world_center(hex_neighbor(h, ui_gate_axis(passable, road)), 0.0f), hex_world_center(h, 0.0f));
+    return atan2f(along.x, along.z);
+}
+
 /* The placeholder model of each slot of a city that has a facility
    (ui/main-map.md, "Map labels": the slots are building models on their
    own hexes). A built facility is the shape of its kind, in its colour. A
@@ -266,7 +304,8 @@ ui_scene_push(ui_state *ui, engine_api *api, ui_frame_info *frame)
         ui_scene_push_slots(rc, api, view, city.city_id);
     }
     /* A gate on each pass and a pier on each port, in the colour of the
-       owner (the art of the bases comes later, docs/GRAPHICS.md). */
+       owner (the art of the bases comes later, docs/GRAPHICS.md). The
+       passage of the gate follows the road through the pass. */
     for (u32 index = 0; index < api->base_count(api->engine); ++index)
     {
         engine_base base = api->base_at(api->engine, index);
@@ -276,7 +315,8 @@ ui_scene_push(ui_state *ui, engine_api *api, ui_frame_info *frame)
         if (o.col < 0 || o.row < 0 || (u32)o.col >= view.width || (u32)o.row >= view.height) continue;
         u32 cell = (u32)o.row * view.width + (u32)o.col;
         u32 mesh = base.type == BASE_PORT ? RENDER_MESH_PORT : RENDER_MESH_GATE;
-        render_push_mesh(rc, mesh, hex_world_center(h, terrain_level_y(view.level[cell])), 0.0f, 1.0f, ui_faction_rgba(base.force));
+        f32 yaw = base.type == BASE_PORT ? 0.0f : ui_gate_yaw(api, view, h);
+        render_push_mesh(rc, mesh, hex_world_center(h, terrain_level_y(view.level[cell])), yaw, 1.0f, ui_faction_rgba(base.force));
     }
     for (u32 id = 0; id < api->unit_count(api->engine); ++id)
     {

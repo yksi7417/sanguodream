@@ -77,6 +77,10 @@ the unit under its plate. A pass shows a gate: two pillars, a lintel and
 a roof over an open passage. A port shows a quay with a pier and a
 moored hull. Both take the colour of the owner. Both are placeholder
 shapes of placeholder_meshes.h until the art of docs/GRAPHICS.md comes.
+The passage of the gate follows the road through the pass. ui_gate_axis
+picks the hex axis with a passable hex on both sides of the gate. A road
+on both sides wins between two open axes. Fewer passable hexes beside
+the axis win after that, because a pass sits in a gap of the cliffs.
 
 ## Tests to read
 - unit/render: the mini map axes at nine headings.
