@@ -221,8 +221,10 @@ them, and it reads the facts through engine_api.
   the plan. ui_walk_begin trims the plan to the hex that the unit reached.
   The unit then stands on each hex of the plan for UI_WALK_HEX_SECONDS.
   ui_round_unit_hex gives the hex of the walk to the scene, the plates and
-  the Hex map. The command menu opens when the walk ends. The far 移動 of
-  the target menu walks the part of the way of this turn.
+  the Hex map. The command menu opens before the move, at the destination
+  (G2-045, tutorial 17). The strike of an action after a move waits for
+  the end of the walk. The far 移動 of the target menu walks the part of
+  the way of this turn.
 - The strike. After a 攻擊, 齊攻, 單挑, 戰法 or 計略 that the engine
   accepts, ui_combat_click pushes a strike on the target hex. The strike
   shows for UI_STRIKE_SECONDS: a ring that grows, and three slashes for

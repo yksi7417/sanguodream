@@ -166,6 +166,22 @@ feature_turn_two_tests(test_counts *counts, feature_battle *battle)
                "a unit on a burning hex loses 10 percent of its soldiers each turn (assumed)");
 
     hex_coord at_b = hex_make(b.q, b.r);
+    /* G2-045: the command menu opens at the destination before the move, so
+       the engine checks a unit command as if the unit stood there. The
+       query moves nothing. */
+    {
+        engine_command probe = {};
+        probe.kind = ENGINE_COMMAND_ATTACK;
+        probe.unit = battle->c;
+        probe.q = at_b.q; probe.r = at_b.r;
+        hex_coord far_hex = feature_along(battle->start, battle->d, 3);   /* two hexes from the target */
+        hex_coord at_c = feature_unit_hex(api, battle->c);
+        TEST_CHECK(counts, api->can_issue(e, &probe).refusal == SIM_REFUSAL_NONE &&
+                           api->can_issue_after_move(e, &probe, far_hex.q, far_hex.r).refusal == SIM_REFUSAL_NO_TARGET &&
+                           api->can_issue_after_move(e, &probe, at_c.q, at_c.r).refusal == SIM_REFUSAL_NONE &&
+                           hex_equal(feature_unit_hex(api, battle->c), at_c),
+                   "can_issue_after_move checks the attack from the destination, and the unit stays in place (G2-045)");
+    }
     /* A crossbow unit two hexes from the target can attack it, but 齊攻 takes
        only the units next to the target (military-units-and-tactics.md). The
        crossbow unit keeps its turn. */

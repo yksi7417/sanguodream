@@ -739,6 +739,18 @@ sim_check_unit_common(sim_state *sim, sim_unit_order *order, sim_unit **unit_out
 }
 
 internal sim_check
+sim_check_unit_order_at(sim_state *sim, sim_command_kind kind, sim_unit_order *order, hex_coord hex, memory_arena *scratch)
+{
+    sim_unit *unit = order->unit < sim->unit_count ? sim->units + order->unit : 0;
+    if (!unit) return sim_check_unit_order(sim, kind, order, scratch);
+    hex_coord home = unit->hex;
+    unit->hex = hex;
+    sim_check check = sim_check_unit_order(sim, kind, order, scratch);
+    unit->hex = home;
+    return check;
+}
+
+internal sim_check
 sim_check_unit_order(sim_state *sim, sim_command_kind kind, sim_unit_order *order, memory_arena *scratch)
 {
     switch (kind)   /* the orders of M6 have their own checks (combat.cpp, field.cpp) */

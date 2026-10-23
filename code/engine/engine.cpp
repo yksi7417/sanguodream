@@ -930,6 +930,20 @@ engine_api_can_issue(void *opaque, const engine_command *command)
     }
 }
 
+/* G2-045: the check of a unit command as if the unit stood on q, r. */
+internal engine_check
+engine_api_can_issue_after_move(void *opaque, const engine_command *command, s32 q, s32 r)
+{
+    engine *e = (engine *)opaque;
+    sim_command_kind kind = engine_unit_command_kind(command->kind);
+    if (kind == SIM_COMMAND_NONE) return engine_api_can_issue(opaque, command);
+    sim_unit_order order = engine_unit_order(command->unit, command->q, command->r, command->target_unit,
+                                             command->soldiers, command->gold, command->grain);
+    order.kind = command->row;
+    arena_reset(&e->sim->scratch);
+    return sim_check_unit_order_at(e->sim, kind, &order, hex_make(q, r), &e->sim->scratch);
+}
+
 internal engine_city_slots
 engine_api_city_slots(void *opaque, u8 city_id)
 {
@@ -1367,6 +1381,7 @@ engine_make_api(engine *e)
     api.faction_count   = engine_api_faction_count;
     api.faction_at      = engine_api_faction_at;
     api.can_issue       = engine_api_can_issue;
+    api.can_issue_after_move = engine_api_can_issue_after_move;   /* G2-045 */
     api.city_slots      = engine_api_city_slots;
     api.facility_at     = engine_api_facility_at;
     api.facility_kind_count = engine_api_facility_kind_count;

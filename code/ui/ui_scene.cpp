@@ -273,12 +273,13 @@ ui_scene_push(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->combat.pick != UI_PICK_NONE && ui->units.selected != ENGINE_NO_UNIT)
     {
         engine_unit picker = api->unit_at(api->engine, ui->units.selected);
+        hex_coord center = ui_unit_menu_hex(ui, &picker);   /* G2-045: around the destination of a pending move */
         for (s32 dq = -3; picker.id != ENGINE_NO_UNIT && dq <= 3; ++dq)
         {
             for (s32 dr = -3; dr <= 3; ++dr)
             {
-                hex_coord hex = hex_make(picker.q + dq, picker.r + dr);
-                if (hex_distance(hex, hex_make(picker.q, picker.r)) > 3) continue;
+                hex_coord hex = hex_make(center.q + dq, center.r + dr);
+                if (hex_distance(hex, center) > 3) continue;
                 if (ui_pick_allows(ui, api, ui->combat.pick, ui->combat.row, hex)) ui_scene_mark(overlay, view, hex, 0xB03C3CFFu);
             }
         }

@@ -159,7 +159,7 @@ ui_context_back(ui_state *ui)
             ui->show_unit_menu = true;
             return;
         }
-        if (ui->show_unit_menu) { ui->show_unit_menu = false; return; }
+        if (ui->show_unit_menu) { ui->show_unit_menu = false; ui->units.has_pending_move = false; return; }   /* G2-045: the unit stays */
     }
     if (ui->context.kind == UI_CONTEXT_UNIT || ui->context.kind == UI_CONTEXT_UNIT_POPUP) ui_select_unit(ui, ENGINE_NO_UNIT);
     ui_context_close(ui);

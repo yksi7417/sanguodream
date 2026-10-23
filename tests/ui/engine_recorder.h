@@ -1933,6 +1933,14 @@ recorder_call_of(engine_command_kind kind)
     }
 }
 
+/* G2-045: the check from a destination; the recorder has no map, so the
+   check is the one of can_issue. */
+internal engine_check recorder_can_issue_after_move(void *o, const engine_command *command, s32 q, s32 rr)
+{
+    (void)q; (void)rr;
+    return recorder_can_issue(o, command);
+}
+
 internal engine_api
 recorder_make_api(engine_recorder *r)
 {
@@ -1968,6 +1976,7 @@ recorder_make_api(engine_recorder *r)
     api.faction_count   = recorder_faction_count;
     api.faction_at      = recorder_faction_at;
     api.can_issue       = recorder_can_issue;
+    api.can_issue_after_move = recorder_can_issue_after_move;
     api.city_slots      = recorder_city_slots;
     api.facility_at     = recorder_facility_at;
     api.facility_kind_count = recorder_facility_kind_count;

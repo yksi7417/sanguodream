@@ -2134,7 +2134,10 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK(sent.city_id == 0 && sent.destination == 1 && sent.grain == 800 && sent.cargo[0] == 300 && sent.officers[0] == 100);
     };
 
-    t = IM_REGISTER_TEST(e, "ui", "map_click_selects_a_unit_and_moves_it_with_one_command");
+    /* G2-045: a click on a hex of the range opens the command menu at that
+       hex, with no command yet. The choice (待命) sends the move and the
+       action together, and the unit walks the plan of path_to hex by hex. */
+    t = IM_REGISTER_TEST(e, "ui", "map_click_opens_the_menu_at_the_destination_and_the_choice_moves_the_unit");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;
     t->TestFunc = [](ImGuiTestContext *ctx)
@@ -2151,21 +2154,96 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_REACHABLE), 1u);                /* the map shows its range */
         recorder_reset(&v.recorder);
         ui_test_click_cell(ctx, v, hex_make(3, 2));
-        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_MOVE), 1u);
-        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        ctx->Yield();
+        IM_CHECK(v.ui.show_unit_menu && v.ui.units.has_pending_move);                    /* the menu, at the destination */
+        IM_CHECK(v.ui.units.pending_move.q == 3 && v.ui.units.pending_move.r == 2);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);                            /* no move yet */
+        IM_CHECK(!ui_walk_active(&v.ui));
+        ctx->SetRef("//###UnitMenu");
+        ctx->ItemClick("###wait");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_MOVE), 1u);              /* the move, then 待命 */
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_WAIT), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 2u);
         IM_CHECK(v.recorder.last_unit_command.unit == 0 && v.recorder.last_unit_command.q == 3 && v.recorder.last_unit_command.r == 2);
-        /* The unit walks the plan of path_to hex by hex: (1,2), (2,2), (3,2).
-           The command menu opens when the walk ends. */
+        IM_CHECK(!v.ui.units.has_pending_move && !v.ui.show_unit_menu);
+        /* The unit walks the plan of path_to hex by hex: (1,2), (2,2), (3,2). */
         IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_PATH_TO), 1u);
         IM_CHECK(ui_walk_active(&v.ui) && v.ui.war.walk.unit == 0 && v.ui.war.walk.count == 3);
-        IM_CHECK(!v.ui.show_unit_menu);
         hex_coord shown = hex_make(0, 0);
         IM_CHECK(ui_walk_hex(&v.ui, 0, &shown) && shown.q == 1 && shown.r == 2);   /* the start hex first */
         u32 frames = 0;
         for (; frames < 600 && ui_walk_active(&v.ui); ++frames) ctx->Yield();
         IM_CHECK(frames > 2 && !ui_walk_active(&v.ui));                                   /* the pause of the steps took frames */
-        IM_CHECK(v.ui.show_unit_menu);                                                    /* the command menu opens after the walk */
-        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);                             /* the walk commanded nothing */
+        IM_CHECK(!v.ui.show_unit_menu);                                                   /* the turn of the unit is done */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 2u);                             /* the walk commanded nothing */
+    };
+
+    /* G2-045: a right click on the menu at the destination leaves the unit in place. */
+    t = IM_REGISTER_TEST(e, "ui", "right_click_on_the_menu_at_the_destination_cancels_the_move");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        ctx->Yield();
+        ui_test_click_cell(ctx, v, hex_make(1, 2));
+        ui_test_click_cell(ctx, v, hex_make(3, 2));
+        ctx->Yield();
+        IM_CHECK(v.ui.show_unit_menu && v.ui.units.has_pending_move);
+        /* The game mode: the right click of ui_context_update goes back one level. */
+        v.ui.hud_mode = true;
+        ui_context_open(&v.ui, &v.api, UI_CONTEXT_UNIT, 300.0f, 200.0f);
+        v.ui.show_unit_menu = true;
+        ctx->Yield(3);
+        recorder_reset(&v.recorder);
+        ImVec2 display = ImGui::GetIO().DisplaySize;
+        ctx->MouseMoveToPos(ImVec2(display.x * 0.8f, display.y * 0.3f));
+        IM_CHECK_EQ(v.ui.context.kind, (u8)UI_CONTEXT_UNIT);
+        ctx->MouseClick(ImGuiMouseButton_Right);
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.show_unit_menu);
+        IM_CHECK(!v.ui.units.has_pending_move);
+        IM_CHECK(v.ui.units.selected == 0);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);                            /* the unit did not move */
+        IM_CHECK(!ui_walk_active(&v.ui));
+    };
+
+    /* G2-045: 攻擊 from the menu at the destination: the target click sends
+       the move and then the attack. The strike waits for the walk. */
+    t = IM_REGISTER_TEST(e, "ui", "attack_from_the_menu_at_the_destination_moves_then_strikes");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.recorder.unit1_rival   = true;   /* the rival unit 1 at (1,3): two hexes from (3,2) */
+        ctx->Yield();
+        ui_test_click_cell(ctx, v, hex_make(1, 2));
+        ui_test_click_cell(ctx, v, hex_make(3, 2));
+        ctx->Yield();
+        IM_CHECK(v.ui.show_unit_menu && v.ui.units.has_pending_move);
+        recorder_reset(&v.recorder);
+        ctx->SetRef("//###UnitMenu");
+        ctx->ItemClick("###attack");
+        ctx->Yield();
+        IM_CHECK(v.ui.combat.pick == UI_PICK_ATTACK && v.ui.units.has_pending_move);     /* the pick waits; no move yet */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        ui_test_click_cell(ctx, v, hex_make(1, 3));
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_MOVE), 1u);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_ATTACK), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 2u);
+        IM_CHECK(v.ui.combat.pick == UI_PICK_NONE && !v.ui.units.has_pending_move);
+        IM_CHECK(ui_walk_active(&v.ui) && v.ui.war.walk.has_strike);                      /* the strike plays after the walk */
+        IM_CHECK_EQ(v.ui.war.strike_count, 0u);
+        u32 frames = 0;
+        for (; frames < 600 && ui_walk_active(&v.ui); ++frames) ctx->Yield();
+        IM_CHECK(!ui_walk_active(&v.ui) && v.ui.war.strike_count == 1u);
     };
 
     /* The sprite of a unit follows the key of its class (ui_war.cpp). The

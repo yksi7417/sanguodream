@@ -477,6 +477,45 @@ ui_select_unit(ui_state *ui, u32 unit_id)
     ui->units.target_unit   = ENGINE_NO_UNIT;
     ui->show_unit           = unit_id != ENGINE_NO_UNIT;
     ui->show_unit_menu      = false;
+    ui->units.has_pending_move = false;
+}
+
+/* G2-045: the hex of the command menu: the destination of the pending
+   move, else the hex of the unit. The original opens the menu at the
+   destination, and the unit moves only with the choice. */
+internal hex_coord
+ui_unit_menu_hex(ui_state *ui, engine_unit *unit)
+{
+    return ui->units.has_pending_move ? ui->units.pending_move : hex_make(unit->q, unit->r);
+}
+
+/* The check of a command of the selected unit from the hex of the menu. */
+internal engine_check
+ui_unit_check(ui_state *ui, engine_api *api, const engine_command *command)
+{
+    if (ui->units.has_pending_move && command->unit == ui->units.selected)
+    {
+        return api->can_issue_after_move(api->engine, command, ui->units.pending_move.q, ui->units.pending_move.r);
+    }
+    return api->can_issue(api->engine, command);
+}
+
+/* The move of the pending menu, when the player chose: one command_move,
+   then the walk. Returns false when the engine refused the move. */
+internal b32
+ui_commit_pending_move(ui_state *ui, engine_api *api)
+{
+    if (!ui->units.has_pending_move) return true;
+    ui->units.has_pending_move = false;
+    engine_unit unit = api->unit_at(api->engine, ui->units.selected);
+    if (unit.id == ENGINE_NO_UNIT) return false;
+    hex_coord to = ui->units.pending_move;
+    ui_walk_plan(ui, api, unit.id, to.q, to.r);   /* the path, before the move changes the hex */
+    engine_command_result result = api->command_move(api->engine, unit.id, to.q, to.r);
+    ui_units_note_result(ui, result);
+    if (result.refusal == SIM_REFUSAL_NONE) ui_walk_begin(ui, api, unit.id, false);
+    else { ui_walk_cancel(ui); ui_growth_result(ui, "unit.move_done", result); }
+    return result.refusal == SIM_REFUSAL_NONE;
 }
 
 /* Opens the target menu of the selected unit at a hex out of its range. */
@@ -512,6 +551,7 @@ ui_unit_click(ui_state *ui, engine_api *api, hex_coord hex)
     engine_unit unit = api->unit_at(api->engine, ui->units.selected);
     if (unit.q == hex.q && unit.r == hex.r)
     {
+        ui->units.has_pending_move = false;
         ui->show_unit_menu = true;
         return true;
     }
@@ -519,13 +559,14 @@ ui_unit_click(ui_state *ui, engine_api *api, hex_coord hex)
     for (u32 index = 1; index < reach.count; ++index)
     {
         if (reach.cells[index].q != hex.q || reach.cells[index].r != hex.r) continue;
-        ui_walk_plan(ui, api, unit.id, hex.q, hex.r);   /* the path, before the move changes the hex */
-        engine_command_result result = api->command_move(api->engine, unit.id, hex.q, hex.r);
-        ui_growth_result(ui, "unit.move_done", result);
-        ui_units_note_result(ui, result);
-        /* The unit walks hex by hex, and the command menu opens when it arrives. */
-        if (result.refusal == SIM_REFUSAL_NONE) ui_walk_begin(ui, api, unit.id, true);
-        else                                    ui_walk_cancel(ui);
+        /* G2-045: the command menu opens at the destination, with its items
+           checked from there. The unit moves with the choice
+           (ui_commit_pending_move), so a right click leaves it in place. */
+        ui->units.has_pending_move = true;
+        ui->units.pending_move     = hex;
+        ui->show_unit_menu         = true;
+        ui->context.x = ImGui::GetIO().MousePos.x;
+        ui->context.y = ImGui::GetIO().MousePos.y;
         return true;
     }
     if (on_hex != ENGINE_NO_UNIT)
@@ -759,13 +800,14 @@ ui_draw_unit_menu(ui_state *ui, engine_api *api)
         const char **items = type.transport ? transport_items : combat_items;
         u32 count = type.transport ? ArrayCount(transport_items) : ArrayCount(combat_items);
         char label[96], text_id[32];
-        /* G2-045, G2-050: 攻擊, 齊攻, 戰法 and 單挑 are grey without an enemy unit within 2 hexes. */
+        /* G2-045, G2-050: 攻擊, 齊攻, 戰法 and 單挑 are grey without an enemy unit within 2 hexes of the menu hex. */
+        hex_coord mine = ui_unit_menu_hex(ui, &unit);
         b32 enemy_near = false;
         for (u32 other_id = 0; other_id < api->unit_count(api->engine) && !enemy_near; ++other_id)
         {
             engine_unit other = api->unit_at(api->engine, other_id);
             if (other.id == ENGINE_NO_UNIT || other.force_id == unit.force_id) continue;
-            hex_coord mine = { unit.q, unit.r }, theirs = { other.q, other.r };
+            hex_coord theirs = { other.q, other.r };
             enemy_near = hex_distance(mine, theirs) <= 2;
         }
         for (u32 index = 0; index < count; ++index)
@@ -777,7 +819,7 @@ ui_draw_unit_menu(ui_state *ui, engine_api *api)
             command.kind = wait ? ENGINE_COMMAND_WAIT : ENGINE_COMMAND_RETREAT;
             command.unit = unit.id;
             b32 enabled = supply || pick != UI_PICK_NONE ||
-                          ((wait || retreat) && api->can_issue(api->engine, &command).refusal == SIM_REFUSAL_NONE);
+                          ((wait || retreat) && ui_unit_check(ui, api, &command).refusal == SIM_REFUSAL_NONE);
             if (pick != UI_PICK_NONE && (unit.acted || unit.state != 0)) enabled = false;
             if ((pick == UI_PICK_ATTACK || pick == UI_PICK_JOINT || pick == UI_PICK_TACTIC || pick == UI_PICK_DUEL) && !enemy_near) enabled = false;
             snprintf(text_id, sizeof(text_id), "unit_menu.%s", item);
@@ -796,15 +838,21 @@ ui_draw_unit_menu(ui_state *ui, engine_api *api)
                 }
                 else if (supply)
                 {
-                    ui->show_unit = true;
+                    if (ui_commit_pending_move(ui, api)) ui->show_unit = true;   /* G2-045: the move first */
                 }
                 else
                 {
-                    engine_command_result result = wait ? api->command_wait(api->engine, unit.id) : api->command_retreat(api->engine, unit.id);
-                    ui_growth_result(ui, text_id, result);
-                    ui_units_note_result(ui, result);
+                    /* G2-045: the move of the pending menu first, then 待命 or 退卻. */
+                    b32 moved = ui_commit_pending_move(ui, api);
+                    engine_command_result result = {};
+                    if (moved)
+                    {
+                        result = wait ? api->command_wait(api->engine, unit.id) : api->command_retreat(api->engine, unit.id);
+                        ui_growth_result(ui, text_id, result);
+                        ui_units_note_result(ui, result);
+                    }
                     ui->show_unit_menu = false;
-                    if (retreat && result.refusal == SIM_REFUSAL_NONE) ui_select_unit(ui, ENGINE_NO_UNIT);
+                    if (moved && retreat && result.refusal == SIM_REFUSAL_NONE) ui_select_unit(ui, ENGINE_NO_UNIT);
                 }
             }
             ImGui::EndDisabled();

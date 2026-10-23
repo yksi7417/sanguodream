@@ -1119,6 +1119,9 @@ typedef u32                 engine_actions_left_fn(void *engine, u8 force_id); /
 typedef u32                 engine_faction_count_fn(void *engine);             /* factions in the order of this turn */
 typedef engine_faction      engine_faction_at_fn(void *engine, u32 index);     /* index 0 acts first */
 typedef engine_check        engine_can_issue_fn(void *engine, const engine_command *command);
+/* G2-045: the check of a unit command as if the unit stood on the hex q, r
+   (the command menu opens at the destination before the move). A query. */
+typedef engine_check        engine_can_issue_after_move_fn(void *engine, const engine_command *command, s32 q, s32 r);
 typedef engine_city_slots   engine_city_slots_fn(void *engine, u8 city_id);
 typedef engine_facility     engine_facility_at_fn(void *engine, u8 city_id, u8 slot);
 typedef u32                 engine_facility_kind_count_fn(void *engine);
@@ -1573,6 +1576,7 @@ struct engine_api
     engine_faction_count_fn   *faction_count;
     engine_faction_at_fn      *faction_at;
     engine_can_issue_fn       *can_issue;
+    engine_can_issue_after_move_fn *can_issue_after_move;   /* G2-045 */
     engine_city_slots_fn      *city_slots;
     engine_facility_at_fn     *facility_at;
     engine_facility_kind_count_fn *facility_kind_count;

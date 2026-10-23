@@ -246,8 +246,13 @@ selects the new unit, so that its range shows on the map.
 - The Hex map panel draws the cities as squares and the units as
   diamonds in the colour of their faction. A click on a unit of the
   faction that acts selects it and draws its range in green. A click in
-  the range sends one `command_move` and opens the command menu. A click
-  on the hex of the unit opens the menu.
+  the range opens the command menu at that hex, with no command yet
+  (G2-045, the play report of 2026-10-23). The engine checks each item
+  from the destination through `can_issue_after_move`. The choice sends
+  the `command_move` and then the action: 待命 and 退卻 in the same
+  click, 攻擊 and the other picks at the click on the target. A right click closes the
+  menu, and the unit stays. A click on the hex of the unit opens the menu
+  without a move.
 - The command menu has the items of ui/unit-commands.md in their order.
   待命 and 退卻 run now. 補給 opens the Unit panel of a transport unit. The
   combat items are grey until M6.

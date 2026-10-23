@@ -1587,6 +1587,9 @@ internal void      sim_court_command(sim_state *sim, sim_command command, sim_ev
 internal void      sim_run_officers_turn(sim_state *sim, u32 cause, sim_event_sink *events);
 internal void      sim_run_officers_month(sim_state *sim, u32 cause, sim_event_sink *events);
 internal void      sim_run_captives_month(sim_state *sim, u32 cause, sim_event_sink *events);   /* G2-032 */
+/* The check of a unit order as if the unit stood on hex (G2-045: the menu
+   at the destination before the move). A query: it changes nothing. */
+internal sim_check sim_check_unit_order_at(sim_state *sim, sim_command_kind kind, sim_unit_order *order, hex_coord hex, memory_arena *scratch);
 internal void      sim_run_officers_year(sim_state *sim, u32 cause, sim_event_sink *events);
 internal void      sim_run_deaths_month(sim_state *sim, u32 cause, sim_event_sink *events);   /* G2-055 */
 internal void      sim_unpaid_loyalty(sim_state *sim, city_component *city, u32 cause, sim_event_sink *events);

@@ -308,6 +308,8 @@ struct ui_state
         u8  target_kind;         /* ui_target_kind: the menu at target_hex (G2-052, G2-058) */
         hex_coord target_hex;
         u32 target_unit;         /* the unit at target_hex, or ENGINE_NO_UNIT */
+        b32 has_pending_move;    /* G2-045: the command menu opened at pending_move; the unit moves there with the choice */
+        hex_coord pending_move;
         struct { u32 unit; f32 x0, y0, x1, y1; } plates[UI_PLATE_CAPACITY];   /* the plate rectangles of the last frame (G2-042) */
         u32 plate_count;
     } units;
@@ -570,6 +572,9 @@ struct ui_state
             f32       wait;      /* the seconds until the next step */
             bool      planned;   /* a plan waits for the result of its command_move */
             bool      open_menu; /* the command menu opens when the walk ends */
+            bool      has_strike; /* G2-045: the strike of the action after the move plays when the walk ends */
+            u8        strike_kind;
+            hex_coord strike_hex;
         } walk;
         struct { u8 kind; hex_coord hex; f32 seconds; } strikes[UI_STRIKE_CAPACITY];   /* ui_strike_kind */
         u32 strike_count;

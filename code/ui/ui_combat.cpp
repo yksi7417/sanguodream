@@ -30,6 +30,7 @@ ui_pick_text_id(u8 pick)
 }
 
 internal void ui_strike_push(ui_state *ui, u8 kind, hex_coord hex);   /* ui_war.cpp */
+internal b32  ui_walk_active(ui_state *ui);                           /* ui_war.cpp */
 internal b32  ui_pick_allows(ui_state *ui, engine_api *api, u8 pick, u8 row, hex_coord hex);   /* below: the probe of a target */
 internal u8   ui_strike_of_pick(u8 pick);
 
@@ -54,6 +55,9 @@ ui_combat_click(ui_state *ui, engine_api *api, hex_coord hex)
     u32 unit_id = ui->units.selected;
     void *e = api->engine;
     engine_command_result result = {};
+    /* G2-045: the move of the pending menu first. The strike then waits for the walk. */
+    if (!ui_commit_pending_move(ui, api)) { ui->combat.pick = UI_PICK_NONE; return true; }
+    b32 walking = ui_walk_active(ui);
     switch (pick)
     {
         case UI_PICK_ATTACK:    result = api->command_attack(e, unit_id, hex.q, hex.r); break;
@@ -70,7 +74,19 @@ ui_combat_click(ui_state *ui, engine_api *api, hex_coord hex)
     ui_units_note_result(ui, result);
     ui->combat.pick = UI_PICK_NONE;
     /* The strike effect on the target hex, so that the player sees the action. */
-    if (result.refusal == SIM_REFUSAL_NONE && ui_strike_of_pick(pick) != UI_STRIKE_KIND_COUNT) ui_strike_push(ui, ui_strike_of_pick(pick), hex);
+    if (result.refusal == SIM_REFUSAL_NONE && ui_strike_of_pick(pick) != UI_STRIKE_KIND_COUNT)
+    {
+        if (walking)
+        {
+            ui->war.walk.has_strike  = true;
+            ui->war.walk.strike_kind = ui_strike_of_pick(pick);
+            ui->war.walk.strike_hex  = hex;
+        }
+        else
+        {
+            ui_strike_push(ui, ui_strike_of_pick(pick), hex);
+        }
+    }
     return true;
 }
 
@@ -114,12 +130,13 @@ ui_draw_map_combat(ui_state *ui, engine_api *api, ImDrawList *draw, f32 cell, he
     if (ui->combat.pick == UI_PICK_NONE || ui->units.selected == ENGINE_NO_UNIT) return;
     engine_unit unit = api->unit_at(e, ui->units.selected);
     if (unit.id == ENGINE_NO_UNIT) return;
+    hex_coord center = ui_unit_menu_hex(ui, &unit);   /* G2-045: around the destination of a pending move */
     for (s32 dq = -3; dq <= 3; ++dq)
     {
         for (s32 dr = -3; dr <= 3; ++dr)
         {
-            hex_coord hex = hex_make(unit.q + dq, unit.r + dr);
-            if (hex_distance(hex, hex_make(unit.q, unit.r)) > 3) continue;
+            hex_coord hex = hex_make(center.q + dq, center.r + dr);
+            if (hex_distance(hex, center) > 3) continue;
             if (!ui_pick_allows(ui, api, ui->combat.pick, ui->combat.row, hex)) continue;
             ui_draw_hexagon(draw, hex_to_pixel(hex, cell, origin), cell - 2.5f, IM_COL32(0, 0, 0, 0), IM_COL32(240, 60, 50, 255));
         }
@@ -138,7 +155,7 @@ ui_pick_allows(ui_state *ui, engine_api *api, u8 pick, u8 row, hex_coord hex)
     command.row  = row;
     command.q    = hex.q;
     command.r    = hex.r;
-    return api->can_issue(api->engine, &command).refusal == SIM_REFUSAL_NONE;
+    return ui_unit_check(ui, api, &command).refusal == SIM_REFUSAL_NONE;   /* G2-045: from the hex of the menu */
 }
 
 /* True when a hex within 3 of the unit holds a target of the tactic
@@ -146,12 +163,13 @@ ui_pick_allows(ui_state *ui, engine_api *api, u8 pick, u8 row, hex_coord hex)
 internal b32
 ui_tactic_has_target(ui_state *ui, engine_api *api, engine_unit *unit, u32 row)
 {
+    hex_coord center = ui_unit_menu_hex(ui, unit);
     for (s32 dq = -3; dq <= 3; ++dq)
     {
         for (s32 dr = -3; dr <= 3; ++dr)
         {
-            hex_coord hex = hex_make(unit->q + dq, unit->r + dr);
-            if (hex_distance(hex, hex_make(unit->q, unit->r)) > 3) continue;
+            hex_coord hex = hex_make(center.q + dq, center.r + dr);
+            if (hex_distance(hex, center) > 3) continue;
             if (ui_pick_allows(ui, api, UI_PICK_TACTIC, (u8)row, hex)) return true;
         }
     }

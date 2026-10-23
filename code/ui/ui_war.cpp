@@ -93,6 +93,7 @@ ui_walk_begin(ui_state *ui, engine_api *api, u32 unit_id, bool open_menu)
     ui->war.walk.wait      = UI_WALK_HEX_SECONDS;
     ui->war.walk.planned   = false;
     ui->war.walk.open_menu = open_menu;
+    ui->war.walk.has_strike = false;
 }
 
 /* The hex of the walk for a unit, or false when the unit does not walk. */
@@ -117,8 +118,12 @@ ui_walk_update(ui_state *ui, engine_api *api, f32 dt_seconds)
         {
             u32 unit_id = ui->war.walk.unit;
             bool open_menu = ui->war.walk.open_menu;
+            bool has_strike = ui->war.walk.has_strike;
+            u8 strike_kind = ui->war.walk.strike_kind;
+            hex_coord strike_hex = ui->war.walk.strike_hex;
             ui_walk_cancel(ui);
             if (open_menu && ui->units.selected == unit_id) ui->show_unit_menu = api->unit_at(api->engine, unit_id).id != ENGINE_NO_UNIT;
+            if (has_strike) ui_strike_push(ui, strike_kind, strike_hex);   /* G2-045: the action after the move */
             return;
         }
         ui->war.walk.wait += UI_WALK_HEX_SECONDS;
