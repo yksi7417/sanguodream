@@ -921,6 +921,11 @@ engine_api_can_issue(void *opaque, const engine_command *command)
             arena_reset(&e->sim->scratch);
             return sim_check_unit_order(e->sim, engine_unit_command_kind(command->kind), &order, &e->sim->scratch);
         }
+        case ENGINE_COMMAND_CAPTIVE:
+        {
+            sim_court_order order = command->court;
+            return sim_check_captive(e->sim, &order);
+        }
         default:
         {
             engine_check none = {};

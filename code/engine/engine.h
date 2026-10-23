@@ -239,6 +239,7 @@ enum engine_command_kind
     ENGINE_COMMAND_FOLLOW,
     ENGINE_COMMAND_MOVE_OFFICERS,  /* 移動 (G2-036): the order is move */
     ENGINE_COMMAND_SUMMON,         /* 召喚 (G2-037) */
+    ENGINE_COMMAND_CAPTIVE,        /* 俘虜處置: court.target = the captive, court.kind = engine_captive_choice */
     ENGINE_COMMAND_KIND_COUNT
 };
 
@@ -1257,6 +1258,17 @@ typedef engine_debate_view    engine_debate_view_fn(void *engine);
    court order names the city of the acting officer. kind: the
    ENGINE_COMMAND_SEARCH .. ENGINE_COMMAND_FACTION_PLOT command. */
 typedef engine_command_result engine_command_court_fn(void *engine, engine_command_kind kind, const engine_court_order *order);
+/* 俘虜處置 (ui/city-commands.md, "Prisoner dialog"): the choice of the
+   player for an officer that its units captured. can_issue with
+   ENGINE_COMMAND_CAPTIVE gives the chance of 登庸 in quantity. */
+enum engine_captive_choice
+{
+    ENGINE_CAPTIVE_RECRUIT,   /* 登庸 */
+    ENGINE_CAPTIVE_KEEP,      /* 俘虜 */
+    ENGINE_CAPTIVE_RELEASE,   /* 釋放 */
+    ENGINE_CAPTIVE_EXECUTE,   /* 處決 */
+};
+typedef engine_command_result engine_command_captive_fn(void *engine, u16 officer_id, u8 choice);
 /* 移動 and 召喚 (travel.cpp), and the days of a journey between two bases
    (抵達日數; assumed, Q-228). */
 typedef engine_command_result engine_command_move_officers_fn(void *engine, const engine_move_order *order);
@@ -1686,6 +1698,7 @@ struct engine_api
     engine_duel_view_fn             *duel_view;
     engine_debate_view_fn           *debate_view;
     engine_command_court_fn         *command_court;
+    engine_command_captive_fn       *command_captive;         /* 俘虜處置 */
     engine_command_move_officers_fn *command_move_officers;   /* 移動 (G2-036) */
     engine_command_move_officers_fn *command_summon;          /* 召喚 (G2-037) */
     engine_travel_days_fn           *travel_days;

@@ -158,7 +158,8 @@ the unit.
 A unit with no soldiers goes off the map. The victor captures each officer
 with the chance combat.capture_percent, more with a halberd tactic and always with
 捕縛. 強運 and 血路 always escape. An officer that escapes goes to a city
-of the faction. The victor gains technique points.
+of the faction. The victor gains technique points. When the player
+captures an officer, the dialog 俘虜處置 opens for it (tutorial 19).
 
 ## The tactic column (G2-054)
 戰法 of the unit menu opens the tactics of the class as a column next to

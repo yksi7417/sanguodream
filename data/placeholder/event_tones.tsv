@@ -63,6 +63,8 @@ recruit_failed	humble	bad	no	yes	assumed
 officer_captured	grim	bad	yes	yes	assumed
 officer_escaped	worried	bad	yes	yes	assumed
 captive_escaped	worried	bad	yes	yes	assumed
+captive_kept	calm	neutral	no	yes	assumed
+officer_executed	grim	bad	no	yes	assumed
 officer_left	grim	bad	yes	yes	assumed
 officer_died	grim	bad	yes	yes	assumed
 officer_exiled	grim	neutral	no	yes	assumed

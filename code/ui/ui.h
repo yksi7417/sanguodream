@@ -55,6 +55,7 @@ enum ui_hud_tab { UI_HUD_TAB_BASES, UI_HUD_TAB_OFFICERS, UI_HUD_TAB_UNITS, UI_HU
 #define UI_TITLE_SELECT_SECONDS    1.0f   /* the rider after a click on a title button */
 #define UI_LOAD_TRANSITION_SECONDS 4.0f   /* the dark landscape while a save loads */
 #define UI_MESSAGE_CAPACITY        32     /* the messages of one turn start; the log keeps the rest */
+#define UI_CAPTIVE_QUEUE           16            /* the captives of one battle that wait for the dialog 俘虜處置 */
 #define UI_MESSAGE_HEADING         0xFFFFFFFFu   /* a message slot that holds the period heading */
 #define UI_MESSAGE_THREAT          0xFFFFFFFEu   /* G2-006, G2-007: the adviser names the enemy city that threatens an own city */
 #define UI_MESSAGE_NEXT_ORDER      0xFFFFFFFDu   /* G2-007: the adviser asks for the next order; the first turn says that it is our turn */
@@ -322,6 +323,16 @@ struct ui_state
         u8 row;                  /* the row of the tactic, plot or building of the pick */
         u8 list;                 /* ui_pick of the Actions list: UI_PICK_TACTIC, _PLOT or _BUILD */
     } combat;
+    /* 俘虜處置 (ui/city-commands.md): after a battle, one dialog for each
+       officer that the player captured, with 登庸, 俘虜, 釋放 and 處決 */
+    bool show_captive;
+    struct
+    {
+        u16  queue[UI_CAPTIVE_QUEUE];   /* the captives that wait for a choice; [0] shows */
+        u32  count;
+        u32  ledger_mark;        /* the ledger count that the queue has read */
+        bool recruit_failed;     /* 登庸 failed on the captive that shows: the button is grey */
+    } captive;
     /* M7: the Court and Diplomacy panels, the duel and debate screens */
     bool show_court;
     bool show_diplomacy;

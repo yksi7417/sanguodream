@@ -30,6 +30,7 @@ ui_label(char *out, u32 out_size, ui_state *ui, const char *text_id, const char 
 #include "ui/ui_combat.cpp"
 #include "ui/ui_content.cpp"  /* M16: before ui_court.cpp, for the portrait of the officer view */
 #include "ui/ui_court.cpp"
+#include "ui/ui_captive.cpp"  /* 俘虜處置: the dialog after a capture */
 #include "ui/ui_people.cpp"   /* clone gap report 2, group 3 */
 #include "ui/ui_rivals.cpp"
 #include "ui/ui_fidelity.cpp"  /* M13 */
@@ -625,6 +626,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (in_game) ui_report_update(ui, api, frame->dt_seconds);   /* M18: the log and the feedback read the new events */
     if (in_game) ui_round_update(ui, api, frame->dt_seconds);    /* M20: the next step of the show of the AI round */
     if (in_game) ui_war_update(ui, api, frame->dt_seconds);      /* the walk, the strikes and the hits */
+    if (in_game) ui_captive_update(ui, api);                     /* 俘虜處置: the new captures of the player */
     if (tools) ui_draw_menu_bar(ui, api, frame);
     if (tools && ui->show_demo)   ImGui::ShowDemoWindow(&ui->show_demo);
     if (tools && ui->show_sim)    ui_draw_simulation(ui, api);
@@ -658,6 +660,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     ui_draw_hex_info_box(ui, api);                           /* M11: opens after a pick in the scene */
     if (ui->show_actions)    ui_draw_actions(ui, api);
     if (ui->show_court)      ui_draw_court(ui, api);
+    if (ui->show_captive)    ui_draw_captive_dialog(ui, api);   /* 俘虜處置 */
     if (ui->show_reward)     ui_draw_reward(ui, api);   /* 褒賞 (G2-040) */
     if (ui->show_diplomacy)  ui_draw_diplomacy(ui, api);
     ui_draw_people_dialogs(ui, api);   /* 移動, 召喚, 官職, 流放, the plots (clone gap report 2, group 3) */

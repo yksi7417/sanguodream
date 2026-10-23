@@ -112,6 +112,8 @@ enum sim_event_kind
     SIM_EVENT_OFFICER_CAPTURED,     /* subject = officer; faction = the captor */
     SIM_EVENT_OFFICER_ESCAPED,      /* subject = officer */
     SIM_EVENT_CAPTIVE_ESCAPED,      /* G2-032: subject = officer; a captive escaped to its force at a month start */
+    SIM_EVENT_CAPTIVE_KEPT,         /* 俘虜處置: subject = officer; the player keeps the captive */
+    SIM_EVENT_OFFICER_EXECUTED,     /* 俘虜處置: subject = officer; the player executes the captive (assumed) */
     SIM_EVENT_FIRE_STARTED,         /* detail = the cell; delta = turns */
     SIM_EVENT_FIRE_ENDED,           /* detail = the cell */
     SIM_EVENT_BUILDING_STARTED,     /* detail = the building id; delta = the kind */
@@ -285,6 +287,7 @@ enum sim_command_kind
     SIM_COMMAND_MATCHMAKE,       /* 仲介 */
     SIM_COMMAND_RELEASE,         /* 流放 of a captive: it goes back to its faction */
     SIM_COMMAND_EXILE,           /* 流放 of an own officer */
+    SIM_COMMAND_CAPTIVE,         /* 俘虜處置: the choice of the player for a captive after a battle (court.target, court.kind = sim_captive_choice) */
     SIM_COMMAND_DIPLOMACY,       /* 外交: sim_court_order.kind is the sim_diplomacy_kind */
     SIM_COMMAND_FACTION_PLOT,    /* 計略 (二虎競食, 驅虎吞狼, 流言) */
     SIM_COMMAND_DUEL,            /* 單挑: a unit challenges an adjacent unit */
@@ -1587,6 +1590,19 @@ internal void      sim_court_command(sim_state *sim, sim_command command, sim_ev
 internal void      sim_run_officers_turn(sim_state *sim, u32 cause, sim_event_sink *events);
 internal void      sim_run_officers_month(sim_state *sim, u32 cause, sim_event_sink *events);
 internal void      sim_run_captives_month(sim_state *sim, u32 cause, sim_event_sink *events);   /* G2-032 */
+/* 俘虜處置 (ui/city-commands.md, "Prisoner dialog"): the choice of the
+   player for an officer that its units captured. The ruler recruits
+   (assumed). The order: target = the captive, kind = sim_captive_choice. */
+enum sim_captive_choice
+{
+    SIM_CAPTIVE_RECRUIT,         /* 登庸: the chance of a recruit by the ruler */
+    SIM_CAPTIVE_KEEP,            /* 俘虜: the officer stays a captive */
+    SIM_CAPTIVE_RELEASE,         /* 釋放: back to its faction; technique points as 流放 */
+    SIM_CAPTIVE_EXECUTE,         /* 處決: the officer dies (assumed: no other effect) */
+};
+internal sim_check sim_check_captive(sim_state *sim, sim_court_order *order);
+internal void      sim_captive_command(sim_state *sim, sim_command command, sim_event_sink *events);
+
 /* The check of a unit order as if the unit stood on hex (G2-045: the menu
    at the destination before the move). A query: it changes nothing. */
 internal sim_check sim_check_unit_order_at(sim_state *sim, sim_command_kind kind, sim_unit_order *order, hex_coord hex, memory_arena *scratch);

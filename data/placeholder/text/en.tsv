@@ -1526,6 +1526,18 @@ unit.state_0	Normal	普通
 unit.ship	Ship	艦船
 unit.captives	Captives	俘虜
 # G2-006, G2-007, G2-032: the lines of the adviser at a turn start, and the speech of an escaped captive.
+# The prisoner dialog (ui/city-commands.md, "Prisoner dialog")
+captive.title	Prisoner	俘虜處置
+captive.target	Officer	對象武將
+captive.age	Age %u	年齡 %u
+captive.skill	Skill	特技
+captive.chance	Recruit chance %u%%	登庸成功率 %u%%
+captive.recruit	Recruit	登庸
+captive.keep	Keep	俘虜
+captive.release	Release	釋放
+captive.execute	Execute	處決
+log.captive_kept	{subject}: kept as a captive	{subject}：收押
+log.officer_executed	{subject}: executed	{subject}：處決
 turn.lord	Lord %s, 	the prefix of a line to the ruler: %s大人，
 turn.threat	the forces of %s are a threat. Do not drop your guard.	%s的兵力頗具威脅性，請不要疏於警戒。
 turn.next_order	please give the next order.	請下達下一個指示。

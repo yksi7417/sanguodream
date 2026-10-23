@@ -191,6 +191,7 @@ enum recorder_call_kind
     RECORDER_SET_UNIT_PLACE,
     RECORDER_SET_CITY_DURABILITY,
     RECORDER_COMMAND_COURT,       /* arg = the engine_command_kind */
+    RECORDER_COMMAND_CAPTIVE,     /* 俘虜處置: arg = the officer */
     RECORDER_COMMAND_DUEL,
     RECORDER_COMMAND_DUEL_ACTION, /* arg = action | value << 8 */
     RECORDER_COMMAND_DEBATE_ACTION,
@@ -248,6 +249,8 @@ struct engine_recorder
     s32           unit_shift;
     b32           unit0_rival;        /* unit 0 belongs to force 2 */
     b32           unit1_rival;       /* G2-045: unit 1 at 1,3 belongs to force 2 */
+    u16           captive_officer;   /* 俘虜處置: officer_detail says that this officer is a captive; 0 = none */
+    u8            last_captive_choice;   /* the choice of the last command_captive */
     b32           units_acted;        /* M22: both units acted in this turn */
     u32           officer_count;      /* scripted rows for the Officers and Cities panels */
     u32           city_count;
@@ -1324,6 +1327,7 @@ internal engine_officer_detail recorder_officer_detail(void *o, u16 officer_id)
     detail.former_force = ENGINE_NO_FACTION; detail.age = 30;
     for (u32 slot = 0; slot < OFFICER_RELATION_SLOTS; ++slot) detail.liked[slot] = detail.disliked[slot] = ENGINE_NO_OFFICER;
     detail.recruit_chance = officer_id == 102 ? 60 : 0;
+    detail.captive        = ((engine_recorder *)o)->captive_officer == officer_id && officer_id != 0;
     detail.reward_rise    = officer_id == 101 ? 8 : (officer_id == 102 ? 10 : 0);   /* G2-040: the ruler 100 gets no reward */
     return detail;
 }
@@ -1436,6 +1440,14 @@ internal engine_command_result recorder_command_court(void *o, engine_command_ki
     engine_recorder *r = (engine_recorder *)o;
     recorder_record(r, RECORDER_COMMAND_COURT, kind);
     r->last_court = *order;
+    return recorder_unit_result(r);
+}
+internal engine_command_result recorder_command_captive(void *o, u16 officer_id, u8 choice)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_COMMAND_CAPTIVE, officer_id);
+    r->last_captive_choice = choice;
+    if (r->captive_officer == officer_id && choice != ENGINE_CAPTIVE_KEEP) r->captive_officer = 0;   /* the officer is a captive no more */
     return recorder_unit_result(r);
 }
 internal engine_command_result recorder_command_duel(void *o, u32 unit_id, s32 q, s32 r)
@@ -2080,6 +2092,7 @@ recorder_make_api(engine_recorder *r)
     api.duel_view             = recorder_duel_view;
     api.debate_view           = recorder_debate_view;
     api.command_court         = recorder_command_court;
+    api.command_captive       = recorder_command_captive;
     api.command_move_officers = recorder_command_move_officers;
     api.command_summon        = recorder_command_summon;
     api.travel_days           = recorder_travel_days;

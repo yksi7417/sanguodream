@@ -76,6 +76,7 @@ run of 2026-10-22".
 | G2-032 | At a month start each captive escapes with the chance captive.escape_percent (assumed 10). The event captive_escaped has a report, the log line 逃亡 and the speech 我已摸清了警備的編制. | P2 batch 6 | feature/court |
 | 齊攻 (play report of 2026-10-23) | 齊攻 takes only the units next to the target. A crossbow unit two hexes away keeps its turn. A unit after a destroyed target keeps its turn. | P2 batch 6 | feature/combat |
 | G2-045, G2-050, the flow (play report of 2026-10-23) | A click on a hex of the range opens the command menu at that hex, before the move. The engine checks each item from the destination (can_issue_after_move). The choice sends the move and then the action. A right click leaves the unit in place. The strike of the action waits for the walk. | move flow | feature/combat, ui |
+| 俘虜處置 (play report of 2026-10-23) | After a battle, one dialog for each officer that the player captured: the portrait, the abilities, the age, the skill, and 登庸 (the chance of the ruler, assumed), 俘虜, 釋放 and 處決 (assumed: the officer dies, nothing else). A failed 登庸 opens the dialog again with 登庸 grey. | captive dialog | feature/court, ui |
 | saves of older builds (play report of 2026-10-23) | The header of a save carries the layout of sim_state. A file with another layout does not load. The content comes from the pack, not from the file. The saves of 2026-10-22 load through a migration. tests/fixtures/saves/slot_01.hxs guards the load. | save compat | feature/save_compat |
 | unit log lines (play report of 2026-10-23) | The log names a unit by its commander (周泰隊：士兵 -232) in place of 一支部隊. The commander is the subject of a unit event, so the name stays after the unit is gone. | P2 batch 6 | feature/combat |
 
@@ -312,3 +313,10 @@ run of 2026-10-22".
 - G2-032, the escape. The clone rolls 10 percent for each captive at each
   month start. Please count the captives and the escapes over 12 months
   of one game.
+- 俘虜處置, the recruit and the execution. The clone lets the ruler roll
+  the chance of 登庸 in the dialog. Who recruits in the original: the
+  commander of the unit, the ruler, or nobody with a chance? Please note
+  the chance line of the dialog, if the original shows one, for two
+  captives. What does 處決 change besides the death: the relations, the
+  loyalty of the officers of the captive's faction, or the fame of the
+  ruler? Please compare the save before and after one 處決.

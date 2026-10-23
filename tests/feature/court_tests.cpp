@@ -796,6 +796,59 @@ feature_captive_escape_tests(test_counts *counts)
     engine_fixture_destroy(&setup.fixture);
 }
 
+/* 俘虜處置 (ui/city-commands.md, "Prisoner dialog"): the four choices of
+   the player for a captive through command_captive. 俘虜 keeps the
+   captive, 釋放 sends it back, 處決 kills it, 登庸 recruits it with the
+   chance of the ruler (assumed). The play report of 2026-10-23 asked for
+   the dialog. */
+internal void
+feature_captive_choice_tests(test_counts *counts)
+{
+    feature_city_setup setup;
+    feature_city_setup_init(&setup);
+    engine_api *api = setup.api;
+    void *e = api->engine;
+    u8 other = feature_other_faction(api, setup.force, 0);
+    u16 first  = feature_find_officer(api, other, ENGINE_NO_OFFICER, ENGINE_NO_OFFICER);
+    u16 second = feature_find_officer(api, other, first, ENGINE_NO_OFFICER);
+    u16 third  = feature_find_officer(api, other, first, second);
+    TEST_CHECK(counts, api->command_captive(e, first, ENGINE_CAPTIVE_RELEASE).refusal == SIM_REFUSAL_NOT_CAPTIVE,
+               "refused: the choice for an officer that is no captive of the player");
+    u16 prisoners[3] = { first, second, third };
+    for (u32 index = 0; index < 3; ++index)
+    {
+        engine_officer_edit edit = feature_edit_of(api, prisoners[index]);
+        edit.captor = setup.force;
+        if (index == 2) edit.loyalty = 0;   /* the chance of the recruit is then 100 */
+        api->set_officer(e, prisoners[index], &edit);
+    }
+    u32 mark = api->ledger_count(e);
+    TEST_CHECK(counts, api->command_captive(e, first, ENGINE_CAPTIVE_KEEP).refusal == SIM_REFUSAL_NONE && api->officer_detail(e, first).captive &&
+                       feature_count_events(api, SIM_EVENT_CAPTIVE_KEPT, mark) == 1,
+               "the choice to keep leaves the captive in the prison, with a log line");
+    mark = api->ledger_count(e);
+    TEST_CHECK(counts, api->command_captive(e, first, ENGINE_CAPTIVE_RELEASE).refusal == SIM_REFUSAL_NONE && !api->officer_detail(e, first).captive &&
+                       feature_officer_force(api, first) == other && feature_count_events(api, SIM_EVENT_CAPTIVE_RELEASED, mark) == 1,
+               "the choice to release sends the captive back to its faction");
+    mark = api->ledger_count(e);
+    TEST_CHECK(counts, api->command_captive(e, second, ENGINE_CAPTIVE_EXECUTE).refusal == SIM_REFUSAL_NONE &&
+                       api->officer_by_id(e, second).status == 8 && feature_count_events(api, SIM_EVENT_OFFICER_EXECUTED, mark) == 1 &&
+                       feature_count_events(api, SIM_EVENT_OFFICER_DIED, mark) == 1,
+               "the choice to execute kills the captive (assumed: no other effect)");
+    engine_command probe = {};
+    probe.kind = ENGINE_COMMAND_CAPTIVE;
+    probe.court.target = third;
+    probe.court.kind   = ENGINE_CAPTIVE_RECRUIT;
+    engine_check chance = api->can_issue(e, &probe);
+    mark = api->ledger_count(e);
+    TEST_CHECK(counts, chance.refusal == SIM_REFUSAL_NONE && chance.quantity == 100 &&
+                       api->command_captive(e, third, ENGINE_CAPTIVE_RECRUIT).refusal == SIM_REFUSAL_NONE &&
+                       feature_officer_force(api, third) == setup.force && !api->officer_detail(e, third).captive &&
+                       feature_count_events(api, SIM_EVENT_OFFICER_RECRUITED, mark) == 1,
+               "the choice to recruit a captive with loyalty 0 joins it to the player (the ruler recruits, assumed)");
+    engine_fixture_destroy(&setup.fixture);
+}
+
 internal void
 feature_court_tests(test_counts *counts)
 {
@@ -804,4 +857,5 @@ feature_court_tests(test_counts *counts)
     feature_debate_tests(counts);
     feature_month_tests(counts);
     feature_captive_escape_tests(counts);
+    feature_captive_choice_tests(counts);
 }

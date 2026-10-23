@@ -1058,6 +1058,66 @@ sim_release_captive(sim_state *sim, officer_component *officer, u32 cause, sim_e
     sim_free_captive(sim, officer, SIM_EVENT_CAPTIVE_RELEASED, cause, events);
 }
 
+/* 俘虜處置: the check of the choice of the player for a captive. The
+   faction that acts must hold the captive. 登庸 gives the chance of a
+   recruit by the ruler in quantity (assumed: the spec names no recruiter
+   for the dialog), 釋放 the technique points of a release. */
+internal sim_check
+sim_check_captive(sim_state *sim, sim_court_order *order)
+{
+    sim_check check = {};
+    check.slot    = SIM_ANY_SLOT;
+    check.assumed = true;
+    u8 force = sim_whose_turn(sim);
+    if (force == SIM_NO_FORCE) return sim_refuse(check, SIM_REFUSAL_NOT_YOUR_TURN);
+    officer_component *target = sim_find_officer(sim, order->target);
+    if (!target || target->status != SIM_STATUS_CAPTIVE || target->force_id != force) return sim_refuse(check, SIM_REFUSAL_NOT_CAPTIVE);
+    if (order->kind == SIM_CAPTIVE_RECRUIT)
+    {
+        officer_component *ruler = sim_find_officer(sim, sim_force_ruler(sim, force));
+        if (!ruler) return sim_refuse(check, SIM_REFUSAL_NO_OFFICER);
+        sim_refusal refusal = sim_check_recruit_target(sim, force, target);
+        if (refusal != SIM_REFUSAL_NONE) return sim_refuse(check, refusal);
+        check.quantity = sim_recruit_chance(sim, ruler, target);
+    }
+    if (order->kind == SIM_CAPTIVE_RELEASE) check.quantity = sim->content.rules.release_technique;
+    return check;
+}
+
+internal void
+sim_captive_command(sim_state *sim, sim_command command, sim_event_sink *events)
+{
+    sim_court_order *order = &command.court;
+    sim_check check = sim_check_captive(sim, order);
+    if (check.refusal != SIM_REFUSAL_NONE) return;
+    u8 force = sim_whose_turn(sim);
+    officer_component *target = sim_find_officer(sim, order->target);
+    switch (order->kind)
+    {
+        case SIM_CAPTIVE_RECRUIT:
+        {
+            b32 success = check.quantity >= 100 || sim_random_below(sim, 100) < check.quantity;
+            u8 city = target->base_location < SAVE_CITY_COUNT ? (u8)target->base_location : sim_refuge_city(sim, force, SIM_NO_CITY);
+            if (success) sim_join_faction(sim, target, force, city, command.id, events);
+            else         sim_emit_officer(sim, SIM_EVENT_RECRUIT_FAILED, target, 0, 0, true, command.id, events);
+        } break;
+        case SIM_CAPTIVE_RELEASE:
+        {
+            sim_release_captive(sim, target, command.id, events);
+            sim_add_technique_points(sim, force, (s32)sim->content.rules.release_technique, command.id, events);
+        } break;
+        case SIM_CAPTIVE_EXECUTE:
+        {
+            sim_emit_officer(sim, SIM_EVENT_OFFICER_EXECUTED, target, 0, 0, true, command.id, events);
+            sim_officer_dies(sim, target, command.id, events);
+        } break;
+        default:
+        {
+            sim_emit_officer(sim, SIM_EVENT_CAPTIVE_KEPT, target, 0, 0, true, command.id, events);
+        } break;
+    }
+}
+
 /* G2-032: at a month start, each captive rolls an escape with the chance
    captive.escape_percent (assumed). The original showed two escapes at
    one month start, each with a message and a log line. */

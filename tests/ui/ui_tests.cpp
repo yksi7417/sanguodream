@@ -2246,6 +2246,33 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK(!ui_walk_active(&v.ui) && v.ui.war.strike_count == 1u);
     };
 
+    /* 俘虜處置: a capture by the player opens the dialog for the officer;
+       the choice issues one command_captive, and the dialog closes. */
+    t = IM_REGISTER_TEST(e, "ui", "capture_opens_the_prisoner_dialog_and_the_choice_issues_one_command");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count   = 3;
+        v.recorder.city_count      = 2;
+        v.recorder.captive_officer = 102;
+        sim_event captured = {};
+        captured.kind = SIM_EVENT_OFFICER_CAPTURED; captured.faction = 1; captured.subject = 1002;   /* the officer 102, by the player 1 */
+        v.recorder.events[0] = captured;
+        v.recorder.event_count = 1;
+        ctx->Yield(3);
+        IM_CHECK(v.ui.show_captive && v.ui.captive.count == 1 && v.ui.captive.queue[0] == 102);
+        recorder_reset(&v.recorder);
+        ctx->SetRef("//###Captive");
+        ctx->ItemClick("###release");
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_CAPTIVE), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(v.recorder.last_captive_choice == ENGINE_CAPTIVE_RELEASE);
+        IM_CHECK(!v.ui.show_captive && v.ui.captive.count == 0);
+    };
+
     /* The sprite of a unit follows the key of its class (ui_war.cpp). The
        siege weapons share one picture, the two ships share one. */
     t = IM_REGISTER_TEST(e, "ui", "unit_sprite_follows_the_class_of_the_unit");

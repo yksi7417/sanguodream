@@ -252,6 +252,7 @@ sim_apply(sim_state *sim, sim_command command, sim_event_sink *events)
         case SIM_COMMAND_MATCHMAKE:
         case SIM_COMMAND_RELEASE:
         case SIM_COMMAND_EXILE:        sim_court_command(sim, command, events);        break;
+        case SIM_COMMAND_CAPTIVE:      sim_captive_command(sim, command, events);      break;   /* 俘虜處置 */
         case SIM_COMMAND_DIPLOMACY:    sim_diplomacy(sim, command, events);            break;
         case SIM_COMMAND_FACTION_PLOT: sim_faction_plot(sim, command, events);         break;
         case SIM_COMMAND_DUEL:         sim_start_duel(sim, command, events);           break;
@@ -689,6 +690,8 @@ sim_event_name(sim_event_kind kind)
         case SIM_EVENT_OFFICER_CAPTURED:        return "officer_captured";
         case SIM_EVENT_OFFICER_ESCAPED:         return "officer_escaped";
         case SIM_EVENT_CAPTIVE_ESCAPED:         return "captive_escaped";
+        case SIM_EVENT_CAPTIVE_KEPT:            return "captive_kept";
+        case SIM_EVENT_OFFICER_EXECUTED:        return "officer_executed";
         case SIM_EVENT_FIRE_STARTED:            return "fire_started";
         case SIM_EVENT_FIRE_ENDED:              return "fire_ended";
         case SIM_EVENT_BUILDING_STARTED:        return "building_started";
@@ -817,6 +820,7 @@ sim_command_name(sim_command_kind kind)
         case SIM_COMMAND_MATCHMAKE:       return "matchmake";
         case SIM_COMMAND_RELEASE:         return "release";
         case SIM_COMMAND_EXILE:           return "exile";
+        case SIM_COMMAND_CAPTIVE:         return "captive";
         case SIM_COMMAND_DIPLOMACY:       return "diplomacy";
         case SIM_COMMAND_FACTION_PLOT:    return "faction_plot";
         case SIM_COMMAND_DUEL:            return "duel";

@@ -126,6 +126,18 @@ The post adds its bonus to its ability.
   rolls captive.escape_percent (assumed 10) for each captive. An escape
   sends the captive back to its faction with the event `captive_escaped`.
   The turn start reports it, and the log says 逃亡.
+- 俘虜處置 (ui/city-commands.md, "Prisoner dialog"): after a battle,
+  code/ui/ui_captive.cpp opens one dialog for each officer that the
+  player captured. The dialog shows the portrait, the abilities, the age
+  and the skill, and the buttons 登庸, 俘虜, 釋放 and 處決. Each button
+  is one `command_captive` of SIM_COMMAND_CAPTIVE in officers.cpp. The
+  button 登庸 rolls the chance of a recruit by the ruler. The spec names
+  no recruiter, so the clone assumes the ruler. A failure opens the
+  dialog again with 登庸 grey. The button 俘虜 keeps the captive and logs
+  `captive_kept`. The button 釋放 is the release of 流放. The button 處決
+  kills the officer and logs `officer_executed` and then `officer_died`.
+  The spec gives no other effect of 處決. The captures of the computer
+  factions open no dialog.
 
 ## Relations
 Compatibility is a wheel of 150. The distance on the wheel lowers the

@@ -382,6 +382,24 @@ engine_api_command_court(void *opaque, engine_command_kind kind, const engine_co
     return result;
 }
 
+/* 俘虜處置: the choice of the player for a captive. */
+internal engine_command_result
+engine_api_command_captive(void *opaque, u16 officer_id, u8 choice)
+{
+    engine *e = (engine *)opaque;
+    engine_command_result result = {};
+    sim_court_order order = {};
+    order.target = officer_id;
+    order.kind   = choice;
+    result.refusal = sim_check_captive(e->sim, &order).refusal;
+    if (result.refusal != SIM_REFUSAL_NONE) return result;
+    sim_command command = sim_make_command(e->sim, SIM_COMMAND_CAPTIVE);
+    command.court = order;
+    engine_run(e, command, 0);
+    result.command_id = command.id;
+    return result;
+}
+
 internal engine_command_result
 engine_api_command_duel(void *opaque, u32 unit_id, s32 q, s32 r)
 {
@@ -540,6 +558,7 @@ engine_bind_court_api(engine_api *api)
     api->duel_view             = engine_api_duel_view;
     api->debate_view           = engine_api_debate_view;
     api->command_court         = engine_api_command_court;
+    api->command_captive       = engine_api_command_captive;
     api->command_move_officers = engine_api_command_move_officers;
     api->command_summon        = engine_api_command_summon;
     api->travel_days           = engine_api_travel_days;
