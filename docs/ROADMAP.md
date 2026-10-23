@@ -1084,3 +1084,20 @@ a rule set:
   person in the right job, so the character panel is first-class.
 - The AI must play by the same commands, so a "why did the AI do that" view
   shows its ai_priority scores.
+
+## 5. To do from the play reports
+The player adds items here while the gap reports run. Each item names
+what the clone has, what is open, and the spec status.
+- Facility health (2026-10-23). The city panel and the scene must show
+  the durability of each facility as health / maximum. An attack lowers
+  it, and at zero the facility falls. A destroyed facility makes the
+  city lose a resource: a barracks lowers the soldiers, a market the
+  gold, a farm the grain. A black market loses nothing. What the clone
+  has: each slot holds a durability, and `sim_run_durability` keeps it
+  with the events `facility_damaged` and `facility_destroyed`. The
+  attacker takes loot of the cost by the kind of the facility
+  (combat.cpp), and nothing from a black market. What is open: the
+  display of health / maximum, and the loss of the city itself. Spec status:
+  cities-and-facilities.md, "Durability and damage", documents the loss
+  of soldiers for a barracks only. The market and the farm are a rule of
+  the player. Gap report 3 checks them before the clone assumes them.
