@@ -666,6 +666,39 @@ feature_duel_tests(test_counts *counts)
     engine_duel_view view = api->duel_view(e);
     TEST_CHECK(counts, started && view.round == 0 && view.side[0].officers[0] == api->unit_at(e, a).officers[0] && view.side[0].stamina[0] > 0,
                "the target accepts and the duel opens with the two commanders");
+    /* The play report of 2026-10-23: a duel of two computer officers runs to its end at once, with no screen. */
+    {
+        feature_city_setup other;
+        feature_march_setup(&other);
+        engine_api *api_2 = other.api;
+        void *e_2 = api_2->engine;
+        u32 c = feature_sortie_unit(api_2, other.city, 1);
+        u32 d = feature_sortie_unit(api_2, other.city, 1);
+        u8 enemy_2 = feature_other_faction(api_2, other.force, 0);
+        hex_coord at_c = feature_unit_hex(api_2, c);
+        hex_coord spot_2 = at_c;
+        for (u32 dir = 0; dir < HEX_DIRECTION_COUNT; ++dir)
+        {
+            hex_coord hex = hex_neighbor(at_c, dir);
+            if (api_2->unit_at_hex(e_2, hex.q, hex.r) == ENGINE_NO_UNIT && api_2->set_unit_place(e_2, d, enemy_2, hex.q, hex.r)) { spot_2 = hex; break; }
+        }
+        engine_officer_edit edit_2 = feature_edit_of(api_2, api_2->unit_at(e_2, d).officers[0]);
+        edit_2.personality = PERSONALITY_RECKLESS;
+        api_2->set_officer(e_2, api_2->unit_at(e_2, d).officers[0], &edit_2);
+        u32 mark_2 = api_2->ledger_count(e_2);
+        b32 started_2 = false;
+        for (u32 attempt = 0; attempt < 8 && !started_2; ++attempt)
+        {
+            api_2->set_faction_human(e_2, other.force, false);   /* two computer factions at the start of the duel */
+            api_2->command_duel(e_2, c, spot_2.q, spot_2.r);
+            started_2 = feature_count_events(api_2, SIM_EVENT_DUEL_STARTED, mark_2) > 0;
+            api_2->set_faction_human(e_2, other.force, true);
+            if (!started_2) feature_next_own_turn(api_2, other.force);   /* a refused challenge took the action of the unit */
+        }
+        TEST_CHECK(counts, started_2 && !api_2->duel_view(e_2).active && feature_count_events(api_2, SIM_EVENT_DUEL_ENDED, mark_2) == 1,
+                   "a duel of two computer officers ends at once: the player sees only the result");
+        engine_fixture_destroy(&other.fixture);
+    }
     TEST_CHECK(counts, api->command_attack(e, a, spot.q, spot.r).refusal == SIM_REFUSAL_BUSY, "refused: other commands wait while a duel runs");
     TEST_CHECK(counts, api->command_duel_action(e, SIM_DUEL_SPECIAL, DUEL_PEERLESS).refusal == SIM_REFUSAL_NO_SPIRIT, "refused: 無雙 needs a spirit of 300");
     u32 mark = api->ledger_count(e);

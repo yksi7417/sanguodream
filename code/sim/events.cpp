@@ -126,7 +126,7 @@ sim_event_treason(sim_state *sim, event_kind *kind, sim_event_context *ctx, b32 
     {
         sim_corps *corps = sim->corps[force] + index;
         officer_component *candidate = corps->alive ? sim_find_officer(sim, corps->viceroy) : 0;
-        if (!candidate) continue;
+        if (!candidate || candidate->force_id != force || !sim_officer_is_active(candidate)) continue;   /* a stale corps record names no 都督 */
         corps_count++;
         if (!sim_officers_bonded(candidate, ruler) && !sim_officers_blood(candidate, ruler) && candidate->loyalty < 100) viceroy = candidate;
     }

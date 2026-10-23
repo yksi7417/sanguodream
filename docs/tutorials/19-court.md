@@ -191,7 +191,10 @@ damage and the spirit. A substitute of the same unit can take the place
 of the officer. The
 computer side follows its personality. The winner gains merit, technique
 points and perhaps force; the loser can become a captive. At
-duel.max_rounds the duel is a draw.
+duel.max_rounds the duel is a draw. The player plays side 0 of the
+screen. When the computer challenges the player, the sides swap. A duel
+of two computer officers runs to its end in the same command. The player
+then sees only the result in the log (play report of 2026-10-23).
 
 ## The debate
 Each side has a mind gauge with five rocks, an anger gauge and a hand by

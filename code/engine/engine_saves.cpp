@@ -21,6 +21,7 @@
 
 #define ENGINE_SAVE_MAGIC   0x56535848u   /* "HXSV" */
 #define ENGINE_SAVE_VERSION 2
+#define ENGINE_SAVE_V1_CONTENT_GROWTH 4   /* the bytes that sim_content grew between the builds of 2026-10-22 and 2026-10-23 (one u32 rule) */
 
 /* The header of version 1 (the builds until 2026-10-22). */
 struct engine_save_header_v1
@@ -313,18 +314,26 @@ engine_api_load_game(void *opaque, u32 slot)
     *live = *sim;
     if (header.version == 1)
     {
-        /* The sim_state of 2026-10-22: its content is four bytes shorter
-           (one rule less), so every member after content sits four bytes
-           earlier, and the tail padding took the difference. The copy
-           inserts four bytes at the end of content. The inside of content
-           does not matter: the load takes the content of the pack. */
+        /* The sim_state of 2026-10-22, measured with offsetof against the
+           headers of that build: its content was four bytes shorter (one
+           rule less). The members from has_content to unit_count sat four
+           bytes earlier. The padding before scratch (8-aligned) took the
+           difference, so scratch and every member after it did not move.
+           The copy inserts four bytes at the end of the old content and
+           moves the members up to scratch. The inside of content does not
+           matter: the load takes the content of the pack.
+           save_compat_tests.cpp checks the members after content against
+           a fresh load of the sample. */
         u8 *old   = PushArray(arena, sizeof(sim_state), u8);
         u8 *fresh = (u8 *)sim;
-        u64 shift_at = offsetof(sim_state, content) + sizeof(sim_content) - sizeof(u32);
+        u64 growth    = ENGINE_SAVE_V1_CONTENT_GROWTH;
+        u64 shift_at  = offsetof(sim_state, content) + sizeof(sim_content) - growth;   /* the end of the old content */
+        u64 shift_end = offsetof(sim_state, scratch);                                  /* the first member that did not move */
         engine_save_get(&cursor, old, sizeof(sim_state));
         memcpy(fresh, old, shift_at);
-        memset(fresh + shift_at, 0, sizeof(u32));
-        memcpy(fresh + shift_at + sizeof(u32), old + shift_at, sizeof(sim_state) - shift_at - sizeof(u32));
+        memset(fresh + shift_at, 0, growth);
+        memcpy(fresh + shift_at + growth, old + shift_at, shift_end - shift_at - growth);
+        memcpy(fresh + shift_end, old + shift_end, sizeof(sim_state) - shift_end);
     }
     else
     {

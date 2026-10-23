@@ -39,6 +39,27 @@ feature_save_compat_tests(test_counts *counts)
     u16 ruler = api->force_ruler(e, 6);
     TEST_CHECK(counts, ruler != ENGINE_NO_OFFICER && api->officer_by_id(e, ruler).force_id == 6 && api->city_count(e) == 42,
                "the player has its ruler, and the 42 cities are there");
+    /* The members after content: no event waits, no duel runs, no debate runs, and the technique points are sane. */
+    engine_pending_event pending = api->pending_event(e);
+    engine_duel_view duel = api->duel_view(e);
+    engine_debate_view debate = api->debate_view(e);
+    u32 points = api->technique_points(e, 6);
+    snprintf(name, sizeof(name), "the state after content reads right: no pending event (%u), no duel (%u), no debate (%u), technique points %u",
+             pending.active, duel.active, debate.active, points);
+    TEST_CHECK(counts, !pending.active && !duel.active && !debate.active && points < 100000, name);
+    engine_unit first_unit = api->unit_at(e, 0);
+    TEST_CHECK(counts, api->unit_count(e) < 200 && (first_unit.id == ENGINE_NO_UNIT || first_unit.soldiers < 100000),
+               "the units after the load are sane");
+    /* The slot was saved at the start of the sample: the ruler of the player and the officers of the cities are those of a fresh load. */
+    engine_fixture sample;
+    engine_fixture_init_real(&sample, 1, 65536);
+    sample.api.load_save(sample.api.engine, SAMPLE_SAVE_RELATIVE_PATH);
+    u16 fresh_ruler = sample.api.force_ruler(sample.api.engine, 6);
+    u16 fresh_governor = sample.api.city_at(sample.api.engine, 0).commanding_officer_id;
+    snprintf(name, sizeof(name), "the ruler of the player (%u) and the governor of the city 0 (%u) are those of a fresh load of the sample (%u, %u)",
+             ruler, api->city_at(e, 0).commanding_officer_id, fresh_ruler, fresh_governor);
+    TEST_CHECK(counts, ruler == fresh_ruler && api->city_at(e, 0).commanding_officer_id == fresh_governor, name);
+    engine_fixture_destroy(&sample);
     engine_fixture_destroy(&fixture);
 
     /* A save of this build carries the layout of sim_state. A file with

@@ -101,10 +101,25 @@ sim_start_duel(sim_state *sim, sim_command command, sim_event_sink *events)
     duel->active = true;
     duel->cause  = command.id;
     duel->winner = 2;
-    sim_duel_setup_side(sim, duel->side + 0, order->unit, true);
-    sim_duel_setup_side(sim, duel->side + 1, target_id, false);
+    /* The player plays side 0, the side of the screen that takes the
+       commands (play report of 2026-10-23: a duel of two computer officers
+       opened the screen for the player). When the computer challenges the
+       player, the sides swap. A duel of two computer officers runs to its
+       end at once, and the player sees only the result in the log. */
+    b32 challenger_human = unit->force_id < SIM_FORCE_CAPACITY && sim->turns.human[unit->force_id];
+    b32 defender_human   = sim->units[target_id].force_id < SIM_FORCE_CAPACITY && sim->turns.human[sim->units[target_id].force_id];
+    if (!challenger_human && defender_human)
+    {
+        sim_duel_setup_side(sim, duel->side + 0, target_id, true);
+        sim_duel_setup_side(sim, duel->side + 1, order->unit, false);
+    }
+    else
+    {
+        sim_duel_setup_side(sim, duel->side + 0, order->unit, challenger_human);
+        sim_duel_setup_side(sim, duel->side + 1, target_id, defender_human);
+    }
     /* M9: 單挑・舌戰 semi-automatic or automatic: the computer plays the rounds. */
-    if (sim->settings.duel_mode != DUEL_MODE_MANUAL) sim_duel_auto(sim, command.id, events);
+    if (sim->settings.duel_mode != DUEL_MODE_MANUAL || (!challenger_human && !defender_human)) sim_duel_auto(sim, command.id, events);
 }
 
 /* ---- one strike and one round ---------------------------------------------------- */

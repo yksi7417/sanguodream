@@ -50,7 +50,10 @@ same sizeof(sim_state). The old slot loaded, and the game showed the year
 ENGINE_SAVE_OTHER_VERSION. The tables and the rules of the pack
 (sim_state.content) come from the pack of this build, never from the
 file. So a new rule does not break a save. A version 1 file has the
-layout of 2026-10-22, and the load inserts the four bytes.
+layout of 2026-10-22, measured with offsetof against the headers of that
+build. The load inserts the four bytes at the end of the old content
+and moves the members up to `scratch`. The free bytes before `scratch`
+took the difference, so the members after it did not move.
 tests/feature/save_compat_tests.cpp loads such a file,
 tests/fixtures/saves/slot_01.hxs, and checks its date and its player.
 When a change of sim_state breaks that test, add a migration or make the
