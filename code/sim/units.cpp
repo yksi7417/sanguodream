@@ -737,6 +737,7 @@ sim_check_unit_order(sim_state *sim, sim_command_kind kind, sim_unit_order *orde
         case SIM_COMMAND_MOVE:
         {
             if (unit->moved_turn == sim->turn + 1) return sim_refuse(check, SIM_REFUSAL_UNIT_ACTED);
+            u64 mark = scratch->used;
             sim_reach reach = sim_unit_reach(sim, order->unit, scratch);
             u32 place = sim_reach_find(&reach, order->to);
             if (place == 0) return sim_refuse(check, SIM_REFUSAL_UNREACHABLE);
@@ -750,6 +751,10 @@ sim_check_unit_order(sim_state *sim, sim_command_kind kind, sim_unit_order *orde
                are the turns of the plan (orders.cpp). A hex with a unit is
                no goal. */
             if (sim_unit_at(sim, order->to) != SIM_NO_UNIT) return sim_refuse(check, SIM_REFUSAL_UNREACHABLE);
+            /* The reach is done. A plan needs the whole scratch on the real
+               map: two searches at once overflow it (the transport that
+               could not move, 2026-10-22). */
+            scratch->used = mark;
             sim_reach plan = sim_unit_plan(sim, order->unit, order->to, scratch);
             place = sim_reach_find(&plan, order->to);
             if (place == U32_MAX) return sim_refuse(check, SIM_REFUSAL_UNREACHABLE);

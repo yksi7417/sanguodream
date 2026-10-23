@@ -194,7 +194,10 @@ with an order shows 委.
   unit.
 The path is a search without a cap over the terrain (`sim_unit_plan`).
 Own cities and bases are waypoints, and the units of today do not block
-the plan. A step moves the unit to the hex of the path that is farthest
+the plan. One search takes most of the scratch arena on the real map, so
+a function frees its reach before it builds a plan. The check of a far
+移動 did not, and a transport on the real map did not take its order
+(2026-10-22). A step moves the unit to the hex of the path that is farthest
 along it and in the reach of this turn. `path_to` gives the plan to a
 front end. The plan has the hexes, the cost, the days of 10 for each
 turn, the days of grain and the bases on the way. The target menu of the

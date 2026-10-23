@@ -215,9 +215,86 @@ feature_transport_arrival_tests(test_counts *counts)
     }
 }
 
+/* A transport of a new game (194): 輸送 from a city to another city of the
+   same force, then the far order 移動 to the hex of that city, as a click
+   on the far city gives it (G2-058). The unit moves at each 進行 and
+   arrives within 30 turns. The player reported a transport with a long
+   order that neither moved by hand nor at 委任部隊行動 (2026-10-22). */
+internal void
+feature_new_game_transport_tests(test_counts *counts)
+{
+    engine_fixture f;
+    engine_fixture_init_real(&f, 1, 4096);
+    engine_api *api = &f.api;
+    void *e = api->engine;
+    engine_scenario warlords = api->scenario_at(e, 1);
+    TEST_CHECK(counts, api->load_scenario(e, warlords.file).status == ENGINE_LOAD_OK, "the new game of 194 loads on the real map");
+    /* A force with two cities: the first city whose owner owns another city. */
+    u8 from = ENGINE_NO_CITY, to = ENGINE_NO_CITY, force = ENGINE_NO_FACTION;
+    for (u32 a = 0; a < api->city_count(e) && from == ENGINE_NO_CITY; ++a)
+    {
+        engine_city city_a = api->city_at(e, a);
+        if (city_a.owner_force_id == ENGINE_NO_FACTION) continue;
+        for (u32 b = a + 1; b < api->city_count(e); ++b)
+        {
+            engine_city city_b = api->city_at(e, b);
+            if (city_b.owner_force_id == city_a.owner_force_id) { from = city_a.city_id; to = city_b.city_id; force = city_a.owner_force_id; break; }
+        }
+    }
+    TEST_CHECK(counts, force != ENGINE_NO_FACTION && feature_play_as(api, force), "a force with two cities plays");
+    api->set_city_resource(e, from, SIM_RESOURCE_SOLDIERS, 0, 20000);
+    api->set_city_gold(e, from, 5000);
+    api->set_city_resource(e, from, SIM_RESOURCE_GRAIN, 0, 50000);
+    engine_sortie_order order = feature_pike_order(api, from, 1);
+    order.unit_type   = FEATURE_UNIT_TRANSPORT;
+    order.destination = to;
+    engine_command_result sent = api->command_transport(e, &order);
+    u32 unit_id = ENGINE_NO_UNIT;
+    for (u32 id = 0; id < api->unit_count(e); ++id)
+    {
+        engine_unit unit = api->unit_at(e, id);
+        if (unit.id != ENGINE_NO_UNIT && unit.officers[0] == order.officers[0]) unit_id = id;
+    }
+    char name[200];
+    snprintf(name, sizeof(name), "a transport leaves city %u for city %u of force %u (refusal %u)", from, to, force, sent.refusal);
+    TEST_CHECK(counts, sent.refusal == SIM_REFUSAL_NONE && unit_id != ENGINE_NO_UNIT, name);
+    if (unit_id == ENGINE_NO_UNIT) { engine_fixture_destroy(&f); return; }
+    engine_city_slots goal = api->city_slots(e, to);
+    engine_unit unit = api->unit_at(e, unit_id);
+    engine_path_view path = api->path_to(e, unit_id, goal.q, goal.r);
+    printf("  INFO transport %u at %d,%d, goal %d,%d: path found %u, in reach %u, %u hexes\n", unit_id, unit.q, unit.r, goal.q, goal.r,
+           path.found, path.in_reach, path.count);
+    engine_command_result moved = api->command_move(e, unit_id, goal.q, goal.r);
+    engine_unit after = api->unit_at(e, unit_id);
+    snprintf(name, sizeof(name), "the far order to the city is taken and the unit steps now (refusal %u, order %u, at %d,%d)", moved.refusal,
+             after.order, after.q, after.r);
+    TEST_CHECK(counts, moved.refusal == SIM_REFUSAL_NONE && (after.id == ENGINE_NO_UNIT || after.q != unit.q || after.r != unit.r), name);
+    u32 turns = 0, still = 0;
+    for (; turns < 30 && api->unit_at(e, unit_id).id != ENGINE_NO_UNIT; ++turns)
+    {
+        engine_unit before_turn = api->unit_at(e, unit_id);
+        feature_next_own_turn(api, force);
+        engine_unit after_turn = api->unit_at(e, unit_id);
+        /* The order stepped the unit at once, so the first 進行 moves it no
+           further (the run of 2026-10-22, section 14). Every later turn
+           moves it. */
+        if (turns > 0 && after_turn.id != ENGINE_NO_UNIT && after_turn.q == before_turn.q && after_turn.r == before_turn.r)
+        {
+            still++;
+            engine_path_view now = api->path_to(e, unit_id, goal.q, goal.r);
+            printf("  INFO turn %u: the transport stays at %d,%d (order %u, path found %u, %u hexes, reach %u)\n", turns, after_turn.q, after_turn.r,
+                   after_turn.order, now.found, now.count, api->reachable(e, unit_id).count);
+        }
+    }
+    snprintf(name, sizeof(name), "the transport arrives within 30 turns and never stays in place (gone after %u turns, %u turns in place)", turns, still);
+    TEST_CHECK(counts, api->unit_at(e, unit_id).id == ENGINE_NO_UNIT && still == 0, name);
+    engine_fixture_destroy(&f);
+}
+
 internal void
 feature_people_tests(test_counts *counts)
 {
+    feature_new_game_transport_tests(counts);
     feature_move_officers_tests(counts);
     feature_plot_mission_tests(counts);
     feature_travel_days_real_map_tests(counts);
