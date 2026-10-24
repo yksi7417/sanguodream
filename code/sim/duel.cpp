@@ -53,7 +53,9 @@ sim_check_duel(sim_state *sim, sim_unit_order *order)
     u32 target_id = sim_unit_at(sim, order->to);
     sim_unit *target = target_id != SIM_NO_UNIT ? sim->units + target_id : 0;
     if (!target || hex_distance(unit->hex, order->to) != 1 || !sim_at_war(sim, unit->force_id, target->force_id)) return sim_refuse(check, SIM_REFUSAL_NO_TARGET);
-    officer_component *challenger = sim_find_officer(sim, unit->officers[0]);
+    /* G3-008: order->kind picks the challenger among the officers of the unit (0 = the commander). */
+    u32 slot = order->kind < SIM_COMMAND_OFFICERS && unit->officers[order->kind] != SIM_NO_OFFICER ? order->kind : 0;
+    officer_component *challenger = sim_find_officer(sim, unit->officers[slot]);
     officer_component *defender   = sim_find_officer(sim, target->officers[0]);
     if (!challenger || !defender) return sim_refuse(check, SIM_REFUSAL_NO_OFFICER);
     if (!challenger->stamina) return sim_refuse(check, SIM_REFUSAL_NO_SPIRIT);
@@ -86,7 +88,8 @@ sim_start_duel(sim_state *sim, sim_command command, sim_event_sink *events)
     sim_unit *unit = sim->units + order->unit;
     u32 target_id = sim_unit_at(sim, order->to);
     unit->acted_turn = sim->turn + 1;
-    officer_component *challenger = sim_find_officer(sim, unit->officers[0]);
+    u32 slot = order->kind < SIM_COMMAND_OFFICERS && unit->officers[order->kind] != SIM_NO_OFFICER ? order->kind : 0;   /* G3-008 */
+    officer_component *challenger = sim_find_officer(sim, unit->officers[slot]);
     officer_component *defender   = sim_find_officer(sim, sim->units[target_id].officers[0]);
     b32 accepted = check.quantity >= 100 || sim_random_below(sim, 100) < check.quantity;
     sim_event event = sim_event_make(sim, accepted ? SIM_EVENT_DUEL_STARTED : SIM_EVENT_DUEL_REFUSED, command.id);
@@ -117,6 +120,7 @@ sim_start_duel(sim_state *sim, sim_command command, sim_event_sink *events)
     {
         sim_duel_setup_side(sim, duel->side + 0, order->unit, challenger_human);
         sim_duel_setup_side(sim, duel->side + 1, target_id, defender_human);
+        duel->side[0].fighter = (u8)slot;   /* G3-008: the chosen officer fights first */
     }
     /* M9: 單挑・舌戰 semi-automatic or automatic: the computer plays the rounds. */
     if (sim->settings.duel_mode != DUEL_MODE_MANUAL || (!challenger_human && !defender_human)) sim_duel_auto(sim, command.id, events);

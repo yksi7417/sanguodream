@@ -145,6 +145,13 @@ ui_hud_row_click(ui_state *ui, engine_api *api, ui_hud_row *row, bool open)
     {
         case 0:
             ui_frame_city(ui, (u8)row->id);
+            /* G3-012: while the window of a city is open, the row of another city moves the window to that city. */
+            if (!open && ui->context.kind == UI_CONTEXT_CITY && ui->city.selected != (u8)row->id)
+            {
+                ui_context_close(ui);
+                ui->city.selected = (u8)row->id;
+                open = true;
+            }
             if (open) ui_context_open(ui, api, UI_CONTEXT_CITY, io.MousePos.x, io.MousePos.y);
             break;
         case 1:

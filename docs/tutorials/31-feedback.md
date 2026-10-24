@@ -108,8 +108,11 @@ template provider.
   number points down for a loss and up for a gain (G2-018).
 - The turn start shows the events with the report flag, then the lines
   of the adviser (G2-006, G2-007). The threat names an enemy city 10 days
-  from an own city with more soldiers (assumed). The last line is
-  請下達下一個指示. The
+  from an own city with more soldiers (assumed). An enemy unit that
+  marches on an own city gives its own line, 根據急報，發現了以X為進攻目標的
+  敵軍蹤影 (G3-009). The goal of the unit comes from the last AI turn of
+  its force (`unit_goal`). The governor of the target city speaks, and
+  the camera goes to the unit. The last line is 請下達下一個指示. The
   first turn after the load says 可終於輪到我們了啊 in its place, and
   the camera stands at the capital. The camera moves to the city of each
   message. The window shows the speaker of each message and no counter.

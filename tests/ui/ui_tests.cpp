@@ -2246,6 +2246,32 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK(!ui_walk_active(&v.ui) && v.ui.war.strike_count == 1u);
     };
 
+    /* G3-009: an enemy unit that marches on an own city gives a line of the
+       turn start, after the reports and before the closing line. The
+       governor of the target city speaks, and the camera goes to the unit. */
+    t = IM_REGISTER_TEST(e, "ui", "turn_start_reports_an_enemy_unit_that_marches_on_an_own_city");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count  = 3;
+        v.recorder.city_count     = 2;
+        v.recorder.unit1_rival    = true;
+        v.recorder.unit1_goal     = true;
+        v.recorder.unit1_goal_city = 0;   /* the own city 0 */
+        v.ui.feel.turn_messages = true;
+        v.ui.round.show         = true;
+        ui_enter_game(&v.ui);
+        ctx->Yield(3);
+        IM_CHECK_EQ(v.ui.feel.message_count, 3u);   /* the heading, the unit threat, the closing line */
+        IM_CHECK_EQ(v.ui.feel.messages[1], UI_MESSAGE_UNIT_THREAT | 1u);
+        IM_CHECK_EQ(ui_feel_message_speaker(&v.ui, &v.api, v.ui.feel.messages[1]), 100);   /* the governor of city 0 */
+        char line[256];
+        ui_feel_message_text(&v.ui, &v.api, v.ui.feel.messages[1], line, sizeof(line));
+        IM_CHECK(strstr(line, "\xE6\x80\xA5\xE5\xA0\xB1") != 0);   /* zh-TW: 急報 */
+    };
+
     /* G3-020: a click on an enemy facility out of the range asks the question
        of the attack order; 是 sends one command_attack_facility on the hex. */
     t = IM_REGISTER_TEST(e, "ui", "far_click_on_an_enemy_facility_asks_and_orders_the_attack");
@@ -2720,9 +2746,18 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->Yield();
         IM_CHECK(v.ui.combat.pick == UI_PICK_DUEL);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
-        ui_test_click_cell(ctx, v, hex_make(2, 2));
+        /* G3-008: the click on the target opens the list of the officers with 成功率; a row sends the command. */
+        ui_test_click_cell(ctx, v, hex_make(1, 3));
+        ctx->Yield();
+        IM_CHECK(v.ui.combat.duel_pick && v.ui.combat.pick == UI_PICK_NONE);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        ctx->SetRef("//###DuelPick");
+        ctx->ItemClick("###duel_officer_1");
+        ctx->Yield();
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_DUEL), 1u);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(v.recorder.last_unit_command.row == 1 && v.recorder.last_unit_command.q == 1 && v.recorder.last_unit_command.r == 3);
+        IM_CHECK(!v.ui.combat.duel_pick);
     };
 
     t = IM_REGISTER_TEST(e, "ui", "court_officer_view_asks_for_the_portrait_of_the_officer");

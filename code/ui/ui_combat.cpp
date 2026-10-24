@@ -67,7 +67,23 @@ ui_combat_click(ui_state *ui, engine_api *api, hex_coord hex)
         case UI_PICK_BUILD:     result = api->command_build(e, unit_id, ui->combat.row, hex.q, hex.r); break;
         case UI_PICK_REPAIR:    result = api->command_repair(e, unit_id, hex.q, hex.r); break;
         case UI_PICK_DISMANTLE: result = api->command_dismantle(e, unit_id, hex.q, hex.r); break;
-        case UI_PICK_DUEL:      result = api->command_duel(e, unit_id, hex.q, hex.r); break;
+        case UI_PICK_DUEL:
+        {
+            /* G3-008: the list of the officers with 成功率 opens; a row sends the command. */
+            engine_command probe = {};
+            probe.kind = ENGINE_COMMAND_DUEL;
+            probe.unit = unit_id;
+            probe.q = hex.q; probe.r = hex.r;
+            result = {};
+            result.refusal = api->can_issue(e, &probe).refusal;
+            if (result.refusal == SIM_REFUSAL_NONE)
+            {
+                ui->combat.duel_pick = true;
+                ui->combat.duel_hex  = hex;
+                ui->combat.pick      = UI_PICK_NONE;
+                return true;
+            }
+        } break;
         default: break;
     }
     ui_growth_result(ui, ui_pick_text_id(pick), result);
@@ -88,6 +104,55 @@ ui_combat_click(ui_state *ui, engine_api *api, hex_coord hex)
         }
     }
     return true;
+}
+
+/* G3-008 (ui/unit-commands.md; the run of 2026-10-23): after the target
+   of 單挑, the window 武將 lists the officers of the unit with 成功率, 武力
+   and 體力. The status line says 請選擇要挑起單挑的武將. A row sends one
+   command_duel_officer. */
+internal void
+ui_draw_duel_pick(ui_state *ui, engine_api *api)
+{
+    void *e = api->engine;
+    engine_unit unit = api->unit_at(e, ui->units.selected);
+    if (unit.id == ENGINE_NO_UNIT) { ui->combat.duel_pick = false; return; }
+    char title[128], label[160], name[UI_NAME_SIZE * 2];
+    ImGui::SetNextWindowSize(ImVec2(420, 0), ImGuiCond_Appearing);
+    ui_context_place(ui, 1);
+    if (ImGui::Begin(ui_label(title, sizeof(title), ui, "duel.pick_title", "DuelPick"), &ui->combat.duel_pick, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        ui_context_track(ui);
+        ImGui::TextUnformatted(text_get(ui->text, "duel.pick_hint"));
+        ImGui::Separator();
+        ImGui::Text("%s   %s   %s   %s", text_get(ui->text, "duel.pick_officer"), text_get(ui->text, "duel.pick_chance"),
+                    text_get(ui->text, "duel.force"), text_get(ui->text, "duel.stamina"));
+        for (u32 slot = 0; slot < SIM_COMMAND_OFFICERS; ++slot)
+        {
+            if (unit.officers[slot] == ENGINE_NO_OFFICER) continue;
+            engine_officer officer = api->officer_by_id(e, unit.officers[slot]);
+            engine_officer_detail detail = api->officer_detail(e, unit.officers[slot]);
+            engine_command probe = {};
+            probe.kind = ENGINE_COMMAND_DUEL;
+            probe.unit = unit.id;
+            probe.row  = (u8)slot;
+            probe.q = ui->combat.duel_hex.q; probe.r = ui->combat.duel_hex.r;
+            engine_check check = api->can_issue(e, &probe);
+            ui_officer_text(ui, api, unit.officers[slot], name, sizeof(name));
+            snprintf(label, sizeof(label), "%s   %u%%   %u   %u###duel_officer_%u", name, check.quantity, officer.war, detail.stamina, slot);
+            ImGui::BeginDisabled(check.refusal != SIM_REFUSAL_NONE);
+            if (ImGui::Selectable(label, false))
+            {
+                engine_command_result result = api->command_duel_officer(e, unit.id, ui->combat.duel_hex.q, ui->combat.duel_hex.r, (u8)slot);
+                ui_growth_result(ui, "unit_menu.duel", result);
+                ui_units_note_result(ui, result);
+                ui->combat.duel_pick = false;
+                if (result.refusal == SIM_REFUSAL_NONE && ui_strike_of_pick(UI_PICK_DUEL) != UI_STRIKE_KIND_COUNT) ui_strike_push(ui, ui_strike_of_pick(UI_PICK_DUEL), ui->combat.duel_hex);
+            }
+            ImGui::EndDisabled();
+        }
+        if (ImGui::Button(ui_label(label, sizeof(label), ui, "unit_target.no", "duel_pick_back"), ImVec2(80.0f, 0.0f))) ui->combat.duel_pick = false;
+    }
+    ImGui::End();
 }
 
 /* The hexes where the pick can hit now (red outlines), the buildings (a

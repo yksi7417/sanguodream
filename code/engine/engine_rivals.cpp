@@ -142,6 +142,37 @@ engine_api_council(void *opaque, u8 force_id, u8 city_id)
 
 /* What the AI of the faction proposes now, in the order it acts: the
    feature tests read the first command of a state. */
+/* G3-009: the chosen option of the unit in the newest AI record of its
+   force: the city it marches on and the hex it goes to. */
+internal engine_unit_goal
+engine_api_unit_goal(void *opaque, u32 unit_id)
+{
+    sim_state *sim = ((engine *)opaque)->sim;
+    engine_unit_goal goal = {};
+    goal.city_id = ENGINE_NO_CITY;
+    sim_unit *unit = sim_find_unit(sim, unit_id);
+    if (!unit) return goal;
+    sim_ai_record *newest = 0;
+    for (u32 index = 0; index < SIM_AI_RECORD_CAPACITY; ++index)
+    {
+        sim_ai_record *record = sim->ai_records + index;
+        if (!record->turn || record->force != unit->force_id) continue;
+        if (!newest || record->turn > newest->turn) newest = record;
+    }
+    if (!newest) return goal;
+    for (u32 index = 0; index < newest->count; ++index)
+    {
+        sim_ai_option *option = newest->options + index;
+        if (!option->chosen || option->unit != unit_id) continue;
+        goal.known   = true;
+        goal.city_id = option->city_id == SIM_NO_CITY ? (u8)ENGINE_NO_CITY : option->city_id;
+        goal.q       = option->target.q;
+        goal.r       = option->target.r;
+        break;
+    }
+    return goal;
+}
+
 internal engine_plan_view
 engine_api_ai_plan(void *opaque, u8 force_id)
 {
@@ -371,6 +402,7 @@ engine_bind_rivals_api(engine_api *api)
     api->advice               = engine_api_advice;
     api->council              = engine_api_council;
     api->ai_plan              = engine_api_ai_plan;
+    api->unit_goal            = engine_api_unit_goal;
     api->ai_explain           = engine_api_ai_explain;
     api->emperor              = engine_api_emperor;
     api->relic_count          = engine_api_relic_count;

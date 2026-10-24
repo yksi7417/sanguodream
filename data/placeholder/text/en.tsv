@@ -485,6 +485,12 @@ relation.0	None	無
 relation.1	Alliance	同盟
 relation.2	Ceasefire	停戰
 duel.title	Duel	單挑
+duel.pick_title	Officers	武將
+duel.pick_hint	Choose the officer for the duel.	請選擇要挑起單挑的武將
+duel.pick_officer	Officer	武將
+duel.pick_chance	Chance	成功率
+say.duel_challenge	Enemy general, come out! Let us settle this one on one!	敵將出來！來進行一對一的勝負吧！
+say.duel_accept	I, %s, accept this fight!	這場勝負，我%s接下了！
 duel.round	Round	合
 duel.force	Force	武力
 duel.stamina	Stamina	體力
@@ -1551,6 +1557,7 @@ log.captive_kept	{subject}: kept as a captive	{subject}：收押
 log.officer_executed	{subject}: executed	{subject}：處決
 turn.lord	Lord %s, 	the prefix of a line to the ruler: %s大人，
 turn.threat	the forces of %s are a threat. Do not drop your guard.	%s的兵力頗具威脅性，請不要疏於警戒。
+turn.threat_unit	an urgent report: an enemy army marches on %s.	根據急報，發現了以%s為進攻目標的敵軍蹤影。
 turn.next_order	please give the next order.	請下達下一個指示。
 turn.our_turn	at last it is our turn.	可終於輪到我們了啊。
 say.captive_escaped	I have learned the guard roster. Now is the time to run!	我已摸清了警備的編制，趁現在快點逃吧！

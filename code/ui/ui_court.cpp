@@ -587,6 +587,16 @@ ui_draw_duel(ui_state *ui, engine_api *api)
     void *e = api->engine;
     engine_duel_view view = api->duel_view(e);
     ImGui::Text("%s %02u", text_get(ui->text, "duel.round"), view.round);
+    if (view.active && view.round == 0)
+    {
+        /* G3-008: the two speeches before the first round (the run of 2026-10-23). */
+        char challenger[UI_NAME_SIZE * 2], defender[UI_NAME_SIZE * 2], line[UI_NAME_SIZE * 6];
+        ui_officer_text(ui, api, view.side[0].officers[view.side[0].fighter], challenger, sizeof(challenger));
+        ui_officer_text(ui, api, view.side[1].officers[view.side[1].fighter], defender, sizeof(defender));
+        ImGui::TextWrapped("%s: %s", challenger, text_get(ui->text, "say.duel_challenge"));
+        snprintf(line, sizeof(line), text_get(ui->text, "say.duel_accept"), defender);
+        ImGui::TextWrapped("%s: %s", defender, line);
+    }
     ui_draw_duel_side(ui, api, view.side + 0, "left");
     ImGui::SameLine(260);
     ui_draw_duel_side(ui, api, view.side + 1, "right");

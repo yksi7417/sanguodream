@@ -19,6 +19,7 @@ internal s64  ui_report_value(engine_api *api, const engine_event_report *report
 /* ui_round.cpp (M20): 進行 of the map menu and of the top bar (ui_game.cpp). */
 internal void ui_round_proceed(ui_state *ui, engine_api *api);
 internal void ui_frame_city(ui_state *ui, u8 city_id);   /* ui_locate.cpp; G2-006: the camera to the capital */
+internal void ui_frame_hex(ui_state *ui, engine_api *api, hex_coord hex);   /* ui_locate.cpp; G3-009: the camera to the enemy unit */
 
 internal bool
 ui_feel_messages_open(ui_state *ui)
@@ -160,6 +161,16 @@ ui_feel_collect_messages(ui_state *ui, engine_api *api, u8 force)
     }
     ui->feel.threat_city = ui_feel_threat_city(api, force);
     if (ui->feel.threat_city != ENGINE_NO_CITY) ui->feel.messages[ui->feel.message_count++] = UI_MESSAGE_THREAT;
+    /* G3-009 (observed 2026-10-23): an enemy unit that marches on an own city gives a line, with the
+       camera on the unit. The goal comes from the last AI turn of its force (unit_goal). */
+    for (u32 unit_id = 0; unit_id < api->unit_count(api->engine) && ui->feel.message_count < UI_MESSAGE_CAPACITY - 1; ++unit_id)
+    {
+        engine_unit unit = api->unit_at(api->engine, unit_id);
+        if (unit.id == ENGINE_NO_UNIT || unit.force_id == force) continue;
+        engine_unit_goal goal = api->unit_goal(api->engine, unit_id);
+        if (!goal.known || goal.city_id == ENGINE_NO_CITY || api->city_at(api->engine, goal.city_id).owner_force_id != force) continue;
+        ui->feel.messages[ui->feel.message_count++] = UI_MESSAGE_UNIT_THREAT | (unit_id & 0xFFFFu);
+    }
     ui->feel.messages[ui->feel.message_count++] = UI_MESSAGE_NEXT_ORDER;
     ui->feel.ledger_mark = count;
 }
@@ -172,6 +183,14 @@ ui_feel_message_speaker(ui_state *ui, engine_api *api, u32 message)
     u16 adviser = api->adviser(api->engine, ui->feel.force);
     u16 ruler = api->force_ruler(api->engine, ui->feel.force);
     if (message == UI_MESSAGE_HEADING) return ruler;
+    if ((message & UI_MESSAGE_UNIT_THREAT_MASK) == UI_MESSAGE_UNIT_THREAT && message != UI_MESSAGE_THREAT && message != UI_MESSAGE_NEXT_ORDER && message != UI_MESSAGE_HEADING)
+    {
+        /* G3-009: the governor of the target city speaks, else the adviser. */
+        engine_unit_goal goal = api->unit_goal(api->engine, message & 0xFFFFu);
+        u16 governor = goal.city_id != ENGINE_NO_CITY ? api->city_at(api->engine, goal.city_id).commanding_officer_id : (u16)ENGINE_NO_OFFICER;
+        if (governor != ENGINE_NO_OFFICER && governor != 0xFFFF) return governor;
+        return adviser != ENGINE_NO_OFFICER ? adviser : ruler;
+    }
     if (message == UI_MESSAGE_NEXT_ORDER && ui->feel.first_turn && ui->feel.loaded_game) return ENGINE_NO_OFFICER;   /* G3-023: the emperor speaks, no portrait in the clone */
     if (message == UI_MESSAGE_THREAT || message == UI_MESSAGE_NEXT_ORDER) return adviser != ENGINE_NO_OFFICER ? adviser : ruler;
     u16 reporter = api->event_report(api->engine, message).speaker;
@@ -189,6 +208,12 @@ ui_feel_frame_message(ui_state *ui, engine_api *api)
     u32 message = ui->feel.messages[ui->feel.message_shown];
     if (message == UI_MESSAGE_THREAT) { ui_frame_city(ui, ui->feel.threat_city); return; }
     if (message == UI_MESSAGE_HEADING || message == UI_MESSAGE_NEXT_ORDER) return;
+    if ((message & UI_MESSAGE_UNIT_THREAT_MASK) == UI_MESSAGE_UNIT_THREAT)
+    {
+        engine_unit unit = api->unit_at(api->engine, message & 0xFFFFu);   /* G3-009: the camera goes to the enemy unit */
+        if (unit.id != ENGINE_NO_UNIT) ui_frame_hex(ui, api, hex_make(unit.q, unit.r));
+        return;
+    }
     engine_event_report report = api->event_report(api->engine, message);
     if (report.subject.kind != ENGINE_SUBJECT_OFFICER) return;
     engine_officer officer = api->officer_by_id(api->engine, report.subject.id);
@@ -292,6 +317,19 @@ ui_feel_message_text(ui_state *ui, engine_api *api, u32 message, char *out, u32 
         engine_date date = api->date(api->engine);
         const char *part = date.day >= 21 ? "msg.late" : date.day >= 11 ? "msg.middle" : "msg.early";
         snprintf(out, out_size, text_get(ui->text, "msg.heading"), date.year, date.month, text_get(ui->text, part));
+        return;
+    }
+    if ((message & UI_MESSAGE_UNIT_THREAT_MASK) == UI_MESSAGE_UNIT_THREAT && message != UI_MESSAGE_THREAT && message != UI_MESSAGE_NEXT_ORDER)
+    {
+        /* G3-009: 劉表大人，根據急報，發現了以長安為進攻目標的敵軍蹤影。 */
+        char lord[UI_NAME_SIZE * 2], prefix[UI_NAME_SIZE * 3], city[UI_NAME_SIZE * 2], line[UI_NAME_SIZE * 6];
+        ui_officer_text(ui, api, api->force_ruler(api->engine, ui->feel.force), lord, sizeof(lord));
+        snprintf(prefix, sizeof(prefix), text_get(ui->text, "turn.lord"), lord);
+        engine_unit_goal goal = api->unit_goal(api->engine, message & 0xFFFFu);
+        city[0] = 0;
+        if (goal.city_id != ENGINE_NO_CITY) ui_city_label(ui, api, goal.city_id, city, sizeof(city));
+        snprintf(line, sizeof(line), text_get(ui->text, "turn.threat_unit"), city);
+        snprintf(out, out_size, "%s%s", prefix, line);
         return;
     }
     if (message == UI_MESSAGE_THREAT || message == UI_MESSAGE_NEXT_ORDER)

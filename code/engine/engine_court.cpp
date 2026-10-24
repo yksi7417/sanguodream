@@ -400,12 +400,22 @@ engine_api_command_captive(void *opaque, u16 officer_id, u8 choice)
     return result;
 }
 
+internal engine_command_result engine_api_command_duel_officer(void *opaque, u32 unit_id, s32 q, s32 r, u8 slot);
+
 internal engine_command_result
 engine_api_command_duel(void *opaque, u32 unit_id, s32 q, s32 r)
+{
+    return engine_api_command_duel_officer(opaque, unit_id, q, r, 0);
+}
+
+/* G3-008: 單挑 with the officer of the slot as the challenger. */
+internal engine_command_result
+engine_api_command_duel_officer(void *opaque, u32 unit_id, s32 q, s32 r, u8 slot)
 {
     engine *e = (engine *)opaque;
     engine_command_result result = {};
     sim_unit_order order = engine_unit_order(unit_id, q, r, ENGINE_NO_UNIT, 0, 0, 0);
+    order.kind = slot;
     result.refusal = sim_check_duel(e->sim, &order).refusal;
     if (result.refusal != SIM_REFUSAL_NONE) return result;
     sim_command command = sim_make_command(e->sim, SIM_COMMAND_DUEL);
@@ -564,6 +574,7 @@ engine_bind_court_api(engine_api *api)
     api->travel_days           = engine_api_travel_days;
     api->court_advice          = engine_api_court_advice;
     api->command_duel          = engine_api_command_duel;
+    api->command_duel_officer  = engine_api_command_duel_officer;
     api->command_duel_action   = engine_api_command_duel_action;
     api->command_debate_action = engine_api_command_debate_action;
     api->start_debate          = engine_api_start_debate;

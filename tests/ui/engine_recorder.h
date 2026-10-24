@@ -175,6 +175,7 @@ enum recorder_call_kind
     RECORDER_COMMAND_SUPPLY,
     RECORDER_COMMAND_DESTROY,      /* G2-052: arg = unit | target << 16 */
     RECORDER_COMMAND_ATTACK_FACILITY, /* G3-020: the long order on a facility; last_unit_command holds the hex */
+    RECORDER_UNIT_GOAL,            /* G3-009: arg = the unit */
     RECORDER_COMMAND_DRIVE,
     RECORDER_COMMAND_FOLLOW,
     RECORDER_COMMAND_DELEGATE,
@@ -251,6 +252,8 @@ struct engine_recorder
     b32           unit0_rival;        /* unit 0 belongs to force 2 */
     b32           unit1_rival;       /* G2-045: unit 1 at 1,3 belongs to force 2 */
     u16           captive_officer;   /* 俘虜處置: officer_detail says that this officer is a captive; 0 = none */
+    b32           unit1_goal;        /* G3-009: unit_goal of the rival unit 1 is known */
+    u8            unit1_goal_city;   /* G3-009: its target city */
     u8            last_captive_choice;   /* the choice of the last command_captive */
     b32           units_acted;        /* M22: both units acted in this turn */
     u32           officer_count;      /* scripted rows for the Officers and Cities panels */
@@ -1455,6 +1458,8 @@ internal engine_command_result recorder_command_duel(void *o, u32 unit_id, s32 q
 { return recorder_unit_target((engine_recorder *)o, RECORDER_COMMAND_DUEL, ENGINE_COMMAND_DUEL, unit_id, 0, q, r); }
 internal engine_command_result recorder_command_attack_facility(void *o, u32 unit_id, s32 q, s32 r)
 { return recorder_unit_target((engine_recorder *)o, RECORDER_COMMAND_ATTACK_FACILITY, ENGINE_COMMAND_ATTACK_FACILITY, unit_id, 0, q, r); }
+internal engine_command_result recorder_command_duel_officer(void *o, u32 unit_id, s32 q, s32 r, u8 slot)
+{ return recorder_unit_target((engine_recorder *)o, RECORDER_COMMAND_DUEL, ENGINE_COMMAND_DUEL, unit_id, slot, q, r); }
 internal engine_command_result recorder_command_duel_action(void *o, u8 action, u8 value)
 {
     engine_recorder *r = (engine_recorder *)o;
@@ -1539,6 +1544,16 @@ internal engine_plan_view recorder_plan(u32 count)
 internal engine_plan_view recorder_advice(void *o, u8 force) { recorder_record((engine_recorder *)o, RECORDER_ADVICE, force); return recorder_plan(1); }
 internal engine_plan_view recorder_council(void *o, u8 force, u8 city) { recorder_record((engine_recorder *)o, RECORDER_COUNCIL, (u32)force | ((u32)city << 8)); return recorder_plan(2); }
 internal engine_plan_view recorder_ai_plan(void *o, u8 force) { recorder_record((engine_recorder *)o, RECORDER_AI_PLAN, force); return recorder_plan(2); }
+/* G3-009: the rival unit 1 marches on the city unit1_goal_city when unit1_goal is set. */
+internal engine_unit_goal recorder_unit_goal(void *o, u32 unit_id)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_UNIT_GOAL, unit_id);
+    engine_unit_goal goal = {};
+    goal.city_id = ENGINE_NO_CITY;
+    if (unit_id == 1 && r->unit1_rival && r->unit1_goal) { goal.known = true; goal.city_id = r->unit1_goal_city; goal.q = 1; goal.r = 3; }
+    return goal;
+}
 internal engine_emperor recorder_emperor(void *o)
 {
     recorder_record((engine_recorder *)o, RECORDER_EMPEROR, 0);
@@ -2108,6 +2123,7 @@ recorder_make_api(engine_recorder *r)
     api.travel_days           = recorder_travel_days;
     api.court_advice          = recorder_court_advice;
     api.command_duel          = recorder_command_duel;
+    api.command_duel_officer  = recorder_command_duel_officer;
     api.command_duel_action   = recorder_command_duel_action;
     api.command_debate_action = recorder_command_debate_action;
     api.start_debate          = recorder_start_debate;
@@ -2124,6 +2140,7 @@ recorder_make_api(engine_recorder *r)
     api.advice                = recorder_advice;
     api.council               = recorder_council;
     api.ai_plan               = recorder_ai_plan;
+    api.unit_goal             = recorder_unit_goal;
     api.emperor               = recorder_emperor;
     api.relic_count           = recorder_relic_count;
     api.relic_at              = recorder_relic_at;

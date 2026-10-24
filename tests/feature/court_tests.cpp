@@ -699,6 +699,44 @@ feature_duel_tests(test_counts *counts)
                    "a duel of two computer officers ends at once: the player sees only the result");
         engine_fixture_destroy(&other.fixture);
     }
+    /* G3-008: can_issue with row = the slot gives the chance of each officer of the unit, and the chosen one fights first. */
+    {
+        feature_city_setup pick;
+        feature_march_setup(&pick);
+        engine_api *api_3 = pick.api;
+        void *e_3 = api_3->engine;
+        u32 two = feature_sortie_unit(api_3, pick.city, 2);
+        u32 foe = feature_sortie_unit(api_3, pick.city, 1);
+        u8 enemy_3 = feature_other_faction(api_3, pick.force, 0);
+        hex_coord at_two = feature_unit_hex(api_3, two), spot_3 = at_two;
+        for (u32 dir = 0; dir < HEX_DIRECTION_COUNT; ++dir)
+        {
+            hex_coord hex = hex_neighbor(at_two, dir);
+            if (api_3->unit_at_hex(e_3, hex.q, hex.r) == ENGINE_NO_UNIT && api_3->set_unit_place(e_3, foe, enemy_3, hex.q, hex.r)) { spot_3 = hex; break; }
+        }
+        engine_unit unit_two = api_3->unit_at(e_3, two);
+        engine_officer_edit edit_3 = feature_edit_of(api_3, api_3->unit_at(e_3, foe).officers[0]);
+        edit_3.personality = PERSONALITY_RECKLESS;
+        api_3->set_officer(e_3, api_3->unit_at(e_3, foe).officers[0], &edit_3);
+        engine_command probe = {};
+        probe.kind = ENGINE_COMMAND_DUEL;
+        probe.unit = two;
+        probe.row  = 1;
+        probe.q = spot_3.q; probe.r = spot_3.r;
+        engine_check second = api_3->can_issue(e_3, &probe);
+        b32 started_3 = false;
+        for (u32 attempt = 0; attempt < 8 && !started_3; ++attempt)
+        {
+            api_3->command_duel_officer(e_3, two, spot_3.q, spot_3.r, 1);
+            started_3 = api_3->duel_view(e_3).active;
+            if (!started_3) feature_next_own_turn(api_3, pick.force);
+        }
+        engine_duel_view view_3 = api_3->duel_view(e_3);
+        TEST_CHECK(counts, unit_two.officers[1] != ENGINE_NO_OFFICER && second.refusal == SIM_REFUSAL_NONE && second.quantity > 0 && started_3 &&
+                           view_3.side[0].fighter == 1 && view_3.side[0].officers[1] == unit_two.officers[1],
+                   "the chosen officer of the unit fights first, and can_issue gives his chance (G3-008)");
+        engine_fixture_destroy(&pick.fixture);
+    }
     TEST_CHECK(counts, api->command_attack(e, a, spot.q, spot.r).refusal == SIM_REFUSAL_BUSY, "refused: other commands wait while a duel runs");
     TEST_CHECK(counts, api->command_duel_action(e, SIM_DUEL_SPECIAL, DUEL_PEERLESS).refusal == SIM_REFUSAL_NO_SPIRIT, "refused: 無雙 needs a spirit of 300");
     u32 mark = api->ledger_count(e);

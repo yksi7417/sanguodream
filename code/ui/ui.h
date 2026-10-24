@@ -59,6 +59,8 @@ enum ui_hud_tab { UI_HUD_TAB_BASES, UI_HUD_TAB_OFFICERS, UI_HUD_TAB_UNITS, UI_HU
 #define UI_MESSAGE_HEADING         0xFFFFFFFFu   /* a message slot that holds the period heading */
 #define UI_MESSAGE_THREAT          0xFFFFFFFEu   /* G2-006, G2-007: the adviser names the enemy city that threatens an own city */
 #define UI_MESSAGE_NEXT_ORDER      0xFFFFFFFDu   /* G2-007: the adviser asks for the next order; the first turn says that it is our turn */
+#define UI_MESSAGE_UNIT_THREAT     0xFFFF0000u   /* G3-009: UI_MESSAGE_UNIT_THREAT | unit id: an enemy unit marches on an own city */
+#define UI_MESSAGE_UNIT_THREAT_MASK 0xFFFF0000u
 #define UI_MESSAGE_WIDTH           689.0f /* main-map.md, "Message window": the frame at the bottom centre */
 #define UI_MESSAGE_HEIGHT          197.0f
 #define UI_MESSAGE_MARGIN          12.0f
@@ -322,6 +324,8 @@ struct ui_state
         u8 pick;                 /* ui_pick: the command that the next map click issues */
         u8 row;                  /* the row of the tactic, plot or building of the pick */
         u8 list;                 /* ui_pick of the Actions list: UI_PICK_TACTIC, _PLOT or _BUILD */
+        bool      duel_pick;     /* G3-008: the list of the officers of the unit with 成功率, after the click on the target of 單挑 */
+        hex_coord duel_hex;      /* the target of that 單挑 */
     } combat;
     /* 俘虜處置 (ui/city-commands.md): after a battle, one dialog for each
        officer that the player captured, with 登庸, 俘虜, 釋放 and 處決 */

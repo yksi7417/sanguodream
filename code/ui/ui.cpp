@@ -659,6 +659,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->show_units)      ui_draw_units_panel(ui, api);   /* M11 */
     ui_draw_hex_info_box(ui, api);                           /* M11: opens after a pick in the scene */
     if (ui->show_actions)    ui_draw_actions(ui, api);
+    if (ui->combat.duel_pick) ui_draw_duel_pick(ui, api);   /* G3-008: the officers of 單挑 with 成功率 */
     if (ui->show_court)      ui_draw_court(ui, api);
     if (ui->show_captive)    ui_draw_captive_dialog(ui, api);   /* 俘虜處置 */
     if (ui->show_reward)     ui_draw_reward(ui, api);   /* 褒賞 (G2-040) */

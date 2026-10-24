@@ -277,6 +277,9 @@ ui_draw_hover_panel(ui_state *ui, engine_api *api)
     else if (ui->scene.has_hover)          data = api->hex_at(api->engine, ui->scene.hover.q, ui->scene.hover.r);
     b32 facility_hex = data.unit_id == ENGINE_NO_UNIT && data.city_id == ENGINE_NO_CITY && data.slot_city != ENGINE_NO_CITY && data.facility != ENGINE_NO_FACILITY;
     if (data.unit_id == ENGINE_NO_UNIT && data.city_id == ENGINE_NO_CITY && !facility_hex) return;
+    /* G3-015: while the window of a city is open, the hover panel of a city stays closed. The
+       ghost text of the report was this panel under the mouse, over the window that opened. */
+    if (data.unit_id == ENGINE_NO_UNIT && data.city_id != ENGINE_NO_CITY && ui->context.kind == UI_CONTEXT_CITY) return;
     ImGui::SetNextWindowPos(ImVec2(io.MousePos.x + UI_HOVER_OFFSET, io.MousePos.y + UI_HOVER_OFFSET), ImGuiCond_Always);
     ImGui::SetNextWindowBgAlpha(0.9f);
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoInputs |

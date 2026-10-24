@@ -632,6 +632,16 @@ struct engine_plan_view
     engine_proposal items[ENGINE_PLAN_CAPACITY];
 };
 
+/* G3-009: the goal of a computer unit from the last AI turn of its force:
+   the city it marches on, and the hex it goes to. known is false for a
+   unit without a chosen option. */
+struct engine_unit_goal
+{
+    b32 known;
+    u8  city_id;                    /* the target city; ENGINE_NO_CITY */
+    s32 q, r;                       /* the hex that the unit goes to */
+};
+
 struct engine_emperor
 {
     u8 who;                         /* sim_emperor_kind */
@@ -1278,7 +1288,8 @@ typedef u32                   engine_travel_days_fn(void *engine, u8 from_base, 
 /* The estimate of the adviser for ENGINE_COMMAND_SEARCH (the city and the officer of the order) and
    ENGINE_COMMAND_RECRUIT (also the target). Other kinds give SIM_CLUE_NONE. */
 typedef engine_court_advice   engine_court_advice_fn(void *engine, engine_command_kind kind, const engine_court_order *order);
-typedef engine_command_result engine_command_duel_fn(void *engine, u32 unit_id, s32 q, s32 r);          /* 單挑 */
+typedef engine_command_result engine_command_duel_fn(void *engine, u32 unit_id, s32 q, s32 r);          /* 單挑 with the commander */
+typedef engine_command_result engine_command_duel_officer_fn(void *engine, u32 unit_id, s32 q, s32 r, u8 slot);   /* G3-008: 單挑 with the officer of the slot; can_issue with row = slot gives its chance */
 typedef engine_command_result engine_command_mini_fn(void *engine, u8 action, u8 value);               /* sim_duel_action, sim_debate_action */
 /* Test and editor commands. They ledger nothing, except the debate that
    they start. */
@@ -1297,6 +1308,7 @@ typedef u16                  engine_adviser_fn(void *engine, u8 force_id);
 typedef engine_plan_view     engine_advice_fn(void *engine, u8 force_id);
 typedef engine_plan_view     engine_council_fn(void *engine, u8 force_id, u8 city_id);
 typedef engine_plan_view     engine_ai_plan_fn(void *engine, u8 force_id);           /* what the AI would do now */
+typedef engine_unit_goal     engine_unit_goal_fn(void *engine, u32 unit_id);         /* G3-009: the goal of a computer unit */
 typedef engine_emperor       engine_emperor_fn(void *engine);
 typedef u32                  engine_relic_count_fn(void *engine);
 typedef engine_relic         engine_relic_at_fn(void *engine, u32 index);
@@ -1707,6 +1719,7 @@ struct engine_api
     engine_travel_days_fn           *travel_days;
     engine_court_advice_fn          *court_advice;
     engine_command_duel_fn          *command_duel;
+    engine_command_duel_officer_fn  *command_duel_officer;    /* G3-008 */
     engine_command_mini_fn          *command_duel_action;
     engine_command_mini_fn          *command_debate_action;
     engine_start_debate_fn          *start_debate;
@@ -1724,6 +1737,7 @@ struct engine_api
     engine_advice_fn                *advice;
     engine_council_fn               *council;
     engine_ai_plan_fn               *ai_plan;
+    engine_unit_goal_fn             *unit_goal;               /* G3-009 */
     engine_emperor_fn               *emperor;
     engine_relic_count_fn           *relic_count;
     engine_relic_at_fn              *relic_at;

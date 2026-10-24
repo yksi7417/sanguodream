@@ -46,13 +46,15 @@ spec-src/spec/experiments/gap3-answers-2026-10-23.md and in the fixtures.
 | G3-016 | No speech bubble opens during the show of the AI round. | batch 4 | ui |
 | G3-022, G2-020 | The sex of an officer comes from the byte +55 of the record. The prisoner dialog shows 性別 and the cost line of the original, and no chance. The captive answers over its city after 登庸 (refusal) and 處決 (last words). | batch 4 | ui |
 
+| G3-008 | After the target of 單挑, the window 武將 lists the officers of the unit with 成功率, 武力 and 體力. A row sends the duel with that officer, who fights first. The challenger and the defender speak before the first round. | batch 5 | feature/court, ui |
+| G3-009 | An enemy unit that marches on an own city gives a line of the turn start: 根據急報，發現了以X為進攻目標的敵軍蹤影. The goal comes from the last AI turn of its force (unit_goal). The governor of the target city speaks, and the camera goes to the unit. | batch 5 | ui |
+| G3-012 | While the window of a city is open, the row of another city moves the window there. Esc goes back one level as a right click. The X of the window closes its dialogs too. | batch 5 | ui |
+| G3-015 | The ghost text was the hover panel of the city under the mouse, drawn over the window that opened. The hover panel of a city stays closed while a city window is open. | batch 5 | ui |
+
 ## In progress
 
-- Four rows wait for the next batch:
-  - G3-008, the pick list and the speeches of a duel;
-  - G3-009, the threat lines of the turn start;
-  - G3-012, the city window;
-  - G3-015, the ghost text.
+- Every row of report 3 has its fix, or waits on the spec (the section
+  above). The next play report decides the next batch.
 
 ## Questions for the observer
 

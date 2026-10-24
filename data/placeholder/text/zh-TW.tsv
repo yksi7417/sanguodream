@@ -483,6 +483,12 @@ relation.0	無
 relation.1	同盟
 relation.2	停戰
 duel.title	單挑
+duel.pick_title	武將
+duel.pick_hint	請選擇要挑起單挑的武將
+duel.pick_officer	武將
+duel.pick_chance	成功率
+say.duel_challenge	敵將出來！來進行一對一的勝負吧！
+say.duel_accept	這場勝負，我%s接下了！
 duel.round	合
 duel.force	武力
 duel.stamina	體力
@@ -1550,6 +1556,7 @@ log.captive_kept	{subject}：收押
 log.officer_executed	{subject}：處決
 turn.lord	%s大人，
 turn.threat	%s的兵力頗具威脅性，請不要疏於警戒。
+turn.threat_unit	根據急報，發現了以%s為進攻目標的敵軍蹤影。
 turn.next_order	請下達下一個指示。
 turn.our_turn	可終於輪到我們了啊。
 say.captive_escaped	我已摸清了警備的編制，趁現在快點逃吧！

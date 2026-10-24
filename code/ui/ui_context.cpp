@@ -176,14 +176,13 @@ ui_context_update(ui_state *ui, engine_api *api)
     {
         bool *flag = ui_context_flag(ui, ui->context.kind);
         bool just_opened = ImGui::GetFrameCount() <= ui->context.place_frame;
-        if (flag && !*flag)   /* the close button */
+        if (flag && !*flag)   /* the close button: the dialog and the windows that it opened close (G3-012) */
         {
-            if (ui->context.kind == UI_CONTEXT_UNIT) ui->units.selected = ENGINE_NO_UNIT;
-            ui->context.kind = UI_CONTEXT_NONE;
+            ui_context_close(ui);
         }
-        else if (!just_opened && ui_right_clicked())
+        else if (!just_opened && (ui_right_clicked() || ImGui::IsKeyPressed(ImGuiKey_Escape, false)))
         {
-            ui_context_back(ui);
+            ui_context_back(ui);   /* G2-047, G3-012: a right click or Esc goes back one level */
             ui->context.consumed = true;
         }
         else if (ui->context.kind == UI_CONTEXT_CITY && api->ledger_count(api->engine) != ui->context.ledger_mark)

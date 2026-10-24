@@ -180,7 +180,11 @@ city and the loyalty of its officers.
 
 ## The duel
 單挑 is a unit order against an adjacent enemy unit. The chance that the
-target accepts depends on its personality and force. While a duel runs,
+target accepts depends on its personality and force. After the click on
+the target, the window 武將 lists the officers of the unit with 成功率,
+武力 and 體力 (G3-008). A row sends `command_duel_officer` with the slot,
+and that officer fights first. Before the first round the challenger
+says 敵將出來！ and the defender answers. While a duel runs,
 the other commands wait (`busy`). Each round both fighters strike; the
 policy changes the damage and the spirit (鬥志). To keep one policy
 duel.critical_rounds rounds gives its critical. The special commands need
