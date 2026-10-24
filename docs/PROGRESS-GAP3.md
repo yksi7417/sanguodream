@@ -16,11 +16,30 @@ docs/PROGRESS-GAP2.md holds the work on report 2.
 | G3-003 | The attacker takes half the gold and a quarter of the grain of a destroyed unit (unit_loot, unit_plunder_grain). The capture chance of a destroyed unit is 20 percent (assumed from 1 capture in 6 officers). | batch 1 | feature/combat |
 | G3-011 | The maximum of the wall is the u16 at +82 of the city record of the save (4600, 4000, 2400, 2800), not the capacity constant. | batch 1 | feature/combat |
 | G3-019, the loyalty | The own officers keep their loyalty at a month start. A captive loses 2 or 3. The repair of a wall at its maximum ends with G3-011. | batch 1 | feature/court |
+| G3-013 | The rise of a patrol is 3 plus the best leadership of the officers over 40 (assumed: it fits the four observations 97 to 5, 59 to 4, 30 to 3, and 28 with 21 to 3; the sum does not). The fixture patrol.tsv now checks the gain. | batch 2 | unit/economy, fixtures/patrol, feature/city_commands |
+| G3-014 | One of the executors of a city command speaks the result, picked by the command id (the original picks at random: slot 1 five times, slot 3 two times). | batch 2 | feature/report |
+
+## Blocked on the spec
+
+These rows need a formula that the spec does not have. The clone keeps
+its assumed rule and does not guess a new one. The data is in
+spec-src/spec/experiments/gap3-answers-2026-10-23.md and in the fixtures.
+- G3-001, the recovery of the action points (Q-019). The original gives
+  a constant number for each corps. The force of 劉表, with 9 cities and
+  an adviser of 智力 100, gets 174. The force of 劉璋, with 5 cities,
+  gets 103. The force of 孫策, with 1 city, gets 57. The six forces of
+  fixtures/action-points.tsv get 52 to 74.
+  The fixture handler counts the turn rows as open.
+- G3-004, the income of a city (Q-021). fixtures/city-income.tsv gives
+  seven cities with their facilities, the public order and the income.
+  The fixture handler counts the rows as open.
+- G3-018, the gain of a conscription (Q-219). The original computes the
+  gain from the ability on the screen, and the screen shows some
+  abilities a few points below the record. The clone uses the record.
+  The spec does not give the modifier of the screen value.
 
 ## In progress
 
-- G3-001, G3-004, G3-013 and G3-018 are the numbers of the action points,
-  the income, the patrol and the conscription against the fixtures.
 - G3-020 is the attack order on a facility from a distance.
 - The P2 and P3 rows wait for the next batches.
 

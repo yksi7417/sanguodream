@@ -94,10 +94,10 @@ template provider.
   by its commander (周泰隊：士兵 -232). The commander is the subject of
   the event, so the name stays after the unit is gone.
 - The speech bubble (main-map.md, "Speech bubble") opens over the base
-  after a command of the player. The last officer of a city command
-  speaks in the tone of the event (G2-018, assumed from two
-  observations). It does not take the mouse, and it closes after
-  UI_BUBBLE_SECONDS.
+  after a command of the player. One of the executors of a city command
+  speaks in the tone of the event. The command id picks him (G2-018,
+  G3-014: the original picks at random). It does not take the mouse, and
+  it closes after UI_BUBBLE_SECONDS.
 - The values (main-map.md, "Floating value") rise over the base for each
   event of the command with a sign. Each value names its field first
   (資金收入 +2047), from the resource of the report. An arrow before the

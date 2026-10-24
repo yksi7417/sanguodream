@@ -66,14 +66,18 @@ engine_note_speaker(engine *e, const sim_command *command)
         case SIM_COMMAND_MERCHANT:
         case SIM_COMMAND_PRODUCE:
         {
-            /* G2-018: the last officer of a city command speaks its result
-               (assumed from two observations of the run of 2026-10-20:
-               the third officer spoke after a conscription and a patrol). */
-            officer = command->city.officers[0];
-            for (u32 place = 1; place < SIM_COMMAND_OFFICERS; ++place)
+            /* G2-018, G3-014: one of the executors speaks the result. In
+               seven observations slot 1 spoke five times and slot 3 two
+               times, with two speakers for the same command, so the
+               original picks at random. The clone picks by the command id,
+               which keeps the replay deterministic. */
+            u16 executors[SIM_COMMAND_OFFICERS];
+            u32 count = 0;
+            for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place)
             {
-                if (command->city.officers[place] != SIM_NO_OFFICER) officer = command->city.officers[place];
+                if (command->city.officers[place] != SIM_NO_OFFICER) executors[count++] = command->city.officers[place];
             }
+            officer = count ? executors[command->id % count] : (u16)SIM_NO_OFFICER;
         } break;
         case SIM_COMMAND_RESEARCH: officer = command->research.officers[0]; break;
         case SIM_COMMAND_FACTION_PLOT:

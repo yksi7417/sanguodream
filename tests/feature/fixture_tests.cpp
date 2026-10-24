@@ -327,23 +327,32 @@ fixture_patrol(tsv_table *table, engine_api *api, test_counts *counts)
         api->set_actions(e, force, 255);
         api->set_city_resource(e, city, SIM_RESOURCE_PUBLIC_ORDER, 0, 50);
         feature_take_officers(api, city, ids, 1);
-        u32 ap_cost = 0, gold_cost = 0, merit = 0;
+        u32 ap_cost = 0, gold_cost = 0, merit = 0, leadership = 0, order_before = 0, order_after = 0, officers = 0;
         b32 parsed = tsv_cell_u32(table, row, "ap_cost", &ap_cost) && tsv_cell_u32(table, row, "gold_cost", &gold_cost) &&
-                     tsv_cell_u32(table, row, "merit_gain", &merit);
+                     tsv_cell_u32(table, row, "merit_gain", &merit) && tsv_cell_u32(table, row, "leadership_sum", &leadership) &&
+                     tsv_cell_u32(table, row, "public_order_before", &order_before) && tsv_cell_u32(table, row, "public_order_after", &order_after) &&
+                     tsv_cell_u32(table, row, "officers", &officers);
+        /* G3-013: the officer gets the leadership of the row (one officer in each row), and the city its public order. */
+        engine_officer before = {}, after = {};
+        feature_officer_by_id(api, ids[0], &before);
+        engine_officer_edit edit = feature_edit_of(api, ids[0]);
+        edit.set_abilities = true;
+        edit.leadership = (u8)leadership; edit.war = before.war; edit.intelligence = before.intelligence; edit.politics = before.politics; edit.charm = before.charm;
+        api->set_officer(e, ids[0], &edit);
+        api->set_city_resource(e, city, SIM_RESOURCE_PUBLIC_ORDER, 0, order_before);
         engine_command command = feature_city_command(ENGINE_COMMAND_PATROL, city, ids[0]);
         engine_check check = api->can_issue(e, &command);
-        engine_officer before = {}, after = {};
         feature_officer_by_id(api, ids[0], &before);
         api->command_patrol(e, city, ids);
         feature_officer_by_id(api, ids[0], &after);
-        char name[128];
-        snprintf(name, sizeof(name), "patrol row %u: %u action points, %u gold, %u merit (officer %u, refusal %u, merit %u to %u)", row,
-                 ap_cost, gold_cost, merit, (u32)ids[0], (u32)check.refusal, before.merit, after.merit);
-        TEST_CHECK(counts, parsed && check.refusal == SIM_REFUSAL_NONE && check.action_points == ap_cost && check.gold == gold_cost &&
-                           after.merit == before.merit + merit, name);
+        u32 order = api->city_economy(e, city).public_order;
+        char name[200];
+        snprintf(name, sizeof(name), "patrol row %u: %u action points, %u gold, %u merit, public order %u to %u (got %u; officer %u, refusal %u)", row,
+                 ap_cost, gold_cost, merit, order_before, order_after, order, (u32)ids[0], (u32)check.refusal);
+        TEST_CHECK(counts, parsed && officers == 1 && check.refusal == SIM_REFUSAL_NONE && check.action_points == ap_cost && check.gold == gold_cost &&
+                           after.merit == before.merit + merit && order == order_after, name);
     }
-    printf("  PENDING %u rows x public order gain, technique points, leadership experience: one observation, no formula (Q-152, Q-158)\n",
-           table->row_count);
+    printf("  PENDING %u rows x technique points, leadership experience: one observation, no formula (Q-158)\n", table->row_count);
 }
 
 /* action-points.tsv: the action points of the forces. The patrol row

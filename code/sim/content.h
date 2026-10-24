@@ -636,7 +636,6 @@ struct sim_rules
     u32 order_max;
     u32 order_bandit_threshold;
     u32 order_income_floor;
-    u32 patrol_leadership_percent;
     u32 patrol_enemy_percent;
     u32 conscript_enemy_percent;
     u32 conscript_order_loss;
@@ -736,6 +735,7 @@ struct sim_rules
     u32 combat_capture_percent, combat_halberd_capture, combat_destroy_technique;
     u32 captive_escape_percent;   /* G2-032: the chance that a captive escapes at a month start (assumed) */
     u32 loyalty_captive_monthly;  /* G3-019: the loyalty that a captive loses at a month start, plus 0 or 1 (observed: 2 or 3) */
+    u32 patrol_base, patrol_leadership_divisor;   /* G3-013: the rise of a patrol is base + best leadership / divisor (assumed from four observations) */
     u32 duel_loser_soldiers_percent;   /* G3-002: the soldiers that the unit of the loser loses, in percent (observed: 30) */
     u32 plunder_gold_percent, plunder_grain_percent;   /* G3-003: the gold and the grain of a destroyed unit that the attacker takes (observed: 50, 25) */
     u32 plot_base_success;

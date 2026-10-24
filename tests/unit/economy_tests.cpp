@@ -10,7 +10,8 @@ unit_economy_rules(void)
     sim_rules rules = {};
     rules.order_max                    = 100;
     rules.order_income_floor           = 50;    /* assumed */
-    rules.patrol_leadership_percent    = 10;    /* assumed */
+    rules.patrol_base                  = 3;     /* assumed, G3-013 */
+    rules.patrol_leadership_divisor    = 40;    /* assumed, G3-013 */
     rules.patrol_enemy_percent         = 50;    /* assumed */
     rules.conscript_base_soldiers      = 1000;  /* city-commands.md: floor(F x (1000 + 5.6 x S)) */
     rules.conscript_charm_tenths       = 56;
@@ -75,9 +76,11 @@ unit_city_command_rule_tests(test_counts *counts)
 {
     sim_rules rules = unit_economy_rules();
     /* 巡察: the sum of leadership raises public order (assumed amount). */
-    TEST_CHECK(counts, sim_patrol_rise(240, false, &rules) == 24, "patrol: a leadership sum of 240 gives 24 order (assumed)");
-    TEST_CHECK(counts, sim_patrol_rise(240, true, &rules) == 12, "patrol: an enemy within 2 hexes gives a smaller rise (assumed half)");
-    TEST_CHECK(counts, sim_patrol_rise(5, false, &rules) == 1, "patrol: one officer always gives at least 1 order");
+    TEST_CHECK(counts, sim_patrol_rise(97, false, &rules) == 5 && sim_patrol_rise(59, false, &rules) == 4 && sim_patrol_rise(30, false, &rules) == 3 &&
+                       sim_patrol_rise(28, false, &rules) == 3,
+               "patrol: the rise is 3 plus the best leadership over 40 (G3-013: 97 gives 5, 59 gives 4, 30 and 28 give 3)");
+    TEST_CHECK(counts, sim_patrol_rise(97, true, &rules) == 2, "patrol: an enemy within 2 hexes gives a smaller rise (assumed half)");
+    TEST_CHECK(counts, sim_patrol_rise(5, false, &rules) == 3, "patrol: a weak officer still gives the base rise");
 
     /* 徵兵: floor(F x (1000 + 5.6 x S)) (city-commands.md; the dialogs of the sample, G2-011). */
     TEST_CHECK(counts, sim_conscript_soldiers(231, 3, 92, false, &rules) == 3440, "conscript: a charm sum of 231 at a level-3 barracks gives 3440 soldiers (the dialog of 江陵: 3439)");

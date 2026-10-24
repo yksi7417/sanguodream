@@ -35,13 +35,15 @@ sim_officer_ability(officer_component *officer, sim_ability ability)
 
 /* ---- the effect of each command (assumed rules) ------------------------- */
 
-/* ASSUMED (Q-152): the sum of leadership raises public order by
-   patrol.leadership_percent of the sum, at least 1. With an enemy within 2
-   hexes the rise is smaller (city-commands.md): patrol.enemy_percent of it. */
+/* ASSUMED (Q-152, G3-013): the rise of the public order is patrol.base
+   plus the best leadership of the officers over patrol.leadership_divisor.
+   Four observations: 97 gives 5, 59 gives 4, 30 gives 3, and 28 with 21
+   gives 3 (the sum 49 does not fit). With an enemy within 2 hexes the
+   rise is smaller (city-commands.md): patrol.enemy_percent of it. */
 internal u32
-sim_patrol_rise(u32 leadership_sum, b32 enemy_near, sim_rules *rules)
+sim_patrol_rise(u32 best_leadership, b32 enemy_near, sim_rules *rules)
 {
-    u32 rise = sim_percent_of(leadership_sum, rules->patrol_leadership_percent);
+    u32 rise = rules->patrol_base + (rules->patrol_leadership_divisor ? best_leadership / rules->patrol_leadership_divisor : 0);
     if (rise < 1) rise = 1;
     if (enemy_near)
     {
@@ -292,7 +294,13 @@ sim_check_patrol(sim_state *sim, city_component *city, sim_city_order *order, si
     check.gold          = rules->patrol_gold;
     check.action_points = rules->ap_patrol;
     check.value_before  = city->public_order;
-    check.value_after   = sim_add_within(city->public_order, sim_patrol_rise(leadership, sim_enemy_near(sim, city), rules), rules->order_max);
+    u32 best_leadership = 0;   /* G3-013: the best leadership of the officers, not the sum */
+    for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place)
+    {
+        officer_component *officer = sim_find_officer(sim, order->officers[place]);
+        if (officer && officer->leadership > best_leadership) best_leadership = officer->leadership;
+    }
+    check.value_after   = sim_add_within(city->public_order, sim_patrol_rise(best_leadership, sim_enemy_near(sim, city), rules), rules->order_max);
     check.quantity      = check.value_after - check.value_before;
     return check;
 }

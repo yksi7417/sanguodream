@@ -24,7 +24,8 @@ conscript.gold	300	documented	city-commands.md, 徵兵
 order.max	100	documented	ui/city-commands.md, 治安 current/100
 order.bandit_threshold	80	documented	cities-and-facilities.md, above 80 no bandits
 order.income_floor	50	assumed	Q-151: the income percent at public order 0; 100 percent at order 100
-patrol.leadership_percent	10	assumed	Q-152: public order for each 100 of the leadership sum
+patrol.base	3	assumed	Q-152, G3-013: the rise of the public order of a patrol before the leadership (fits 97 to 5, 59 to 4, 30 to 3, 28 and 21 to 3)
+patrol.leadership_divisor	40	assumed	Q-152, G3-013: one more public order for each 40 of the best leadership of the officers (the sum does not fit the four observations)
 patrol.enemy_percent	50	assumed	Q-152: the rise with an enemy within 2 hexes
 conscript.enemy_percent	50	assumed	Q-153: the soldiers with an enemy within 2 hexes
 city.soldier_cap	100000	documented	cities-and-facilities.md, soldiers cap

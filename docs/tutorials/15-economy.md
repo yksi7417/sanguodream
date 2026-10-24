@@ -78,7 +78,7 @@ number is in rules.tsv with the status "assumed" and a question:
 | Rule | Value | Question |
 |---|---|---|
 | Income at public order 0, as a percent of the income at order 100 | 50 | Q-151 |
-| Public order of one patrol | 10 percent of the leadership sum | Q-152 |
+| Public order of one patrol | 3 plus the best leadership of the officers over 40 | Q-152, G3-013: fits 97 to 5, 59 to 4, 30 to 3, and 28 with 21 to 3 |
 | Soldiers of one conscription | floor(F x (1000 + 6 x S x P / 100)) for the charm sum S and the public order P; F is 1.0 at level 1, 1.2 at level 2 (assumed) and 1.5 at level 3 | observed at the levels 1 and 3 (G2-011, the run of 2026-10-22) |
 | Public order and morale that a conscription takes | 10 and 9 | observed (pairs/conscript/001); one officer took 12 and 6 in the run of 2026-10-22 |
 | Morale of a loaded city | 50 | Q-154 |
@@ -122,8 +122,9 @@ adds four reasons:
 | `no_grain` | the city has less grain than the sale |
 
 The commands are:
-- 巡察 patrol: 100 gold. The leadership sum raises public order, up to
-  100. An enemy within 2 hexes gives half the rise. At 80 or more, the
+- 巡察 patrol: 100 gold. The best leadership of the officers raises
+  public order by 3 plus one for each 40 of it, up to 100 (G3-013). An
+  enemy within 2 hexes gives half the rise. At 80 or more, the
   city has no bandits. This is a flag (`bandits_blocked`) until F-007.
 - 徵兵 conscript: 300 gold. It needs a barracks, and it runs one time for
   each barracks in each turn. The soldiers are

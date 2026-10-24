@@ -39,8 +39,9 @@ feature_report_tests(test_counts *counts)
     api->set_city_resource(e, city, SIM_RESOURCE_MORALE, 0, 50);
     TEST_CHECK(counts, api->command_train(e, city, three).refusal == SIM_REFUSAL_NONE, "report: a train with three officers runs");
     u32 trained = feature_last_event(api, SIM_EVENT_TRAINED);
-    TEST_CHECK(counts, trained != ENGINE_NO_EVENT && api->event_report(e, trained).speaker == three[2],
-               "report: the last officer of a city command speaks (G2-018, assumed from two observations)");
+    u16 speaker = trained != ENGINE_NO_EVENT ? api->event_report(e, trained).speaker : (u16)ENGINE_NO_OFFICER;
+    TEST_CHECK(counts, trained != ENGINE_NO_EVENT && (speaker == three[0] || speaker == three[1] || speaker == three[2]),
+               "report: one of the executors of a city command speaks (G2-018, G3-014: the original picks at random)");
     TEST_CHECK(counts, report.sign == ENGINE_SIGN_GOOD && strcmp(report.tone, "calm") == 0 && !report.report,
                "report: event_tones.tsv gives the tone calm, the rise is good news, and a patrol is no turn report");
     engine_date today = api->date(e);

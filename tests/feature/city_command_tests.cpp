@@ -91,7 +91,14 @@ feature_patrol_tests(test_counts *counts)
     api->set_city_resource(e, city, SIM_RESOURCE_PUBLIC_ORDER, 0, 50);
     engine_command command = feature_city_command(ENGINE_COMMAND_PATROL, city, ids[0], ids[1], ids[2]);
     engine_check check = api->can_issue(e, &command);
-    u32 rise = Maximum(1u, feature_officer_sum(api, ids, FEATURE_LEADERSHIP) * 10 / 100);
+    /* G3-013: the rise is 3 plus the best leadership of the officers over 40 (assumed from four observations). */
+    u32 best_leadership = 0;
+    for (u32 place = 0; place < 3; ++place)
+    {
+        engine_officer officer = api->officer_by_id(e, ids[place]);
+        if (officer.officer_id != ENGINE_NO_OFFICER && officer.leadership > best_leadership) best_leadership = officer.leadership;
+    }
+    u32 rise = 3 + best_leadership / 40;
     TEST_CHECK(counts, check.refusal == SIM_REFUSAL_NONE && check.gold == FEATURE_PATROL_GOLD && check.action_points == FEATURE_COMMAND_AP &&
                        check.value_before == 50 && check.value_after == Minimum(100u, 50 + rise) && check.assumed,
                "patrol: can_issue gives 100 gold, 20 points, and public order now -> after (assumed rise)");
