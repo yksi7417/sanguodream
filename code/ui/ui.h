@@ -457,6 +457,7 @@ struct ui_state
         u32  message_count;
         u32  message_shown;       /* the message on the screen; message_count closes the window */
         bool first_turn;          /* G2-006: the first turn start after the game opened: the camera goes to the capital, 可終於輪到我們了啊 */
+        bool loaded_game;         /* G3-023: the game came from a save: the first line is 劉表，可終於輪到你了啊 with no portrait */
         u8   threat_city;         /* G2-007: the enemy city of the threat message; ENGINE_NO_CITY if none */
         u32  framed_message;      /* the message that moved the camera; U32_MAX for none */
     } feel;

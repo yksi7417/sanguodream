@@ -136,6 +136,8 @@ ui_report_line(ui_state *ui, engine_api *api, u32 ledger_index, s64 value, u32 f
     facts.delta       = report.delta;
     facts.value       = value;
     text_write_line(&ui->report.provider, ui->text, &facts, form, out, out_size);
+    /* G3-010: an event without a name (the ending of a faction) starts with a bare full-width colon: drop it. */
+    if (out_size > 3 && (u8)out[0] == 0xEF && (u8)out[1] == 0xBC && (u8)out[2] == 0x9A) memmove(out, out + 3, strlen(out + 3) + 1);
 }
 
 internal void
@@ -154,13 +156,21 @@ ui_report_push(ui_state *ui, u32 line, s64 value)
 internal void
 ui_report_feedback(ui_state *ui, engine_api *api, const engine_event_report *report, s64 value)
 {
-    if (report->subject.kind != ENGINE_SUBJECT_CITY) return;
+    u8 city = ENGINE_NO_CITY;
+    if (report->subject.kind == ENGINE_SUBJECT_CITY) city = (u8)report->subject.id;
+    else if (report->subject.kind == ENGINE_SUBJECT_OFFICER)
+    {
+        /* G3-022: an officer answers over its city (the captive after 登庸 or 處決). */
+        engine_officer officer = api->officer_by_id(api->engine, report->subject.id);
+        if (officer.base_location < api->city_count(api->engine)) city = (u8)officer.base_location;
+    }
+    if (city == ENGINE_NO_CITY) return;
     u32 open_cause = ui->report.bubble_event == ENGINE_NO_EVENT ? 0 :
                      api->event_report(api->engine, ui->report.bubble_event).cause;
     if (ui->report.bubble_seconds <= 0.0f || open_cause != report->cause)
     {
         ui->report.bubble_event   = report->ledger_index;
-        ui->report.bubble_city    = (u8)report->subject.id;
+        ui->report.bubble_city    = city;
         ui->report.bubble_seconds = UI_BUBBLE_SECONDS;
         ui->report.bubble_value   = value;
         ui->report.float_count    = 0;
@@ -184,7 +194,7 @@ ui_report_update(ui_state *ui, engine_api *api, f32 dt_seconds)
     u32 count = api->ledger_count(api->engine);
     if (ui->report.ledger_mark > count)   /* a load replaced the ledger */
     {
-        ui->report.ledger_mark = 0;
+        ui->report.ledger_mark = count;   /* G3-023: the log is empty after a load, as in the original */
         ui->report.line_count  = 0;
         ui->report.line_first  = 0;
         ui->report.has_heading = false;
@@ -198,6 +208,10 @@ ui_report_update(ui_state *ui, engine_api *api, f32 dt_seconds)
         if (ui_feel_bookkeeping(event.kind)) continue;
         engine_event_report report = api->event_report(api->engine, index);
         if (!report.log) continue;   /* a side effect of a command: no line and no value */
+        /* G3-010, G3-017: the log lists the numbers of the city commands and the bandits of the
+           player only. The events of other forces that change a value stay out. */
+        if (player != ENGINE_NO_FACTION && report.faction != player && report.faction != ENGINE_NO_FACTION &&
+            (report.resource != SIM_RESOURCE_NONE || event.kind == SIM_EVENT_BANDIT_SITE)) continue;
         if (!ui->report.has_heading || report.turn != ui->report.heading_turn)
         {
             s64 packed = (s64)report.date.year * 10000 + report.date.month * 100 + report.date.day;
@@ -207,7 +221,8 @@ ui_report_update(ui_state *ui, engine_api *api, f32 dt_seconds)
         }
         s64 value = ui_report_value(api, &report);
         ui_report_push(ui, index, value);
-        if (report.cause && player != ENGINE_NO_FACTION && report.faction == player) ui_report_feedback(ui, api, &report, value);
+        /* G3-016: no bubble during the show of the AI round; the turn start reports the threats. */
+        if (report.cause && player != ENGINE_NO_FACTION && report.faction == player && !ui->round.playing) ui_report_feedback(ui, api, &report, value);
     }
     ui->report.ledger_mark = count;
     if (ui->report.bubble_seconds > 0.0f) ui->report.bubble_seconds -= dt_seconds;

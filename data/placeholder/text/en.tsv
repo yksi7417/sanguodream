@@ -1537,6 +1537,12 @@ captive.target	Officer	對象武將
 captive.age	Age %u	年齡 %u
 captive.skill	Skill	特技
 captive.chance	Recruit chance %u%%	登庸成功率 %u%%
+captive.sex_male	Sex: man	性別 男
+captive.sex_female	Sex: woman	性別 女
+captive.cost	Decide the fate of the captive (each captive costs 50 gold a month).	請決定俘虜的處置（俘虜每１人需要資金50/月）。
+say.recruit_failed	I have my pride. I will not surrender.	我也是有骨氣之人，並不打算投降。
+say.officer_executed	My fortune in war has run out. Only death is left.	我的武運已走到盡頭，之後只有死一途……。
+turn.loaded	%s, at last it is your turn.	%s，可終於輪到你了啊。
 captive.recruit	Recruit	登庸
 captive.keep	Keep	俘虜
 captive.release	Release	釋放

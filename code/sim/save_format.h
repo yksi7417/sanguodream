@@ -111,6 +111,7 @@ enum officer_record_offset
     OFFICER_GIVEN_NAME               = 5,     /* 5 bytes Big5 */
     OFFICER_COURTESY_NAME            = 10,    /* 7 bytes Big5 */
     OFFICER_PORTRAIT_NUMBER          = 53,    /* u16 */
+    OFFICER_SEX                      = 55,    /* u8: 1 marks a woman, 0 a man (G2-020, the answers of 2026-10-23: 27 named women in the sample) */
     OFFICER_APPEARANCE_YEAR          = 56,    /* u16 */
     OFFICER_BIRTH_YEAR               = 58,    /* u16 */
     OFFICER_DEATH_YEAR               = 60,    /* u16 */
@@ -182,6 +183,7 @@ struct officer_record
     u8  given_name[OFFICER_GIVEN_NAME_SIZE];
     u8  courtesy_name[OFFICER_COURTESY_NAME_SIZE];
     u16 portrait_number;
+    b32 female;                  /* +55 is 1 (G2-020) */
     u16 appearance_year;
     u16 birth_year;
     u16 death_year;

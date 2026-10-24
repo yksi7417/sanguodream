@@ -50,7 +50,8 @@ ui_enter_game(ui_state *ui)
     ui->scene.has_pick = false;
     ui->context = {};
     ui_feel_reset_turn(ui);   /* M17: the first turn start shows its messages */
-    ui->feel.first_turn = true;   /* G2-006: the camera goes to the capital, and the adviser says that it is our turn */
+    ui->feel.first_turn  = true;    /* G2-006: the camera goes to the capital, and the adviser says that it is our turn */
+    ui->feel.loaded_game = false;   /* G3-023: the load sets it after this call */
 }
 
 internal void
@@ -343,7 +344,14 @@ ui_draw_saveload(ui_state *ui, engine_api *api)
             {
                 engine_save_status status = api->load_game(e, slot);
                 text_label(ui->text, "save_status", status, ui->game.message, sizeof(ui->game.message));
-                if (status == ENGINE_SAVE_OK) { ui_ensure_city_names(ui, api); ui->show_saveload = false; ui_enter_game(ui); ui_feel_begin_transition(ui); }
+                if (status == ENGINE_SAVE_OK)
+                {
+                    ui_ensure_city_names(ui, api);
+                    ui->show_saveload = false;
+                    ui_enter_game(ui);
+                    ui->feel.loaded_game = true;   /* G3-023: 劉表，可終於輪到你了啊。 and an empty log */
+                    ui_feel_begin_transition(ui);
+                }
             }
         }
         ImGui::EndDisabled();

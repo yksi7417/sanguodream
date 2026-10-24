@@ -4466,7 +4466,9 @@ register_ui_tests(ImGuiTestEngine *e)
     };
 
     /* M20, the decision of the player: with the default setting, 進行 opens
-       no message window, and the log holds the events of the round. */
+       no message window, and the log holds the public events of the round.
+       G3-017: the city commands of the other forces (a conscription with
+       its number) stay out of the log. */
     t = IM_REGISTER_TEST(e, "ui", "proceed_with_the_default_setting_opens_no_message_and_the_log_keeps_the_round");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;
@@ -4502,7 +4504,7 @@ register_ui_tests(ImGuiTestEngine *e)
             rival_line  = rival_line || line == 0;
             report_line = report_line || line == 1;
         }
-        IM_CHECK(rival_line && report_line);
+        IM_CHECK(!rival_line && report_line);   /* the conscription of the rival stays out (G3-017); the report of the player shows */
     };
 
     /* M20, with the show on: the HUD names each AI faction in the order of
@@ -4619,7 +4621,7 @@ register_ui_tests(ImGuiTestEngine *e)
         conscripted.kind = SIM_EVENT_CONSCRIPTED; conscripted.faction = 1; conscripted.subject = 1;
         conscripted.delta = 1383; conscripted.cause = 7;
         sim_event rival = conscripted;
-        rival.faction = 2; rival.cause = 8;                    /* another faction: a log line, no bubble */
+        rival.faction = 2; rival.cause = 8;                    /* another faction: no bubble, and no log line (G3-017: its number stays out) */
         v.recorder.events[v.recorder.event_count++] = conscripted;
         v.recorder.events[v.recorder.event_count++] = rival;
         ctx->Yield(2);
@@ -4629,7 +4631,7 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(v.ui.report.floats[0].delta, 1383);
         IM_CHECK(ctx->WindowInfo("//###Speech", ImGuiTestOpFlags_NoError).Window != 0);
         IM_CHECK(ctx->WindowInfo("//###Log", ImGuiTestOpFlags_NoError).Window != 0);
-        IM_CHECK_EQ(v.ui.report.line_count, 3u);                /* the heading and two lines */
+        IM_CHECK_EQ(v.ui.report.line_count, 2u);                /* the heading and the line of the player */
         IM_CHECK((v.ui.report.lines[v.ui.report.line_first] & UI_LOG_HEADING) != 0);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
         v.ui.report.bubble_seconds = 0.001f;

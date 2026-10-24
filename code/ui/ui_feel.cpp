@@ -172,6 +172,7 @@ ui_feel_message_speaker(ui_state *ui, engine_api *api, u32 message)
     u16 adviser = api->adviser(api->engine, ui->feel.force);
     u16 ruler = api->force_ruler(api->engine, ui->feel.force);
     if (message == UI_MESSAGE_HEADING) return ruler;
+    if (message == UI_MESSAGE_NEXT_ORDER && ui->feel.first_turn && ui->feel.loaded_game) return ENGINE_NO_OFFICER;   /* G3-023: the emperor speaks, no portrait in the clone */
     if (message == UI_MESSAGE_THREAT || message == UI_MESSAGE_NEXT_ORDER) return adviser != ENGINE_NO_OFFICER ? adviser : ruler;
     u16 reporter = api->event_report(api->engine, message).speaker;
     return reporter != ENGINE_NO_OFFICER ? reporter : ruler;
@@ -305,6 +306,10 @@ ui_feel_message_text(ui_state *ui, engine_api *api, u32 message, char *out, u32 
             char line[UI_NAME_SIZE * 6];
             snprintf(line, sizeof(line), text_get(ui->text, "turn.threat"), city);
             snprintf(out, out_size, "%s%s", prefix, line);
+        }
+        else if (ui->feel.first_turn && ui->feel.loaded_game)
+        {
+            snprintf(out, out_size, text_get(ui->text, "turn.loaded"), lord);   /* G3-023: 劉表，可終於輪到你了啊。 */
         }
         else
         {

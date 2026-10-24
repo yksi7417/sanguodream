@@ -70,6 +70,7 @@ officer_decode_shared(const u8 *record, u16 id, officer_record *out)
     memcpy(out->given_name,    record + OFFICER_GIVEN_NAME,    OFFICER_GIVEN_NAME_SIZE);
     memcpy(out->courtesy_name, record + OFFICER_COURTESY_NAME, OFFICER_COURTESY_NAME_SIZE);
     out->portrait_number          = format_read_u16(record + OFFICER_PORTRAIT_NUMBER);
+    out->female                   = record[OFFICER_SEX] == 1;
     out->appearance_year          = format_read_u16(record + OFFICER_APPEARANCE_YEAR);
     out->birth_year               = format_read_u16(record + OFFICER_BIRTH_YEAR);
     out->death_year               = format_read_u16(record + OFFICER_DEATH_YEAR);

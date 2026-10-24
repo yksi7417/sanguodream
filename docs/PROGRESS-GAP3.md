@@ -40,9 +40,19 @@ spec-src/spec/experiments/gap3-answers-2026-10-23.md and in the fixtures.
 
 | G3-020 | A click on an enemy facility out of the range asks 即將對 X 進行攻擊。確定嗎？ with 是 and 否. The unit takes a long order (attack_facility), marches at each turn and attacks the facility when it is in range, until the facility falls. The hover panel of a facility shows its name, its owner and 耐久 as current / maximum. | batch 3 | feature/orders, ui |
 
+| G3-005, G3-007 | The items 攻擊, 齊攻, 單挑, 修補 and 撤除 of the unit menu are grey when no hex within 3 of the menu hex takes the command: the probe of the engine knows the range of the class, the targets and the own buildings. | batch 4 | ui |
+| G3-006, G3-021 | The map goes dark during a target pick, with the targets in red. No hover panel shows during a pick, a strike or a duel. | batch 4 | ui |
+| G3-010, G3-017, G3-023 | The log leaves out the events of other forces that change a value and their bandits. A line without a name drops its bare colon. The log is empty after a load, and the first line of a loaded game is 劉表，可終於輪到你了啊 with no portrait. | batch 4 | ui |
+| G3-016 | No speech bubble opens during the show of the AI round. | batch 4 | ui |
+| G3-022, G2-020 | The sex of an officer comes from the byte +55 of the record. The prisoner dialog shows 性別 and the cost line of the original, and no chance. The captive answers over its city after 登庸 (refusal) and 處決 (last words). | batch 4 | ui |
+
 ## In progress
 
-- The P2 and P3 rows wait for the next batches.
+- Four rows wait for the next batch:
+  - G3-008, the pick list and the speeches of a duel;
+  - G3-009, the threat lines of the turn start;
+  - G3-012, the city window;
+  - G3-015, the ghost text.
 
 ## Questions for the observer
 

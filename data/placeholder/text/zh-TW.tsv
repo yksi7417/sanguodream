@@ -1536,6 +1536,12 @@ captive.target	對象武將
 captive.age	年齡 %u
 captive.skill	特技
 captive.chance	登庸成功率 %u%%
+captive.sex_male	性別 男
+captive.sex_female	性別 女
+captive.cost	請決定俘虜的處置（俘虜每１人需要資金50/月）。
+say.recruit_failed	我也是有骨氣之人，並不打算投降。
+say.officer_executed	我的武運已走到盡頭，之後只有死一途……。
+turn.loaded	%s，可終於輪到你了啊。
 captive.recruit	登庸
 captive.keep	俘虜
 captive.release	釋放

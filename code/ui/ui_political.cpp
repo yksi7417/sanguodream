@@ -266,6 +266,8 @@ ui_draw_hover_panel(ui_state *ui, engine_api *api)
 {
     ImGuiIO &io = ImGui::GetIO();
     if (io.WantCaptureMouse) return;
+    /* G3-006, G3-021: no hover panel during a target pick, a strike or a duel. */
+    if (ui->combat.pick != UI_PICK_NONE || ui->war.strike_count > 0 || api->duel_view(api->engine).active) return;
     /* The plate of a unit (the portrait and the name) counts as its hex. */
     u32 plated = ui_plate_unit_at(ui, io.MousePos.x, io.MousePos.y);
     engine_hex data = {};

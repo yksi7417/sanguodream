@@ -99,18 +99,21 @@ ui_draw_captive_dialog(ui_state *ui, engine_api *api)
                     text_get(ui->text, "picker.war"), officer.war, text_get(ui->text, "picker.intelligence"), officer.intelligence);
         ImGui::Text("%s %u  %s %u", text_get(ui->text, "picker.politics"), officer.politics, text_get(ui->text, "picker.charm"), officer.charm);
         ImGui::Text(text_get(ui->text, "captive.age"), detail.age);
+        ImGui::SameLine();
+        ImGui::TextUnformatted(text_get(ui->text, detail.female ? "captive.sex_female" : "captive.sex_male"));   /* G3-022 */
         if (officer.skill_number != 255 && officer.skill_number < api->skill_kind_count(e))
         {
             ImGui::Text("%s: %s", text_get(ui->text, "captive.skill"), ui_text_with_key(ui, "skill", api->skill_kind_at(e, officer.skill_number).key));
         }
         ImGui::EndGroup();
         ImGui::Separator();
+        /* G3-022: the original shows the cost line and no chance. */
+        ImGui::TextWrapped("%s", text_get(ui->text, "captive.cost"));
         engine_command probe = {};
         probe.kind         = ENGINE_COMMAND_CAPTIVE;
         probe.court.target = officer_id;
         probe.court.kind   = ENGINE_CAPTIVE_RECRUIT;
         engine_check recruit = api->can_issue(e, &probe);
-        if (recruit.refusal == SIM_REFUSAL_NONE) ImGui::Text(text_get(ui->text, "captive.chance"), recruit.quantity);
         u8 choice = 255;
         if (ui_captive_button(ui, "recruit", !ui->captive.recruit_failed && recruit.refusal == SIM_REFUSAL_NONE)) choice = ENGINE_CAPTIVE_RECRUIT;
         if (ui_captive_button(ui, "keep", true))    choice = ENGINE_CAPTIVE_KEEP;

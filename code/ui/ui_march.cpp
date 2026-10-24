@@ -7,6 +7,7 @@
 internal void ui_draw_supply(ui_state *ui, engine_api *api, engine_unit *transport);
 internal b32  ui_combat_click(ui_state *ui, engine_api *api, hex_coord hex);                                       /* ui_combat.cpp */
 internal void ui_start_pick(ui_state *ui, u8 pick, u8 row);
+internal b32  ui_pick_allows(ui_state *ui, engine_api *api, u8 pick, u8 row, hex_coord hex);                        /* ui_combat.cpp */
 internal void ui_draw_map_combat(ui_state *ui, engine_api *api, ImDrawList *draw, f32 cell, hex_point origin);
 internal void ui_walk_plan(ui_state *ui, engine_api *api, u32 unit_id, s32 q, s32 r);                  /* ui_war.cpp */
 internal void ui_walk_begin(ui_state *ui, engine_api *api, u32 unit_id, bool open_menu);
@@ -808,16 +809,11 @@ ui_draw_unit_menu(ui_state *ui, engine_api *api)
         const char **items = type.transport ? transport_items : combat_items;
         u32 count = type.transport ? ArrayCount(transport_items) : ArrayCount(combat_items);
         char label[96], text_id[32];
-        /* G2-045, G2-050: 攻擊, 齊攻, 戰法 and 單挑 are grey without an enemy unit within 2 hexes of the menu hex. */
+        /* G2-045, G2-050, G3-005, G3-007: 攻擊, 齊攻, 單挑, 修補 and 撤除 are
+           grey when no hex within 3 of the menu hex takes the command (the
+           probe of the engine: the range of the class, a target, an own
+           building). */
         hex_coord mine = ui_unit_menu_hex(ui, &unit);
-        b32 enemy_near = false;
-        for (u32 other_id = 0; other_id < api->unit_count(api->engine) && !enemy_near; ++other_id)
-        {
-            engine_unit other = api->unit_at(api->engine, other_id);
-            if (other.id == ENGINE_NO_UNIT || other.force_id == unit.force_id) continue;
-            hex_coord theirs = { other.q, other.r };
-            enemy_near = hex_distance(mine, theirs) <= 2;
-        }
         for (u32 index = 0; index < count; ++index)
         {
             const char *item = items[index];
@@ -829,7 +825,19 @@ ui_draw_unit_menu(ui_state *ui, engine_api *api)
             b32 enabled = supply || pick != UI_PICK_NONE ||
                           ((wait || retreat) && ui_unit_check(ui, api, &command).refusal == SIM_REFUSAL_NONE);
             if (pick != UI_PICK_NONE && (unit.acted || unit.state != 0)) enabled = false;
-            if ((pick == UI_PICK_ATTACK || pick == UI_PICK_JOINT || pick == UI_PICK_TACTIC || pick == UI_PICK_DUEL) && !enemy_near) enabled = false;
+            if (enabled && (pick == UI_PICK_ATTACK || pick == UI_PICK_JOINT || pick == UI_PICK_DUEL || pick == UI_PICK_REPAIR || pick == UI_PICK_DISMANTLE))
+            {
+                b32 any = false;
+                for (s32 dq = -3; dq <= 3 && !any; ++dq)
+                {
+                    for (s32 dr = -3; dr <= 3 && !any; ++dr)
+                    {
+                        hex_coord hex = hex_make(mine.q + dq, mine.r + dr);
+                        if (hex_distance(hex, mine) <= 3 && ui_pick_allows(ui, api, pick, 0, hex)) any = true;
+                    }
+                }
+                enabled = any;
+            }
             snprintf(text_id, sizeof(text_id), "unit_menu.%s", item);
             ImGui::BeginDisabled(!enabled);
             if (ImGui::Button(ui_label(label, sizeof(label), ui, text_id, item), ImVec2(120.0f, 0.0f)))

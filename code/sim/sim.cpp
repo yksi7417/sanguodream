@@ -155,6 +155,7 @@ sim_officer_from_record(officer_record *record)
     officer.status                   = record->status;
     officer.merit                    = record->merit;
     officer.skill_number             = record->skill_number;
+    officer.female                   = record->female;   /* G2-020: the byte +55 of the record */
     officer.compatibility            = record->compatibility;
     officer.father                   = record->father;
     officer.spouse                   = record->spouse;

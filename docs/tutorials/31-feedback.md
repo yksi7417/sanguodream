@@ -89,8 +89,12 @@ template provider.
   event one time. It adds the date of each turn and one line for each
   event with the log flag. The colour of a line follows its sign. A
   hover shows the key and the tone. The filter shows all events or only
-  those of the player. The log keeps the events of the other factions,
-  as the player decided for M20. A line of a unit event names the unit
+  those of the player. The log keeps the public events of the other
+  factions (a destroyed unit, a retreat, a completed facility), as the
+  player decided for M20. It leaves out their events that change a value
+  (the numbers of their city commands, the losses of far units) and their
+  bandits (G3-010, G3-017). After a load the log starts empty (G3-023).
+  A line of a unit event names the unit
   by its commander (周泰隊：士兵 -232). The commander is the subject of
   the event, so the name stays after the unit is gone.
 - The speech bubble (main-map.md, "Speech bubble") opens over the base

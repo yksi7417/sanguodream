@@ -269,9 +269,11 @@ ui_scene_push(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->scene.has_hover) ui_scene_mark(overlay, view, ui->scene.hover, 0x60FFFFFFu);
     if (ui->map.has_from)    ui_scene_mark(overlay, view, ui->map.from, 0xB03CDCFFu);
     if (ui->map.has_to)      ui_scene_mark(overlay, view, ui->map.to,   0xB03C5AFFu);
-    /* G2-054: during a target pick, the hexes that the command can hit show red. */
+    /* G2-054: during a target pick, the hexes that the command can hit show red.
+       G3-006: the map goes dark around them, as in the original. */
     if (ui->combat.pick != UI_PICK_NONE && ui->units.selected != ENGINE_NO_UNIT)
     {
+        for (u32 cell = 0; cell < cells; ++cell) overlay[cell] = 0x90000000u;
         engine_unit picker = api->unit_at(api->engine, ui->units.selected);
         hex_coord center = ui_unit_menu_hex(ui, &picker);   /* G2-045: around the destination of a pending move */
         for (s32 dq = -3; picker.id != ENGINE_NO_UNIT && dq <= 3; ++dq)
