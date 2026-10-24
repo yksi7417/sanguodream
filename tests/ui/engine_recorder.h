@@ -95,6 +95,7 @@ enum recorder_call_kind
     RECORDER_BASE_COUNT,       /* M8 queries */
     RECORDER_BASE_AT,
     RECORDER_BASE_AT_HEX,
+    RECORDER_DEPOT_AT,             /* arg = the location id */
     RECORDER_CORPS_AT,         /* arg = force | corps << 8 */
     RECORDER_CITY_CORPS,
     RECORDER_ADVISER,
@@ -1511,6 +1512,28 @@ internal engine_base recorder_base_at(void *o, u32 index)
     return base;
 }
 internal u32 recorder_base_at_hex(void *o, s32 q, s32 r) { (void)q; (void)r; recorder_record((engine_recorder *)o, RECORDER_BASE_AT_HEX, 0); return ENGINE_NO_BASE; }
+/* The two bases of recorder_base_at as bases of the spec: a garrison of
+   3000, 800 gold, 6000 grain and 2000 pikes. */
+internal engine_depot recorder_depot_at(void *o, u8 location)
+{
+    recorder_record((engine_recorder *)o, RECORDER_DEPOT_AT, location);
+    engine_depot depot = {};
+    depot.location = location;
+    depot.force    = ENGINE_NO_FACTION;
+    if (location != 42 && location != 52) return depot;
+    depot.exists      = true;
+    depot.is_base     = true;
+    depot.force       = 1;
+    depot.troops      = 3000;
+    depot.soldier_cap = 30000;
+    depot.gold        = 800;
+    depot.grain       = 6000;
+    depot.morale      = 70;
+    depot.stocks[0]   = 2000;
+    depot.q           = location == 42 ? 4 : 5;
+    depot.r           = 2;
+    return depot;
+}
 internal engine_corps recorder_corps_at(void *o, u8 force, u8 corps)
 {
     recorder_record((engine_recorder *)o, RECORDER_CORPS_AT, (u32)force | ((u32)corps << 8));
@@ -2134,6 +2157,7 @@ recorder_make_api(engine_recorder *r)
     api.base_count            = recorder_base_count;
     api.base_at               = recorder_base_at;
     api.base_at_hex           = recorder_base_at_hex;
+    api.depot_at              = recorder_depot_at;
     api.corps_at              = recorder_corps_at;
     api.city_corps            = recorder_city_corps;
     api.adviser               = recorder_adviser;

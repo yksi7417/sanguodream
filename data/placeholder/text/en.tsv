@@ -1277,6 +1277,7 @@ log.tactic_used	{faction}: a unit used a tactic
 log.critical_hit	{faction}: a critical hit
 log.unit_state	{faction}: the state of a unit changed
 log.unit_entered_city	{subject}: a unit entered the city
+log.unit_entered_base	{subject}: the unit entered the port or the pass
 log.merit_gained	{subject}: merit {delta}
 log.technique_gained	{faction}: technique points {delta}
 log.base_taken	{faction}: took a base

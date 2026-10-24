@@ -473,12 +473,12 @@ sim_emit_unit(sim_state *sim, sim_event_kind kind, u32 unit_id, u8 city_id, s32 
 internal hex_coord
 sim_sortie_hex(sim_state *sim, u8 city_id, u8 force, movement_class movement, b32 *found)
 {
-    hex_coord center = sim->sites[city_id].hex;
+    hex_coord center = sim_travel_base_hex(sim, city_id);   /* a city, or a port or a pass (the play report of 2026-10-23) */
     *found = false;
     for (u32 d = 0; d < HEX_DIRECTION_COUNT; ++d)
     {
         hex_coord hex = hex_neighbor(center, d);
-        if (sim_entry_cost(sim, force, movement, hex, SIM_NO_UNIT) && sim_city_at(sim, hex) == SIM_NO_CITY)
+        if (sim_entry_cost(sim, force, movement, hex, SIM_NO_UNIT) && sim_city_at(sim, hex) == SIM_NO_CITY && sim_base_at(sim, hex) == SIM_NO_BASE)
         {
             *found = true;
             return hex;
@@ -512,6 +512,8 @@ sim_sortie_weapons(sim_state *sim, unit_type_kind *type, u32 soldiers)
     return sim->content.weapons[type->weapon].max_days ? 1 : soldiers;
 }
 
+internal sim_refusal sim_check_depot_officers(sim_state *sim, sim_depot *depot, const u16 *officers, u32 max_officers, sim_ability ability, u32 *sum);
+
 /* The checks of 出征 (and of 輸送 with transport set), in order. */
 internal sim_check
 sim_check_sortie(sim_state *sim, sim_sortie_order *order, b32 transport)
@@ -520,42 +522,43 @@ sim_check_sortie(sim_state *sim, sim_sortie_order *order, b32 transport)
     check.slot = SIM_ANY_SLOT;
     if (!sim->has_content)                              return sim_refuse(check, SIM_REFUSAL_NO_CONTENT);
     if (sim_game_over(sim))                             return sim_refuse(check, SIM_REFUSAL_GAME_OVER);
-    city_component *city = sim_find_city(sim, order->city_id);
-    if (!city || city->owner_force_id == SIM_NO_FORCE) return sim_refuse(check, SIM_REFUSAL_NO_CITY);
-    u8 force = city->owner_force_id;
+    /* The base is a city, or a port or a pass with a garrison (the play report of 2026-10-23). */
+    sim_depot depot = sim_depot_at(sim, order->city_id);
+    if (!depot.ok)                                      return sim_refuse(check, SIM_REFUSAL_NO_CITY);
+    u8 force = depot.force;
     if (sim_whose_turn(sim) != force)                   return sim_refuse(check, SIM_REFUSAL_NOT_YOUR_TURN);
     unit_type_kind *type = sim_unit_type(sim, order->unit_type);
     if (!type || (transport != 0) != (type->transport != 0)) return sim_refuse(check, SIM_REFUSAL_NO_UNIT);
     if (transport)
     {
         city_component *destination = sim_find_city(sim, order->destination);
-        if (!destination || destination->owner_force_id != force || destination == city) return sim_refuse(check, SIM_REFUSAL_NO_CITY);
+        if (!destination || destination->owner_force_id != force || order->destination == order->city_id) return sim_refuse(check, SIM_REFUSAL_NO_CITY);
     }
     u32 sum = 0;
-    sim_refusal refusal = sim_check_city_officers(sim, city, order->officers, SIM_COMMAND_OFFICERS, SIM_ABILITY_LEADERSHIP, &sum);
+    sim_refusal refusal = sim_check_depot_officers(sim, &depot, order->officers, SIM_COMMAND_OFFICERS, SIM_ABILITY_LEADERSHIP, &sum);
     if (refusal != SIM_REFUSAL_NONE)                    return sim_refuse(check, refusal);
     if (order->officers[0] == SIM_NO_OFFICER)           return sim_refuse(check, SIM_REFUSAL_NO_OFFICER);
     if (sim_busy(sim))                                  return sim_refuse(check, SIM_REFUSAL_BUSY);
     u32 cap = sim_officer_soldier_cap(sim, sim_find_officer(sim, order->officers[0]));   /* M7: the post or rank of the commander */
-    if ((!transport && order->soldiers == 0) || order->soldiers > city->troops || order->soldiers > cap)
+    if ((!transport && order->soldiers == 0) || order->soldiers > *depot.troops || order->soldiers > cap)
     {
         return sim_refuse(check, SIM_REFUSAL_NO_SOLDIERS);
     }
     u32 weapons = sim_sortie_weapons(sim, type, order->soldiers);
-    if (weapons && city->equipment_stocks[sim->content.weapons[type->weapon].stock] < weapons) return sim_refuse(check, SIM_REFUSAL_NO_WEAPONS);
+    if (weapons && depot.equipment[sim->content.weapons[type->weapon].stock] < weapons) return sim_refuse(check, SIM_REFUSAL_NO_WEAPONS);
     if (!transport && order->ship)
     {
         /* G2-057: the ship for the water is a navy class with a weapon row, one from the stock of the city. */
         unit_type_kind *ship = sim_unit_type(sim, order->ship);
         if (!ship || ship->movement != MOVEMENT_NAVY || ship->weapon >= sim->content.weapon_count) return sim_refuse(check, SIM_REFUSAL_NO_UNIT);
-        if (city->equipment_stocks[sim->content.weapons[ship->weapon].stock] < 1) return sim_refuse(check, SIM_REFUSAL_NO_WEAPONS);
+        if (depot.equipment[sim->content.weapons[ship->weapon].stock] < 1) return sim_refuse(check, SIM_REFUSAL_NO_WEAPONS);
     }
     for (u32 stock = 0; transport && stock < CITY_EQUIPMENT_STOCK_COUNT; ++stock)
     {
-        if (order->cargo[stock] > city->equipment_stocks[stock]) return sim_refuse(check, SIM_REFUSAL_NO_WEAPONS);
+        if (order->cargo[stock] > depot.equipment[stock]) return sim_refuse(check, SIM_REFUSAL_NO_WEAPONS);
     }
-    if (order->grain > city->food)                      return sim_refuse(check, SIM_REFUSAL_NO_GRAIN);
-    if (order->gold > city->gold)                       return sim_refuse(check, SIM_REFUSAL_NO_GOLD);
+    if (order->grain > *depot.grain)                    return sim_refuse(check, SIM_REFUSAL_NO_GRAIN);
+    if (order->gold > *depot.gold)                      return sim_refuse(check, SIM_REFUSAL_NO_GOLD);
     b32 room = false;
     sim_sortie_hex(sim, order->city_id, force, type->movement, &room);
     if (!room)                                          return sim_refuse(check, SIM_REFUSAL_NO_ROOM);
@@ -565,25 +568,28 @@ sim_check_sortie(sim_state *sim, sim_sortie_order *order, b32 transport)
         if (index >= sim->unit_count || !sim->units[index].alive) free_unit = index;
     }
     if (free_unit == SIM_NO_UNIT)                       return sim_refuse(check, SIM_REFUSAL_NO_ROOM);
-    u32 action_points = sim_military_ap(sim, city, transport ? sim->content.rules.ap_transport : sim->content.rules.ap_sortie);
+    u32 action_points = transport ? sim->content.rules.ap_transport : sim->content.rules.ap_sortie;
+    if (depot.city) action_points = sim_military_ap(sim, depot.city, action_points);   /* a port or a pass has no military office */
     if (sim->turns.action_points[force] < action_points) return sim_refuse(check, SIM_REFUSAL_NO_ACTION_POINTS);
 
     check.action_points = action_points;
     check.gold          = order->gold;
     check.quantity      = order->soldiers;
-    check.value_before  = city->troops;
-    check.value_after   = city->troops - order->soldiers;
+    check.value_before  = *depot.troops;
+    check.value_after   = *depot.troops - order->soldiers;
     return check;
 }
 
-/* Takes an amount from a stock of the city, with one event. */
+/* Takes an amount from a stock of the base, with one event. The event
+   names the city. A port or a pass has no city entity: the commander of
+   the unit names the event (sim_emit_unit). */
 internal void
-sim_city_give(sim_state *sim, city_component *city, u32 *stock, u32 amount, sim_event_kind kind, u32 unit_id, u32 cause,
-              sim_event_sink *events)
+sim_depot_give(sim_state *sim, sim_depot *depot, u32 *stock, u32 amount, sim_event_kind kind, u32 unit_id, u32 cause,
+               sim_event_sink *events)
 {
     if (!amount) return;
     *stock -= amount;
-    sim_emit_unit(sim, kind, unit_id, city->city_id, -(s32)amount, false, cause, events);
+    sim_emit_unit(sim, kind, unit_id, depot->city ? depot->city->city_id : (u8)SIM_NO_CITY, -(s32)amount, false, cause, events);
 }
 
 /* 出征 and 輸送: the officers leave the city with the soldiers, the weapons,
@@ -596,8 +602,9 @@ sim_sortie(sim_state *sim, sim_command command, sim_event_sink *events)
     b32 transport = command.kind == SIM_COMMAND_TRANSPORT;
     sim_check check = sim_check_sortie(sim, order, transport);
     if (check.refusal != SIM_REFUSAL_NONE) return;
-    city_component *city = sim_find_city(sim, order->city_id);
-    u8 force = city->owner_force_id;
+    sim_depot depot = sim_depot_at(sim, order->city_id);
+    u8 force = depot.force;
+    u8 city_id = depot.city ? depot.city->city_id : (u8)SIM_NO_CITY;   /* the subject of the events; a port or a pass has none */
     unit_type_kind *type = sim_unit_type(sim, order->unit_type);
     u32 unit_id = sim_new_unit_id(sim);
     sim_unit *unit = sim->units + unit_id;
@@ -610,7 +617,7 @@ sim_sortie(sim_state *sim, sim_command command, sim_event_sink *events)
     unit->soldiers    = order->soldiers;
     unit->gold        = order->gold;
     unit->grain       = order->grain;
-    unit->morale      = city->morale;
+    unit->morale      = *depot.morale;
     unit->home_city   = order->city_id;
     unit->destination = transport ? order->destination : SIM_NO_CITY;
     unit->weapons     = sim_sortie_weapons(sim, type, order->soldiers);
@@ -623,12 +630,12 @@ sim_sortie(sim_state *sim, sim_command command, sim_event_sink *events)
         officer->current_position = (u16)(SIM_UNIT_POSITION_BASE + unit_id);
     }
 
-    city->troops -= order->soldiers;
-    sim_emit_unit(sim, SIM_EVENT_UNIT_SORTIED, unit_id, city->city_id, -(s32)order->soldiers, false, command.id, events);
+    *depot.troops -= order->soldiers;
+    sim_emit_unit(sim, SIM_EVENT_UNIT_SORTIED, unit_id, city_id, -(s32)order->soldiers, false, command.id, events);
     if (unit->weapons)
     {
-        sim_city_give(sim, city, city->equipment_stocks + sim->content.weapons[type->weapon].stock, unit->weapons,
-                      SIM_EVENT_UNIT_WEAPONS_TAKEN, unit_id, command.id, events);
+        sim_depot_give(sim, &depot, depot.equipment + sim->content.weapons[type->weapon].stock, unit->weapons,
+                       SIM_EVENT_UNIT_WEAPONS_TAKEN, unit_id, command.id, events);
     }
     if (!transport && order->ship)
     {
@@ -636,16 +643,16 @@ sim_sortie(sim_state *sim, sim_command command, sim_event_sink *events)
         unit_type_kind *ship = sim_unit_type(sim, order->ship);
         unit->has_ship  = true;
         unit->ship_type = order->ship;
-        sim_city_give(sim, city, city->equipment_stocks + sim->content.weapons[ship->weapon].stock, 1,
-                      SIM_EVENT_UNIT_WEAPONS_TAKEN, unit_id, command.id, events);
+        sim_depot_give(sim, &depot, depot.equipment + sim->content.weapons[ship->weapon].stock, 1,
+                       SIM_EVENT_UNIT_WEAPONS_TAKEN, unit_id, command.id, events);
     }
     for (u32 stock = 0; transport && stock < CITY_EQUIPMENT_STOCK_COUNT; ++stock)
     {
         unit->cargo[stock] = order->cargo[stock];
-        sim_city_give(sim, city, city->equipment_stocks + stock, order->cargo[stock], SIM_EVENT_UNIT_WEAPONS_TAKEN, unit_id, command.id, events);
+        sim_depot_give(sim, &depot, depot.equipment + stock, order->cargo[stock], SIM_EVENT_UNIT_WEAPONS_TAKEN, unit_id, command.id, events);
     }
-    sim_city_give(sim, city, &city->gold, order->gold, SIM_EVENT_UNIT_SUPPLIES, unit_id, command.id, events);
-    sim_city_give(sim, city, &city->food, order->grain, SIM_EVENT_UNIT_GRAIN_TAKEN, unit_id, command.id, events);
+    sim_depot_give(sim, &depot, depot.gold, order->gold, SIM_EVENT_UNIT_SUPPLIES, unit_id, command.id, events);
+    sim_depot_give(sim, &depot, depot.grain, order->grain, SIM_EVENT_UNIT_GRAIN_TAKEN, unit_id, command.id, events);
     sim->turns.action_points[force] -= check.action_points;
     sim_event points = sim_event_make(sim, SIM_EVENT_ACTION_POINTS_SPENT, command.id);
     points.faction = force;
@@ -718,6 +725,120 @@ sim_unit_enter_city(sim_state *sim, u32 unit_id, u8 city_id, sim_event_kind kind
         officer->base_location    = city_id;
     }
     unit->alive = false;
+}
+
+/* Puts an amount into a stock of a port or a pass, up to the cap. */
+internal void
+sim_base_take(u32 *stock, u32 amount, u32 cap)
+{
+    u64 total = (u64)*stock + amount;
+    *stock = (u32)(cap && total > cap ? cap : total);
+}
+
+/* The unit leaves the map into an own port or pass (the play report of
+   2026-10-23). The base is a base of the spec (siege-and-bases.md,
+   ui/city-commands.md): its soldiers, weapons, cargo, gold and grain go
+   into the base and its stock, and its officers stay there. The soldiers
+   stop at the cap of the base, as in a city. A base without a morale takes
+   the morale of the unit (assumed). The ledger gets unit_entered_base,
+   named by the commander. */
+internal void
+sim_unit_enter_base(sim_state *sim, u32 unit_id, u32 base_index, sim_event_kind kind, u32 cause, sim_event_sink *events)
+{
+    sim_unit *unit = sim->units + unit_id;
+    sim_base_state *base = sim_find_base(sim, base_index);
+    if (!base) return;
+    sim_base_stock *stock = sim->base_stocks + base_index;
+    sim_rules *rules = &sim->content.rules;
+    u16 location = (u16)sim->content.bases[base_index].id;
+    if (kind == SIM_EVENT_UNIT_RETREATED) sim_emit_unit(sim, kind, unit_id, SIM_NO_CITY, 0, false, cause, events);
+    unit_type_kind *type = sim_unit_type(sim, unit->unit_type);
+    sim_base_take(&base->troops, unit->soldiers, sim_base_troop_cap(sim, base->force));
+    if (unit->has_ship)
+    {
+        unit_type_kind *ship = sim_unit_type(sim, unit->ship_type);
+        if (ship && ship->weapon < sim->content.weapon_count) sim_base_take(stock->equipment_stocks + sim->content.weapons[ship->weapon].stock, 1, rules->city_weapon_cap);
+    }
+    if (type && type->weapon < sim->content.weapon_count && unit->weapons)
+    {
+        sim_base_take(stock->equipment_stocks + sim->content.weapons[type->weapon].stock, unit->weapons, rules->city_weapon_cap);
+    }
+    for (u32 index = 0; index < CITY_EQUIPMENT_STOCK_COUNT; ++index) sim_base_take(stock->equipment_stocks + index, unit->cargo[index], rules->city_weapon_cap);
+    sim_base_take(&stock->gold, unit->gold, rules->city_gold_cap);
+    sim_base_take(&stock->grain, unit->grain, rules->city_grain_cap);
+    if (!stock->morale) stock->morale = (u8)Minimum(unit->morale, 255u);
+    sim_event event = sim_event_make(sim, SIM_EVENT_UNIT_ENTERED_BASE, cause);
+    event.subject = unit->officers[0] != SIM_NO_OFFICER ? sim_officer_entity(sim, unit->officers[0]) : 0;
+    event.faction = unit->force_id;
+    event.detail  = location;
+    event.delta   = (s32)unit->soldiers;
+    sim_emit(events, event);
+    for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place)
+    {
+        officer_component *officer = sim_find_officer(sim, unit->officers[place]);
+        if (!officer) continue;
+        officer->current_position = location;
+        officer->base_location    = location;
+    }
+    unit->alive = false;
+}
+
+/* The unit enters the base of the location: a city, or a port or a pass. */
+internal void
+sim_unit_enter_depot(sim_state *sim, u32 unit_id, u8 location, sim_event_kind kind, u32 cause, sim_event_sink *events)
+{
+    if (location < SAVE_CITY_COUNT) sim_unit_enter_city(sim, unit_id, location, kind, cause, events);
+    else if (location >= CONTENT_FIRST_BASE) sim_unit_enter_base(sim, unit_id, (u32)location - CONTENT_FIRST_BASE, kind, cause, events);
+}
+
+/* The home city of a unit for a captive or an item: the home when it is
+   a city of the force, else a refuge city. A unit from a port or a pass
+   has no home city. */
+internal u8
+sim_unit_home_city(sim_state *sim, sim_unit *unit)
+{
+    return sim_refuge_city(sim, unit->force_id, unit->home_city);
+}
+
+/* The officer of a 出征 or 輸送 from a base: in the base, of its force,
+   free and not yet acted. A city uses the check of the city commands. */
+internal sim_refusal
+sim_check_depot_officer(sim_state *sim, sim_depot *depot, officer_component *officer)
+{
+    if (depot->city) return sim_check_develop_officer(sim, depot->city, officer);
+    if (!officer || !sim_officer_is_active(officer) || officer->force_id != depot->force || officer->current_position != depot->location)
+    {
+        return SIM_REFUSAL_OFFICER_NOT_IN_CITY;
+    }
+    if (officer->acted_turn == sim->turn + 1) return SIM_REFUSAL_OFFICER_ALREADY_ACTED;
+    if (officer->job_city != SIM_NO_CITY)     return SIM_REFUSAL_OFFICER_BUSY;
+    if (officer->travel_turns)                return SIM_REFUSAL_OFFICER_BUSY;
+    return SIM_REFUSAL_NONE;
+}
+
+/* The officers of a 出征 or 輸送, as sim_check_city_officers for a base. */
+internal sim_refusal
+sim_check_depot_officers(sim_state *sim, sim_depot *depot, const u16 *officers, u32 max_officers, sim_ability ability, u32 *sum)
+{
+    u32 named = 0;
+    *sum = 0;
+    for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place)
+    {
+        u16 officer_id = officers[place];
+        if (officer_id == SIM_NO_OFFICER) continue;
+        named++;
+        officer_component *officer = sim_find_officer(sim, officer_id);
+        sim_refusal refusal = sim_check_depot_officer(sim, depot, officer);
+        if (refusal != SIM_REFUSAL_NONE) return refusal;
+        for (u32 earlier = 0; earlier < place; ++earlier)
+        {
+            if (officers[earlier] == officer_id) return SIM_REFUSAL_DUPLICATE_OFFICER;
+        }
+        *sum += sim_officer_ability(officer, ability);
+    }
+    if (named == 0)           return SIM_REFUSAL_NO_OFFICER;
+    if (named > max_officers) return SIM_REFUSAL_TOO_MANY_OFFICERS;
+    return SIM_REFUSAL_NONE;
 }
 
 /* ---- the orders of a unit --------------------------------------------------- */
@@ -810,8 +931,8 @@ sim_check_unit_order(sim_state *sim, sim_command_kind kind, sim_unit_order *orde
             return check;
         case SIM_COMMAND_RETREAT:
         {
-            city_component *home = sim_find_city(sim, unit->home_city);
-            if (!home || home->owner_force_id != unit->force_id) return sim_refuse(check, SIM_REFUSAL_NO_CITY);
+            sim_depot home = sim_depot_at(sim, unit->home_city);   /* a city, or a port or a pass */
+            if (!home.ok || home.force != unit->force_id) return sim_refuse(check, SIM_REFUSAL_NO_CITY);
             return check;
         }
         case SIM_COMMAND_SUPPLY:
@@ -903,6 +1024,21 @@ sim_move_unit(sim_state *sim, sim_command command, memory_arena *scratch, sim_ev
         sim_unit_enter_city(sim, order->unit, city_id, SIM_EVENT_NONE, command.id, events);
         /* G2-027: a transport at its city asks where its officers go (events.cpp). */
         if (delivered) sim_transport_arrived(sim, officers, city_id, home, force, command.id, events);
+        return;
+    }
+    /* A unit of the player that ends its move on an own port or pass enters
+       it (the play report of 2026-10-23). The reach lets a unit stop only on
+       a base of its own faction (sim_entry_cost_of). ASSUMED: a unit on a
+       long order passes the base as a waypoint and stands on its hex, so
+       that a gate at the edge of its reach does not swallow the order. It
+       enters when the base is the goal. A computer unit never enters: it has
+       no sortie from a base. */
+    u32 base = sim_base_at(sim, unit->hex);
+    b32 human = unit->force_id < SIM_FORCE_CAPACITY && sim->turns.human[unit->force_id];
+    b32 free_or_goal = unit->order == UNIT_ORDER_NONE || hex_equal(unit->order_hex, unit->hex);
+    if (base != SIM_NO_BASE && sim->bases[base].force == unit->force_id && human && free_or_goal)
+    {
+        sim_unit_enter_base(sim, order->unit, base, SIM_EVENT_NONE, command.id, events);
     }
 }
 
@@ -923,7 +1059,7 @@ sim_unit_action(sim_state *sim, sim_command command, memory_arena *scratch, sim_
             break;
         case SIM_COMMAND_RETREAT:
             /* ASSUMED (Q-171): the unit returns to its home city at once. */
-            sim_unit_enter_city(sim, order->unit, unit->home_city, SIM_EVENT_UNIT_RETREATED, command.id, events);
+            sim_unit_enter_depot(sim, order->unit, unit->home_city, SIM_EVENT_UNIT_RETREATED, command.id, events);
             break;
         case SIM_COMMAND_SUPPLY:
         {
@@ -981,16 +1117,16 @@ sim_sortie_proposal(sim_state *sim, u8 city_id, u8 unit_type)
     order.unit_type   = unit_type;
     order.destination = SIM_NO_CITY;
     for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place) order.officers[place] = SIM_NO_OFFICER;
-    city_component *city = sim_find_city(sim, city_id);
+    sim_depot depot = sim_depot_at(sim, city_id);   /* a city, or a port or a pass */
     unit_type_kind *type = sim_unit_type(sim, unit_type);
-    if (!city || !type) return order;
+    if (!depot.ok || !type) return order;
     for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place)
     {
         officer_component *best = 0;
         for (u32 index = 0; index < sim->officers.count; ++index)
         {
             officer_component *officer = sim->officers.data + index;
-            if (sim_check_develop_officer(sim, city, officer) != SIM_REFUSAL_NONE) continue;
+            if (sim_check_depot_officer(sim, &depot, officer) != SIM_REFUSAL_NONE) continue;
             b32 taken = false;
             for (u32 earlier = 0; earlier < place; ++earlier) taken |= order.officers[earlier] == officer->officer_id;
             if (taken) continue;
@@ -1002,15 +1138,15 @@ sim_sortie_proposal(sim_state *sim, u8 city_id, u8 unit_type)
         }
         if (best) order.officers[place] = best->officer_id;
     }
-    u32 soldiers = Minimum(city->troops, sim_officer_soldier_cap(sim, sim_find_officer(sim, order.officers[0])));
+    u32 soldiers = Minimum(*depot.troops, sim_officer_soldier_cap(sim, sim_find_officer(sim, order.officers[0])));
     if (type->weapon < sim->content.weapon_count && !sim->content.weapons[type->weapon].max_days)
     {
-        soldiers = Minimum(soldiers, city->equipment_stocks[sim->content.weapons[type->weapon].stock]);
+        soldiers = Minimum(soldiers, depot.equipment[sim->content.weapons[type->weapon].stock]);
     }
     if (type->transport) soldiers = 0;
     order.soldiers = soldiers;
     /* G2-044: the preset proposes sortie.grain_per_soldier grain for each soldier (2043 soldiers, 4086 grain). */
     u32 grain = soldiers * sim->content.rules.sortie_grain_per_soldier;
-    order.grain = Minimum(grain, city->food);
+    order.grain = Minimum(grain, *depot.grain);
     return order;
 }

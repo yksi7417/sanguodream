@@ -2043,6 +2043,45 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
+    /* The play report of 2026-10-23: a port or a pass of the player is a
+       base of the spec. The City window with the location id of the port
+       draws the port panel (depot_at) with 出征, and the sortie dialog of
+       the base sends command_sortie with the location id of the base. The
+       click on the port hex (ui_hud_scene_clicks) opens this window. */
+    t = IM_REGISTER_TEST(e, "ui", "the_panel_of_an_own_port_offers_a_sortie_that_names_the_port");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.city.selected       = 42;   /* the port of recorder_base_at(0) */
+        v.ui.show_city           = true;
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_DEPOT_AT), 1u);                   /* the panel of the port */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        ctx->SetRef("###City");
+        IM_CHECK(ctx->ItemExists("###open_sortie"));
+        ctx->ItemClick("###open_sortie");
+        ctx->Yield();
+        IM_CHECK(v.ui.show_sortie && v.ui.sortie.city == 42);
+        ctx->SetRef("###Sortie");
+        ctx->Yield(2);
+        ctx->ItemClick("###preset1");
+        ctx->Yield();
+        IM_CHECK_EQ(v.ui.sortie.order.officers[0], 100u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###decide");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_SORTIE), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK_EQ(v.recorder.last_sortie.city_id, 42u);
+    };
+
     t = IM_REGISTER_TEST(e, "ui", "sortie_decide_issues_one_command_sortie");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;

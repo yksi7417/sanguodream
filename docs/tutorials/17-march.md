@@ -130,6 +130,12 @@ with the morale of the city. The city ledger has `unit_sortied`,
 `unit_weapons_taken`, `unit_supplies` and `unit_grain_taken`. Their sum
 is the change of the city.
 
+The city of the order is a location id. A port or a pass of the faction
+takes the same command with its own officers and stock (the play report of
+2026-10-23). sim_check_sortie reads the base through sim_depot_at. The
+new unit stands next to the base, and its home is the base. A port or a
+pass has no military office. Tutorial 20 has the rules of a base.
+
 輸送 is the same command with the transport row of the table, one
 officer, a destination city of the faction and a cargo of weapons.
 `sortie_proposal` is 自動編制: the officers with the best aptitude, then

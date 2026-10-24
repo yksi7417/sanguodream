@@ -12,6 +12,9 @@
 #define FEATURE_SOLDIER_CAP 5000    /* assumed, Q-169 */
 #define FEATURE_TECH_ROUGH_MARCH_M5 17
 
+internal void      feature_map_setup(feature_city_setup *setup);          /* map_tests.cpp: the real map */
+internal hex_coord feature_unit_hex(engine_api *api, u32 unit_id);        /* combat_tests.cpp */
+
 internal u8
 feature_terrain_id(engine_api *api, const char *key)
 {
@@ -520,6 +523,98 @@ feature_sortie_ship_tests(test_counts *counts)
     engine_fixture_destroy(&setup.fixture);
 }
 
+/* The unit of the force that the commander leads, or ENGINE_NO_UNIT. */
+internal u32
+feature_unit_of_commander(engine_api *api, u16 commander)
+{
+    for (u32 id = 0; id < api->unit_count(api->engine); ++id)
+    {
+        engine_unit unit = api->unit_at(api->engine, id);
+        if (unit.id != ENGINE_NO_UNIT && unit.officers[0] == commander) return id;
+    }
+    return ENGINE_NO_UNIT;
+}
+
+/* A unit that ends its move on a port or a pass of its own faction enters
+   it (the play report of 2026-10-23). The base is a base of the spec
+   (siege-and-bases.md, ui/city-commands.md): it holds soldiers, gold,
+   grain, weapons and officers. 出征 leaves the base, and 退卻 goes back
+   into it. */
+internal void
+feature_base_entry_tests(test_counts *counts)
+{
+    feature_city_setup setup;
+    feature_map_setup(&setup);
+    engine_api *api = setup.api;
+    void *e = api->engine;
+    u8 city = setup.city, force = setup.force;
+    u32 unit_id = feature_sortie_unit(api, city, 1);
+    engine_unit unit = api->unit_at(e, unit_id);
+    u32 base_index = ENGINE_NO_BASE;
+    for (u32 index = 0; index < api->base_count(e) && base_index == ENGINE_NO_BASE; ++index)
+    {
+        engine_base each = api->base_at(e, index);
+        if (each.id != ENGINE_NO_ROW && each.force == force) base_index = index;
+    }
+    TEST_CHECK(counts, unit_id != ENGINE_NO_UNIT && base_index != ENGINE_NO_BASE, "the force of the setup owns a port or a pass on the real map");
+    if (unit_id == ENGINE_NO_UNIT || base_index == ENGINE_NO_BASE) { engine_fixture_destroy(&setup.fixture); return; }
+    engine_base base = api->base_at(e, base_index);
+    hex_coord base_hex = hex_make(base.q, base.r);
+    engine_depot before = api->depot_at(e, base.id);
+    TEST_CHECK(counts, before.exists && before.is_base && before.force == force && before.troops == base.troops && before.q == base.q && before.r == base.r,
+               "depot_at gives a port or a pass as a base of the spec: its force, its soldiers and its hex");
+
+    u32 mark = api->ledger_count(e);
+    engine_command_result moved = {};
+    moved.refusal = SIM_REFUSAL_UNREACHABLE;
+    for (u32 d = 0; d < HEX_DIRECTION_COUNT && moved.refusal != SIM_REFUSAL_NONE; ++d)
+    {
+        hex_coord next = hex_neighbor(base_hex, d);
+        if (!api->set_unit_place(e, unit_id, force, next.q, next.r)) continue;
+        moved = api->command_move(e, unit_id, base.q, base.r);
+    }
+    engine_depot after = api->depot_at(e, base.id);
+    engine_officer commander = {};
+    feature_officer_by_id(api, unit.officers[0], &commander);
+    TEST_CHECK(counts, moved.refusal == SIM_REFUSAL_NONE && api->unit_at(e, unit_id).id == ENGINE_NO_UNIT,
+               "a unit that moves onto an own port or pass enters it: the unit leaves the map");
+    TEST_CHECK(counts, after.troops == before.troops + unit.soldiers && after.gold == before.gold + unit.gold &&
+                       after.grain == before.grain + unit.grain && after.stocks[0] == before.stocks[0] + unit.weapons,
+               "the base takes the soldiers, the gold, the grain and the weapons of the unit");
+    TEST_CHECK(counts, commander.current_position == base.id && commander.base_location == base.id, "the officers of the unit stay in the base");
+    TEST_CHECK(counts, feature_count_events(api, SIM_EVENT_UNIT_ENTERED_BASE, mark) == 1 && feature_count_events(api, SIM_EVENT_UNIT_ENTERED_CITY, mark) == 0,
+               "the ledger has one unit_entered_base and no unit_entered_city");
+
+    /* 出征 from the base in the next turn, with the officer of the garrison. */
+    feature_next_own_turn(api, force);
+    api->set_actions(e, force, 255);
+    engine_sortie_order order = {};
+    order.city_id     = base.id;
+    order.unit_type   = FEATURE_UNIT_PIKE;
+    order.soldiers    = 600;
+    order.gold        = 100;
+    order.grain       = 1000;
+    order.destination = ENGINE_NO_CITY;
+    for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place) order.officers[place] = ENGINE_NO_OFFICER;
+    order.officers[0] = unit.officers[0];
+    engine_command_result sortie = api->command_sortie(e, &order);
+    u32 out = feature_unit_of_commander(api, unit.officers[0]);
+    engine_depot left = api->depot_at(e, base.id);
+    TEST_CHECK(counts, sortie.refusal == SIM_REFUSAL_NONE && out != ENGINE_NO_UNIT && hex_distance(feature_unit_hex(api, out), base_hex) == 1,
+               "出征 from a port or a pass: the unit stands next to the base");
+    TEST_CHECK(counts, left.troops == after.troops - 600 && left.gold == after.gold - 100 && left.grain == after.grain - 1000 &&
+                       left.stocks[0] == after.stocks[0] - api->unit_at(e, out).weapons,
+               "the base gives the soldiers, the gold, the grain and the weapons");
+    TEST_CHECK(counts, out != ENGINE_NO_UNIT && api->unit_at(e, out).home_city == base.id, "the home of the new unit is the base");
+
+    /* 退卻 in the next turn goes back into the base. */
+    feature_next_own_turn(api, force);
+    engine_command_result retreat = out != ENGINE_NO_UNIT ? api->command_retreat(e, out) : sortie;
+    TEST_CHECK(counts, retreat.refusal == SIM_REFUSAL_NONE && api->unit_at(e, out).id == ENGINE_NO_UNIT && api->depot_at(e, base.id).troops == after.troops,
+               "退卻 returns the unit into its base with its soldiers");
+    engine_fixture_destroy(&setup.fixture);
+}
+
 internal void
 feature_march_tests(test_counts *counts)
 {
@@ -528,4 +623,5 @@ feature_march_tests(test_counts *counts)
     feature_move_tests(counts);
     feature_terrain_rule_tests(counts);
     feature_transport_tests(counts);
+    feature_base_entry_tests(counts);
 }

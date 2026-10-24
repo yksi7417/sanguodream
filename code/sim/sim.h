@@ -203,6 +203,7 @@ enum sim_event_kind
     SIM_EVENT_ENVOY_ARRIVED,        /* subject = the envoy; faction; detail = the target faction: the result follows (G2-063) */
     SIM_EVENT_SEARCH_FAILED,        /* subject = city; faction; the speaker is the searcher of the command (G2-039) */
     SIM_EVENT_FACTION_FELL,         /* faction = the force that lost its last city; detail = the force that took it (G2-059) */
+    SIM_EVENT_UNIT_ENTERED_BASE,    /* subject = the commander; faction; detail = the location id of the port or the pass; delta = soldiers in */
     SIM_EVENT_COUNT
 };
 
@@ -1122,6 +1123,40 @@ struct sim_base_state
     hex_coord hex;                       /* the base hex of the real map (M10); else near its owner city */
 };
 
+/* The stock of a port or a pass (ui/city-commands.md, the port panel:
+   資金, 兵糧, 士兵, 氣力 and the weapon stock). The soldiers are
+   sim_base_state.troops. A unit that enters its own port or pass leaves
+   its stock here, and a sortie from the base takes from it. */
+struct sim_base_stock
+{
+    u32 gold;
+    u32 grain;
+    u8  morale;
+    u32 equipment_stocks[CITY_EQUIPMENT_STOCK_COUNT];
+};
+
+/* A view of a base of the spec (a city, a port or a pass) for the
+   commands that a unit shares with both: 出征, 輸送 and the entry of a
+   unit. location is the location id: a city 0..41, a port or a pass
+   42..86. The pointers go into the city, or into the base state and its
+   stock. */
+struct sim_depot
+{
+    b32             ok;
+    u8              location;
+    u8              force;
+    b32             is_base;
+    u32             base_index;      /* the row of bases.tsv when is_base */
+    city_component *city;            /* the city when not is_base */
+    u32            *troops;
+    u32            *gold;
+    u32            *grain;
+    u8             *morale;
+    u32            *equipment;       /* CITY_EQUIPMENT_STOCK_COUNT stocks */
+    u32             soldier_cap;
+    hex_coord       hex;
+};
+
 /* A plot on the road (travel.cpp): its order, its chance from the check,
    and the turns until the arrival. The result comes then. */
 #define SIM_MISSION_CAPACITY 32
@@ -1309,6 +1344,10 @@ struct sim_state
     u32            history_turn[CONTENT_HISTORY_CAPACITY]; /* sim turn + 1 when each historical event fired; 0 = not yet */
     /* M15 */
     sim_ai_record  ai_records[SIM_AI_RECORD_CAPACITY];
+    /* The stock of each port and pass (the play report of 2026-10-23). A
+       new member goes after this one: engine_saves.cpp loads a save
+       member by member. */
+    sim_base_stock base_stocks[CONTENT_BASE_COUNT];
 };
 
 #define SIM_ENTITY_CAPACITY  4096
@@ -1527,6 +1566,16 @@ internal void             sim_unit_action(sim_state *sim, sim_command command, m
 internal void             sim_run_units_turn(sim_state *sim, u32 cause, sim_event_sink *events);
 internal sim_sortie_order sim_sortie_proposal(sim_state *sim, u8 city_id, u8 unit_type);
 internal u32              sim_military_ap(sim_state *sim, city_component *city, u32 action_points);   /* city_commands.cpp */
+/* A base of the spec: a city, a port or a pass (bases.cpp; the play report of 2026-10-23) */
+internal sim_depot        sim_depot_at(sim_state *sim, u8 location);
+internal sim_base_state  *sim_find_base(sim_state *sim, u32 index);   /* bases.cpp */
+internal u8               sim_refuge_city(sim_state *sim, u8 force, u8 home);   /* combat.cpp: the home when it is a city of the force, else another city */
+internal sim_refusal      sim_check_depot_officer(sim_state *sim, sim_depot *depot, officer_component *officer);
+internal void             sim_unit_enter_city(sim_state *sim, u32 unit_id, u8 city_id, sim_event_kind kind, u32 cause, sim_event_sink *events);
+internal void             sim_unit_enter_base(sim_state *sim, u32 unit_id, u32 base_index, sim_event_kind kind, u32 cause, sim_event_sink *events);
+internal void             sim_unit_enter_depot(sim_state *sim, u32 unit_id, u8 location, sim_event_kind kind, u32 cause, sim_event_sink *events);
+internal u8               sim_unit_home_city(sim_state *sim, sim_unit *unit);   /* the home city, or a refuge when the home is a port or a pass */
+internal void             sim_capture_officers_at(sim_state *sim, u16 position, u8 old_owner, u8 captor, u32 cause, sim_event_sink *events);   /* combat.cpp */
 
 /* combat.cpp and field.cpp: combat, plots, fire, buildings, siege (M6) */
 internal u32       sim_rule_combat_damage(sim_state *sim, sim_combat_input *input);

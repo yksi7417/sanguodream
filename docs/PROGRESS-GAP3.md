@@ -51,6 +51,8 @@ spec-src/spec/experiments/gap3-answers-2026-10-23.md and in the fixtures.
 | G3-012 | While the window of a city is open, the row of another city moves the window there. Esc goes back one level as a right click. The X of the window closes its dialogs too. | batch 5 | ui |
 | G3-015 | The ghost text was the hover panel of the city under the mouse, drawn over the window that opened. The hover panel of a city stays closed while a city window is open. | batch 5 | ui |
 
+| the entry of a port or a pass (2026-10-23) | A unit of the player that ends its move on an own port or pass enters it. The base takes the soldiers, the weapons, the gold and the grain, and the officers stay in the base (unit_entered_base). 出征 and 輸送 work from the base, and 退卻 goes back into it. The panel of a port shows the fields of the original and the two buttons. The officers in a base that falls become captives. | batch 6 | feature/march, ui |
+
 ## In progress
 
 - Every row of report 3 has its fix, or waits on the spec (the section
@@ -67,3 +69,9 @@ spec-src/spec/experiments/gap3-answers-2026-10-23.md and in the fixtures.
 - G3-019, the repair of a facility. The clone repaired facilities of
   許昌 and 長安 at the month start. Please read the durability of two
   facilities before and after a month start in a city at peace.
+- The entry of a port or a pass. The clone gives a base without a morale
+  the morale of the first unit that enters it (assumed). A unit on a long
+  order stands on an own base on its way and enters only its goal
+  (assumed). A computer unit never enters a base (assumed). Please move a
+  unit into an own port, read 氣力 of the port, and give a unit a far 移動
+  order through an own pass. Does the unit stop in the pass?

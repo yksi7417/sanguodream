@@ -44,6 +44,30 @@ engine_api_base_at_hex(void *opaque, s32 q, s32 r)
     return index == SIM_NO_BASE ? ENGINE_NO_BASE : index;
 }
 
+/* A base of the spec by its location id (the play report of 2026-10-23). */
+internal engine_depot
+engine_api_depot_at(void *opaque, u8 location)
+{
+    sim_state *sim = ((engine *)opaque)->sim;
+    engine_depot result = {};
+    result.location = location;
+    result.force    = ENGINE_NO_FACTION;
+    sim_depot depot = sim_depot_at(sim, location);
+    if (!depot.ok) return result;
+    result.exists      = true;
+    result.is_base     = depot.is_base;
+    result.force       = depot.force;
+    result.troops      = *depot.troops;
+    result.soldier_cap = depot.soldier_cap;
+    result.gold        = *depot.gold;
+    result.grain       = *depot.grain;
+    result.morale      = *depot.morale;
+    for (u32 index = 0; index < CITY_EQUIPMENT_STOCK_COUNT; ++index) result.stocks[index] = depot.equipment[index];
+    result.q           = depot.hex.q;
+    result.r           = depot.hex.r;
+    return result;
+}
+
 /* ---- the corps and the adviser -------------------------------------------------------- */
 
 internal engine_corps
@@ -396,6 +420,7 @@ engine_bind_rivals_api(engine_api *api)
     api->base_count           = engine_api_base_count;
     api->base_at              = engine_api_base_at;
     api->base_at_hex          = engine_api_base_at_hex;
+    api->depot_at             = engine_api_depot_at;
     api->corps_at             = engine_api_corps_at;
     api->city_corps           = engine_api_city_corps;
     api->adviser              = engine_api_adviser;

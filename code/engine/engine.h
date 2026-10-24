@@ -602,6 +602,23 @@ struct engine_base
     s32  q, r;
 };
 
+/* A base of the spec (siege-and-bases.md, ui/city-commands.md) by its
+   location id: a city 0..41, or a port or a pass 42..86 with its garrison
+   and its stock (the play report of 2026-10-23). The 出征 and 輸送 dialogs
+   read it for a port or a pass. */
+struct engine_depot
+{
+    b32  exists;
+    u8   location;
+    b32  is_base;                   /* a port or a pass */
+    u8   force;                     /* ENGINE_NO_FACTION */
+    u32  troops, soldier_cap;
+    u32  gold, grain;
+    u32  morale;
+    u32  stocks[CITY_EQUIPMENT_STOCK_COUNT];
+    s32  q, r;
+};
+
 struct engine_corps
 {
     b32 alive;
@@ -1302,6 +1319,7 @@ typedef void                  engine_set_stamina_fn(void *engine, u16 officer_id
 typedef u32                  engine_base_count_fn(void *engine);
 typedef engine_base          engine_base_at_fn(void *engine, u32 index);
 typedef u32                  engine_base_at_hex_fn(void *engine, s32 q, s32 r);       /* the index, or ENGINE_NO_BASE */
+typedef engine_depot         engine_depot_at_fn(void *engine, u8 location);           /* a city, or a port or a pass, by its location id */
 typedef engine_corps         engine_corps_at_fn(void *engine, u8 force_id, u8 corps);
 typedef u8                   engine_city_corps_fn(void *engine, u8 city_id);
 typedef u16                  engine_adviser_fn(void *engine, u8 force_id);
@@ -1731,6 +1749,7 @@ struct engine_api
     engine_base_count_fn            *base_count;
     engine_base_at_fn               *base_at;
     engine_base_at_hex_fn           *base_at_hex;
+    engine_depot_at_fn              *depot_at;
     engine_corps_at_fn              *corps_at;
     engine_city_corps_fn            *city_corps;
     engine_adviser_fn               *adviser;

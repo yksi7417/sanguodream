@@ -407,14 +407,14 @@ sim_duel_finish(sim_state *sim, u8 winner, u8 result, u32 cause, sim_event_sink 
         sim_item *item = sim->items + index;
         if (!item->exists || item->owner != loser->officer_id) continue;
         item->owner = SIM_NO_OFFICER;
-        item->city  = victor_unit ? victor_unit->home_city : SIM_NO_CITY;
+        item->city  = victor_unit ? sim_unit_home_city(sim, victor_unit) : SIM_NO_CITY;
         sim_emit_officer(sim, SIM_EVENT_ITEM_TAKEN, loser, 0, index, false, cause, events);
     }
     sim_remove_from_unit(sim, loser, cause, events);
     loser->former_force     = loser->force_id;
     loser->force_id         = victor->force_id;
     loser->status           = SIM_STATUS_CAPTIVE;
-    loser->current_position = victor_unit ? victor_unit->home_city : 0;
+    loser->current_position = victor_unit ? sim_unit_home_city(sim, victor_unit) : 0;
     loser->base_location    = loser->current_position;
     sim_clear_post(sim, loser);
     sim_event captured = sim_event_make(sim, SIM_EVENT_OFFICER_CAPTURED, cause);

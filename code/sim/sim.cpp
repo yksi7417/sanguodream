@@ -676,6 +676,7 @@ sim_event_name(sim_event_kind kind)
         case SIM_EVENT_UNIT_SOLDIERS_LOST:      return "unit_soldiers_lost";
         case SIM_EVENT_UNIT_WAITED:             return "unit_waited";
         case SIM_EVENT_UNIT_ENTERED_CITY:       return "unit_entered_city";
+        case SIM_EVENT_UNIT_ENTERED_BASE:       return "unit_entered_base";
         case SIM_EVENT_UNIT_GOLD_RETURNED:      return "unit_gold_returned";
         case SIM_EVENT_UNIT_GRAIN_RETURNED:     return "unit_grain_returned";
         case SIM_EVENT_UNIT_RETREATED:          return "unit_retreated";

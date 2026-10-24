@@ -312,8 +312,8 @@ sim_capture_officers(sim_state *sim, u32 unit_id, u32 captor_id, b32 halberd_tac
             officer->former_force     = officer->force_id;   /* M7: a release sends it back */
             officer->status           = SIM_STATUS_CAPTIVE;
             officer->force_id         = captor->force_id;
-            officer->current_position = captor->home_city;
-            officer->base_location    = captor->home_city;
+            officer->current_position = sim_unit_home_city(sim, captor);
+            officer->base_location    = officer->current_position;
             event.faction = captor->force_id;
         }
         else
@@ -393,23 +393,31 @@ sim_city_durability_max(sim_state *sim, city_component *city)
 /* The base falls (siege-and-bases.md): the attacker owns it with its stock,
    the officers of the old owner in it become captives, and the unit enters
    it. */
+/* The active officers of the old owner at the position (a city, a port
+   or a pass) become captives of the captor (siege-and-bases.md). */
+internal void
+sim_capture_officers_at(sim_state *sim, u16 position, u8 old_owner, u8 captor, u32 cause, sim_event_sink *events)
+{
+    for (u32 index = 0; index < sim->officers.count; ++index)
+    {
+        officer_component *officer = sim->officers.data + index;
+        if (!sim_officer_is_active(officer) || officer->force_id != old_owner || officer->current_position != position) continue;
+        officer->former_force = officer->force_id;
+        officer->status   = SIM_STATUS_CAPTIVE;
+        officer->force_id = captor;
+        sim_event captured = sim_event_make(sim, SIM_EVENT_OFFICER_CAPTURED, cause);
+        captured.subject = sim_officer_entity(sim, officer->officer_id);
+        captured.faction = captor;
+        sim_emit(events, captured);
+    }
+}
+
 internal void
 sim_capture_city(sim_state *sim, city_component *city, u32 attacker_id, u32 cause, sim_event_sink *events)
 {
     sim_unit *attacker = sim->units + attacker_id;
     u8 old_owner = city->owner_force_id;
-    for (u32 index = 0; index < sim->officers.count; ++index)
-    {
-        officer_component *officer = sim->officers.data + index;
-        if (!sim_officer_is_active(officer) || officer->force_id != old_owner || officer->current_position != city->city_id) continue;
-        officer->former_force = officer->force_id;
-        officer->status   = SIM_STATUS_CAPTIVE;
-        officer->force_id = attacker->force_id;
-        sim_event captured = sim_event_make(sim, SIM_EVENT_OFFICER_CAPTURED, cause);
-        captured.subject = sim_officer_entity(sim, officer->officer_id);
-        captured.faction = attacker->force_id;
-        sim_emit(events, captured);
-    }
+    sim_capture_officers_at(sim, city->city_id, old_owner, attacker->force_id, cause, events);
     city->owner_force_id = attacker->force_id;
     city->durability     = sim_city_durability_max(sim, city) / 2;
     sim_event event = sim_event_make(sim, SIM_EVENT_BASE_CAPTURED, cause);

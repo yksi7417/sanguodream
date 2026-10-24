@@ -119,10 +119,45 @@ its city and base.start_troops soldiers (assumed, Q-183). A save gives
 its own owner and soldiers in the gate and port record at 0x08428D. The
 owner is at +9 (255 = none), and the soldiers are at +10
 (sim_load_save_base_records). Its rules are:
-- a unit cannot enter its hex;
+- a unit of another faction cannot enter its hex;
+- a unit of the player that ends its move on an own port or pass enters
+  it (the play report of 2026-10-23, below);
 - a city gets base.gold each month for each base with the same owner;
 - an attack takes soldiers and durability, and a base without either
-  falls to the attacker. The ledger gets BASE_TAKEN.
+  falls to the attacker. The ledger gets BASE_TAKEN. The officers in the
+  base become captives of the attacker (sim_capture_officers_at).
+
+A port or a pass is a base of the spec (siege-and-bases.md, "Inputs";
+ui/city-commands.md, "Port or pass panel"). It holds soldiers, gold,
+grain, weapons, a morale and officers. The soldiers are
+sim_base_state.troops. The rest is sim_base_stock, in base_stocks at the
+end of sim_state. A save of an older build loads with empty stocks.
+sim_depot_at gives one view of a city and of a base for the commands that
+both share: the location id, the force, the pointers to the stocks, the
+soldier cap and the hex. The player reported on 2026-10-23 that a unit
+stood on a port and did not enter it. Now:
+- a unit of the player that ends its move on an own port or pass enters it
+  (sim_unit_enter_base). The base takes its soldiers up to the cap of the
+  base, its weapons, its cargo, its gold and its grain. The officers stay
+  in the base. The ledger gets unit_entered_base, named by the commander.
+  A base without a morale takes the morale of the unit (assumed);
+- a unit on a long order stands on the base as a waypoint and enters it
+  only when the base is its goal (assumed). Thus a pass at the edge of the
+  reach does not swallow a 移動 order;
+- a computer unit never enters a port or a pass (assumed). It has no
+  sortie from a base;
+- 出征 and 輸送 work from a port or a pass with its own officers and stock
+  (sim_check_sortie with sim_depot_at). The home of the unit is the base,
+  and 退卻 goes back into it;
+- the panel of a port or a pass (ui_draw_base_panel) shows the fields of
+  the original: 資金, 兵糧, 耐久, 士兵, 氣力, the weapon stock, 現役 and
+  俘虜. Then the buttons 出征 and 輸送 follow. The other buttons of the
+  port menu wait. A click on an own port or pass opens the panel, as does
+  a right click on its row of the list.
+
+The spec gives no rule for the morale of a base, and no rule for a unit
+that ends a long order on a waypoint. Both are assumed and are in
+docs/PROGRESS-GAP3.md.
 
 ## engine_api
 - `base_count`, `base_at`, `base_at_hex`, `corps_at`, `city_corps`,

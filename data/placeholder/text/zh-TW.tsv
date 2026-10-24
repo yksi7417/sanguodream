@@ -1275,6 +1275,7 @@ log.tactic_used	{subject}隊：施展戰法
 log.critical_hit	{faction}：攻擊造成重創
 log.unit_state	{subject}隊：狀態改變
 log.unit_entered_city	{subject}：部隊入城
+log.unit_entered_base	{subject}隊：進入港關
 log.merit_gained	{subject}：功績 {delta}
 log.technique_gained	{faction}：技巧 {delta}
 log.base_taken	{faction}：攻佔一處據點

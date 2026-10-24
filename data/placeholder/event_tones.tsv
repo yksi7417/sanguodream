@@ -46,6 +46,7 @@ game_lost	grim	bad	yes	yes	assumed
 unit_sortied	proud	neutral	no	yes	assumed	曹純隊自上庸處出征
 unit_destroyed	grim	bad	yes	yes	assumed	呂翔隊潰滅
 unit_retreated	worried	bad	no	yes	assumed	鄧丹隊開始撤退
+unit_entered_base	calm	neutral	no	yes	assumed	a unit enters an own port or pass (the play report of 2026-10-23)
 unit_state	worried	neutral	no	yes	assumed	閻行隊從混亂狀態中恢復
 unit_damaged	alarmed	amount	no	yes	assumed
 counterattack	angry	neutral	no	yes	assumed

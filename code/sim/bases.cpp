@@ -16,6 +16,50 @@ sim_find_base(sim_state *sim, u32 index)
     return index < sim->content.base_count && sim->bases[index].exists ? sim->bases + index : 0;
 }
 
+/* A base of the spec by its location id: a city 0..41, or a port or a
+   pass 42..86 with its stock (ui/city-commands.md: the port panel shows
+   資金, 兵糧, 士兵, 氣力 and the weapon stock). ok is false for a location
+   that does not exist or has no owner. */
+internal sim_depot
+sim_depot_at(sim_state *sim, u8 location)
+{
+    sim_depot depot = {};
+    depot.location = location;
+    depot.force    = SIM_NO_FORCE;
+    if (location < SAVE_CITY_COUNT)
+    {
+        city_component *city = sim_find_city(sim, location);
+        if (!city || city->owner_force_id == SIM_NO_FORCE) return depot;
+        depot.ok          = true;
+        depot.force       = city->owner_force_id;
+        depot.city        = city;
+        depot.troops      = &city->troops;
+        depot.gold        = &city->gold;
+        depot.grain       = &city->food;
+        depot.morale      = &city->morale;
+        depot.equipment   = city->equipment_stocks;
+        depot.soldier_cap = sim_city_soldier_cap(sim, location);
+        depot.hex         = sim->sites[location].hex;
+        return depot;
+    }
+    u32 index = (u32)location - CONTENT_FIRST_BASE;
+    sim_base_state *base = location >= CONTENT_FIRST_BASE ? sim_find_base(sim, index) : 0;
+    if (!base || base->force == SIM_NO_FORCE) return depot;
+    sim_base_stock *stock = sim->base_stocks + index;
+    depot.ok          = true;
+    depot.force       = base->force;
+    depot.is_base     = true;
+    depot.base_index  = index;
+    depot.troops      = &base->troops;
+    depot.gold        = &stock->gold;
+    depot.grain       = &stock->grain;
+    depot.morale      = &stock->morale;
+    depot.equipment   = stock->equipment_stocks;
+    depot.soldier_cap = sim_base_troop_cap(sim, base->force);
+    depot.hex         = base->hex;
+    return depot;
+}
+
 /* The base on the hex: its index in bases.tsv, or SIM_NO_BASE. */
 internal u32
 sim_base_at(sim_state *sim, hex_coord hex)
@@ -163,6 +207,9 @@ sim_hurt_base(sim_state *sim, u32 index, u32 soldiers, u32 durability, u32 attac
     base->durability -= Minimum(durability, base->durability);
     sim_unit *attacker = attacker_id < sim->unit_count && sim->units[attacker_id].alive ? sim->units + attacker_id : 0;
     if ((base->troops && base->durability) || !attacker) return;
+    /* The officers in the base become captives of the attacker, and the
+       attacker takes the base with its stock (siege-and-bases.md). */
+    sim_capture_officers_at(sim, (u16)sim->content.bases[index].id, base->force, attacker->force_id, cause, events);
     base->force      = attacker->force_id;
     base->durability = sim->content.bases[index].durability / 2;
     base->troops     = 0;

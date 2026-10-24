@@ -158,6 +158,11 @@ ui_hud_row_click(ui_state *ui, engine_api *api, ui_hud_row *row, bool open)
         {
             engine_base base = api->base_at(api->engine, row->id);
             ui_frame_hex(ui, api, hex_make(base.q, base.r));
+            if (open && base.id != ENGINE_NO_ROW && base.force == api->whose_turn(api->engine))
+            {
+                ui->city.selected = base.id;   /* the panel of the port or the pass */
+                ui_context_open(ui, api, UI_CONTEXT_CITY, io.MousePos.x, io.MousePos.y);
+            }
         } break;
         case 2:
         {
@@ -166,6 +171,18 @@ ui_hud_row_click(ui_state *ui, engine_api *api, ui_hud_row *row, bool open)
             {
                 ui_frame_city(ui, (u8)officer.current_position);
                 if (open) ui_context_open(ui, api, UI_CONTEXT_CITY, io.MousePos.x, io.MousePos.y);
+            }
+            else if (officer.current_position < UI_HUD_FIRST_UNIT)
+            {
+                /* An officer in a port or a pass (the play report of 2026-10-23). */
+                engine_base base = api->base_at(api->engine, (u32)officer.current_position - UI_HUD_FIRST_BASE);
+                if (base.id == ENGINE_NO_ROW) break;
+                ui_frame_hex(ui, api, hex_make(base.q, base.r));
+                if (open)
+                {
+                    ui->city.selected = base.id;
+                    ui_context_open(ui, api, UI_CONTEXT_CITY, io.MousePos.x, io.MousePos.y);
+                }
             }
             else if (officer.current_position >= UI_HUD_FIRST_UNIT && officer.current_position != UI_HUD_NO_POSITION)
             {
@@ -440,6 +457,17 @@ ui_hud_scene_clicks(ui_state *ui, engine_api *api)
         ui->scene.framed_city   = data.city_id;   /* the camera stays */
         ui_context_open(ui, api, UI_CONTEXT_CITY, x, y);
         return;
+    }
+    if (data.base_id != ENGINE_NO_BASE)
+    {
+        /* A port or a pass of the acting force opens its panel, with 出征 and 輸送 (the play report of 2026-10-23). */
+        engine_base base = api->base_at(api->engine, data.base_id);
+        if (base.id != ENGINE_NO_ROW && base.force == api->whose_turn(api->engine))
+        {
+            ui->city.selected = base.id;
+            ui_context_open(ui, api, UI_CONTEXT_CITY, x, y);
+            return;
+        }
     }
     if (!right) return;
     if (data.unit_id != ENGINE_NO_UNIT)

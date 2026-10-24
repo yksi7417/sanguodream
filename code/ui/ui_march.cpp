@@ -102,6 +102,50 @@ ui_boat_type(engine_api *api)
     return ENGINE_NO_UNIT_TYPE;
 }
 
+/* The base of a 出征 or 輸送 dialog as a city and its economy: a city
+   through city_at and city_economy, a port or a pass through depot_at
+   (the play report of 2026-10-23). */
+internal void
+ui_depot_view(engine_api *api, u8 location, engine_city *city, engine_city_economy *economy)
+{
+    if (location < CONTENT_FIRST_BASE)
+    {
+        *city    = api->city_at(api->engine, location);
+        *economy = api->city_economy(api->engine, location);
+        return;
+    }
+    engine_depot depot = api->depot_at(api->engine, location);
+    *city    = {};
+    *economy = {};
+    city->city_id        = location;
+    city->owner_force_id = depot.force;
+    city->gold           = depot.gold;
+    city->food           = depot.grain;
+    city->troops         = depot.troops;
+    city->morale         = (u8)Minimum(depot.morale, 255u);
+    for (u32 index = 0; index < CITY_EQUIPMENT_STOCK_COUNT; ++index)
+    {
+        city->equipment_stocks[index] = depot.stocks[index];
+        economy->stocks[index]        = depot.stocks[index];
+    }
+    economy->city_id     = location;
+    economy->gold        = depot.gold;
+    economy->grain       = depot.grain;
+    economy->soldiers    = depot.troops;
+    economy->soldier_cap = depot.soldier_cap;
+    economy->morale      = depot.morale;
+    economy->morale_max  = 100;
+}
+
+internal engine_city
+ui_depot_city(engine_api *api, u8 location)
+{
+    engine_city city;
+    engine_city_economy economy;
+    ui_depot_view(api, location, &city, &economy);
+    return city;
+}
+
 /* G2-044: the preset of a class fills the slots with the proposal of the
    engine, two grain for each soldier and 1000 gold (the preset of the
    original; the gold is what the city can give). */
@@ -109,7 +153,7 @@ internal void
 ui_sortie_preset(engine_api *api, ui_march_dialog *dialog, u8 type)
 {
     engine_sortie_order proposal = api->sortie_proposal(api->engine, dialog->city, type);
-    engine_city city = api->city_at(api->engine, dialog->city);
+    engine_city city = ui_depot_city(api, dialog->city);
     dialog->order.unit_type = type;
     for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place) dialog->order.officers[place] = proposal.officers[place];
     dialog->soldiers = (int)proposal.soldiers;
@@ -256,7 +300,7 @@ ui_draw_destination_combo(ui_state *ui, engine_api *api, ui_march_dialog *dialog
     char label[128], preview[96];
     if (dialog->order.destination == ENGINE_NO_CITY) snprintf(preview, sizeof(preview), "-");
     else ui_city_label(ui, api, dialog->order.destination, preview, sizeof(preview));
-    engine_city here = api->city_at(api->engine, dialog->city);
+    engine_city here = ui_depot_city(api, dialog->city);
     if (ImGui::BeginCombo(ui_label(label, sizeof(label), ui, "transport.destination", "destination"), preview))
     {
         for (u32 index = 0; index < api->city_count(api->engine); ++index)
@@ -308,8 +352,9 @@ ui_draw_march_dialog(ui_state *ui, engine_api *api, b32 transport)
         char city_name[96], label[96];
         ui_city_label(ui, api, dialog->city, city_name, sizeof(city_name));
         ImGui::Text("%s: %s", text_get(ui->text, "city.select"), city_name);
-        engine_city city = api->city_at(api->engine, dialog->city);
-        engine_city_economy economy = api->city_economy(api->engine, dialog->city);
+        engine_city city;
+        engine_city_economy economy;
+        ui_depot_view(api, dialog->city, &city, &economy);   /* a city, or a port or a pass */
         if (transport)
         {
             ui_draw_destination_combo(ui, api, dialog);

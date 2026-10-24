@@ -53,6 +53,12 @@ ui_slot_state_text(ui_state *ui, u8 state)
 internal void
 ui_city_label(ui_state *ui, engine_api *api, u8 city_id, char *out, u32 out_size)
 {
+    if (city_id >= CONTENT_FIRST_BASE && city_id < CONTENT_FIRST_BASE + CONTENT_BASE_COUNT)
+    {
+        /* A port or a pass is a base of the spec too (the play report of 2026-10-23): its name is "base.<key>". */
+        engine_base base = api->base_at(api->engine, (u32)city_id - CONTENT_FIRST_BASE);
+        if (base.id != ENGINE_NO_ROW) { snprintf(out, out_size, "%s", ui_text_with_key(ui, "base", base.key)); return; }
+    }
     engine_city_name name = api->city_name_at(api->engine, city_id);
     char decoded[UI_NAME_SIZE] = "";
     if (name.city_id != ENGINE_NO_CITY) text_name(ui->text, name.name, sizeof(name.name), decoded, sizeof(decoded));
@@ -255,6 +261,52 @@ ui_draw_city_game_fields(ui_state *ui, engine_api *api, u8 city_id)
     ImGui::Separator();
 }
 
+/* The panel of a port or a pass (ui/city-commands.md, "Port or pass
+   panel": the name, 資金, 兵糧, 耐久, 士兵, 氣力, the weapon stock, 現役 and
+   俘虜; no 治安, 設施數, income, 市價 or 在野). The buttons 出征 and 輸送
+   follow for the base of the acting force (the play report of 2026-10-23).
+   The other buttons of the port menu of the original wait. */
+internal void
+ui_draw_base_panel(ui_state *ui, engine_api *api, u8 location)
+{
+    engine_depot depot = api->depot_at(api->engine, location);
+    engine_base base = api->base_at(api->engine, (u32)location - CONTENT_FIRST_BASE);
+    char name[UI_NAME_SIZE * 2];
+    ui_city_label(ui, api, location, name, sizeof(name));
+    ImGui::TextColored(ImVec4(0.62f, 0.82f, 0.96f, 1.0f), "%s", name);
+    ImGui::Separator();
+    ImGui::Text("%s %u   %s %u", text_get(ui->text, "column.gold"), depot.gold, text_get(ui->text, "column.food"), depot.grain);
+    ImGui::Text("%s %u / %u", text_get(ui->text, "city.durability"), base.durability, base.durability_max);
+    ImGui::Text("%s %u / %u   %s %u / 100", text_get(ui->text, "command.soldiers"), depot.troops, depot.soldier_cap,
+                text_get(ui->text, "command.morale"), depot.morale);
+    u32 count = api->weapon_kind_count(api->engine);
+    for (u32 index = 0; index < count; ++index)
+    {
+        engine_weapon_kind kind = api->weapon_kind_at(api->engine, index);
+        u32 stock = kind.stock < CITY_EQUIPMENT_STOCK_COUNT ? depot.stocks[kind.stock] : 0;
+        if (index % 4 != 0) ImGui::SameLine();
+        ImGui::Text("%s %u", ui_text_with_key(ui, "weapon", kind.key), stock);
+    }
+    u32 active = 0, captives = 0;
+    for (u32 index = 0; index < api->officer_count(api->engine); ++index)
+    {
+        engine_officer officer = api->officer_at(api->engine, index);
+        if (officer.status <= 3 && officer.force_id == depot.force && officer.base_location == location) { active++; continue; }
+        if (officer.current_position == location && officer.status != 6 && api->officer_detail(api->engine, officer.officer_id).captive) captives++;
+    }
+    u16 free_ids[UI_DEVELOP_OFFICER_LIST];
+    u32 free_count = ui_free_officers(api, location, free_ids, ArrayCount(free_ids));
+    ImGui::Text("%s %u / %u   %s %u", text_get(ui->text, "city.active"), free_count, active, text_get(ui->text, "city.captives"), captives);
+    ImGui::Separator();
+    if (!depot.exists || depot.force != api->whose_turn(api->engine))
+    {
+        ImGui::TextDisabled("%s", text_get(ui->text, "city.not_yours"));
+        return;
+    }
+    ui_draw_march_buttons(ui, api, free_count ? free_ids[0] : (u16)ENGINE_NO_OFFICER);
+    if (ui->command_message[0]) ImGui::TextUnformatted(ui->command_message);
+}
+
 internal void
 ui_draw_city(ui_state *ui, engine_api *api)
 {
@@ -268,6 +320,12 @@ ui_draw_city(ui_state *ui, engine_api *api)
         if (api->city_count(api->engine) == 0)
         {
             ImGui::TextWrapped("%s", text_get(ui->text, "city.none"));
+            ImGui::End();
+            return;
+        }
+        if (ui->city.selected >= CONTENT_FIRST_BASE)
+        {
+            ui_draw_base_panel(ui, api, ui->city.selected);   /* a port or a pass (the play report of 2026-10-23) */
             ImGui::End();
             return;
         }
@@ -341,13 +399,14 @@ ui_draw_city(ui_state *ui, engine_api *api)
 internal u32
 ui_free_officers(engine_api *api, u8 city_id, u16 *ids, u32 capacity)
 {
-    engine_city city = api->city_at(api->engine, city_id);
+    /* The force of the base: a city, or a port or a pass (the play report of 2026-10-23). */
+    u8 force = city_id < CONTENT_FIRST_BASE ? api->city_at(api->engine, city_id).owner_force_id : api->depot_at(api->engine, city_id).force;
     u32 found = 0;
     u32 count = api->officer_count(api->engine);
     for (u32 index = 0; index < count && found < capacity; ++index)
     {
         engine_officer officer = api->officer_at(api->engine, index);
-        if (officer.status <= 3 && officer.force_id == city.owner_force_id && officer.current_position == city_id &&
+        if (officer.status <= 3 && officer.force_id == force && officer.current_position == city_id &&
             officer.job_city == ENGINE_NO_CITY && !officer.acted && !officer.travel_days)
         {
             ids[found++] = officer.officer_id;

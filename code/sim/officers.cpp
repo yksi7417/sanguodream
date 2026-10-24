@@ -356,7 +356,7 @@ sim_remove_from_unit(sim_state *sim, officer_component *officer, u32 cause, sim_
         if (unit->officers[place] != officer->officer_id && unit->officers[place] != SIM_NO_OFFICER) officers[kept++] = unit->officers[place];
     }
     for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place) unit->officers[place] = officers[place];
-    if (!kept) sim_unit_enter_city(sim, unit_id, unit->home_city, SIM_EVENT_NONE, cause, events);
+    if (!kept) sim_unit_enter_depot(sim, unit_id, unit->home_city, SIM_EVENT_NONE, cause, events);
 }
 
 /* The officer leaves its faction and becomes free in its city. */
