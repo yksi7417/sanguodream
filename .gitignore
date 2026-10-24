@@ -8,3 +8,6 @@ build/
 *.stackdump
 
 
+
+# The source images of the art (docs/GRAPHICS.md, section 6): large, and out of git
+art-src/

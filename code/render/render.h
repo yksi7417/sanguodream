@@ -440,10 +440,12 @@ struct render_mesh_instance
 };
 
 /* The sprites of the platform's sprite table. Sprite 0 is the figure of a
-   unit without a class. The others are one placeholder picture for each
-   class of unit (docs/ASSETS.md, "Unit sprites"). The platform loads
-   render_sprite_files[id] from the content pack. If a file is absent, the
-   platform uses the figure of sprite 0. */
+   unit without a class. The others are one picture for each class of unit
+   (docs/ASSETS.md, "Unit sprites"). The platform loads the art of
+   render_sprite_art_files[id] first, then the placeholder picture of
+   render_sprite_files[id], from the content pack. If both are absent, the
+   platform uses the figure of sprite 0. A pixel with the alpha 160 takes
+   the colour of the faction (the red mask of docs/GRAPHICS.md). */
 enum render_sprite
 {
     RENDER_SPRITE_UNIT,
@@ -452,16 +454,30 @@ enum render_sprite
     RENDER_SPRITE_HALBERD,
     RENDER_SPRITE_CROSSBOW,
     RENDER_SPRITE_CAVALRY,
-    RENDER_SPRITE_SIEGE,
+    RENDER_SPRITE_RAM,
+    RENDER_SPRITE_WOOD_BEAST,
+    RENDER_SPRITE_TOWER,
+    RENDER_SPRITE_CATAPULT,
     RENDER_SPRITE_BOAT,
-    RENDER_SPRITE_SHIP,
+    RENDER_SPRITE_TOWER_SHIP,
+    RENDER_SPRITE_BATTLE_SHIP,
     RENDER_SPRITE_TRANSPORT,
     RENDER_SPRITE_COUNT
 };
 
+/* The placeholder pictures (misc/make_unit_sprites.py). The four siege
+   weapons share one, and the two war ships share one. */
 global_variable const char *render_sprite_files[RENDER_SPRITE_COUNT] = {
     "sprites\\unit.png", "sprites\\sword.png", "sprites\\pike.png", "sprites\\halberd.png", "sprites\\crossbow.png",
-    "sprites\\cavalry.png", "sprites\\siege.png", "sprites\\boat.png", "sprites\\ship.png", "sprites\\transport.png",
+    "sprites\\cavalry.png", "sprites\\siege.png", "sprites\\siege.png", "sprites\\siege.png", "sprites\\siege.png",
+    "sprites\\boat.png", "sprites\\ship.png", "sprites\\ship.png", "sprites\\transport.png",
+};
+
+/* The art of each class (misc/art_import.py, from the model sheets). */
+global_variable const char *render_sprite_art_files[RENDER_SPRITE_COUNT] = {
+    0, "sprites\\art\\sword.png", "sprites\\art\\pike.png", "sprites\\art\\halberd.png", "sprites\\art\\crossbow.png",
+    "sprites\\art\\cavalry.png", "sprites\\art\\ram.png", "sprites\\art\\wood_beast.png", "sprites\\art\\tower.png", "sprites\\art\\catapult.png",
+    "sprites\\art\\boat.png", "sprites\\art\\tower_ship.png", "sprites\\art\\battle_ship.png", "sprites\\art\\transport.png",
 };
 
 struct render_billboard

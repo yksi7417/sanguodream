@@ -166,10 +166,10 @@ the DLL and the platform: the DLL pushes commands, the platform draws.
 
 | Part | Today | After |
 |---|---|---|
-| Sprite table | 8 sprites of 64 px | Atlas pages of 2048 x 2048, each sprite a rectangle in a page |
-| Billboard | sprite id, size, tint | Also: frame rectangle, mirror flag, tint mask colour, alpha, blend mode |
+| Sprite table | 14 sprites: the front view of each model sheet at 256 px (2026-10-24), or the placeholder of 64 px | Atlas pages of 2048 x 2048, each sprite a rectangle in a page |
+| Billboard | sprite id, size, tint | Also: frame rectangle, mirror flag, alpha, blend mode |
 | Facing | none | Two drawn facings (front three-quarter, back three-quarter) and their mirrors give four facings |
-| Faction colour | Tint of the whole sprite | The mask of the red areas takes the faction colour; the rest keeps its paint |
+| Faction colour | The mask of the red areas takes the faction colour, shaded by its brightness; the rest keeps its paint. The alpha 160 of a pixel marks the mask (misc/art_import.py). | Stays |
 | Banner | none | A blank banner sprite and the first character of the commander, from the CJK font |
 | Mesh table | 8 meshes | 64 meshes, each with a vertex mask for the faction colour |
 | Durability state | none | Three meshes or overlays for each base: whole, damaged, broken |
@@ -225,7 +225,10 @@ pine green and plum backgrounds, lacquer black hair.
    the style bible and the model sheet of the class.
 2. Save the image under art-src/<group>/<name>.png. art-src/ stays out
    of git, because the source images are large.
-3. Run misc/art_import.py. It does these steps:
+3. Run misc/art_import.py. Its first version (2026-10-24) imports the
+   model sheets: it removes the green, finds the red mask, cuts the front
+   view and writes data/<pack>/sprites/art/<class>.png. The full tool
+   does these steps:
    - It cuts each frame from the strip by the gaps between figures.
    - It removes the green background (#00FF00), or turns luminance into
      alpha for smoke and dust, or keeps black for additive fire.

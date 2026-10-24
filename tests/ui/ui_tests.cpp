@@ -2368,8 +2368,8 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK(!v.ui.show_captive && v.ui.captive.count == 0);
     };
 
-    /* The sprite of a unit follows the key of its class (ui_war.cpp). The
-       siege weapons share one picture, the two ships share one. */
+    /* The sprite of a unit follows the key of its class (ui_war.cpp). Each
+       class has its own sprite since the art of 2026-10-24. */
     t = IM_REGISTER_TEST(e, "ui", "unit_sprite_follows_the_class_of_the_unit");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;
@@ -2378,8 +2378,8 @@ register_ui_tests(ImGuiTestEngine *e)
         ui_test_vars &v = ctx->GetVars<ui_test_vars>();
         ctx->Yield();
         u32 expected[] = { RENDER_SPRITE_SWORD, RENDER_SPRITE_PIKE, RENDER_SPRITE_HALBERD, RENDER_SPRITE_CROSSBOW, RENDER_SPRITE_CAVALRY,
-                           RENDER_SPRITE_SIEGE, RENDER_SPRITE_SIEGE, RENDER_SPRITE_SIEGE, RENDER_SPRITE_SIEGE,
-                           RENDER_SPRITE_BOAT, RENDER_SPRITE_SHIP, RENDER_SPRITE_SHIP, RENDER_SPRITE_TRANSPORT };
+                           RENDER_SPRITE_RAM, RENDER_SPRITE_WOOD_BEAST, RENDER_SPRITE_TOWER, RENDER_SPRITE_CATAPULT,
+                           RENDER_SPRITE_BOAT, RENDER_SPRITE_TOWER_SHIP, RENDER_SPRITE_BATTLE_SHIP, RENDER_SPRITE_TRANSPORT };
         engine_unit unit = {};
         for (u32 type = 0; type < ArrayCount(expected); ++type)
         {
@@ -2400,7 +2400,7 @@ register_ui_tests(ImGuiTestEngine *e)
         unit.unit_type = 4;   /* cavalry */
         IM_CHECK_EQ(ui_unit_sprite(&v.api, &unit), (u32)RENDER_SPRITE_BOAT);
         unit.unit_type = 10;  /* tower ship */
-        IM_CHECK_EQ(ui_unit_sprite(&v.api, &unit), (u32)RENDER_SPRITE_SHIP);
+        IM_CHECK_EQ(ui_unit_sprite(&v.api, &unit), (u32)RENDER_SPRITE_TOWER_SHIP);
         unit.q = 2; unit.r = 2;
         unit.unit_type = 1;
         IM_CHECK_EQ(ui_unit_sprite(&v.api, &unit), (u32)RENDER_SPRITE_PIKE);

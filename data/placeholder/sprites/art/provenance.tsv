@@ -1,0 +1,16 @@
+file	prompt	model	date	source	note
+# The provenance of each sprite of this folder (docs/GRAPHICS.md, section 6). The owner of the repository made the model sheets with the prompts of docs/art/GEMINI-PROMPTS.md (section 4.1) and shared them on 2026-10-24 in the Drive folder 01-Units. misc/art_import.py cut the front view of each sheet.
+sword.png	MS-01	Gemini (image model of the owner)	2026-10-19	01-Units/Sword/MS-01-sword.jpg	the front view of the sheet
+pike.png	MS-02	Gemini (image model of the owner)	2026-10-19	01-Units/Pike/MS-02-pike.jpg	the front view of the sheet
+halberd.png	MS-03	Gemini (image model of the owner)	2026-10-19	01-Units/Halberd/MS-03-halberd.jpg	the front view of the sheet
+crossbow.png	MS-04	Gemini (image model of the owner)	2026-10-19	01-Units/Crossbow/MS-04-crossbow.jpg	the front view of the sheet
+cavalry.png	MS-05	Gemini (image model of the owner)	2026-10-19	01-Units/Cavalry/MS-05-cavalry.jpg	the front view of the sheet
+banner.png	MS-06	Gemini (image model of the owner)	2026-10-19	01-Units/Banner/MS-06-banner.jpg	the front view of the sheet; no unit class uses it yet (the crowds of docs/GRAPHICS.md 5.1)
+ram.png	MS-07	Gemini (image model of the owner)	2026-10-19	01-Units/Ram/MS-07-ram.jpg	the front view of the sheet
+wood_beast.png	MS-08	Gemini (image model of the owner)	2026-10-19	01-Units/WoodBeast/MS-08-wood-beast.jpg	the front view of the sheet
+tower.png	MS-09	Gemini (image model of the owner)	2026-10-19	01-Units/Tower/MS-09-tower.jpg	the front view of the sheet
+catapult.png	MS-10	Gemini (image model of the owner)	2026-10-19	01-Units/Catapult/MS-10-catapult.jpg	the front view of the sheet
+transport.png	MS-11	Gemini (image model of the owner)	2026-10-19	01-Units/Transport/MS-11-transport.jpg	the front view of the sheet
+boat.png	MS-12	Gemini (image model of the owner)	2026-10-19	01-Units/Boat/MS-12-boat.jpg	the front view of the sheet
+tower_ship.png	MS-13	Gemini (image model of the owner)	2026-10-19	01-Units/TowerShip/MS-13-tower-ship.jpg	the front view of the sheet
+battle_ship.png	MS-14	Gemini (image model of the owner)	2026-10-19	01-Units/BattleShip/MS-14-battle-ship.jpg	the front view of the sheet

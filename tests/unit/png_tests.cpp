@@ -39,6 +39,48 @@ png_test_build(u8 *out, u32 width, u32 height, const u8 *raw_rows, u32 raw_size)
     return at;
 }
 
+/* The sprite files of the pack (docs/ASSETS.md, "Unit sprites"): the
+   decoder of the renderer reads each placeholder picture and each piece
+   of art of render.h. The art is square, and its alpha has only the three
+   levels 0, 160 (the mask of the faction colour) and 255. */
+internal void
+unit_sprite_file_tests(test_counts *counts)
+{
+    memory_arena arena = test_arena_create(Megabytes(8));
+    char exe_dir[MAX_PATH], path[MAX_PATH * 2];
+    test_exe_dir(exe_dir, MAX_PATH);
+    b32 placeholders_decode = true, art_decodes = true, art_square = true, art_levels = true;
+    u32 art_count = 0;
+    for (u32 id = 0; id < RENDER_SPRITE_COUNT; ++id)
+    {
+        arena.used = 0;
+        snprintf(path, sizeof(path), "%s\\..\\data\\placeholder\\%s", exe_dir, render_sprite_files[id]);
+        test_file file = test_read_file(path, &arena);
+        png_image image = {};
+        if (file.contents) image = png_decode(file.contents, file.size, &arena);
+        placeholders_decode &= file.contents != 0 && image.error == 0 && image.width == 64 && image.height == 64;
+        if (!render_sprite_art_files[id]) continue;
+        arena.used = 0;
+        snprintf(path, sizeof(path), "%s\\..\\data\\placeholder\\%s", exe_dir, render_sprite_art_files[id]);
+        file = test_read_file(path, &arena);
+        if (!file.contents) continue;   /* a pack without the art of a class uses the placeholder */
+        image = png_decode(file.contents, file.size, &arena);
+        art_decodes &= image.error == 0 && image.rgba != 0;
+        if (image.error) continue;
+        art_count++;
+        art_square &= image.width == image.height && image.width >= 64;
+        for (u64 pixel = 0; pixel < (u64)image.width * image.height; ++pixel)
+        {
+            u8 alpha = image.rgba[pixel * 4 + 3];
+            art_levels &= alpha == 0 || alpha == 160 || alpha == 255;
+        }
+    }
+    TEST_CHECK(counts, placeholders_decode, "the decoder reads each placeholder sprite of the pack at 64 x 64");
+    TEST_CHECK(counts, art_decodes && art_count == RENDER_SPRITE_COUNT - 1, "the decoder reads the art of each class of unit (misc/art_import.py)");
+    TEST_CHECK(counts, art_square && art_levels, "the art is square, and its alpha holds only 0, 160 (the faction mask) and 255");
+    test_arena_destroy(&arena);
+}
+
 internal void
 unit_png_tests(test_counts *counts)
 {
@@ -86,4 +128,5 @@ unit_png_tests(test_counts *counts)
     TEST_CHECK(counts, png_decode(file, size - 20, &arena).error != 0, "a truncated PNG is refused");
 
     test_arena_destroy(&arena);
+    unit_sprite_file_tests(counts);
 }

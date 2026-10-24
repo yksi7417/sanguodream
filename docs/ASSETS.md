@@ -166,25 +166,43 @@ has the name of the officer.
 ## Unit sprites (data/placeholder/sprites)
 The scene draws one picture on the hex of each unit. The picture shows
 the class of the unit, so the player finds the hex of the unit under its
-plate. The pictures are placeholders until the art of docs/GRAPHICS.md
-exists.
+plate. The renderer loads the art of a class when the pack has it. Else
+it loads the placeholder picture of the class. Without both, it draws a
+figure of a head over a body.
 
+### The art (data/placeholder/sprites/art)
+| Item | Value |
+|---|---|
+| Files | sword.png, pike.png, halberd.png, crossbow.png, cavalry.png, ram.png, wood_beast.png, tower.png, catapult.png, boat.png, tower_ship.png, battle_ship.png, transport.png, banner.png |
+| Size | 256 x 256 pixels, RGBA. The front view of the model sheet, with its feet on the bottom edge. |
+| Source | The owner of the repository made the model sheets with the prompts of docs/art/GEMINI-PROMPTS.md and shared them on 2026-10-24 (the Drive folder 01-Units). misc/art_import.py cuts the front view of each sheet. provenance.tsv in the folder has one row for each file. |
+| Licence | the licence of this repository; the images are original work of the owner, made with an image model |
+
+The alpha channel carries the mask of the faction colour. A pixel with the
+alpha 255 keeps its paint. A pixel with the alpha 160 is the flat red of
+the sheet (MASK-RED). The renderer paints it in the colour of the
+faction, shaded by its brightness. The pixel shader billboard_ps of
+code/d3d11_renderer.h does it. The source sheets stay in art-src/units,
+out of git. To import them again, run
+`python -X utf8 misc\art_import.py` from the root of the repository.
+banner.png waits for the crowds of docs/GRAPHICS.md, section 5.1.
+
+### The placeholder pictures (data/placeholder/sprites)
 | Item | Value |
 |---|---|
 | Files | unit.png, sword.png, pike.png, halberd.png, crossbow.png, cavalry.png, siege.png, boat.png, ship.png, transport.png |
-| Size | 64 x 64 pixels, RGBA, a light figure with a dark outline on a transparent background |
+| Size | 64 x 64 pixels, RGBA, a light figure with a dark outline on a transparent background. The figure has the alpha 160, so it takes the colour of the faction. |
 | Source | misc/make_unit_sprites.py draws them with Pillow. They are project work, not art of the original game. |
 | Licence | the licence of this repository |
 
-The table render_sprite_files in code/render/render.h names the file of
-each render_sprite. The renderer loads the files at start and multiplies
-each picture by the colour of the faction. If a file is absent, the
-renderer uses the figure of a head over a body. The UI picks the sprite of a unit from the
-key of its class (ui_unit_sprite in code/ui/ui_war.cpp). The four siege
-weapons share siege.png. 樓船 and 鬥艦 share ship.png.
+The tables render_sprite_art_files and render_sprite_files in
+code/render/render.h name the files of each render_sprite. The UI picks
+the sprite of a unit from the key of its class (ui_unit_sprite in
+code/ui/ui_war.cpp). The four siege weapons share the placeholder
+siege.png, and 樓船 and 鬥艦 share ship.png. Each has its own art.
 
-To draw the pictures again, run `python -X utf8 misc\make_unit_sprites.py`
-from the root of the repository.
+To draw the placeholder pictures again, run
+`python -X utf8 misc\make_unit_sprites.py` from the root of the repository.
 
 ## Text of the content pack (data/placeholder)
 The project wrote these files. They contain no text from the original game.

@@ -155,7 +155,10 @@ static const char d3d11_shader_source[] =
 "  float3 world = i.ipos + camera_right.xyz * (i.corner.x * i.iwidth) + float3(0, 1, 0) * (i.corner.y * i.iheight);\n"
 "  BillboardOut o; o.clip = mul(float4(world, 1.0), view_projection); o.uv = i.uv; o.tint = i.itint; return o; }\n"
 "float4 billboard_ps(BillboardOut i) : SV_TARGET {\n"
-"  float4 c = sprite.Sample(linear_sampler, i.uv) * i.tint; clip(c.a - 0.5); return float4(c.rgb, 1.0); }\n";
+"  float4 c = sprite.Sample(linear_sampler, i.uv); clip(c.a - 0.5);\n"
+"  float mask = saturate((1.0 - c.a) / 0.37);\n"                    /* alpha 160 of 255: the pixel takes the faction colour */
+"  float shade = saturate(dot(c.rgb, float3(0.3, 0.59, 0.11)) / 0.31);\n"   /* the flat red of the mask shades to 1 */
+"  return float4(lerp(c.rgb, i.tint.rgb * shade, mask), 1.0); }\n";
 
 internal b32
 d3d11_compile(d3d11_renderer *r, const char *entry, const char *target, ID3DBlob **blob)
@@ -262,7 +265,8 @@ d3d11_placeholder_atlas(memory_arena *arena)
     return rgba;
 }
 
-/* A placeholder sprite: a figure on a transparent background. */
+/* A placeholder sprite: a figure on a transparent background. The alpha
+   160 makes the figure take the colour of the faction (billboard_ps). */
 internal u32 *
 d3d11_placeholder_sprite(memory_arena *arena)
 {
@@ -275,7 +279,7 @@ d3d11_placeholder_sprite(memory_arena *arena)
             f32 fx = ((f32)x - 32.0f) / 14.0f, fy_head = ((f32)y - 16.0f) / 10.0f, fy_body = ((f32)y - 44.0f) / 18.0f;
             b32 head = fx * fx + fy_head * fy_head < 1.0f;
             b32 body = fx * fx + fy_body * fy_body < 1.0f && y > 20;
-            rgba[y * s + x] = head ? 0xFF50C8F0u : (body ? 0xFF2050C0u : 0x00000000u);
+            rgba[y * s + x] = head ? 0xA050C8F0u : (body ? 0xA02050C0u : 0x00000000u);
         }
     }
     return rgba;
@@ -426,11 +430,14 @@ d3d11_renderer_init(d3d11_renderer *r, ID3D11Device *device, ID3D11DeviceContext
     }
 
     /* The sprites: one picture for each render_sprite, from the sprites
-       folder of the content pack. If a picture is absent, the renderer
-       uses the placeholder figure (docs/ASSETS.md, "Unit sprites"). */
+       folder of the content pack: the art first, then the placeholder
+       picture. If both are absent, the renderer uses the placeholder
+       figure (docs/ASSETS.md, "Unit sprites"). */
     for (u32 sprite_id = 0; sprite_id < RENDER_SPRITE_COUNT && sprite_id < D3D11_MAX_SPRITES; ++sprite_id)
     {
-        r->sprites[sprite_id].view = d3d11_load_png_texture(r, render_sprite_files[sprite_id], scratch);
+        r->sprites[sprite_id].view = 0;
+        if (render_sprite_art_files[sprite_id]) r->sprites[sprite_id].view = d3d11_load_png_texture(r, render_sprite_art_files[sprite_id], scratch);
+        if (!r->sprites[sprite_id].view) r->sprites[sprite_id].view = d3d11_load_png_texture(r, render_sprite_files[sprite_id], scratch);
         if (!r->sprites[sprite_id].view)
         {
             u32 *sprite = d3d11_placeholder_sprite(scratch);

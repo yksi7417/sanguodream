@@ -2,9 +2,10 @@
 
 The script draws one 64 x 64 picture for each render_sprite of
 code/render/render.h into data/placeholder/sprites/. Each picture is a
-light figure with a dark outline on a transparent background. The renderer
-multiplies the picture by the colour of the faction, so the figure takes
-that colour on the map. Run it from the root of the repository:
+light figure with a dark outline on a transparent background. The figure
+has the alpha 160, so the renderer paints it in the colour of the faction
+(billboard_ps in code/d3d11_renderer.h). Run it from the root of the
+repository:
 
     python -X utf8 misc\\make_unit_sprites.py
 
@@ -18,8 +19,8 @@ import sys
 from PIL import Image, ImageDraw, ImageFilter
 
 SIZE = 64
-FILL = (235, 235, 235, 255)
-SHADE = (170, 170, 170, 255)
+FILL = (235, 235, 235, 160)     # alpha 160: the pixel takes the colour of the faction (docs/ASSETS.md)
+SHADE = (170, 170, 170, 160)
 OUTLINE = (30, 30, 30, 255)
 
 

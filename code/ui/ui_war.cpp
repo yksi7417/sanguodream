@@ -272,8 +272,12 @@ ui_unit_sprite(engine_api *api, engine_unit *unit)
     if (!strcmp(type.key, "cavalry"))   return RENDER_SPRITE_CAVALRY;
     if (!strcmp(type.key, "boat"))      return RENDER_SPRITE_BOAT;
     if (!strcmp(type.key, "transport")) return RENDER_SPRITE_TRANSPORT;
-    if (!strcmp(type.key, "ram") || !strcmp(type.key, "wood_beast") || !strcmp(type.key, "tower") || !strcmp(type.key, "catapult")) return RENDER_SPRITE_SIEGE;
-    if (!strcmp(type.key, "tower_ship") || !strcmp(type.key, "battle_ship")) return RENDER_SPRITE_SHIP;
+    if (!strcmp(type.key, "ram"))         return RENDER_SPRITE_RAM;
+    if (!strcmp(type.key, "wood_beast"))  return RENDER_SPRITE_WOOD_BEAST;
+    if (!strcmp(type.key, "tower"))       return RENDER_SPRITE_TOWER;
+    if (!strcmp(type.key, "catapult"))    return RENDER_SPRITE_CATAPULT;
+    if (!strcmp(type.key, "tower_ship"))  return RENDER_SPRITE_TOWER_SHIP;
+    if (!strcmp(type.key, "battle_ship")) return RENDER_SPRITE_BATTLE_SHIP;
     return RENDER_SPRITE_UNIT;
 }
 
