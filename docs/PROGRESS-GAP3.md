@@ -38,9 +38,10 @@ spec-src/spec/experiments/gap3-answers-2026-10-23.md and in the fixtures.
   abilities a few points below the record. The clone uses the record.
   The spec does not give the modifier of the screen value.
 
+| G3-020 | A click on an enemy facility out of the range asks 即將對 X 進行攻擊。確定嗎？ with 是 and 否. The unit takes a long order (attack_facility), marches at each turn and attacks the facility when it is in range, until the facility falls. The hover panel of a facility shows its name, its owner and 耐久 as current / maximum. | batch 3 | feature/orders, ui |
+
 ## In progress
 
-- G3-020 is the attack order on a facility from a distance.
 - The P2 and P3 rows wait for the next batches.
 
 ## Questions for the observer

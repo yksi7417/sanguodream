@@ -758,7 +758,8 @@ sim_check_unit_order(sim_state *sim, sim_command_kind kind, sim_unit_order *orde
         case SIM_COMMAND_DESTROY_TARGET:
         case SIM_COMMAND_DRIVE_TARGET:
         case SIM_COMMAND_FOLLOW:
-        case SIM_COMMAND_DELEGATE:     return sim_check_long_order(sim, kind, order, scratch);   /* orders.cpp */
+        case SIM_COMMAND_DELEGATE:
+        case SIM_COMMAND_ATTACK_FACILITY: return sim_check_long_order(sim, kind, order, scratch);   /* orders.cpp */
         case SIM_COMMAND_ATTACK:       return sim_check_attack(sim, order);
         case SIM_COMMAND_JOINT_ATTACK: return sim_check_joint_attack(sim, order);
         case SIM_COMMAND_TACTIC:       return sim_check_tactic(sim, order);

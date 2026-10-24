@@ -174,6 +174,7 @@ enum recorder_call_kind
     RECORDER_COMMAND_RETREAT,
     RECORDER_COMMAND_SUPPLY,
     RECORDER_COMMAND_DESTROY,      /* G2-052: arg = unit | target << 16 */
+    RECORDER_COMMAND_ATTACK_FACILITY, /* G3-020: the long order on a facility; last_unit_command holds the hex */
     RECORDER_COMMAND_DRIVE,
     RECORDER_COMMAND_FOLLOW,
     RECORDER_COMMAND_DELEGATE,
@@ -1452,6 +1453,8 @@ internal engine_command_result recorder_command_captive(void *o, u16 officer_id,
 }
 internal engine_command_result recorder_command_duel(void *o, u32 unit_id, s32 q, s32 r)
 { return recorder_unit_target((engine_recorder *)o, RECORDER_COMMAND_DUEL, ENGINE_COMMAND_DUEL, unit_id, 0, q, r); }
+internal engine_command_result recorder_command_attack_facility(void *o, u32 unit_id, s32 q, s32 r)
+{ return recorder_unit_target((engine_recorder *)o, RECORDER_COMMAND_ATTACK_FACILITY, ENGINE_COMMAND_ATTACK_FACILITY, unit_id, 0, q, r); }
 internal engine_command_result recorder_command_duel_action(void *o, u8 action, u8 value)
 {
     engine_recorder *r = (engine_recorder *)o;
@@ -1737,6 +1740,12 @@ internal engine_hex recorder_hex_at(void *o, s32 q, s32 r)
         hex.slot_index = RECORDER_SLOT_INDEX;
     }
     hex.facility    = ENGINE_NO_FACILITY;
+    if (rec->foreign_city && offset.col == 6 && offset.row == 4)
+    {
+        hex.slot_city  = (u8)rec->foreign_city;   /* G3-020: a built market (slot 2) of the foreign city, out of the range of unit 0 */
+        hex.slot_index = 2;
+        hex.facility   = 0;
+    }
     hex.building_id = ENGINE_NO_BUILDING;
     hex.building_kind = ENGINE_NO_ROW;
     hex.unit_id     = ENGINE_NO_UNIT;
@@ -2052,6 +2061,7 @@ recorder_make_api(engine_recorder *r)
     api.command_supply       = recorder_command_supply;
     api.path_to              = recorder_path_to;
     api.command_destroy      = recorder_command_destroy;
+    api.command_attack_facility = recorder_command_attack_facility;
     api.command_drive        = recorder_command_drive;
     api.command_follow       = recorder_command_follow;
     api.command_delegate     = recorder_command_delegate;

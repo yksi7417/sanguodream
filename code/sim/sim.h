@@ -312,6 +312,7 @@ enum sim_command_kind
     SIM_COMMAND_DRIVE_TARGET,    /* 驅趕: unit = the unit, target = the enemy unit */
     SIM_COMMAND_FOLLOW,          /* follow: unit = the unit, target = the own unit */
     SIM_COMMAND_DELEGATE,        /* 委任部隊行動: the units with a long order act now */
+    SIM_COMMAND_ATTACK_FACILITY, /* G3-020: unit = the unit, to = the hex of an enemy facility; a long order */
     SIM_COMMAND_MOVE_OFFICERS,   /* 移動: officers of the city go to another own city (travel.cpp) */
     SIM_COMMAND_SUMMON,          /* 召喚: officers of other own cities come to the city */
     SIM_COMMAND_COUNT
@@ -956,6 +957,7 @@ enum sim_unit_order_kind
     UNIT_ORDER_DESTROY,         /* 殲滅: march on an enemy unit and attack it until it is gone (G2-052) */
     UNIT_ORDER_DRIVE,           /* 驅趕: march on an enemy unit and attack it one time (assumed) */
     UNIT_ORDER_FOLLOW,          /* follow an own unit: stay next to it */
+    UNIT_ORDER_ATTACK_FACILITY, /* G3-020: march on an enemy facility (order_hex) and attack it until it is gone */
     UNIT_ORDER_COUNT
 };
 

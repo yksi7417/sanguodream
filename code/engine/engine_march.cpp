@@ -407,6 +407,13 @@ engine_api_command_destroy(void *opaque, u32 unit_id, u32 target_unit)
     return engine_run_unit_order((engine *)opaque, SIM_COMMAND_DESTROY_TARGET, engine_unit_order(unit_id, 0, 0, target_unit, 0, 0, 0));
 }
 
+/* G3-020: the long order on the enemy facility at the hex q, r. */
+internal engine_command_result
+engine_api_command_attack_facility(void *opaque, u32 unit_id, s32 q, s32 r)
+{
+    return engine_run_unit_order((engine *)opaque, SIM_COMMAND_ATTACK_FACILITY, engine_unit_order(unit_id, q, r, ENGINE_NO_UNIT, 0, 0, 0));
+}
+
 internal engine_command_result
 engine_api_command_drive(void *opaque, u32 unit_id, u32 target_unit)
 {
@@ -448,6 +455,7 @@ engine_bind_march_api(engine_api *api)
     api->command_supply     = engine_api_command_supply;
     api->path_to            = engine_api_path_to;
     api->command_destroy    = engine_api_command_destroy;
+    api->command_attack_facility = engine_api_command_attack_facility;
     api->command_drive      = engine_api_command_drive;
     api->command_follow     = engine_api_command_follow;
     api->command_delegate   = engine_api_command_delegate;

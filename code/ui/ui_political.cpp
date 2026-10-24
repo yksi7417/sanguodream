@@ -245,6 +245,22 @@ ui_hover_unit(ui_state *ui, engine_api *api, u32 unit_id)
 
 /* ui/main-map.md, "Hover panels": a small panel next to the city or the
    unit under the mouse. It takes no input. */
+/* G3-020: the hover panel of a facility: its name and level, its owner and
+   its durability as current / maximum (the original: 孫策軍, 耐久 1000/1000). */
+internal void
+ui_hover_facility(ui_state *ui, engine_api *api, u8 city_id, u8 slot)
+{
+    void *e = api->engine;
+    engine_facility facility = api->facility_at(e, city_id, slot);
+    if (facility.facility == ENGINE_NO_FACILITY) return;
+    char owner[UI_NAME_SIZE * 2] = "-";
+    engine_city city = api->city_at(e, city_id);
+    if (city.owner_force_id != ENGINE_NO_FACTION) ui_force_text(ui, api, city.owner_force_id, owner, sizeof(owner));
+    ImGui::Text("%s Lv%u", ui_text_with_key(ui, "facility", api->facility_kind_at(e, facility.facility).key), facility.level);
+    ImGui::Text("%s%s", owner, text_get(ui->text, "hover.army"));
+    ImGui::Text("%s %u/%u", text_get(ui->text, "city.durability"), facility.durability, facility.durability_max);
+}
+
 internal void
 ui_draw_hover_panel(ui_state *ui, engine_api *api)
 {
@@ -257,14 +273,17 @@ ui_draw_hover_panel(ui_state *ui, engine_api *api)
     data.city_id = ENGINE_NO_CITY;
     if (plated != ENGINE_NO_UNIT)          data.unit_id = plated;
     else if (ui->scene.has_hover)          data = api->hex_at(api->engine, ui->scene.hover.q, ui->scene.hover.r);
-    if (data.unit_id == ENGINE_NO_UNIT && data.city_id == ENGINE_NO_CITY) return;
+    b32 facility_hex = data.unit_id == ENGINE_NO_UNIT && data.city_id == ENGINE_NO_CITY && data.slot_city != ENGINE_NO_CITY && data.facility != ENGINE_NO_FACILITY;
+    if (data.unit_id == ENGINE_NO_UNIT && data.city_id == ENGINE_NO_CITY && !facility_hex) return;
     ImGui::SetNextWindowPos(ImVec2(io.MousePos.x + UI_HOVER_OFFSET, io.MousePos.y + UI_HOVER_OFFSET), ImGuiCond_Always);
     ImGui::SetNextWindowBgAlpha(0.9f);
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoInputs |
                              ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoSavedSettings;
-    if (ImGui::Begin(data.unit_id != ENGINE_NO_UNIT ? "###HoverUnit" : "###HoverCity", 0, flags))
+    const char *window = data.unit_id != ENGINE_NO_UNIT ? "###HoverUnit" : (facility_hex ? "###HoverFacility" : "###HoverCity");
+    if (ImGui::Begin(window, 0, flags))
     {
         if (data.unit_id != ENGINE_NO_UNIT) ui_hover_unit(ui, api, data.unit_id);
+        else if (facility_hex)              ui_hover_facility(ui, api, data.slot_city, data.slot_index);
         else                                ui_hover_city(ui, api, data.city_id);
     }
     ImGui::End();

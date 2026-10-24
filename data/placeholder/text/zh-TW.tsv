@@ -1353,6 +1353,9 @@ unit_target.move	移動
 unit_target.build	設置
 unit_target.follow_before	即將隨
 unit_target.follow_after	前進。確定嗎？
+unit_target.facility_before	即將對
+unit_target.facility_after	進行攻擊。確定嗎？
+hover.army	軍
 unit_target.yes	是
 unit_target.no	否
 unit_target.days	預定抵達時間

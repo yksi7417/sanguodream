@@ -308,7 +308,8 @@ sim_apply(sim_state *sim, sim_command command, sim_event_sink *events)
         case SIM_COMMAND_DESTROY_TARGET:
         case SIM_COMMAND_DRIVE_TARGET:
         case SIM_COMMAND_FOLLOW:
-        case SIM_COMMAND_DELEGATE:     sim_long_order(sim, command, events);   break;   /* orders.cpp */
+        case SIM_COMMAND_DELEGATE:
+        case SIM_COMMAND_ATTACK_FACILITY: sim_long_order(sim, command, events); break;   /* orders.cpp */
         case SIM_COMMAND_MOVE_OFFICERS:
         case SIM_COMMAND_SUMMON:       sim_move_officers_command(sim, command, events); break;   /* travel.cpp */
         case SIM_COMMAND_ATTACK:       sim_attack(sim, command, events);       break;
@@ -804,6 +805,7 @@ sim_command_name(sim_command_kind kind)
         case SIM_COMMAND_DRIVE_TARGET:    return "drive_target";
         case SIM_COMMAND_FOLLOW:          return "follow";
         case SIM_COMMAND_DELEGATE:        return "delegate";
+        case SIM_COMMAND_ATTACK_FACILITY: return "attack_facility";
         case SIM_COMMAND_MOVE_OFFICERS:   return "move_officers";
         case SIM_COMMAND_SUMMON:          return "summon";
         case SIM_COMMAND_WAIT:            return "wait";

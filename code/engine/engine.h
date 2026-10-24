@@ -241,6 +241,7 @@ enum engine_command_kind
     ENGINE_COMMAND_MOVE_OFFICERS,  /* 移動 (G2-036): the order is move */
     ENGINE_COMMAND_SUMMON,         /* 召喚 (G2-037) */
     ENGINE_COMMAND_CAPTIVE,        /* 俘虜處置: court.target = the captive, court.kind = engine_captive_choice */
+    ENGINE_COMMAND_ATTACK_FACILITY, /* G3-020: a long order on the enemy facility at the hex q, r */
     ENGINE_COMMAND_KIND_COUNT
 };
 
@@ -1659,6 +1660,7 @@ struct engine_api
     engine_command_unit_target_fn   *command_destroy;
     engine_command_unit_target_fn   *command_drive;
     engine_command_unit_target_fn   *command_follow;
+    engine_command_target_fn        *command_attack_facility;   /* G3-020: the long order on the enemy facility at q, r */
     engine_command_delegate_fn      *command_delegate;
     /* M6 combat: attacks, tactics, plots, fire, buildings, siege */
     engine_tactic_kind_count_fn     *tactic_kind_count;

@@ -2246,6 +2246,36 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK(!ui_walk_active(&v.ui) && v.ui.war.strike_count == 1u);
     };
 
+    /* G3-020: a click on an enemy facility out of the range asks the question
+       of the attack order; 是 sends one command_attack_facility on the hex. */
+    t = IM_REGISTER_TEST(e, "ui", "far_click_on_an_enemy_facility_asks_and_orders_the_attack");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.recorder.foreign_city  = 1;   /* the city 1 belongs to the force 2, and its market stands at (6,4) */
+        ctx->Yield();
+        ui_test_click_cell(ctx, v, hex_make(1, 2));
+        hex_offset market_offset;
+        market_offset.col = 6;
+        market_offset.row = 4;
+        hex_coord market = hex_from_offset(market_offset);
+        ui_test_click_cell(ctx, v, market);
+        ctx->Yield();
+        IM_CHECK(v.ui.units.target_kind == UI_TARGET_FACILITY);
+        recorder_reset(&v.recorder);
+        ctx->SetRef("//###UnitTarget");
+        ctx->ItemClick("###facility_yes");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_ATTACK_FACILITY), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(v.recorder.last_unit_command.q == market.q && v.recorder.last_unit_command.r == market.r);
+        IM_CHECK(v.ui.units.target_kind == UI_TARGET_NONE);
+    };
+
     /* 俘虜處置: a capture by the player opens the dialog for the officer;
        the choice issues one command_captive, and the dialog closes. */
     t = IM_REGISTER_TEST(e, "ui", "capture_opens_the_prisoner_dialog_and_the_choice_issues_one_command");

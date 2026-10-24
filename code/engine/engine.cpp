@@ -850,6 +850,7 @@ engine_unit_command_kind(engine_command_kind kind)
         case ENGINE_COMMAND_DESTROY:      return SIM_COMMAND_DESTROY_TARGET;
         case ENGINE_COMMAND_DRIVE:        return SIM_COMMAND_DRIVE_TARGET;
         case ENGINE_COMMAND_FOLLOW:       return SIM_COMMAND_FOLLOW;
+        case ENGINE_COMMAND_ATTACK_FACILITY: return SIM_COMMAND_ATTACK_FACILITY;
         default:                     return SIM_COMMAND_NONE;
     }
 }
@@ -915,6 +916,7 @@ engine_api_can_issue(void *opaque, const engine_command *command)
         case ENGINE_COMMAND_DESTROY:
         case ENGINE_COMMAND_DRIVE:
         case ENGINE_COMMAND_FOLLOW:
+        case ENGINE_COMMAND_ATTACK_FACILITY:
         {
             sim_unit_order order = engine_unit_order(command->unit, command->q, command->r, command->target_unit,
                                                      command->soldiers, command->gold, command->grain);

@@ -1354,6 +1354,9 @@ unit_target.move	Move	移動 to a far hex (G2-058)
 unit_target.build	Build	設置 at a far hex
 unit_target.follow_before	Follow 	the follow order: before the unit name
 unit_target.follow_after	?	the follow order: after the unit name
+unit_target.facility_before	Attack 	即將對
+unit_target.facility_after	? Are you sure?	進行攻擊。確定嗎？
+hover.army	 army	軍
 unit_target.yes	Yes	是
 unit_target.no	No	否
 unit_target.days	Days to arrive	預定抵達時間

@@ -208,6 +208,10 @@ with an order shows 委.
   (assumed, Q-227).
 - The follow order (`command_follow`): the unit stays next to an own
   unit.
+- The attack on a facility (`command_attack_facility`, G3-020): the unit
+  marches on the hex of an enemy facility. When the hex is in range, the
+  unit attacks it with the normal attack of its class. The order ends
+  when the facility falls or the slot is no longer hostile.
 The path is a search without a cap over the terrain (`sim_unit_plan`).
 Own cities and bases are waypoints, and the units of today do not block
 the plan. One search takes most of the scratch arena on the real map, so
@@ -221,7 +225,10 @@ map shows them as 預定抵達時間, 所有兵糧 and 通過據點.
 
 In the game mode, with an own unit under selection, a left click on an
 enemy unit opens 殲滅 and 驅趕. A left click on an own unit asks for the
-follow order. A left click on a far hex opens 移動. A land unit enters a
+follow order. A left click on a far hex opens 移動. A left click on a
+facility of another force asks 即將對 X 進行攻擊。確定嗎？ with 是 and 否
+(G3-020). The hover panel of a facility shows its name, its owner and
+耐久 as current / maximum. A land unit enters a
 river hex as a 走舸 (the boat row of movement_costs.tsv). A click on the
 plate of a unit is a click on its hex. After 決定 of 出征 the dialog
 selects the new unit, so that its range shows on the map.
@@ -249,8 +256,9 @@ selects the new unit, so that its range shows on the map.
   the range opens the command menu at that hex, with no command yet
   (G2-045, the play report of 2026-10-23). The engine checks each item
   from the destination through `can_issue_after_move`. The choice sends
-  the `command_move` and then the action: 待命 and 退卻 in the same
-  click, 攻擊 and the other picks at the click on the target. A right click closes the
+  the `command_move` and then the action. The items 待命 and 退卻 act in
+  the same click. The item 攻擊 and the other picks act at the click on
+  the target. A right click closes the
   menu, and the unit stays. A click on the hex of the unit opens the menu
   without a move.
 - The command menu has the items of ui/unit-commands.md in their order.

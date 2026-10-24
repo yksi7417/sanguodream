@@ -575,6 +575,14 @@ ui_unit_click(ui_state *ui, engine_api *api, hex_coord hex)
         ui_open_target_menu(ui, (u8)(other.force_id == unit.force_id ? UI_TARGET_FOLLOW : UI_TARGET_ENEMY), hex, on_hex);
         return true;
     }
+    /* G3-020: a facility of another force at a far hex: the question before the attack order. */
+    engine_hex data = api->hex_at(api->engine, hex.q, hex.r);
+    if (data.slot_city != ENGINE_NO_CITY && data.facility != ENGINE_NO_FACILITY &&
+        api->city_at(api->engine, data.slot_city).owner_force_id != unit.force_id)
+    {
+        ui_open_target_menu(ui, UI_TARGET_FACILITY, hex, ENGINE_NO_UNIT);
+        return true;
+    }
     if (api->path_to(api->engine, unit.id, hex.q, hex.r).found)
     {
         ui_open_target_menu(ui, UI_TARGET_FAR, hex, ENGINE_NO_UNIT);
@@ -915,6 +923,24 @@ ui_draw_unit_target_menu(ui_state *ui, engine_api *api)
             {
                 result = api->command_drive(api->engine, unit.id, ui->units.target_unit); sent = true; text_id = "unit_target.drive";
             }
+        }
+        else if (kind == UI_TARGET_FACILITY)
+        {
+            /* G3-020: 即將對 市場 Lv3進行攻擊。確定嗎？ with 是 and 否. */
+            engine_hex data = api->hex_at(api->engine, hex.q, hex.r);
+            engine_facility facility = api->facility_at(api->engine, data.slot_city, data.slot_index);
+            char name[128] = "?";
+            if (facility.facility != ENGINE_NO_FACILITY)
+            {
+                snprintf(name, sizeof(name), "%s Lv%u", ui_text_with_key(ui, "facility", api->facility_kind_at(api->engine, facility.facility).key), facility.level);
+            }
+            ImGui::Text("%s%s%s", text_get(ui->text, "unit_target.facility_before"), name, text_get(ui->text, "unit_target.facility_after"));
+            if (ImGui::Button(ui_label(label, sizeof(label), ui, "unit_target.yes", "facility_yes"), ImVec2(80.0f, 0.0f)))
+            {
+                result = api->command_attack_facility(api->engine, unit.id, hex.q, hex.r); sent = true; text_id = "unit_target.facility_before";
+            }
+            ImGui::SameLine();
+            if (ImGui::Button(ui_label(label, sizeof(label), ui, "unit_target.no", "facility_no"), ImVec2(80.0f, 0.0f))) open = false;
         }
         else if (kind == UI_TARGET_FOLLOW)
         {

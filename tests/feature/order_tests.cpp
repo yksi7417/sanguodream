@@ -196,6 +196,87 @@ feature_river_reach_tests(test_counts *counts)
     engine_fixture_destroy(&world.setup.fixture);
 }
 
+/* G3-020 (observed 2026-10-23): the player orders an attack on an enemy
+   facility out of the range. The unit marches at each turn and attacks the
+   facility when it is in range, until the facility is gone. */
+internal void
+feature_facility_order_tests(test_counts *counts)
+{
+    /* The real map: the save gives the enemy cities their facilities (the placeholder board has none). */
+    feature_city_setup setup;
+    feature_map_setup(&setup);
+    engine_api *api = setup.api;
+    void *e = api->engine;
+    u32 unit = feature_sortie_unit(api, setup.city, 1);
+    /* A built facility of any enemy city. */
+    u8 enemy_city = ENGINE_NO_CITY, enemy = ENGINE_NO_FACTION, slot_index = 0;
+    engine_facility facility = {};
+    facility.facility = ENGINE_NO_FACILITY;
+    for (u32 city_index = 0; city_index < api->city_count(e) && facility.facility == ENGINE_NO_FACILITY; ++city_index)
+    {
+        engine_city city = api->city_at(e, (u8)city_index);
+        if (city.owner_force_id == setup.force || city.owner_force_id == ENGINE_NO_FACTION) continue;
+        for (u8 index = 0; index < api->city_slots(e, city.city_id).slot_count; ++index)
+        {
+            engine_facility candidate = api->facility_at(e, city.city_id, index);
+            if (candidate.state != SIM_SLOT_BUILT || candidate.facility == ENGINE_NO_FACILITY) continue;
+            facility = candidate; slot_index = index; enemy_city = city.city_id; enemy = city.owner_force_id;
+            break;
+        }
+    }
+    b32 ready = enemy != ENGINE_NO_FACTION && unit != ENGINE_NO_UNIT && facility.facility != ENGINE_NO_FACILITY;
+    hex_coord slot = hex_make(facility.q, facility.r);
+    /* The unit stands three hexes from the facility on a line of grass. */
+    hex_coord at = slot;
+    u32 d = 0;
+    for (; ready && d < HEX_DIRECTION_COUNT; ++d)
+    {
+        hex_coord probe = slot;
+        b32 clear = true;
+        for (u32 step = 0; step < 3 && clear; ++step)
+        {
+            probe = hex_neighbor(probe, d);
+            engine_hex data = api->hex_at(e, probe.q, probe.r);
+            clear = data.on_map && data.city_id == ENGINE_NO_CITY && data.slot_city == ENGINE_NO_CITY && data.unit_id == ENGINE_NO_UNIT;
+        }
+        if (!clear) continue;
+        probe = slot;
+        for (u32 step = 0; step < 3; ++step) { probe = hex_neighbor(probe, d); api->set_cell_terrain(e, probe.q, probe.r, feature_terrain_id(api, "grass"), 1); }
+        at = probe;
+        break;
+    }
+    ready = ready && d < HEX_DIRECTION_COUNT && api->set_unit_place(e, unit, setup.force, at.q, at.r);
+    if (ready) api->set_unit(e, unit, 3000, 80);
+    char setup_name[200];
+    snprintf(setup_name, sizeof(setup_name), "an enemy facility stands three grass hexes from the unit (enemy %u, city %u, unit %u, facility %u, direction %u, at %d,%d)",
+             enemy, enemy_city, unit, facility.facility, d, at.q, at.r);
+    TEST_CHECK(counts, ready && facility.durability > 0, setup_name);
+    if (!ready) { engine_fixture_destroy(&setup.fixture); return; }
+    engine_command probe_command = {};
+    probe_command.kind = ENGINE_COMMAND_ATTACK_FACILITY;
+    probe_command.unit = unit;
+    probe_command.q = slot.q; probe_command.r = slot.r;
+    engine_check check = api->can_issue(e, &probe_command);
+    TEST_CHECK(counts, check.refusal == SIM_REFUSAL_NONE && check.days >= 10 && check.assumed, "the attack order on a facility is allowed, with the days of the march");
+    hex_coord empty = feature_along(slot, d, 1);
+    engine_command_result refused = api->command_attack_facility(e, unit, empty.q, empty.r);
+    TEST_CHECK(counts, refused.refusal == SIM_REFUSAL_NO_TARGET, "refused: no enemy facility on the hex");
+    u32 mark = api->ledger_count(e);
+    engine_command_result result = api->command_attack_facility(e, unit, slot.q, slot.r);
+    engine_unit after = api->unit_at(e, unit);
+    engine_facility hit = api->facility_at(e, enemy_city, slot_index);
+    b32 struck = hit.facility == ENGINE_NO_FACILITY || hit.durability < facility.durability;
+    TEST_CHECK(counts, result.refusal == SIM_REFUSAL_NONE && feature_count_events(api, SIM_EVENT_UNIT_ORDERED, mark) == 1 &&
+                       (after.order == UNIT_ORDER_ATTACK_FACILITY || struck) && hex_distance(hex_make(after.q, after.r), slot) <= 3,
+               "the unit takes the order, marches toward the facility and strikes it when it is in range (G3-020)");
+    for (u32 turn = 0; turn < 6 && api->facility_at(e, enemy_city, slot_index).facility != ENGINE_NO_FACILITY; ++turn) feature_next_own_turn(api, setup.force);
+    hit = api->facility_at(e, enemy_city, slot_index);
+    after = api->unit_at(e, unit);
+    TEST_CHECK(counts, (hit.facility == ENGINE_NO_FACILITY && after.order == UNIT_ORDER_NONE) || hit.durability < facility.durability,
+               "the order goes on at each turn until the facility falls, and then it ends");
+    engine_fixture_destroy(&setup.fixture);
+}
+
 internal void
 feature_order_tests(test_counts *counts)
 {
@@ -203,4 +284,5 @@ feature_order_tests(test_counts *counts)
     feature_destroy_order_tests(counts);
     feature_follow_order_tests(counts);
     feature_river_reach_tests(counts);
+    feature_facility_order_tests(counts);
 }

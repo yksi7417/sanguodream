@@ -139,6 +139,25 @@ sim_order_attack(sim_state *sim, u32 unit_id, sim_event_sink *events)
     return sim_ai_attack(sim, unit_id, target->hex, events);
 }
 
+/* G3-020: the enemy facility of an attack order, or false when the slot
+   is empty or no longer hostile. */
+internal b32
+sim_order_facility_stands(sim_state *sim, sim_unit *unit)
+{
+    sim_target target = sim_target_at(sim, unit->force_id, unit->order_hex);
+    return target.slot_city != SIM_NO_CITY;
+}
+
+/* The attack of an attack order on a facility: the normal attack of the
+   class when the hex is in range. Returns true after an attack. */
+internal b32
+sim_order_attack_facility(sim_state *sim, u32 unit_id, sim_event_sink *events)
+{
+    sim_unit *unit = sim->units + unit_id;
+    if ((u32)hex_distance(unit->hex, unit->order_hex) > sim_attack_range(sim, unit)) return false;
+    return sim_ai_attack(sim, unit_id, unit->order_hex, events);
+}
+
 /* One turn of the order of a unit. A unit in 混亂 or 偽報 cannot act: the
    order waits. */
 internal void
@@ -175,6 +194,20 @@ sim_run_unit_order(sim_state *sim, u32 unit_id, u32 cause, sim_event_sink *event
             sim_unit *target = sim_order_target(sim, unit, true);
             if (!target) { sim_end_unit_order(sim, unit_id, cause, events); break; }
             if (hex_distance(unit->hex, target->hex) > 1) sim_unit_step(sim, unit_id, target->hex, true, cause, events);
+        } break;
+        case UNIT_ORDER_ATTACK_FACILITY:
+        {
+            /* G3-020 (observed 2026-10-23): the unit marches at each 進行 and attacks the facility when it is next to it. */
+            if (!sim_order_facility_stands(sim, unit)) { sim_end_unit_order(sim, unit_id, cause, events); break; }
+            b32 attacked = sim_order_attack_facility(sim, unit_id, events);
+            if (!attacked)
+            {
+                sim_unit_step(sim, unit_id, unit->order_hex, true, cause, events);
+                if (unit->alive) attacked = sim_order_attack_facility(sim, unit_id, events);
+            }
+            if (!unit->alive) break;
+            if (!sim_order_facility_stands(sim, unit)) sim_end_unit_order(sim, unit_id, cause, events);
+            (void)attacked;
         } break;
         default:
             break;
@@ -215,6 +248,22 @@ sim_check_long_order(sim_state *sim, sim_command_kind kind, sim_unit_order *orde
     sim_refusal refusal = sim_check_unit_common(sim, order, &unit);
     if (refusal != SIM_REFUSAL_NONE) return sim_refuse(check, refusal);
     if (unit->state != UNIT_STATE_NONE) return sim_refuse(check, SIM_REFUSAL_UNIT_CONFUSED);
+    if (kind == SIM_COMMAND_ATTACK_FACILITY)
+    {
+        /* G3-020: the hex holds a facility of a hostile city, and the unit can reach the hex before it. */
+        unit_type_kind *type = sim_unit_type(sim, unit->unit_type);
+        if (!type || !type->can_attack) return sim_refuse(check, SIM_REFUSAL_NO_APTITUDE);
+        sim_target facility = sim_target_at(sim, unit->force_id, order->to);
+        if (facility.slot_city == SIM_NO_CITY) return sim_refuse(check, SIM_REFUSAL_NO_TARGET);
+        sim_reach plan = sim_unit_plan(sim, order->unit, order->to, scratch);
+        u32 place = sim_reach_find(&plan, order->to);
+        if (place == U32_MAX) return sim_refuse(check, SIM_REFUSAL_UNREACHABLE);
+        u32 last = plan.from[place] != U32_MAX ? plan.costs[plan.from[place]] : 0;
+        check.days    = sim_plan_days(sim, unit, last);
+        check.turns   = check.days / CALENDAR_DAYS_PER_TURN;
+        check.assumed = true;
+        return check;
+    }
     sim_unit *target = sim_find_unit(sim, order->target);
     if (!target || order->target == order->unit) return sim_refuse(check, SIM_REFUSAL_NO_TARGET);
     if (kind == SIM_COMMAND_FOLLOW)
@@ -248,6 +297,12 @@ sim_long_order(sim_state *sim, sim_command command, sim_event_sink *events)
     if (command.kind == SIM_COMMAND_DELEGATE)
     {
         sim_run_unit_orders(sim, sim_whose_turn(sim), command.id, events);
+        return;
+    }
+    if (command.kind == SIM_COMMAND_ATTACK_FACILITY)
+    {
+        sim_give_unit_order(sim, order->unit, UNIT_ORDER_ATTACK_FACILITY, order->to, SIM_NO_UNIT, command.id, events);
+        sim_run_unit_order(sim, order->unit, command.id, events);
         return;
     }
     u8 kind = (u8)(command.kind == SIM_COMMAND_DESTROY_TARGET ? UNIT_ORDER_DESTROY :
