@@ -44,7 +44,11 @@ A click or a drag on the disc calls ui_minimap_move_camera. The camera
 goes to the hex under the mouse. The distance, the yaw and the tilt stay.
 
 ## The unit plates
-ui_draw_unit_plate draws a plate over each unit:
+ui_draw_unit_plate draws a plate over each unit. The plate stands on the
+head of the sprite. Its anchor is UI_UNIT_PLATE_LIFT world units above
+the hex, a little more than the height of the sprite. Before 2026-10-24
+the plate stood far above the unit. The player did not see the unit of a
+plate. The plate shows:
 - The portrait. ui_officer_portrait gives the default portrait of the
   commander (docs/ASSETS.md, default portraits). The plate shows a square
   from the top of the picture. If there is no portrait archive, a square
