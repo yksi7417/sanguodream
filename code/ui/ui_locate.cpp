@@ -224,8 +224,10 @@ enum ui_unit_mark { UI_UNIT_MARK_READY, UI_UNIT_MARK_DONE, UI_UNIT_MARK_DELEGATE
 internal u32
 ui_unit_mark_of(engine_unit *unit, u8 corps)
 {
+    /* A unit with a long order shows 完 after its step of this turn (the
+       player asked on 2026-10-24: 委 alone did not tell whether it was done). */
+    if (unit->acted || (unit->order && unit->moved)) return UI_UNIT_MARK_DONE;
     if (unit->order) return UI_UNIT_MARK_DELEGATED;
-    if (unit->acted) return UI_UNIT_MARK_DONE;
     if (corps != 0)  return UI_UNIT_MARK_DELEGATED;
     return UI_UNIT_MARK_READY;
 }

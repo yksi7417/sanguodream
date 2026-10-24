@@ -1362,6 +1362,10 @@ unit_target.follow_before	即將隨
 unit_target.follow_after	前進。確定嗎？
 unit_target.facility_before	即將對
 unit_target.facility_after	進行攻擊。確定嗎？
+unit_target.base_before	是否進入
+unit_target.base_after	？
+log.place_before	【
+log.place_after	】
 hover.army	軍
 unit_target.yes	是
 unit_target.no	否

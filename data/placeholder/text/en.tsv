@@ -1363,6 +1363,10 @@ unit_target.follow_before	Follow 	the follow order: before the unit name
 unit_target.follow_after	?	the follow order: after the unit name
 unit_target.facility_before	Attack 	即將對
 unit_target.facility_after	? Are you sure?	進行攻擊。確定嗎？
+unit_target.base_before	Enter 	是否進入: the entry of an own port or pass
+unit_target.base_after	?
+log.place_before	[	the place of a log line, before its name
+log.place_after	] 	the place of a log line, after its name
 hover.army	 army	軍
 unit_target.yes	Yes	是
 unit_target.no	No	否

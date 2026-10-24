@@ -133,8 +133,8 @@ grain, weapons, a morale and officers. The soldiers are
 sim_base_state.troops. The rest is sim_base_stock, in base_stocks at the
 end of sim_state. A save of an older build loads with empty stocks.
 sim_depot_at gives one view of a city and of a base for the commands that
-both share: the location id, the force, the pointers to the stocks, the
-soldier cap and the hex. The player reported on 2026-10-23 that a unit
+both share. The view holds the location id, the force, the pointers to
+the stocks, the soldier cap and the hex. The player reported on 2026-10-23 that a unit
 stood on a port and did not enter it. Now:
 - a unit of the player that ends its move on an own port or pass enters it
   (sim_unit_enter_base). The base takes its soldiers up to the cap of the
@@ -144,20 +144,22 @@ stood on a port and did not enter it. Now:
 - a unit on a long order stands on the base as a waypoint and enters it
   only when the base is its goal (assumed). Thus a pass at the edge of the
   reach does not swallow a 移動 order;
+- a unit of the player without a long order that stands on an own base
+  at the turn enters it (sim_run_units_turn; the player, 2026-10-24);
 - a computer unit never enters a port or a pass (assumed). It has no
   sortie from a base;
 - 出征 and 輸送 work from a port or a pass with its own officers and stock
   (sim_check_sortie with sim_depot_at). The home of the unit is the base,
   and 退卻 goes back into it;
 - the panel of a port or a pass (ui_draw_base_panel) shows the fields of
-  the original: 資金, 兵糧, 耐久, 士兵, 氣力, the weapon stock, 現役 and
-  俘虜. Then the buttons 出征 and 輸送 follow. The other buttons of the
+  the original. The fields are 資金, 兵糧, 耐久, 士兵, 氣力, the weapon
+  stock, 現役 and 俘虜. Then the buttons 出征 and 輸送 follow. The other buttons of the
   port menu wait. A click on an own port or pass opens the panel, as does
   a right click on its row of the list.
 
 The spec gives no rule for the morale of a base, and no rule for a unit
-that ends a long order on a waypoint. Both are assumed and are in
-docs/PROGRESS-GAP3.md.
+that ends a long order on a waypoint. docs/PROGRESS-GAP3.md lists both
+assumptions.
 
 ## engine_api
 - `base_count`, `base_at`, `base_at_hex`, `corps_at`, `city_corps`,

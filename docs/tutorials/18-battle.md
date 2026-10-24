@@ -252,7 +252,10 @@ them, and it reads the facts through engine_api.
   render_sprite. The scene draws that picture on the hex of the unit
   (docs/ASSETS.md, "Unit sprites"). Each class has its own sprite. The
   renderer takes the art of the class when the pack has it, else the
-  placeholder picture (2026-10-24). A land unit on a river or on the
+  placeholder picture (2026-10-24). A land unit that took a 樓船 or a 鬥艦
+  from the stock shows that ship on the water. The hits and the strikes
+  of the new events wait for the walk of a unit: the action shows after
+  the move (ui_war_update). A land unit on a river or on the
   sea is a 走舸, so it shows the boat and not its weapon. The water
   rule is the one of the sim: the terrain has a navy cost and no foot
   cost (ui_hex_is_water).

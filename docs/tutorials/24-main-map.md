@@ -55,8 +55,10 @@ plate. The plate shows:
   in the faction colour with the first character of the commander's name
   stands in for the portrait.
 - The unit name and the status mark. ui_unit_mark_of gives 完 (grey) after
-  the unit acted in this turn. It gives 委 (blue) when the home city of the
-  unit is in a corps other than corps 0. Else it gives 未 (green).
+  the unit acted in this turn, or after the step of its long order (the
+  player, 2026-10-24). It gives 委 (blue) when the unit has a long order.
+  It also gives 委 when the home city of the unit is in a corps other
+  than corps 0. Else it gives 未 (green).
 - The supply icon 糧 and the soldiers. unit_at gives grain_turns: the
   turns that the grain lasts at one grain for each grain.soldiers
   soldiers. ui_grain_colour makes the icon red below 3 turns, yellow below

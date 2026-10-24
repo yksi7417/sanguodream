@@ -78,6 +78,42 @@ ui_report_subject(ui_state *ui, engine_api *api, const engine_event_report *repo
     else if (report->subject.kind == ENGINE_SUBJECT_OFFICER) ui_officer_text(ui, api, report->subject.id, out, out_size);
 }
 
+/* The place of an event: the city, the port or the pass where it happens,
+   or the unit (its commander and 隊) of an officer in the field. Empty
+   when the event has no place. */
+internal void
+ui_report_place(ui_state *ui, engine_api *api, const engine_event_report *report, char *out, u32 out_size)
+{
+    out[0] = 0;
+    if (report->kind == SIM_EVENT_BASE_TAKEN || report->kind == SIM_EVENT_UNIT_ENTERED_BASE)
+    {
+        if (report->detail >= CONTENT_FIRST_BASE && report->detail < CONTENT_FIRST_BASE + CONTENT_BASE_COUNT) ui_city_label(ui, api, (u8)report->detail, out, out_size);
+        return;
+    }
+    if (report->subject.kind == ENGINE_SUBJECT_CITY) { ui_city_label(ui, api, (u8)report->subject.id, out, out_size); return; }
+    if (report->subject.kind != ENGINE_SUBJECT_OFFICER) return;
+    engine_officer officer = api->officer_by_id(api->engine, report->subject.id);
+    if (officer.officer_id == ENGINE_NO_OFFICER) return;
+    if (officer.current_position < CONTENT_FIRST_BASE + CONTENT_BASE_COUNT) { ui_city_label(ui, api, (u8)officer.current_position, out, out_size); return; }
+    if (officer.current_position == 0xFFFF) return;
+    engine_unit unit = api->unit_at(api->engine, officer.current_position - (CONTENT_FIRST_BASE + CONTENT_BASE_COUNT));   /* 87 + the unit index */
+    if (unit.id != ENGINE_NO_UNIT) ui_unit_label(ui, api, &unit, out, out_size);
+}
+
+/* The log line starts with its place, 【長安】 or 【張遼隊】, when the words
+   do not name it (the player, 2026-10-24: every record says where it
+   happens). */
+internal void
+ui_report_add_place(ui_state *ui, engine_api *api, const engine_event_report *report, char *text, u32 text_size)
+{
+    char place[UI_NAME_SIZE * 2];
+    ui_report_place(ui, api, report, place, sizeof(place));
+    if (!place[0] || strstr(text, place)) return;
+    char line[UI_NAME_SIZE * 6];
+    snprintf(line, sizeof(line), "%s%s%s%s", text_get(ui->text, "log.place_before"), place, text_get(ui->text, "log.place_after"), text);
+    snprintf(text, text_size, "%s", line);
+}
+
 /* One line of words for a ledger event: a log line or a speech. */
 internal void
 ui_report_line(ui_state *ui, engine_api *api, u32 ledger_index, s64 value, u32 form, char *out, u32 out_size)
@@ -261,6 +297,7 @@ ui_draw_log_line(ui_state *ui, engine_api *api, u32 place)
     char text[UI_NAME_SIZE * 6];
     ui_report_line(ui, api, line, ui->report.values[place], TEXT_LINE_LOG, text, sizeof(text));
     engine_event_report report = api->event_report(api->engine, line);
+    ui_report_add_place(ui, api, &report, text, sizeof(text));
     ImGui::PushStyleColor(ImGuiCol_Text, ui_report_colour(report.sign));
     ImGui::Bullet();
     ImGui::SameLine();

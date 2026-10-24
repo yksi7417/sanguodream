@@ -83,6 +83,28 @@ unit_render_tests(test_counts *counts)
     }
     TEST_CHECK(counts, round_trip, "project then pick returns the same hex for every cell");
 
+    /* The raised ground: the pixel of the top of a raised hex picks that hex,
+       where the plane alone picks a hex behind it (the player, 2026-10-24). */
+    {
+        u8 levels[10 * 8] = {};
+        hex_offset raised_offset; raised_offset.col = 5; raised_offset.row = 4;
+        hex_coord raised = hex_from_offset(raised_offset);
+        levels[4 * 10 + 5] = 6;
+        f32 step = 0.35f;
+        f32 sx = 0, sy = 0;
+        hex_coord plane_hex = {}, level_hex = {};
+        b32 projected = camera_project(far_vp, hex_world_center(raised, 6.0f * step), vw, vh, &sx, &sy);
+        b32 plane_pick = camera_pick_hex(&far_cam, sx, sy, vw, vh, &plane_hex);
+        b32 level_pick = camera_pick_hex_levels(&far_cam, sx, sy, vw, vh, levels, 10, 8, step, &level_hex);
+        TEST_CHECK(counts, projected && plane_pick && !hex_equal(plane_hex, raised), "the plane pick misses the top of a raised hex");
+        TEST_CHECK(counts, level_pick && hex_equal(level_hex, raised), "the pick with the levels finds the raised hex under its top");
+        hex_offset flat_offset; flat_offset.col = 2; flat_offset.row = 2;
+        hex_coord flat = hex_from_offset(flat_offset);
+        projected = camera_project(far_vp, hex_world_center(flat, 0.0f), vw, vh, &sx, &sy);
+        level_pick = camera_pick_hex_levels(&far_cam, sx, sy, vw, vh, levels, 10, 8, step, &level_hex);
+        TEST_CHECK(counts, projected && level_pick && hex_equal(level_hex, flat), "the pick with the levels keeps a flat hex");
+    }
+
     /* a ray that points above the horizon never meets the ground */
     ray upward;
     upward.origin = v3_make(0.0f, 10.0f, 0.0f);

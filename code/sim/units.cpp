@@ -1084,6 +1084,16 @@ internal void
 sim_run_units_turn(sim_state *sim, u32 cause, sim_event_sink *events)
 {
     sim_rules *rules = &sim->content.rules;
+    /* A unit of the player that stands on an own port or pass without a
+       long order enters it at the turn (the player, 2026-10-24: a unit on
+       a base is in the base, as in a city). */
+    for (u32 unit_id = 0; unit_id < sim->unit_count; ++unit_id)
+    {
+        sim_unit *unit = sim->units + unit_id;
+        if (!unit->alive || unit->order != UNIT_ORDER_NONE || unit->force_id >= SIM_FORCE_CAPACITY || !sim->turns.human[unit->force_id]) continue;
+        u32 base = sim_base_at(sim, unit->hex);
+        if (base != SIM_NO_BASE && sim->bases[base].force == unit->force_id) sim_unit_enter_base(sim, unit_id, base, SIM_EVENT_NONE, cause, events);
+    }
     if (!rules->unit_grain_soldiers) return;
     for (u32 unit_id = 0; unit_id < sim->unit_count; ++unit_id)
     {

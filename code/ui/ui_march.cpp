@@ -595,6 +595,13 @@ ui_unit_click(ui_state *ui, engine_api *api, hex_coord hex)
     }
     if (!has_selection) { ui_select_unit(ui, ENGINE_NO_UNIT); return false; }
     engine_unit unit = api->unit_at(api->engine, ui->units.selected);
+    if (unit.acted && on_hex != ENGINE_NO_UNIT && on_hex != unit.id && api->unit_at(api->engine, on_hex).force_id == acting)
+    {
+        /* The selected unit is done for this turn: a click on another own unit
+           selects that unit, and asks for no follow order (the player, 2026-10-24). */
+        ui_select_unit(ui, on_hex);
+        return true;
+    }
     if (unit.q == hex.q && unit.r == hex.r)
     {
         ui->units.has_pending_move = false;
@@ -605,6 +612,15 @@ ui_unit_click(ui_state *ui, engine_api *api, hex_coord hex)
     for (u32 index = 1; index < reach.count; ++index)
     {
         if (reach.cells[index].q != hex.q || reach.cells[index].r != hex.r) continue;
+        engine_hex data = api->hex_at(api->engine, hex.q, hex.r);
+        if (data.base_id != ENGINE_NO_BASE && api->base_at(api->engine, data.base_id).force == unit.force_id)
+        {
+            /* An own port or pass in the range: the question 是否進入, not the
+               command menu (the player, 2026-10-24). 是 moves the unit, and the
+               unit enters the base. */
+            ui_open_target_menu(ui, UI_TARGET_BASE, hex, ENGINE_NO_UNIT);
+            return true;
+        }
         /* G2-045: the command menu opens at the destination, with its items
            checked from there. The unit moves with the choice
            (ui_commit_pending_move), so a right click leaves it in place. */
@@ -994,6 +1010,23 @@ ui_draw_unit_target_menu(ui_state *ui, engine_api *api)
             }
             ImGui::SameLine();
             if (ImGui::Button(ui_label(label, sizeof(label), ui, "unit_target.no", "facility_no"), ImVec2(80.0f, 0.0f))) open = false;
+        }
+        else if (kind == UI_TARGET_BASE)
+        {
+            /* The entry of an own port or pass: 是 moves the unit onto the base, and the sim takes it in. */
+            char name[128] = "?";
+            engine_hex data = api->hex_at(api->engine, hex.q, hex.r);
+            if (data.base_id != ENGINE_NO_BASE) ui_city_label(ui, api, api->base_at(api->engine, data.base_id).id, name, sizeof(name));
+            ImGui::Text("%s%s%s", text_get(ui->text, "unit_target.base_before"), name, text_get(ui->text, "unit_target.base_after"));
+            if (ImGui::Button(ui_label(label, sizeof(label), ui, "unit_target.yes", "base_yes"), ImVec2(80.0f, 0.0f)))
+            {
+                ui_walk_plan(ui, api, unit.id, hex.q, hex.r);
+                result = api->command_move(api->engine, unit.id, hex.q, hex.r); sent = true; text_id = "unit_target.base_before";
+                if (result.refusal == SIM_REFUSAL_NONE) ui_walk_begin(ui, api, unit.id, false);
+                else                                    ui_walk_cancel(ui);
+            }
+            ImGui::SameLine();
+            if (ImGui::Button(ui_label(label, sizeof(label), ui, "unit_target.no", "base_no"), ImVec2(80.0f, 0.0f))) open = false;
         }
         else if (kind == UI_TARGET_FOLLOW)
         {

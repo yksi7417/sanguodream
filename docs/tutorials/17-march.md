@@ -132,7 +132,12 @@ is the change of the city.
 
 The city of the order is a location id. A port or a pass of the faction
 takes the same command with its own officers and stock (the play report of
-2026-10-23). sim_check_sortie reads the base through sim_depot_at. The
+2026-10-23). A click on an own port or pass in the range of a unit asks
+the question of the entry (UI_TARGET_BASE), not the command menu. The
+button 是 moves the unit, and the sim takes it into the base. After the
+selected unit acted, a click on
+another own unit selects that unit and asks for no follow order (the
+player, 2026-10-24). sim_check_sortie reads the base through sim_depot_at. The
 new unit stands next to the base, and its home is the base. A port or a
 pass has no military office. Tutorial 20 has the rules of a base.
 

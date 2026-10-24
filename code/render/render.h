@@ -394,6 +394,34 @@ camera_pick_hex(camera *c, f32 px, f32 py, f32 viewport_width, f32 viewport_heig
     return true;
 }
 
+/* The pick on the raised ground: the ray meets the top plane of each level
+   from the highest down, and the first hex whose own level is that of the
+   plane is the pick. levels holds the level of each cell by its offset
+   (row * width + col), and level_step is the height of one level. The
+   ground plane alone picked the hex under the top of a raised column, one
+   or two hexes off (the player, 2026-10-24). Off the raised ground the
+   pick falls back to the plane. */
+internal b32
+camera_pick_hex_levels(camera *c, f32 px, f32 py, f32 viewport_width, f32 viewport_height,
+                       const u8 *levels, u32 width, u32 height, f32 level_step, hex_coord *out)
+{
+    if (!levels || !width || !height) return camera_pick_hex(c, px, py, viewport_width, viewport_height, out);
+    m4 vp = camera_view_projection(c, viewport_width, viewport_height);
+    ray r = camera_ray(vp, px, py, viewport_width, viewport_height);
+    u8 top = 0;
+    for (u32 cell = 0; cell < width * height; ++cell) if (levels[cell] > top) top = levels[cell];
+    for (s32 level = (s32)top; level >= 0; --level)
+    {
+        v3 hit;
+        if (!ray_hit_plane_y(r, (f32)level * level_step, &hit)) continue;
+        hex_coord h = hex_from_world(hit);
+        hex_offset o = hex_to_offset(h);
+        if (o.col < 0 || o.row < 0 || (u32)o.col >= width || (u32)o.row >= height) continue;
+        if (levels[(u32)o.row * width + (u32)o.col] == (u8)level) { *out = h; return true; }
+    }
+    return camera_pick_hex(c, px, py, viewport_width, viewport_height, out);
+}
+
 /* ---- the command buffer ------------------------------------------------- */
 
 /* One set of terrain cells for the mesh builder and the overlay texture.

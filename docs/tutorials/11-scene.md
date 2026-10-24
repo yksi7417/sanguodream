@@ -35,6 +35,11 @@ graphics API: it fills a command buffer, and the platform draws it.
    floor. Each vertex carries its cell index and its material tile.
 4. png.h: a PNG decoder on the engine's own inflate. The platform uses it
    for the material atlas and the sprites.
+   The pick of the mouse (camera_pick_hex_levels) meets the top plane of
+   each terrain level from the highest down. The first hex whose own level
+   is that of the plane is the hex under the mouse. The ground plane alone
+   picked the hex under the top of a raised column, one or two hexes off
+   (the player, 2026-10-24).
 5. d3d11_renderer.h: the HLSL is a string compiled at startup. The terrain
    draw samples the atlas by tile and the overlay texture by cell. Models
    and billboards are instanced: one draw for each mesh id or sprite id.

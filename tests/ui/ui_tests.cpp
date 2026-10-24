@@ -2311,6 +2311,56 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK(strstr(line, "\xE6\x80\xA5\xE5\xA0\xB1") != 0);   /* zh-TW: 急報 */
     };
 
+    /* The player, 2026-10-24: a click on an own port or pass in the range
+       asks 是否進入 instead of the command menu; 是 sends one command_move
+       onto the base, and the selection ends. */
+    t = IM_REGISTER_TEST(e, "ui", "a_click_on_an_own_port_in_the_range_asks_before_the_entry");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.recorder.own_base_hex  = true;   /* the port of recorder_base_at(0) stands at (3, 2), in the range of unit 0 */
+        ctx->Yield();
+        ui_test_click_cell(ctx, v, hex_make(1, 2));
+        recorder_reset(&v.recorder);
+        ui_test_click_cell(ctx, v, hex_make(3, 2));
+        ctx->Yield();
+        IM_CHECK(v.ui.units.target_kind == UI_TARGET_BASE && !v.ui.show_unit_menu && !v.ui.units.has_pending_move);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        ctx->SetRef("//###UnitTarget");
+        ctx->ItemClick("###base_yes");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_MOVE), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(v.recorder.last_unit_command.q == 3 && v.recorder.last_unit_command.r == 2);
+        IM_CHECK(v.ui.units.target_kind == UI_TARGET_NONE && v.ui.units.selected == ENGINE_NO_UNIT);
+    };
+
+    /* The player, 2026-10-24: after the selected unit acted, a click on
+       another own unit selects that unit and asks for no follow order. */
+    t = IM_REGISTER_TEST(e, "ui", "a_click_on_another_own_unit_after_the_action_selects_it");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.recorder.units_acted   = true;
+        ctx->Yield();
+        ui_test_click_cell(ctx, v, hex_make(1, 2));
+        IM_CHECK_EQ(v.ui.units.selected, 0u);
+        recorder_reset(&v.recorder);
+        ui_test_click_cell(ctx, v, hex_make(1, 3));   /* unit 1 of the same force */
+        ctx->Yield();
+        IM_CHECK_EQ(v.ui.units.selected, 1u);
+        IM_CHECK(v.ui.units.target_kind == UI_TARGET_NONE);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
     /* G3-020: a click on an enemy facility out of the range asks the question
        of the attack order; 是 sends one command_attack_facility on the hex. */
     t = IM_REGISTER_TEST(e, "ui", "far_click_on_an_enemy_facility_asks_and_orders_the_attack");
@@ -2399,6 +2449,9 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(ui_unit_sprite(&v.api, &unit), (u32)RENDER_SPRITE_BOAT);
         unit.unit_type = 4;   /* cavalry */
         IM_CHECK_EQ(ui_unit_sprite(&v.api, &unit), (u32)RENDER_SPRITE_BOAT);
+        unit.ship_type = 10;  /* a land unit that rows a 樓船 from the stock shows the ship (2026-10-24) */
+        IM_CHECK_EQ(ui_unit_sprite(&v.api, &unit), (u32)RENDER_SPRITE_TOWER_SHIP);
+        unit.ship_type = ENGINE_NO_UNIT_TYPE;
         unit.unit_type = 10;  /* tower ship */
         IM_CHECK_EQ(ui_unit_sprite(&v.api, &unit), (u32)RENDER_SPRITE_TOWER_SHIP);
         unit.q = 2; unit.r = 2;
@@ -4767,8 +4820,12 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(ui_plate_unit_at(&v.ui, 60.0f, 20.0f), (u32)ENGINE_NO_UNIT);
         engine_unit unit = {};
         unit.order = UNIT_ORDER_MOVE;
+        IM_CHECK_EQ(ui_unit_mark_of(&unit, 0), (u32)UI_UNIT_MARK_DELEGATED);   /* 委 before its step */
+        unit.moved = true;
+        IM_CHECK_EQ(ui_unit_mark_of(&unit, 0), (u32)UI_UNIT_MARK_DONE);        /* 完 after its step of the turn (2026-10-24) */
+        unit.moved = false;
         unit.acted = true;
-        IM_CHECK_EQ(ui_unit_mark_of(&unit, 0), (u32)UI_UNIT_MARK_DELEGATED);
+        IM_CHECK_EQ(ui_unit_mark_of(&unit, 0), (u32)UI_UNIT_MARK_DONE);
 
         v.ui.hud_mode = true;
         ctx->Yield();

@@ -38,7 +38,7 @@ enum ui_context_kind
 /* The target menu of a selected unit after a click out of its range
    (clone gap report 2: G2-052 on an enemy unit, the follow order on an
    own unit, G2-058 on a far hex). */
-enum ui_target_kind { UI_TARGET_NONE, UI_TARGET_ENEMY, UI_TARGET_FOLLOW, UI_TARGET_FAR, UI_TARGET_FACILITY };   /* UI_TARGET_FACILITY: G3-020, the question before an attack order on a facility */
+enum ui_target_kind { UI_TARGET_NONE, UI_TARGET_ENEMY, UI_TARGET_FOLLOW, UI_TARGET_FAR, UI_TARGET_FACILITY, UI_TARGET_BASE };   /* UI_TARGET_FACILITY: G3-020, the question before an attack order on a facility; UI_TARGET_BASE: the question before the entry of an own port or pass */
 #define UI_PLATE_CAPACITY 128   /* the unit plates of one frame that a click can hit (G2-042) */
 
 /* M22, screen-flow.md, rule 7: the pitch of the rows of a list, of the

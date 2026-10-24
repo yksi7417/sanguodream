@@ -612,6 +612,22 @@ feature_base_entry_tests(test_counts *counts)
     engine_command_result retreat = out != ENGINE_NO_UNIT ? api->command_retreat(e, out) : sortie;
     TEST_CHECK(counts, retreat.refusal == SIM_REFUSAL_NONE && api->unit_at(e, out).id == ENGINE_NO_UNIT && api->depot_at(e, base.id).troops == after.troops,
                "退卻 returns the unit into its base with its soldiers");
+
+    /* A unit of the player that stands on an own base enters it at the turn (the player, 2026-10-24). */
+    feature_next_own_turn(api, force);
+    api->set_actions(e, force, 255);
+    if (api->pending_event(e).active) api->command_event_choice(e, 0);   /* an event of the month waits for a choice: answer it */
+    engine_sortie_order standing_order = feature_pike_order(api, city, 1);
+    engine_command_result standing_sortie = api->command_sortie(e, &standing_order);
+    u32 standing = feature_unit_of_commander(api, standing_order.officers[0]);
+    engine_depot before_turn = api->depot_at(e, base.id);
+    TEST_CHECK(counts, standing_sortie.refusal == SIM_REFUSAL_NONE && standing != ENGINE_NO_UNIT, "a second sortie of the city gives a unit");
+    b32 placed = standing != ENGINE_NO_UNIT && api->set_unit_place(e, standing, force, base.q, base.r);
+    u32 standing_soldiers = api->unit_at(e, standing).soldiers;
+    feature_next_own_turn(api, force);
+    TEST_CHECK(counts, placed, "the editor puts a unit on the hex of an own port or pass");
+    TEST_CHECK(counts, api->unit_at(e, standing).id == ENGINE_NO_UNIT, "a unit that stands on an own port or pass at the turn enters it");
+    TEST_CHECK(counts, api->depot_at(e, base.id).troops == before_turn.troops + standing_soldiers, "the base takes the soldiers of the unit that stood on it");
     engine_fixture_destroy(&setup.fixture);
 }
 

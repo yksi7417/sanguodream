@@ -91,7 +91,8 @@ ui_scene_handle_mouse(ui_state *ui, engine_api *api, f32 viewport_width, f32 vie
 
     hex_coord under;
     engine_map_size size = api->map_size(api->engine);
-    if (camera_pick_hex(&ui->scene.cam, io.MousePos.x, io.MousePos.y, viewport_width, viewport_height, &under))
+    engine_terrain_view view = api->terrain_view(api->engine);   /* the levels: the pick meets the top of a raised hex (the player, 2026-10-24) */
+    if (camera_pick_hex_levels(&ui->scene.cam, io.MousePos.x, io.MousePos.y, viewport_width, viewport_height, view.level, view.width, view.height, TERRAIN_STEP, &under))
     {
         hex_offset o = hex_to_offset(under);
         if (o.col >= 0 && o.row >= 0 && (u32)o.col < size.width && (u32)o.row < size.height)

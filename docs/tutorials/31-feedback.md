@@ -96,7 +96,11 @@ template provider.
   bandits (G3-010, G3-017). After a load the log starts empty (G3-023).
   A line of a unit event names the unit
   by its commander (周泰隊：士兵 -232). The commander is the subject of
-  the event, so the name stays after the unit is gone.
+  the event, so the name stays after the unit is gone. Each line starts
+  with its place when the words do not name it (ui_report_add_place; the
+  player, 2026-10-24). The place is the city, the port or the pass of
+  the event, or the unit of an officer in the field. It shows as 【長安】
+  or 【張遼隊】.
 - The speech bubble (main-map.md, "Speech bubble") opens over the base
   after a command of the player. One of the executors of a city command
   speaks in the tone of the event. The command id picks him (G2-018,

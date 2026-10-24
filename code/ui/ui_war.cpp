@@ -264,7 +264,17 @@ ui_unit_sprite(engine_api *api, engine_unit *unit)
 {
     engine_unit_type type = api->unit_type_at(api->engine, unit->unit_type);
     if (type.id == ENGINE_NO_UNIT_TYPE) return RENDER_SPRITE_UNIT;
-    if (type.movement != MOVEMENT_NAVY && ui_hex_is_water(api, unit->q, unit->r)) return RENDER_SPRITE_BOAT;
+    if (type.movement != MOVEMENT_NAVY && ui_hex_is_water(api, unit->q, unit->r))
+    {
+        /* G2-057: a land unit that took a 樓船 or a 鬥艦 from the stock rows as that ship (the player, 2026-10-24). */
+        if (unit->ship_type != ENGINE_NO_UNIT_TYPE)
+        {
+            engine_unit_type ship = api->unit_type_at(api->engine, unit->ship_type);
+            if (!strcmp(ship.key, "tower_ship"))  return RENDER_SPRITE_TOWER_SHIP;
+            if (!strcmp(ship.key, "battle_ship")) return RENDER_SPRITE_BATTLE_SHIP;
+        }
+        return RENDER_SPRITE_BOAT;
+    }
     if (!strcmp(type.key, "sword"))     return RENDER_SPRITE_SWORD;
     if (!strcmp(type.key, "pike"))      return RENDER_SPRITE_PIKE;
     if (!strcmp(type.key, "halberd"))   return RENDER_SPRITE_HALBERD;
@@ -305,6 +315,10 @@ ui_war_update(ui_state *ui, engine_api *api, f32 dt_seconds)
     }
     ui->war.hit_count = kept;
 
+    /* The hits and the strikes of the new events wait for the walk of the
+       unit: the action shows after the move, not with it (the player,
+       2026-10-24). The events stay in the ledger until the walk ends. */
+    if (ui_walk_active(ui)) return;
     u32 count = api->ledger_count(api->engine);
     if (ui->war.ledger_mark > count) ui->war.ledger_mark = 0;   /* a load replaced the ledger */
     u8 player = ui_report_player(api);
