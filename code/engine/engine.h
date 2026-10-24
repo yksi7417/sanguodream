@@ -488,6 +488,7 @@ struct engine_unit
     u8  state_turns;
     u32 grain_turns;        /* M12: the turns that the grain lasts at the rate of grain.soldiers (the supply icon) */
     u8  ship_type;          /* the ship class of a unit of a save (record +41); ENGINE_NO_UNIT_TYPE = the ship row of unit_type */
+    u8  effective_type;     /* U-003: the class that the unit fights with on its hex now. On water a land unit is its ship. The tactics follow it. */
     u8  order;              /* the long order (sim_unit_order_kind; UNIT_ORDER_NONE = none): the plate shows 委 */
     s32 order_q, order_r;   /* UNIT_ORDER_MOVE: the goal */
     u32 order_target;       /* destroy, drive, follow: the unit; ENGINE_NO_UNIT */

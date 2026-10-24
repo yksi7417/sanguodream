@@ -52,6 +52,26 @@ ui_facility_look_of(const char *key)
     return unknown;
 }
 
+/* U-001: the placeholder shape of a field building by its building_type
+   (buildings.tsv). The colour is the colour of the owner. */
+internal u32
+ui_building_mesh(u8 type)
+{
+    switch (type)
+    {
+        case BUILDING_CAMP:     return RENDER_MESH_CAMP;
+        case BUILDING_TOWER:    return RENDER_MESH_WATCHTOWER;
+        case BUILDING_DRUM:
+        case BUILDING_MUSIC:    return RENDER_MESH_STAGE;
+        case BUILDING_MAZE:     return RENDER_MESH_STONES;
+        case BUILDING_WALL:
+        case BUILDING_DIKE:     return RENDER_MESH_WALL;
+        default:                return RENDER_MESH_TRAP;   /* the fire seeds, the fire balls, the fire ship, the rockfall */
+    }
+}
+
+#define UI_BUILDING_NO_OWNER_RGBA IM_COL32(150, 150, 150, 255)   /* a trap or a natural trap: grey, as on the Hex map */
+
 /* The same colour at a part of its brightness: a build in progress. */
 internal u32
 ui_rgba_dim(u32 rgba, f32 factor)

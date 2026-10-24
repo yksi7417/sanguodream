@@ -225,6 +225,7 @@ engine_api_unit_at(void *opaque, u32 unit_id)
     result.state       = unit->state;
     result.state_turns = unit->state_turns;
     result.ship_type   = unit->has_ship ? unit->ship_type : (u8)ENGINE_NO_UNIT_TYPE;
+    result.effective_type = sim_effective_type(sim, unit);
     result.order        = unit->order;
     result.order_q      = unit->order_hex.q;
     result.order_r      = unit->order_hex.r;

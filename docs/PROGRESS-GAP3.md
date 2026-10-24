@@ -37,6 +37,10 @@ spec-src/spec/experiments/gap3-answers-2026-10-23.md and in the fixtures.
   gain from the ability on the screen, and the screen shows some
   abilities a few points below the record. The clone uses the record.
   The spec does not give the modifier of the screen value.
+- U-004, a damaged building of a save (Q-233). The load marks a building
+  complete only when 耐久 is at the maximum. Thus the 連弩樓 at 98,105
+  with 耐久 554 of 700 shows a scaffold on the 3D map and does not shoot.
+  The clone keeps this rule until the answer.
 
 | G3-020 | A click on an enemy facility out of the range asks 即將對 X 進行攻擊。確定嗎？ with 是 and 否. The unit takes a long order (attack_facility), marches at each turn and attacks the facility when it is in range, until the facility falls. The hover panel of a facility shows its name, its owner and 耐久 as current / maximum. | batch 3 | feature/orders, ui |
 
@@ -51,6 +55,10 @@ spec-src/spec/experiments/gap3-answers-2026-10-23.md and in the fixtures.
 | G3-012 | While the window of a city is open, the row of another city moves the window there. Esc goes back one level as a right click. The X of the window closes its dialogs too. | batch 5 | ui |
 | G3-015 | The ghost text was the hover panel of the city under the mouse, drawn over the window that opened. The hover panel of a city stays closed while a city window is open. | batch 5 | ui |
 
+| U-001 | The 3D map draws each field building of building_at with a placeholder model of its kind, in the colour of its owner. The kinds are a camp, a tower, a stage, a wall, a ring of stones and a trap. A trap without an owner is grey. A build in progress is a scaffold with the smaller, dimmed model inside, as on a slot. The hover panel of a building gives its name, its owner and 耐久 current / maximum. | batch 8 | unit/render, feature/save_map, ui |
+| U-002 | A row of the list 設置 is grey when can_issue refuses the building on each hex next to the unit. The engine refuses a building without its technique, without the gold, or without a buildable hex. A building that the engine accepts shows on the 3D map (U-001). | batch 8 | ui |
+| U-003 | unit_at gives effective_type, the class that the unit fights with on its hex. On water a land unit fights as its ship. The list 戰法 of the unit menu follows effective_type. A unit on a 樓船 thus lists 火矢 and 猛撞, and a unit on a 鬥艦 also lists 投石. The tab 水上 of 部隊能力 in the sortie dialog lists the tactics of the ship. | batch 8 | feature/combat, ui |
+
 | the play notes of 2026-10-24 | A click on an own port or pass in the range asks 是否進入 X？ with 是 and 否, not the command menu. A unit of the player that stands on an own base enters it at the turn. Each log line starts with its place, 【長安】 or 【張遼隊】, when the words do not name it. A land unit that rows a 樓船 or a 鬥艦 shows that ship. After the selected unit acted, a click on another own unit selects it and asks for no follow order. The hits and the strikes of an action wait for the walk. A unit with a long order shows 完 after its step. The pick of the mouse meets the top of a raised hex, not the ground plane under it. | batch 7 | unit/render, feature/march, ui |
 | the entry of a port or a pass (2026-10-23) | A unit of the player that ends its move on an own port or pass enters it. The base takes the soldiers, the weapons, the gold and the grain, and the officers stay in the base (unit_entered_base). 出征 and 輸送 work from the base, and 退卻 goes back into it. The panel of a port shows the fields of the original and the two buttons. The officers in a base that falls become captives. | batch 6 | feature/march, ui |
 
@@ -58,6 +66,8 @@ spec-src/spec/experiments/gap3-answers-2026-10-23.md and in the fixtures.
 
 - Every row of report 3 has its fix, or waits on the spec (the section
   above). The next play report decides the next batch.
+- Batch 8 closes U-001 to U-003 of spec-src/spec/ui/play-reports.md.
+  U-004 waits on Q-233.
 
 ## Questions for the observer
 

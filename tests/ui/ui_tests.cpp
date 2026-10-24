@@ -116,6 +116,17 @@ ui_test_mesh_yaw(render_commands *rc, u32 mesh_id)
     return -100.0f;
 }
 
+/* The tint of the first instance of one mesh id, or 0 when none. */
+internal u32
+ui_test_mesh_tint(render_commands *rc, u32 mesh_id)
+{
+    for (u32 index = 0; rc && index < rc->mesh_instance_count; ++index)
+    {
+        if (rc->mesh_instances[index].mesh_id == mesh_id) return rc->mesh_instances[index].tint;
+    }
+    return 0;
+}
+
 /* The five city command dialogs of M3: the window, the City panel button,
    the UI kind and the engine command that 決定 issues. */
 struct ui_command_case
@@ -2820,6 +2831,66 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK(v.recorder.last_unit_command.row == 0 && v.recorder.last_unit_command.q == 3 && v.recorder.last_unit_command.r == 2);
     };
 
+    /* U-002 (play report 2026-10-24): a building that the engine refuses
+       on every hex next to the unit is grey. The list asks can_issue, and
+       holds no copy of the rule. */
+    t = IM_REGISTER_TEST(e, "ui", "build_list_greys_a_building_that_the_engine_refuses");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.units.selected      = 0;
+        v.ui.show_unit_menu      = true;
+        ctx->SetRef("###UnitMenu");
+        ctx->Yield(2);
+        v.recorder.can_issue_refusal = SIM_REFUSAL_NEEDS_TECHNIQUE;   /* no technique, no gold or no buildable hex */
+        ctx->ItemClick("###build");
+        ctx->Yield(2);
+        ctx->SetRef("###Actions");
+        IM_CHECK(ctx->ItemExists("###a0"));
+        IM_CHECK((ctx->ItemInfo("###a0").ItemFlags & ImGuiItemFlags_Disabled) != 0);   /* grey */
+        recorder_reset(&v.recorder);
+        v.recorder.can_issue_refusal = SIM_REFUSAL_NONE;
+        ctx->Yield(2);
+        IM_CHECK((ctx->ItemInfo("###a0").ItemFlags & ImGuiItemFlags_Disabled) == 0);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_CAN_ISSUE), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* U-003 (play report 2026-10-24): the tactics follow the class that the
+       unit fights with on its hex. A land unit on a ship on water lists the
+       tactics of the ship, not the tactics of its land class. */
+    t = IM_REGISTER_TEST(e, "ui", "tactic_list_follows_the_class_that_the_unit_fights_with");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.recorder.unit1_rival   = true;
+        v.ui.units.selected      = 0;
+        v.ui.show_unit_menu      = true;
+        ctx->SetRef("###UnitMenu");
+        ctx->Yield(2);
+        ctx->ItemClick("###tactic");
+        ctx->Yield(2);
+        ctx->SetRef("###Actions");
+        IM_CHECK(ctx->ItemExists("###a0") && !ctx->ItemExists("###a2"));               /* on land: 突刺 of the pike, no ship tactic */
+        v.recorder.unit0_effective_type = 10;                                            /* the unit rows a 樓船 on water */
+        ctx->Yield(4);                                                                   /* past the cache of the item infos */
+        IM_CHECK(ctx->ItemExists("###a2"));                                              /* on water: the 火矢 of the ship */
+        IM_CHECK(!ctx->ItemExists("###a0"));                                             /* and no 突刺 of the pike */
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###a2");
+        ctx->Yield();
+        IM_CHECK(v.ui.combat.pick == UI_PICK_TACTIC && v.ui.combat.row == 2);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
     t = IM_REGISTER_TEST(e, "ui", "unit_menu_duel_waits_for_a_hex_and_issues_one_command_duel");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;
@@ -4363,6 +4434,8 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(ui_test_count_meshes(v.frame.render, RENDER_MESH_SETTLEMENT, 0), 2u);   /* one settlement for each city */
         f32 built_scale = 0.0f, building_scale = 0.0f;
         IM_CHECK_EQ(ui_test_count_meshes(v.frame.render, RENDER_MESH_STALL, &built_scale), 4u);        /* two markets in each city */
+        v.recorder.building_complete = true;                                                          /* U-001: no scaffold for the field camp */
+        ctx->Yield();
         IM_CHECK_EQ(ui_test_count_meshes(v.frame.render, RENDER_MESH_SCAFFOLD, 0), 2u);                /* the farm under construction of each city */
         IM_CHECK_EQ(ui_test_count_meshes(v.frame.render, RENDER_MESH_FIELD, &building_scale), 2u);     /* the farm itself, smaller */
         IM_CHECK_LT(building_scale, built_scale);
@@ -4372,6 +4445,68 @@ register_ui_tests(ImGuiTestEngine *e)
         v.frame.frame_arena = 0;
         v.frame.render      = 0;
         test_arena_destroy(&frame_arena);
+    };
+
+    /* U-001 (play report 2026-10-24): the scene draws each field building
+       of building_at with the placeholder model of its kind, in the colour
+       of its owner. A build in progress is a scaffold with the smaller,
+       dimmed model inside, as on a slot. */
+    t = IM_REGISTER_TEST(e, "ui", "scene_draws_each_field_building_in_the_colour_of_its_owner");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        memory_arena frame_arena = test_arena_create(Megabytes(2));
+        v.recorder.city_count = 2;
+        v.ui.scene.headless   = true;
+        v.frame.frame_arena   = &frame_arena;
+        v.recorder.building_complete = true;
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        f32 built_scale = 0.0f, building_scale = 0.0f;
+        IM_CHECK_EQ(ui_test_count_meshes(v.frame.render, RENDER_MESH_CAMP, &built_scale), 1u);        /* the camp at (2, 3) */
+        IM_CHECK_EQ(ui_test_mesh_tint(v.frame.render, RENDER_MESH_CAMP), ui_faction_rgba(1));         /* in the colour of force 1 */
+        IM_CHECK_EQ(ui_test_count_meshes(v.frame.render, RENDER_MESH_SCAFFOLD, 0), 2u);                /* the two farms only */
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_BUILDING_AT), 1u);
+        v.recorder.building_complete = false;                                                          /* a build in progress */
+        ctx->Yield();
+        IM_CHECK_EQ(ui_test_count_meshes(v.frame.render, RENDER_MESH_CAMP, &building_scale), 1u);
+        IM_CHECK_EQ(ui_test_count_meshes(v.frame.render, RENDER_MESH_SCAFFOLD, 0), 3u);                /* the farms and the camp */
+        IM_CHECK_LT(building_scale, built_scale);
+        IM_CHECK_NE(ui_test_mesh_tint(v.frame.render, RENDER_MESH_CAMP), ui_faction_rgba(1));         /* dimmed */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        v.frame.frame_arena = 0;
+        v.frame.render      = 0;
+        test_arena_destroy(&frame_arena);
+    };
+
+    /* U-001: the hover panel of a field building gives its name, its owner
+       and 耐久 current / maximum, as G3-020 does for a facility. */
+    t = IM_REGISTER_TEST(e, "ui", "hover_panel_shows_the_field_building_under_the_mouse");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.hud_mode            = true;
+        v.ui.scene.headless      = true;
+        v.ui.show_city = v.ui.show_map = v.ui.show_officers = v.ui.show_cities = false;
+        ctx->Yield(2);
+        ui_frame_hex(&v.ui, &v.api, hex_make(2, 3));
+        v.ui.scene.cam.target.y = 0.0f;
+        ctx->Yield(3);
+        recorder_reset(&v.recorder);
+        ImVec2 display = ImGui::GetIO().DisplaySize;
+        ctx->MouseMoveToPos(ImVec2(display.x * 0.5f, display.y * 0.5f));
+        ctx->Yield(2);
+        IM_CHECK(ctx->WindowInfo("//###HoverBuilding", ImGuiTestOpFlags_NoError).Window != 0);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_BUILDING_AT), 1u);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_BUILDING_KIND_AT), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
     /* M10: a click on a city hex selects the city; the panel frames its

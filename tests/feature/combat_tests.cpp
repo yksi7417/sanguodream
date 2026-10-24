@@ -11,6 +11,10 @@
 #define FEATURE_STOCK_CROSSBOW 2
 #define FEATURE_TACTIC_PIERCE  0
 #define FEATURE_TACTIC_TOWER   14
+#define FEATURE_TACTIC_SHIP_ARROW 16   /* 火矢 of boat, tower_ship and battle_ship; grade B */
+#define FEATURE_TACTIC_RAM_SHIP   17   /* 猛撞 of tower_ship and battle_ship; grade A */
+#define FEATURE_UNIT_TOWER_SHIP   10
+#define FEATURE_APTITUDE_A        2    /* 0 C .. 3 S */
 #define FEATURE_PLOT_FIRE      0
 #define FEATURE_PLOT_CONFUSION 3
 #define FEATURE_PLOT_AMBUSH    5
@@ -503,10 +507,75 @@ feature_water_tests(test_counts *counts)
     engine_fixture_destroy(&setup.fixture);
 }
 
+/* U-003 (play report 2026-10-24): a land unit on a 樓船 on water fights as
+   the ship. unit_at gives that class as effective_type, and the unit can
+   use 火矢 and 猛撞 of the navy against an enemy ship. */
+internal void
+feature_ship_tactic_tests(test_counts *counts)
+{
+    feature_city_setup setup;
+    feature_march_setup(&setup);
+    engine_api *api = setup.api;
+    void *e = api->engine;
+    u8 city = setup.city, force = setup.force;
+    engine_unit_type tower_ship = api->unit_type_at(e, FEATURE_UNIT_TOWER_SHIP);
+    api->set_city_resource(e, city, SIM_RESOURCE_WEAPONS, api->weapon_kind_at(e, tower_ship.weapon).stock, 2);
+    engine_sortie_order order = feature_pike_order(api, city, 1);
+    order.ship = FEATURE_UNIT_TOWER_SHIP;
+    engine_officer commander = api->officer_by_id(e, order.officers[0]);
+    engine_officer_detail detail = api->officer_detail(e, order.officers[0]);
+    engine_officer_edit edit = engine_officer_edit_of(&detail, &commander);
+    edit.set_aptitudes = true;
+    for (u32 index = 0; index < OFFICER_UNIT_APTITUDE_COUNT; ++index) edit.aptitudes[index] = FEATURE_APTITUDE_A;
+    api->set_officer(e, order.officers[0], &edit);
+    TEST_CHECK(counts, api->command_sortie(e, &order).refusal == SIM_REFUSAL_NONE, "a pike unit with a 樓船 marches out");
+    u32 unit_id = ENGINE_NO_UNIT;
+    for (u32 id = 0; id < api->unit_count(e); ++id)
+    {
+        if (api->unit_at(e, id).officers[0] == order.officers[0]) unit_id = id;
+    }
+    u32 enemy = feature_sortie_unit(api, city, 1);   /* before the corridor: a sortie takes a free hex next to the city */
+    hex_coord start = {};
+    u32 d = feature_corridor_for_unit(api, unit_id, &start);
+    if (unit_id == ENGINE_NO_UNIT || d >= HEX_DIRECTION_COUNT) { TEST_CHECK(counts, false, "a corridor for the ship test"); engine_fixture_destroy(&setup.fixture); return; }
+    TEST_CHECK(counts, api->unit_at(e, unit_id).effective_type == FEATURE_UNIT_PIKE, "on land the unit fights as its pike class");
+
+    u8 river = feature_terrain_id(api, "river");
+    hex_coord first = feature_along(start, d, 1), second = feature_along(start, d, 2);
+    api->set_cell_terrain(e, first.q, first.r, river, 0);
+    api->set_cell_terrain(e, second.q, second.r, river, 0);
+    b32 placed = enemy != ENGINE_NO_UNIT && api->set_unit_place(e, unit_id, force, first.q, first.r) &&
+                 api->set_unit_place(e, enemy, (u8)(force + 1), second.q, second.r);
+    api->set_unit(e, unit_id, 1000, 80);
+    api->set_unit(e, enemy, 1000, 80);
+    TEST_CHECK(counts, placed, "the unit and an enemy stand on two hexes of the river");
+    TEST_CHECK(counts, api->unit_at(e, unit_id).effective_type == FEATURE_UNIT_TOWER_SHIP,
+               "on the river the unit fights as its 樓船: unit_at gives the ship class");
+
+    engine_command tactic = {};
+    tactic.kind = ENGINE_COMMAND_TACTIC;
+    tactic.unit = unit_id;
+    tactic.q = second.q; tactic.r = second.r;
+    tactic.row = FEATURE_TACTIC_SHIP_ARROW;
+    TEST_CHECK(counts, api->can_issue(e, &tactic).refusal == SIM_REFUSAL_NONE, "a unit on a 樓船 can use 火矢 of the navy against an enemy ship");
+    tactic.row = FEATURE_TACTIC_RAM_SHIP;
+    TEST_CHECK(counts, api->can_issue(e, &tactic).refusal == SIM_REFUSAL_NONE, "a unit on a 樓船 can use 猛撞 against an enemy ship");
+    tactic.row = FEATURE_TACTIC_PIERCE;
+    TEST_CHECK(counts, api->can_issue(e, &tactic).refusal == SIM_REFUSAL_NO_APTITUDE, "refused: a unit on a 樓船 cannot use 突刺 of its pike class");
+    /* 猛撞 is not always a success (tactics.tsv), so the test checks the command and not the damage. */
+    u32 mark = api->ledger_count(e);
+    engine_command_result result = api->command_tactic(e, unit_id, FEATURE_TACTIC_RAM_SHIP, second.q, second.r);
+    sim_event used = {};
+    TEST_CHECK(counts, result.refusal == SIM_REFUSAL_NONE && api->unit_at(e, unit_id).morale == 70 && feature_find_event(api, SIM_EVENT_TACTIC_USED, mark, &used),
+               "the engine accepts 猛撞 from the 樓船: the unit pays 10 morale and the ledger has the tactic");
+    engine_fixture_destroy(&setup.fixture);
+}
+
 internal void
 feature_combat_tests(test_counts *counts)
 {
     feature_battle_tests(counts);
     feature_siege_tests(counts);
     feature_water_tests(counts);
+    feature_ship_tactic_tests(counts);
 }

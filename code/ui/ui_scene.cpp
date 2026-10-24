@@ -238,6 +238,36 @@ ui_scene_push_slots(render_commands *rc, engine_api *api, engine_terrain_view vi
     }
 }
 
+/* U-001 (play report 2026-10-24): the placeholder model of each field
+   building of building_at: the military buildings, the obstacles and the
+   traps. The model has the shape of the kind and the colour of the owner.
+   A build in progress is a scaffold with the smaller, dimmed shape
+   inside, as on a slot. */
+internal void
+ui_scene_push_buildings(render_commands *rc, engine_api *api, engine_terrain_view view)
+{
+    for (u32 id = 0; id < api->building_count(api->engine); ++id)
+    {
+        engine_building building = api->building_at(api->engine, id);
+        if (building.id == ENGINE_NO_BUILDING) continue;
+        hex_coord h = hex_make(building.q, building.r);
+        hex_offset o = hex_to_offset(h);
+        if (o.col < 0 || o.row < 0 || (u32)o.col >= view.width || (u32)o.row >= view.height) continue;
+        v3 ground = hex_world_center(h, terrain_level_y(view.level[(u32)o.row * view.width + (u32)o.col]));
+        u32 mesh = ui_building_mesh(api->building_kind_at(api->engine, building.kind).type);
+        u32 rgba = building.force_id == ENGINE_NO_FACTION ? UI_BUILDING_NO_OWNER_RGBA : ui_faction_rgba(building.force_id);
+        if (!building.complete)
+        {
+            render_push_mesh(rc, RENDER_MESH_SCAFFOLD, ground, 0.0f, UI_FACILITY_MODEL_SCALE, UI_SCAFFOLD_RGBA);
+            render_push_mesh(rc, mesh, ground, 0.0f, UI_FACILITY_BUILDING_SCALE, ui_rgba_dim(rgba, 0.55f));
+        }
+        else
+        {
+            render_push_mesh(rc, mesh, ground, 0.0f, UI_FACILITY_MODEL_SCALE, rgba);
+        }
+    }
+}
+
 /* Fills the frame's render commands from the engine: the terrain, the
    overlay colours for the selection and the hover, and placeholder models
    and units until the spec gives real positions. */
@@ -337,6 +367,7 @@ ui_scene_push(ui_state *ui, engine_api *api, ui_frame_info *frame)
         f32 yaw = base.type == BASE_PORT ? 0.0f : ui_gate_yaw(api, view, h);
         render_push_mesh(rc, mesh, hex_world_center(h, terrain_level_y(view.level[cell])), yaw, 1.0f, ui_faction_rgba(base.force));
     }
+    ui_scene_push_buildings(rc, api, view);
     for (u32 id = 0; id < api->unit_count(api->engine); ++id)
     {
         engine_unit unit = api->unit_at(api->engine, id);

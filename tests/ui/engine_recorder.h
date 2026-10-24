@@ -295,6 +295,8 @@ struct engine_recorder
     char          last_install_folder[RECORDER_MAX_PATH];   /* M16: the folder of the last set_install_folder */
     char          last_scenario_path[RECORDER_MAX_PATH];    /* the path of the last load_scenario */
     u8            portrait_source;    /* script the source of content_source(ENGINE_ASSET_PORTRAITS) */
+    u8            unit0_effective_type;   /* U-003: the class that unit 0 fights with; 0 = its unit_type (the pike) */
+    b32           building_complete;  /* U-001: the camp at (2, 3) is complete; false = a build in progress */
 };
 
 internal void
@@ -1069,6 +1071,7 @@ internal engine_unit recorder_unit_at(void *o, u32 unit_id)
     unit.values.move = 22; unit.values.aptitude = 2;
     unit.grain_turns = 120;          /* M12: 3000 grain at 25 each turn */
     unit.ship_type   = ENGINE_NO_UNIT_TYPE;
+    unit.effective_type = unit_id == 0 && r->unit0_effective_type ? r->unit0_effective_type : unit.unit_type;
     unit.acted       = r->units_acted;
     unit.order       = r->unit_order;
     unit.order_target = ENGINE_NO_UNIT;
@@ -1209,17 +1212,17 @@ internal engine_command_result recorder_command_supply(void *o, u32 unit_id, u32
     return recorder_unit_result(r);
 }
 
-/* M6: two tactics (突刺 for pikes, the tower arrow), two plots, two
-   building kinds (a camp and a natural dike), one camp on the map at
-   (2, 3) and one burning cell. */
-internal u32 recorder_tactic_kind_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_TACTIC_KIND_COUNT, 0); return 2; }
+/* M6: three tactics (突刺 for pikes, the tower arrow, the ship arrow of the
+   navy classes 9 to 11), two plots, two building kinds (a camp and a
+   natural dike), one camp on the map at (2, 3) and one burning cell. */
+internal u32 recorder_tactic_kind_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_TACTIC_KIND_COUNT, 0); return 3; }
 internal engine_tactic_kind recorder_tactic_kind_at(void *o, u32 index)
 {
     recorder_record((engine_recorder *)o, RECORDER_TACTIC_KIND_AT, index);
     engine_tactic_kind kind = {};
-    kind.id = index < 2 ? (u8)index : ENGINE_NO_ROW;
-    snprintf(kind.key, sizeof(kind.key), "%s", index == 0 ? "pierce" : "tower_arrow");
-    kind.unit_types = index == 0 ? (1u << 1) : (1u << 7);
+    kind.id = index < 3 ? (u8)index : ENGINE_NO_ROW;
+    snprintf(kind.key, sizeof(kind.key), "%s", index == 0 ? "pierce" : (index == 1 ? "tower_arrow" : "ship_arrow"));
+    kind.unit_types = index == 0 ? (1u << 1) : (index == 1 ? (1u << 7) : ((1u << 9) | (1u << 10) | (1u << 11)));
     kind.aptitude = index == 0 ? 1 : 0; kind.morale = index == 0 ? 15 : 10; kind.range_min = 1; kind.range_max = index == 0 ? 1 : 2;
     return kind;
 }
@@ -1249,7 +1252,9 @@ internal engine_building recorder_building_at(void *o, u32 building_id)
     recorder_record((engine_recorder *)o, RECORDER_BUILDING_AT, building_id);
     engine_building building = {};
     building.id = building_id == 0 ? 0 : ENGINE_NO_BUILDING;
-    building.kind = 0; building.force_id = 1; building.q = 2; building.r = 3; building.durability = 600; building.durability_max = 1100;
+    engine_recorder *r = (engine_recorder *)o;
+    building.kind = 0; building.force_id = 1; building.q = 2; building.r = 3; building.durability = r->building_complete ? 1100 : 600; building.durability_max = 1100;
+    building.complete = r->building_complete;
     building.city_id = ENGINE_NO_CITY;
     return building;
 }
@@ -1785,8 +1790,8 @@ internal engine_hex recorder_hex_at(void *o, s32 q, s32 r)
         hex.slot_index = 2;
         hex.facility   = 0;
     }
-    hex.building_id = ENGINE_NO_BUILDING;
-    hex.building_kind = ENGINE_NO_ROW;
+    hex.building_id = q == 2 && r == 3 ? 0 : ENGINE_NO_BUILDING;   /* U-001: the camp of recorder_building_at */
+    hex.building_kind = q == 2 && r == 3 ? 0 : ENGINE_NO_ROW;
     hex.unit_id     = ENGINE_NO_UNIT;
     return hex;
 }

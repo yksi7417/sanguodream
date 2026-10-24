@@ -14,7 +14,7 @@
 #include "render/placeholder_meshes.h"
 #include "render/png.h"
 
-#define D3D11_MAX_MESHES        16
+#define D3D11_MAX_MESHES        32     /* at least RENDER_MESH_COUNT */
 #define D3D11_MAX_SPRITES       16     /* at least RENDER_SPRITE_COUNT */
 #define D3D11_ATLAS_TILES       8      /* material tiles in one row of the atlas */
 #define D3D11_ATLAS_TILE_SIZE   64     /* pixels, for the generated placeholder atlas */

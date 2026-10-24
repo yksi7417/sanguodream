@@ -218,6 +218,59 @@ placeholder_mesh_build(u32 mesh_id, memory_arena *arena, placeholder_mesh *out)
             placeholder_box(&mesh,  0.15f, 0.0f, 0.14f, 0.5f, 0.14f, 0.3f);
             placeholder_box(&mesh,  0.31f, 0.14f, 0.21f, 0.34f, 0.6f, 0.23f);
             break;
+        case RENDER_MESH_CAMP:
+            /* Eight stakes on a ring around a tent. */
+            for (u32 stake = 0; stake < 8; ++stake)
+            {
+                f32 angle = 2.0f * RENDER_PI * (f32)stake / 8.0f;
+                f32 x = 0.42f * cosf(angle), z = 0.42f * sinf(angle);
+                placeholder_box(&mesh, x - 0.04f, 0.0f, z - 0.04f, x + 0.04f, 0.36f, z + 0.04f);
+            }
+            placeholder_box(&mesh, -0.2f, 0.0f, -0.2f, 0.2f, 0.18f, 0.2f);
+            placeholder_pyramid(&mesh, -0.24f, -0.24f, 0.24f, 0.24f, 0.18f, 0.52f);
+            break;
+        case RENDER_MESH_WATCHTOWER:
+            /* Four legs, a platform with a low rail, and a pyramid roof. */
+            for (u32 leg = 0; leg < 4; ++leg)
+            {
+                f32 x = (leg & 1) ? 0.24f : -0.24f, z = (leg & 2) ? 0.24f : -0.24f;
+                placeholder_box(&mesh, x - 0.04f, 0.0f, z - 0.04f, x + 0.04f, 0.7f, z + 0.04f);
+            }
+            placeholder_box(&mesh, -0.32f, 0.7f, -0.32f, 0.32f, 0.78f, 0.32f);
+            placeholder_box(&mesh, -0.32f, 0.78f, -0.32f, 0.32f, 0.86f, -0.28f);
+            placeholder_box(&mesh, -0.32f, 0.78f, 0.28f, 0.32f, 0.86f, 0.32f);
+            placeholder_pyramid(&mesh, -0.36f, -0.36f, 0.36f, 0.36f, 0.86f, 1.1f);
+            break;
+        case RENDER_MESH_STAGE:
+            /* A raised square platform with a round drum on it. */
+            placeholder_box(&mesh, -0.42f, 0.0f, -0.42f, 0.42f, 0.2f, 0.42f);
+            placeholder_prism(&mesh, 0.0f, 0.0f, 0.2f, 8, 0.2f, 0.5f, 0.5f);
+            placeholder_box(&mesh, 0.3f, 0.2f, 0.3f, 0.36f, 0.6f, 0.36f);
+            break;
+        case RENDER_MESH_WALL:
+            /* A long low wall with four merlons on top. */
+            placeholder_box(&mesh, -0.48f, 0.0f, -0.12f, 0.48f, 0.32f, 0.12f);
+            for (u32 merlon = 0; merlon < 4; ++merlon)
+            {
+                f32 x = -0.39f + 0.26f * (f32)merlon;
+                placeholder_box(&mesh, x - 0.07f, 0.32f, -0.12f, x + 0.07f, 0.42f, 0.12f);
+            }
+            break;
+        case RENDER_MESH_STONES:
+            /* Six standing stones on a ring and one in the centre. */
+            for (u32 stone = 0; stone < 6; ++stone)
+            {
+                f32 angle = 2.0f * RENDER_PI * (f32)stone / 6.0f;
+                f32 x = 0.34f * cosf(angle), z = 0.34f * sinf(angle);
+                placeholder_box(&mesh, x - 0.06f, 0.0f, z - 0.06f, x + 0.06f, 0.36f + 0.04f * (f32)(stone % 3), z + 0.06f);
+            }
+            placeholder_box(&mesh, -0.08f, 0.0f, -0.08f, 0.08f, 0.55f, 0.08f);
+            break;
+        case RENDER_MESH_TRAP:
+            /* A low mound with a pot on it. */
+            placeholder_prism(&mesh, 0.0f, 0.0f, 0.36f, 6, 0.0f, 0.06f, 0.16f);
+            placeholder_prism(&mesh, 0.0f, 0.0f, 0.12f, 8, 0.1f, 0.28f, 0.34f);
+            break;
         default:
             return false;
     }

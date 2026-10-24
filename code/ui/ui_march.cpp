@@ -231,9 +231,31 @@ ui_draw_sortie_ships(ui_state *ui, engine_api *api, ui_march_dialog *dialog, eng
     }
 }
 
-/* G2-044: 部隊能力 with the tabs 陸上 and 水上, the grade of the class, the
-   morale and the tactics of the class (grey when the grade of the unit is
-   below the grade that the tactic needs). */
+/* The class of one tab of 部隊能力, its grade, the morale and the tactics
+   of the class (grey when the grade of the unit is below the grade that
+   the tactic needs). */
+internal void
+ui_draw_sortie_class(ui_state *ui, engine_api *api, u8 type_id, engine_unit_values *values, engine_city_economy *economy)
+{
+    ui_draw_unit_values(ui, values);
+    engine_unit_type type = api->unit_type_at(api->engine, type_id);
+    ImGui::Text("%s %s (%s)   %s %u", text_get(ui->text, "unit.class"), type.id == ENGINE_NO_UNIT_TYPE ? "-" : ui_text_with_key(ui, "unit_type", type.key),
+                ui_grade_text(values->aptitude), text_get(ui->text, "command.morale"), economy->morale);
+    ImGui::Text("%s:", text_get(ui->text, "sortie.tactics"));
+    for (u32 row = 0; type_id != ENGINE_NO_UNIT_TYPE && row < api->tactic_kind_count(api->engine); ++row)
+    {
+        engine_tactic_kind tactic = api->tactic_kind_at(api->engine, row);
+        if (!((tactic.unit_types >> type_id) & 1)) continue;
+        ImGui::SameLine();
+        ImGui::BeginDisabled(values->aptitude == 255 || tactic.aptitude > values->aptitude);
+        ImGui::TextUnformatted(ui_text_with_key(ui, "tactic", tactic.key));
+        ImGui::EndDisabled();
+    }
+}
+
+/* G2-044: 部隊能力 with the tabs 陸上 and 水上. U-003: on water the unit
+   fights as its ship, so the tab 水上 lists the class and the tactics of
+   the ship, and the tab 陸上 those of the land class. */
 internal void
 ui_draw_sortie_ability(ui_state *ui, engine_api *api, ui_march_dialog *dialog, engine_city *city, engine_city_economy *economy)
 {
@@ -245,23 +267,10 @@ ui_draw_sortie_ability(ui_state *ui, engine_api *api, ui_march_dialog *dialog, e
     {
         char tab[64];
         snprintf(tab, sizeof(tab), "%s###land", text_get(ui->text, "sortie.land"));
-        if (ImGui::BeginTabItem(tab)) { ui_draw_unit_values(ui, &land); ImGui::EndTabItem(); }
+        if (ImGui::BeginTabItem(tab)) { ui_draw_sortie_class(ui, api, dialog->order.unit_type, &land, economy); ImGui::EndTabItem(); }
         snprintf(tab, sizeof(tab), "%s###water", text_get(ui->text, "sortie.water"));
-        if (ImGui::BeginTabItem(tab)) { ui_draw_unit_values(ui, &water); ImGui::EndTabItem(); }
+        if (ImGui::BeginTabItem(tab)) { ui_draw_sortie_class(ui, api, ship, &water, economy); ImGui::EndTabItem(); }
         ImGui::EndTabBar();
-    }
-    engine_unit_type type = api->unit_type_at(api->engine, dialog->order.unit_type);
-    ImGui::Text("%s %s (%s)   %s %u", text_get(ui->text, "unit.class"), type.id == ENGINE_NO_UNIT_TYPE ? "-" : ui_text_with_key(ui, "unit_type", type.key),
-                ui_grade_text(land.aptitude), text_get(ui->text, "command.morale"), economy->morale);
-    ImGui::Text("%s:", text_get(ui->text, "sortie.tactics"));
-    for (u32 row = 0; row < api->tactic_kind_count(api->engine); ++row)
-    {
-        engine_tactic_kind tactic = api->tactic_kind_at(api->engine, row);
-        if (!((tactic.unit_types >> dialog->order.unit_type) & 1)) continue;
-        ImGui::SameLine();
-        ImGui::BeginDisabled(land.aptitude == 255 || tactic.aptitude > land.aptitude);
-        ImGui::TextUnformatted(ui_text_with_key(ui, "tactic", tactic.key));
-        ImGui::EndDisabled();
     }
 }
 

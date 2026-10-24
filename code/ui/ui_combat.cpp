@@ -241,6 +241,20 @@ ui_tactic_has_target(ui_state *ui, engine_api *api, engine_unit *unit, u32 row)
     return false;
 }
 
+/* U-002 (play report 2026-10-24): true when the engine accepts the
+   building on a hex next to the unit. A 設置 needs the technique, the gold
+   and a buildable hex, and can_issue checks all three. */
+internal b32
+ui_build_has_place(ui_state *ui, engine_api *api, engine_unit *unit, u32 row)
+{
+    hex_coord center = ui_unit_menu_hex(ui, unit);
+    for (u32 d = 0; d < HEX_DIRECTION_COUNT; ++d)
+    {
+        if (ui_pick_allows(ui, api, UI_PICK_BUILD, (u8)row, hex_neighbor(center, d))) return true;
+    }
+    return false;
+}
+
 /* One row of the Actions list. A row that no target allows is grey. A
    choice closes the list and the unit menu, and starts the pick. */
 internal void
@@ -257,8 +271,9 @@ ui_action_row(ui_state *ui, u32 row, const char *prefix, const char *key, const 
     ImGui::EndDisabled();
 }
 
-/* The tactics of the class of the unit, the plots, or the buildings that
-   the unit can place. A choice starts the pick of the target hex. */
+/* The tactics of the class that the unit fights with, the plots, or the
+   buildings that the unit can place. A choice starts the pick of the
+   target hex. */
 internal void
 ui_draw_actions(ui_state *ui, engine_api *api)
 {
@@ -279,11 +294,12 @@ ui_draw_actions(ui_state *ui, engine_api *api)
         char detail[64];
         if (ui->combat.list == UI_PICK_TACTIC)
         {
-            /* G2-054: the cost in 氣力 in brackets, as the column of the original. */
+            /* G2-054: the cost in 氣力 in brackets, as the column of the original.
+               U-003: on water a land unit fights as its ship, so the list follows effective_type. */
             for (u32 row = 0; row < api->tactic_kind_count(e); ++row)
             {
                 engine_tactic_kind tactic = api->tactic_kind_at(e, row);
-                if (!((tactic.unit_types >> unit.unit_type) & 1)) continue;
+                if (unit.effective_type == ENGINE_NO_UNIT_TYPE || !((tactic.unit_types >> unit.effective_type) & 1)) continue;
                 snprintf(detail, sizeof(detail), "(%u)  %s %s", tactic.morale, text_get(ui->text, "actions.grade"), ui_grade_text(tactic.aptitude));
                 ui_action_row(ui, row, "tactic", tactic.key, detail, ui_tactic_has_target(ui, api, &unit, row));
             }
@@ -304,7 +320,7 @@ ui_draw_actions(ui_state *ui, engine_api *api)
                 engine_building_kind building = api->building_kind_at(e, row);
                 if (building.natural) continue;
                 snprintf(detail, sizeof(detail), "%s %u", text_get(ui->text, "command.gold"), building.gold);
-                ui_action_row(ui, row, "building", building.key, detail, true);
+                ui_action_row(ui, row, "building", building.key, detail, ui_build_has_place(ui, api, &unit, row));
             }
         }
     }

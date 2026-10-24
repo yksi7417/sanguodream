@@ -261,6 +261,23 @@ ui_hover_facility(ui_state *ui, engine_api *api, u8 city_id, u8 slot)
     ImGui::Text("%s %u/%u", text_get(ui->text, "city.durability"), facility.durability, facility.durability_max);
 }
 
+/* U-001 (play report 2026-10-24): the hover panel of a field building:
+   its name, its owner and its durability as current / maximum, as G3-020
+   does for a facility. A trap without an owner shows "-". */
+internal void
+ui_hover_building(ui_state *ui, engine_api *api, u32 building_id)
+{
+    void *e = api->engine;
+    engine_building building = api->building_at(e, building_id);
+    if (building.id == ENGINE_NO_BUILDING) return;
+    char owner[UI_NAME_SIZE * 2] = "-";
+    if (building.force_id != ENGINE_NO_FACTION) ui_force_text(ui, api, building.force_id, owner, sizeof(owner));
+    ImGui::TextUnformatted(ui_text_with_key(ui, "building", api->building_kind_at(e, building.kind).key));
+    if (building.force_id != ENGINE_NO_FACTION) ImGui::Text("%s%s", owner, text_get(ui->text, "hover.army"));
+    else                                        ImGui::TextUnformatted(owner);
+    ImGui::Text("%s %u/%u", text_get(ui->text, "city.durability"), building.durability, building.durability_max);
+}
+
 internal void
 ui_draw_hover_panel(ui_state *ui, engine_api *api)
 {
@@ -276,7 +293,9 @@ ui_draw_hover_panel(ui_state *ui, engine_api *api)
     if (plated != ENGINE_NO_UNIT)          data.unit_id = plated;
     else if (ui->scene.has_hover)          data = api->hex_at(api->engine, ui->scene.hover.q, ui->scene.hover.r);
     b32 facility_hex = data.unit_id == ENGINE_NO_UNIT && data.city_id == ENGINE_NO_CITY && data.slot_city != ENGINE_NO_CITY && data.facility != ENGINE_NO_FACILITY;
-    if (data.unit_id == ENGINE_NO_UNIT && data.city_id == ENGINE_NO_CITY && !facility_hex) return;
+    b32 building_hex = data.unit_id == ENGINE_NO_UNIT && data.city_id == ENGINE_NO_CITY && !facility_hex && plated == ENGINE_NO_UNIT &&
+                       data.building_id != ENGINE_NO_BUILDING;   /* U-001 */
+    if (data.unit_id == ENGINE_NO_UNIT && data.city_id == ENGINE_NO_CITY && !facility_hex && !building_hex) return;
     /* G3-015: while the window of a city is open, the hover panel of a city stays closed. The
        ghost text of the report was this panel under the mouse, over the window that opened. */
     if (data.unit_id == ENGINE_NO_UNIT && data.city_id != ENGINE_NO_CITY && ui->context.kind == UI_CONTEXT_CITY) return;
@@ -284,11 +303,13 @@ ui_draw_hover_panel(ui_state *ui, engine_api *api)
     ImGui::SetNextWindowBgAlpha(0.9f);
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoInputs |
                              ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoSavedSettings;
-    const char *window = data.unit_id != ENGINE_NO_UNIT ? "###HoverUnit" : (facility_hex ? "###HoverFacility" : "###HoverCity");
+    const char *window = data.unit_id != ENGINE_NO_UNIT ? "###HoverUnit" :
+                         (facility_hex ? "###HoverFacility" : (building_hex ? "###HoverBuilding" : "###HoverCity"));
     if (ImGui::Begin(window, 0, flags))
     {
         if (data.unit_id != ENGINE_NO_UNIT) ui_hover_unit(ui, api, data.unit_id);
         else if (facility_hex)              ui_hover_facility(ui, api, data.slot_city, data.slot_index);
+        else if (building_hex)              ui_hover_building(ui, api, data.building_id);
         else                                ui_hover_city(ui, api, data.city_id);
     }
     ImGui::End();

@@ -438,8 +438,9 @@ struct render_terrain
 };
 
 /* The mesh table of the platform. Mesh 0 is the settlement. The other ids
-   are the placeholder models of the facility slots (placeholder_meshes.h).
-   The scene picks a shape for each facility kind and tints it. */
+   are the placeholder models of the facility slots, the bases and the
+   field buildings (placeholder_meshes.h). The scene picks a shape for each
+   kind and tints it. */
 enum render_mesh_id
 {
     RENDER_MESH_SETTLEMENT,   /* settlement.hxm, or the placeholder house */
@@ -455,6 +456,12 @@ enum render_mesh_id
     RENDER_MESH_SHED,         /* a low open house: the stable */
     RENDER_MESH_GATE,         /* two pillars, a lintel and a roof over a passage: a pass (關) */
     RENDER_MESH_PORT,         /* a quay with a pier, two mooring posts and a hull: a port (港) */
+    RENDER_MESH_CAMP,         /* U-001: a palisade of stakes around a tent: 陣, 砦, 城塞 */
+    RENDER_MESH_WATCHTOWER,   /* U-001: a platform on four legs with a roof: 箭樓, 連弩樓, 投石台 */
+    RENDER_MESH_STAGE,        /* U-001: a raised platform with a drum: 太鼓台, 軍樂台 */
+    RENDER_MESH_WALL,         /* U-001: a long low wall: 土壘, 石牆, 堤防 */
+    RENDER_MESH_STONES,       /* U-001: a ring of standing stones: 石兵八陣 */
+    RENDER_MESH_TRAP,         /* U-001: a low mound with a pot on it: the fire traps, 落石 */
     RENDER_MESH_COUNT
 };
 

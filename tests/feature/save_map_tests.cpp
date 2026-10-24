@@ -133,6 +133,26 @@ feature_save_map_tests(test_counts *counts)
                "the soldiers come from the records: only bases 53, 55 and 61 have 3000 in the save; 8 bases have no owner");
     TEST_CHECK(counts, bases_ok && buildings == FEATURE_SAVE_BUILDINGS && dikes == 4 && rockfalls == 18,
                "each base has its durability from the save; 30 military buildings and traps stand on their hexes; 4 dikes and 18 rockfalls stay");
+    /* U-001 (play report 2026-10-24): the buildings that the 3D map must draw, at offset hexes of the save. */
+    /* The row U-001 of spec/ui/play-reports.md. durability 0: the row gives none. */
+    struct save_building_case { s32 col, row; const char *key; u8 force; u32 durability; } cases[] =
+    {
+        {  98, 105, "repeating_tower", 6, 554 },   /* 連弩樓 */
+        { 104, 102, "arrow_tower",     8, 0   },   /* 箭樓 */
+        {  95, 106, "music_tower",     6, 0   },   /* 軍樂台 */
+        {  92, 108, "fort",            6, 0   },   /* 砦 */
+    };
+    for (u32 index = 0; index < ArrayCount(cases); ++index)
+    {
+        hex_coord hex = feature_save_hex((u32)cases[index].col, (u32)cases[index].row);
+        engine_building building = api->building_at(e, api->building_at_hex(e, hex.q, hex.r));
+        engine_building_kind kind = api->building_kind_at(e, building.kind);
+        b32 ok = building.id != ENGINE_NO_BUILDING && strcmp(kind.key, cases[index].key) == 0 && building.force_id == cases[index].force &&
+                 (!cases[index].durability || building.durability == cases[index].durability);
+        char name[96];
+        snprintf(name, sizeof(name), "the save holds a %s at hex %d,%d", cases[index].key, cases[index].col, cases[index].row);
+        TEST_CHECK(counts, ok, name);
+    }
 
     /* The units of the save, on the hexes of their records (+23 x, +25 y). */
     u32 units = 0, on_water = 0;
