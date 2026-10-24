@@ -505,6 +505,15 @@ sim_run_officers_month(sim_state *sim, u32 cause, sim_event_sink *events)
     for (u32 index = 0; index < sim->officers.count; ++index)
     {
         officer_component *officer = sim->officers.data + index;
+        if (officer->status == SIM_STATUS_CAPTIVE)
+        {
+            /* G3-019 (observed 2026-10-23): a captive loses loyalty.captive_monthly or one more at each month start. */
+            if (rules->loyalty_captive_monthly && officer->force_id != SIM_NO_FORCE)
+            {
+                sim_change_loyalty(sim, officer, -(s32)(rules->loyalty_captive_monthly + sim_random_below(sim, 2)), cause, events);
+            }
+            continue;
+        }
         if (!sim_officer_is_active(officer) || officer->status == OFFICER_STATUS_RULER || officer->force_id == SIM_NO_FORCE) continue;
         officer_component *ruler = sim_find_officer(sim, sim_force_ruler(sim, officer->force_id));
         sim_loyalty_drift_fn *drift = sim->ruleset.loyalty_drift ? sim->ruleset.loyalty_drift : sim_monthly_loyalty_loss;   /* the rule hook */

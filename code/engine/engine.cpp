@@ -520,6 +520,7 @@ engine_api_city_at(void *opaque, u32 index)
     result.food                  = city->food;
     memcpy(result.equipment_stocks, city->equipment_stocks, sizeof(result.equipment_stocks));
     result.durability_maximum    = city->durability_maximum;
+    result.wall_maximum          = city->wall_maximum;
     result.public_order          = city->public_order;
     result.morale                = city->morale;
     return result;

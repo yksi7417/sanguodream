@@ -87,7 +87,9 @@ combat.tactic_success	70	assumed	Q-172: the base chance of a tactic; plus or min
 combat.building_percent	50	assumed	Q-172: the durability damage of a normal attack on a base or a building, as a percent of its soldier damage
 combat.siege_percent	300	assumed	Q-175: the durability damage of a siege weapon, per grade percent of destroy
 combat.base_counter	300	assumed	Q-175: the soldiers that a base kills when a unit attacks it, before 強化防衛
-combat.capture_percent	50	assumed	Q-176: the chance to capture each officer of a destroyed unit
+combat.capture_percent	20	assumed	Q-176: the chance to capture each officer of a destroyed unit (G3-003: 1 capture in 6 officers over the runs of 2026-10-22 and 2026-10-23)
+plunder.gold_percent	50	observed	G3-003: the attacker takes half the gold of a destroyed unit (2026-10-23)
+plunder.grain_percent	25	observed	G3-003: the attacker takes a quarter of the grain of a destroyed unit, rounded down (2026-10-23)
 captive.escape_percent	10	assumed	G2-032: the chance that a captive escapes to its force at a month start (the run of 2026-10-20 saw two escapes at one month start; the rule is open)
 combat.halberd_capture	20	assumed	Q-176: more chance with a halberd tactic (PK, manual p.34)
 plot.base_success	50	assumed	Q-173: the chance of a plot; plus the difference of intellect
@@ -150,7 +152,8 @@ recruit.new_loyalty	70	assumed	the loyalty of a recruited officer (Q-178)
 recruit.compatibility_divisor	3	assumed	see recruit.base
 recruit.debate_intellect	85	assumed	a target with this intellect or more answers a recruit with a debate (Q-178)
 loyalty.start	80	assumed	the loyalty of an officer whose record has no loyalty byte; a scenario or a save record gives the byte +104 (2026-10-22); a ruler has 100
-loyalty.monthly	1	assumed	the loyalty that an officer loses each month (Q-028)
+loyalty.monthly	0	observed	G3-019: the own officers of the player kept their loyalty over two month starts (2026-10-23); Q-028 keeps the ambition rule at 0
+loyalty.captive_monthly	2	observed	G3-019: a captive loses 2 or 3 loyalty at each month start (2026-10-23)
 loyalty.ambition	1	assumed	more loss each month for each step of ambition above normal; justice lowers the loss in the same way (Q-028)
 loyalty.unpaid	5	assumed	the loyalty that each officer of a city loses when the city cannot pay the salaries (Q-028)
 loyalty.leave	15	assumed	an officer with less loyalty can leave the faction at the start of a month (Q-028)
@@ -173,7 +176,8 @@ duel.spirit_rise	10	assumed	the fighting spirit that each round gives; two times
 duel.spirit_hit	10	assumed	more fighting spirit when the officer is hit (Q-037)
 duel.critical_rounds	5	assumed	the rounds of one policy before its critical effect (Q-037)
 duel.max_rounds	50	assumed	the round that ends a duel as a draw (manual p.18: 50 為平手; Q-037)
-duel.capture_percent	30	assumed	the chance that the loser becomes a captive (Q-037)
+duel.capture_percent	100	observed	G3-002: the loser of a duel becomes a captive of the force of the winner (one case, 2026-10-23); Q-037
+duel.loser_soldiers_percent	30	observed	G3-002: the unit of the loser loses 30 percent of its soldiers (5000 to 3500, 2026-10-23)
 duel.merit	100	assumed	the merit of the winner (Q-037)
 duel.technique	100	assumed	the technique points of the winner's faction (Q-037)
 duel.force_chance	20	assumed	the chance that the winner gains 1 force (Q-037)

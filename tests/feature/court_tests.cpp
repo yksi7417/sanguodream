@@ -712,6 +712,47 @@ feature_duel_tests(test_counts *counts)
     TEST_CHECK(counts, !view.active && view.result != DUEL_RESULT_NONE && feature_count_events(api, SIM_EVENT_DUEL_ENDED, mark) == 1,
                "自動: the duel plays to its end and the ledger has the result");
     TEST_CHECK(counts, view.result == DUEL_RESULT_DRAW || feature_count_events(api, SIM_EVENT_MERIT_GAINED, mark) >= 1, "the winner gains merit");
+    /* G3-002 (observed 2026-10-23): the unit of the loser loses 30 percent of its soldiers (1000 to 700), and
+       the loser becomes a captive of the force of the winner, unless 強運 or 護衛 saves him. */
+    if (view.winner < 2 && view.result != DUEL_RESULT_RETREAT)
+    {
+        engine_duel_side losing = view.side[1 - view.winner];
+        u16 loser = losing.officers[losing.fighter];
+        sim_event hit = {};
+        b32 lost_soldiers = feature_find_event(api, SIM_EVENT_UNIT_DAMAGED, mark, &hit) && hit.delta == -300;
+        engine_officer loser_officer = api->officer_by_id(e, loser);
+        b32 saved = loser_officer.skill_number != 255 && (loser_officer.skill_number == 32 || loser_officer.skill_number == 52);   /* 強運, 護衛 */
+        TEST_CHECK(counts, lost_soldiers && (saved || api->officer_detail(e, loser).captive),
+                   "the unit of the loser loses 30 percent of its soldiers, and the loser is a captive of the winner (G3-002)");
+    }
+    engine_fixture_destroy(&setup.fixture);
+}
+
+/* G3-019 (observed 2026-10-23): at a month start the own officers keep their
+   loyalty, and each captive loses 2 or 3. */
+internal void
+feature_month_loyalty_tests(test_counts *counts)
+{
+    feature_city_setup setup;
+    feature_city_setup_init(&setup);
+    engine_api *api = setup.api;
+    void *e = api->engine;
+    u8 other = feature_other_faction(api, setup.force, 0);
+    u16 prisoner = feature_find_officer(api, other, ENGINE_NO_OFFICER, ENGINE_NO_OFFICER);
+    engine_officer_edit edit = feature_edit_of(api, prisoner);
+    edit.captor = setup.force;
+    api->set_officer(e, prisoner, &edit);
+    u16 own = feature_find_officer(api, setup.force, api->force_ruler(e, setup.force), ENGINE_NO_OFFICER);
+    u8 own_before = api->officer_detail(e, own).loyalty, captive_before = api->officer_detail(e, prisoner).loyalty;
+    u8 month = api->date(e).month;
+    u32 turns = 0;
+    for (; turns < 6 && api->date(e).month == month; ++turns) feature_next_own_turn(api, setup.force);
+    engine_officer_detail own_after = api->officer_detail(e, own), captive_after = api->officer_detail(e, prisoner);
+    s32 captive_loss = (s32)captive_before - (s32)captive_after.loyalty;
+    TEST_CHECK(counts, api->date(e).month != month && own_after.loyalty == own_before,
+               "an own officer keeps its loyalty at the month start (G3-019, observed)");
+    TEST_CHECK(counts, !captive_after.captive || captive_loss == 2 || captive_loss == 3,
+               "a captive loses 2 or 3 loyalty at the month start (G3-019, observed)");
     engine_fixture_destroy(&setup.fixture);
 }
 
@@ -891,4 +932,5 @@ feature_court_tests(test_counts *counts)
     feature_month_tests(counts);
     feature_captive_escape_tests(counts);
     feature_captive_choice_tests(counts);
+    feature_month_loyalty_tests(counts);
 }

@@ -62,8 +62,9 @@ feature_save_compat_tests(test_counts *counts)
     engine_fixture_destroy(&sample);
     engine_fixture_destroy(&fixture);
 
-    /* A save of this build carries the layout of sim_state. A file with
-       another layout does not load, also with the same struct sizes. */
+    /* A save of this build (version 3) carries a member table, so a file
+       with another layout hash still loads by the table. A member count
+       above the capacity is a bad file and changes nothing. */
     engine_fixture_init_real(&fixture, 1, 65536);
     api = &fixture.api;
     e = api->engine;
@@ -87,7 +88,19 @@ feature_save_compat_tests(test_counts *counts)
     }
     status = api->load_game(e, FEATURE_LAYOUT_SLOT);
     date = api->date(e);
-    TEST_CHECK(counts, flipped && status == ENGINE_SAVE_OTHER_VERSION && date.year == saved.year && date.month == saved.month,
-               "a file with another layout of sim_state does not load, and the game stays as it was");
+    TEST_CHECK(counts, flipped && status == ENGINE_SAVE_OK && date.year == saved.year && date.month == saved.month,
+               "a version 3 file loads by its member table, also with another layout hash");
+    file = fopen(path, "r+b");
+    b32 broken = false;
+    if (file)
+    {
+        u8 byte = 0xFF;
+        fseek(file, 13 * 4, SEEK_SET);   /* the member count, after the layout */
+        broken = fwrite(&byte, 1, 1, file) == 1;
+        fclose(file);
+    }
+    status = api->load_game(e, FEATURE_LAYOUT_SLOT);
+    TEST_CHECK(counts, broken && status == ENGINE_SAVE_BAD_FILE && api->date(e).year == saved.year,
+               "a member table above the capacity is a bad file, and the game stays as it was");
     engine_fixture_destroy(&fixture);
 }

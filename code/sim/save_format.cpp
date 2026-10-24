@@ -128,6 +128,7 @@ save_decode_city(const u8 *record, u8 id, city_record *out)
     }
     out->large_city_flag    = record[SAVE_CITY_LARGE_CITY_FLAG];
     out->durability_maximum = format_read_u16(record + SAVE_CITY_DURABILITY_MAXIMUM);
+    out->wall_maximum       = format_read_u16(record + SAVE_CITY_WALL_MAXIMUM);
     out->morale             = record[SAVE_CITY_MORALE];
     out->has_morale         = true;
     out->public_order       = record[SAVE_CITY_PUBLIC_ORDER];

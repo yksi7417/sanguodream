@@ -20,8 +20,70 @@
    migrates them (see engine_api_load_game). Included by engine.cpp. */
 
 #define ENGINE_SAVE_MAGIC   0x56535848u   /* "HXSV" */
-#define ENGINE_SAVE_VERSION 2
-#define ENGINE_SAVE_V1_CONTENT_GROWTH 4   /* the bytes that sim_content grew between the builds of 2026-10-22 and 2026-10-23 (one u32 rule) */
+#define ENGINE_SAVE_VERSION 3
+#define ENGINE_SAVE_MEMBER_CAPACITY   128
+
+/* The top-level members of sim_state, in the order of their stable ids.
+   Version 3 writes this table after the header and the load copies each
+   member by its id, so a new member or a member that grows at its end
+   keeps the old saves. Add a new member at the END of this list, never
+   in the middle, and add a new field at the end of its struct. A field
+   in the middle of a member needs a migration (engine_api_load_game). */
+#define ENGINE_SAVE_MEMBER_LIST(X) \
+    X(rng) X(turn) X(next_command_id) X(entities) X(map) X(officers) X(cities) X(names) X(has_names) X(content) X(has_content) \
+    X(turns) X(sites) X(units) X(unit_count) X(scratch) X(buildings) X(building_count) X(fire) X(map_layers) X(ruleset) \
+    X(technique_points) X(techniques) X(research) X(settings) X(outcome) X(officer_index) X(city_index) X(items) X(diplomacy) \
+    X(rank) X(duel) X(debate) X(bases) X(corps) X(corps_ap) X(adviser) X(missions) X(region_links) X(region_links_built) \
+    X(region_links_version) X(emperor) X(relics) X(pending) X(event_turn) X(new_officer_count) X(ability_uses) X(ability_known) \
+    X(ability_job) X(scenario_number) X(history_turn) X(ai_records)
+
+/* One entry of the member table of a version 3 file. */
+struct engine_save_member
+{
+    u32 id;
+    u32 offset;
+    u32 size;
+};
+
+internal u32
+engine_save_members(engine_save_member *out)
+{
+    u32 count = 0;
+#define ENGINE_SAVE_MEMBER_ENTRY(member) \
+    out[count].id = count; out[count].offset = (u32)offsetof(sim_state, member); out[count].size = (u32)sizeof(((sim_state *)0)->member); ++count;
+    ENGINE_SAVE_MEMBER_LIST(ENGINE_SAVE_MEMBER_ENTRY)
+#undef ENGINE_SAVE_MEMBER_ENTRY
+    return count;
+}
+
+/* The member tables of the files without a table, measured with offsetof
+   against the headers of their builds (the probe of 2026-10-23). Version
+   1 is the build of 2026-10-22. Version 2 is the builds of 2026-10-23 up
+   to commit 9b03c31. Both have sim_size 511304. */
+global_variable const engine_save_member engine_save_members_v1[] =
+{
+    { 0, 0, 8 }, { 1, 8, 4 }, { 2, 12, 4 }, { 3, 16, 48 }, { 4, 64, 40 }, { 5, 104, 32 },
+    { 6, 136, 32 }, { 7, 168, 2564 }, { 8, 2732, 4 }, { 9, 2736, 94176 }, { 10, 96912, 4 }, { 11, 96916, 6164 },
+    { 12, 103080, 32760 }, { 13, 135840, 31744 }, { 14, 167584, 4 }, { 15, 167592, 24 }, { 16, 167616, 7168 }, { 17, 174784, 4 },
+    { 18, 174792, 8 }, { 19, 174800, 9120 }, { 20, 183920, 16 }, { 21, 183936, 1024 }, { 22, 184960, 2048 }, { 23, 187008, 2560 },
+    { 24, 189568, 40 }, { 25, 189608, 1032 }, { 26, 190640, 2200 }, { 27, 192840, 42 }, { 28, 192884, 3200 }, { 29, 196084, 196608 },
+    { 30, 392692, 256 }, { 31, 392948, 96 }, { 32, 393044, 272 }, { 33, 393316, 1080 }, { 34, 394396, 32768 }, { 35, 427164, 8192 },
+    { 36, 435356, 512 }, { 37, 435868, 5504 }, { 38, 441372, 9216 }, { 39, 450588, 4 }, { 40, 450592, 4 }, { 41, 450596, 2 },
+    { 42, 450600, 192 }, { 43, 450792, 20 }, { 44, 450812, 128 }, { 45, 450940, 4 }, { 46, 450944, 8192 }, { 47, 459136, 1024 },
+    { 48, 460160, 1024 }, { 49, 461184, 1 }, { 50, 461188, 192 }, { 51, 461380, 49920 },
+};
+global_variable const engine_save_member engine_save_members_v2[] =
+{
+    { 0, 0, 8 }, { 1, 8, 4 }, { 2, 12, 4 }, { 3, 16, 48 }, { 4, 64, 40 }, { 5, 104, 32 },
+    { 6, 136, 32 }, { 7, 168, 2564 }, { 8, 2732, 4 }, { 9, 2736, 94180 }, { 10, 96916, 4 }, { 11, 96920, 6164 },
+    { 12, 103084, 32760 }, { 13, 135844, 31744 }, { 14, 167588, 4 }, { 15, 167592, 24 }, { 16, 167616, 7168 }, { 17, 174784, 4 },
+    { 18, 174792, 8 }, { 19, 174800, 9120 }, { 20, 183920, 16 }, { 21, 183936, 1024 }, { 22, 184960, 2048 }, { 23, 187008, 2560 },
+    { 24, 189568, 40 }, { 25, 189608, 1032 }, { 26, 190640, 2200 }, { 27, 192840, 42 }, { 28, 192884, 3200 }, { 29, 196084, 196608 },
+    { 30, 392692, 256 }, { 31, 392948, 96 }, { 32, 393044, 272 }, { 33, 393316, 1080 }, { 34, 394396, 32768 }, { 35, 427164, 8192 },
+    { 36, 435356, 512 }, { 37, 435868, 5504 }, { 38, 441372, 9216 }, { 39, 450588, 4 }, { 40, 450592, 4 }, { 41, 450596, 2 },
+    { 42, 450600, 192 }, { 43, 450792, 20 }, { 44, 450812, 128 }, { 45, 450940, 4 }, { 46, 450944, 8192 }, { 47, 459136, 1024 },
+    { 48, 460160, 1024 }, { 49, 461184, 1 }, { 50, 461188, 192 }, { 51, 461380, 49920 },
+};
 
 /* The header of version 1 (the builds until 2026-10-22). */
 struct engine_save_header_v1
@@ -56,8 +118,8 @@ struct engine_save_header
     u32  map_width;
     u32  map_height;
     u32  ledger_count;
-    u32  layout;           /* version 2: engine_save_layout() of the build that wrote the file */
-    u32  reserved;
+    u32  layout;           /* version 2 and 3: engine_save_layout() of the build that wrote the file */
+    u32  member_count;     /* version 3: the entries of the member table that follows the header; 0 in version 2 */
     char pack[128];
     engine_save_slot slot;
 };
@@ -71,24 +133,14 @@ struct engine_save_header
 internal u32
 engine_save_layout(void)
 {
+#define ENGINE_LAYOUT_ENTRY(member) ENGINE_LAYOUT_MEMBER(member),
     struct { u32 offset, size; } members[] =
     {
-        ENGINE_LAYOUT_MEMBER(rng), ENGINE_LAYOUT_MEMBER(turn), ENGINE_LAYOUT_MEMBER(next_command_id), ENGINE_LAYOUT_MEMBER(entities),
-        ENGINE_LAYOUT_MEMBER(map), ENGINE_LAYOUT_MEMBER(officers), ENGINE_LAYOUT_MEMBER(cities), ENGINE_LAYOUT_MEMBER(names),
-        ENGINE_LAYOUT_MEMBER(has_names), ENGINE_LAYOUT_MEMBER(content), ENGINE_LAYOUT_MEMBER(has_content), ENGINE_LAYOUT_MEMBER(turns),
-        ENGINE_LAYOUT_MEMBER(sites), ENGINE_LAYOUT_MEMBER(units), ENGINE_LAYOUT_MEMBER(unit_count), ENGINE_LAYOUT_MEMBER(scratch),
-        ENGINE_LAYOUT_MEMBER(buildings), ENGINE_LAYOUT_MEMBER(building_count), ENGINE_LAYOUT_MEMBER(fire), ENGINE_LAYOUT_MEMBER(map_layers),
-        ENGINE_LAYOUT_MEMBER(ruleset), ENGINE_LAYOUT_MEMBER(technique_points), ENGINE_LAYOUT_MEMBER(techniques), ENGINE_LAYOUT_MEMBER(research),
-        ENGINE_LAYOUT_MEMBER(settings), ENGINE_LAYOUT_MEMBER(outcome), ENGINE_LAYOUT_MEMBER(officer_index), ENGINE_LAYOUT_MEMBER(city_index),
-        ENGINE_LAYOUT_MEMBER(items), ENGINE_LAYOUT_MEMBER(diplomacy), ENGINE_LAYOUT_MEMBER(rank), ENGINE_LAYOUT_MEMBER(duel),
-        ENGINE_LAYOUT_MEMBER(debate), ENGINE_LAYOUT_MEMBER(bases), ENGINE_LAYOUT_MEMBER(corps), ENGINE_LAYOUT_MEMBER(corps_ap),
-        ENGINE_LAYOUT_MEMBER(adviser), ENGINE_LAYOUT_MEMBER(missions), ENGINE_LAYOUT_MEMBER(region_links), ENGINE_LAYOUT_MEMBER(region_links_built),
-        ENGINE_LAYOUT_MEMBER(region_links_version), ENGINE_LAYOUT_MEMBER(emperor), ENGINE_LAYOUT_MEMBER(relics), ENGINE_LAYOUT_MEMBER(pending),
-        ENGINE_LAYOUT_MEMBER(event_turn), ENGINE_LAYOUT_MEMBER(new_officer_count), ENGINE_LAYOUT_MEMBER(ability_uses), ENGINE_LAYOUT_MEMBER(ability_known),
-        ENGINE_LAYOUT_MEMBER(ability_job), ENGINE_LAYOUT_MEMBER(scenario_number), ENGINE_LAYOUT_MEMBER(history_turn), ENGINE_LAYOUT_MEMBER(ai_records),
+        ENGINE_SAVE_MEMBER_LIST(ENGINE_LAYOUT_ENTRY)
         { 0, (u32)sizeof(sim_state) }, { 1, (u32)sizeof(sim_unit) }, { 2, (u32)sizeof(sim_turn_state) }, { 3, (u32)sizeof(officer_component) },
         { 4, (u32)sizeof(city_component) }, { 5, (u32)sizeof(sim_event) }, { 6, (u32)sizeof(sim_building) }, { 7, (u32)sizeof(sim_base_state) },
     };
+#undef ENGINE_LAYOUT_ENTRY
     u32 hash = 2166136261u;   /* FNV-1a */
     for (u32 index = 0; index < ArrayCount(members); ++index)
     {
@@ -152,9 +204,33 @@ engine_save_header_of(engine *e)
     return header;
 }
 
-/* The arrays behind the pointers of sim_state, in file order. */
+/* The records of a component table: each record of the file has file_size
+   bytes, each record of the live table live_size. A load copies the
+   common bytes and zeroes the rest of the live record, so a field at the
+   end of a record keeps the old saves. */
 internal void
-engine_save_arrays(engine_save_cursor *cursor, sim_state *sim, b32 write)
+engine_save_records(engine_save_cursor *cursor, void *data, u32 count, u32 live_size, u32 file_size, b32 write)
+{
+    u8 *at = (u8 *)data;
+    u32 common = live_size < file_size ? live_size : file_size;
+    for (u32 index = 0; index < count; ++index, at += live_size)
+    {
+        if (write) { engine_save_put(cursor, at, live_size); continue; }
+        engine_save_get(cursor, at, common);
+        if (common < live_size) memset(at + common, 0, live_size - common);
+        if (common < file_size)
+        {
+            if (!cursor->ok || (u64)(cursor->end - cursor->at) < file_size - common) { cursor->ok = false; return; }
+            cursor->at += file_size - common;
+        }
+    }
+}
+
+/* The arrays behind the pointers of sim_state, in file order. officer_size
+   and city_size are the record sizes of the file (the live sizes on a
+   write). */
+internal void
+engine_save_arrays(engine_save_cursor *cursor, sim_state *sim, b32 write, u32 officer_size, u32 city_size)
 {
     u32 entities = sim->entities.capacity, cells = sim->map.width * sim->map.height;
     struct { void *data; u64 size; } parts[] =
@@ -164,19 +240,35 @@ engine_save_arrays(engine_save_cursor *cursor, sim_state *sim, b32 write)
         { sim->entities.free_list,    sizeof(u32) * entities },
         { sim->officers.sparse,       sizeof(u32) * entities },
         { sim->officers.dense_owner,  sizeof(entity_id) * sim->officers.capacity },
-        { sim->officers.data,         sizeof(officer_component) * sim->officers.capacity },
-        { sim->cities.sparse,         sizeof(u32) * entities },
-        { sim->cities.dense_owner,    sizeof(entity_id) * sim->cities.capacity },
-        { sim->cities.data,           sizeof(city_component) * sim->cities.capacity },
-        { sim->map.cost,              cells },
-        { sim->map.kind,              cells },
-        { sim->map.level,             cells },
-        { sim->fire,                  sim->fire ? cells : 0 },
     };
     for (u32 index = 0; index < ArrayCount(parts); ++index)
     {
         if (write) engine_save_put(cursor, parts[index].data, parts[index].size);
         else       engine_save_get(cursor, parts[index].data, parts[index].size);
+    }
+    engine_save_records(cursor, sim->officers.data, sim->officers.capacity, (u32)sizeof(officer_component), officer_size, write);
+    struct { void *data; u64 size; } middle[] =
+    {
+        { sim->cities.sparse,         sizeof(u32) * entities },
+        { sim->cities.dense_owner,    sizeof(entity_id) * sim->cities.capacity },
+    };
+    for (u32 index = 0; index < ArrayCount(middle); ++index)
+    {
+        if (write) engine_save_put(cursor, middle[index].data, middle[index].size);
+        else       engine_save_get(cursor, middle[index].data, middle[index].size);
+    }
+    engine_save_records(cursor, sim->cities.data, sim->cities.capacity, (u32)sizeof(city_component), city_size, write);
+    struct { void *data; u64 size; } tail[] =
+    {
+        { sim->map.cost,              cells },
+        { sim->map.kind,              cells },
+        { sim->map.level,             cells },
+        { sim->fire,                  sim->fire ? cells : 0 },
+    };
+    for (u32 index = 0; index < ArrayCount(tail); ++index)
+    {
+        if (write) engine_save_put(cursor, tail[index].data, tail[index].size);
+        else       engine_save_get(cursor, tail[index].data, tail[index].size);
     }
 }
 
@@ -204,8 +296,12 @@ engine_api_save_game(void *opaque, u32 slot, const char *comment)
     header.slot.player = player == SIM_NO_FORCE ? (u8)ENGINE_NO_FACTION : player;
     header.slot.turn  = sim->turn;
 
+    engine_save_member members[ENGINE_SAVE_MEMBER_CAPACITY];
+    header.member_count = engine_save_members(members);
+
     u64 cells = (u64)sim->map.width * sim->map.height;
-    u64 size  = sizeof(header) + sizeof(sim_state) + (sizeof(u16) + sizeof(u8) + 3 * sizeof(u32)) * sim->entities.capacity +
+    u64 size  = sizeof(header) + sizeof(engine_save_member) * header.member_count + sizeof(sim_state) +
+                (sizeof(u16) + sizeof(u8) + 3 * sizeof(u32)) * sim->entities.capacity +
                 (sizeof(entity_id) + sizeof(officer_component)) * sim->officers.capacity +
                 (sizeof(entity_id) + sizeof(city_component)) * sim->cities.capacity + 4 * cells + sizeof(sim_event) * (u64)e->ledger_count;
     memory_arena *arena = e->transient;
@@ -214,8 +310,9 @@ engine_api_save_game(void *opaque, u32 slot, const char *comment)
     u8 *buffer = (u8 *)arena_push_size(arena, size);
     engine_save_cursor cursor = { buffer, buffer + size, true };
     engine_save_put(&cursor, &header, sizeof(header));
+    engine_save_put(&cursor, members, sizeof(engine_save_member) * header.member_count);
     engine_save_put(&cursor, sim, sizeof(sim_state));
-    engine_save_arrays(&cursor, sim, true);
+    engine_save_arrays(&cursor, sim, true, (u32)sizeof(officer_component), (u32)sizeof(city_component));
     engine_save_put(&cursor, e->ledger, sizeof(sim_event) * (u64)e->ledger_count);
     char path[256];
     engine_save_path(e, slot, path, sizeof(path));
@@ -271,13 +368,18 @@ engine_read_slot(engine *e, u32 slot, engine_save_header *header, engine_save_cu
     {
         engine_save_get(cursor, header, sizeof(*header));
         if (!cursor->ok) return ENGINE_SAVE_BAD_FILE;
-        if (header->version != ENGINE_SAVE_VERSION || header->layout != engine_save_layout()) return ENGINE_SAVE_OTHER_VERSION;
+        /* Version 2 needs the same layout. Version 3 carries a member table
+           and loads with another layout (the cursor stands on the table). */
+        if (header->version == 2 && header->layout != engine_save_layout()) return ENGINE_SAVE_OTHER_VERSION;
+        if (header->version != 2 && header->version != ENGINE_SAVE_VERSION) return ENGINE_SAVE_OTHER_VERSION;
+        if (header->version == 3 && header->member_count > ENGINE_SAVE_MEMBER_CAPACITY) return ENGINE_SAVE_BAD_FILE;
     }
-    if (header->sim_size != sizeof(sim_state) || header->officer_size != sizeof(officer_component) ||
-        header->city_size != sizeof(city_component) || header->event_size != sizeof(sim_event))
-    {
-        return ENGINE_SAVE_OTHER_VERSION;
-    }
+    /* Versions 1 and 2 have the member tables of their builds in this file
+       (engine_save_members_v1, _v2), so their sim_size must be the one of
+       those builds. The records of the officers and the cities copy record
+       by record (engine_save_records), so a record that grew at its end
+       still loads. */
+    if (header->version < 3 && header->sim_size != 511304) return ENGINE_SAVE_OTHER_VERSION;
     header->pack[sizeof(header->pack) - 1] = 0;
     if (strcmp(header->pack, e->content_folder) != 0) return ENGINE_SAVE_OTHER_PACK;
     return ENGINE_SAVE_OK;
@@ -302,42 +404,46 @@ engine_api_load_game(void *opaque, u32 slot)
     }
     if (status != ENGINE_SAVE_OK) { arena->used = mark; return status; }
 
+    /* Version 3: the member table stands after the header. */
+    engine_save_member members[ENGINE_SAVE_MEMBER_CAPACITY];
+    if (header.version == 3) engine_save_get(&cursor, members, sizeof(engine_save_member) * header.member_count);
+
     /* Check the length before the copy: a short file changes nothing. */
     u64 cells = (u64)sim->map.width * sim->map.height;
-    u64 rest  = sizeof(sim_state) + (sizeof(u16) + sizeof(u8) + 3 * sizeof(u32)) * sim->entities.capacity +
-                (sizeof(entity_id) + sizeof(officer_component)) * sim->officers.capacity +
-                (sizeof(entity_id) + sizeof(city_component)) * sim->cities.capacity + (sim->fire ? 4 : 3) * cells +
-                sizeof(sim_event) * (u64)header.ledger_count;
-    if ((u64)(cursor.end - cursor.at) < rest) { arena->used = mark; return ENGINE_SAVE_BAD_FILE; }
+    u64 rest  = (u64)header.sim_size + (sizeof(u16) + sizeof(u8) + 3 * sizeof(u32)) * sim->entities.capacity +
+                (sizeof(entity_id) + header.officer_size) * sim->officers.capacity +
+                (sizeof(entity_id) + header.city_size) * sim->cities.capacity + (sim->fire ? 4 : 3) * cells +
+                (u64)header.event_size * (u64)header.ledger_count;
+    if (!cursor.ok || (u64)(cursor.end - cursor.at) < rest) { arena->used = mark; return ENGINE_SAVE_BAD_FILE; }
 
     sim_state *live = PushStruct(arena, sim_state);
     *live = *sim;
-    if (header.version == 1)
+    /* Member by member, by the stable id: a member that the file lacks
+       stays zero, a member that grew keeps its old bytes at its start. The
+       table of a version 3 file stands in the file; the tables of the
+       versions 1 and 2 are the measured ones above. The inside of content
+       does not matter: the load takes the content of the pack.
+       save_compat_tests.cpp checks the members after content against a
+       fresh load of the sample. */
+    const engine_save_member *table = members;
+    u32 table_count = header.member_count;
+    if (header.version == 1) { table = engine_save_members_v1; table_count = ArrayCount(engine_save_members_v1); }
+    if (header.version == 2) { table = engine_save_members_v2; table_count = ArrayCount(engine_save_members_v2); }
+    u8 *old = PushArray(arena, header.sim_size, u8);
+    engine_save_get(&cursor, old, header.sim_size);
+    engine_save_member fresh[ENGINE_SAVE_MEMBER_CAPACITY];
+    u32 fresh_count = engine_save_members(fresh);
+    memset(sim, 0, sizeof(sim_state));
+    for (u32 index = 0; index < fresh_count; ++index)
     {
-        /* The sim_state of 2026-10-22, measured with offsetof against the
-           headers of that build: its content was four bytes shorter (one
-           rule less). The members from has_content to unit_count sat four
-           bytes earlier. The padding before scratch (8-aligned) took the
-           difference, so scratch and every member after it did not move.
-           The copy inserts four bytes at the end of the old content and
-           moves the members up to scratch. The inside of content does not
-           matter: the load takes the content of the pack.
-           save_compat_tests.cpp checks the members after content against
-           a fresh load of the sample. */
-        u8 *old   = PushArray(arena, sizeof(sim_state), u8);
-        u8 *fresh = (u8 *)sim;
-        u64 growth    = ENGINE_SAVE_V1_CONTENT_GROWTH;
-        u64 shift_at  = offsetof(sim_state, content) + sizeof(sim_content) - growth;   /* the end of the old content */
-        u64 shift_end = offsetof(sim_state, scratch);                                  /* the first member that did not move */
-        engine_save_get(&cursor, old, sizeof(sim_state));
-        memcpy(fresh, old, shift_at);
-        memset(fresh + shift_at, 0, growth);
-        memcpy(fresh + shift_at + growth, old + shift_at, shift_end - shift_at - growth);
-        memcpy(fresh + shift_end, old + shift_end, sizeof(sim_state) - shift_end);
-    }
-    else
-    {
-        engine_save_get(&cursor, sim, sizeof(sim_state));
+        for (u32 file_index = 0; file_index < table_count; ++file_index)
+        {
+            const engine_save_member *from = table + file_index;
+            if (from->id != fresh[index].id) continue;
+            u32 common = from->size < fresh[index].size ? from->size : fresh[index].size;
+            if ((u64)from->offset + common <= header.sim_size) memcpy((u8 *)sim + fresh[index].offset, old + from->offset, common);
+            break;
+        }
     }
     /* The pointers and the hooks stay those of the live sim. */
     sim->content              = live->content;   /* the tables and the rules of the pack of this build */
@@ -358,9 +464,16 @@ engine_api_load_game(void *opaque, u32 slot)
     sim->map_layers           = live->map_layers;   /* M10: the map data comes from the pack, not from the save */
     sim->scratch              = live->scratch;
     sim->ruleset              = live->ruleset;
-    engine_save_arrays(&cursor, sim, false);
-    engine_save_get(&cursor, e->ledger, sizeof(sim_event) * (u64)header.ledger_count);
-    e->ledger_count = header.ledger_count;
+    engine_save_arrays(&cursor, sim, false, header.officer_size, header.city_size);
+    if (header.event_size == sizeof(sim_event))
+    {
+        engine_save_get(&cursor, e->ledger, sizeof(sim_event) * (u64)header.ledger_count);
+        e->ledger_count = header.ledger_count;
+    }
+    else
+    {
+        e->ledger_count = 0;   /* the events of another build do not read; the game goes on without its history */
+    }
     arena->used = mark;
     return ENGINE_SAVE_OK;
 }

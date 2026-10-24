@@ -1451,6 +1451,8 @@ log.trap_triggered	{faction}: a trap sprang
 log.base_soldiers_lost	{subject}: soldiers lost in the base {delta}
 log.base_recovered	{subject}: durability recovered {delta}
 log.unit_loot	{faction}: a unit looted gold {delta}
+log.unit_plunder_grain	{subject}'s unit: took grain {delta}	{subject}隊：掠奪兵糧 {delta}
+log.item_taken	{subject}: the item fell to the enemy	{subject}的道具落入敵軍手中
 log.gold_found	{subject}: gold found {delta}
 log.loyalty_changed	{subject}: loyalty {delta}, now {value}
 log.item_given	{subject}: receives {speaker}

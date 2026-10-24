@@ -382,10 +382,30 @@ sim_duel_finish(sim_state *sim, u8 winner, u8 result, u32 cause, sim_event_sink 
     if (sim_random_below(sim, 100) < rules->duel_force_chance && victor->war < 100) sim_change_ability(sim, victor, CONTENT_ABILITY_FORCE, 1, true, cause, events);
     sim_unit *loser_unit = sim_find_unit(sim, losing->unit);
     if (loser_unit) sim_change_morale(sim, losing->unit, -(s32)rules->duel_morale_loss, cause, events);
+    /* G3-002 (observed 2026-10-23): the unit of the loser loses
+       duel.loser_soldiers_percent of its soldiers (5000 to 3500). */
+    if (loser_unit && result != DUEL_RESULT_RETREAT && rules->duel_loser_soldiers_percent)
+    {
+        u32 lost = sim_percent_of(loser_unit->soldiers, rules->duel_loser_soldiers_percent);
+        if (lost && lost < loser_unit->soldiers)
+        {
+            loser_unit->soldiers -= lost;
+            sim_emit_unit(sim, SIM_EVENT_UNIT_DAMAGED, losing->unit, SIM_NO_CITY, -(s32)lost, false, cause, events);
+        }
+    }
     b32 safe = !loser || result == DUEL_RESULT_RETREAT || sim_officer_has_skill(loser, rules->skill_fortune) ||
                (loser_unit && sim_unit_has_skill(sim, loser_unit->officers, rules->skill_guard));
     if (safe || sim_random_below(sim, 100) >= rules->duel_capture_percent) return;
     sim_unit *victor_unit = sim_find_unit(sim, duel->side[winner].unit);
+    /* G3-002: the items of the loser go to the force of the winner (甘寧的道具落入馬騰軍手中). */
+    for (u32 index = 0; index < SAVE_ITEM_COUNT; ++index)
+    {
+        sim_item *item = sim->items + index;
+        if (!item->exists || item->owner != loser->officer_id) continue;
+        item->owner = SIM_NO_OFFICER;
+        item->city  = victor_unit ? victor_unit->home_city : SIM_NO_CITY;
+        sim_emit_officer(sim, SIM_EVENT_ITEM_TAKEN, loser, 0, index, false, cause, events);
+    }
     sim_remove_from_unit(sim, loser, cause, events);
     loser->former_force     = loser->force_id;
     loser->force_id         = victor->force_id;

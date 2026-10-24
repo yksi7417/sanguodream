@@ -234,6 +234,7 @@ enum save_city_offset
     SAVE_CITY_EQUIPMENT_STOCKS        = 32,   /* 10 x u32 */
     SAVE_CITY_LARGE_CITY_FLAG         = 77,   /* u8, hypothesis */
     SAVE_CITY_DURABILITY_MAXIMUM      = 80,   /* u16, hypothesis */
+    SAVE_CITY_WALL_MAXIMUM            = 82,   /* u16: the maximum of the wall (G3-011, Q-222: 4600, 4000, 2400, 2800 on the screen) */
     SAVE_CITY_MORALE                  = 84,   /* u8: the morale of the city (spec 2026-10-18; G2-012) */
     SAVE_CITY_PUBLIC_ORDER            = 85    /* u8, hypothesis */
 };
@@ -272,6 +273,7 @@ struct city_record
     u32 equipment_stocks[CITY_EQUIPMENT_STOCK_COUNT];
     u8  large_city_flag;         /* hypothesis */
     u16 durability_maximum;      /* hypothesis */
+    u16 wall_maximum;            /* +82 of a save: the maximum of the wall (G3-011); 0 for a scenario record */
     u8  morale;                  /* save only: the 81 bytes of a scenario record stop before +84 */
     b32 has_morale;              /* false for a scenario record */
     u8  public_order;            /* hypothesis; save only */

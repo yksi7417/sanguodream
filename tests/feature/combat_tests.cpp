@@ -373,13 +373,19 @@ feature_capture_tests(test_counts *counts, feature_battle *battle)
     engine_unit b = api->unit_at(e, battle->b);
     u32 officers = 0;
     for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place) officers += b.officers[place] != ENGINE_NO_OFFICER;
+    engine_unit c_before = api->unit_at(e, battle->c);
     u32 mark = api->ledger_count(e);
     engine_command_result result = api->command_attack(e, battle->c, at_b.q, at_b.r);
     u32 fates = feature_count_events(api, SIM_EVENT_OFFICER_CAPTURED, mark) + feature_count_events(api, SIM_EVENT_OFFICER_ESCAPED, mark);
     TEST_CHECK(counts, result.refusal == SIM_REFUSAL_NONE && api->unit_at(e, battle->b).id == ENGINE_NO_UNIT &&
                        feature_count_events(api, SIM_EVENT_UNIT_DESTROYED, mark) == 1 && fates == officers && officers > 0,
-               "a unit with no soldiers is destroyed; each officer is captured or escapes (assumed 50 percent)");
+               "a unit with no soldiers is destroyed; each officer is captured or escapes (assumed 20 percent)");
     TEST_CHECK(counts, feature_count_events(api, SIM_EVENT_TECHNIQUE_GAINED, mark) >= 1, "the victor gains technique points (assumed)");
+    /* G3-003 (observed 2026-10-23): the attacker takes half the gold and a quarter of the grain of the destroyed unit. */
+    engine_unit c_after = api->unit_at(e, battle->c);
+    TEST_CHECK(counts, b.gold > 0 && b.grain > 0 && c_after.gold == c_before.gold + b.gold / 2 && c_after.grain == c_before.grain + b.grain / 4 &&
+                       feature_count_events(api, SIM_EVENT_UNIT_LOOT, mark) == 1 && feature_count_events(api, SIM_EVENT_UNIT_PLUNDER_GRAIN, mark) == 1,
+               "the attacker plunders half the gold and a quarter of the grain of the destroyed unit, with two log lines (G3-003)");
 }
 
 internal void
@@ -432,10 +438,10 @@ feature_siege_tests(test_counts *counts)
         engine_city each = api->city_at(e, (u8)id);
         engine_city_siege wall = api->city_siege(e, (u8)id);
         if (each.city_id == ENGINE_NO_CITY || each.owner_force_id == ENGINE_NO_FACTION) continue;
-        maxima_hold &= (!each.capacity_constant || wall.durability_max >= each.capacity_constant) && wall.durability <= wall.durability_max;
+        maxima_hold &= (!each.wall_maximum || wall.durability_max >= each.wall_maximum) && wall.durability <= wall.durability_max;
     }
-    TEST_CHECK(counts, maxima_hold && siege.durability_max == api->city_at(e, target).capacity_constant,
-               "the maximum of the wall is the static city constant (G2-009, assumed from three cities), and no wall is above it");
+    TEST_CHECK(counts, maxima_hold && api->city_at(e, target).wall_maximum != 0 && siege.durability_max == api->city_at(e, target).wall_maximum,
+               "the maximum of the wall is the u16 at +82 of the save (G2-009, G3-011, Q-222: four cities), and no wall is above it");
     TEST_CHECK(counts, unit_id != ENGINE_NO_UNIT && siege.city_id == target && siege.durability == siege.durability_max && siege.durability_max > 0,
                "a base starts with its full durability");
 

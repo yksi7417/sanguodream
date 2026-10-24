@@ -1450,6 +1450,8 @@ log.trap_triggered	{faction}：觸發陷阱
 log.base_soldiers_lost	{subject}：據點士兵損失 {delta}
 log.base_recovered	{subject}：耐久恢復 {delta}
 log.unit_loot	{subject}隊：掠奪資金 {delta}
+log.unit_plunder_grain	{subject}隊：掠奪兵糧 {delta}
+log.item_taken	{subject}的道具落入敵軍手中
 log.gold_found	{subject}：發現資金 {delta}
 log.loyalty_changed	{subject}：忠誠 {delta}，現為 {value}
 log.item_given	{subject}：獲得{speaker}

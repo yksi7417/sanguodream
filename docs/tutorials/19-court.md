@@ -125,7 +125,9 @@ The post adds its bonus to its ability.
 - The escape (G2-032): at each month start, `sim_run_captives_month`
   rolls captive.escape_percent (assumed 10) for each captive. An escape
   sends the captive back to its faction with the event `captive_escaped`.
-  The turn start reports it, and the log says 逃亡.
+  The turn start reports it, and the log says 逃亡. At each month start
+  a captive loses loyalty.captive_monthly or one more (2 or 3, observed).
+  The own officers keep their loyalty (G3-019: loyalty.monthly is 0).
 - 俘虜處置 (ui/city-commands.md, "Prisoner dialog"): after a battle,
   code/ui/ui_captive.cpp opens one dialog for each officer that the
   player captured. The dialog shows the portrait, the abilities, the age
@@ -190,8 +192,12 @@ spirit or an item:
 damage and the spirit. A substitute of the same unit can take the place
 of the officer. The
 computer side follows its personality. The winner gains merit, technique
-points and perhaps force; the loser can become a captive. At
-duel.max_rounds the duel is a draw. The player plays side 0 of the
+points and perhaps force. The unit of the loser loses
+duel.loser_soldiers_percent of its soldiers (30, observed). The loser
+becomes a captive of the force of the winner (duel.capture_percent 100,
+one observation). His items go to that force (`item_taken`). The skills
+強運 and 護衛 save him. A 退卻 ends the duel without a capture (G3-002).
+At duel.max_rounds the duel is a draw. The player plays side 0 of the
 screen. When the computer challenges the player, the sides swap. A duel
 of two computer officers runs to its end in the same command. The player
 then sees only the result in the log (play report of 2026-10-23).

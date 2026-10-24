@@ -332,6 +332,16 @@ sim_destroy_unit(sim_state *sim, u32 unit_id, u32 captor_id, b32 halberd_tactic,
 {
     sim_rules *rules = &sim->content.rules;
     sim_capture_officers(sim, unit_id, captor_id, halberd_tactic, cause, events);
+    /* G3-003 (observed 2026-10-23): the attacker takes half the gold and a
+       quarter of the grain of the destroyed unit, rounded down. */
+    if (captor_id < sim->unit_count && sim->units[captor_id].alive)
+    {
+        sim_unit *fallen = sim->units + unit_id, *captor = sim->units + captor_id;
+        u32 gold  = sim_percent_of(fallen->gold, rules->plunder_gold_percent);
+        u32 grain = sim_percent_of(fallen->grain, rules->plunder_grain_percent);
+        if (gold)  { captor->gold  += gold;  sim_emit_unit(sim, SIM_EVENT_UNIT_LOOT, captor_id, SIM_NO_CITY, (s32)gold, false, cause, events); }
+        if (grain) { captor->grain += grain; sim_emit_unit(sim, SIM_EVENT_UNIT_PLUNDER_GRAIN, captor_id, SIM_NO_CITY, (s32)grain, false, cause, events); }
+    }
     sim->units[unit_id].alive = false;
     sim_emit_unit(sim, SIM_EVENT_UNIT_DESTROYED, unit_id, SIM_NO_CITY, 0, false, cause, events);
     if (captor_id < sim->unit_count && rules->combat_destroy_technique)
@@ -367,11 +377,11 @@ internal u32
 sim_city_durability_max(sim_state *sim, city_component *city)
 {
     sim_rules *rules = &sim->content.rules;
-    /* G2-009 (Q-222): the original shows the static city constant as the
-       maximum (4600 for 襄陽, 4000 for 江陵, 2400 for 新野), not the field
-       that the spec named durability_maximum (7000, 6000). Assumed from
-       three cities. */
-    u32 maximum = city->capacity_constant ? city->capacity_constant :
+    /* G2-009, G3-011 (Q-222): the original shows the u16 at +82 of the city
+       record as the maximum (4600 for 襄陽, 4000 for 江陵, 2400 for 新野,
+       2800 for 柴桑), not the field that the spec named durability_maximum
+       (7000, 6000). A scenario record has no +82: then the old field. */
+    u32 maximum = city->wall_maximum ? city->wall_maximum :
                   (city->durability_maximum ? city->durability_maximum : rules->siege_default_durability);
     if (sim_has_technique_effect(sim, city->owner_force_id, TECHNIQUE_EFFECT_CITADEL, CONTENT_CLASS_NONE) && rules->siege_wall_percent)
     {

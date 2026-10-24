@@ -62,6 +62,7 @@ scenario_decode_city(const u8 *record, u8 id, city_record *out)
     }
     out->large_city_flag    = record[SCENARIO_CITY_LARGE_CITY_FLAG];
     out->durability_maximum = format_read_u16(record + SCENARIO_CITY_DURABILITY_MAXIMUM);
+    out->wall_maximum       = 0;   /* the 81 bytes of a scenario record stop before +82 */
 }
 
 internal b32

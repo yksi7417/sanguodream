@@ -114,6 +114,8 @@ enum sim_event_kind
     SIM_EVENT_CAPTIVE_ESCAPED,      /* G2-032: subject = officer; a captive escaped to its force at a month start */
     SIM_EVENT_CAPTIVE_KEPT,         /* 俘虜處置: subject = officer; the player keeps the captive */
     SIM_EVENT_OFFICER_EXECUTED,     /* 俘虜處置: subject = officer; the player executes the captive (assumed) */
+    SIM_EVENT_UNIT_PLUNDER_GRAIN,   /* G3-003: subject = the commander of the attacker; delta = the grain of the destroyed unit that it takes */
+    SIM_EVENT_ITEM_TAKEN,           /* G3-002: subject = the loser of a duel; detail = the item; its item goes to the force of the winner */
     SIM_EVENT_FIRE_STARTED,         /* detail = the cell; delta = turns */
     SIM_EVENT_FIRE_ENDED,           /* detail = the cell */
     SIM_EVENT_BUILDING_STARTED,     /* detail = the building id; delta = the kind */
@@ -828,6 +830,7 @@ struct city_component
     /* M6: the durability of the base (siege-and-bases.md); the maximum is durability_maximum */
     u32 durability;
     u8  corps;                           /* M8: the corps of the city; 0 = the corps of the ruler */
+    u16 wall_maximum;                    /* G3-011 (Q-222): the maximum of the wall from the save (+82); 0 = not known. New fields go at the end (engine_saves.cpp). */
 };
 
 #define SIM_STATUS_CAPTIVE 5   /* the status of a captive (assumed: status 5 of save-file.md, Q-176) */

@@ -41,23 +41,25 @@ load, and a refused load changes nothing. The platform layer has a file
 writer for this (`platform_write_entire_file`). The 32 slots are files
 slot_01.hxs to slot_32.hxs in the save folder of engine_config.
 
-The header of version 2 carries the layout of sim_state:
-`engine_save_layout` hashes the offset and the size of each member. The
-struct sizes alone did not protect the player. On 2026-10-23 a new rule
-in sim_rules moved every member after content by four bytes, with the
-same sizeof(sim_state). The old slot loaded, and the game showed the year
-12 and the wrong ruler. Now a file with another layout gets
-ENGINE_SAVE_OTHER_VERSION. The tables and the rules of the pack
-(sim_state.content) come from the pack of this build, never from the
-file. So a new rule does not break a save. A version 1 file has the
-layout of 2026-10-22, measured with offsetof against the headers of that
-build. The load inserts the four bytes at the end of the old content
-and moves the members up to `scratch`. The free bytes before `scratch`
-took the difference, so the members after it did not move.
-tests/feature/save_compat_tests.cpp loads such a file,
-tests/fixtures/saves/slot_01.hxs, and checks its date and its player.
-When a change of sim_state breaks that test, add a migration or make the
-load refuse the old files. Do not remove the test.
+The struct sizes alone did not protect the player. On 2026-10-23 a new
+rule in sim_rules moved every member after content by four bytes, with
+the same sizeof(sim_state). The old slot loaded, and the game showed the
+year 12 and the wrong ruler. Version 3 of the format writes a member
+table after the header. The table holds the stable id, the offset and
+the size of each top-level member of sim_state (`ENGINE_SAVE_MEMBER_LIST`).
+The load copies each member by its id, so a new member or a member that
+grows at its end keeps the old saves. The files of version 1 and 2 have
+no table. Their tables are in engine_saves.cpp, measured with offsetof
+against the headers of their builds. The records of the officers and the
+cities copy record by record with the sizes of the file. So a new field
+at the end of a record keeps the old saves too. The tables and the rules
+of the pack (sim_state.content) come from the pack of this build, never
+from the file. Two rules follow for a change of sim_state. Add a new
+member at the end of `ENGINE_SAVE_MEMBER_LIST`. Add a new field at the
+end of its struct. A field in the middle of a member needs a migration.
+tests/feature/save_compat_tests.cpp loads a file of version 1,
+tests/fixtures/saves/slot_01.hxs, and checks its date, its player, its
+ruler and the members after content. Do not remove the test.
 
 ## The settings of the start
 engine_settings has the settings of game-setup-and-modes.md:

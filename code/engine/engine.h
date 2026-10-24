@@ -75,6 +75,7 @@ struct engine_city
     u32 food;
     u32 equipment_stocks[CITY_EQUIPMENT_STOCK_COUNT];   /* spears, halberds, crossbows, war horses, rams, towers, catapults, 3 ships */
     u16 durability_maximum;         /* hypothesis in the spec */
+    u16 wall_maximum;               /* G3-011: the maximum of the wall from the save (+82); 0 for a scenario game */
     u8  public_order;               /* hypothesis in the spec */
     u8  morale;                     /* 氣力; from the save (city +84); a scenario city starts at an assumed value */
 };
