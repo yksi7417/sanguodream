@@ -341,13 +341,33 @@ feature_building_tests(test_counts *counts, feature_battle *battle)
                        camp.id != ENGINE_NO_BUILDING && camp.force_id == force && camp.durability == check.quantity && camp.durability_max == 1100 &&
                        api->unit_at(e, battle->a).gold == 0 && feature_count_events(api, SIM_EVENT_BUILDING_STARTED, mark) == 1,
                "設置: the unit pays the gold and builds the camp by its build value (assumed x 5)");
+    /* The player, 2026-10-24: a building event named the commander of the unit with the index of the building. */
+    engine_event_report started = {};
+    for (u32 index = mark; index < api->ledger_count(e); ++index)
+    {
+        if (api->ledger_at(e, index).kind == SIM_EVENT_BUILDING_STARTED) started = api->event_report(e, index);
+    }
+    TEST_CHECK(counts, started.subject.kind == ENGINE_SUBJECT_NONE && started.faction == force && started.place.kind == ENGINE_PLACE_BUILDING &&
+                       started.place.id == camp_id && started.place.thing == camp.kind && started.place.force == force &&
+                       started.place.on_map && started.place.q == fifth.q && started.place.r == fifth.r,
+               "a building event has the owner as its faction, no unit, and the building at its hex as its place");
 
     /* An enemy arrow tower shoots the nearest unit in its range each turn. */
     u32 tower = api->place_building(e, FEATURE_BUILD_ARROW, battle->enemy, sixth.q, sixth.r);
     u32 before = api->unit_at(e, battle->a).soldiers;
+    mark = api->ledger_count(e);
     feature_next_own_turn(api, force);
     TEST_CHECK(counts, tower != ENGINE_NO_BUILDING && api->unit_at(e, battle->a).soldiers == before - FEATURE_TOWER_SHOT,
                "an enemy arrow tower takes 300 soldiers each turn (assumed)");
+    engine_place shot = {};
+    for (u32 index = mark; index < api->ledger_count(e); ++index)
+    {
+        sim_event event = api->ledger_at(e, index);
+        if (event.kind == SIM_EVENT_UNIT_DAMAGED && event.detail == battle->a) shot = api->event_report(e, index).place;
+    }
+    TEST_CHECK(counts, shot.kind == ENGINE_PLACE_UNIT && shot.id == battle->a && shot.officer == api->unit_at(e, battle->a).officers[0] &&
+                       shot.on_map && shot.q == fourth.q && shot.r == fourth.r,
+               "the place of a unit event is the unit at its hex, with its commander");
 
     if (!api->building_at(e, camp_id).complete)
     {

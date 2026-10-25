@@ -98,9 +98,25 @@ template provider.
   by its commander (周泰隊：士兵 -232). The commander is the subject of
   the event, so the name stays after the unit is gone. Each line starts
   with its place when the words do not name it (ui_report_add_place; the
-  player, 2026-10-24). The place is the city, the port or the pass of
-  the event, or the unit of an officer in the field. It shows as 【長安】
-  or 【張遼隊】.
+  player, 2026-10-24). It shows as 【長安】 or 【張遼隊】.
+- The engine gives the place of each event in event_report.place
+  (engine_place_of_event). The place is one of these:
+  - the facility slot of a facility event, with the kind of the facility;
+  - the field building of a building event, with its kind and its owner;
+  - the cell of a fire;
+  - the port or the pass of an entry;
+  - the city of the subject, or the unit of the event;
+  - the city or the unit of an officer.
+- The log keeps the place when the event comes in. A click on a line
+  frames the hex of the place (ui_frame_hex). A facility line and a
+  building line name the facility or the building (長安：市場受損).
+- The log goes to the bottom left and the minimap to the bottom right at
+  the start. They go back after a change of the screen size
+  (ui_corner_cond).
+- The events of a field building and of a fire go through
+  sim_emit_building and sim_emit_cell. Before, they went through
+  sim_emit_unit. The building id then named the commander and the force
+  of the unit with that index.
 - The speech bubble (main-map.md, "Speech bubble") opens over the base
   after a command of the player. One of the executors of a city command
   speaks in the tone of the event. The command id picks him (G2-018,

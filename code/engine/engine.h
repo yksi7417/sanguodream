@@ -148,6 +148,32 @@ enum engine_event_sign
 #define ENGINE_TONE_SIZE 16
 #define ENGINE_NO_EVENT  U32_MAX
 
+/* The place of a ledger event: the thing on the map where it happens (the
+   player, 2026-10-24: every line of the log names its place, and a click
+   on the line goes there). The hex is the hex of the place when the front
+   end asks. */
+enum engine_place_kind
+{
+    ENGINE_PLACE_NONE,
+    ENGINE_PLACE_CITY,       /* id = a location id: a city 0..41, or a port or a pass 42..86 */
+    ENGINE_PLACE_FACILITY,   /* id = the city; slot; kind = the facility, ENGINE_NO_FACILITY if the slot is empty */
+    ENGINE_PLACE_UNIT,       /* id = the unit; officer = its commander, also after the unit is gone */
+    ENGINE_PLACE_BUILDING,   /* id = the field building; kind = its row of buildings.tsv; force = its owner */
+    ENGINE_PLACE_HEX,        /* a hex with no thing on it: the fire of a cell */
+};
+
+struct engine_place
+{
+    u8  kind;                /* engine_place_kind */
+    u32 id;
+    u8  slot;
+    u8  thing;               /* the facility kind or the building kind; ENGINE_NO_ROW if none */
+    u8  force;               /* ENGINE_NO_FACTION */
+    u16 officer;             /* ENGINE_NO_OFFICER */
+    b32 on_map;
+    s32 q, r;
+};
+
 struct engine_event_report
 {
     u32            ledger_index;   /* ENGINE_NO_EVENT for an index out of range */
@@ -170,6 +196,7 @@ struct engine_event_report
     b32            report;         /* the turn start of the faction reports the event */
     b32            log;            /* the message log shows the event (the side effects of a command do not show) */
     b32            assumed;        /* the amount or the tone row is assumed */
+    engine_place   place;          /* where the event happens */
 };
 
 /* A faction in the order of this turn. */

@@ -66,6 +66,23 @@ feature_report_tests(test_counts *counts)
     TEST_CHECK(counts, completed.date.days_since_start <= api->date(e).days_since_start,
                "report: the date of an event is not after today");
 
+    /* The player, 2026-10-24: each event has a place on the map, and a click on its log line goes there. */
+    engine_city_slots site = api->city_slots(e, city);
+    TEST_CHECK(counts, report.place.kind == ENGINE_PLACE_CITY && report.place.id == city && report.place.on_map &&
+                       report.place.q == site.q && report.place.r == site.r,
+               "report: the place of a city command is the city, at the centre hex of the city");
+    engine_facility barracks = api->facility_at(e, city, slot);
+    TEST_CHECK(counts, api->damage_facility(e, city, slot, 100).refusal == SIM_REFUSAL_NONE, "report: the test command damages the barracks");
+    engine_place hit = api->event_report(e, feature_last_event(api, SIM_EVENT_FACILITY_DAMAGED)).place;
+    TEST_CHECK(counts, hit.kind == ENGINE_PLACE_FACILITY && hit.id == city && hit.slot == slot && hit.thing == barracks.facility &&
+                       hit.on_map && hit.q == barracks.q && hit.r == barracks.r,
+               "report: the place of a facility event is the facility, at the hex of its slot");
+    TEST_CHECK(counts, api->damage_facility(e, city, slot, 99999).refusal == SIM_REFUSAL_NONE &&
+                       api->facility_at(e, city, slot).facility == ENGINE_NO_FACILITY, "report: the test command destroys the barracks");
+    engine_place gone = api->event_report(e, feature_last_event(api, SIM_EVENT_FACILITY_DESTROYED)).place;
+    TEST_CHECK(counts, gone.kind == ENGINE_PLACE_FACILITY && gone.thing == barracks.facility && gone.q == barracks.q && gone.r == barracks.r,
+               "report: a destroyed facility still names its kind, from the event, after its slot is empty");
+
     engine_event_report none = api->event_report(e, api->ledger_count(e));
     TEST_CHECK(counts, none.ledger_index == ENGINE_NO_EVENT && none.speaker == ENGINE_NO_OFFICER && strcmp(none.tone, "neutral") == 0,
                "report: an index out of range gives no event");

@@ -1366,6 +1366,7 @@ unit_target.base_before	是否進入
 unit_target.base_after	？
 log.place_before	【
 log.place_after	】
+log.place_join	·
 hover.army	軍
 unit_target.yes	是
 unit_target.no	否
@@ -1428,12 +1429,12 @@ log.grain_over_cap	{subject}：兵糧超過上限 {delta}
 log.salaries_unpaid	{subject}：無法支付俸祿
 log.soldiers_deserted	{subject}：士兵逃亡 {delta}，兵糧不足
 log.weapons_free	{subject}：{speaker}產出 {delta}
-log.facility_repaired	{subject}：設施修復，耐久 {delta}
-log.facility_damaged	{subject}：設施受損，耐久 {delta}
-log.facility_destroyed	{subject}：設施被毀
+log.facility_repaired	{subject}：{speaker}修復，耐久 {delta}
+log.facility_damaged	{subject}：{speaker}受損，耐久 {delta}
+log.facility_destroyed	{subject}：{speaker}被毀
 log.technique_spent	{faction}：技巧 {delta}
 log.merge_started	{subject}：開始吸收合併
-log.facility_merged	{subject}：設施合併，等級 {delta}
+log.facility_merged	{subject}：{speaker}合併，等級 {delta}
 log.disaster_ended	{subject}：災害結束
 log.grain_lost	{subject}：兵糧損失 {delta}
 log.grain_harvest	{subject}：豐收，兵糧 {delta}
@@ -1456,10 +1457,10 @@ log.morale_changed	{faction}：部隊氣力 {delta}
 log.unit_pushed	{subject}隊：後退 {delta} 格
 log.fire_started	{faction}：起火
 log.fire_ended	火勢熄滅
-log.building_started	{faction}：開始設置建築
-log.building_completed	{faction}：建築完成
-log.building_damaged	{faction}：建築耐久 {delta}
-log.building_destroyed	{faction}：建築被毀
+log.building_started	{faction}：開始設置{speaker}
+log.building_completed	{faction}：{speaker}完成
+log.building_damaged	{faction}：{speaker}耐久 {delta}
+log.building_destroyed	{faction}：{speaker}被毀
 log.trap_triggered	{faction}：觸發陷阱
 log.base_soldiers_lost	{subject}：據點士兵損失 {delta}
 log.base_recovered	{subject}：耐久恢復 {delta}

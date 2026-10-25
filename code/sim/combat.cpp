@@ -469,7 +469,7 @@ sim_hurt_building(sim_state *sim, u32 building_id, u32 amount, u32 direction, u3
     if (!building->alive) return;
     u32 broken = amount < building->durability ? amount : building->durability;
     building->durability -= broken;
-    if (broken) sim_emit_unit(sim, SIM_EVENT_BUILDING_DAMAGED, building_id, SIM_NO_CITY, -(s32)broken, false, cause, events);
+    if (broken) sim_emit_building(sim, SIM_EVENT_BUILDING_DAMAGED, building_id, -(s32)broken, false, cause, events);
     if (building->durability) return;
     building_type type = sim->content.buildings[building->kind].type;
     if (type == BUILDING_SEED || type == BUILDING_BALL || type == BUILDING_SHIP || type == BUILDING_DIKE || type == BUILDING_ROCKFALL)
@@ -478,7 +478,7 @@ sim_hurt_building(sim_state *sim, u32 building_id, u32 amount, u32 direction, u3
         return;
     }
     building->alive = false;
-    sim_emit_unit(sim, SIM_EVENT_BUILDING_DESTROYED, building_id, SIM_NO_CITY, 0, false, cause, events);
+    sim_emit_building(sim, SIM_EVENT_BUILDING_DESTROYED, building_id, 0, false, cause, events);
 }
 
 /* The facility of a city slot under attack. A destroyed facility gives

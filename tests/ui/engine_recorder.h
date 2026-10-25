@@ -790,6 +790,12 @@ internal engine_subject recorder_subject_of(void *o, u32 entity)
     else if (entity >= 1000 && entity < 1000 + r->officer_count)     { subject.kind = ENGINE_SUBJECT_OFFICER; subject.id = (u16)(entity - 1000 + 100); }
     return subject;
 }
+#define RECORDER_CITY_COL 2
+#define RECORDER_CITY_ROW 2
+#define RECORDER_SLOT_COL 6     /* M19: the hex of slot RECORDER_SLOT_INDEX of city 0 */
+#define RECORDER_SLOT_ROW 4
+#define RECORDER_SLOT_INDEX 4
+
 /* M18: the facts of a scripted event. The speaker is the first scripted
    officer, the tone is "calm", and an event that a test marks with
    detail 1 is a report. The sign follows the amount. */
@@ -823,6 +829,24 @@ internal engine_event_report recorder_event_report(void *o, u32 index)
     report.sign         = (u8)(event->delta > 0 ? ENGINE_SIGN_GOOD : event->delta < 0 ? ENGINE_SIGN_BAD : ENGINE_SIGN_NEUTRAL);
     report.report       = event->detail == 1;
     report.log          = true;
+    /* The place: a facility event of a city is at its slot hex, another
+       event of a city at the city hex, as in the real engine. */
+    report.place.thing   = ENGINE_NO_ROW;
+    report.place.force   = ENGINE_NO_FACTION;
+    report.place.officer = ENGINE_NO_OFFICER;
+    if (report.subject.kind == ENGINE_SUBJECT_CITY)
+    {
+        b32 facility = event->kind == SIM_EVENT_FACILITY_REPAIRED || event->kind == SIM_EVENT_FACILITY_DAMAGED || event->kind == SIM_EVENT_FACILITY_DESTROYED;
+        hex_offset cell = { facility ? RECORDER_SLOT_COL : RECORDER_CITY_COL, facility ? RECORDER_SLOT_ROW : RECORDER_CITY_ROW };
+        hex_coord hex = hex_from_offset(cell);
+        report.place.kind   = (u8)(facility ? ENGINE_PLACE_FACILITY : ENGINE_PLACE_CITY);
+        report.place.id     = report.subject.id;
+        report.place.slot   = (u8)(facility ? RECORDER_SLOT_INDEX : 0);
+        report.place.thing  = (u8)(facility ? 0 : ENGINE_NO_ROW);   /* facility kind 0 of recorder_facility_kind_at */
+        report.place.on_map = true;
+        report.place.q      = hex.q;
+        report.place.r      = hex.r;
+    }
     return report;
 }
 
@@ -1757,11 +1781,6 @@ internal engine_battle recorder_battle_at(void *o, u32 index)
 }
 /* ---- M10: the real map. The scripted map has one city cell: offset (2, 2)
    is city 0. */
-#define RECORDER_CITY_COL 2
-#define RECORDER_CITY_ROW 2
-#define RECORDER_SLOT_COL 6     /* M19: the hex of slot RECORDER_SLOT_INDEX of city 0 */
-#define RECORDER_SLOT_ROW 4
-#define RECORDER_SLOT_INDEX 4
 
 internal engine_map_info recorder_map_info(void *o)
 {

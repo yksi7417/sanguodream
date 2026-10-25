@@ -78,47 +78,96 @@ ui_report_subject(ui_state *ui, engine_api *api, const engine_event_report *repo
     else if (report->subject.kind == ENGINE_SUBJECT_OFFICER) ui_officer_text(ui, api, report->subject.id, out, out_size);
 }
 
-/* The place of an event: the city, the port or the pass where it happens,
-   or the unit (its commander and 隊) of an officer in the field. Empty
-   when the event has no place. */
+/* The name of the facility or the field building of a place: 市場, 陣.
+   The generic word 設施 or 建築 when the kind is not known. */
 internal void
-ui_report_place(ui_state *ui, engine_api *api, const engine_event_report *report, char *out, u32 out_size)
+ui_report_thing(ui_state *ui, engine_api *api, const engine_place *place, char *out, u32 out_size)
 {
     out[0] = 0;
-    if (report->kind == SIM_EVENT_BASE_TAKEN || report->kind == SIM_EVENT_UNIT_ENTERED_BASE)
+    if (place->kind == ENGINE_PLACE_FACILITY)
     {
-        if (report->detail >= CONTENT_FIRST_BASE && report->detail < CONTENT_FIRST_BASE + CONTENT_BASE_COUNT) ui_city_label(ui, api, (u8)report->detail, out, out_size);
-        return;
+        if (place->thing == ENGINE_NO_FACILITY) snprintf(out, out_size, "%s", text_get(ui->text, "column.facility"));
+        else                                    snprintf(out, out_size, "%s", ui_facility_name(ui, api, place->thing));
     }
-    if (report->subject.kind == ENGINE_SUBJECT_CITY) { ui_city_label(ui, api, (u8)report->subject.id, out, out_size); return; }
-    if (report->subject.kind != ENGINE_SUBJECT_OFFICER) return;
-    engine_officer officer = api->officer_by_id(api->engine, report->subject.id);
-    if (officer.officer_id == ENGINE_NO_OFFICER) return;
-    if (officer.current_position < CONTENT_FIRST_BASE + CONTENT_BASE_COUNT) { ui_city_label(ui, api, (u8)officer.current_position, out, out_size); return; }
-    if (officer.current_position == 0xFFFF) return;
-    engine_unit unit = api->unit_at(api->engine, officer.current_position - (CONTENT_FIRST_BASE + CONTENT_BASE_COUNT));   /* 87 + the unit index */
-    if (unit.id != ENGINE_NO_UNIT) ui_unit_label(ui, api, &unit, out, out_size);
+    else if (place->kind == ENGINE_PLACE_BUILDING)
+    {
+        engine_building_kind kind = place->thing == ENGINE_NO_ROW ? engine_building_kind{} : api->building_kind_at(api->engine, place->thing);
+        if (kind.key[0]) snprintf(out, out_size, "%s", ui_text_with_key(ui, "building", kind.key));
+        else             snprintf(out, out_size, "%s", text_get(ui->text, "hexinfo.building"));
+    }
+}
+
+/* The name of the place of an event (engine_place): the city, the port or
+   the pass, the facility of a city, the unit (its commander and 隊), or
+   the field building. Empty when the event has no place with a name. */
+internal void
+ui_report_place(ui_state *ui, engine_api *api, const engine_place *place, char *out, u32 out_size)
+{
+    out[0] = 0;
+    switch (place->kind)
+    {
+        case ENGINE_PLACE_CITY:
+            ui_city_label(ui, api, (u8)place->id, out, out_size);
+            break;
+        case ENGINE_PLACE_FACILITY:
+        {
+            char city[UI_NAME_SIZE * 2], thing[UI_NAME_SIZE * 2];
+            ui_city_label(ui, api, (u8)place->id, city, sizeof(city));
+            ui_report_thing(ui, api, place, thing, sizeof(thing));
+            snprintf(out, out_size, "%s%s%s", city, text_get(ui->text, "log.place_join"), thing);
+        } break;
+        case ENGINE_PLACE_UNIT:
+        {
+            engine_unit unit = api->unit_at(api->engine, place->id);
+            if (unit.id == ENGINE_NO_UNIT)
+            {
+                /* The unit is gone: its commander still names it (周泰隊). */
+                unit.id          = place->id;
+                unit.officers[0] = place->officer;
+            }
+            if (unit.officers[0] != ENGINE_NO_OFFICER) ui_unit_label(ui, api, &unit, out, out_size);
+        } break;
+        case ENGINE_PLACE_BUILDING:
+            ui_report_thing(ui, api, place, out, out_size);
+            break;
+        default: break;
+    }
+}
+
+/* True if the words of a line name its place. A facility counts as named
+   when the words name its city and the facility (長安：市場受損). */
+internal bool
+ui_report_names_place(ui_state *ui, engine_api *api, const engine_place *place, const char *text, const char *name)
+{
+    if (place->kind != ENGINE_PLACE_FACILITY) return strstr(text, name) != 0;
+    char city[UI_NAME_SIZE * 2], thing[UI_NAME_SIZE * 2];
+    ui_city_label(ui, api, (u8)place->id, city, sizeof(city));
+    ui_report_thing(ui, api, place, thing, sizeof(thing));
+    return strstr(text, city) && strstr(text, thing);
 }
 
 /* The log line starts with its place, 【長安】 or 【張遼隊】, when the words
    do not name it (the player, 2026-10-24: every record says where it
    happens). */
 internal void
-ui_report_add_place(ui_state *ui, engine_api *api, const engine_event_report *report, char *text, u32 text_size)
+ui_report_add_place(ui_state *ui, engine_api *api, const engine_place *where, char *text, u32 text_size)
 {
-    char place[UI_NAME_SIZE * 2];
-    ui_report_place(ui, api, report, place, sizeof(place));
-    if (!place[0] || strstr(text, place)) return;
-    char line[UI_NAME_SIZE * 6];
+    char place[UI_NAME_SIZE * 4];
+    ui_report_place(ui, api, where, place, sizeof(place));
+    if (!place[0] || ui_report_names_place(ui, api, where, text, place)) return;
+    char line[UI_NAME_SIZE * 8];
     snprintf(line, sizeof(line), "%s%s%s%s", text_get(ui->text, "log.place_before"), place, text_get(ui->text, "log.place_after"), text);
     snprintf(text, text_size, "%s", line);
 }
 
-/* One line of words for a ledger event: a log line or a speech. */
+/* One line of words for a ledger event: a log line or a speech. The place
+   is the place that the log kept when the event came in, or 0 for the
+   place of now. */
 internal void
-ui_report_line(ui_state *ui, engine_api *api, u32 ledger_index, s64 value, u32 form, char *out, u32 out_size)
+ui_report_line_at(ui_state *ui, engine_api *api, u32 ledger_index, const engine_place *place, s64 value, u32 form, char *out, u32 out_size)
 {
     engine_event_report report = api->event_report(api->engine, ledger_index);
+    if (!place) place = &report.place;
     char subject[UI_NAME_SIZE * 2], speaker[UI_NAME_SIZE * 2], faction[UI_NAME_SIZE * 2];
     ui_report_subject(ui, api, &report, subject, sizeof(subject));
     if (report.kind == SIM_EVENT_TECHNIQUE_RESEARCHED)
@@ -158,6 +207,11 @@ ui_report_line(ui_state *ui, engine_api *api, u32 ledger_index, s64 value, u32 f
             static const char *abilities[] = { "leadership", "war", "intelligence", "politics", "charm" };
             if (report.detail < ArrayCount(abilities)) snprintf(speaker, sizeof(speaker), "%s", ui_text_with_key(ui, "picker", abilities[report.detail]));
         }
+        else if (place->kind == ENGINE_PLACE_FACILITY || place->kind == ENGINE_PLACE_BUILDING)
+        {
+            /* The player, 2026-10-24: the line names the facility or the building (長安：市場受損). */
+            ui_report_thing(ui, api, place, speaker, sizeof(speaker));
+        }
     }
     if (report.faction != ENGINE_NO_FACTION) ui_force_text(ui, api, report.faction, faction, sizeof(faction));
     if (!subject[0]) memcpy(subject, faction, sizeof(subject));   /* an event of a faction names the faction */
@@ -177,13 +231,23 @@ ui_report_line(ui_state *ui, engine_api *api, u32 ledger_index, s64 value, u32 f
 }
 
 internal void
-ui_report_push(ui_state *ui, u32 line, s64 value)
+ui_report_line(ui_state *ui, engine_api *api, u32 ledger_index, s64 value, u32 form, char *out, u32 out_size)
+{
+    ui_report_line_at(ui, api, ledger_index, 0, value, form, out, out_size);
+}
+
+/* Adds a line to the ring. The log keeps the place of the event as it
+   was when the event came in, so that a click goes where it happened. */
+internal void
+ui_report_push(ui_state *ui, u32 line, s64 value, const engine_place *where)
 {
     u32 place = (ui->report.line_first + ui->report.line_count) % UI_LOG_CAPACITY;
     if (ui->report.line_count == UI_LOG_CAPACITY) ui->report.line_first = (ui->report.line_first + 1) % UI_LOG_CAPACITY;
     else ui->report.line_count++;
     ui->report.lines[place]  = line;
     ui->report.values[place] = value;
+    ui->report.places[place] = {};
+    if (where) ui->report.places[place] = *where;
 }
 
 /* The feedback of one event of a command of the player: the first event
@@ -251,12 +315,12 @@ ui_report_update(ui_state *ui, engine_api *api, f32 dt_seconds)
         if (!ui->report.has_heading || report.turn != ui->report.heading_turn)
         {
             s64 packed = (s64)report.date.year * 10000 + report.date.month * 100 + report.date.day;
-            ui_report_push(ui, UI_LOG_HEADING | (report.turn & ~UI_LOG_HEADING), packed);
+            ui_report_push(ui, UI_LOG_HEADING | (report.turn & ~UI_LOG_HEADING), packed, 0);
             ui->report.has_heading  = true;
             ui->report.heading_turn = report.turn;
         }
         s64 value = ui_report_value(api, &report);
-        ui_report_push(ui, index, value);
+        ui_report_push(ui, index, value, &report.place);
         /* G3-016: no bubble during the show of the AI round; the turn start reports the threats. */
         if (report.cause && player != ENGINE_NO_FACTION && report.faction == player && !ui->round.playing) ui_report_feedback(ui, api, &report, value);
     }
@@ -279,9 +343,25 @@ ui_report_colour(u8 sign)
     return ImVec4(0.92f, 0.92f, 0.92f, 1.0f);
 }
 
-/* One line of the log: a heading or the words of an event. */
+/* The condition of the corner place of a window of the game mode: at its
+   first frame, and again after the size of the screen changed (the
+   player, 2026-10-24: the log stays at the bottom left and the minimap at
+   the bottom right). */
+internal ImGuiCond
+ui_corner_cond(ui_corner *corner)
+{
+    ImVec2 display = ImGui::GetIO().DisplaySize;
+    bool changed = corner->width != display.x || corner->height != display.y;
+    corner->width  = display.x;
+    corner->height = display.y;
+    return changed ? ImGuiCond_Always : ImGuiCond_Appearing;
+}
+
+/* One line of the log: a heading or the words of an event. A click on a
+   line with a place on the map moves the camera there (the player,
+   2026-10-24). */
 internal void
-ui_draw_log_line(ui_state *ui, engine_api *api, u32 place)
+ui_draw_log_line(ui_state *ui, engine_api *api, u32 place, u32 offset)
 {
     u32 line = ui->report.lines[place];
     if (line & UI_LOG_HEADING)
@@ -294,15 +374,29 @@ ui_draw_log_line(ui_state *ui, engine_api *api, u32 place)
         ImGui::TextColored(ImVec4(0.62f, 0.82f, 0.96f, 1.0f), "%s", heading);
         return;
     }
-    char text[UI_NAME_SIZE * 6];
-    ui_report_line(ui, api, line, ui->report.values[place], TEXT_LINE_LOG, text, sizeof(text));
+    const engine_place *where = ui->report.places + place;
+    char text[UI_NAME_SIZE * 8];
+    ui_report_line_at(ui, api, line, where, ui->report.values[place], TEXT_LINE_LOG, text, sizeof(text));
     engine_event_report report = api->event_report(api->engine, line);
-    ui_report_add_place(ui, api, &report, text, sizeof(text));
+    ui_report_add_place(ui, api, where, text, sizeof(text));
+    ImVec2 start = ImGui::GetCursorScreenPos();
+    ImGui::BeginGroup();
     ImGui::PushStyleColor(ImGuiCol_Text, ui_report_colour(report.sign));
     ImGui::Bullet();
     ImGui::SameLine();
     ImGui::TextWrapped("%s", text);
     ImGui::PopStyleColor();
+    ImGui::EndGroup();
+    f32 height = ImGui::GetItemRectMax().y - start.y;
+    if (where->on_map)
+    {
+        /* A button over the words: the click frames the place. */
+        char id[32];
+        snprintf(id, sizeof(id), "###log_line_%u", offset);
+        ImGui::SetCursorScreenPos(start);
+        if (ImGui::InvisibleButton(id, ImVec2(ImGui::GetContentRegionAvail().x, height))) ui_frame_hex(ui, api, hex_make(where->q, where->r));
+        if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+    }
     /* The facts behind the words: the key of the kind and its tone. A
        template author sees which kind needs a template. */
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s  %s  %+d", report.key ? report.key : "-", report.tone, report.delta);
@@ -317,8 +411,9 @@ ui_draw_log(ui_state *ui, engine_api *api)
     if (!ui->report.show_log) return;
     ImVec2 display = ImGui::GetIO().DisplaySize;
     f32 height = display.y * UI_LOG_HEIGHT_SHARE;
-    ImGui::SetNextWindowPos(ImVec2(UI_LOG_MARGIN, display.y - height - UI_LOG_MARGIN), ImGuiCond_Appearing);
-    ImGui::SetNextWindowSize(ImVec2(UI_LOG_WIDTH, height), ImGuiCond_Appearing);
+    ImGuiCond corner = ui_corner_cond(&ui->report.corner);
+    ImGui::SetNextWindowPos(ImVec2(UI_LOG_MARGIN, display.y - UI_LOG_MARGIN), corner, ImVec2(0.0f, 1.0f));
+    ImGui::SetNextWindowSize(ImVec2(UI_LOG_WIDTH, height), corner);
     char title[64];
     snprintf(title, sizeof(title), "%s###Log", text_get(ui->text, "log.title"));
     if (ImGui::Begin(title, &ui->report.show_log, ImGuiWindowFlags_NoCollapse))
@@ -335,7 +430,7 @@ ui_draw_log(ui_state *ui, engine_api *api)
             u32 line = ui->report.lines[place];
             if (ui->report.mine_only && !(line & UI_LOG_HEADING) && api->event_report(api->engine, line).faction != player) continue;
             ImGui::PushID((int)offset);
-            ui_draw_log_line(ui, api, place);
+            ui_draw_log_line(ui, api, place, offset);
             ImGui::PopID();
         }
         /* G2-019: a new line scrolls the log to the end, as the original shows the newest line at the bottom. */

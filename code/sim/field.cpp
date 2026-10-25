@@ -51,7 +51,7 @@ sim_start_fire(sim_state *sim, hex_coord hex, u32 turns, u32 cause, sim_event_si
     u32 cell = hex_map_index(&sim->map, hex);
     if (sim->fire[cell] >= turns) return;
     sim->fire[cell] = (u8)turns;
-    sim_emit_unit(sim, SIM_EVENT_FIRE_STARTED, cell, SIM_NO_CITY, (s32)turns, true, cause, events);
+    sim_emit_cell(sim, SIM_EVENT_FIRE_STARTED, cell, (s32)turns, true, cause, events);
 }
 
 internal b32
@@ -218,8 +218,8 @@ sim_build(sim_state *sim, sim_command command, sim_event_sink *events)
         u8 owner = sim_building_is_trap(kind) ? (u8)SIM_NO_FORCE : unit->force_id;   /* a trap has no owner (Steam guide) */
         u32 id = sim_add_building(sim, order->kind, owner, order->to, check.quantity, SIM_NO_CITY);
         if (id == SIM_NO_BUILDING) return;
-        sim_emit_unit(sim, SIM_EVENT_BUILDING_STARTED, id, SIM_NO_CITY, order->kind, true, command.id, events);
-        if (sim->buildings[id].complete) sim_emit_unit(sim, SIM_EVENT_BUILDING_COMPLETED, id, SIM_NO_CITY, 0, false, command.id, events);
+        sim_emit_building(sim, SIM_EVENT_BUILDING_STARTED, id, order->kind, true, command.id, events);
+        if (sim->buildings[id].complete) sim_emit_building(sim, SIM_EVENT_BUILDING_COMPLETED, id, 0, false, command.id, events);
         return;
     }
     u32 id = sim_building_at(sim, order->to);
@@ -230,12 +230,12 @@ sim_build(sim_state *sim, sim_command command, sim_event_sink *events)
         if (!building->complete && building->durability >= sim->content.buildings[building->kind].durability)
         {
             building->complete = true;
-            sim_emit_unit(sim, SIM_EVENT_BUILDING_COMPLETED, id, SIM_NO_CITY, 0, false, command.id, events);
+            sim_emit_building(sim, SIM_EVENT_BUILDING_COMPLETED, id, 0, false, command.id, events);
         }
         return;
     }
     building->alive = false;
-    sim_emit_unit(sim, SIM_EVENT_BUILDING_DESTROYED, id, SIM_NO_CITY, 0, false, command.id, events);
+    sim_emit_building(sim, SIM_EVENT_BUILDING_DESTROYED, id, 0, false, command.id, events);
     sim->turns.action_points[unit->force_id] -= check.action_points;
     u32 taken = sim->content.rules.dismantle_technique < sim->technique_points[unit->force_id] ? sim->content.rules.dismantle_technique
                                                                                                : sim->technique_points[unit->force_id];
@@ -253,7 +253,7 @@ sim_trigger_trap(sim_state *sim, u32 building_id, u32 direction, u32 cause, sim_
 {
     sim_building *building = sim->buildings + building_id;
     building_kind *kind = sim->content.buildings + building->kind;
-    sim_emit_unit(sim, SIM_EVENT_TRAP_TRIGGERED, building_id, SIM_NO_CITY, 0, true, cause, events);
+    sim_emit_building(sim, SIM_EVENT_TRAP_TRIGGERED, building_id, 0, true, cause, events);
     hex_coord cells[16];
     u32 count = 0;
     if (kind->type == BUILDING_BALL)
@@ -299,7 +299,7 @@ sim_trigger_trap(sim_state *sim, u32 building_id, u32 direction, u32 cause, sim_
         return;
     }
     building->alive = false;
-    sim_emit_unit(sim, SIM_EVENT_BUILDING_DESTROYED, building_id, SIM_NO_CITY, 0, false, cause, events);
+    sim_emit_building(sim, SIM_EVENT_BUILDING_DESTROYED, building_id, 0, false, cause, events);
 }
 
 /* ---- 計略 -------------------------------------------------------------------- */
@@ -413,7 +413,7 @@ sim_use_plot(sim_state *sim, sim_command command, sim_event_sink *events)
                 if (!sim_hex_burns(sim, hex)) continue;
                 u32 cell = hex_map_index(&sim->map, hex);
                 sim->fire[cell] = 0;
-                sim_emit_unit(sim, SIM_EVENT_FIRE_ENDED, cell, SIM_NO_CITY, 0, false, command.id, events);
+                sim_emit_cell(sim, SIM_EVENT_FIRE_ENDED, cell, 0, false, command.id, events);
             }
             break;
         case PLOT_FALSE_REPORT:
@@ -606,7 +606,7 @@ sim_run_fire(sim_state *sim, u32 cause, sim_event_sink *events)
         terrain_kind *terrain = sim_terrain_at(sim, hex);
         if (terrain && !terrain->burnable && sim_unit_at(sim, hex) == SIM_NO_UNIT) sim->fire[cell] = 0;
         else                                                                       sim->fire[cell]--;
-        if (!sim->fire[cell]) sim_emit_unit(sim, SIM_EVENT_FIRE_ENDED, cell, SIM_NO_CITY, 0, false, cause, events);
+        if (!sim->fire[cell]) sim_emit_cell(sim, SIM_EVENT_FIRE_ENDED, cell, 0, false, cause, events);
     }
 }
 
@@ -634,7 +634,7 @@ sim_run_buildings(sim_state *sim, u32 cause, sim_event_sink *events)
                 if (sim_random_below(sim, 100) >= rules->rockfall_return_percent) continue;
                 building->durability = kind->durability;
                 building->complete   = true;
-                sim_emit_unit(sim, SIM_EVENT_ROCKFALL_RETURNED, index, SIM_NO_CITY, 0, false, cause, events);
+                sim_emit_building(sim, SIM_EVENT_ROCKFALL_RETURNED, index, 0, false, cause, events);
                 continue;
             }
             building->durability = Minimum(kind->durability, building->durability + rules->natural_recovery);

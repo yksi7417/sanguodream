@@ -465,6 +465,33 @@ sim_emit_unit(sim_state *sim, sim_event_kind kind, u32 unit_id, u8 city_id, s32 
     sim_emit(events, event);
 }
 
+/* An event of a field building: the owner of the building is the faction,
+   and the event has no subject. A building id is no unit index, so
+   sim_emit_unit gave these events the commander of another unit (the
+   player, 2026-10-24). */
+internal void
+sim_emit_building(sim_state *sim, sim_event_kind kind, u32 building_id, s32 delta, b32 assumed, u32 cause, sim_event_sink *events)
+{
+    sim_event event = sim_event_make(sim, kind, cause);
+    event.faction = building_id < sim->building_count ? sim->buildings[building_id].force_id : SIM_NO_FORCE;
+    event.detail  = building_id;
+    event.delta   = delta;
+    event.assumed = assumed;
+    sim_emit(events, event);
+}
+
+/* An event of a map cell (the fire): no subject and no faction. */
+internal void
+sim_emit_cell(sim_state *sim, sim_event_kind kind, u32 cell, s32 delta, b32 assumed, u32 cause, sim_event_sink *events)
+{
+    sim_event event = sim_event_make(sim, kind, cause);
+    event.faction = SIM_NO_FORCE;
+    event.detail  = cell;
+    event.delta   = delta;
+    event.assumed = assumed;
+    sim_emit(events, event);
+}
+
 /* ---- 出征 and 輸送 ----------------------------------------------------------- */
 
 /* The first free hex next to the city that the class can enter. On the

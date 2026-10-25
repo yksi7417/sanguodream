@@ -1367,6 +1367,7 @@ unit_target.base_before	Enter 	是否進入: the entry of an own port or pass
 unit_target.base_after	?
 log.place_before	[	the place of a log line, before its name
 log.place_after	] 	the place of a log line, after its name
+log.place_join	 	between the city and the facility in the place of a log line
 hover.army	 army	軍
 unit_target.yes	Yes	是
 unit_target.no	No	否
@@ -1429,12 +1430,12 @@ log.grain_over_cap	{subject}: grain over the cap {delta}
 log.salaries_unpaid	{subject}: cannot pay the salaries
 log.soldiers_deserted	{subject}: soldiers deserted {delta}, no grain
 log.weapons_free	{subject}: free {speaker} {delta}
-log.facility_repaired	{subject}: a facility repaired, durability {delta}
-log.facility_damaged	{subject}: a facility damaged, durability {delta}
-log.facility_destroyed	{subject}: a facility destroyed
+log.facility_repaired	{subject}: {speaker} repaired, durability {delta}
+log.facility_damaged	{subject}: {speaker} damaged, durability {delta}
+log.facility_destroyed	{subject}: {speaker} destroyed
 log.technique_spent	{faction}: technique points {delta}
 log.merge_started	{subject}: a merge started
-log.facility_merged	{subject}: a facility merged, level {delta}
+log.facility_merged	{subject}: {speaker} merged, level {delta}
 log.disaster_ended	{subject}: the disaster ended
 log.grain_lost	{subject}: grain lost {delta}
 log.grain_harvest	{subject}: a good harvest, grain {delta}
@@ -1457,10 +1458,10 @@ log.morale_changed	{faction}: the morale of a unit {delta}
 log.unit_pushed	{faction}: a unit falls back {delta} hexes
 log.fire_started	{faction}: a fire starts
 log.fire_ended	A fire went out
-log.building_started	{faction}: a building goes up
-log.building_completed	{faction}: a building is complete
-log.building_damaged	{faction}: a building, durability {delta}
-log.building_destroyed	{faction}: a building fell
+log.building_started	{faction}: {speaker} goes up
+log.building_completed	{faction}: {speaker} is complete
+log.building_damaged	{faction}: {speaker}, durability {delta}
+log.building_destroyed	{faction}: {speaker} fell
 log.trap_triggered	{faction}: a trap sprang
 log.base_soldiers_lost	{subject}: soldiers lost in the base {delta}
 log.base_recovered	{subject}: durability recovered {delta}

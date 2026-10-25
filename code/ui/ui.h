@@ -195,6 +195,13 @@ struct ui_table_view
 
 struct ui_state;
 
+/* The screen size when a window of the game mode last went to its corner
+   (ui_corner_cond). */
+struct ui_corner
+{
+    f32 width, height;
+};
+
 /* Fills one cell for each column of the row source, and returns the force
    of the row (ENGINE_NO_FACTION when the table has no force filter). */
 typedef u8 ui_table_row_fn(ui_state *ui, engine_api *api, void *user, u32 source, ui_sort_key *cells);
@@ -302,6 +309,7 @@ struct ui_state
     bool show_unit;
     bool show_unit_menu;
     bool show_minimap;
+    ui_corner minimap_corner;    /* the minimap goes back to the bottom right after a change of the screen size */
     struct
     {
         u32 selected;            /* ENGINE_NO_UNIT if none */
@@ -476,6 +484,8 @@ struct ui_state
         u32  ledger_mark;         /* the ledger count that the log has read */
         u32  lines[UI_LOG_CAPACITY];    /* ledger indices, or UI_LOG_HEADING | turn */
         s64  values[UI_LOG_CAPACITY];   /* the value after the event, or TEXT_NO_VALUE */
+        engine_place places[UI_LOG_CAPACITY];   /* the place of the event when it came in; a click frames its hex */
+        ui_corner corner;         /* the screen size of the last corner place of the log */
         u32  line_count;          /* the lines in the ring */
         u32  lines_seen;          /* G2-019: the line_count that the log drew last; a new line scrolls to the end */
         u32  line_first;          /* the place of the oldest line */

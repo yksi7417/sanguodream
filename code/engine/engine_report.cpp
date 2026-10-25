@@ -153,6 +153,135 @@ engine_sign_of(u8 rule, s32 delta)
     }
 }
 
+/* The kinds that sim_emit_unit writes: the detail is the unit. */
+internal b32
+engine_detail_is_unit(sim_event_kind kind)
+{
+    switch (kind)
+    {
+        case SIM_EVENT_MORALE_CHANGED:
+        case SIM_EVENT_UNIT_LOOT:
+        case SIM_EVENT_UNIT_PLUNDER_GRAIN:
+        case SIM_EVENT_UNIT_DESTROYED:
+        case SIM_EVENT_UNIT_DAMAGED:
+        case SIM_EVENT_CRITICAL_HIT:
+        case SIM_EVENT_COUNTERATTACK:
+        case SIM_EVENT_UNIT_PUSHED:
+        case SIM_EVENT_TACTIC_USED:
+        case SIM_EVENT_UNIT_STATE:
+        case SIM_EVENT_PLOT_USED:
+        case SIM_EVENT_UNIT_MOVED:
+        case SIM_EVENT_UNIT_ORDERED:
+        case SIM_EVENT_UNIT_ORDER_DONE:
+        case SIM_EVENT_UNIT_SOLDIERS_LOST:
+        case SIM_EVENT_UNIT_WAITED:
+        case SIM_EVENT_UNIT_SUPPLIED:
+        case SIM_EVENT_UNIT_GRAIN_EATEN:
+        case SIM_EVENT_UNIT_DESERTED:
+            return true;
+        default:
+            return false;
+    }
+}
+
+internal engine_place
+engine_place_on(sim_state *sim, engine_place place, hex_coord hex)
+{
+    place.on_map = hex_map_contains(&sim->map, hex);
+    place.q      = hex.q;
+    place.r      = hex.r;
+    return place;
+}
+
+/* The place of an event (engine_place): the facility slot or the field
+   building that it names, the fire cell, the port or the pass, the city of
+   its subject, its unit, or the city or the unit of its officer. */
+internal engine_place
+engine_place_of_event(engine *e, const sim_event *event, engine_subject subject)
+{
+    sim_state *sim = e->sim;
+    engine_place place = {};
+    place.thing   = ENGINE_NO_ROW;
+    place.force   = ENGINE_NO_FACTION;
+    place.officer = ENGINE_NO_OFFICER;
+    switch (event->kind)
+    {
+        case SIM_EVENT_FACILITY_REPAIRED:
+        case SIM_EVENT_FACILITY_DAMAGED:
+        case SIM_EVENT_FACILITY_DESTROYED:
+        case SIM_EVENT_FACILITY_MERGED:
+        {
+            if (subject.kind != ENGINE_SUBJECT_CITY || subject.id >= SAVE_CITY_COUNT || event->detail >= sim->sites[subject.id].slot_count) break;
+            sim_slot *slot = sim->sites[subject.id].slots + event->detail;
+            u8 facility = event->kind == SIM_EVENT_FACILITY_DESTROYED ? (u8)event->delta : slot->facility;   /* the slot of a destroyed facility is empty */
+            place.kind  = ENGINE_PLACE_FACILITY;
+            place.id    = subject.id;
+            place.slot  = (u8)event->detail;
+            place.thing = facility == CONTENT_NO_FACILITY ? (u8)ENGINE_NO_FACILITY : facility;
+            return engine_place_on(sim, place, slot->hex);
+        }
+        case SIM_EVENT_BUILDING_STARTED:
+        case SIM_EVENT_BUILDING_COMPLETED:
+        case SIM_EVENT_BUILDING_DAMAGED:
+        case SIM_EVENT_BUILDING_DESTROYED:
+        case SIM_EVENT_TRAP_TRIGGERED:
+        case SIM_EVENT_ROCKFALL_RETURNED:
+        {
+            if (event->detail >= sim->building_count) break;
+            sim_building *building = sim->buildings + event->detail;
+            place.kind  = ENGINE_PLACE_BUILDING;
+            place.id    = event->detail;
+            place.thing = building->kind;
+            place.force = building->force_id == SIM_NO_FORCE ? (u8)ENGINE_NO_FACTION : building->force_id;
+            return engine_place_on(sim, place, building->hex);
+        }
+        case SIM_EVENT_FIRE_STARTED:
+        case SIM_EVENT_FIRE_ENDED:
+        {
+            if (event->detail >= sim->map.width * sim->map.height) break;
+            place.kind = ENGINE_PLACE_HEX;
+            place.id   = event->detail;
+            return engine_place_on(sim, place, hex_map_coord(&sim->map, event->detail));
+        }
+        case SIM_EVENT_BASE_TAKEN:
+        case SIM_EVENT_UNIT_ENTERED_BASE:
+        {
+            if (event->detail < CONTENT_FIRST_BASE || event->detail >= CONTENT_FIRST_BASE + CONTENT_BASE_COUNT) break;
+            place.kind = ENGINE_PLACE_CITY;
+            place.id   = event->detail;
+            return engine_place_on(sim, place, sim_travel_base_hex(sim, (u8)event->detail));
+        }
+        default: break;
+    }
+    if (subject.kind == ENGINE_SUBJECT_CITY)
+    {
+        place.kind = ENGINE_PLACE_CITY;
+        place.id   = subject.id;
+        return engine_place_on(sim, place, sim_travel_base_hex(sim, (u8)subject.id));
+    }
+    u32 unit = SIM_NO_UNIT;
+    if (engine_detail_is_unit(event->kind)) unit = event->detail;
+    if (subject.kind == ENGINE_SUBJECT_OFFICER)
+    {
+        engine_officer officer = engine_api_officer_by_id(e, subject.id);
+        if (officer.officer_id != ENGINE_NO_OFFICER) place.officer = subject.id;
+        if (officer.officer_id == ENGINE_NO_OFFICER) officer.current_position = 0xFFFF;
+        if (unit == SIM_NO_UNIT && officer.current_position < CONTENT_FIRST_BASE + CONTENT_BASE_COUNT)
+        {
+            place.kind = ENGINE_PLACE_CITY;
+            place.id   = officer.current_position;
+            return engine_place_on(sim, place, sim_travel_base_hex(sim, (u8)officer.current_position));
+        }
+        if (unit == SIM_NO_UNIT && officer.current_position != 0xFFFF) unit = officer.current_position - (CONTENT_FIRST_BASE + CONTENT_BASE_COUNT);   /* 87 + the unit index */
+    }
+    if (unit >= sim->unit_count) return place;
+    place.kind  = ENGINE_PLACE_UNIT;
+    place.id    = unit;
+    place.force = sim->units[unit].force_id == SIM_NO_FORCE ? (u8)ENGINE_NO_FACTION : sim->units[unit].force_id;
+    if (place.officer == ENGINE_NO_OFFICER && sim->units[unit].officers[0] != SIM_NO_OFFICER) place.officer = sim->units[unit].officers[0];
+    return engine_place_on(sim, place, sim->units[unit].hex);   /* a destroyed unit keeps the hex where it fell */
+}
+
 internal engine_event_report
 engine_api_event_report(void *opaque, u32 ledger_index)
 {
@@ -184,5 +313,6 @@ engine_api_event_report(void *opaque, u32 ledger_index)
     report.report  = tone && tone->present && tone->report;
     report.log     = !(tone && tone->present && tone->hidden);
     report.assumed = event->assumed || !tone || !tone->present || tone->assumed;
+    report.place   = engine_place_of_event(e, event, report.subject);
     return report;
 }

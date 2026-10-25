@@ -4933,6 +4933,72 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK(bubble == 0 || !bubble->Active);
     };
 
+    /* The player, 2026-10-24: a log line names the facility where the
+       event happens, and a click on the line frames the hex of its place.
+       The click commands nothing. */
+    t = IM_REGISTER_TEST(e, "ui", "a_log_line_names_its_facility_and_a_click_frames_it");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        ui_enter_game(&v.ui);
+        ctx->Yield(2);
+        sim_event damaged = {};
+        damaged.kind = SIM_EVENT_FACILITY_DAMAGED; damaged.faction = 1; damaged.subject = 1;   /* city 0 */
+        damaged.delta = -129; damaged.detail = RECORDER_SLOT_INDEX;
+        v.recorder.events[v.recorder.event_count++] = damaged;
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.report.line_count, 2u);   /* the heading and the line */
+        u32 place = (v.ui.report.line_first + 1) % UI_LOG_CAPACITY;
+        hex_offset slot_cell = { RECORDER_SLOT_COL, RECORDER_SLOT_ROW };
+        hex_coord slot_hex = hex_from_offset(slot_cell);
+        IM_CHECK(v.ui.report.places[place].kind == ENGINE_PLACE_FACILITY && v.ui.report.places[place].q == slot_hex.q && v.ui.report.places[place].r == slot_hex.r);
+        char line[512];
+        ui_report_line_at(&v.ui, &v.api, v.ui.report.lines[place], v.ui.report.places + place, TEXT_NO_VALUE, TEXT_LINE_LOG, line, sizeof(line));
+        IM_CHECK(strstr(line, ui_facility_name(&v.ui, &v.api, 0)) != 0);   /* 長安：市場受損, not 設施受損 */
+        recorder_reset(&v.recorder);
+        v.ui.map.scroll_request = false;
+        ctx->ItemClick("//###Log/**/###log_line_1");
+        ctx->Yield();
+        IM_CHECK(v.ui.map.scroll_request && hex_equal(v.ui.map.scroll_to, slot_hex));
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* The player, 2026-10-24: the log goes to the bottom left and the
+       minimap to the bottom right at the start, and again after a change of
+       the screen size. A changed corner size stands for the new screen. */
+    t = IM_REGISTER_TEST(e, "ui", "the_log_and_the_minimap_go_back_to_their_corners_after_a_resize");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        ui_enter_game(&v.ui);
+        v.ui.show_minimap = true;
+        ctx->Yield(3);
+        ImVec2 display = ImGui::GetIO().DisplaySize;
+        ImGuiWindow *log = ctx->WindowInfo("//###Log").Window;
+        ImGuiWindow *minimap = ctx->WindowInfo("//###MiniMap").Window;
+        IM_CHECK(log != 0 && minimap != 0);
+        IM_CHECK(fabsf(log->Pos.x - UI_LOG_MARGIN) < 1.0f && fabsf(log->Pos.y + log->Size.y - (display.y - UI_LOG_MARGIN)) < 1.0f);
+        IM_CHECK(fabsf(minimap->Pos.x + minimap->Size.x - (display.x - UI_MINIMAP_MARGIN)) < 1.0f &&
+                 fabsf(minimap->Pos.y + minimap->Size.y - (display.y - UI_MINIMAP_MARGIN)) < 1.0f);
+        ImGui::SetWindowPos(log, ImVec2(300.0f, 60.0f));
+        ImGui::SetWindowPos(minimap, ImVec2(200.0f, 80.0f));
+        ctx->Yield(2);
+        IM_CHECK(fabsf(log->Pos.x - 300.0f) < 1.0f && fabsf(minimap->Pos.x - 200.0f) < 1.0f);   /* no resize: the windows stay */
+        v.ui.report.corner.width = v.ui.minimap_corner.width = display.x - 100.0f;
+        ctx->Yield(2);
+        IM_CHECK(fabsf(log->Pos.x - UI_LOG_MARGIN) < 1.0f && fabsf(log->Pos.y + log->Size.y - (display.y - UI_LOG_MARGIN)) < 1.0f);
+        IM_CHECK(fabsf(minimap->Pos.x + minimap->Size.x - (display.x - UI_MINIMAP_MARGIN)) < 1.0f &&
+                 fabsf(minimap->Pos.y + minimap->Size.y - (display.y - UI_MINIMAP_MARGIN)) < 1.0f);
+    };
+
     /* M18: the text provider is a plug-in (spec DECISIONS.md, 2026-10-20).
        A second provider writes the words of the log and of the bubble. A
        provider without a line function gives back the templates. */

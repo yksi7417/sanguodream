@@ -257,10 +257,10 @@ ui_draw_minimap(ui_state *ui, engine_api *api)
 {
     char title[128];
     ImGui::SetNextWindowSize(ImVec2(300, 320), ImGuiCond_FirstUseEver);
-    if (ui->hud_mode)   /* the game mode: at the bottom right when it appears (main-map.md: 1376, 740, 302, 272) */
+    if (ui->hud_mode)   /* the game mode: at the bottom right when it appears and after a change of the screen size (main-map.md: 1376, 740, 302, 272) */
     {
         ImVec2 display = ImGui::GetIO().DisplaySize;
-        ImGui::SetNextWindowPos(ImVec2(display.x - UI_MINIMAP_MARGIN, display.y - UI_MINIMAP_MARGIN), ImGuiCond_Appearing, ImVec2(1.0f, 1.0f));
+        ImGui::SetNextWindowPos(ImVec2(display.x - UI_MINIMAP_MARGIN, display.y - UI_MINIMAP_MARGIN), ui_corner_cond(&ui->minimap_corner), ImVec2(1.0f, 1.0f));
     }
     bool *close = ui->hud_mode ? 0 : &ui->show_minimap;   /* M22: the original has no close button */
     if (ImGui::Begin(ui_label(title, sizeof(title), ui, "minimap.title", "MiniMap"), close,
