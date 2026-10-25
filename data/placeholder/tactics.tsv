@@ -1,6 +1,7 @@
 id	key	name_zh	unit_types	grade	morale	range_min	range_max	pattern	effect	value	damage_percent	targets	always_success	status
 # The 19 tactics of military-units-and-tactics.md (manual p.15; guide book p.17, p.35). One row for each tactic.
 # unit_types: the classes of unit_types.tsv that use it. grade: the aptitude that the unit needs (B, A, S, or any). morale, range: documented.
+# range_min: the arrow tactics (火矢, 貫箭, 亂射) and the stone tactics (投石) need a target at 2 hexes or more. The player decided this on 2026-10-24: no arrow or stone at an adjacent hex.
 # pattern: single (the target), line (the target and the hexes between: 貫箭), front3 (the target and its two neighbours next to the unit: 橫掃), around (the six hexes around the unit: 旋風), splash (the target and the six hexes around it: 亂射).
 # effect: knock (the target moves value hexes away), pull (the target moves value hexes toward the unit), advance (knock, then the unit moves into the free hex), pass (the unit moves to the far side of the target), confuse, fire, none.
 # damage_percent: the damage against a normal attack (assumed, Q-172). targets: units, buildings, ships (| list). always_success: documented for the tower (Steam guide).
@@ -10,16 +11,16 @@ id	key	name_zh	unit_types	grade	morale	range_min	range_max	pattern	effect	value	
 3	hook	熊手	halberd	B	15	1	1	single	pull	1	120	units	no	documented
 4	sweep	橫掃	halberd	A	20	1	1	front3	none	0	130	units	no	documented
 5	whirlwind	旋風	halberd	S	30	1	1	around	none	0	140	units	no	documented
-6	fire_arrow	火矢	crossbow	B	10	1	2	single	fire	0	110	units|buildings|ships	no	documented
-7	pierce_arrow	貫箭	crossbow	A	15	1	2	line	none	0	130	units|buildings|ships	no	documented
-8	volley	亂射	crossbow	S	25	1	2	splash	none	0	140	units|buildings|ships	no	documented
+6	fire_arrow	火矢	crossbow	B	10	2	2	single	fire	0	110	units|buildings|ships	no	documented
+7	pierce_arrow	貫箭	crossbow	A	15	2	2	line	none	0	130	units|buildings|ships	no	documented
+8	volley	亂射	crossbow	S	25	2	2	splash	none	0	140	units|buildings|ships	no	documented
 9	charge	突擊	cavalry	B	15	1	1	single	advance	1	130	units	no	documented
 10	breakthrough	突破	cavalry	A	20	1	1	single	pass	0	150	units	no	documented
 11	onslaught	突進	cavalry	S	25	1	1	single	advance	2	170	units	no	documented
 12	smash	破碎	ram	any	10	1	1	single	none	0	300	buildings	no	documented
 13	flame	放射	wood_beast	any	10	1	1	single	fire	0	250	units|buildings	no	documented
-14	tower_arrow	火矢	tower	any	10	1	2	single	fire	0	200	units|buildings|ships	yes	documented
-15	stone	投石	catapult	any	10	1	3	single	none	0	250	units|buildings|ships	no	documented
-16	ship_arrow	火矢	boat|tower_ship|battle_ship	B	10	1	2	single	fire	0	110	units|buildings|ships	no	documented
+14	tower_arrow	火矢	tower	any	10	2	2	single	fire	0	200	units|buildings|ships	yes	documented
+15	stone	投石	catapult	any	10	2	3	single	none	0	250	units|buildings|ships	no	documented
+16	ship_arrow	火矢	boat|tower_ship|battle_ship	B	10	2	2	single	fire	0	110	units|buildings|ships	no	documented
 17	ram_ship	猛撞	tower_ship|battle_ship	A	10	1	1	single	knock	1	130	ships	no	documented
-18	ship_stone	投石	battle_ship	S	15	1	3	single	none	0	200	units|buildings|ships	no	documented
+18	ship_stone	投石	battle_ship	S	15	2	3	single	none	0	200	units|buildings|ships	no	documented

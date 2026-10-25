@@ -43,6 +43,11 @@ assumed flag.
   it and the lowest aptitude (B, A, S or any). It also has the morale
   cost, the range, the pattern of the hexes, the effect, the damage
   percent and the targets.
+- The arrow tactics (火矢, 貫箭, 亂射) and the stone tactics (投石) have
+  range_min 2, on land and on water. The player decided this on
+  2026-10-24. sim_check_tactic refuses an adjacent target with
+  `no_target`, so the row of the tactic is grey when only an adjacent
+  enemy is near.
 - plots.tsv has one row for each battle plot. A row has the morale cost,
   the range and the target (an enemy, an own unit or a hex). It also has
   the effect, the turns of the state, the skills and the terrain.

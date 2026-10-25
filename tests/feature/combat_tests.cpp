@@ -61,9 +61,11 @@ feature_battle_init(feature_battle *battle)
     hex_coord first = feature_along(battle->start, battle->d, 1);
     hex_coord side  = hex_neighbor(first, (battle->d + 1) % HEX_DIRECTION_COUNT);
     api->set_cell_terrain(e, side.q, side.r, feature_terrain_id(api, "grass"), 1);
-    hex_coord second = feature_along(battle->start, battle->d, 2);
+    /* The tower stands 2 hexes from the enemy: an arrow tactic needs a target at 2 hexes (the player, 2026-10-24). */
+    hex_coord third = feature_along(battle->start, battle->d, 3);
+    api->set_cell_terrain(e, third.q, third.r, feature_terrain_id(api, "grass"), 1);
     b32 placed = api->set_unit_place(e, battle->b, battle->enemy, first.q, first.r) &&
-                 api->set_unit_place(e, battle->t, force, second.q, second.r) &&
+                 api->set_unit_place(e, battle->t, force, third.q, third.r) &&
                  api->set_unit_place(e, battle->c, force, side.q, side.r);
     api->set_unit(e, battle->a, 1000, 80);
     api->set_unit(e, battle->b, 1000, 80);
@@ -83,6 +85,18 @@ feature_combat_table_tests(test_counts *counts, engine_api *api)
     engine_tactic_kind tower = api->tactic_kind_at(e, FEATURE_TACTIC_TOWER), pierce = api->tactic_kind_at(e, FEATURE_TACTIC_PIERCE);
     TEST_CHECK(counts, tower.always_success && tower.range_max == 2 && pierce.aptitude == 1 && pierce.morale == 15 && pierce.effect == TACTIC_KNOCK,
                "the tower arrow always hits; 突刺 needs aptitude B and 15 morale and knocks the target back");
+    /* The player, 2026-10-24: no arrow and no stone at an adjacent hex. */
+    const char *far_tactics[] = { "fire_arrow", "pierce_arrow", "volley", "tower_arrow", "stone", "ship_arrow", "ship_stone" };
+    u32 far_count = 0;
+    for (u32 row = 0; row < api->tactic_kind_count(e); ++row)
+    {
+        engine_tactic_kind kind = api->tactic_kind_at(e, row);
+        for (u32 index = 0; index < ArrayCount(far_tactics); ++index)
+        {
+            if (strcmp(kind.key, far_tactics[index]) == 0 && kind.range_min == 2) ++far_count;
+        }
+    }
+    TEST_CHECK(counts, far_count == ArrayCount(far_tactics), "the arrow tactics and the stone tactics need a target at 2 hexes or more");
     u32 natural = 0;
     for (u32 id = 0; id < api->building_count(e); ++id)
     {
@@ -142,6 +156,11 @@ feature_tactic_tests(test_counts *counts, feature_battle *battle)
                "戰法: can_issue gives the chance (100 for the tower) and the morale cost");
     TEST_CHECK(counts, api->command_tactic(e, battle->t, FEATURE_TACTIC_PIERCE, at_b.q, at_b.r).refusal == SIM_REFUSAL_NO_APTITUDE,
                "refused: a tower cannot use 突刺");
+    hex_coord far_place = feature_unit_hex(api, battle->t), near_place = feature_along(battle->start, battle->d, 2);
+    api->set_unit_place(e, battle->t, battle->setup.force, near_place.q, near_place.r);
+    TEST_CHECK(counts, api->can_issue(e, &tactic).refusal == SIM_REFUSAL_NO_TARGET,
+               "refused: the tower arrow on an adjacent enemy (the player, 2026-10-24: an arrow needs 2 hexes)");
+    api->set_unit_place(e, battle->t, battle->setup.force, far_place.q, far_place.r);
     u32 soldiers = api->unit_at(e, battle->b).soldiers;
     u32 mark = api->ledger_count(e);
     engine_command_result result = api->command_tactic(e, battle->t, FEATURE_TACTIC_TOWER, at_b.q, at_b.r);
@@ -577,7 +596,15 @@ feature_ship_tactic_tests(test_counts *counts)
     tactic.unit = unit_id;
     tactic.q = second.q; tactic.r = second.r;
     tactic.row = FEATURE_TACTIC_SHIP_ARROW;
-    TEST_CHECK(counts, api->can_issue(e, &tactic).refusal == SIM_REFUSAL_NONE, "a unit on a 樓船 can use 火矢 of the navy against an enemy ship");
+    TEST_CHECK(counts, api->can_issue(e, &tactic).refusal == SIM_REFUSAL_NO_TARGET,
+               "refused: 火矢 of a ship on an adjacent ship (the player, 2026-10-24: an arrow needs 2 hexes)");
+    hex_coord third = feature_along(start, d, 3);
+    api->set_cell_terrain(e, third.q, third.r, river, 0);
+    api->set_unit_place(e, enemy, (u8)(force + 1), third.q, third.r);
+    engine_command far_arrow = tactic;
+    far_arrow.q = third.q; far_arrow.r = third.r;
+    TEST_CHECK(counts, api->can_issue(e, &far_arrow).refusal == SIM_REFUSAL_NONE, "a unit on a 樓船 can use 火矢 of the navy against an enemy ship 2 hexes away");
+    api->set_unit_place(e, enemy, (u8)(force + 1), second.q, second.r);
     tactic.row = FEATURE_TACTIC_RAM_SHIP;
     TEST_CHECK(counts, api->can_issue(e, &tactic).refusal == SIM_REFUSAL_NONE, "a unit on a 樓船 can use 猛撞 against an enemy ship");
     tactic.row = FEATURE_TACTIC_PIERCE;
