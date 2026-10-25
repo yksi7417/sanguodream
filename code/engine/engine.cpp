@@ -65,6 +65,10 @@ struct engine
     engine_event_tone event_tones[SIM_EVENT_COUNT];
     u32               speaker_commands[ENGINE_SPEAKER_RING];   /* the command id of each place, 0 if empty */
     u16               speaker_officers[ENGINE_SPEAKER_RING];
+    /* The flag colours (engine_colours.cpp) */
+    faction_palette   faction_palette;                          /* faction_colours.tsv */
+    u32               faction_colour_stamp;                     /* the turn order of the last assignment; 0 = none */
+    u8                faction_colour_rows[SIM_FORCE_CAPACITY];  /* the palette row of each force */
 };
 
 internal engine_config
@@ -233,6 +237,7 @@ internal void engine_load_scenarios(engine *e, const char *folder);   /* engine_
 internal void engine_load_battles(engine *e, const char *folder);
 internal void engine_load_replay_pairs(engine *e, const char *folder);   /* engine_replay.cpp */
 internal void engine_load_event_tones(engine *e, const char *folder);    /* engine_report.cpp */
+internal void engine_load_faction_colours(engine *e, const char *folder);   /* engine_colours.cpp */
 internal void engine_note_speaker(engine *e, const sim_command *command);
 internal engine_event_report engine_api_event_report(void *opaque, u32 ledger_index);
 internal char *engine_read_map_text(engine *e, const char *folder, u32 *width, u32 *height);   /* engine_map.cpp */
@@ -292,6 +297,7 @@ engine_create(memory_arena *permanent, memory_arena *transient, engine_config co
     e->replay_diffs = PushArray(permanent, ENGINE_REPLAY_DIFF_CAPACITY, engine_replay_diff);   /* M13 */
     engine_load_replay_pairs(e, config.content_folder);
     engine_load_event_tones(e, config.content_folder);   /* M18 */
+    engine_load_faction_colours(e, config.content_folder);
     return e;
 }
 
@@ -1355,6 +1361,7 @@ engine_api_set_city_resource(void *opaque, u8 city_id, u8 resource, u32 index, u
 #include "engine/engine_replay.cpp"     /* M13 */
 #include "engine/engine_content.cpp"    /* M16 */
 #include "engine/engine_report.cpp"     /* M18 */
+#include "engine/engine_colours.cpp"    /* the flag colours of the factions */
 
 internal engine_api
 engine_make_api(engine *e)
@@ -1430,5 +1437,6 @@ engine_make_api(engine *e)
     engine_bind_map_api(&api);
     engine_bind_replay_api(&api);
     engine_bind_content_api(&api);
+    engine_bind_colours_api(&api);
     return api;
 }

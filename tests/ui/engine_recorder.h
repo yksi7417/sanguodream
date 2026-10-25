@@ -39,6 +39,7 @@ enum recorder_call_kind
     RECORDER_CONTENT_STATUS,
     RECORDER_OFFICER_BY_ID,
     RECORDER_FORCE_RULER,
+    RECORDER_FACTION_COLOUR,       /* a query: arg = the force */
     RECORDER_LOCATION_NAME_AT,
     RECORDER_CITY_ECONOMY,
     RECORDER_CITY_INCOME_FORECAST,
@@ -330,6 +331,15 @@ recorder_count(engine_recorder *r, recorder_call_kind kind)
     return n;
 }
 
+/* Number of calls of a kind with this argument. */
+internal u32
+recorder_count_arg(engine_recorder *r, recorder_call_kind kind, u32 arg)
+{
+    u32 n = 0;
+    for (u32 i = 0; i < r->call_count; ++i) if (r->calls[i].kind == kind && r->calls[i].arg == arg) n++;
+    return n;
+}
+
 /* Number of command calls (anything that would change the game). */
 internal u32
 recorder_count_commands(engine_recorder *r)
@@ -474,6 +484,16 @@ internal u16 recorder_force_ruler(void *o, u8 force_id)
     engine_recorder *r = (engine_recorder *)o;
     recorder_record(r, RECORDER_FORCE_RULER, force_id);
     return force_id == 1 && r->officer_count > 0 ? 100 : ENGINE_NO_OFFICER;
+}
+
+/* Force 1 is blue, force 2 red, every other force grey. */
+internal u32 recorder_faction_colour(void *o, u8 force_id)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_FACTION_COLOUR, force_id);
+    if (force_id == 1) return faction_rgb_to_rgba(0x2F5FD0u);
+    if (force_id == 2) return faction_rgb_to_rgba(0xD02828u);
+    return faction_rgb_to_rgba(FACTION_COLOUR_NONE_RGB);
 }
 
 /* After a name index load, location i is named A5 (40 + i) for a city and
@@ -2079,6 +2099,7 @@ recorder_make_api(engine_recorder *r)
     api.place_unit      = recorder_place_unit;
     api.officer_by_id   = recorder_officer_by_id;
     api.force_ruler     = recorder_force_ruler;
+    api.faction_colour  = recorder_faction_colour;
     api.location_name_at = recorder_location_name_at;
     api.city_economy         = recorder_city_economy;
     api.city_income_forecast = recorder_city_income_forecast;

@@ -170,7 +170,7 @@ the DLL and the platform: the DLL pushes commands, the platform draws.
 | Billboard | sprite id, size, tint | Also: frame rectangle, mirror flag, alpha, blend mode |
 | Facing | none | Two drawn facings (front three-quarter, back three-quarter) and their mirrors give four facings |
 | Faction colour | The mask of the red areas takes the faction colour, shaded by its brightness; the rest keeps its paint. The alpha 160 of a pixel marks the mask (misc/art_import.py). | Stays |
-| Banner | none | A blank banner sprite and the first character of the commander, from the CJK font |
+| Banner | An ImGui flag at the left of each unit plate: the faction colour and the family name of the ruler (section 5.3, 2026-10-25) | A blank banner sprite on the pole of the unit, with the same colour and characters |
 | Mesh table | 8 meshes | 64 meshes, each with a vertex mask for the faction colour |
 | Durability state | none | Three meshes or overlays for each base: whole, damaged, broken |
 | Particles | none | Billboards with additive or alpha blend: fire, smoke, dust, sparks, splash |
@@ -224,6 +224,51 @@ pine green and plum backgrounds, lacquer black hair.
   mesh. misc/obj_to_hxm.py converts the result. The licence of the tool
   goes into ASSETS.md.
 - Small props stand as upright cards: trees, carts, traps, stone pillars.
+
+### 5.3 Faction colours
+This section gives the colour of each faction and the flag of each unit.
+The player asked for both on 2026-10-25. Before, the player did not see
+the faction of a unit.
+
+The colours:
+- data/<pack>/faction_colours.tsv gives the colours. Row N is the colour
+  of force N. The rows after the forces of a scenario are spare colours.
+  The spec has no colours, so the table is a choice of the clone.
+- The style follows the faction colours of the 三國志 series and of
+  Total War: Three Kingdoms. Thus 曹操 is blue, 劉備 green and 孫策 red.
+  袁紹 is gold, 公孫瓚 white and 呂布 black.
+- The colours are flat, with a medium to high saturation. They show on
+  the green, brown and blue map. The table has hue steps and brightness
+  steps, as in Civilization and Crusader Kings.
+- The distance of two colours is the "redmean" distance of
+  sim/faction_colours.cpp. Each pair of rows is at least 60 apart.
+- The engine gives each faction of the turn order one row
+  (faction_colour of engine_api). No two factions get the same row.
+- Two factions with the same family name get colours at least 200 apart.
+  In 群雄割據 the four 劉 are green (劉備), sky blue (劉璋), pink (劉表)
+  and orange (劉繇). The two 袁 are gold and wine, the two 張 lime and
+  slate, the two 公孫 white and dark teal.
+- A faction keeps its own row. It moves to a spare row only in two
+  cases. A faction with a smaller force id has the same family name and
+  a near colour. Or a faction with a smaller force id took the row before.
+  Thus the colour comes from the force ids and the family names. A save
+  and a load give the same colours.
+- The plates, the maps, the models and the flags all ask the engine for
+  the colour. The UI has no palette of its own.
+
+The flag of a unit (ui_draw_unit_flag in code/ui/ui_locate.cpp):
+- A banner with a swallowtail stands at the left of the plate of each
+  unit, on a pole with a gold knob.
+- The banner has the faction colour. It shows the family name of the
+  ruler in large characters, 1.6 times the font size.
+- A family name of two characters (公孫, 夏侯) shows the characters one
+  under the other.
+- The characters are the Chinese characters of the Big5 bytes in each
+  locale, as the portraits are.
+- The character is near black on a light flag and white with a dark
+  outline on a dark flag.
+- A faction without a ruler (a corps of a save) shows the family name of
+  the leader of corps 1.
 
 ## 6. The asset pipeline
 1. Make the image with the prompt of docs/art/GEMINI-PROMPTS.md. Attach

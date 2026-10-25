@@ -168,7 +168,7 @@ ui_draw_map_combat(ui_state *ui, engine_api *api, ImDrawList *draw, f32 cell, he
         if (building.id == ENGINE_NO_BUILDING) continue;
         hex_point center = hex_to_pixel(hex_make(building.q, building.r), cell, origin);
         f32 half = cell * 0.6f;
-        ImU32 color = building.force_id == ENGINE_NO_FACTION ? IM_COL32(150, 150, 150, 255) : ui_faction_color(building.force_id);
+        ImU32 color = building.force_id == ENGINE_NO_FACTION ? IM_COL32(150, 150, 150, 255) : ui_faction_color(api, building.force_id);
         if (!building.complete) color = (color & 0x00FFFFFFu) | 0x80000000u;
         draw->AddTriangleFilled(ImVec2(center.x, center.y - half), ImVec2(center.x + half, center.y + half * 0.8f),
                                 ImVec2(center.x - half, center.y + half * 0.8f), color);

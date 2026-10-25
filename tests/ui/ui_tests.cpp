@@ -4323,6 +4323,40 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(ui_grain_colour(ENGINE_GRAIN_TURNS_ENDLESS), ui_grain_colour(20));
     };
 
+    /* The flag of each unit (the player, 2026-10-25): the flag asks for the
+       ruler of the faction of the unit, for the family name of that ruler
+       and for the colour of the faction. It commands nothing. A light flag
+       gets a dark character, a dark flag a white one. */
+    t = IM_REGISTER_TEST(e, "ui", "unit_flags_read_the_ruler_and_the_colour_of_the_faction_and_command_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.ui.scene.headless    = true;
+        v.recorder.officer_count = 2;   /* officer 100 rules force 1 */
+        ui_frame_unit(&v.ui, 0);   /* the camera looks at unit 0 of force 1, so its plate and its flag are on the screen */
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        IM_CHECK_GE(recorder_count_arg(&v.recorder, RECORDER_FORCE_RULER, 1), 1u);        /* the ruler of force 1 */
+        IM_CHECK_GE(recorder_count_arg(&v.recorder, RECORDER_OFFICER_BY_ID, 100), 1u);    /* officer 100, for the family name */
+        IM_CHECK_GE(recorder_count_arg(&v.recorder, RECORDER_FACTION_COLOUR, 1), 1u);     /* the colour of force 1 */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        char family[UI_FLAG_NAME_SIZE];
+        ui_force_family_name(&v.api, 1, family, sizeof(family));
+        IM_CHECK(family[0] != 0);                                                           /* the Big5 bytes B1 40 of officer 100 */
+        ui_force_family_name(&v.api, 3, family, sizeof(family));
+        IM_CHECK(family[0] == 0);                                                           /* force 3 has no ruler and no leader */
+        ImU32 ink = 0, outline = 0;
+        ui_flag_ink(IM_COL32(240, 230, 160, 255), &ink, &outline);
+        IM_CHECK_EQ(ink, IM_COL32(25, 20, 20, 255));
+        IM_CHECK_EQ(outline, 0u);                                                           /* no outline round a dark character */
+        ui_flag_ink(IM_COL32(36, 36, 40, 255), &ink, &outline);
+        IM_CHECK_EQ(ink, IM_COL32(255, 255, 255, 255));
+        IM_CHECK_NE(outline, 0u);                                                           /* a dark outline round a white one */
+    };
+
     /* M11: the status bar shows the hex under the mouse (ui/main-map.md). */
     t = IM_REGISTER_TEST(e, "ui", "status_bar_reads_the_hex_under_the_mouse_and_commands_nothing");
     t->SetVarsDataType<ui_test_vars>();
@@ -4549,7 +4583,7 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->Yield();
         f32 built_scale = 0.0f, building_scale = 0.0f;
         IM_CHECK_EQ(ui_test_count_meshes(v.frame.render, RENDER_MESH_CAMP, &built_scale), 1u);        /* the camp at (2, 3) */
-        IM_CHECK_EQ(ui_test_mesh_tint(v.frame.render, RENDER_MESH_CAMP), ui_faction_rgba(1));         /* in the colour of force 1 */
+        IM_CHECK_EQ(ui_test_mesh_tint(v.frame.render, RENDER_MESH_CAMP), ui_faction_rgba(&v.api, 1));         /* in the colour of force 1 */
         IM_CHECK_EQ(ui_test_count_meshes(v.frame.render, RENDER_MESH_SCAFFOLD, 0), 2u);                /* the two farms only */
         IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_BUILDING_AT), 1u);
         v.recorder.building_complete = false;                                                          /* a build in progress */
@@ -4557,7 +4591,7 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(ui_test_count_meshes(v.frame.render, RENDER_MESH_CAMP, &building_scale), 1u);
         IM_CHECK_EQ(ui_test_count_meshes(v.frame.render, RENDER_MESH_SCAFFOLD, 0), 3u);                /* the farms and the camp */
         IM_CHECK_LT(building_scale, built_scale);
-        IM_CHECK_NE(ui_test_mesh_tint(v.frame.render, RENDER_MESH_CAMP), ui_faction_rgba(1));         /* dimmed */
+        IM_CHECK_NE(ui_test_mesh_tint(v.frame.render, RENDER_MESH_CAMP), ui_faction_rgba(&v.api, 1));         /* dimmed */
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
         v.frame.frame_arena = 0;
         v.frame.render      = 0;

@@ -1,6 +1,7 @@
 /* unit_tests.exe: the base of the pyramid. Exercises functions and structs of
    each module in isolation: base.h, ecs/, sim/, text/. No engine, no UI. The files read are
-   the sample save in inflate_tests.cpp and the map fixtures in map_tests.cpp (M10). */
+   the sample save in inflate_tests.cpp, the map fixtures in map_tests.cpp (M10) and the
+   faction_colours.tsv of each pack in faction_colour_tests.cpp. */
 
 #define _CRT_SECURE_NO_WARNINGS
 #include <string.h>
@@ -50,6 +51,7 @@
 #include "rivals_tests.cpp"
 #include "playable_tests.cpp"
 #include "map_tests.cpp"
+#include "faction_colour_tests.cpp"
 
 int
 main(void)
@@ -174,6 +176,11 @@ main(void)
     test_counts map = {};
     unit_map_tests(&map);
     failed |= test_report("unit/map", &map);
+
+    arena_reset(&arena);
+    test_counts colours = {};
+    unit_faction_colour_tests(&colours, &arena);
+    failed |= test_report("unit/faction_colours", &colours);
     test_arena_destroy(&arena);
 
     printf(failed ? "RESULT FAIL\n" : "RESULT PASS\n");

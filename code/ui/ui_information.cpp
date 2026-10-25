@@ -513,7 +513,7 @@ ui_draw_faction_info(ui_state *ui, engine_api *api)
     u8 force = ui->info.faction;
     char ruler[UI_NAME_SIZE * 2];
     ui_force_text(ui, api, force, ruler, sizeof(ruler));
-    ImGui::ColorButton("###faction_colour", ImGui::ColorConvertU32ToFloat4(ui_faction_color(force)), ImGuiColorEditFlags_NoTooltip, ImVec2(14.0f, 14.0f));
+    ImGui::ColorButton("###faction_colour", ImGui::ColorConvertU32ToFloat4(ui_faction_color(api, force)), ImGuiColorEditFlags_NoTooltip, ImVec2(14.0f, 14.0f));
     ImGui::SameLine();
     ImGui::Text("%s   %s %u", ruler, text_get(ui->text, "info.technique_points"), force != ENGINE_NO_FACTION ? api->technique_points(e, force) : 0u);
     u16 leader = force != ENGINE_NO_FACTION ? api->force_ruler(e, force) : ENGINE_NO_OFFICER;

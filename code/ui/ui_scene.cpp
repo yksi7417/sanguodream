@@ -270,7 +270,7 @@ ui_scene_push_buildings(render_commands *rc, engine_api *api, engine_terrain_vie
         if (o.col < 0 || o.row < 0 || (u32)o.col >= view.width || (u32)o.row >= view.height) continue;
         v3 ground = hex_world_center(h, terrain_level_y(view.level[(u32)o.row * view.width + (u32)o.col]));
         u32 mesh = ui_building_mesh(api->building_kind_at(api->engine, building.kind).type);
-        u32 rgba = building.force_id == ENGINE_NO_FACTION ? UI_BUILDING_NO_OWNER_RGBA : ui_faction_rgba(building.force_id);
+        u32 rgba = building.force_id == ENGINE_NO_FACTION ? UI_BUILDING_NO_OWNER_RGBA : ui_faction_rgba(api, building.force_id);
         if (!building.complete)
         {
             render_push_mesh(rc, RENDER_MESH_SCAFFOLD, ground, 0.0f, UI_FACILITY_MODEL_SCALE, UI_SCAFFOLD_RGBA);
@@ -366,7 +366,7 @@ ui_scene_push(ui_state *ui, engine_api *api, ui_frame_info *frame)
         if (o.col < 0 || o.row < 0 || (u32)o.col >= view.width || (u32)o.row >= view.height) continue;
         u32 cell = (u32)o.row * view.width + (u32)o.col;
         render_push_base(rc, RENDER_MESH_SETTLEMENT, ui_city_art(&slots), hex_world_center(h, terrain_level_y(view.level[cell])), 0.0f, 1.0f,
-                         ui_faction_rgba(city.owner_force_id));
+                         ui_faction_rgba(api, city.owner_force_id));
         ui_scene_push_slots(rc, api, view, city.city_id);
     }
     /* A gate on each pass and a pier on each port, in the colour of the
@@ -382,7 +382,7 @@ ui_scene_push(ui_state *ui, engine_api *api, ui_frame_info *frame)
         u32 cell = (u32)o.row * view.width + (u32)o.col;
         u32 mesh = base.type == BASE_PORT ? RENDER_MESH_PORT : RENDER_MESH_GATE;
         f32 yaw = base.type == BASE_PORT ? 0.0f : ui_gate_yaw(api, view, h);
-        render_push_base(rc, mesh, ui_base_art(base.type), hex_world_center(h, terrain_level_y(view.level[cell])), yaw, 1.0f, ui_faction_rgba(base.force));
+        render_push_base(rc, mesh, ui_base_art(base.type), hex_world_center(h, terrain_level_y(view.level[cell])), yaw, 1.0f, ui_faction_rgba(api, base.force));
     }
     ui_scene_push_buildings(rc, api, view);
     for (u32 id = 0; id < api->unit_count(api->engine); ++id)
@@ -394,6 +394,6 @@ ui_scene_push(ui_state *ui, engine_api *api, ui_frame_info *frame)
         if (o.col < 0 || o.row < 0 || (u32)o.col >= view.width || (u32)o.row >= view.height) continue;
         u32 cell = (u32)o.row * view.width + (u32)o.col;
         render_push_billboard(rc, ui_unit_sprite(api, &unit), hex_world_center(h, terrain_level_y(view.level[cell])),
-                              UI_SCENE_UNIT_SPRITE_SIZE, UI_SCENE_UNIT_SPRITE_SIZE, ui_faction_rgba(unit.force_id));
+                              UI_SCENE_UNIT_SPRITE_SIZE, UI_SCENE_UNIT_SPRITE_SIZE, ui_faction_rgba(api, unit.force_id));
     }
 }

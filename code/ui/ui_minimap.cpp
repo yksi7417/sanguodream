@@ -151,7 +151,7 @@ ui_draw_minimap_markers(ui_minimap_frame *frame, ui_state *ui, engine_api *api, 
         ImVec2 point = ui_minimap_hex(frame, hex_make(slots.q, slots.r));
         if (!ui_minimap_inside(frame, point)) continue;
         f32 half = UI_MINIMAP_CITY_HALF;
-        draw->AddRectFilled(ImVec2(point.x - half, point.y - half), ImVec2(point.x + half, point.y + half), ui_faction_color(city.owner_force_id));
+        draw->AddRectFilled(ImVec2(point.x - half, point.y - half), ImVec2(point.x + half, point.y + half), ui_faction_color(api, city.owner_force_id));
         /* M7 (diplomacy.md, manual p.8): an ally in blue, a ceasefire in yellow, a hostile faction in red. */
         ImU32 border = IM_COL32(20, 20, 20, 255);
         if (acting != ENGINE_NO_FACTION && city.owner_force_id != ENGINE_NO_FACTION && city.owner_force_id != acting)
@@ -175,7 +175,7 @@ ui_draw_minimap_markers(ui_minimap_frame *frame, ui_state *ui, engine_api *api, 
         ImVec2 point = ui_minimap_hex(frame, hex_make(base.q, base.r));
         if (!ui_minimap_inside(frame, point)) continue;
         f32 half = UI_MINIMAP_BASE_HALF;
-        draw->AddRect(ImVec2(point.x - half, point.y - half), ImVec2(point.x + half, point.y + half), ui_faction_color(base.force), 0.0f, 0, 1.5f);
+        draw->AddRect(ImVec2(point.x - half, point.y - half), ImVec2(point.x + half, point.y + half), ui_faction_color(api, base.force), 0.0f, 0, 1.5f);
     }
     for (u32 id = 0; id < api->unit_count(api->engine); ++id)
     {
@@ -185,7 +185,7 @@ ui_draw_minimap_markers(ui_minimap_frame *frame, ui_state *ui, engine_api *api, 
         if (!ui_minimap_inside(frame, point)) continue;
         f32 half = UI_MINIMAP_UNIT_HALF;
         ImVec2 diamond[4] = { ImVec2(point.x, point.y - half), ImVec2(point.x + half, point.y), ImVec2(point.x, point.y + half), ImVec2(point.x - half, point.y) };
-        draw->AddConvexPolyFilled(diamond, 4, ui_faction_color(unit.force_id));
+        draw->AddConvexPolyFilled(diamond, 4, ui_faction_color(api, unit.force_id));
         if (unit.id == ui->units.selected) draw->AddPolyline(diamond, 4, IM_COL32(255, 255, 255, 255), ImDrawFlags_Closed, 1.0f);
     }
 }

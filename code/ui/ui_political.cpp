@@ -57,7 +57,7 @@ ui_political_city_fills(ui_state *ui, engine_api *api, ImU32 *fills, u32 capacit
         if (city.city_id >= capacity) continue;
         if (ui->political.background == UI_POLITICAL_FACTION)
         {
-            fills[city.city_id] = city.owner_force_id == ENGINE_NO_FACTION ? IM_COL32(150, 150, 150, 255) : ui_faction_color(city.owner_force_id);
+            fills[city.city_id] = city.owner_force_id == ENGINE_NO_FACTION ? IM_COL32(150, 150, 150, 255) : ui_faction_color(api, city.owner_force_id);
             continue;
         }
         f32 share = ui_political_value(&city, ui->political.background) / largest;
@@ -110,7 +110,7 @@ ui_draw_political_marks(ui_state *ui, engine_api *api, ImDrawList *draw, ImVec2 
             engine_city_slots site = api->city_slots(e, city.city_id);
             ImVec2 point = ui_political_point(origin, cell, hex_make(site.q, site.r));
             f32 half = UI_POLITICAL_CITY_HALF;
-            draw->AddRectFilled(ImVec2(point.x - half, point.y - half), ImVec2(point.x + half, point.y + half), ui_faction_color(city.owner_force_id));
+            draw->AddRectFilled(ImVec2(point.x - half, point.y - half), ImVec2(point.x + half, point.y + half), ui_faction_color(api, city.owner_force_id));
             draw->AddRect(ImVec2(point.x - half, point.y - half), ImVec2(point.x + half, point.y + half), IM_COL32(255, 255, 255, 255));
         }
     }
@@ -123,7 +123,7 @@ ui_draw_political_marks(ui_state *ui, engine_api *api, ImDrawList *draw, ImVec2 
             ImVec2 point = ui_political_point(origin, cell, hex_make(base.q, base.r));
             f32 half = UI_POLITICAL_BASE_HALF;
             ImVec2 diamond[4] = { ImVec2(point.x, point.y - half), ImVec2(point.x + half, point.y), ImVec2(point.x, point.y + half), ImVec2(point.x - half, point.y) };
-            draw->AddConvexPolyFilled(diamond, 4, ui_faction_color(base.force));
+            draw->AddConvexPolyFilled(diamond, 4, ui_faction_color(api, base.force));
             draw->AddPolyline(diamond, 4, IM_COL32(255, 255, 255, 255), ImDrawFlags_Closed, 1.0f);
         }
     }
@@ -133,7 +133,7 @@ ui_draw_political_marks(ui_state *ui, engine_api *api, ImDrawList *draw, ImVec2 
         {
             engine_unit unit = api->unit_at(e, id);
             if (unit.id == ENGINE_NO_UNIT) continue;
-            draw->AddCircleFilled(ui_political_point(origin, cell, hex_make(unit.q, unit.r)), UI_POLITICAL_UNIT_RADIUS, ui_faction_color(unit.force_id));
+            draw->AddCircleFilled(ui_political_point(origin, cell, hex_make(unit.q, unit.r)), UI_POLITICAL_UNIT_RADIUS, ui_faction_color(api, unit.force_id));
         }
     }
 }
@@ -201,7 +201,7 @@ ui_hover_city(ui_state *ui, engine_api *api, u8 city_id)
     ui_code_text(ui, api, UI_CODE_FORCE, city.owner_force_id, force, sizeof(force));
     ui_code_text(ui, api, UI_CODE_OFFICER, city.commanding_officer_id, governor, sizeof(governor));
     ImGui::TextColored(ImVec4(0.62f, 0.82f, 0.96f, 1.0f), "%s", name);
-    ImGui::ColorButton("###hover_colour", ImGui::ColorConvertU32ToFloat4(ui_faction_color(city.owner_force_id)), ImGuiColorEditFlags_NoTooltip, ImVec2(10.0f, 10.0f));
+    ImGui::ColorButton("###hover_colour", ImGui::ColorConvertU32ToFloat4(ui_faction_color(api, city.owner_force_id)), ImGuiColorEditFlags_NoTooltip, ImVec2(10.0f, 10.0f));
     ImGui::SameLine();
     ImGui::TextUnformatted(force);
     ImGui::Text("%s %s", text_get(ui->text, "info.col.governor"), governor);
@@ -227,7 +227,7 @@ ui_hover_unit(ui_state *ui, engine_api *api, u32 unit_id)
     ui_unit_label(ui, api, &unit, name, sizeof(name));
     ui_force_text(ui, api, unit.force_id, force, sizeof(force));
     ImGui::TextColored(ImVec4(0.62f, 0.82f, 0.96f, 1.0f), "%s", name);
-    ImGui::ColorButton("###hover_colour", ImGui::ColorConvertU32ToFloat4(ui_faction_color(unit.force_id)), ImGuiColorEditFlags_NoTooltip, ImVec2(10.0f, 10.0f));
+    ImGui::ColorButton("###hover_colour", ImGui::ColorConvertU32ToFloat4(ui_faction_color(api, unit.force_id)), ImGuiColorEditFlags_NoTooltip, ImVec2(10.0f, 10.0f));
     ImGui::SameLine();
     ImGui::TextUnformatted(force);
     for (u32 place = 1; place < 3; ++place)   /* 副將 */

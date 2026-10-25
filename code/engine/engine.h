@@ -1168,6 +1168,13 @@ typedef engine_city         engine_city_at_fn(void *engine, u32 index);      /* 
 typedef engine_city_name    engine_city_name_at_fn(void *engine, u32 index); /* index = city id 0..41 */
 typedef engine_officer      engine_officer_by_id_fn(void *engine, u16 officer_id);   /* officer_id ENGINE_NO_OFFICER if not loaded */
 typedef u16                 engine_force_ruler_fn(void *engine, u8 force_id);         /* ENGINE_NO_OFFICER if the force has no ruler */
+/* The flag colour of a faction: RGBA8 with the red in the low byte, as
+   IM_COL32 and render_mesh_instance.tint. The colour comes from
+   faction_colours.tsv of the pack (sim/faction_colours.h). Two factions of
+   the turn order never get the same colour. Two factions with the same
+   family name get colours at least FACTION_COLOUR_SAME_NAME_DISTANCE apart.
+   ENGINE_NO_FACTION gives grey. A query. */
+typedef u32                 engine_faction_colour_fn(void *engine, u8 force_id);
 typedef engine_location_name engine_location_name_at_fn(void *engine, u16 location);  /* location 0..86 */
 typedef engine_terrain_view engine_terrain_view_fn(void *engine);
 typedef engine_region_view  engine_region_view_fn(void *engine);   /* M21 */
@@ -1663,6 +1670,7 @@ struct engine_api
     /* Names for the id and code columns of the panels */
     engine_officer_by_id_fn   *officer_by_id;
     engine_force_ruler_fn     *force_ruler;
+    engine_faction_colour_fn  *faction_colour;   /* the flag of a unit (docs/GRAPHICS.md, "Faction colours") */
     engine_location_name_at_fn *location_name_at;
     /* M3 economy */
     engine_city_economy_fn          *city_economy;

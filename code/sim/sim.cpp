@@ -2,6 +2,7 @@
 #include "sim/save_format.cpp"
 #include "sim/scenario_format.cpp"
 #include "sim/content.cpp"
+#include "sim/faction_colours.cpp"
 #include "sim/map.cpp"
 
 internal void

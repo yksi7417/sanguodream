@@ -110,7 +110,7 @@ ui_draw_ai_lines(ui_state *ui, engine_api *api)
     engine_ai_explain explain = api->ai_explain(api->engine, force);
     m4 view_projection = camera_view_projection(&ui->scene.cam, io.DisplaySize.x, io.DisplaySize.y);
     ImDrawList *draw = ImGui::GetBackgroundDrawList();
-    ImU32 colour = ui_faction_color(force);
+    ImU32 colour = ui_faction_color(api, force);
     for (u32 index = 0; index < explain.count; ++index)
     {
         engine_ai_option *option = explain.options + index;

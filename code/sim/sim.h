@@ -16,6 +16,7 @@
 #include "sim/calendar.h"
 #include "sim/tables.h"
 #include "sim/content.h"
+#include "sim/faction_colours.h"
 
 enum sim_event_kind
 {

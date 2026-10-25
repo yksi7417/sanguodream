@@ -2,8 +2,10 @@
 
 Files: code/ui/ui_minimap.cpp, code/ui/ui_locate.cpp (the unit plates),
 code/render/render.h (the mini map axes), code/ui/ui_scene.cpp (the turn),
-code/engine/engine_march.cpp (grain_turns). Tests:
-tests/unit/render_tests.cpp, tests/feature/march_tests.cpp,
+code/engine/engine_march.cpp (grain_turns), code/sim/faction_colours.cpp
+and code/engine/engine_colours.cpp (the flag colours). Tests:
+tests/unit/render_tests.cpp, tests/unit/faction_colour_tests.cpp,
+tests/feature/colour_tests.cpp, tests/feature/march_tests.cpp,
 tests/feature/save_map_tests.cpp, the M12 tests in tests/ui/ui_tests.cpp,
 the demo "demo/m12_main_map".
 
@@ -88,7 +90,33 @@ picks the hex axis with a passable hex on both sides of the gate. A road
 on both sides wins between two open axes. Fewer passable hexes beside
 the axis win after that, because a pass sits in a gap of the cliffs.
 
+## The flag of a unit
+ui_draw_unit_plate calls ui_draw_unit_flag. The flag stands at the left
+of the plate (the player, 2026-10-25). The player sees the faction of a
+unit at a glance. docs/GRAPHICS.md, section 5.3, has the design.
+- ui_force_family_name asks force_ruler for the ruler of the faction of
+  the unit. A corps of a save has no ruler, so the function then takes
+  the leader of corps 1 from faction_at. officer_by_id gives the Big5
+  bytes of the family name. text_decode_big5_into makes them UTF-8.
+- ui_faction_color asks faction_colour of engine_api for the colour. The
+  engine reads the colours from faction_colours.tsv of the pack
+  (code/engine/engine_colours.cpp).
+- The engine gives a far colour to each faction with the family name of
+  an earlier faction. faction_colours_assign in sim/faction_colours.cpp
+  does this. The four 劉 of 群雄割據 get four far colours.
+- ui_flag_ink picks a near-black character for a light flag, and a white
+  character with a dark outline for a dark flag.
+
+The flag reads only. It commands nothing.
+
 ## Tests to read
+- unit/faction_colours: the parse of faction_colours.tsv, the distance of
+  two colours, the palettes of both packs, and eight factions of 劉 with
+  far colours.
+- feature/colours: each scenario of each pack. No two factions share a
+  colour, and the factions of one family name are far apart. A faction
+  keeps its colour from the new game of 群雄割據 to its save.
+- ui: "unit_flags_read_the_ruler_and_the_colour_of_the_faction_and_command_nothing".
 - unit/render: the mini map axes at nine headings.
 - ui: "scene_keys_move_turn_and_tilt_and_command_nothing" checks the smooth
   turn.

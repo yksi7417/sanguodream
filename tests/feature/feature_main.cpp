@@ -42,6 +42,7 @@
 #include "content_source_tests.cpp"
 #include "report_tests.cpp"     /* M18 */
 #include "save_compat_tests.cpp" /* the saves of older builds (the play report of 2026-10-23) */
+#include "colour_tests.cpp"      /* the flag colours of the factions */
 #include "fixture_tests.cpp"
 
 int
@@ -136,6 +137,10 @@ main(int argc, char **argv)
     test_counts compat_counts = {};
     feature_save_compat_tests(&compat_counts);
     failed |= test_report("feature/save_compat", &compat_counts);
+
+    test_counts colour_counts = {};
+    feature_colour_tests(&colour_counts);
+    failed |= test_report("feature/colours", &colour_counts);
 
     char fixtures_dir[MAX_PATH];
     if (argc > 1)

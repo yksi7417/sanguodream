@@ -15,26 +15,21 @@ internal void ui_walk_cancel(ui_state *ui);
 internal s32  ui_hit_mark(ui_state *ui, u32 unit_id, u8 kind);
 internal ImU32 ui_hit_colour(s32 mark, ImU32 plain);
 
-/* ---- faction colours (placeholder palette; terrain-and-map.md, "Map display") */
+/* ---- faction colours (terrain-and-map.md, "Map display") ------------------ */
 
-global_variable const ImU32 ui_faction_palette[] = {
-    IM_COL32(220, 60, 60, 255),  IM_COL32(60, 120, 230, 255), IM_COL32(60, 190, 90, 255),  IM_COL32(230, 200, 50, 255),
-    IM_COL32(170, 80, 210, 255), IM_COL32(240, 140, 40, 255), IM_COL32(60, 200, 200, 255), IM_COL32(230, 110, 170, 255),
-    IM_COL32(150, 110, 70, 255), IM_COL32(120, 160, 60, 255), IM_COL32(90, 90, 200, 255),  IM_COL32(200, 200, 200, 255),
-};
-
+/* The colour of a faction from the engine (faction_colours.tsv of the pack).
+   The flags, the plates, the maps and the models all use it. */
 internal ImU32
-ui_faction_color(u8 force)
+ui_faction_color(engine_api *api, u8 force)
 {
-    if (force == ENGINE_NO_FACTION) return IM_COL32(120, 120, 120, 255);
-    return ui_faction_palette[force % ArrayCount(ui_faction_palette)];
+    return (ImU32)api->faction_colour(api->engine, force);
 }
 
 /* The same colour as an RGBA word of the render commands (ABGR in memory). */
 internal u32
-ui_faction_rgba(u8 force)
+ui_faction_rgba(engine_api *api, u8 force)
 {
-    return (u32)ui_faction_color(force);
+    return api->faction_colour(api->engine, force);
 }
 
 /* ---- the 出征 and 輸送 dialogs --------------------------------------------- */
@@ -1123,7 +1118,7 @@ ui_draw_map_units(ui_state *ui, engine_api *api, ImDrawList *draw, f32 cell, hex
         engine_city_slots slots = api->city_slots(api->engine, city.city_id);
         hex_point center = hex_to_pixel(hex_make(slots.q, slots.r), cell, origin);
         f32 half = cell * 0.6f;
-        draw->AddRectFilled(ImVec2(center.x - half, center.y - half), ImVec2(center.x + half, center.y + half), ui_faction_color(city.owner_force_id));
+        draw->AddRectFilled(ImVec2(center.x - half, center.y - half), ImVec2(center.x + half, center.y + half), ui_faction_color(api, city.owner_force_id));
         draw->AddRect(ImVec2(center.x - half, center.y - half), ImVec2(center.x + half, center.y + half), IM_COL32(20, 20, 20, 255));
     }
     for (u32 id = 0; id < api->unit_count(api->engine); ++id)
@@ -1134,7 +1129,7 @@ ui_draw_map_units(ui_state *ui, engine_api *api, ImDrawList *draw, f32 cell, hex
         f32 half = cell * 0.55f;
         ImVec2 diamond[4] = { ImVec2(center.x, center.y - half), ImVec2(center.x + half, center.y), ImVec2(center.x, center.y + half),
                               ImVec2(center.x - half, center.y) };
-        draw->AddConvexPolyFilled(diamond, 4, ui_faction_color(unit.force_id));
+        draw->AddConvexPolyFilled(diamond, 4, ui_faction_color(api, unit.force_id));
         draw->AddPolyline(diamond, 4, unit.id == ui->units.selected ? IM_COL32(255, 255, 255, 255) : IM_COL32(20, 20, 20, 255),
                           ImDrawFlags_Closed, 1.5f);
     }
