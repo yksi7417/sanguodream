@@ -59,6 +59,7 @@ spec-src/spec/experiments/gap3-answers-2026-10-23.md and in the fixtures.
 | U-002 | A row of the list 設置 is grey when can_issue refuses the building on each hex next to the unit. The engine refuses a building without its technique, without the gold, or without a buildable hex. A building that the engine accepts shows on the 3D map (U-001). | batch 8 | ui |
 | U-003 | unit_at gives effective_type, the class that the unit fights with on its hex. On water a land unit fights as its ship. The list 戰法 of the unit menu follows effective_type. A unit on a 樓船 thus lists 火矢 and 猛撞, and a unit on a 鬥艦 also lists 投石. The tab 水上 of 部隊能力 in the sortie dialog lists the tactics of the ship. | batch 8 | feature/combat, ui |
 
+| a failed tactic still hits (2026-10-24) | A failed tactic did no damage, because the clone stopped after the failure. It is now a normal attack on the target with less damage than the tactic (combat.tactic_fail_percent 100, assumed). It has no effect and gives no technique points, and the target answers it. The log line names the tactic and says 成功 or 失敗，改為普通攻擊. The lines after it name the units that lost soldiers. | batch 12 | feature/combat, ui |
 | no arrow or stone at an adjacent hex (2026-10-24) | The player decided that the arrow tactics and the stone tactics need a target at 2 hexes or more. This applies on land and on water. tactics.tsv of both packs gives range_min 2 to 火矢, 貫箭, 亂射, the 火矢 of the tower and of the ships, and the two 投石. The engine refuses an adjacent target, and the row of the tactic is grey. | batch 11 | feature/combat |
 | the place of each log line (2026-10-24) | Each log line names the unit, the facility or the field building where the event happens. A click on the line moves the camera to that hex. The engine gives the place in event_report. The events of a field building and of a fire named the commander of a wrong unit. They now name the owner of the building, or no force. The log goes back to the bottom left and the minimap to the bottom right after a change of the screen size. | batch 10 | feature/report, feature/combat, ui |
 | the port question again (2026-10-24) | The click of batch 7 gave the location id of hex_at to base_at. base_at needs the index of base_at_hex. The force check thus failed, and the command menu opened. The click on a unit, the name in the question and the scene click on an own port now read base_at(base_at_hex). The recorder gives the location id 42 in hex_at, as the real engine does. | batch 9 | feature/rivals, ui |
@@ -73,6 +74,12 @@ spec-src/spec/experiments/gap3-answers-2026-10-23.md and in the fixtures.
   U-004 waits on Q-233.
 
 ## Questions for the observer
+
+- The damage of a failed tactic. The clone makes a failed tactic a normal
+  attack at 100 percent (assumed, combat.tactic_fail_percent). Please
+  record the soldiers that the target loses after a failed 突刺 and after
+  a normal attack of the same unit. Does the target counterattack a
+  failed tactic?
 
 - G3-002, the technique points of a won duel. The clone gives 100 to the
   faction of the winner (assumed). The run saw 0 for the loser only.

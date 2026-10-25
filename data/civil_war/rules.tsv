@@ -81,6 +81,7 @@ combat.damage_percent	20	assumed	Q-172: the soldiers of one attack = attacker so
 combat.min_damage	50	assumed	Q-172: the least damage of an attack that hits
 combat.counter_percent	50	assumed	Q-172: a counterattack does this percent of a normal attack
 combat.triangle_percent	120	assumed	Q-172: pike beats cavalry, cavalry beats halberd, halberd beats pike (guide book p.16) when the unit uses a tactic
+combat.tactic_fail_percent	100	assumed	the player, 2026-10-24: a failed tactic falls back to a normal attack with less damage than the tactic; this percent of a normal attack
 combat.critical_chance	10	assumed	Q-172: the chance of a critical hit without a skill
 combat.critical_percent	115	assumed	Q-172: the damage of a critical hit (the Steam guide says +15 percent)
 combat.morale_hit	5	assumed	Q-172: the morale that the attacked unit loses

@@ -207,6 +207,13 @@ ui_report_line_at(ui_state *ui, engine_api *api, u32 ledger_index, const engine_
             static const char *abilities[] = { "leadership", "war", "intelligence", "politics", "charm" };
             if (report.detail < ArrayCount(abilities)) snprintf(speaker, sizeof(speaker), "%s", ui_text_with_key(ui, "picker", abilities[report.detail]));
         }
+        else if (report.kind == SIM_EVENT_TACTIC_USED && report.delta != 0)
+        {
+            /* The player, 2026-10-24: the line names the tactic and its result (二段突刺成功). */
+            u32 row = (u32)(report.delta < 0 ? -report.delta : report.delta) - 1;
+            engine_tactic_kind tactic = api->tactic_kind_at(api->engine, row);
+            if (tactic.key[0]) snprintf(speaker, sizeof(speaker), "%s", ui_text_with_key(ui, "tactic", tactic.key));
+        }
         else if (place->kind == ENGINE_PLACE_FACILITY || place->kind == ENGINE_PLACE_BUILDING)
         {
             /* The player, 2026-10-24: the line names the facility or the building (長安：市場受損). */
@@ -217,6 +224,7 @@ ui_report_line_at(ui_state *ui, engine_api *api, u32 ledger_index, const engine_
     if (!subject[0]) memcpy(subject, faction, sizeof(subject));   /* an event of a faction names the faction */
     text_event_facts facts = {};
     facts.key         = report.key ? report.key : "none";
+    if (report.kind == SIM_EVENT_TACTIC_USED && report.delta < 0) facts.key = "tactic_failed";   /* a failure falls back to a normal attack */
     facts.tone        = report.tone;
     facts.sign        = report.sign;
     facts.personality = report.personality;

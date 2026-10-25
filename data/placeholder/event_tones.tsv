@@ -51,7 +51,7 @@ unit_state	worried	neutral	no	yes	assumed	閻行隊從混亂狀態中恢復
 unit_damaged	alarmed	amount	no	yes	assumed
 counterattack	angry	neutral	no	yes	assumed
 critical_hit	proud	good	no	yes	assumed
-tactic_used	proud	neutral	no	yes	assumed
+tactic_used	proud	amount	no	yes	assumed
 plot_used	calm	neutral	no	yes	assumed
 fire_started	alarmed	bad	no	yes	assumed
 base_damaged	alarmed	bad	yes	yes	assumed

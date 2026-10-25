@@ -167,7 +167,7 @@ feature_tactic_tests(test_counts *counts, feature_battle *battle)
     sim_event used = {};
     engine_fire_view fire = api->fire_view(e);
     hex_offset o = hex_to_offset(at_b);
-    TEST_CHECK(counts, result.refusal == SIM_REFUSAL_NONE && feature_find_event(api, SIM_EVENT_TACTIC_USED, mark, &used) && used.delta == 1 &&
+    TEST_CHECK(counts, result.refusal == SIM_REFUSAL_NONE && feature_find_event(api, SIM_EVENT_TACTIC_USED, mark, &used) && used.delta == FEATURE_TACTIC_TOWER + 1 &&
                        api->unit_at(e, battle->b).soldiers < soldiers && api->unit_at(e, battle->t).morale == 70,
                "the tower arrow hits, the target loses soldiers and the tower pays 10 morale");
     TEST_CHECK(counts, feature_count_events(api, SIM_EVENT_FIRE_STARTED, mark) >= 1 && fire.turns[(u32)o.row * fire.width + (u32)o.col] > 0 &&
@@ -618,10 +618,71 @@ feature_ship_tactic_tests(test_counts *counts)
     engine_fixture_destroy(&setup.fixture);
 }
 
+/* The player, 2026-10-24: a failed tactic still hits. It falls back to a
+   normal attack with less damage than the tactic: no knock, no technique
+   points, and the target answers. A low intellect lowers the chance, and
+   the unit tries 突刺 each turn until a try fails. */
+internal void
+feature_failed_tactic_tests(test_counts *counts)
+{
+    feature_battle battle;
+    if (!feature_battle_init(&battle)) { TEST_CHECK(counts, false, "a battle for the failed tactic test"); engine_fixture_destroy(&battle.setup.fixture); return; }
+    engine_api *api = battle.setup.api;
+    void *e = api->engine;
+    u8 force = battle.setup.force;
+    u16 officers[2] = { api->unit_at(e, battle.a).officers[0], api->unit_at(e, battle.b).officers[0] };
+    for (u32 index = 0; index < 2; ++index)
+    {
+        engine_officer officer = api->officer_by_id(e, officers[index]);
+        engine_officer_detail detail = api->officer_detail(e, officers[index]);
+        engine_officer_edit edit = engine_officer_edit_of(&detail, &officer);
+        edit.set_abilities = true;
+        edit.leadership = officer.leadership; edit.war = officer.war; edit.politics = officer.politics; edit.charm = officer.charm;
+        edit.intelligence = index == 0 ? 1 : 100;   /* 70 + (1 - 100) / 2: the chance of the attacker is low */
+        edit.set_aptitudes = true;
+        for (u32 place = 0; place < OFFICER_UNIT_APTITUDE_COUNT; ++place) edit.aptitudes[place] = FEATURE_APTITUDE_A;
+        api->set_officer(e, officers[index], &edit);
+    }
+    hex_coord at_a = feature_unit_hex(api, battle.a), at_b = feature_unit_hex(api, battle.b);
+    b32 failed = false;
+    s32 used_delta = 0;
+    u32 fail_loss = 0, success_loss = 0, technique = 0, pushed = 0, countered = 0;
+    for (u32 turn = 0; turn < 40 && !failed; ++turn)
+    {
+        api->set_unit_place(e, battle.a, force, at_a.q, at_a.r);
+        api->set_unit_place(e, battle.b, battle.enemy, at_b.q, at_b.r);
+        api->set_unit(e, battle.a, 1000, 80);
+        api->set_unit(e, battle.b, 1000, 80);
+        u32 mark = api->ledger_count(e);
+        if (api->command_tactic(e, battle.a, FEATURE_TACTIC_PIERCE, at_b.q, at_b.r).refusal != SIM_REFUSAL_NONE) break;
+        sim_event used = {};
+        feature_find_event(api, SIM_EVENT_TACTIC_USED, mark, &used);
+        u32 loss = 1000 - api->unit_at(e, battle.b).soldiers;
+        if (used.delta > 0) success_loss = loss;
+        if (used.delta < 0)
+        {
+            failed     = true;
+            used_delta = used.delta;
+            fail_loss  = loss;
+            technique  = feature_count_events(api, SIM_EVENT_TECHNIQUE_GAINED, mark);
+            pushed     = feature_count_events(api, SIM_EVENT_UNIT_PUSHED, mark);
+            countered  = feature_count_events(api, SIM_EVENT_COUNTERATTACK, mark);
+        }
+        if (!failed) feature_next_own_turn(api, force);
+    }
+    TEST_CHECK(counts, failed && used_delta == -(FEATURE_TACTIC_PIERCE + 1),
+               "a failed tactic has the negative row + 1 of the tactic in its event");
+    TEST_CHECK(counts, fail_loss > 0 && technique == 0 && pushed == 0 && countered == 1,
+               "a failed 突刺 still takes soldiers, as a normal attack: no technique points, no knock, and the target answers");
+    TEST_CHECK(counts, success_loss == 0 || fail_loss < success_loss, "a failed tactic does less damage than a tactic that works");
+    engine_fixture_destroy(&battle.setup.fixture);
+}
+
 internal void
 feature_combat_tests(test_counts *counts)
 {
     feature_battle_tests(counts);
+    feature_failed_tactic_tests(counts);
     feature_siege_tests(counts);
     feature_water_tests(counts);
     feature_ship_tactic_tests(counts);

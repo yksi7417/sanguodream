@@ -1271,7 +1271,8 @@ log.filter.all	全部
 log.filter.mine	本勢力
 log.unit_damaged	{subject}隊：士兵 {delta}
 log.counterattack	{subject}隊：反擊
-log.tactic_used	{subject}隊：施展戰法
+log.tactic_used	{subject}隊：{speaker}成功
+log.tactic_failed	{subject}隊：{speaker}失敗，改為普通攻擊
 log.critical_hit	{faction}：攻擊造成重創
 log.unit_state	{subject}隊：狀態改變
 log.unit_entered_city	{subject}：部隊入城

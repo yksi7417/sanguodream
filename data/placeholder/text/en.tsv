@@ -1273,7 +1273,8 @@ log.filter.all	All
 log.filter.mine	My faction
 log.unit_damaged	{faction}: a unit lost {amount} soldiers
 log.counterattack	{faction}: a unit struck back
-log.tactic_used	{faction}: a unit used a tactic
+log.tactic_used	{subject}'s unit: {speaker} worked
+log.tactic_failed	{subject}'s unit: {speaker} failed, a normal attack instead
 log.critical_hit	{faction}: a critical hit
 log.unit_state	{faction}: the state of a unit changed
 log.unit_entered_city	{subject}: a unit entered the city

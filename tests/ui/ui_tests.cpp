@@ -4967,6 +4967,35 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
+    /* The player, 2026-10-24: a tactic line names the tactic and says if it
+       worked. The event carries + the row + 1 for a success and - for a
+       failure. */
+    t = IM_REGISTER_TEST(e, "ui", "a_tactic_line_names_the_tactic_and_its_result");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        sim_event worked = {};
+        worked.kind = SIM_EVENT_TACTIC_USED; worked.faction = 1; worked.delta = 1;   /* row 0 of recorder_tactic_kind_at: pierce */
+        sim_event failed = worked;
+        failed.delta = -1;
+        v.recorder.events[v.recorder.event_count++] = worked;
+        v.recorder.events[v.recorder.event_count++] = failed;
+        ui_enter_game(&v.ui);
+        ctx->Yield(2);
+        char good[256], bad[256];
+        ui_report_line(&v.ui, &v.api, 0, TEXT_NO_VALUE, TEXT_LINE_LOG, good, sizeof(good));
+        ui_report_line(&v.ui, &v.api, 1, TEXT_NO_VALUE, TEXT_LINE_LOG, bad, sizeof(bad));
+        const char *name = ui_text_with_key(&v.ui, "tactic", "pierce");
+        IM_CHECK(strstr(good, name) != 0 && strstr(bad, name) != 0);
+        IM_CHECK(strcmp(good, bad) != 0);   /* 突刺成功 and 突刺失敗，改為普通攻擊 */
+        IM_CHECK(strstr(bad, "\xE5\xA4\xB1\xE6\x95\x97") != 0);   /* zh-TW: 失敗 */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
     /* The player, 2026-10-24: the log goes to the bottom left and the
        minimap to the bottom right at the start, and again after a change of
        the screen size. A changed corner size stands for the new screen. */

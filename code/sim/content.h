@@ -730,6 +730,7 @@ struct sim_rules
     u32 skill_haul;
     /* M6: combat, plots, buildings and siege */
     u32 combat_damage_percent, combat_min_damage, combat_counter_percent, combat_triangle_percent;
+    u32 combat_tactic_fail_percent;   /* the damage of a failed tactic, as a percent of a normal attack (assumed: the player, 2026-10-24) */
     u32 combat_critical_chance, combat_critical_percent, combat_morale_hit, combat_tactic_success;
     u32 combat_building_percent, combat_siege_percent, combat_base_counter;
     u32 combat_capture_percent, combat_halberd_capture, combat_destroy_technique;

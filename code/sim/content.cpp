@@ -352,6 +352,7 @@ global_variable content_rule_field content_rule_fields[] = {
     CONTENT_RULE("combat.min_damage",     combat_min_damage),
     CONTENT_RULE("combat.counter_percent", combat_counter_percent),
     CONTENT_RULE("combat.triangle_percent", combat_triangle_percent),
+    CONTENT_RULE("combat.tactic_fail_percent", combat_tactic_fail_percent),
     CONTENT_RULE("combat.critical_chance", combat_critical_chance),
     CONTENT_RULE("combat.critical_percent", combat_critical_percent),
     CONTENT_RULE("combat.morale_hit",     combat_morale_hit),

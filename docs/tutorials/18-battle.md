@@ -96,7 +96,17 @@ The class triangle adds combat.triangle_percent: pike beats cavalry,
 cavalry beats halberd, halberd beats pike. The effect then moves a unit
 (knock, pull, advance, pass), confuses it or starts a fire. A unit that
 slides into a unit or a building stops, and both lose soldiers. No unit
-answers a tactic.
+answers a tactic that works.
+
+A tactic that fails is a normal attack on the target hex (the player,
+2026-10-24). The spec says that only a success gives the extra effect. The
+strike uses combat.tactic_fail_percent (100, assumed) in place of the
+damage percent of the tactic. It has no pattern, no triangle, no effect
+and no technique points, and the target answers it. The event
+SIM_EVENT_TACTIC_USED holds the row of the tactic plus 1 in its delta. The
+delta is positive for a success and negative for a failure. The log line
+names the tactic and the result, and the lines after it name the units
+that lost soldiers.
 
 ## 計略 and the states
 `sim_check_plot` needs the morale, the range (more with 鬼謀), the target

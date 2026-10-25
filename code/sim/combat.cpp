@@ -1011,24 +1011,30 @@ sim_use_tactic(sim_state *sim, sim_command command, sim_event_sink *events)
     unit->acted_turn = sim->turn + 1;
     sim_change_morale(sim, order->unit, -(s32)tactic->morale, command.id, events);
     b32 success = check.quantity >= 100 || sim_random_below(sim, 100) < check.quantity;
-    sim_emit_unit(sim, SIM_EVENT_TACTIC_USED, order->unit, SIM_NO_CITY, success ? 1 : 0, true, command.id, events);
-    if (!success) return;
+    s32 row = (s32)order->kind + 1;   /* the event names the tactic: + its row + 1 for a success, - for a failure */
+    sim_emit_unit(sim, SIM_EVENT_TACTIC_USED, order->unit, SIM_NO_CITY, success ? row : -row, true, command.id, events);
     /* A tactic that succeeds gives technique points (G2-048: 火矢 gave 15; tech-tree.md). */
-    sim_add_technique_points(sim, unit->force_id, (s32)rules->technique_tactic, command.id, events);
+    if (success) sim_add_technique_points(sim, unit->force_id, (s32)rules->technique_tactic, command.id, events);
 
+    /* A failed tactic is a normal attack on the target hex with less
+       damage: no pattern, no triangle, no effect, and the target answers
+       (the player, 2026-10-24; the spec: only a success gives the extra
+       effect). The amount is assumed (combat.tactic_fail_percent). */
     unit_type_kind *type = sim_unit_type(sim, sim_effective_type(sim, unit));
     content_unit_class unit_class = sim_class_of_aptitude(type->aptitude);
-    u32 percent = tactic->damage_percent;
-    if (unit_class != CONTENT_CLASS_NONE && sim_has_technique_effect(sim, unit->force_id, TECHNIQUE_EFFECT_TACTIC_DAMAGE, unit_class))
+    u32 percent = success ? tactic->damage_percent : rules->combat_tactic_fail_percent;
+    if (success && unit_class != CONTENT_CLASS_NONE && sim_has_technique_effect(sim, unit->force_id, TECHNIQUE_EFFECT_TACTIC_DAMAGE, unit_class))
     {
         percent = sim_percent_of(percent, rules->combat_technique_percent);
     }
-    b32 halberd = type->aptitude == OFFICER_APTITUDE_HALBERD;
+    b32 halberd = success && type->aptitude == OFFICER_APTITUDE_HALBERD;
     sim_target first = sim_target_at(sim, unit->force_id, order->to);
     u32 first_unit = first.unit;
     hex_coord cells[16];
-    u32 count = sim_tactic_cells(unit, tactic, order->to, cells);
-    b32 hits_own = tactic->pattern == PATTERN_SPLASH || tactic->pattern == PATTERN_LINE;
+    u32 count = 1;
+    cells[0] = order->to;
+    if (success) count = sim_tactic_cells(unit, tactic, order->to, cells);
+    b32 hits_own = success && (tactic->pattern == PATTERN_SPLASH || tactic->pattern == PATTERN_LINE);
     for (u32 index = 0; index < count && unit->alive; ++index)
     {
         sim_target target = sim_target_at(sim, unit->force_id, cells[index]);
@@ -1041,10 +1047,10 @@ sim_use_tactic(sim_state *sim, sim_command command, sim_event_sink *events)
         {
             u32 unit_percent = percent;
             unit_type_kind *other = sim_unit_type(sim, sim_effective_type(sim, sim->units + target.unit));
-            if (other && sim_class_beats(type->aptitude, other->aptitude)) unit_percent = sim_percent_of(unit_percent, rules->combat_triangle_percent);
+            if (success && other && sim_class_beats(type->aptitude, other->aptitude)) unit_percent = sim_percent_of(unit_percent, rules->combat_triangle_percent);
             sim_target only_unit = target;
             only_unit.building = SIM_NO_BUILDING; only_unit.city = SIM_NO_CITY; only_unit.slot_city = SIM_NO_CITY; only_unit.base = SIM_NO_BASE;
-            sim_strike(sim, order->unit, cells[index], &only_unit, unit_percent, CRITICAL_TACTIC, false, halberd, command.id, events);
+            sim_strike(sim, order->unit, cells[index], &only_unit, unit_percent, success ? CRITICAL_TACTIC : CRITICAL_ATTACK, !success, halberd, command.id, events);
         }
         else if (index == 0 && (tactic->targets & TARGET_BUILDINGS) && sim_target_any(&target))
         {
@@ -1075,6 +1081,7 @@ sim_use_tactic(sim_state *sim, sim_command command, sim_event_sink *events)
             }
         }
     }
-    if (unit->alive) sim_tactic_effect(sim, order->unit, tactic, order->to, first_unit, command.id, events);
-    sim_reward_battle(sim, order->unit, first_unit, false, true, first_unit != SIM_NO_UNIT && !sim->units[first_unit].alive, command.id, events);
+    if (success && unit->alive) sim_tactic_effect(sim, order->unit, tactic, order->to, first_unit, command.id, events);
+    b32 arrow = hex_distance(unit->hex, order->to) > 1;
+    sim_reward_battle(sim, order->unit, first_unit, arrow && !success, success, first_unit != SIM_NO_UNIT && !sim->units[first_unit].alive, command.id, events);
 }
