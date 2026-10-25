@@ -15,7 +15,7 @@
 #include "render/png.h"
 
 #define D3D11_MAX_MESHES        32     /* at least RENDER_MESH_COUNT */
-#define D3D11_MAX_SPRITES       16     /* at least RENDER_SPRITE_COUNT */
+#define D3D11_MAX_SPRITES       32     /* at least RENDER_SPRITE_COUNT */
 #define D3D11_ATLAS_TILES       8      /* material tiles in one row of the atlas */
 #define D3D11_ATLAS_TILE_SIZE   64     /* pixels, for the generated placeholder atlas */
 #define D3D11_SPRITE_SIZE       64
@@ -29,7 +29,8 @@ struct d3d11_mesh
 
 struct d3d11_sprite
 {
-    ID3D11ShaderResourceView *view;
+    ID3D11ShaderResourceView *view;     /* 0 for a base without art: the mesh stays */
+    f32                       aspect;   /* the height of the picture over its width */
 };
 
 struct d3d11_frame_constants
@@ -152,7 +153,8 @@ static const char d3d11_shader_source[] =
 "  float3 ipos : TEXCOORD3; float iwidth : TEXCOORD4; float iheight : TEXCOORD5; float4 itint : COLOR0; };\n"
 "struct BillboardOut { float4 clip : SV_POSITION; float2 uv : TEXCOORD0; float4 tint : COLOR0; };\n"
 "BillboardOut billboard_vs(BillboardIn i) {\n"
-"  float3 world = i.ipos + camera_right.xyz * (i.corner.x * i.iwidth) + float3(0, 1, 0) * (i.corner.y * i.iheight);\n"
+"  float3 up = mode > 1.5 ? camera_up.xyz : float3(0, 1, 0);\n"     /* mode 2: the card of a base faces the camera */
+"  float3 world = i.ipos + camera_right.xyz * (i.corner.x * i.iwidth) + up * (i.corner.y * i.iheight);\n"
 "  BillboardOut o; o.clip = mul(float4(world, 1.0), view_projection); o.uv = i.uv; o.tint = i.itint; return o; }\n"
 "float4 billboard_ps(BillboardOut i) : SV_TARGET {\n"
 "  float4 c = sprite.Sample(linear_sampler, i.uv); clip(c.a - 0.5);\n"
@@ -315,13 +317,14 @@ d3d11_load_mesh_file(d3d11_renderer *r, const char *relative, memory_arena *aren
 }
 
 internal ID3D11ShaderResourceView *
-d3d11_load_png_texture(d3d11_renderer *r, const char *relative, memory_arena *arena)
+d3d11_load_png_texture(d3d11_renderer *r, const char *relative, memory_arena *arena, f32 *aspect_out = 0)
 {
     u64 size = 0;
     u8 *data = d3d11_read_data_file(r, relative, arena, &size);
     if (!data) return 0;
     png_image image = png_decode(data, size, arena);
-    if (image.error) return 0;
+    if (image.error || !image.width) return 0;
+    if (aspect_out) *aspect_out = (f32)image.height / (f32)image.width;
     return d3d11_make_texture(r, (const u32 *)image.rgba, image.width, image.height, false, 0);
 }
 
@@ -432,18 +435,23 @@ d3d11_renderer_init(d3d11_renderer *r, ID3D11Device *device, ID3D11DeviceContext
     /* The sprites: one picture for each render_sprite, from the sprites
        folder of the content pack: the art first, then the placeholder
        picture. If both are absent, the renderer uses the placeholder
-       figure (docs/ASSETS.md, "Unit sprites"). */
+       figure (docs/ASSETS.md, "Unit sprites"). A base has no placeholder
+       picture: without its art, the view stays 0 and the renderer draws
+       the mesh of the base (docs/ASSETS.md, "Base art"). */
     for (u32 sprite_id = 0; sprite_id < RENDER_SPRITE_COUNT && sprite_id < D3D11_MAX_SPRITES; ++sprite_id)
     {
-        r->sprites[sprite_id].view = 0;
-        if (render_sprite_art_files[sprite_id]) r->sprites[sprite_id].view = d3d11_load_png_texture(r, render_sprite_art_files[sprite_id], scratch);
-        if (!r->sprites[sprite_id].view) r->sprites[sprite_id].view = d3d11_load_png_texture(r, render_sprite_files[sprite_id], scratch);
-        if (!r->sprites[sprite_id].view)
+        d3d11_sprite *sprite_slot = r->sprites + sprite_id;
+        sprite_slot->view   = 0;
+        sprite_slot->aspect = 1.0f;
+        r->sprite_count = sprite_id + 1;
+        if (render_sprite_art_files[sprite_id]) sprite_slot->view = d3d11_load_png_texture(r, render_sprite_art_files[sprite_id], scratch, &sprite_slot->aspect);
+        if (sprite_id >= RENDER_SPRITE_FIRST_BASE) continue;
+        if (!sprite_slot->view) sprite_slot->view = d3d11_load_png_texture(r, render_sprite_files[sprite_id], scratch, &sprite_slot->aspect);
+        if (!sprite_slot->view)
         {
             u32 *sprite = d3d11_placeholder_sprite(scratch);
-            r->sprites[sprite_id].view = d3d11_make_texture(r, sprite, D3D11_SPRITE_SIZE, D3D11_SPRITE_SIZE, false, 0);
+            sprite_slot->view = d3d11_make_texture(r, sprite, D3D11_SPRITE_SIZE, D3D11_SPRITE_SIZE, false, 0);
         }
-        r->sprite_count = sprite_id + 1;
     }
 
     r->instance_capacity = RENDER_MAX_MESH_INSTANCES > RENDER_MAX_BILLBOARDS ? RENDER_MAX_MESH_INSTANCES : RENDER_MAX_BILLBOARDS;
@@ -552,6 +560,14 @@ d3d11_upload(d3d11_renderer *r, ID3D11Resource *resource, const void *data, u32 
     r->context->Unmap(resource, 0);
 }
 
+/* True when the platform draws the art of a base in place of the mesh:
+   the instance names a base sprite, and the pack has its picture. */
+internal b32
+d3d11_has_art(d3d11_renderer *r, render_mesh_instance *m)
+{
+    return m->art_sprite >= RENDER_SPRITE_FIRST_BASE && m->art_sprite < r->sprite_count && r->sprites[m->art_sprite].view != 0;
+}
+
 /* Draws the scene into the current render target. Call it after the clear
    and before ImGui. Nothing happens when the commands have no scene. */
 internal void
@@ -634,7 +650,7 @@ d3d11_renderer_draw(d3d11_renderer *r, render_commands *rc, ID3D11RenderTargetVi
         for (u32 i = 0; i < rc->mesh_instance_count && n < r->instance_capacity; ++i)
         {
             render_mesh_instance *m = rc->mesh_instances + i;
-            if (m->mesh_id != mesh_id) continue;
+            if (m->mesh_id != mesh_id || d3d11_has_art(r, m)) continue;
             batch[n].position[0] = m->position.x; batch[n].position[1] = m->position.y; batch[n].position[2] = m->position.z;
             batch[n].yaw = m->yaw; batch[n].scale = m->scale; batch[n].tint = m->tint;
             n++;
@@ -668,7 +684,23 @@ d3d11_renderer_draw(d3d11_renderer *r, render_commands *rc, ID3D11RenderTargetVi
             batch[n].width = b->width; batch[n].height = b->height; batch[n].tint = b->tint;
             n++;
         }
+        /* The art of a base stands in place of its mesh, on a card that faces the camera. */
+        for (u32 i = 0; i < rc->mesh_instance_count && n < r->instance_capacity && sprite_id >= RENDER_SPRITE_FIRST_BASE; ++i)
+        {
+            render_mesh_instance *m = rc->mesh_instances + i;
+            if (m->art_sprite != sprite_id || !d3d11_has_art(r, m)) continue;
+            render_billboard card = render_base_billboard(m, &rc->cam, r->sprites[sprite_id].aspect);
+            batch[n].position[0] = card.position.x; batch[n].position[1] = card.position.y; batch[n].position[2] = card.position.z;
+            batch[n].width = card.width; batch[n].height = card.height; batch[n].tint = card.tint;
+            n++;
+        }
         if (!n) continue;
+        f32 mode = sprite_id >= RENDER_SPRITE_FIRST_BASE ? 2.0f : 0.0f;
+        if (fc.mode != mode)
+        {
+            fc.mode = mode;
+            d3d11_upload(r, r->constants, &fc, sizeof(fc), 0);
+        }
         d3d11_upload(r, r->instances, batch, n * (u32)sizeof(d3d11_billboard_instance), 0);
         UINT strides[2] = { 16, sizeof(d3d11_billboard_instance) }, offsets[2] = { 0, 0 };
         ID3D11Buffer *buffers[2] = { r->billboard_quad, r->instances };
@@ -678,6 +710,11 @@ d3d11_renderer_draw(d3d11_renderer *r, render_commands *rc, ID3D11RenderTargetVi
         ctx->PSSetShader(r->billboard_ps, 0, 0);
         ctx->PSSetShaderResources(2, 1, &r->sprites[sprite_id].view);
         ctx->DrawInstanced(6, n, 0, 0);
+    }
+    if (fc.mode != 0.0f)
+    {
+        fc.mode = 0.0f;
+        d3d11_upload(r, r->constants, &fc, sizeof(fc), 0);
     }
     ctx->OMSetBlendState(0, 0, 0xFFFFFFFF);
     ctx->RSSetState(r->rasterizer);

@@ -127,6 +127,18 @@ ui_test_mesh_tint(render_commands *rc, u32 mesh_id)
     return 0;
 }
 
+/* The count of the instances of one mesh id that name one art sprite. */
+internal u32
+ui_test_mesh_art(render_commands *rc, u32 mesh_id, u32 art_sprite)
+{
+    u32 count = 0;
+    for (u32 index = 0; rc && index < rc->mesh_instance_count; ++index)
+    {
+        if (rc->mesh_instances[index].mesh_id == mesh_id && rc->mesh_instances[index].art_sprite == art_sprite) count++;
+    }
+    return count;
+}
+
 /* The five city command dialogs of M3: the window, the City panel button,
    the UI kind and the engine command that 決定 issues. */
 struct ui_command_case
@@ -4440,6 +4452,45 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_LT(fabsf(sinf(yaw)), 1e-3f);
         IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_BASE_AT), 2u);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        v.frame.frame_arena = 0;
+        test_arena_destroy(&frame_arena);
+    };
+
+    /* The scene names the art of each base kind (docs/ASSETS.md, "Base
+       art"). Each base keeps its placeholder mesh for a pack without the
+       picture. The cities of the recorder have no specialty, so each one
+       names the art of a city. A big city names its own art. The models of
+       the slots name no art. The scene commands nothing. */
+    t = IM_REGISTER_TEST(e, "ui", "scene_names_the_art_of_each_base_kind");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        memory_arena frame_arena = test_arena_create(Megabytes(2));
+        v.recorder.city_count = 2;
+        v.ui.scene.headless   = true;
+        v.frame.frame_arena   = &frame_arena;
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        render_commands *rc = v.frame.render;
+        IM_CHECK(rc && rc->scene_enabled);
+        IM_CHECK_EQ(ui_test_count_meshes(rc, RENDER_MESH_SETTLEMENT, 0), 2u);
+        IM_CHECK_EQ(ui_test_mesh_art(rc, RENDER_MESH_SETTLEMENT, RENDER_SPRITE_BASE_CITY), 2u);
+        IM_CHECK_EQ(ui_test_mesh_art(rc, RENDER_MESH_GATE, RENDER_SPRITE_BASE_GATE), 1u);
+        IM_CHECK_EQ(ui_test_mesh_art(rc, RENDER_MESH_PORT, RENDER_SPRITE_BASE_PORT), 1u);
+        IM_CHECK_EQ(ui_test_mesh_art(rc, RENDER_MESH_STALL, RENDER_NO_ART), ui_test_count_meshes(rc, RENDER_MESH_STALL, 0));
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+
+        engine_city_slots slots = {};
+        IM_CHECK_EQ(ui_city_art(&slots), (u32)RENDER_SPRITE_BASE_CITY);
+        slots.specialty = CITY_SPECIALTY_BIG_CITY;
+        IM_CHECK_EQ(ui_city_art(&slots), (u32)RENDER_SPRITE_BASE_BIG_CITY);
+        slots.specialty = CITY_SPECIALTY_NAVY;
+        IM_CHECK_EQ(ui_city_art(&slots), (u32)RENDER_SPRITE_BASE_CITY);
+        IM_CHECK_EQ(ui_base_art(BASE_PASS), (u32)RENDER_SPRITE_BASE_GATE);
+        IM_CHECK_EQ(ui_base_art(BASE_PORT), (u32)RENDER_SPRITE_BASE_PORT);
         v.frame.frame_arena = 0;
         test_arena_destroy(&frame_arena);
     };

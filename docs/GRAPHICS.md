@@ -166,7 +166,7 @@ the DLL and the platform: the DLL pushes commands, the platform draws.
 
 | Part | Today | After |
 |---|---|---|
-| Sprite table | 14 sprites: the front view of each model sheet at 256 px (2026-10-24), or the placeholder of 64 px | Atlas pages of 2048 x 2048, each sprite a rectangle in a page |
+| Sprite table | 14 sprites: the front view of each model sheet at 256 px (2026-10-24), or the placeholder of 64 px. 4 sprites of the bases: the three-quarter view of each concept sheet, 384 px wide (2026-10-25). | Atlas pages of 2048 x 2048, each sprite a rectangle in a page |
 | Billboard | sprite id, size, tint | Also: frame rectangle, mirror flag, alpha, blend mode |
 | Facing | none | Two drawn facings (front three-quarter, back three-quarter) and their mirrors give four facings |
 | Faction colour | The mask of the red areas takes the faction colour, shaded by its brightness; the rest keeps its paint. The alpha 160 of a pixel marks the mask (misc/art_import.py). | Stays |
@@ -208,8 +208,13 @@ pine green and plum backgrounds, lacquer black hair.
   the figures of a squad do not step together.
 
 ### 5.2 How a base looks
-- A base is a set of 3D meshes. A sprite shows one side only, and the
-  camera turns freely.
+- Today (2026-10-25): a city, a big city, a pass and a port show the
+  three-quarter view of their concept sheet. A card that faces the
+  camera carries the view. The card stands in place of the placeholder
+  mesh. Without the
+  picture, the mesh stays. docs/ASSETS.md, "Base art", has the sizes.
+- The plan: a base is a set of 3D meshes. A sprite shows one side only,
+  and the camera turns freely.
 - G4 builds a kit of parts in code: wall segment, corner tower, gate
   house, hip-and-gable roof, house block, pier, palisade, platform.
   misc/make_meshes.py writes the parts as .hxm files.
@@ -227,7 +232,9 @@ pine green and plum backgrounds, lacquer black hair.
    of git, because the source images are large.
 3. Run misc/art_import.py. Its first version (2026-10-24) imports the
    model sheets: it removes the green, finds the red mask, cuts the front
-   view and writes data/<pack>/sprites/art/<class>.png. The full tool
+   view and writes data/<pack>/sprites/art/<class>.png. Since 2026-10-25
+   it also cuts the left view of the concept sheet of a base and writes
+   data/<pack>/sprites/art/base_<kind>.png. The full tool
    does these steps:
    - It cuts each frame from the strip by the gaps between figures.
    - It removes the green background (#00FF00), or turns luminance into

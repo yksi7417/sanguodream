@@ -39,45 +39,71 @@ png_test_build(u8 *out, u32 width, u32 height, const u8 *raw_rows, u32 raw_size)
     return at;
 }
 
-/* The sprite files of the pack (docs/ASSETS.md, "Unit sprites"): the
-   decoder of the renderer reads each placeholder picture and each piece
-   of art of render.h. The art is square, and its alpha has only the three
-   levels 0, 160 (the mask of the faction colour) and 255. */
+/* The sprite files of the pack (docs/ASSETS.md, "Unit sprites" and "Base
+   art"): the decoder of the renderer reads each placeholder picture and
+   each piece of art of render.h. The art of a unit is square. The art of
+   a base is 384 pixels wide and keeps the aspect of its view. The alpha
+   of all art has only the three levels 0, 160 (the mask of the faction
+   colour) and 255. */
 internal void
 unit_sprite_file_tests(test_counts *counts)
 {
     memory_arena arena = test_arena_create(Megabytes(8));
     char exe_dir[MAX_PATH], path[MAX_PATH * 2];
     test_exe_dir(exe_dir, MAX_PATH);
-    b32 placeholders_decode = true, art_decodes = true, art_square = true, art_levels = true;
-    u32 art_count = 0;
+    b32 placeholders_decode = true, bases_without_placeholder = true, art_decodes = true, art_square = true, art_levels = true;
+    b32 base_shape = true, base_mask = true;
+    u32 art_count = 0, base_count = 0;
     for (u32 id = 0; id < RENDER_SPRITE_COUNT; ++id)
     {
-        arena.used = 0;
-        snprintf(path, sizeof(path), "%s\\..\\data\\placeholder\\%s", exe_dir, render_sprite_files[id]);
-        test_file file = test_read_file(path, &arena);
+        b32 base = id >= RENDER_SPRITE_FIRST_BASE;
         png_image image = {};
-        if (file.contents) image = png_decode(file.contents, file.size, &arena);
-        placeholders_decode &= file.contents != 0 && image.error == 0 && image.width == 64 && image.height == 64;
+        if (base)
+        {
+            bases_without_placeholder &= render_sprite_files[id] == 0;   /* the mesh of the base is its placeholder */
+        }
+        else
+        {
+            arena.used = 0;
+            snprintf(path, sizeof(path), "%s\\..\\data\\placeholder\\%s", exe_dir, render_sprite_files[id]);
+            test_file placeholder = test_read_file(path, &arena);
+            if (placeholder.contents) image = png_decode(placeholder.contents, placeholder.size, &arena);
+            placeholders_decode &= placeholder.contents != 0 && image.error == 0 && image.width == 64 && image.height == 64;
+        }
         if (!render_sprite_art_files[id]) continue;
         arena.used = 0;
         snprintf(path, sizeof(path), "%s\\..\\data\\placeholder\\%s", exe_dir, render_sprite_art_files[id]);
-        file = test_read_file(path, &arena);
+        test_file file = test_read_file(path, &arena);
         if (!file.contents) continue;   /* a pack without the art of a class uses the placeholder */
         image = png_decode(file.contents, file.size, &arena);
         art_decodes &= image.error == 0 && image.rgba != 0;
         if (image.error) continue;
-        art_count++;
-        art_square &= image.width == image.height && image.width >= 64;
+        u32 masked = 0;
         for (u64 pixel = 0; pixel < (u64)image.width * image.height; ++pixel)
         {
             u8 alpha = image.rgba[pixel * 4 + 3];
             art_levels &= alpha == 0 || alpha == 160 || alpha == 255;
+            if (alpha == 160) masked++;
+        }
+        if (base)
+        {
+            base_count++;
+            base_shape &= image.width == 384 && image.height >= 192 && image.height <= 576;
+            base_mask  &= masked > 0;   /* the banners of the base take the colour of the owner */
+        }
+        else
+        {
+            art_count++;
+            art_square &= image.width == image.height && image.width >= 64;
         }
     }
     TEST_CHECK(counts, placeholders_decode, "the decoder reads each placeholder sprite of the pack at 64 x 64");
-    TEST_CHECK(counts, art_decodes && art_count == RENDER_SPRITE_COUNT - 1, "the decoder reads the art of each class of unit (misc/art_import.py)");
-    TEST_CHECK(counts, art_square && art_levels, "the art is square, and its alpha holds only 0, 160 (the faction mask) and 255");
+    TEST_CHECK(counts, bases_without_placeholder, "a base sprite has no placeholder picture: the mesh of the base stays without the art");
+    TEST_CHECK(counts, art_decodes && art_count == RENDER_SPRITE_FIRST_BASE - 1, "the decoder reads the art of each class of unit (misc/art_import.py)");
+    TEST_CHECK(counts, art_decodes && base_count == RENDER_SPRITE_COUNT - RENDER_SPRITE_FIRST_BASE,
+               "the decoder reads the art of the city, the big city, the pass and the port");
+    TEST_CHECK(counts, art_square && art_levels, "the art of a unit is square, and the alpha of all art holds only 0, 160 (the faction mask) and 255");
+    TEST_CHECK(counts, base_shape && base_mask, "the art of a base is 384 pixels wide, and its banners carry the faction mask");
     test_arena_destroy(&arena);
 }
 

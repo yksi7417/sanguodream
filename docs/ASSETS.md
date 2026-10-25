@@ -204,6 +204,41 @@ siege.png, and 樓船 and 鬥艦 share ship.png. Each has its own art.
 To draw the placeholder pictures again, run
 `python -X utf8 misc\make_unit_sprites.py` from the root of the repository.
 
+## Base art (data/placeholder/sprites/art)
+The scene draws one picture on each city, each pass and each port. The
+picture shows the kind of the base. A big city has its own picture.
+Without the picture, the renderer draws the placeholder mesh of the base.
+
+| Item | Value |
+|---|---|
+| Files | base_city.png, base_big_city.png, base_gate.png, base_port.png |
+| Size | 384 pixels wide, RGBA, with the aspect of the view: 299, 368, 301 and 424 pixels high. The three-quarter top-down view of the concept sheet, with the front corner of the walls on the bottom edge. |
+| Source | The owner of the repository made the concept sheets with the prompts of docs/art/GEMINI-PROMPTS.md, section 5. The owner shared them on 2026-10-25 as the archive 02-Bases (the folders City, BigCity, Gate and Port). misc/art_import.py cuts the left view of each sheet. provenance.tsv in the folder has one row for each file. |
+| Licence | the licence of this repository; the images are original work of the owner, made with an image model |
+
+The alpha channel carries the mask of the faction colour, as for the
+units. The red banners of a base take the colour of its owner.
+
+The scene names the art of each base (ui_city_art and ui_base_art in
+code/ui/ui_scene.cpp). render_push_base keeps the placeholder mesh in the
+command and adds the sprite of the art. The renderer loads the picture
+at the start. If the picture is present, the renderer draws it in place
+of the mesh, on a card that faces the camera. The bottom edge of the card
+stands at the front edge of the base. render_base_art_sizes in
+code/render/render.h gives the width of each kind:
+
+| Kind | Width in world units | Covers |
+|---|---|---|
+| city, big city | 5.0 | the flower of 7 city hexes |
+| pass | 2.4 | one hex and the hills at its sides |
+| port | 2.2 | one hex |
+
+The art has no damaged or broken state yet. The facilities of a city
+keep their placeholder meshes, because the archive has no art for them.
+The source sheets stay in art-src/bases, out of git. To import them again,
+run `python -X utf8 misc\art_import.py art-src\bases` from the root of
+the repository.
+
 ## Text of the content pack (data/placeholder)
 The project wrote these files. They contain no text from the original game.
 - text/locales.tsv, text/zh-TW.tsv and text/en.tsv: the UI strings.

@@ -206,6 +206,21 @@ ui_gate_yaw(engine_api *api, engine_terrain_view view, hex_coord h)
     return atan2f(along.x, along.z);
 }
 
+/* The art of a city (docs/ASSETS.md, "Base art"): a big city has its own
+   picture (cities-and-facilities.md, Specialty). */
+internal u32
+ui_city_art(engine_city_slots *slots)
+{
+    return slots->specialty == CITY_SPECIALTY_BIG_CITY ? RENDER_SPRITE_BASE_BIG_CITY : RENDER_SPRITE_BASE_CITY;
+}
+
+/* The art of a port or a pass. */
+internal u32
+ui_base_art(u8 base_type)
+{
+    return base_type == BASE_PORT ? RENDER_SPRITE_BASE_PORT : RENDER_SPRITE_BASE_GATE;
+}
+
 /* The placeholder model of each slot of a city that has a facility
    (ui/main-map.md, "Map labels": the slots are building models on their
    own hexes). A built facility is the shape of its kind, in its colour. A
@@ -338,8 +353,9 @@ ui_scene_push(ui_state *ui, engine_api *api, ui_frame_info *frame)
         }
     }
 
-    /* A placeholder model on each city and a billboard on each unit, in the
-       colour of the faction. The art comes from the player's install (M9). */
+    /* A base on each city and a billboard on each unit, in the colour of
+       the faction. The platform draws the art of the base kind when the
+       pack has it, and the placeholder model when not (docs/ASSETS.md). */
     if (!cells) return;
     for (u32 index = 0; index < api->city_count(api->engine); ++index)
     {
@@ -349,12 +365,13 @@ ui_scene_push(ui_state *ui, engine_api *api, ui_frame_info *frame)
         hex_offset o = hex_to_offset(h);
         if (o.col < 0 || o.row < 0 || (u32)o.col >= view.width || (u32)o.row >= view.height) continue;
         u32 cell = (u32)o.row * view.width + (u32)o.col;
-        render_push_mesh(rc, RENDER_MESH_SETTLEMENT, hex_world_center(h, terrain_level_y(view.level[cell])), 0.0f, 1.0f, ui_faction_rgba(city.owner_force_id));
+        render_push_base(rc, RENDER_MESH_SETTLEMENT, ui_city_art(&slots), hex_world_center(h, terrain_level_y(view.level[cell])), 0.0f, 1.0f,
+                         ui_faction_rgba(city.owner_force_id));
         ui_scene_push_slots(rc, api, view, city.city_id);
     }
     /* A gate on each pass and a pier on each port, in the colour of the
-       owner (the art of the bases comes later, docs/GRAPHICS.md). The
-       passage of the gate follows the road through the pass. */
+       owner, with the art of the kind. The passage of the placeholder gate
+       follows the road through the pass. */
     for (u32 index = 0; index < api->base_count(api->engine); ++index)
     {
         engine_base base = api->base_at(api->engine, index);
@@ -365,7 +382,7 @@ ui_scene_push(ui_state *ui, engine_api *api, ui_frame_info *frame)
         u32 cell = (u32)o.row * view.width + (u32)o.col;
         u32 mesh = base.type == BASE_PORT ? RENDER_MESH_PORT : RENDER_MESH_GATE;
         f32 yaw = base.type == BASE_PORT ? 0.0f : ui_gate_yaw(api, view, h);
-        render_push_mesh(rc, mesh, hex_world_center(h, terrain_level_y(view.level[cell])), yaw, 1.0f, ui_faction_rgba(base.force));
+        render_push_base(rc, mesh, ui_base_art(base.type), hex_world_center(h, terrain_level_y(view.level[cell])), yaw, 1.0f, ui_faction_rgba(base.force));
     }
     ui_scene_push_buildings(rc, api, view);
     for (u32 id = 0; id < api->unit_count(api->engine); ++id)

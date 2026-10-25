@@ -306,7 +306,9 @@ Action: the supply column moves. Frames 1 to 4: the walk cycle of the ox, the ca
 The engine draws the bases as 3D meshes (docs/GRAPHICS.md, section 5.2).
 These sheets are the design for the kit of parts and for an
 image-to-3D tool. Each prompt is STYLE, the subject, MASK-RED, BG-GREEN,
-the sheet layout below and NEGATIVE.
+the sheet layout below and NEGATIVE. Until the meshes come, the scene
+shows the left view of each sheet. Name the file base-<kind>.jpg, with
+the kind city, big-city, gate or port, and run misc/art_import.py on it.
 
 Sheet layout for a base:
 ```

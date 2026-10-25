@@ -2,8 +2,9 @@
 
 Files: code/render/render.h, code/render/terrain_mesh.h, code/render/png.h,
 code/d3d11_renderer.h, code/ui/ui_scene.cpp. Tests: tests/unit/render_tests.cpp
-(24 checks), terrain_mesh_tests.cpp (9), png_tests.cpp (11), the terrain
-checks in tests/feature/engine_tests.cpp, and the Scene steps of the
+(47 checks), terrain_mesh_tests.cpp (9), png_tests.cpp (17), the terrain
+checks in tests/feature/engine_tests.cpp, the ui test
+scene_names_the_art_of_each_base_kind, and the Scene steps of the
 m0_skeleton demo.
 
 ## What it is for
@@ -45,11 +46,21 @@ graphics API: it fills a command buffer, and the platform draws it.
    and billboards are instanced: one draw for each mesh id or sprite id.
    When no file exists in data\placeholder, the renderer generates flat
    colour tiles, a house and a figure.
+   A base is a mesh instance with an art sprite (render_push_base). If
+   the pack has the picture of that sprite, the renderer skips the mesh.
+   It draws the picture on a card in the batch of the sprite instead
+   (render_base_billboard). The constant mode 2 turns the card to face
+   the camera. The up axis of the card is then the up axis of the camera,
+   not the world Y axis. The bottom edge of the card stands at the front
+   edge of the base. Thus the card leans back over the base, and the
+   ground does not cut it. docs/ASSETS.md, "Base art", has the files and the sizes.
 6. ui_scene.cpp: the Scene panel has buttons for orbit, tilt, zoom and reset,
    so the walkthroughs and the ui tests move the camera with clicks. The
    mouse works too: right drag orbits, middle drag pans, the wheel zooms,
    and a left click on the ground picks a cell. The picks share the
-   selection with the 2D Hex map panel.
+   selection with the 2D Hex map panel. ui_city_art and ui_base_art
+   pick the art of each base: the big city by its specialty, the pass and
+   the port by the base type.
 
 ## The terrain data
 `hex_map` now holds a kind and a level for each cell, and a version. The
@@ -63,6 +74,14 @@ The spec's map format replaces the placeholder in milestone M5.
   the four camera clamps, "target projects to the screen center", "project
   then pick returns the same hex for every cell", "pan right at yaw 90
   degrees moves along +Z", and the command buffer's capacity.
+  "a base keeps its placeholder mesh and names its art", "the art of a
+  city is as wide as the flower of 7 hexes", and "at each yaw the card
+  moves toward the camera, and the scale sizes it".
+- png: "the decoder reads the art of the city, the big city, the pass
+  and the port", and "the art of a base is 384 pixels wide, and its
+  banners carry the faction mask".
+- ui: scene_names_the_art_of_each_base_kind. Each city, pass and port
+  names its art, the slots name none, and the scene commands nothing.
 - terrain_mesh: counts per cell, "top center of a cell matches
   hex_world_center", "side normals are horizontal and outward".
 - png: a hand-built 2x2 image with each filter, and three refusals.
@@ -74,5 +93,6 @@ The spec's map format replaces the placeholder in milestone M5.
 ## Exercises
 - Draw the path between the two picked cells as overlay colours: add a
   query to engine_api that returns the path cells, then mark them.
-- Replace the placeholder figure with a billboard that faces the camera's
-  up vector too, for a view from above.
+- Give the art of a base a damaged state. Add a second sprite for each
+  kind. Then let the scene pick the sprite from the durability of the
+  base.

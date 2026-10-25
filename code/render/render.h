@@ -472,15 +472,23 @@ struct render_mesh_instance
     f32 yaw;
     f32 scale;
     u32 tint;              /* RGBA8, 0xFFFFFFFF for none */
+    u32 art_sprite;        /* RENDER_NO_ART, or the render_sprite of the art of a base:
+                              the platform draws that picture in place of the mesh
+                              when the pack has it (render_base_billboard) */
 };
 
+#define RENDER_NO_ART 0    /* sprite 0 is the figure of a unit, never the art of a base */
+
 /* The sprites of the platform's sprite table. Sprite 0 is the figure of a
-   unit without a class. The others are one picture for each class of unit
-   (docs/ASSETS.md, "Unit sprites"). The platform loads the art of
+   unit without a class. The next ones are one picture for each class of
+   unit (docs/ASSETS.md, "Unit sprites"). The platform loads the art of
    render_sprite_art_files[id] first, then the placeholder picture of
    render_sprite_files[id], from the content pack. If both are absent, the
    platform uses the figure of sprite 0. A pixel with the alpha 160 takes
-   the colour of the faction (the red mask of docs/GRAPHICS.md). */
+   the colour of the faction (the red mask of docs/GRAPHICS.md).
+   The last four are the art of the bases (docs/ASSETS.md, "Base art").
+   They have no placeholder picture: without the art, the platform draws
+   the placeholder mesh of the base. */
 enum render_sprite
 {
     RENDER_SPRITE_UNIT,
@@ -497,22 +505,31 @@ enum render_sprite
     RENDER_SPRITE_TOWER_SHIP,
     RENDER_SPRITE_BATTLE_SHIP,
     RENDER_SPRITE_TRANSPORT,
+    RENDER_SPRITE_BASE_CITY,
+    RENDER_SPRITE_BASE_BIG_CITY,
+    RENDER_SPRITE_BASE_GATE,
+    RENDER_SPRITE_BASE_PORT,
     RENDER_SPRITE_COUNT
 };
 
+#define RENDER_SPRITE_FIRST_BASE RENDER_SPRITE_BASE_CITY   /* this sprite and the next ones face the camera */
+
 /* The placeholder pictures (misc/make_unit_sprites.py). The four siege
-   weapons share one, and the two war ships share one. */
+   weapons share one, and the two war ships share one. A base has none. */
 global_variable const char *render_sprite_files[RENDER_SPRITE_COUNT] = {
     "sprites\\unit.png", "sprites\\sword.png", "sprites\\pike.png", "sprites\\halberd.png", "sprites\\crossbow.png",
     "sprites\\cavalry.png", "sprites\\siege.png", "sprites\\siege.png", "sprites\\siege.png", "sprites\\siege.png",
     "sprites\\boat.png", "sprites\\ship.png", "sprites\\ship.png", "sprites\\transport.png",
+    0, 0, 0, 0,
 };
 
-/* The art of each class (misc/art_import.py, from the model sheets). */
+/* The art of each class and of each base kind (misc/art_import.py, from
+   the model sheets and the concept sheets). */
 global_variable const char *render_sprite_art_files[RENDER_SPRITE_COUNT] = {
     0, "sprites\\art\\sword.png", "sprites\\art\\pike.png", "sprites\\art\\halberd.png", "sprites\\art\\crossbow.png",
     "sprites\\art\\cavalry.png", "sprites\\art\\ram.png", "sprites\\art\\wood_beast.png", "sprites\\art\\tower.png", "sprites\\art\\catapult.png",
     "sprites\\art\\boat.png", "sprites\\art\\tower_ship.png", "sprites\\art\\battle_ship.png", "sprites\\art\\transport.png",
+    "sprites\\art\\base_city.png", "sprites\\art\\base_big_city.png", "sprites\\art\\base_gate.png", "sprites\\art\\base_port.png",
 };
 
 struct render_billboard
@@ -523,6 +540,56 @@ struct render_billboard
     f32 height;
     u32 tint;
 };
+
+/* The size of the picture of each base kind, in world units at the scale
+   1. A hex is 2 wide from corner to corner. A city covers a flower of 7
+   hexes, 5 wide (terrain-and-map.md). A pass and a port cover one hex.
+   front is the distance from the centre of the base to the bottom edge of
+   the card, toward the camera: the front edge of the flower or the hex. */
+struct render_base_art_size
+{
+    f32 width;
+    f32 front;
+};
+
+global_variable const render_base_art_size render_base_art_sizes[RENDER_SPRITE_COUNT - RENDER_SPRITE_FIRST_BASE] = {
+    { 5.0f, 2.3f },   /* RENDER_SPRITE_BASE_CITY */
+    { 5.0f, 2.3f },   /* RENDER_SPRITE_BASE_BIG_CITY */
+    { 2.4f, 0.8f },   /* RENDER_SPRITE_BASE_GATE: the hills of the picture reach past the hex */
+    { 2.2f, 0.8f },   /* RENDER_SPRITE_BASE_PORT */
+};
+
+/* The size of the art of one base sprite; one hex for a sprite that is no base. */
+internal render_base_art_size
+render_base_art_size_of(u32 sprite_id)
+{
+    render_base_art_size one_hex = { 2.0f, 0.8f };
+    if (sprite_id < RENDER_SPRITE_FIRST_BASE || sprite_id >= RENDER_SPRITE_COUNT) return one_hex;
+    return render_base_art_sizes[sprite_id - RENDER_SPRITE_FIRST_BASE];
+}
+
+/* The card of the art of a base. The picture shows the base from the
+   three-quarter top-down view, with the front corner of the walls on its
+   bottom edge. The card faces the camera (RENDER_SPRITE_FIRST_BASE). Its
+   bottom edge stands on the ground at the front edge of the base, on the
+   side of the camera, so that the walls of the picture cover the base.
+   aspect is the height of the picture over its width. */
+internal render_billboard
+render_base_billboard(const render_mesh_instance *mesh, camera *cam, f32 aspect)
+{
+    render_base_art_size size = render_base_art_size_of(mesh->art_sprite);
+    render_billboard card = {};
+    card.sprite_id = mesh->art_sprite;
+    card.width     = size.width * mesh->scale;
+    card.height    = card.width * aspect;
+    card.tint      = mesh->tint;
+    v3 toward = v3_sub(camera_eye(cam), mesh->position);
+    toward.y = 0.0f;
+    f32 length = v3_length(toward);
+    toward = length > 1e-4f ? v3_scale(toward, 1.0f / length) : v3_make(0.0f, 0.0f, 1.0f);   /* a camera straight above: the default front */
+    card.position = v3_add(mesh->position, v3_scale(toward, size.front * mesh->scale));
+    return card;
+}
 
 #define RENDER_MAX_MESH_INSTANCES 4096
 #define RENDER_MAX_BILLBOARDS     4096
@@ -560,6 +627,17 @@ render_push_mesh(render_commands *rc, u32 mesh_id, v3 position, f32 yaw, f32 sca
     if (rc->mesh_instance_count >= RENDER_MAX_MESH_INSTANCES) return;
     render_mesh_instance *m = rc->mesh_instances + rc->mesh_instance_count++;
     m->mesh_id = mesh_id; m->position = position; m->yaw = yaw; m->scale = scale; m->tint = tint;
+    m->art_sprite = RENDER_NO_ART;
+}
+
+/* A base: the placeholder mesh, and the sprite of its art. The platform
+   draws the art in place of the mesh when the pack has the picture. */
+internal void
+render_push_base(render_commands *rc, u32 mesh_id, u32 art_sprite, v3 position, f32 yaw, f32 scale, u32 tint)
+{
+    u32 before = rc->mesh_instance_count;
+    render_push_mesh(rc, mesh_id, position, yaw, scale, tint);
+    if (rc->mesh_instance_count > before) rc->mesh_instances[before].art_sprite = art_sprite;
 }
 
 internal void

@@ -105,6 +105,62 @@ unit_render_tests(test_counts *counts)
         TEST_CHECK(counts, projected && level_pick && hex_equal(level_hex, flat), "the pick with the levels keeps a flat hex");
     }
 
+    /* The art of a base (docs/ASSETS.md, "Base art"): a plain mesh names no
+       art, a base names its sprite, and a full buffer changes no instance. */
+    {
+        memory_arena frame = test_arena_create(Megabytes(1));
+        render_commands *rc = render_commands_begin(&frame, vw, vh);
+        render_push_mesh(rc, RENDER_MESH_HALL, v3_make(0, 0, 0), 0.0f, 1.0f, 0xFFFFFFFFu);
+        render_push_base(rc, RENDER_MESH_GATE, RENDER_SPRITE_BASE_GATE, v3_make(1, 0, 0), 0.5f, 1.0f, 0xFF0000FFu);
+        TEST_CHECK(counts, rc->mesh_instance_count == 2 && rc->mesh_instances[0].art_sprite == RENDER_NO_ART, "a plain mesh names no art");
+        TEST_CHECK(counts, rc->mesh_instances[1].mesh_id == RENDER_MESH_GATE && rc->mesh_instances[1].art_sprite == RENDER_SPRITE_BASE_GATE &&
+                           near_f32(rc->mesh_instances[1].yaw, 0.5f, 1e-6f), "a base keeps its placeholder mesh and names its art");
+        rc->mesh_instance_count = RENDER_MAX_MESH_INSTANCES;
+        render_push_base(rc, RENDER_MESH_PORT, RENDER_SPRITE_BASE_PORT, v3_make(2, 0, 0), 0.0f, 1.0f, 0xFFFFFFFFu);
+        TEST_CHECK(counts, rc->mesh_instance_count == RENDER_MAX_MESH_INSTANCES && rc->mesh_instances[RENDER_MAX_MESH_INSTANCES - 1].art_sprite != RENDER_SPRITE_BASE_PORT,
+                   "a base on a full buffer changes no instance");
+        test_arena_destroy(&frame);
+    }
+
+    /* The card of a base: a city covers its flower of 7 hexes, 5 world
+       units wide; a pass and a port cover one hex. The card is as high as
+       the aspect of the picture. Its bottom edge stands toward the camera
+       from the centre, at the height of the ground. */
+    {
+        TEST_CHECK(counts, near_f32(render_base_art_size_of(RENDER_SPRITE_BASE_CITY).width, 5.0f, 1e-6f) &&
+                           near_f32(render_base_art_size_of(RENDER_SPRITE_BASE_BIG_CITY).width, 5.0f, 1e-6f),
+                   "the art of a city is as wide as the flower of 7 hexes");
+        TEST_CHECK(counts, render_base_art_size_of(RENDER_SPRITE_BASE_GATE).width < 3.0f && render_base_art_size_of(RENDER_SPRITE_BASE_PORT).width < 3.0f &&
+                           near_f32(render_base_art_size_of(RENDER_SPRITE_SWORD).width, 2.0f, 1e-6f),
+                   "the art of a pass and of a port covers one hex, and a sprite that is no base gets one hex");
+        render_base_art_size city = render_base_art_size_of(RENDER_SPRITE_BASE_CITY);
+        render_mesh_instance base = {};
+        base.mesh_id = RENDER_MESH_SETTLEMENT; base.art_sprite = RENDER_SPRITE_BASE_CITY;
+        base.position = v3_make(3.0f, 0.7f, 4.0f); base.scale = 1.0f; base.tint = 0xFF3050C0u;
+        camera front = camera_default(3.0f, 4.0f);   /* yaw 0: the eye is on the +Z side */
+        render_billboard card = render_base_billboard(&base, &front, 0.75f);
+        TEST_CHECK(counts, card.sprite_id == RENDER_SPRITE_BASE_CITY && card.tint == 0xFF3050C0u, "the card shows the art of the base in the colour of the owner");
+        TEST_CHECK(counts, near_f32(card.width, city.width, 1e-5f) && near_f32(card.height, city.width * 0.75f, 1e-5f),
+                   "the card has the width of its kind and keeps the aspect of the picture");
+        TEST_CHECK(counts, near_f32(card.position.x, 3.0f, 1e-4f) && near_f32(card.position.y, 0.7f, 1e-5f) && near_f32(card.position.z, 4.0f + city.front, 1e-4f),
+                   "the bottom edge stands on the ground at the front of the city, toward the camera");
+        b32 toward_eye = true;
+        for (s32 step = -4; step <= 4; ++step)
+        {
+            camera turned = camera_default(3.0f, 4.0f);
+            turned.yaw = (f32)step * 0.7f;
+            camera_clamp(&turned);
+            base.scale = 1.5f;
+            card = render_base_billboard(&base, &turned, 1.0f);
+            v3 shift = v3_sub(card.position, base.position);
+            v3 eye_side = v3_sub(camera_eye(&turned), base.position);
+            eye_side.y = 0.0f;
+            toward_eye &= near_f32(v3_length(shift), city.front * 1.5f, 1e-4f) && near_f32(shift.y, 0.0f, 1e-6f) && v3_dot(shift, eye_side) > 0.0f;
+            toward_eye &= near_f32(card.width, city.width * 1.5f, 1e-5f);
+        }
+        TEST_CHECK(counts, toward_eye, "at each yaw the card moves toward the camera, and the scale sizes it");
+    }
+
     /* a ray that points above the horizon never meets the ground */
     ray upward;
     upward.origin = v3_make(0.0f, 10.0f, 0.0f);
