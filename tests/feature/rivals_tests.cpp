@@ -500,6 +500,7 @@ feature_base_tests(test_counts *counts)
     {
         engine_base base = api->base_at(e, index);
         placed &= api->base_at_hex(e, base.q, base.r) == index;
+        placed &= api->hex_at(e, base.q, base.r).base_id == base.id;   /* the location id, not the index: the UI reads base_at(base_at_hex) */
         for (u32 city = 0; city < api->city_count(e); ++city)
         {
             engine_city_slots site = api->city_slots(e, (u8)city);

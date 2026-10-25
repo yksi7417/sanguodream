@@ -265,7 +265,7 @@ struct engine_recorder
     b32           load_fails;         /* script a refused load */
     b32           has_names;          /* city_name_at answers only after a name index load */
     u8            foreign_city;       /* this scripted city belongs to force 2, not to force 1; 0 = none (city 0 is always force 1) */
-    b32           own_base_hex;       /* hex_at reports base 0 (recorder_base_at: location 42, force 1) at the axial hex (3, 2) */
+    b32           own_base_hex;       /* hex_at reports location 42 and base_at_hex reports index 0 (recorder_base_at: force 1) at the axial hex (3, 2) */
     char          last_name_index_path[RECORDER_MAX_PATH];
     sim_refusal   can_issue_refusal;  /* script the answer of can_issue and command_develop */
     engine_command last_develop;      /* the arguments of the last command_develop */
@@ -1517,7 +1517,12 @@ internal engine_base recorder_base_at(void *o, u32 index)
     base.r = 2;
     return base;
 }
-internal u32 recorder_base_at_hex(void *o, s32 q, s32 r) { (void)q; (void)r; recorder_record((engine_recorder *)o, RECORDER_BASE_AT_HEX, 0); return ENGINE_NO_BASE; }
+internal u32 recorder_base_at_hex(void *o, s32 q, s32 r)
+{
+    engine_recorder *rec = (engine_recorder *)o;
+    recorder_record(rec, RECORDER_BASE_AT_HEX, 0);
+    return rec->own_base_hex && q == 3 && r == 2 ? 0 : ENGINE_NO_BASE;
+}
 /* The two bases of recorder_base_at as bases of the spec: a garrison of
    3000, 800 gold, 6000 grain and 2000 pikes. */
 internal engine_depot recorder_depot_at(void *o, u8 location)
@@ -1776,7 +1781,7 @@ internal engine_hex recorder_hex_at(void *o, s32 q, s32 r)
     hex.region      = ENGINE_NO_REGION;
     hex.region_city = ENGINE_NO_CITY;
     hex.city_id     = offset.col == RECORDER_CITY_COL && offset.row == RECORDER_CITY_ROW ? 0 : ENGINE_NO_CITY;
-    hex.base_id     = rec->own_base_hex && q == 3 && r == 2 ? 0 : ENGINE_NO_BASE;
+    hex.base_id     = rec->own_base_hex && q == 3 && r == 2 ? 42 : ENGINE_NO_BASE;   /* the location id, as the real engine: base_at_hex gives the index */
     hex.slot_city   = ENGINE_NO_CITY;    /* M11: nothing stands on the scripted hexes */
     if (offset.col == RECORDER_SLOT_COL && offset.row == RECORDER_SLOT_ROW)
     {

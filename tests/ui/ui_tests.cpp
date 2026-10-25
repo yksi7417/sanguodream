@@ -2350,6 +2350,37 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK(v.ui.units.target_kind == UI_TARGET_NONE && v.ui.units.selected == ENGINE_NO_UNIT);
     };
 
+    /* The player, 2026-10-24: a left click on an own port in the scene
+       opens its panel. hex_at gives the location id 42, and base_at needs
+       the index 0 of base_at_hex. */
+    t = IM_REGISTER_TEST(e, "ui", "a_scene_click_on_an_own_port_opens_its_panel");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.recorder.own_base_hex  = true;
+        v.ui.hud_mode            = true;
+        v.ui.scene.headless      = true;
+        v.ui.show_city = v.ui.show_map = v.ui.show_officers = v.ui.show_cities = false;
+        ctx->Yield(2);
+        ui_frame_hex(&v.ui, &v.api, hex_make(3, 2));
+        v.ui.scene.cam.target.y = 0.0f;
+        ctx->Yield(3);
+        ImVec2 display = ImGui::GetIO().DisplaySize;
+        ctx->MouseMoveToPos(ImVec2(display.x * 0.5f, display.y * 0.5f));
+        ctx->Yield(2);
+        IM_CHECK(v.ui.scene.has_hover && hex_equal(v.ui.scene.hover, hex_make(3, 2)));
+        recorder_reset(&v.recorder);
+        ctx->MouseClick(ImGuiMouseButton_Left);
+        ctx->Yield(2);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_BASE_AT_HEX), 1u);
+        IM_CHECK(v.ui.city.selected == 42 && v.ui.context.kind == UI_CONTEXT_CITY);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
     /* The player, 2026-10-24: after the selected unit acted, a click on
        another own unit selects that unit and asks for no follow order. */
     t = IM_REGISTER_TEST(e, "ui", "a_click_on_another_own_unit_after_the_action_selects_it");

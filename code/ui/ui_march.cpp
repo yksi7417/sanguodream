@@ -621,8 +621,9 @@ ui_unit_click(ui_state *ui, engine_api *api, hex_coord hex)
     for (u32 index = 1; index < reach.count; ++index)
     {
         if (reach.cells[index].q != hex.q || reach.cells[index].r != hex.r) continue;
-        engine_hex data = api->hex_at(api->engine, hex.q, hex.r);
-        if (data.base_id != ENGINE_NO_BASE && api->base_at(api->engine, data.base_id).force == unit.force_id)
+        /* base_at takes the index of base_at_hex, not the location id of hex_at. */
+        u32 base = api->base_at_hex(api->engine, hex.q, hex.r);
+        if (base != ENGINE_NO_BASE && api->base_at(api->engine, base).force == unit.force_id)
         {
             /* An own port or pass in the range: the question 是否進入, not the
                command menu (the player, 2026-10-24). 是 moves the unit, and the
@@ -1024,8 +1025,8 @@ ui_draw_unit_target_menu(ui_state *ui, engine_api *api)
         {
             /* The entry of an own port or pass: 是 moves the unit onto the base, and the sim takes it in. */
             char name[128] = "?";
-            engine_hex data = api->hex_at(api->engine, hex.q, hex.r);
-            if (data.base_id != ENGINE_NO_BASE) ui_city_label(ui, api, api->base_at(api->engine, data.base_id).id, name, sizeof(name));
+            u32 base = api->base_at_hex(api->engine, hex.q, hex.r);
+            if (base != ENGINE_NO_BASE) ui_city_label(ui, api, api->base_at(api->engine, base).id, name, sizeof(name));
             ImGui::Text("%s%s%s", text_get(ui->text, "unit_target.base_before"), name, text_get(ui->text, "unit_target.base_after"));
             if (ImGui::Button(ui_label(label, sizeof(label), ui, "unit_target.yes", "base_yes"), ImVec2(80.0f, 0.0f)))
             {

@@ -1096,7 +1096,7 @@ struct engine_hex
     b32 slot, bandit_site, flood, event_site, unknown_flag;
     u8  fire_turns;            /* 0 to 7 */
     u8  city_id;               /* the city that stands on the hex; ENGINE_NO_CITY */
-    u32 base_id;               /* the port or the gate on the hex; ENGINE_NO_BASE */
+    u32 base_id;               /* the location id 42 .. 86 of the port or the gate on the hex; ENGINE_NO_BASE. base_at needs the index of base_at_hex */
     /* M11: what stands on the hex */
     u8  slot_city;             /* a slot: its city; ENGINE_NO_CITY */
     u8  slot_index;            /* a slot: its index in the city */

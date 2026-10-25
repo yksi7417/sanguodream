@@ -461,7 +461,7 @@ ui_hud_scene_clicks(ui_state *ui, engine_api *api)
     if (data.base_id != ENGINE_NO_BASE)
     {
         /* A port or a pass of the acting force opens its panel, with 出征 and 輸送 (the play report of 2026-10-23). */
-        engine_base base = api->base_at(api->engine, data.base_id);
+        engine_base base = api->base_at(api->engine, api->base_at_hex(api->engine, hex.q, hex.r));   /* base_id is the location id, not the index */
         if (base.id != ENGINE_NO_ROW && base.force == api->whose_turn(api->engine))
         {
             ui->city.selected = base.id;
