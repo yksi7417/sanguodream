@@ -353,6 +353,47 @@ sim_in_enemy_zone(sim_state *sim, u8 force, hex_coord hex, u32 self)
     return false;
 }
 
+/* True if another unit of the same force stands on the hex. A unit can
+   pass through the hex of an own unit, but it cannot stop there (the
+   player, 2026-10-24). Only the units of another force block the way. */
+internal b32
+sim_own_unit_on(sim_state *sim, u32 unit_id, hex_coord hex)
+{
+    u32 other = sim_unit_at(sim, hex);
+    return other != SIM_NO_UNIT && other != unit_id && sim->units[other].force_id == sim->units[unit_id].force_id;
+}
+
+/* The reach with the hexes of own units after count. The paths through
+   from[] still reach these hexes, but no caller picks one as the end of a
+   move. The new arrays have the size of the reach, not of the map. */
+internal sim_reach
+sim_reach_without_own_units(sim_state *sim, u32 unit_id, sim_reach reach, memory_arena *scratch)
+{
+    u32 passed = 0;
+    for (u32 index = 1; index < reach.count; ++index) passed += sim_own_unit_on(sim, unit_id, reach.cells[index]) ? 1 : 0;
+    if (!passed) return reach;
+    u32 total = reach.count;
+    u32 *place = PushArray(scratch, total, u32);
+    u32 kept = 0, after = total - passed;
+    for (u32 index = 0; index < total; ++index)
+    {
+        place[index] = index && sim_own_unit_on(sim, unit_id, reach.cells[index]) ? after++ : kept++;
+    }
+    sim_reach result = {};
+    result.cells = PushArray(scratch, total, hex_coord);
+    result.costs = PushArray(scratch, total, u32);
+    result.from  = PushArray(scratch, total, u32);
+    result.count = kept;
+    for (u32 index = 0; index < total; ++index)
+    {
+        u32 to = place[index];
+        result.cells[to] = reach.cells[index];
+        result.costs[to] = reach.costs[index];
+        result.from[to]  = reach.from[index] == U32_MAX ? U32_MAX : place[reach.from[index]];
+    }
+    return result;
+}
+
 /* The search of the lowest cost from the hex of the unit. The reach of
    this turn (plan = false) stops at its movement, in an enemy zone of
    control, in an own city and at an own base. A plan (plan = true,
@@ -408,7 +449,8 @@ sim_unit_search(sim_state *sim, u32 unit_id, memory_arena *scratch, b32 plan, he
         {
             hex_coord next = hex_neighbor(here, d);
             if (!hex_map_contains(&sim->map, next)) continue;
-            u32 cost = sim_entry_cost_of(sim, unit->force_id, type->movement, sim_unit_cost_type(sim, unit, next), next, unit_id, plan);
+            b32 own = sim_own_unit_on(sim, unit_id, next);   /* the unit passes through an own unit */
+            u32 cost = sim_entry_cost_of(sim, unit->force_id, type->movement, sim_unit_cost_type(sim, unit, next), next, unit_id, plan || own);
             if (!cost) continue;
             u32 next_index = hex_map_index(&sim->map, next);
             u32 total = current.cost + cost;
@@ -418,6 +460,7 @@ sim_unit_search(sim_state *sim, u32 unit_id, memory_arena *scratch, b32 plan, he
             hex_heap_push(&open, total, next_index);
         }
     }
+    if (!plan) reach = sim_reach_without_own_units(sim, unit_id, reach, scratch);
     return reach;
 }
 

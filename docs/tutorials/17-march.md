@@ -157,7 +157,7 @@ road. A computer faction keeps them.
 `sim_unit_reach` is a search of the lowest cost from the hex of the
 unit, within its movement. A hex costs the entry cost of its kind for the
 movement class of the unit. A unit cannot enter these hexes:
-- a hex with another unit;
+- a hex with a unit of another force;
 - a city of another faction;
 - a kind that the class cannot enter, or that needs a technique that the
   faction lacks.
@@ -166,6 +166,14 @@ Two kinds of hexes end the move there:
 - a hex next to an enemy unit, that is the zone of control of manual
   page 14;
 - an own city.
+
+A unit passes through the hex of an own unit at the entry cost of the
+kind, but it cannot stop there (the player, 2026-10-24). The search
+keeps these hexes after `count` of the reach
+(`sim_reach_without_own_units`). The paths through `from` still reach
+them, and no caller picks one as the end of a move. The zone of control
+comes only from the units of a force at war, so an own unit does not stop
+the move.
 
 飛將 and 遁走 remove the zone of control on land, but not for a siege
 weapon. Every other faction

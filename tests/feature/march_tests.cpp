@@ -360,6 +360,43 @@ feature_move_tests(test_counts *counts)
     engine_fixture_destroy(&setup.fixture);
 }
 
+/* The player, 2026-10-24: a unit passes through the hex of an own unit and
+   keeps its full movement. It cannot stop on that hex. A unit of another
+   force blocks the hex, and its zone of control stops the move. */
+internal void
+feature_pass_own_unit_tests(test_counts *counts)
+{
+    feature_city_setup setup;
+    feature_march_setup(&setup);
+    engine_api *api = setup.api;
+    void *e = api->engine;
+    u8 force = setup.force;
+    u32 unit_id = feature_sortie_unit(api, setup.city, 1);
+    hex_coord start = {};
+    u32 d = feature_corridor_for_unit(api, unit_id, &start);
+    if (unit_id == ENGINE_NO_UNIT || d >= HEX_DIRECTION_COUNT) { TEST_CHECK(counts, false, "a corridor for the pass test"); engine_fixture_destroy(&setup.fixture); return; }
+    hex_coord first = feature_along(start, d, 1), second = feature_along(start, d, 2), fourth = feature_along(start, d, 4);
+    u32 friend_id = api->place_unit(e, force, first.q, first.r);
+    u32 cost = 0;
+    TEST_CHECK(counts, friend_id != ENGINE_NO_UNIT && feature_reaches(api, unit_id, fourth, &cost) && cost == 20,
+               "a unit passes through an own unit and reaches 4 hexes of grass, as on an open corridor");
+    TEST_CHECK(counts, !feature_reaches(api, unit_id, first, 0), "the hex of the own unit is no end of a move");
+    TEST_CHECK(counts, api->command_move(e, unit_id, first.q, first.r).refusal != SIM_REFUSAL_NONE ||
+                       api->unit_at(e, unit_id).q != first.q || api->unit_at(e, unit_id).r != first.r,
+               "refused: the unit cannot stop on the own unit");
+    engine_command_result moved = api->command_move(e, unit_id, second.q, second.r);
+    engine_unit unit = api->unit_at(e, unit_id), other = api->unit_at(e, friend_id);
+    TEST_CHECK(counts, moved.refusal == SIM_REFUSAL_NONE && unit.q == second.q && unit.r == second.r && other.q == first.q && other.r == first.r,
+               "the move goes through the own unit to the hex behind it, and the own unit stays");
+
+    feature_next_own_turn(api, force);
+    api->set_unit_place(e, unit_id, force, start.q, start.r);
+    api->set_unit_place(e, friend_id, (u8)(force + 1), first.q, first.r);   /* now a unit of another force */
+    TEST_CHECK(counts, !feature_reaches(api, unit_id, first, 0) && !feature_reaches(api, unit_id, second, 0) && !feature_reaches(api, unit_id, fourth, 0),
+               "a unit of another force blocks its hex, and its zone of control stops the move");
+    engine_fixture_destroy(&setup.fixture);
+}
+
 internal void
 feature_terrain_rule_tests(test_counts *counts)
 {
@@ -637,6 +674,7 @@ feature_march_tests(test_counts *counts)
     feature_sortie_tests(counts);
     feature_sortie_ship_tests(counts);
     feature_move_tests(counts);
+    feature_pass_own_unit_tests(counts);
     feature_terrain_rule_tests(counts);
     feature_transport_tests(counts);
     feature_base_entry_tests(counts);
