@@ -57,8 +57,8 @@ struct gl_sprite
     f32    aspect;      /* the height of the picture over its width */
 };
 
-/* The 3D model of a base kind: a mesh file and its colour texture. Both
-   are 0 when the pack has no model of the kind. */
+/* The 3D model of a base kind or of a placeholder shape: a mesh file and
+   its colour texture. Both are 0 when the pack has no model of the kind. */
 struct gl_base_model
 {
     gl_mesh mesh;
@@ -123,7 +123,8 @@ struct webgl2_renderer
     gl_sprite     sprites[GL_MAX_SPRITES];
     u32           sprite_count;
     gl_base_model base_models[GL_BASE_KINDS];
-    GLuint        instances;        /* shared by the meshes and the billboards */
+    gl_base_model mesh_models[RENDER_MESH_COUNT];   /* render_mesh_model_files */
+    GLuint        instances;       /* shared by the meshes and the billboards */
     u32           instance_capacity;
     GLuint        billboard_quad;
     b32           ready;
@@ -405,17 +406,20 @@ gl_delete_mesh(gl_mesh *mesh)
     *mesh = {};
 }
 
-/* The model of one base kind: <name>.hxm and <name>.png of the pack. If
-   one of the two files is absent, the kind has no model. */
+/* The model of one base kind or shape: <name>.hxm and <name>.png of the
+   pack. If one of the two files is absent, the kind has no model. The GPU
+   keeps the mesh and the texture, so the scratch arena gets its bytes back. */
 internal void
 gl_load_base_model(webgl2_renderer *r, const char *name, memory_arena *arena, gl_base_model *model)
 {
+    *model = {};
+    if (!name) return;
     char mesh_file[260], texture_file[260];
     snprintf(mesh_file, sizeof(mesh_file), "%s.hxm", name);
     snprintf(texture_file, sizeof(texture_file), "%s.png", name);
-    *model = {};
-    if (!gl_load_mesh_file(r, mesh_file, arena, &model->mesh)) return;
-    model->texture = gl_load_png_texture(r, texture_file, arena, 0, true);
+    u64 arena_used = arena->used;
+    if (gl_load_mesh_file(r, mesh_file, arena, &model->mesh)) model->texture = gl_load_png_texture(r, texture_file, arena, 0, true);
+    arena->used = arena_used;
     if (!model->texture) gl_delete_mesh(&model->mesh);
 }
 
@@ -481,6 +485,11 @@ webgl2_renderer_init(webgl2_renderer *r, platform_read_entire_file *read_file, c
     for (u32 kind = 0; kind < GL_BASE_KINDS; ++kind)
     {
         gl_load_base_model(r, render_base_model_files[kind], scratch, r->base_models + kind);
+    }
+    /* The models of the placeholder shapes, for example the market. */
+    for (u32 mesh_id = 0; mesh_id < RENDER_MESH_COUNT; ++mesh_id)
+    {
+        gl_load_base_model(r, render_mesh_model_files[mesh_id], scratch, r->mesh_models + mesh_id);
     }
 
     r->instance_capacity = RENDER_MAX_MESH_INSTANCES > RENDER_MAX_BILLBOARDS ? RENDER_MAX_MESH_INSTANCES : RENDER_MAX_BILLBOARDS;
@@ -596,14 +605,42 @@ gl_has_art(webgl2_renderer *r, render_mesh_instance *m)
     return m->art_sprite >= RENDER_SPRITE_FIRST_BASE && m->art_sprite < r->sprite_count && r->sprites[m->art_sprite].texture != 0;
 }
 
-/* The 3D model that the platform draws for a base, or 0. A model goes
-   before the art card and before the placeholder mesh. */
+/* The 3D model that the platform draws for an instance, or 0. A model goes
+   before the art card and before the placeholder mesh. A base uses only
+   the model of its kind. Another instance uses the model of its shape,
+   if the camera is near (render_shape_models_on). */
 internal gl_base_model *
-gl_model_of(webgl2_renderer *r, render_mesh_instance *m)
+gl_model_of(webgl2_renderer *r, render_mesh_instance *m, const camera *cam)
 {
-    if (m->art_sprite < RENDER_SPRITE_FIRST_BASE || m->art_sprite >= RENDER_SPRITE_COUNT) return 0;
-    gl_base_model *model = r->base_models + (m->art_sprite - RENDER_SPRITE_FIRST_BASE);
-    return model->texture ? model : 0;
+    gl_base_model *model = 0;
+    if (m->art_sprite >= RENDER_SPRITE_FIRST_BASE && m->art_sprite < RENDER_SPRITE_COUNT) model = r->base_models + (m->art_sprite - RENDER_SPRITE_FIRST_BASE);
+    else if (m->mesh_id < RENDER_MESH_COUNT && render_shape_models_on(cam)) model = r->mesh_models + m->mesh_id;
+    return model && model->texture ? model : 0;
+}
+
+/* One instanced draw of a model, with its texture, for each instance
+   that gl_model_of gives to that model and that is in the view. The
+   model stays fixed when the view turns. The caller binds the model program. */
+internal void
+gl_draw_model(webgl2_renderer *r, render_commands *rc, m4 view_projection, gl_base_model *model, memory_arena *scratch)
+{
+    if (!model->texture) return;
+    gl_mesh_instance *batch = PushArray(scratch, r->instance_capacity, gl_mesh_instance);
+    u32 n = 0;
+    for (u32 i = 0; i < rc->mesh_instance_count && n < r->instance_capacity; ++i)
+    {
+        render_mesh_instance *m = rc->mesh_instances + i;
+        if (gl_model_of(r, m, &rc->cam) != model) continue;
+        render_mesh_instance placed = render_model_instance(m);
+        if (!render_model_in_view(view_projection, &placed)) continue;
+        batch[n].position[0] = placed.position.x; batch[n].position[1] = placed.position.y; batch[n].position[2] = placed.position.z;
+        batch[n].yaw = placed.yaw; batch[n].scale = placed.scale; batch[n].tint = placed.tint;
+        n++;
+    }
+    if (!n) return;
+    gl_bind_mesh(r, &model->mesh, batch, n);
+    glActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D, model->texture);
+    glDrawElementsInstanced(GL_TRIANGLES, (GLsizei)model->mesh.index_count, GL_UNSIGNED_INT, 0, (GLsizei)n);
 }
 
 internal void
@@ -697,7 +734,7 @@ webgl2_renderer_draw(webgl2_renderer *r, render_commands *rc, memory_arena *scra
         for (u32 i = 0; i < rc->mesh_instance_count && n < r->instance_capacity; ++i)
         {
             render_mesh_instance *m = rc->mesh_instances + i;
-            if (m->mesh_id != mesh_id || gl_has_art(r, m) || gl_model_of(r, m)) continue;
+            if (m->mesh_id != mesh_id || gl_has_art(r, m) || gl_model_of(r, m, &rc->cam)) continue;
             batch[n].position[0] = m->position.x; batch[n].position[1] = m->position.y; batch[n].position[2] = m->position.z;
             batch[n].yaw = m->yaw; batch[n].scale = m->scale; batch[n].tint = m->tint;
             n++;
@@ -707,29 +744,11 @@ webgl2_renderer_draw(webgl2_renderer *r, render_commands *rc, memory_arena *scra
         glDrawElementsInstanced(GL_TRIANGLES, (GLsizei)r->meshes[mesh_id].index_count, GL_UNSIGNED_INT, 0, (GLsizei)n);
     }
 
-    /* the 3D models of the bases: one instanced draw per base kind, with
-       the texture of the kind. The model stays fixed when the view turns. */
+    /* the 3D models: one instanced draw for each base kind and each shape
+       that has a model in the pack */
     glUseProgram(r->model_program);
-    for (u32 kind = 0; kind < GL_BASE_KINDS; ++kind)
-    {
-        gl_base_model *model = r->base_models + kind;
-        if (!model->texture) continue;
-        gl_mesh_instance *batch = PushArray(scratch, r->instance_capacity, gl_mesh_instance);
-        u32 n = 0;
-        for (u32 i = 0; i < rc->mesh_instance_count && n < r->instance_capacity; ++i)
-        {
-            render_mesh_instance *m = rc->mesh_instances + i;
-            if (gl_model_of(r, m) != model) continue;
-            render_mesh_instance placed = render_base_model_instance(m);
-            batch[n].position[0] = placed.position.x; batch[n].position[1] = placed.position.y; batch[n].position[2] = placed.position.z;
-            batch[n].yaw = placed.yaw; batch[n].scale = placed.scale; batch[n].tint = placed.tint;
-            n++;
-        }
-        if (!n) continue;
-        gl_bind_mesh(r, &model->mesh, batch, n);
-        glActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D, model->texture);
-        glDrawElementsInstanced(GL_TRIANGLES, (GLsizei)model->mesh.index_count, GL_UNSIGNED_INT, 0, (GLsizei)n);
-    }
+    for (u32 kind = 0; kind < GL_BASE_KINDS; ++kind) gl_draw_model(r, rc, fc.view_projection, r->base_models + kind, scratch);
+    for (u32 mesh_id = 0; mesh_id < RENDER_MESH_COUNT; ++mesh_id) gl_draw_model(r, rc, fc.view_projection, r->mesh_models + mesh_id, scratch);
 
     /* billboards: one instanced draw per sprite id, alpha tested, drawn last.
        The quad winds counter-clockwise on the screen, so the back-face cull
@@ -755,7 +774,7 @@ webgl2_renderer_draw(webgl2_renderer *r, render_commands *rc, memory_arena *scra
         for (u32 i = 0; i < rc->mesh_instance_count && n < r->instance_capacity && sprite_id >= RENDER_SPRITE_FIRST_BASE; ++i)
         {
             render_mesh_instance *m = rc->mesh_instances + i;
-            if (m->art_sprite != sprite_id || !gl_has_art(r, m) || gl_model_of(r, m)) continue;
+            if (m->art_sprite != sprite_id || !gl_has_art(r, m) || gl_model_of(r, m, &rc->cam)) continue;
             render_billboard card = render_base_billboard(m, &rc->cam, r->sprites[sprite_id].aspect);
             batch[n].position[0] = card.position.x; batch[n].position[1] = card.position.y; batch[n].position[2] = card.position.z;
             batch[n].width = card.width; batch[n].height = card.height; batch[n].tint = card.tint;

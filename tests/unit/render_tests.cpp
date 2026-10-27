@@ -145,6 +145,41 @@ unit_render_tests(test_counts *counts)
         gate.art_sprite = RENDER_SPRITE_BASE_GATE; gate.scale = 1.0f;
         TEST_CHECK(counts, near_f32(render_base_model_instance(&gate).scale, render_base_art_size_of(RENDER_SPRITE_BASE_GATE).width, 1e-5f),
                    "the model of a pass covers the width of the art of a pass");
+        render_mesh_instance market = {};
+        market.mesh_id = RENDER_MESH_STALL; market.art_sprite = RENDER_NO_ART;
+        market.position = v3_make(1.0f, 0.2f, 2.0f); market.yaw = 0.5f; market.scale = 1.6f; market.tint = 0xFF3CB4F0u;
+        render_mesh_instance shape_model = render_model_instance(&market);
+        TEST_CHECK(counts, shape_model.scale == market.scale && shape_model.position.x == 1.0f && shape_model.position.z == 2.0f &&
+                           shape_model.yaw == 0.5f && shape_model.tint == market.tint && near_f32(render_model_instance(&big).scale, 5.0f * 1.5f, 1e-5f),
+                   "the model of a shape keeps the instance of the shape, and the model of a base covers the base");
+        TEST_CHECK(counts, render_mesh_model_files[RENDER_MESH_STALL] && render_mesh_model_files[RENDER_MESH_FIELD] &&
+                           !render_mesh_model_files[RENDER_MESH_SETTLEMENT] && !render_mesh_model_files[RENDER_MESH_SCAFFOLD] &&
+                           !render_mesh_model_files[RENDER_MESH_GATE] && !render_mesh_model_files[RENDER_MESH_PORT],
+                   "the market and the farm shapes name a model, and the shapes of the bases and the scaffold name none");
+        camera near_cam = camera_default(10.0f, 10.0f);
+        TEST_CHECK(counts, render_shape_models_on(&near_cam), "the camera at the default distance shows the models of the shapes");
+        near_cam.distance = RENDER_SHAPE_MODEL_MAX_DISTANCE + 1.0f;
+        TEST_CHECK(counts, !render_shape_models_on(&near_cam), "a camera farther than the limit shows the placeholder shapes");
+        camera view_cam = camera_default(10.0f, 10.0f);   /* yaw 0: the eye is on the +Z side of the target */
+        m4 view_vp = camera_view_projection(&view_cam, vw, vh);
+        render_mesh_instance seen = market;
+        seen.position = v3_make(10.0f, 0.0f, 10.0f);
+        render_mesh_instance behind = seen, aside = seen, at_edge = seen;
+        behind.position = v3_add(camera_eye(&view_cam), v3_make(0.0f, 0.0f, 20.0f));
+        aside.position.x = 10.0f + 200.0f;
+        f32 edge_x = 0.0f;
+        for (f32 x = 0.0f; x < 200.0f; x += 0.25f)
+        {
+            render_mesh_instance probe = seen;
+            probe.position.x = 10.0f + x;
+            f32 edge_px = 0.0f, edge_py = 0.0f;
+            if (camera_project(view_vp, probe.position, vw, vh, &edge_px, &edge_py) && edge_px > vw) { edge_x = 10.0f + x; break; }
+        }
+        at_edge.position.x = edge_x + 0.5f * at_edge.scale;   /* the centre is off the screen, the sphere still crosses the edge */
+        TEST_CHECK(counts, render_model_in_view(view_vp, &seen) && !render_model_in_view(view_vp, &behind) && !render_model_in_view(view_vp, &aside),
+                   "a model at the target is in the view, and a model behind the camera or far to the side is not");
+        TEST_CHECK(counts, edge_x > 0.0f && render_model_in_view(view_vp, &at_edge),
+                   "a model with its centre just off the screen but its sphere across the edge stays in the view");
         render_mesh_instance base = {};
         base.mesh_id = RENDER_MESH_SETTLEMENT; base.art_sprite = RENDER_SPRITE_BASE_CITY;
         base.position = v3_make(3.0f, 0.7f, 4.0f); base.scale = 1.0f; base.tint = 0xFF3050C0u;
