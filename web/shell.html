@@ -11,18 +11,22 @@
   #canvas { display: block; width: 100vw; height: 100vh; border: 0; outline: none; }
   #status { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
             pointer-events: none; }
+  #live { position: fixed; right: 12px; bottom: 12px; display: none; padding: 6px 12px; border-radius: 6px;
+          border: 1px solid #3a3f4b; background: #232731; color: #e8e8e8; font: inherit; cursor: pointer; }
+  #live.on { background: #b3261e; border-color: #b3261e; }
 </style>
 </head>
 <body>
 <!-- The right mouse button is a game command: the page shows no context menu. -->
 <canvas id="canvas" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
 <div id="status">Loading hexdom...</div>
+<button id="live" type="button" title="Broadcast the game to YouTube">● Live</button>
 <script>
   var statusElement = document.getElementById("status");
   var Module = {
     canvas: document.getElementById("canvas"),
-    // The fly.io site asks for a password. If the address holds it ("user:pw@host"), fetch
-    // refuses each relative URL. The browser sends the password again from its cache.
+    // The page can come from an address with a password ("user:pw@host"). Then fetch
+    // refuses each relative URL, so the files get an address without the password.
     locateFile: function (path) { return new URL(path, location.origin + location.pathname).href; },
     print: function (text) { console.log(text); },
     printErr: function (text) { console.error(text); },
@@ -35,6 +39,124 @@
     },
   };
   window.addEventListener("error", function () { Module.setStatus("hexdom stopped. The console has the details."); });
+
+  /* ---- The saves on the server (docs/WEB.md, "The fly.io site") ----------------------
+     IndexedDB keeps a copy of the saves in the browser. If the server has a save api,
+     the server holds the true copy of the saves of the user:
+     - At the start, the page sends the saves that did not upload before, then reads
+       the saves of the server, and removes the other saves of the browser.
+     - After the game writes a save, the page sends it to the server.
+     Without a save api, for example with "python -m http.server", only IndexedDB holds
+     the saves. */
+  var hexdomServer = { uid: null, me: null };
+  var SAVE_DIR = "/build/saves/";
+  var SAVE_NAME = /^[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}$/;
+
+  function pendingKey() { return "hexdom.pendingSaves." + hexdomServer.uid; }
+  function readPending() {
+    try { return JSON.parse(localStorage.getItem(pendingKey()) || "[]"); } catch (error) { return []; }
+  }
+  function writePending(names) {
+    try { localStorage.setItem(pendingKey(), JSON.stringify(names)); } catch (error) { /* private window */ }
+  }
+  function isSaveName(name) { return SAVE_NAME.test(name) && name !== "imgui.ini"; }
+
+  async function uploadSave(name) {
+    var pending = readPending();
+    if (pending.indexOf(name) < 0) { pending.push(name); writePending(pending); }
+    try {
+      var data = FS.readFile(SAVE_DIR + name);
+      var response = await fetch("api/saves/" + encodeURIComponent(name), { method: "PUT", body: data });
+      if (!response.ok) throw new Error("status " + response.status);
+      writePending(readPending().filter(function (item) { return item !== name; }));
+      console.log("platform: the save " + name + " is on the server");
+    } catch (error) {
+      console.log("platform: the save " + name + " did not upload; the page tries again at the next start: " + error);
+    }
+  }
+
+  async function pullSaves() {
+    var me = await fetch("api/me").then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+    if (!me) { console.log("platform: no save api; the saves stay in this browser"); return; }
+    hexdomServer.uid = me.uid;
+    hexdomServer.me = me;
+    var pending = readPending();
+    for (var i = 0; i < pending.length; i++) {
+      if (FS.analyzePath(SAVE_DIR + pending[i]).exists) await uploadSave(pending[i]);
+    }
+    var list = await fetch("api/saves").then(function (r) { return r.json(); });
+    var remote = {};
+    for (var j = 0; j < list.saves.length; j++) {
+      var name = list.saves[j].name;
+      if (!isSaveName(name)) continue;
+      remote[name] = true;
+      if (readPending().indexOf(name) >= 0) continue;
+      var response = await fetch("api/saves/" + encodeURIComponent(name));
+      if (response.ok) FS.writeFile(SAVE_DIR + name, new Uint8Array(await response.arrayBuffer()));
+    }
+    // The browser can hold the saves of another user of the same computer: remove them.
+    var local = FS.readdir(SAVE_DIR);
+    for (var k = 0; k < local.length; k++) {
+      var file = local[k];
+      if (isSaveName(file) && !remote[file] && readPending().indexOf(file) < 0 && FS.isFile(FS.stat(SAVE_DIR + file).mode)) {
+        FS.unlink(SAVE_DIR + file);
+      }
+    }
+    console.log("platform: " + list.saves.length + " saves from the server");
+    setupLive(me);
+  }
+
+  // wasm_hexdom.cpp calls these two functions.
+  Module.hexdomPullSaves = function (done) {
+    pullSaves().catch(function (error) { console.log("platform: the saves of the server do not read: " + error); })
+               .then(function () { FS.syncfs(false, function () { done(); }); });
+  };
+  Module.hexdomPushSave = function (path) {
+    var name = path.split("/").pop();
+    if (hexdomServer.uid && path.indexOf("saves/") === 0 && isSaveName(name)) uploadSave(name);
+  };
+
+  /* ---- The YouTube broadcast, an option (web/broadcast.py) ----------------------------
+     The button shows only if the server has a stream key. The page records the canvas
+     and sends the chunks to the server through a WebSocket. */
+  var live = { button: document.getElementById("live"), socket: null, recorder: null };
+
+  function setupLive(me) {
+    if (!me.can_broadcast || !window.MediaRecorder || !Module.canvas.captureStream) return;
+    live.button.style.display = "block";
+    live.button.addEventListener("click", function () { live.socket ? stopLive() : startLive(); });
+  }
+
+  function startLive() {
+    var types = ["video/webm;codecs=h264", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+    var mime = types.find(function (type) { return MediaRecorder.isTypeSupported(type); });
+    var scheme = location.protocol === "https:" ? "wss://" : "ws://";
+    var socket = new WebSocket(scheme + location.host + location.pathname.replace(/[^/]*$/, "") + "api/broadcast");
+    socket.binaryType = "arraybuffer";
+    socket.onopen = function () {
+      var stream = Module.canvas.captureStream(30);
+      var recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 4000000 });
+      recorder.ondataavailable = function (event) {
+        if (event.data.size && socket.readyState === WebSocket.OPEN) socket.send(event.data);
+      };
+      recorder.start(1000);
+      live.recorder = recorder;
+      live.button.classList.add("on");
+      live.button.textContent = "● Live: stop";
+    };
+    socket.onmessage = function (event) { console.log("broadcast: " + event.data); };
+    socket.onclose = function () { stopLive(); };
+    live.socket = socket;
+  }
+
+  function stopLive() {
+    if (live.recorder && live.recorder.state !== "inactive") live.recorder.stop();
+    if (live.socket && live.socket.readyState <= WebSocket.OPEN) live.socket.close();
+    live.recorder = null;
+    live.socket = null;
+    live.button.classList.remove("on");
+    live.button.textContent = "● Live";
+  }
 </script>
 {{{ SCRIPT }}}
 </body>

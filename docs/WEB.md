@@ -60,39 +60,139 @@ The status on 2026-10-27:
 
 ## The fly.io site
 The fly.io app sanguodream serves the web game at https://sanguodream.fly.dev.
-A password protects the site. The pack holds data from the original game,
-so the site must not be public.
+Only the members of the house can play. The pack holds data from the
+original game, so the site must not be public.
+
+A member is a user who did these two steps:
+1. The user signs in with Google, Apple or Facebook.
+2. The user types the house password one time. The server keeps the
+   membership in the record of the user.
 
 | File | Job |
 |---|---|
-| web/server.py | The static server. It asks for HTTP basic auth and sends the .gz copy of a file to a browser that accepts gzip. |
-| Dockerfile | The image: Python 3.12, web/server.py and the four files of build/web. It does not compile the game. |
-| .dockerignore | It lets only these five files into the context of the builder. |
-| fly.toml | The app, the region iad and port 8080. The machine stops when nobody uses it. |
+| web/server.py | The server, with aiohttp. It sends the game files to members, with the .gz copy for a browser that accepts gzip. It also gives the save api. |
+| web/auth.py | The sign-in with Google, Apple and Facebook, the state cookie and the session cookie. |
+| web/pages.py | The sign-in page and the house password page. |
+| web/storage.py | The records of the users and the saves, in an S3 bucket or in a local folder. |
+| web/broadcast.py | The YouTube broadcast, an option. |
+| web/requirements.txt | The Python packages of the server, with exact versions. |
+| Dockerfile | The image: Python 3.12, ffmpeg, the server and the four files of build/web. It does not compile the game. |
+| .dockerignore | It lets only the server files and the web build into the context of the builder. |
+| fly.toml | The app, the region iad, port 8080 and the health check /healthz. The machine stops when nobody uses it. |
 | deploy_web.bat | It runs build_web.bat, then `flyctl deploy --remote-only --ha=false`. |
 
+The secrets of the site. Set each one with
+`flyctl secrets set NAME=value -a sanguodream`. Never write a secret in a
+file of this repository.
+
+| Secret | Job |
+|---|---|
+| SESSION_SECRET | The key of the cookies: a random text of 64 hex digits. The server does not start without it. |
+| HOUSE_PASSWORD | The shared password of the house. The server also reads the old name SITE_PASSWORD. |
+| GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET | The OAuth client of Google. |
+| FACEBOOK_APP_ID, FACEBOOK_APP_SECRET | The app of Facebook Login. |
+| APPLE_CLIENT_ID, APPLE_TEAM_ID, APPLE_KEY_ID, APPLE_PRIVATE_KEY | Sign in with Apple: the Services ID, the team, the key and the text of the .p8 file. |
+| BUCKET_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_ENDPOINT_URL_S3, AWS_REGION | The bucket of the saves. `flyctl storage create -a sanguodream` sets them. |
+| YOUTUBE_STREAM_KEY | The stream key of the YouTube channel. Without it, the page shows no Live button. |
+
+The sign-in page shows only the providers that have their secrets. Each
+provider needs this return address:
+`https://sanguodream.fly.dev/auth/<google|apple|facebook>/callback`.
+
 The rules of the site:
-- The password is the fly secret SITE_PASSWORD. The user name is the
-  secret SITE_USER, and the default is "hexdom". Never write the password
-  in a file of this repository.
-- If SITE_PASSWORD is empty, the server does not start.
-- After a wrong password, the server waits 1 second.
-- web/shell.html gives index.wasm and index.data an address without the
-  password. Thus an address of the form `user:password@host` also works.
+- The session cookie lasts 30 days. The state cookie of a sign-in lasts
+  10 minutes.
+- After a wrong house password, the server waits 1 second. After 10 wrong
+  passwords in one hour, the server refuses the user for the rest of the
+  hour.
+- A form post, an upload and the broadcast must come from a page of the
+  site. The server refuses a request from another origin.
+- The "dev" provider signs in with a name and no password. It is for the
+  tests on a local computer. The server turns it on only if AUTH_DEV_LOGIN
+  is 1 and FLY_APP_NAME is empty. Thus it is never on at fly.io.
 - The builder of fly.io makes the image. Docker is not necessary on this
   computer.
 - There is no deploy workflow on GitHub. A build there needs the font
   subset of approximately 25 minutes and the private spec submodule.
 
-To deploy:
-1. Set the password one time:
-   `flyctl secrets set SITE_PASSWORD=<password> -a sanguodream`.
-2. Run `deploy_web.bat`.
-3. Open https://sanguodream.fly.dev and type the user name and the
-   password.
+To deploy, run `deploy_web.bat`, then open https://sanguodream.fly.dev.
 
 To use the site without a public address, run
 `flyctl proxy 8080 -a sanguodream` and open http://localhost:8080.
+
+### The saves on the server
+The server keeps the saves of each member in the bucket, at
+`saves/<uid>/<name>`. Thus the saves stay after a new deploy, and a member
+can play on more than one computer. Without BUCKET_NAME, the server uses
+the folder in STORAGE_DIR.
+
+| Request | Job |
+|---|---|
+| GET /api/me | The user: uid, name, provider, and can_broadcast. |
+| GET /api/saves | The list of the saves: name, size, modified. |
+| GET /api/saves/<name> | The bytes of a save. |
+| PUT /api/saves/<name> | It writes a save. The limit is 16 MB. |
+
+web/shell.html keeps IndexedDB as a copy in the browser:
+- Before the start of the game, the page sends the saves that did not
+  upload before. Then it reads the saves of the server. Then it removes
+  the other saves of the browser, because another user of the same
+  computer can have saves there.
+- After the game writes a save, the page sends it to the server. If the
+  upload fails, the page tries again at the next start.
+- Without the save api, for example with `python -m http.server`, only
+  IndexedDB keeps the saves.
+
+### The YouTube broadcast
+The broadcast is an option. It is on only if the secret YOUTUBE_STREAM_KEY has a value.
+1. A member clicks the Live button in the lower right corner of the page.
+2. The page records the canvas with MediaRecorder: H.264 in WebM if the
+   browser can, else VP9 or VP8. It sends a chunk each second through the
+   WebSocket /api/broadcast.
+3. The server pipes the chunks into ffmpeg. ffmpeg encodes 720 lines at
+   24 frames each second with libx264. It adds a silent audio track and
+   sends the stream to the RTMP ingest of YouTube.
+4. A second click on the button stops the broadcast.
+
+Only one broadcast runs at a time. YouTube keeps each broadcast as a video
+of the channel, so a broadcast becomes content to share. To check the
+relay without YouTube, set YOUTUBE_INGEST to a local path: ffmpeg then
+writes the stream to the file `<YOUTUBE_INGEST><YOUTUBE_STREAM_KEY>`.
+
+### The browser tests
+tests/web has four Playwright smoke tests (smoke.spec.js):
+- a user signs in, joins the house and sees the title menu
+- the title menu loads a save from the server
+- the city list moves the camera between cities
+- a unit moves beside an enemy base and attacks it
+
+To run them:
+1. Run `build_web.bat test-game`. It writes build/webtest: the game with
+   the test hooks of code/wasm_test_hooks.h.
+2. In tests/web, run `npm install` and
+   `node node_modules/@playwright/test/cli.js install chromium` one time.
+3. In tests/web, run `npm test`.
+
+The config starts web/server.py with the "dev" provider and a storage
+folder in build/webtest-storage. Before the tests, global-setup.js puts
+tests/fixtures/saves/slot_01.hxs in the saves of the test user.
+
+The test hooks:
+- The game draws ImGui on a canvas. The ImGui item hooks record the rect
+  of each item with a stable id ("label###id"). The test asks for the
+  rect and clicks its center.
+- wasm_test_hex_screen gives the screen point of a hex.
+- wasm_test_battle_setup sends a unit from a city of the player and puts
+  it two hexes from an enemy base with 1 durability. The test then moves
+  and attacks through the real UI.
+- Only the test build has the hooks. The game of the site has none.
+
+On Windows the tests draw with D3D11 through the GPU. Elsewhere, and with
+HEXDOM_SOFTWARE_GL=1, they draw with SwiftShader at approximately 5
+frames each second.
+
+tests/web/.npmrc sets `location=project`, because the npm config of this
+computer installs each package as a global package.
 
 ## Phase 0 status
 

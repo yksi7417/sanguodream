@@ -1,0 +1,11 @@
+{
+  "name": "hexdom-web-tests",
+  "private": true,
+  "description": "The Playwright smoke tests of the web game (docs/WEB.md)",
+  "scripts": {
+    "test": "node node_modules/@playwright/test/cli.js test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1"
+  }
+}

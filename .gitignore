@@ -11,3 +11,8 @@ build/
 
 # The source images of the art (docs/GRAPHICS.md, section 6): large, and out of git
 art-src/
+
+# The Playwright tests of the web game (tests/web)
+tests/web/node_modules/
+tests/web/test-results/
+tests/web/playwright-report/
