@@ -1,0 +1,8 @@
+The models of this folder that provenance.tsv marks "CC BY 4.0" are under
+the Creative Commons Attribution 4.0 International licence.
+
+Credit: Meshy (https://www.meshy.ai)
+Licence: https://creativecommons.org/licenses/by/4.0/legalcode
+
+The owner of the repository made these models with Meshy on its free plan.
+misc/glb_import.py changed the format, the scale and the texture size.

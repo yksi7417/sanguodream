@@ -252,7 +252,8 @@ placeholder mesh.
 | Mesh | the HXM1 format of the engine: positions, normals and uv. The larger side of the footprint is one unit. The ground is at y = 0. |
 | Texture | the base colour of the model, RGB, 1024 pixels at most. The renderer makes the mip levels at the start. |
 | Source | a binary glTF file (GLB). misc/glb_import.py converts it. provenance.tsv in the folder has one row for each model. |
-| Licence | the licence of the source of each model, in provenance.tsv |
+| Licence | the licence of the source of each model, in provenance.tsv. CC-BY-4.0.txt gives the credit and the licence of the Meshy models. |
+| Models now | base_big_city, a walled city from Meshy, CC BY 4.0. It has 354,640 triangles and the mesh file is 10.9 MB. |
 
 The scene scales the model to the width of the card of its kind
 (render_base_model_instance in code/render/render.h). A city model is 5
