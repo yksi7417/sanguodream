@@ -239,6 +239,37 @@ The source sheets stay in art-src/bases, out of git. To import them again,
 run `python -X utf8 misc\art_import.py art-src\bases` from the root of
 the repository.
 
+## Base models (data/placeholder/models)
+A base kind can have a 3D model in place of its art card. The card faces
+the camera, so it turns when the player turns the view. A model stays
+fixed on the map. If the pack has the model of a kind, the renderer draws
+the model. If not, it draws the card, and without the card the
+placeholder mesh.
+
+| Item | Value |
+|---|---|
+| Files | base_city, base_big_city, base_gate, base_port. Each model has two files: <name>.hxm and <name>.png. |
+| Mesh | the HXM1 format of the engine: positions, normals and uv. The larger side of the footprint is one unit. The ground is at y = 0. |
+| Texture | the base colour of the model, RGB, 1024 pixels at most. The renderer makes the mip levels at the start. |
+| Source | a binary glTF file (GLB). misc/glb_import.py converts it. provenance.tsv in the folder has one row for each model. |
+| Licence | the licence of the source of each model, in provenance.tsv |
+
+The scene scales the model to the width of the card of its kind
+(render_base_model_instance in code/render/render.h). A city model is 5
+world units wide. The model stands at the centre of the base. The pixel
+shader model_ps shades the texture with the light of the scene. A flat
+red pixel of the texture takes the colour of the owner, as the red mask
+of the card does.
+
+To import a model, put the GLB in art-src/models, out of git. Then run
+this command from the root of the repository:
+
+    python -X utf8 misc\glb_import.py art-src\models\<file>.glb base_big_city
+
+If the front of the model faces the wrong way, add `--yaw 90`, or
+another angle in degrees. The script refuses a GLB with a wrong length in
+its header. A text transfer of a binary file causes this error.
+
 ## Text of the content pack (data/placeholder)
 The project wrote these files. They contain no text from the original game.
 - text/locales.tsv, text/zh-TW.tsv and text/en.tsv: the UI strings.

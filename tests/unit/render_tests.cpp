@@ -134,6 +134,17 @@ unit_render_tests(test_counts *counts)
                            near_f32(render_base_art_size_of(RENDER_SPRITE_SWORD).width, 2.0f, 1e-6f),
                    "the art of a pass and of a port covers one hex, and a sprite that is no base gets one hex");
         render_base_art_size city = render_base_art_size_of(RENDER_SPRITE_BASE_CITY);
+        render_mesh_instance big = {};
+        big.mesh_id = RENDER_MESH_SETTLEMENT; big.art_sprite = RENDER_SPRITE_BASE_BIG_CITY;
+        big.position = v3_make(3.0f, 0.7f, 4.0f); big.yaw = 0.25f; big.scale = 1.5f; big.tint = 0xFF3050C0u;
+        render_mesh_instance model = render_base_model_instance(&big);
+        TEST_CHECK(counts, near_f32(model.scale, 5.0f * 1.5f, 1e-5f) && model.position.x == 3.0f && model.position.y == 0.7f &&
+                           model.position.z == 4.0f && model.yaw == 0.25f && model.tint == big.tint,
+                   "the model of a big city covers the flower at the centre of the city and keeps its yaw");
+        render_mesh_instance gate = big;
+        gate.art_sprite = RENDER_SPRITE_BASE_GATE; gate.scale = 1.0f;
+        TEST_CHECK(counts, near_f32(render_base_model_instance(&gate).scale, render_base_art_size_of(RENDER_SPRITE_BASE_GATE).width, 1e-5f),
+                   "the model of a pass covers the width of the art of a pass");
         render_mesh_instance base = {};
         base.mesh_id = RENDER_MESH_SETTLEMENT; base.art_sprite = RENDER_SPRITE_BASE_CITY;
         base.position = v3_make(3.0f, 0.7f, 4.0f); base.scale = 1.0f; base.tint = 0xFF3050C0u;

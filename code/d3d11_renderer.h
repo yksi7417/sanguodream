@@ -33,6 +33,16 @@ struct d3d11_sprite
     f32                       aspect;   /* the height of the picture over its width */
 };
 
+/* The 3D model of a base kind: a mesh file and its colour texture. Both
+   are 0 when the pack has no model of the kind. */
+struct d3d11_base_model
+{
+    d3d11_mesh                mesh;
+    ID3D11ShaderResourceView *texture;
+};
+
+#define D3D11_BASE_KINDS (RENDER_SPRITE_COUNT - RENDER_SPRITE_FIRST_BASE)
+
 struct d3d11_frame_constants
 {
     m4  view_projection;
@@ -73,6 +83,7 @@ struct d3d11_renderer
     ID3D11InputLayout       *terrain_layout;
     ID3D11VertexShader      *mesh_vs;
     ID3D11PixelShader       *mesh_ps;
+    ID3D11PixelShader       *model_ps;          /* the textured model of a base, with mesh_vs */
     ID3D11InputLayout       *mesh_layout;
     ID3D11VertexShader      *billboard_vs;
     ID3D11PixelShader       *billboard_ps;
@@ -104,6 +115,7 @@ struct d3d11_renderer
     u32                      mesh_count;
     d3d11_sprite             sprites[D3D11_MAX_SPRITES];
     u32                      sprite_count;
+    d3d11_base_model         base_models[D3D11_BASE_KINDS];
     ID3D11Buffer            *instances;         /* dynamic, shared by meshes and billboards */
     u32                      instance_capacity;
     ID3D11Buffer            *billboard_quad;
@@ -139,15 +151,21 @@ static const char d3d11_shader_source[] =
 "\n"
 "struct MeshIn { float3 position : POSITION; float3 normal : NORMAL; float2 uv : TEXCOORD0;\n"
 "  float3 ipos : TEXCOORD3; float iyaw : TEXCOORD4; float iscale : TEXCOORD5; float4 itint : COLOR0; };\n"
-"struct MeshOut { float4 clip : SV_POSITION; float3 normal : NORMAL; float4 tint : COLOR0; };\n"
+"struct MeshOut { float4 clip : SV_POSITION; float3 normal : NORMAL; float2 uv : TEXCOORD0; float4 tint : COLOR0; };\n"
 "MeshOut mesh_vs(MeshIn i) {\n"
 "  float c = cos(i.iyaw), s = sin(i.iyaw);\n"
 "  float3 p = i.position * i.iscale; float3 r = float3(p.x * c + p.z * s, p.y, -p.x * s + p.z * c);\n"
 "  float3 n = float3(i.normal.x * c + i.normal.z * s, i.normal.y, -i.normal.x * s + i.normal.z * c);\n"
-"  MeshOut o; o.clip = mul(float4(r + i.ipos, 1.0), view_projection); o.normal = n; o.tint = i.itint; return o; }\n"
+"  MeshOut o; o.clip = mul(float4(r + i.ipos, 1.0), view_projection); o.normal = n; o.uv = i.uv; o.tint = i.itint; return o; }\n"
 "float4 mesh_ps(MeshOut i) : SV_TARGET {\n"
 "  float light = 0.35 + 0.65 * saturate(dot(normalize(i.normal), -light_direction.xyz));\n"
 "  return float4(i.tint.rgb * light, 1.0); }\n"
+"float4 model_ps(MeshOut i) : SV_TARGET {\n"     /* the model of a base: its texture, and the flat red of the banners in the faction colour */
+"  float3 c = sprite.Sample(linear_sampler, i.uv).rgb;\n"
+"  float mask = saturate((c.r - max(c.g, c.b) - 0.45) / 0.15);\n"
+"  float3 base = lerp(c, i.tint.rgb * saturate(c.r / 0.82), mask);\n"
+"  float light = 0.55 + 0.45 * saturate(dot(normalize(i.normal), -light_direction.xyz));\n"
+"  return float4(base * light, 1.0); }\n"
 "\n"
 "struct BillboardIn { float2 corner : POSITION; float2 uv : TEXCOORD0;\n"
 "  float3 ipos : TEXCOORD3; float iwidth : TEXCOORD4; float iheight : TEXCOORD5; float4 itint : COLOR0; };\n"
@@ -316,8 +334,29 @@ d3d11_load_mesh_file(d3d11_renderer *r, const char *relative, memory_arena *aren
     return mesh->vertices && mesh->indices;
 }
 
+/* A texture with the full chain of mip levels: the GPU makes the smaller
+   levels from the picture. A model seen from far away needs them, or its
+   texture shimmers when the view moves. */
 internal ID3D11ShaderResourceView *
-d3d11_load_png_texture(d3d11_renderer *r, const char *relative, memory_arena *arena, f32 *aspect_out = 0)
+d3d11_make_mipmapped_texture(d3d11_renderer *r, const u32 *rgba, u32 width, u32 height)
+{
+    D3D11_TEXTURE2D_DESC desc = {};
+    desc.Width = width; desc.Height = height; desc.MipLevels = 0; desc.ArraySize = 1;
+    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; desc.SampleDesc.Count = 1;
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+    desc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
+    ID3D11Texture2D *texture = 0;
+    if (FAILED(r->device->CreateTexture2D(&desc, 0, &texture))) return 0;
+    r->context->UpdateSubresource(texture, 0, 0, rgba, width * 4, 0);
+    ID3D11ShaderResourceView *view = 0;
+    if (SUCCEEDED(r->device->CreateShaderResourceView(texture, 0, &view))) r->context->GenerateMips(view);
+    texture->Release();
+    return view;
+}
+
+internal ID3D11ShaderResourceView *
+d3d11_load_png_texture(d3d11_renderer *r, const char *relative, memory_arena *arena, f32 *aspect_out = 0, b32 mipmaps = false)
 {
     u64 size = 0;
     u8 *data = d3d11_read_data_file(r, relative, arena, &size);
@@ -325,7 +364,25 @@ d3d11_load_png_texture(d3d11_renderer *r, const char *relative, memory_arena *ar
     png_image image = png_decode(data, size, arena);
     if (image.error || !image.width) return 0;
     if (aspect_out) *aspect_out = (f32)image.height / (f32)image.width;
+    if (mipmaps) return d3d11_make_mipmapped_texture(r, (const u32 *)image.rgba, image.width, image.height);
     return d3d11_make_texture(r, (const u32 *)image.rgba, image.width, image.height, false, 0);
+}
+
+/* The model of one base kind: <name>.hxm and <name>.png of the pack. If
+   one of the two files is absent, the kind has no model. */
+internal void
+d3d11_load_base_model(d3d11_renderer *r, const char *name, memory_arena *arena, d3d11_base_model *model)
+{
+    char mesh_file[260], texture_file[260];
+    snprintf(mesh_file, sizeof(mesh_file), "%s.hxm", name);
+    snprintf(texture_file, sizeof(texture_file), "%s.png", name);
+    *model = {};
+    if (!d3d11_load_mesh_file(r, mesh_file, arena, &model->mesh)) return;
+    model->texture = d3d11_load_png_texture(r, texture_file, arena, 0, true);
+    if (model->texture) return;
+    if (model->mesh.vertices) model->mesh.vertices->Release();
+    if (model->mesh.indices) model->mesh.indices->Release();
+    *model = {};
 }
 
 /* ---- init --------------------------------------------------------------- */
@@ -367,6 +424,9 @@ d3d11_renderer_init(d3d11_renderer *r, ID3D11Device *device, ID3D11DeviceContext
     vs_blob->Release();
     if (!d3d11_compile(r, "mesh_ps", "ps_4_0", &ps_blob)) return false;
     device->CreatePixelShader(ps_blob->GetBufferPointer(), ps_blob->GetBufferSize(), 0, &r->mesh_ps);
+    ps_blob->Release();
+    if (!d3d11_compile(r, "model_ps", "ps_4_0", &ps_blob)) return false;
+    device->CreatePixelShader(ps_blob->GetBufferPointer(), ps_blob->GetBufferSize(), 0, &r->model_ps);
     ps_blob->Release();
 
     if (!d3d11_compile(r, "billboard_vs", "vs_4_0", &vs_blob)) return false;
@@ -454,6 +514,13 @@ d3d11_renderer_init(d3d11_renderer *r, ID3D11Device *device, ID3D11DeviceContext
         }
     }
 
+    /* The 3D models of the base kinds (docs/ASSETS.md, "Base models"). A
+       kind with a model shows it in place of its art card. */
+    for (u32 kind = 0; kind < D3D11_BASE_KINDS; ++kind)
+    {
+        d3d11_load_base_model(r, render_base_model_files[kind], scratch, r->base_models + kind);
+    }
+
     r->instance_capacity = RENDER_MAX_MESH_INSTANCES > RENDER_MAX_BILLBOARDS ? RENDER_MAX_MESH_INSTANCES : RENDER_MAX_BILLBOARDS;
     r->instances = d3d11_make_buffer(r, 0, r->instance_capacity * (u32)sizeof(d3d11_mesh_instance), D3D11_BIND_VERTEX_BUFFER, true);
 
@@ -477,6 +544,12 @@ d3d11_renderer_destroy(d3d11_renderer *r)
 {
     d3d11_release((IUnknown **)&r->terrain_vs); d3d11_release((IUnknown **)&r->terrain_ps); d3d11_release((IUnknown **)&r->terrain_layout);
     d3d11_release((IUnknown **)&r->mesh_vs); d3d11_release((IUnknown **)&r->mesh_ps); d3d11_release((IUnknown **)&r->mesh_layout);
+    d3d11_release((IUnknown **)&r->model_ps);
+    for (u32 kind = 0; kind < D3D11_BASE_KINDS; ++kind)
+    {
+        d3d11_base_model *model = r->base_models + kind;
+        d3d11_release((IUnknown **)&model->mesh.vertices); d3d11_release((IUnknown **)&model->mesh.indices); d3d11_release((IUnknown **)&model->texture);
+    }
     d3d11_release((IUnknown **)&r->billboard_vs); d3d11_release((IUnknown **)&r->billboard_ps); d3d11_release((IUnknown **)&r->billboard_layout);
     d3d11_release((IUnknown **)&r->constants); d3d11_release((IUnknown **)&r->sampler); d3d11_release((IUnknown **)&r->rasterizer);
     d3d11_release((IUnknown **)&r->rasterizer_no_cull);
@@ -568,6 +641,16 @@ d3d11_has_art(d3d11_renderer *r, render_mesh_instance *m)
     return m->art_sprite >= RENDER_SPRITE_FIRST_BASE && m->art_sprite < r->sprite_count && r->sprites[m->art_sprite].view != 0;
 }
 
+/* The 3D model that the platform draws for a base, or 0. A model goes
+   before the art card and before the placeholder mesh. */
+internal d3d11_base_model *
+d3d11_model_of(d3d11_renderer *r, render_mesh_instance *m)
+{
+    if (m->art_sprite < RENDER_SPRITE_FIRST_BASE || m->art_sprite >= RENDER_SPRITE_COUNT) return 0;
+    d3d11_base_model *model = r->base_models + (m->art_sprite - RENDER_SPRITE_FIRST_BASE);
+    return model->texture ? model : 0;
+}
+
 /* Draws the scene into the current render target. Call it after the clear
    and before ImGui. Nothing happens when the commands have no scene. */
 internal void
@@ -650,7 +733,7 @@ d3d11_renderer_draw(d3d11_renderer *r, render_commands *rc, ID3D11RenderTargetVi
         for (u32 i = 0; i < rc->mesh_instance_count && n < r->instance_capacity; ++i)
         {
             render_mesh_instance *m = rc->mesh_instances + i;
-            if (m->mesh_id != mesh_id || d3d11_has_art(r, m)) continue;
+            if (m->mesh_id != mesh_id || d3d11_has_art(r, m) || d3d11_model_of(r, m)) continue;
             batch[n].position[0] = m->position.x; batch[n].position[1] = m->position.y; batch[n].position[2] = m->position.z;
             batch[n].yaw = m->yaw; batch[n].scale = m->scale; batch[n].tint = m->tint;
             n++;
@@ -665,6 +748,36 @@ d3d11_renderer_draw(d3d11_renderer *r, render_commands *rc, ID3D11RenderTargetVi
         ctx->VSSetShader(r->mesh_vs, 0, 0);
         ctx->PSSetShader(r->mesh_ps, 0, 0);
         ctx->DrawIndexedInstanced(r->meshes[mesh_id].index_count, n, 0, 0, 0);
+    }
+
+    /* the 3D models of the bases: one instanced draw per base kind, with
+       the texture of the kind. The model stays fixed when the view turns. */
+    for (u32 kind = 0; kind < D3D11_BASE_KINDS; ++kind)
+    {
+        d3d11_base_model *model = r->base_models + kind;
+        if (!model->texture) continue;
+        d3d11_mesh_instance *batch = PushArray(scratch, r->instance_capacity, d3d11_mesh_instance);
+        u32 n = 0;
+        for (u32 i = 0; i < rc->mesh_instance_count && n < r->instance_capacity; ++i)
+        {
+            render_mesh_instance *m = rc->mesh_instances + i;
+            if (d3d11_model_of(r, m) != model) continue;
+            render_mesh_instance placed = render_base_model_instance(m);
+            batch[n].position[0] = placed.position.x; batch[n].position[1] = placed.position.y; batch[n].position[2] = placed.position.z;
+            batch[n].yaw = placed.yaw; batch[n].scale = placed.scale; batch[n].tint = placed.tint;
+            n++;
+        }
+        if (!n) continue;
+        d3d11_upload(r, r->instances, batch, n * (u32)sizeof(d3d11_mesh_instance), 0);
+        UINT strides[2] = { sizeof(d3d11_mesh_vertex), sizeof(d3d11_mesh_instance) }, offsets[2] = { 0, 0 };
+        ID3D11Buffer *buffers[2] = { model->mesh.vertices, r->instances };
+        ctx->IASetInputLayout(r->mesh_layout);
+        ctx->IASetVertexBuffers(0, 2, buffers, strides, offsets);
+        ctx->IASetIndexBuffer(model->mesh.indices, DXGI_FORMAT_R32_UINT, 0);
+        ctx->VSSetShader(r->mesh_vs, 0, 0);
+        ctx->PSSetShader(r->model_ps, 0, 0);
+        ctx->PSSetShaderResources(2, 1, &model->texture);
+        ctx->DrawIndexedInstanced(model->mesh.index_count, n, 0, 0, 0);
     }
 
     /* billboards: one instanced draw per sprite id, alpha tested, drawn last.
@@ -688,7 +801,7 @@ d3d11_renderer_draw(d3d11_renderer *r, render_commands *rc, ID3D11RenderTargetVi
         for (u32 i = 0; i < rc->mesh_instance_count && n < r->instance_capacity && sprite_id >= RENDER_SPRITE_FIRST_BASE; ++i)
         {
             render_mesh_instance *m = rc->mesh_instances + i;
-            if (m->art_sprite != sprite_id || !d3d11_has_art(r, m)) continue;
+            if (m->art_sprite != sprite_id || !d3d11_has_art(r, m) || d3d11_model_of(r, m)) continue;
             render_billboard card = render_base_billboard(m, &rc->cam, r->sprites[sprite_id].aspect);
             batch[n].position[0] = card.position.x; batch[n].position[1] = card.position.y; batch[n].position[2] = card.position.z;
             batch[n].width = card.width; batch[n].height = card.height; batch[n].tint = card.tint;

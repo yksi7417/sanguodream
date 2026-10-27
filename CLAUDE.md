@@ -108,6 +108,9 @@ decompilation of it.
 - misc/make_pair_index.py  writes data/placeholder/pairs.tsv from the save
                          pairs of the spec (run it after a spec update;
                          tutorial 26)
+- misc/glb_import.py     converts a GLB into the 3D model of a base kind,
+                         data/<pack>/models/<name>.hxm and .png
+                         (docs/ASSETS.md, "Base models")
 - misc/make_portraits.py  makes data/civil_war/Portraits.zip, the 224 x 280
                          portraits, from the source archives (docs/ASSETS.md)
 - data/placeholder/      the content pack: text/<locale>.tsv (UI strings),

@@ -591,6 +591,26 @@ render_base_billboard(const render_mesh_instance *mesh, camera *cam, f32 aspect)
     return card;
 }
 
+/* The 3D models of the bases (docs/ASSETS.md, "Base models"). Each entry
+   names two files of the content pack: <name>.hxm, the mesh, and
+   <name>.png, its colour texture (misc/glb_import.py). A model stays
+   fixed on the map when the view turns. The platform draws the model in
+   place of the art card when the pack has both files. */
+global_variable const char *render_base_model_files[RENDER_SPRITE_COUNT - RENDER_SPRITE_FIRST_BASE] = {
+    "models\\base_city", "models\\base_big_city", "models\\base_gate", "models\\base_port",
+};
+
+/* The instance of the model of a base. misc/glb_import.py makes the
+   larger side of the footprint one unit, with the ground at y = 0. The
+   model gets the width of the art of its kind, at the centre of the base. */
+internal render_mesh_instance
+render_base_model_instance(const render_mesh_instance *mesh)
+{
+    render_mesh_instance model = *mesh;
+    model.scale = render_base_art_size_of(mesh->art_sprite).width * mesh->scale;
+    return model;
+}
+
 #define RENDER_MAX_MESH_INSTANCES 4096
 #define RENDER_MAX_BILLBOARDS     4096
 
