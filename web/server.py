@@ -296,7 +296,14 @@ async def open_http(app):
     await app[KEY_HTTP].close()
 
 
+SETTING_NAMES = ("SESSION_SECRET", "HOUSE_PASSWORD", "SITE_PASSWORD", "PUBLIC_URL", "GOOGLE_CLIENT_ID",
+                 "FACEBOOK_APP_ID", "APPLE_CLIENT_ID", "BUCKET_NAME", "AWS_ENDPOINT_URL_S3", "YOUTUBE_STREAM_KEY")
+
+
 def make_app(root):
+    # Only the names of the settings go to the log, never the values.
+    present = [name for name in SETTING_NAMES if os.environ.get(name)]
+    print(f"server.py: settings with a value: {', '.join(present) or 'none'}", flush=True)
     secret = os.environ.get("SESSION_SECRET", "")
     house = os.environ.get("HOUSE_PASSWORD", "") or os.environ.get("SITE_PASSWORD", "")
     if not secret or not house:
