@@ -139,7 +139,8 @@ decompilation of it.
 - misc/make_pair_index.py  writes data/placeholder/pairs.tsv from the save
                          pairs of the spec (run it after a spec update;
                          tutorial 26)
-- misc/glb_import.py     converts a GLB into the 3D model of a base kind,
+- misc/glb_import.py     converts a GLB into the 3D model of a base kind
+                         or of a facility shape,
                          data/<pack>/models/<name>.hxm and .png
                          (docs/ASSETS.md, "Base models")
 - misc/subset_font.py    writes the subset of the CJK font for the web

@@ -28,7 +28,9 @@ Run it from the root of the repository:
     python -X utf8 misc\\glb_import.py <file.glb> <name> [data\\placeholder] [--yaw DEGREES]
 
 The name of a base kind is base_city, base_big_city, base_gate or
-base_port. The script needs Pillow (pip install pillow). Keep the GLB
+base_port. The name of a facility shape is facility_market or
+facility_farm (render_mesh_model_files in code/render/render.h). The
+script needs Pillow (pip install pillow). Keep the GLB
 source in art-src/models, out of git. Add a row for each model to
 data/<pack>/models/provenance.tsv.
 """

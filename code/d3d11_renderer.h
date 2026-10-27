@@ -34,8 +34,8 @@ struct d3d11_sprite
     f32                       aspect;   /* the height of the picture over its width */
 };
 
-/* The 3D model of a base kind: a mesh file and its colour texture. Both
-   are 0 when the pack has no model of the kind. */
+/* The 3D model of a base kind or of a placeholder shape: a mesh file and
+   its colour texture. Both are 0 when the pack has no model of the kind. */
 struct d3d11_base_model
 {
     d3d11_mesh                mesh;
@@ -118,7 +118,8 @@ struct d3d11_renderer
     d3d11_sprite             sprites[D3D11_MAX_SPRITES];
     u32                      sprite_count;
     d3d11_base_model         base_models[D3D11_BASE_KINDS];
-    ID3D11Buffer            *instances;         /* dynamic, shared by meshes and billboards */
+    d3d11_base_model         mesh_models[RENDER_MESH_COUNT];   /* render_mesh_model_files */
+    ID3D11Buffer            *instances;        /* dynamic, shared by meshes and billboards */
     u32                      instance_capacity;
     ID3D11Buffer            *billboard_quad;
     ID3D11RasterizerState   *rasterizer_no_cull;   /* the billboards: the quad faces the camera from both sides */
@@ -357,17 +358,20 @@ d3d11_load_png_texture(d3d11_renderer *r, const char *relative, memory_arena *ar
     return d3d11_make_texture(r, (const u32 *)image.rgba, image.width, image.height, false, 0);
 }
 
-/* The model of one base kind: <name>.hxm and <name>.png of the pack. If
-   one of the two files is absent, the kind has no model. */
+/* The model of one base kind or shape: <name>.hxm and <name>.png of the
+   pack. If one of the two files is absent, the kind has no model. The GPU
+   keeps the mesh and the texture, so the scratch arena gets its bytes back. */
 internal void
 d3d11_load_base_model(d3d11_renderer *r, const char *name, memory_arena *arena, d3d11_base_model *model)
 {
+    *model = {};
+    if (!name) return;
     char mesh_file[260], texture_file[260];
     snprintf(mesh_file, sizeof(mesh_file), "%s.hxm", name);
     snprintf(texture_file, sizeof(texture_file), "%s.png", name);
-    *model = {};
-    if (!d3d11_load_mesh_file(r, mesh_file, arena, &model->mesh)) return;
-    model->texture = d3d11_load_png_texture(r, texture_file, arena, 0, true);
+    u64 arena_used = arena->used;
+    if (d3d11_load_mesh_file(r, mesh_file, arena, &model->mesh)) model->texture = d3d11_load_png_texture(r, texture_file, arena, 0, true);
+    arena->used = arena_used;
     if (model->texture) return;
     if (model->mesh.vertices) model->mesh.vertices->Release();
     if (model->mesh.indices) model->mesh.indices->Release();
@@ -510,6 +514,11 @@ d3d11_renderer_init(d3d11_renderer *r, ID3D11Device *device, ID3D11DeviceContext
     {
         d3d11_load_base_model(r, render_base_model_files[kind], scratch, r->base_models + kind);
     }
+    /* The models of the placeholder shapes, for example the market. */
+    for (u32 mesh_id = 0; mesh_id < RENDER_MESH_COUNT; ++mesh_id)
+    {
+        d3d11_load_base_model(r, render_mesh_model_files[mesh_id], scratch, r->mesh_models + mesh_id);
+    }
 
     r->instance_capacity = RENDER_MAX_MESH_INSTANCES > RENDER_MAX_BILLBOARDS ? RENDER_MAX_MESH_INSTANCES : RENDER_MAX_BILLBOARDS;
     r->instances = d3d11_make_buffer(r, 0, r->instance_capacity * (u32)sizeof(d3d11_mesh_instance), D3D11_BIND_VERTEX_BUFFER, true);
@@ -538,6 +547,11 @@ d3d11_renderer_destroy(d3d11_renderer *r)
     for (u32 kind = 0; kind < D3D11_BASE_KINDS; ++kind)
     {
         d3d11_base_model *model = r->base_models + kind;
+        d3d11_release((IUnknown **)&model->mesh.vertices); d3d11_release((IUnknown **)&model->mesh.indices); d3d11_release((IUnknown **)&model->texture);
+    }
+    for (u32 mesh_id = 0; mesh_id < RENDER_MESH_COUNT; ++mesh_id)
+    {
+        d3d11_base_model *model = r->mesh_models + mesh_id;
         d3d11_release((IUnknown **)&model->mesh.vertices); d3d11_release((IUnknown **)&model->mesh.indices); d3d11_release((IUnknown **)&model->texture);
     }
     d3d11_release((IUnknown **)&r->billboard_vs); d3d11_release((IUnknown **)&r->billboard_ps); d3d11_release((IUnknown **)&r->billboard_layout);
@@ -631,14 +645,50 @@ d3d11_has_art(d3d11_renderer *r, render_mesh_instance *m)
     return m->art_sprite >= RENDER_SPRITE_FIRST_BASE && m->art_sprite < r->sprite_count && r->sprites[m->art_sprite].view != 0;
 }
 
-/* The 3D model that the platform draws for a base, or 0. A model goes
-   before the art card and before the placeholder mesh. */
+/* The 3D model that the platform draws for an instance, or 0. A model goes
+   before the art card and before the placeholder mesh. A base uses only
+   the model of its kind. Another instance uses the model of its shape,
+   if the camera is near (render_shape_models_on). */
 internal d3d11_base_model *
-d3d11_model_of(d3d11_renderer *r, render_mesh_instance *m)
+d3d11_model_of(d3d11_renderer *r, render_mesh_instance *m, const camera *cam)
 {
-    if (m->art_sprite < RENDER_SPRITE_FIRST_BASE || m->art_sprite >= RENDER_SPRITE_COUNT) return 0;
-    d3d11_base_model *model = r->base_models + (m->art_sprite - RENDER_SPRITE_FIRST_BASE);
-    return model->texture ? model : 0;
+    d3d11_base_model *model = 0;
+    if (m->art_sprite >= RENDER_SPRITE_FIRST_BASE && m->art_sprite < RENDER_SPRITE_COUNT) model = r->base_models + (m->art_sprite - RENDER_SPRITE_FIRST_BASE);
+    else if (m->mesh_id < RENDER_MESH_COUNT && render_shape_models_on(cam)) model = r->mesh_models + m->mesh_id;
+    return model && model->texture ? model : 0;
+}
+
+/* One instanced draw of a model, with its texture, for each instance
+   that d3d11_model_of gives to that model and that is in the view. The
+   model stays fixed when the view turns. */
+internal void
+d3d11_draw_model(d3d11_renderer *r, render_commands *rc, m4 view_projection, d3d11_base_model *model, memory_arena *scratch)
+{
+    if (!model->texture) return;
+    d3d11_mesh_instance *batch = PushArray(scratch, r->instance_capacity, d3d11_mesh_instance);
+    u32 n = 0;
+    for (u32 i = 0; i < rc->mesh_instance_count && n < r->instance_capacity; ++i)
+    {
+        render_mesh_instance *m = rc->mesh_instances + i;
+        if (d3d11_model_of(r, m, &rc->cam) != model) continue;
+        render_mesh_instance placed = render_model_instance(m);
+        if (!render_model_in_view(view_projection, &placed)) continue;
+        batch[n].position[0] = placed.position.x; batch[n].position[1] = placed.position.y; batch[n].position[2] = placed.position.z;
+        batch[n].yaw = placed.yaw; batch[n].scale = placed.scale; batch[n].tint = placed.tint;
+        n++;
+    }
+    if (!n) return;
+    ID3D11DeviceContext *ctx = r->context;
+    d3d11_upload(r, r->instances, batch, n * (u32)sizeof(d3d11_mesh_instance), 0);
+    UINT strides[2] = { sizeof(d3d11_mesh_vertex), sizeof(d3d11_mesh_instance) }, offsets[2] = { 0, 0 };
+    ID3D11Buffer *buffers[2] = { model->mesh.vertices, r->instances };
+    ctx->IASetInputLayout(r->mesh_layout);
+    ctx->IASetVertexBuffers(0, 2, buffers, strides, offsets);
+    ctx->IASetIndexBuffer(model->mesh.indices, DXGI_FORMAT_R32_UINT, 0);
+    ctx->VSSetShader(r->mesh_vs, 0, 0);
+    ctx->PSSetShader(r->model_ps, 0, 0);
+    ctx->PSSetShaderResources(2, 1, &model->texture);
+    ctx->DrawIndexedInstanced(model->mesh.index_count, n, 0, 0, 0);
 }
 
 /* Draws the scene into the current render target. Call it after the clear
@@ -723,7 +773,7 @@ d3d11_renderer_draw(d3d11_renderer *r, render_commands *rc, ID3D11RenderTargetVi
         for (u32 i = 0; i < rc->mesh_instance_count && n < r->instance_capacity; ++i)
         {
             render_mesh_instance *m = rc->mesh_instances + i;
-            if (m->mesh_id != mesh_id || d3d11_has_art(r, m) || d3d11_model_of(r, m)) continue;
+            if (m->mesh_id != mesh_id || d3d11_has_art(r, m) || d3d11_model_of(r, m, &rc->cam)) continue;
             batch[n].position[0] = m->position.x; batch[n].position[1] = m->position.y; batch[n].position[2] = m->position.z;
             batch[n].yaw = m->yaw; batch[n].scale = m->scale; batch[n].tint = m->tint;
             n++;
@@ -740,35 +790,10 @@ d3d11_renderer_draw(d3d11_renderer *r, render_commands *rc, ID3D11RenderTargetVi
         ctx->DrawIndexedInstanced(r->meshes[mesh_id].index_count, n, 0, 0, 0);
     }
 
-    /* the 3D models of the bases: one instanced draw per base kind, with
-       the texture of the kind. The model stays fixed when the view turns. */
-    for (u32 kind = 0; kind < D3D11_BASE_KINDS; ++kind)
-    {
-        d3d11_base_model *model = r->base_models + kind;
-        if (!model->texture) continue;
-        d3d11_mesh_instance *batch = PushArray(scratch, r->instance_capacity, d3d11_mesh_instance);
-        u32 n = 0;
-        for (u32 i = 0; i < rc->mesh_instance_count && n < r->instance_capacity; ++i)
-        {
-            render_mesh_instance *m = rc->mesh_instances + i;
-            if (d3d11_model_of(r, m) != model) continue;
-            render_mesh_instance placed = render_base_model_instance(m);
-            batch[n].position[0] = placed.position.x; batch[n].position[1] = placed.position.y; batch[n].position[2] = placed.position.z;
-            batch[n].yaw = placed.yaw; batch[n].scale = placed.scale; batch[n].tint = placed.tint;
-            n++;
-        }
-        if (!n) continue;
-        d3d11_upload(r, r->instances, batch, n * (u32)sizeof(d3d11_mesh_instance), 0);
-        UINT strides[2] = { sizeof(d3d11_mesh_vertex), sizeof(d3d11_mesh_instance) }, offsets[2] = { 0, 0 };
-        ID3D11Buffer *buffers[2] = { model->mesh.vertices, r->instances };
-        ctx->IASetInputLayout(r->mesh_layout);
-        ctx->IASetVertexBuffers(0, 2, buffers, strides, offsets);
-        ctx->IASetIndexBuffer(model->mesh.indices, DXGI_FORMAT_R32_UINT, 0);
-        ctx->VSSetShader(r->mesh_vs, 0, 0);
-        ctx->PSSetShader(r->model_ps, 0, 0);
-        ctx->PSSetShaderResources(2, 1, &model->texture);
-        ctx->DrawIndexedInstanced(model->mesh.index_count, n, 0, 0, 0);
-    }
+    /* the 3D models: one instanced draw for each base kind and each shape
+       that has a model in the pack */
+    for (u32 kind = 0; kind < D3D11_BASE_KINDS; ++kind) d3d11_draw_model(r, rc, fc.view_projection, r->base_models + kind, scratch);
+    for (u32 mesh_id = 0; mesh_id < RENDER_MESH_COUNT; ++mesh_id) d3d11_draw_model(r, rc, fc.view_projection, r->mesh_models + mesh_id, scratch);
 
     /* billboards: one instanced draw per sprite id, alpha tested, drawn last.
        The quad winds counter-clockwise on the screen, so the back-face cull
@@ -791,7 +816,7 @@ d3d11_renderer_draw(d3d11_renderer *r, render_commands *rc, ID3D11RenderTargetVi
         for (u32 i = 0; i < rc->mesh_instance_count && n < r->instance_capacity && sprite_id >= RENDER_SPRITE_FIRST_BASE; ++i)
         {
             render_mesh_instance *m = rc->mesh_instances + i;
-            if (m->art_sprite != sprite_id || !d3d11_has_art(r, m) || d3d11_model_of(r, m)) continue;
+            if (m->art_sprite != sprite_id || !d3d11_has_art(r, m) || d3d11_model_of(r, m, &rc->cam)) continue;
             render_billboard card = render_base_billboard(m, &rc->cam, r->sprites[sprite_id].aspect);
             batch[n].position[0] = card.position.x; batch[n].position[1] = card.position.y; batch[n].position[2] = card.position.z;
             batch[n].width = card.width; batch[n].height = card.height; batch[n].tint = card.tint;

@@ -55,8 +55,15 @@ The status on 2026-10-27:
   - a save, a reload of the page, and a load
   - the loss of the WebGL2 context
   - the parity test of the 3D scene against the Windows build
-- The download is approximately 26 MB. The model of the big city is 12 MB
-  of it.
+- The download is approximately 44 MB (2026-10-27): index.data is 42.0 MB
+  and index.wasm is 1.7 MB. The four 3D models are 31 MB of it
+  (docs/ASSETS.md, "Base models"):
+  - the big city: 12.5 MB
+  - the market: 12.3 MB
+  - the farm: 3.3 MB
+  - the city: 3.0 MB
+- The big city and the market have approximately 355,000 triangles each.
+  An export with fewer triangles makes the download smaller.
 
 ## The fly.io site
 The fly.io app sanguodream serves the web game at https://sanguodream.fly.dev.

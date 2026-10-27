@@ -251,22 +251,57 @@ placeholder mesh.
 
 | Item | Value |
 |---|---|
-| Files | base_city, base_big_city, base_gate, base_port. Each model has two files: <name>.hxm and <name>.png. |
+| Files | base_city, base_big_city, base_gate and base_port for the bases. facility_market and facility_farm for the shapes of the facilities. Each model has two files: <name>.hxm and <name>.png. |
 | Mesh | the HXM1 format of the engine: positions, normals and uv. The larger side of the footprint is one unit. The ground is at y = 0. |
 | Texture | the base colour of the model, RGB, 1024 pixels at most. The renderer makes the mip levels at the start. |
 | Source | a binary glTF file (GLB). misc/glb_import.py converts it. provenance.tsv in the folder has one row for each model. |
 | Licence | the licence of the source of each model, in provenance.tsv. CC-BY-4.0.txt gives the credit and the licence of the Meshy models. |
-| Models now | base_big_city, a walled city from Meshy, CC BY 4.0. It has 354,640 triangles and the mesh file is 10.9 MB. |
+| Models now | Four models from Meshy, CC BY 4.0. The table below gives each model. |
+
+| Model | Kind | Source GLB | Triangles | Mesh file | Licence |
+|---|---|---|---|---|---|
+| base_big_city | the big city | Meshy_AI_Walled_Imperial_City_1026143943_texture.glb | 354,640 | 10.9 MB | CC BY 4.0, credit "Meshy" |
+| base_city | the city | city-30k.glb | 30,100 | 1.2 MB | CC BY 4.0, credit "Meshy" |
+| facility_farm | the farm shape: the farm, the military farm | farm-lv1-game-ready.glb | 39,730 | 1.8 MB | CC BY 4.0, credit "Meshy" |
+| facility_market | the market shape: the market, the great market, the black market, the fish market | market-lv1-textured.glb | 354,934 | 10.7 MB | CC BY 4.0, credit "Meshy" |
+
+The owner of the repository made the city, the farm and the market on
+2026-10-27. The GLB files came from the shared Google Drive folder "Three
+Kingdoms Animations — Map Art", subfolder 07-3D-Models. Each texture is
+1024 x 1024 pixels.
+
+The model of a facility replaces the placeholder shape of its kind
+(render_mesh_model_files in code/render/render.h). Each facility kind with
+that shape shows the model. The model keeps the scale of the shape, so it
+covers the same part of the slot hex. A build in progress shows the model
+under the scaffold.
+
+A model with many triangles costs time on each frame. The map has many
+facilities, so the renderer uses two rules:
+- The renderer draws a model only if the sphere that holds the model is
+  in the view (render_model_in_view).
+- If the camera is farther than 50 units (RENDER_SHAPE_MODEL_MAX_DISTANCE),
+  each facility shows its placeholder shape. The models of the bases stay.
+
+On 2026-10-27 the wide view of the map took 326 ms for each frame with
+the market model and no rules. With the rules it takes 33 ms, the same
+time as without the facility models. A near view with three markets
+takes 22 ms. A new model of a facility must have 40,000 triangles or
+less. The market model has more. Replace it when an export with fewer
+triangles is available. Meshy can export a model with a lower count of
+triangles, for example city-30k.glb.
 
 The scene scales the model to the width of the card of its kind
 (render_base_model_instance in code/render/render.h). A city model is 5
 world units wide. The model stands at the centre of the base. The pixel
 shader model_ps shades the texture with the light of the scene. A flat
 red pixel of the texture takes the colour of the owner, as the red mask
-of the card does.
+of the card does. On the model of a facility, a flat red pixel takes the
+colour of the facility kind (ui_facility_look.cpp).
 
 To import a model, put the GLB in art-src/models, out of git. Then run
-this command from the root of the repository:
+this command from the root of the repository. The name is one of the
+names in the "Files" row.
 
     python -X utf8 misc\glb_import.py art-src\models\<file>.glb base_big_city
 

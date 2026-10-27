@@ -107,6 +107,42 @@ unit_sprite_file_tests(test_counts *counts)
     test_arena_destroy(&arena);
 }
 
+/* The 3D models of the pack (docs/ASSETS.md, "Base models"): the mesh file
+   of each model parses as HXM1, and the decoder reads its texture. The
+   pack has the models of the city, the big city, the market and the farm. */
+internal void
+unit_model_file_tests(test_counts *counts)
+{
+    memory_arena arena = test_arena_create(Megabytes(48));
+    char exe_dir[MAX_PATH], path[MAX_PATH * 2];
+    test_exe_dir(exe_dir, MAX_PATH);
+    const char *names[RENDER_SPRITE_COUNT - RENDER_SPRITE_FIRST_BASE + RENDER_MESH_COUNT] = {};
+    u32 name_count = 0;
+    for (u32 kind = 0; kind < RENDER_SPRITE_COUNT - RENDER_SPRITE_FIRST_BASE; ++kind) names[name_count++] = render_base_model_files[kind];
+    for (u32 mesh_id = 0; mesh_id < RENDER_MESH_COUNT; ++mesh_id) names[name_count++] = render_mesh_model_files[mesh_id];
+    b32 models_read = true;
+    u32 model_count = 0;
+    for (u32 index = 0; index < name_count; ++index)
+    {
+        if (!names[index]) continue;
+        arena.used = 0;
+        snprintf(path, sizeof(path), "%s/../data/placeholder/%s.hxm", exe_dir, names[index]);
+        test_file mesh = test_read_file(path, &arena);
+        if (!mesh.contents) continue;   /* a kind without a model keeps its art card or its shape */
+        render_mesh_file file = {};
+        b32 parsed = render_mesh_file_parse(mesh.contents, mesh.size, &file) && file.index_count % 3 == 0;
+        snprintf(path, sizeof(path), "%s/../data/placeholder/%s.png", exe_dir, names[index]);
+        test_file texture = test_read_file(path, &arena);
+        png_image image = {};
+        if (texture.contents) image = png_decode(texture.contents, texture.size, &arena);
+        models_read &= parsed && texture.contents != 0 && image.error == 0 && image.width > 0 && image.width <= 1024 && image.height <= 1024;
+        model_count++;
+    }
+    TEST_CHECK(counts, models_read && model_count == 4,
+               "the pack has the models of the city, the big city, the market and the farm, and each mesh and texture reads");
+    test_arena_destroy(&arena);
+}
+
 internal void
 unit_png_tests(test_counts *counts)
 {
@@ -155,4 +191,5 @@ unit_png_tests(test_counts *counts)
 
     test_arena_destroy(&arena);
     unit_sprite_file_tests(counts);
+    unit_model_file_tests(counts);
 }

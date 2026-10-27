@@ -600,6 +600,19 @@ global_variable const char *render_base_model_files[RENDER_SPRITE_COUNT - RENDER
     "models/base_city", "models/base_big_city", "models/base_gate", "models/base_port",
 };
 
+/* The 3D models of the placeholder shapes, by render_mesh_id
+   (docs/ASSETS.md, "Base models"). The platform draws the model in place
+   of the shape when the pack has both files. Each facility kind with that
+   shape shows the model (ui_facility_look.cpp). The shapes and the models
+   have a footprint of one unit, so the model keeps the scale of the
+   instance. 0: the shape has no model. */
+global_variable const char *render_mesh_model_files[RENDER_MESH_COUNT] = {
+    0,                          /* RENDER_MESH_SETTLEMENT: a base has the models above */
+    0,                          /* RENDER_MESH_SCAFFOLD */
+    "models/facility_market",   /* RENDER_MESH_STALL: the markets */
+    "models/facility_farm",     /* RENDER_MESH_FIELD: the farms */
+};
+
 /* The instance of the model of a base. misc/glb_import.py makes the
    larger side of the footprint one unit, with the ground at y = 0. The
    model gets the width of the art of its kind, at the centre of the base. */
@@ -609,6 +622,51 @@ render_base_model_instance(const render_mesh_instance *mesh)
     render_mesh_instance model = *mesh;
     model.scale = render_base_art_size_of(mesh->art_sprite).width * mesh->scale;
     return model;
+}
+
+/* The instance of a model. The model of a base covers the base. The model
+   of a shape (render_mesh_model_files) keeps the instance of the shape. */
+internal render_mesh_instance
+render_model_instance(const render_mesh_instance *mesh)
+{
+    if (mesh->art_sprite >= RENDER_SPRITE_FIRST_BASE && mesh->art_sprite < RENDER_SPRITE_COUNT) return render_base_model_instance(mesh);
+    return *mesh;
+}
+
+/* The models of the shapes have many triangles, and the map has many
+   facilities. If the camera is farther than this distance, each facility
+   shows its placeholder shape. The models of the bases stay. */
+#define RENDER_SHAPE_MODEL_MAX_DISTANCE 50.0f
+
+internal b32
+render_shape_models_on(const camera *cam)
+{
+    return cam->distance <= RENDER_SHAPE_MODEL_MAX_DISTANCE;
+}
+
+/* True if a model can be in the view: the sphere that holds the model is
+   not fully outside one of the six planes of the frustum. The sphere has
+   its centre at the instance and the radius of the scale, because a model
+   has a footprint of one unit and is lower than one unit. The matrix takes
+   row vectors, so each plane is a sum of two columns. */
+internal b32
+render_model_in_view(m4 view_projection, const render_mesh_instance *placed)
+{
+    const m4 &vp = view_projection;
+    for (u32 plane = 0; plane < 6; ++plane)
+    {
+        u32 axis = plane / 2;
+        f32 side = (plane & 1) ? -1.0f : 1.0f;
+        f32 a = vp.m[0][3] + side * vp.m[0][axis];
+        f32 b = vp.m[1][3] + side * vp.m[1][axis];
+        f32 c = vp.m[2][3] + side * vp.m[2][axis];
+        f32 d = vp.m[3][3] + side * vp.m[3][axis];
+        f32 length = sqrtf(a * a + b * b + c * c);
+        if (length <= 0.0f) continue;
+        f32 distance = (a * placed->position.x + b * placed->position.y + c * placed->position.z + d) / length;
+        if (distance < -placed->scale) return false;
+    }
+    return true;
 }
 
 #define RENDER_MAX_MESH_INSTANCES 4096
