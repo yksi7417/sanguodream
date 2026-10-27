@@ -595,7 +595,7 @@ feature_civil_war_tests(test_counts *counts)
     fixture.transient = test_arena_create(Megabytes(8));
     engine_config config = engine_default_config();
     config.read_entire_file = test_platform_read_entire_file;
-    config.content_folder   = HEXDOM_DATA_ROOT "\\civil_war";
+    config.content_folder   = HEXDOM_DATA_ROOT "/civil_war";
     fixture.backend = engine_create(&fixture.permanent, &fixture.transient, config);
     fixture.api     = engine_make_api(fixture.backend);
     engine_api *api = &fixture.api;

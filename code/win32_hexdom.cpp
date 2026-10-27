@@ -97,7 +97,8 @@ internal PLATFORM_WRITE_ENTIRE_FILE(win32_write_entire_file)
     else             snprintf(resolved, MAX_PATH, "%s\\%s", g_win32.exe_dir, path);
     char folder[MAX_PATH];
     snprintf(folder, MAX_PATH, "%s", resolved);
-    char *last = strrchr(folder, '\\');
+    char *last = 0;   /* the game writes '/' and the exe folder has '\' */
+    for (char *at = folder; *at; ++at) if (*at == '\\' || *at == '/') last = at;
     if (last) { *last = 0; CreateDirectoryA(folder, 0); }
     HANDLE file = CreateFileA(resolved, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
     if (file == INVALID_HANDLE_VALUE) return false;
@@ -243,7 +244,7 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
     memory_arena renderer_scratch;
     arena_init(&renderer_scratch, malloc((size_t)Megabytes(64)), Megabytes(64));
     d3d11_renderer renderer;
-    if (!d3d11_renderer_init(&renderer, window.device, window.context, data_dir, &renderer_scratch))
+    if (!d3d11_renderer_init(&renderer, window.device, window.context, win32_read_entire_file, data_dir, &renderer_scratch))
     {
         win32_log("platform: scene renderer failed to start, drawing panels only");
         win32_log(renderer.last_error);
@@ -254,7 +255,7 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
     char font_data_dir[MAX_PATH];
     snprintf(font_data_dir, MAX_PATH, "%s\\%s", g_win32.exe_dir, HEXDOM_DATA_ROOT);
     u32 font_pixels = HEXDOM_FONT_DEFAULT_PIXELS;
-    ui_font_result fonts = ui_fonts_load(font_data_dir, HEXDOM_CONTENT_PACK, font_pixels);
+    ui_font_result fonts = ui_fonts_load(win32_read_entire_file, font_data_dir, HEXDOM_CONTENT_PACK, font_pixels);
     win32_log(fonts.message);
 
     /* One memory block for the whole game, carved into permanent, transient
@@ -311,6 +312,7 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
     QueryPerformanceCounter(&last_counter);
 
     u32 frame_index = 0;
+    u64 peak_permanent = 0, peak_transient = 0, peak_frame = 0;   /* logged at exit (docs/WEB.md, the memory budget) */
     while (win32_pump_messages(&window))
     {
         /* Hot reload: when build.bat has written a new DLL (and finished), swap it in. */
@@ -363,6 +365,9 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
 
         win32_render_frame(&window, renderer.ready ? &renderer : 0, commands, &frame);
         win32_present_frame(&window);
+        if (memory.permanent_used > peak_permanent) peak_permanent = memory.permanent_used;
+        if (memory.transient_used > peak_transient) peak_transient = memory.transient_used;
+        if (frame.used > peak_frame) peak_frame = frame.used;
 
         /* A new font size from the Settings panel: the atlas is built again
            between two frames. The DX11 backend makes its font texture again
@@ -373,7 +378,7 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
             font_pixels = memory.font_pixels;
             ImGui_ImplDX11_InvalidateDeviceObjects();
             ImGui::GetIO().Fonts->Clear();
-            fonts = ui_fonts_load(font_data_dir, HEXDOM_CONTENT_PACK, font_pixels);
+            fonts = ui_fonts_load(win32_read_entire_file, font_data_dir, HEXDOM_CONTENT_PACK, font_pixels);
             win32_log(fonts.message);
         }
 
@@ -384,6 +389,13 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
             window.running = false;
         }
     }
+
+    char memory_line[256];
+    snprintf(memory_line, sizeof(memory_line),
+             "platform: peak memory in MB: permanent %.1f of %.0f, transient %.1f of %.0f, frame %.1f of %.0f, renderer scratch %.1f of %.0f",
+             peak_permanent / 1048576.0, memory.permanent_size / 1048576.0, peak_transient / 1048576.0, memory.transient_size / 1048576.0,
+             peak_frame / 1048576.0, frame_size / 1048576.0, renderer_scratch.used / 1048576.0, renderer_scratch.size / 1048576.0);
+    win32_log(memory_line);
 
     d3d11_renderer_destroy(&renderer);
     win32_portraits_close(&g_win32_portraits);

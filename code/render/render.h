@@ -517,19 +517,19 @@ enum render_sprite
 /* The placeholder pictures (misc/make_unit_sprites.py). The four siege
    weapons share one, and the two war ships share one. A base has none. */
 global_variable const char *render_sprite_files[RENDER_SPRITE_COUNT] = {
-    "sprites\\unit.png", "sprites\\sword.png", "sprites\\pike.png", "sprites\\halberd.png", "sprites\\crossbow.png",
-    "sprites\\cavalry.png", "sprites\\siege.png", "sprites\\siege.png", "sprites\\siege.png", "sprites\\siege.png",
-    "sprites\\boat.png", "sprites\\ship.png", "sprites\\ship.png", "sprites\\transport.png",
+    "sprites/unit.png", "sprites/sword.png", "sprites/pike.png", "sprites/halberd.png", "sprites/crossbow.png",
+    "sprites/cavalry.png", "sprites/siege.png", "sprites/siege.png", "sprites/siege.png", "sprites/siege.png",
+    "sprites/boat.png", "sprites/ship.png", "sprites/ship.png", "sprites/transport.png",
     0, 0, 0, 0,
 };
 
 /* The art of each class and of each base kind (misc/art_import.py, from
    the model sheets and the concept sheets). */
 global_variable const char *render_sprite_art_files[RENDER_SPRITE_COUNT] = {
-    0, "sprites\\art\\sword.png", "sprites\\art\\pike.png", "sprites\\art\\halberd.png", "sprites\\art\\crossbow.png",
-    "sprites\\art\\cavalry.png", "sprites\\art\\ram.png", "sprites\\art\\wood_beast.png", "sprites\\art\\tower.png", "sprites\\art\\catapult.png",
-    "sprites\\art\\boat.png", "sprites\\art\\tower_ship.png", "sprites\\art\\battle_ship.png", "sprites\\art\\transport.png",
-    "sprites\\art\\base_city.png", "sprites\\art\\base_big_city.png", "sprites\\art\\base_gate.png", "sprites\\art\\base_port.png",
+    0, "sprites/art/sword.png", "sprites/art/pike.png", "sprites/art/halberd.png", "sprites/art/crossbow.png",
+    "sprites/art/cavalry.png", "sprites/art/ram.png", "sprites/art/wood_beast.png", "sprites/art/tower.png", "sprites/art/catapult.png",
+    "sprites/art/boat.png", "sprites/art/tower_ship.png", "sprites/art/battle_ship.png", "sprites/art/transport.png",
+    "sprites/art/base_city.png", "sprites/art/base_big_city.png", "sprites/art/base_gate.png", "sprites/art/base_port.png",
 };
 
 struct render_billboard
@@ -597,7 +597,7 @@ render_base_billboard(const render_mesh_instance *mesh, camera *cam, f32 aspect)
    fixed on the map when the view turns. The platform draws the model in
    place of the art card when the pack has both files. */
 global_variable const char *render_base_model_files[RENDER_SPRITE_COUNT - RENDER_SPRITE_FIRST_BASE] = {
-    "models\\base_city", "models\\base_big_city", "models\\base_gate", "models\\base_port",
+    "models/base_city", "models/base_big_city", "models/base_gate", "models/base_port",
 };
 
 /* The instance of the model of a base. misc/glb_import.py makes the

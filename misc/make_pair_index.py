@@ -19,7 +19,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PAIRS = os.path.join(ROOT, "spec-src", "spec", "fixtures", "saves", "pairs")
 PACK = os.path.join(ROOT, "data", "placeholder")
-EXE_TO_PAIRS = "..\\spec-src\\spec\\fixtures\\saves\\pairs"
+EXE_TO_PAIRS = "../spec-src/spec/fixtures/saves/pairs"
 
 # The city commands of the 都市 menu that the engine can replay.
 CITY_COMMANDS = {"徵兵": "conscript", "巡察": "patrol", "訓練": "train", "商人": "merchant",
@@ -122,7 +122,7 @@ def main():
             out.append("\t".join([str(row_id), rule, str(int(number)), command, city, facility,
                                   ",".join(str(o) for o in officers) or "-", mode, amount,
                                   ",".join(pair.get("q_ids", [])) or "-",
-                                  EXE_TO_PAIRS + "\\" + rule + "\\" + number]))
+                                  EXE_TO_PAIRS + "/" + rule + "/" + number]))
             row_id += 1
     with open(os.path.join(PACK, "pairs.tsv"), "w", encoding="utf-8", newline="\n") as f:
         f.write("\n".join(out) + "\n")

@@ -242,14 +242,14 @@ main(int argc, char **argv)
     snprintf(data_dir, MAX_PATH, "%s\\..\\data\\placeholder", exe_dir);
     memory_arena frame_arena = test_arena_create(Megabytes(160));   /* M10: the mesh of the 200 x 200 map */
     d3d11_renderer renderer;
-    b32 renderer_ready = d3d11_renderer_init(&renderer, window.device, window.context, data_dir, &frame_arena);
+    b32 renderer_ready = d3d11_renderer_init(&renderer, window.device, window.context, test_platform_read_entire_file, data_dir, &frame_arena);
     if (!renderer_ready) printf("demo_player: scene renderer failed: %s\n", renderer.last_error);
     arena_reset(&frame_arena);
 
     /* The same fonts as the game window, so the video shows the decoded names. */
     char font_data_dir[MAX_PATH];
     snprintf(font_data_dir, MAX_PATH, "%s\\%s", exe_dir, HEXDOM_DATA_ROOT);
-    ui_font_result fonts = ui_fonts_load(font_data_dir, HEXDOM_CONTENT_PACK, HEXDOM_FONT_DEFAULT_PIXELS);
+    ui_font_result fonts = ui_fonts_load(test_platform_read_entire_file, font_data_dir, HEXDOM_CONTENT_PACK, HEXDOM_FONT_DEFAULT_PIXELS);
     printf("%s\n", fonts.message);
 
     /* The default portraits, as in the game window. */

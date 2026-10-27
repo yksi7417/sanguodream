@@ -389,11 +389,11 @@ text_catalog_load_table(text_catalog *catalog, const char *folder, const char *s
     u32 used = 0;
     path[0] = 0;
     text_append(path, sizeof(path), &used, catalog->data_root);
-    text_append(path, sizeof(path), &used, "\\");
+    text_append(path, sizeof(path), &used, "/");
     text_append(path, sizeof(path), &used, catalog->pack);
-    text_append(path, sizeof(path), &used, "\\");
+    text_append(path, sizeof(path), &used, "/");
     text_append(path, sizeof(path), &used, folder);
-    text_append(path, sizeof(path), &used, "\\");
+    text_append(path, sizeof(path), &used, "/");
     text_append(path, sizeof(path), &used, stem);
     text_append(path, sizeof(path), &used, ".tsv");
     read_file_result file = catalog->read_entire_file(path, &catalog->arena);

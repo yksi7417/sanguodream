@@ -11,7 +11,7 @@ engine_read_map_text(engine *e, const char *folder, u32 *width, u32 *height)
 {
     if (!e->read_entire_file || !folder || !folder[0]) return 0;
     char path[260];
-    snprintf(path, sizeof(path), "%s\\map\\hexes.tsv", folder);
+    snprintf(path, sizeof(path), "%s/map/hexes.tsv", folder);
     read_file_result file = e->read_entire_file(path, e->transient);
     if (!file.contents) return 0;
     char *text = (char *)arena_push_size(e->transient, file.size + 1, 1);
@@ -66,7 +66,7 @@ engine_load_pack_map(engine *e, const char *folder, const char *hexes_text)
     {
         arena_reset(&e->scratch);
         tsv_table bases = {};
-        if (!engine_read_table(e, folder, "map\\bases.tsv", &bases)) result = sim_map_result(false, "map\\bases.tsv not found", 0);
+        if (!engine_read_table(e, folder, "map/bases.tsv", &bases)) result = sim_map_result(false, "map/bases.tsv not found", 0);
         else                                                       result = sim_map_load_bases(sim, &bases);
         arena_reset(&e->scratch);
     }

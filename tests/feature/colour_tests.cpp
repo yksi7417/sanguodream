@@ -137,7 +137,7 @@ feature_colour_save_tests(test_counts *counts)
 internal void
 feature_colour_tests(test_counts *counts)
 {
-    feature_pack_colour_tests(counts, HEXDOM_DATA_ROOT "\\" HEXDOM_CONTENT_PACK);
-    feature_pack_colour_tests(counts, HEXDOM_DATA_ROOT "\\civil_war");
+    feature_pack_colour_tests(counts, HEXDOM_DATA_ROOT "/" HEXDOM_CONTENT_PACK);
+    feature_pack_colour_tests(counts, HEXDOM_DATA_ROOT "/civil_war");
     feature_colour_save_tests(counts);
 }

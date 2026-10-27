@@ -48,6 +48,8 @@ decompilation of it.
                              start at 00-reading-order.md
 - docs/ASSETS.md             fonts and other assets, with their licences
 - docs/GRAPHICS.md           the plan for the art and the animation (G1-G6)
+- docs/WEB.md                the WebAssembly build: the plan, the status of
+                             phase 0 and the memory budget
 - docs/art/GEMINI-PROMPTS.md the prompts that make the art with Gemini
 
 ## Build and run

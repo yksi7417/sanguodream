@@ -19,6 +19,37 @@ struct render_mesh_vertex
     f32 u, v;
 };
 
+/* The mesh file of a model (misc/glb_import.py): "HXM1", the u32 vertex
+   count, the u32 index count, the vertices as render_mesh_vertex, then
+   the u32 indices. The parser points into the data and copies nothing.
+   Each renderer makes its GPU buffers from the result. */
+struct render_mesh_file
+{
+    const render_mesh_vertex *vertices;
+    u32                       vertex_count;
+    const u32                *indices;
+    u32                       index_count;
+};
+
+#define RENDER_MESH_FILE_HEADER_SIZE 12
+
+internal b32
+render_mesh_file_parse(const u8 *data, u64 size, render_mesh_file *out)
+{
+    if (!data || size < RENDER_MESH_FILE_HEADER_SIZE || memcmp(data, "HXM1", 4) != 0) return false;
+    u32 vertex_count = 0, index_count = 0;
+    memcpy(&vertex_count, data + 4, 4);
+    memcpy(&index_count, data + 8, 4);
+    u64 vertex_bytes = (u64)vertex_count * sizeof(render_mesh_vertex);
+    u64 needed = RENDER_MESH_FILE_HEADER_SIZE + vertex_bytes + (u64)index_count * 4;
+    if (size < needed || !vertex_count || !index_count) return false;
+    out->vertices     = (const render_mesh_vertex *)(data + RENDER_MESH_FILE_HEADER_SIZE);
+    out->vertex_count = vertex_count;
+    out->indices      = (const u32 *)(data + RENDER_MESH_FILE_HEADER_SIZE + vertex_bytes);
+    out->index_count  = index_count;
+    return true;
+}
+
 #define PLACEHOLDER_MESH_MAX_VERTICES 1024
 #define PLACEHOLDER_MESH_MAX_INDICES  2048
 

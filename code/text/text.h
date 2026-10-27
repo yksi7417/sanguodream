@@ -116,7 +116,7 @@ struct text_catalog
 {
     platform_read_entire_file *read_entire_file;
     memory_arena arena;                       /* the files and tables; reset by each locale change */
-    char         data_root[TEXT_PATH_SIZE];   /* relative to the executable, for example "..\\data" */
+    char         data_root[TEXT_PATH_SIZE];   /* relative to the executable, for example "../data" */
     char         pack[TEXT_PACK_SIZE];
     char         locale[TEXT_LOCALE_SIZE];
     char         fallback_locale[TEXT_LOCALE_SIZE];

@@ -12,8 +12,8 @@
    messages the engine counts the files S11MSG00..03.s11 of the install. It
    does not decode them. content_source reports the source of each asset. */
 
-#define ENGINE_INSTALL_SCENARIO_FOLDER "media\\scenario"
-#define ENGINE_INSTALL_MESSAGE_FOLDER  "media\\msg"
+#define ENGINE_INSTALL_SCENARIO_FOLDER "media/scenario"
+#define ENGINE_INSTALL_MESSAGE_FOLDER  "media/msg"
 #define ENGINE_INSTALL_MESSAGE_FILES   4     /* S11MSG00..03.s11 (formats/binary-identity.md) */
 #define ENGINE_INSTALL_PATH_RESERVE    40    /* the longest file name under the folder, with its NUL */
 
@@ -36,7 +36,7 @@ internal b32
 engine_read_install_scenario(engine *e, const char *folder, u32 number, engine_install_scenario *out)
 {
     *out = {};
-    snprintf(out->file, sizeof(out->file), "%s\\" ENGINE_INSTALL_SCENARIO_FOLDER "\\SCEN%03u.s11", folder, number);
+    snprintf(out->file, sizeof(out->file), "%s/" ENGINE_INSTALL_SCENARIO_FOLDER "/SCEN%03u.s11", folder, number);
     engine_load_result result;
     read_file_result file;
     if (!engine_read_file_to_scratch(e, out->file, &file, &result)) return false;
@@ -83,12 +83,12 @@ engine_api_set_install_folder(void *opaque, const char *folder)
     }
 
     char names_path[ENGINE_PATH_SIZE];
-    snprintf(names_path, sizeof(names_path), "%s\\" ENGINE_INSTALL_SCENARIO_FOLDER "\\Scenario.s11", folder);
+    snprintf(names_path, sizeof(names_path), "%s/" ENGINE_INSTALL_SCENARIO_FOLDER "/Scenario.s11", folder);
     engine_load_result names = engine_api_load_name_index(e, names_path);
     b32 names_loaded = names.status == ENGINE_LOAD_OK;
     if (!names_loaded && scenario_count == 0)
     {
-        result.detail = "the folder has no Scenario.s11 and no SCEN000..013.s11 under media\\scenario";
+        result.detail = "the folder has no Scenario.s11 and no SCEN000..013.s11 under media/scenario";
         return result;
     }
 
@@ -101,7 +101,7 @@ engine_api_set_install_folder(void *opaque, const char *folder)
     for (u32 index = 0; index < ENGINE_INSTALL_MESSAGE_FILES; ++index)
     {
         char path[ENGINE_PATH_SIZE];
-        snprintf(path, sizeof(path), "%s\\" ENGINE_INSTALL_MESSAGE_FOLDER "\\S11MSG%02u.s11", folder, index);
+        snprintf(path, sizeof(path), "%s/" ENGINE_INSTALL_MESSAGE_FOLDER "/S11MSG%02u.s11", folder, index);
         if (engine_install_file_exists(e, path)) e->install_message_files++;
     }
 

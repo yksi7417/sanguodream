@@ -35,7 +35,7 @@ struct game_state
     ui_state     ui;
 };
 
-extern "C" __declspec(dllexport)
+HEXDOM_EXPORT
 GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
     /* ImGui globals are per module: bind this DLL's copy to the exe's context
@@ -99,4 +99,6 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     ui_draw(&game->ui, &game->api, &frame_info);
     memory->quit_requested = game->ui.quit_requested;
     memory->font_pixels    = (u32)game->ui.font_size;
+    memory->permanent_used = sizeof(game_state) + game->permanent.used;
+    memory->transient_used = game->transient.used;
 }

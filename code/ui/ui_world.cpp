@@ -8,8 +8,8 @@
    through city_name_at. Until a name index loads, the Cities panel shows
    "-" in the name column. */
 
-#define UI_SAMPLE_SAVE_PATH "..\\spec-src\\spec\\fixtures\\saves\\sample.s11"
-#define UI_NAME_INDEX_PATH  "..\\spec-src\\spec\\fixtures\\scenarios\\Scenario.s11"
+#define UI_SAMPLE_SAVE_PATH "../spec-src/spec/fixtures/saves/sample.s11"
+#define UI_NAME_INDEX_PATH  "../spec-src/spec/fixtures/scenarios/Scenario.s11"
 #define UI_NO_ID_16         0xFFFF
 #define UI_NO_ID_8          0xFF
 

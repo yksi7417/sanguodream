@@ -307,5 +307,30 @@ unit_render_tests(test_counts *counts)
     u32 ground = 0;
     for (u32 i = 0; i < port.vertex_count; ++i) ground += port.vertices[i].position.y == 0.0f;
     TEST_CHECK(counts, quay && ground >= 8 && gate.index_count != port.index_count, "the port has a quay on the ground and differs from the gate");
+
+    /* The mesh file of a model (misc/glb_import.py): "HXM1", the vertex
+       count, the index count, the vertices and the indices. Each renderer
+       reads it through this parser. */
+    struct { char magic[4]; u32 vertex_count, index_count; render_mesh_vertex vertices[3]; u32 indices[3]; } file = {};
+    memcpy(file.magic, "HXM1", 4);
+    file.vertex_count = 3;
+    file.index_count  = 3;
+    file.vertices[1].position = v3_make(1, 0, 0);
+    file.vertices[2].position = v3_make(0, 1, 0);
+    file.indices[0] = 0; file.indices[1] = 1; file.indices[2] = 2;
+    render_mesh_file parsed = {};
+    b32 parsed_ok = render_mesh_file_parse((const u8 *)&file, sizeof(file), &parsed);
+    TEST_CHECK(counts, parsed_ok && parsed.vertex_count == 3 && parsed.index_count == 3 &&
+                       parsed.vertices[2].position.y == 1.0f && parsed.indices[2] == 2,
+               "the mesh file parser finds the vertices and the indices");
+    TEST_CHECK(counts, !render_mesh_file_parse((const u8 *)&file, sizeof(file) - 4, &parsed),
+               "the mesh file parser refuses a file shorter than its counts");
+    file.index_count = 0x40000000u;
+    TEST_CHECK(counts, !render_mesh_file_parse((const u8 *)&file, sizeof(file), &parsed),
+               "the mesh file parser refuses an index count past the end of the file");
+    file.index_count = 3;
+    file.magic[3] = '2';
+    TEST_CHECK(counts, !render_mesh_file_parse((const u8 *)&file, sizeof(file), &parsed),
+               "the mesh file parser refuses a file without the HXM1 tag");
     test_arena_destroy(&arena);
 }

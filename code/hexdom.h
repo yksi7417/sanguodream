@@ -9,10 +9,10 @@
 struct ImGuiContext;
 
 /* The data folder and the content pack. A relative path is relative to the
-   folder of the executable (build\), so "..\data" is data\ in the repository.
+   folder of the executable (build/), so "../data" is data/ in the repository.
    The DLL reads its text files there, and the platform layer reads the
-   fonts in data\fonts. */
-#define HEXDOM_DATA_ROOT    "..\\data"
+   fonts in data/fonts. */
+#define HEXDOM_DATA_ROOT    "../data"
 #define HEXDOM_CONTENT_PACK "placeholder"
 
 /* The font size in pixels. The UI keeps the setting; the platform layer
@@ -41,7 +41,7 @@ typedef PLATFORM_LOG(platform_log);
    path is relative to the folder of the executable. Each content pack uses
    these portraits. The archive is not in git. If the file is absent, the
    UI shows the first character of the name in place of a portrait. */
-#define HEXDOM_PORTRAIT_ARCHIVE "..\\data\\civil_war\\Portraits.zip"
+#define HEXDOM_PORTRAIT_ARCHIVE "../data/civil_war/Portraits.zip"
 
 struct portrait_list;   /* render/portraits.h */
 
@@ -95,10 +95,24 @@ struct game_memory
     platform_api platform;
     b32   quit_requested;   /* M9: the game asks the platform to close the window (結束遊戲) */
     u32   font_pixels;      /* the font size that the UI wants; the platform builds the atlas again when it differs (0: the default) */
+    u64   permanent_used;   /* the use of the two blocks after each frame. The platform logs */
+    u64   transient_used;   /* the peak, to size the blocks of each platform (docs/WEB.md)  */
 };
 
 #define GAME_UPDATE_AND_RENDER(name) void name(game_memory *memory, game_input *input, \
                                               ImGuiContext *imgui, memory_arena *frame)
 typedef GAME_UPDATE_AND_RENDER(game_update_and_render);
+
+/* The DLL exports the entry point. With HEXDOM_STATIC_GAME, the platform
+   layer includes hexdom.cpp in its own unit and calls the entry point
+   directly. The web build does this, because it has no DLL and no hot
+   reload. */
+#if defined(HEXDOM_STATIC_GAME)
+#define HEXDOM_EXPORT extern "C"
+#elif defined(_WIN32)
+#define HEXDOM_EXPORT extern "C" __declspec(dllexport)
+#else
+#define HEXDOM_EXPORT extern "C" __attribute__((visibility("default")))
+#endif
 
 #endif /* HEXDOM_H */

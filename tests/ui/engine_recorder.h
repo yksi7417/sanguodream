@@ -1877,7 +1877,7 @@ internal engine_replay_pair recorder_replay_pair_at(void *o, u32 index)
     engine_replay_pair pair = {};
     snprintf(pair.rule, sizeof(pair.rule), "%s", index == 0 ? "develop" : "conscript");
     pair.number = 1;
-    snprintf(pair.folder, sizeof(pair.folder), "pairs\\%s\\001", pair.rule);
+    snprintf(pair.folder, sizeof(pair.folder), "pairs/%s/001", pair.rule);
     snprintf(pair.q_ids, sizeof(pair.q_ids), "Q-153");
     pair.command.kind    = (u8)(index == 0 ? ENGINE_REPLAY_DEVELOP : ENGINE_REPLAY_CONSCRIPT);
     pair.command.city_id = 27;

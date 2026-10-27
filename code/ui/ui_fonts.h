@@ -17,13 +17,14 @@
 
 #include <stdio.h>
 #include "imgui.h"
-#include "imgui_internal.h"     /* ImFileLoadToMemory */
-#include "hexdom.h"             /* the font size limits */
+#include "hexdom.h"             /* the font size limits, the file reader of the platform */
 #include "text/text.h"
 
 #define UI_FONT_CJK_FILE   "NotoSansCJKtc-Regular.otf"   /* Latin, CJK, kana and Hangul */
 #define UI_FONT_THAI_FILE  "NotoSansThai-Regular.ttf"    /* merged into the CJK font */
 #define UI_FONT_PATH_SIZE  512
+#define UI_FONT_FILE_MAX_SIZE  Megabytes(24)   /* the CJK font is 16.4 MB */
+#define UI_FONT_TEXT_MAX_SIZE  Megabytes(8)    /* one text or names file of a locale */
 
 struct ui_font_result
 {
@@ -52,21 +53,35 @@ global_variable const ImWchar ui_font_thai_ranges[] =
     0,
 };
 
-internal b32
-ui_fonts_file_exists(const char *path)
+/* Reads a whole file through the platform. The result comes from IM_ALLOC,
+   with a NUL after the last byte, and the caller frees it with IM_FREE.
+   Zero if the file is absent or larger than max_size. All file reads go
+   through the platform, so the web build can read its packed files. */
+internal void *
+ui_fonts_read_file(platform_read_entire_file *read_file, const char *path, u64 max_size, u64 *size_out)
 {
-    FILE *file = fopen(path, "rb");
-    if (!file) return false;
-    fclose(file);
-    return true;
+    void *scratch = IM_ALLOC((size_t)max_size);
+    memory_arena arena;
+    arena_init(&arena, scratch, max_size);
+    read_file_result file = read_file(path, &arena);
+    void *result = 0;
+    if (file.contents)
+    {
+        result = IM_ALLOC((size_t)file.size + 1);
+        memcpy(result, file.contents, (size_t)file.size);
+        ((u8 *)result)[file.size] = 0;
+        *size_out = file.size;
+    }
+    IM_FREE(scratch);
+    return result;
 }
 
 /* Adds each character of a UTF-8 file. A missing file adds nothing. */
 internal void
-ui_fonts_add_file_text(ImFontGlyphRangesBuilder *builder, const char *path)
+ui_fonts_add_file_text(ImFontGlyphRangesBuilder *builder, platform_read_entire_file *read_file, const char *path)
 {
-    size_t size = 0;
-    void *contents = ImFileLoadToMemory(path, "rb", &size, 1);
+    u64 size = 0;
+    void *contents = ui_fonts_read_file(read_file, path, UI_FONT_TEXT_MAX_SIZE, &size);
     if (!contents) return;
     builder->AddText((const char *)contents, (const char *)contents + size);
     IM_FREE(contents);
@@ -74,12 +89,13 @@ ui_fonts_add_file_text(ImFontGlyphRangesBuilder *builder, const char *path)
 
 /* Adds the text files and the names files of each locale of the pack. */
 internal void
-ui_fonts_add_pack_text(ImFontGlyphRangesBuilder *builder, const char *data_dir, const char *pack)
+ui_fonts_add_pack_text(ImFontGlyphRangesBuilder *builder, platform_read_entire_file *read_file,
+                       const char *data_dir, const char *pack)
 {
     char path[UI_FONT_PATH_SIZE];
-    snprintf(path, sizeof(path), "%s\\%s\\text\\locales.tsv", data_dir, pack);
-    size_t size = 0;
-    void *contents = ImFileLoadToMemory(path, "rb", &size, 1);
+    snprintf(path, sizeof(path), "%s/%s/text/locales.tsv", data_dir, pack);
+    u64 size = 0;
+    void *contents = ui_fonts_read_file(read_file, path, UI_FONT_TEXT_MAX_SIZE, &size);
     if (!contents) return;
     builder->AddText((const char *)contents, (const char *)contents + size);
 
@@ -91,22 +107,23 @@ ui_fonts_add_pack_text(ImFontGlyphRangesBuilder *builder, const char *data_dir, 
     for (u32 row = 0; row < locales.row_count; ++row)
     {
         if (!text_is_locale_code(locales.row_keys[row])) continue;
-        snprintf(path, sizeof(path), "%s\\%s\\text\\%s.tsv", data_dir, pack, locales.row_keys[row]);
-        ui_fonts_add_file_text(builder, path);
-        snprintf(path, sizeof(path), "%s\\%s\\names\\%s.tsv", data_dir, pack, locales.row_keys[row]);
-        ui_fonts_add_file_text(builder, path);
+        snprintf(path, sizeof(path), "%s/%s/text/%s.tsv", data_dir, pack, locales.row_keys[row]);
+        ui_fonts_add_file_text(builder, read_file, path);
+        snprintf(path, sizeof(path), "%s/%s/names/%s.tsv", data_dir, pack, locales.row_keys[row]);
+        ui_fonts_add_file_text(builder, read_file, path);
     }
     IM_FREE(arena_memory);
     IM_FREE(contents);
 }
 
-/* Loads the fonts from <data_dir>\fonts into the atlas of the current
+/* Loads the fonts from <data_dir>/fonts into the atlas of the current
    ImGui context, at pixel_size pixels. data_dir is a full path, for
-   example "C:\src\hexdom\build\..\data". To change the size while the
-   window is open: invalidate the device objects of the renderer backend,
-   clear io.Fonts, and call this again between two frames. */
+   example "C:\src\hexdom\build\..\data". read_file is the file reader of
+   the platform. To change the size while the window is open: invalidate
+   the device objects of the renderer backend, clear io.Fonts, and call
+   this again between two frames. */
 internal ui_font_result
-ui_fonts_load(const char *data_dir, const char *pack, u32 pixel_size)
+ui_fonts_load(platform_read_entire_file *read_file, const char *data_dir, const char *pack, u32 pixel_size)
 {
     ui_font_result result = {};
     ImGuiIO &io = ImGui::GetIO();
@@ -114,14 +131,17 @@ ui_fonts_load(const char *data_dir, const char *pack, u32 pixel_size)
     f32 size = (f32)pixel_size;
     char cjk_path[UI_FONT_PATH_SIZE];
     char thai_path[UI_FONT_PATH_SIZE];
-    snprintf(cjk_path, sizeof(cjk_path), "%s\\fonts\\%s", data_dir, UI_FONT_CJK_FILE);
-    snprintf(thai_path, sizeof(thai_path), "%s\\fonts\\%s", data_dir, UI_FONT_THAI_FILE);
+    snprintf(cjk_path, sizeof(cjk_path), "%s/fonts/%s", data_dir, UI_FONT_CJK_FILE);
+    snprintf(thai_path, sizeof(thai_path), "%s/fonts/%s", data_dir, UI_FONT_THAI_FILE);
 
-    if (!ui_fonts_file_exists(cjk_path))
+    /* The atlas owns the font data and frees it with IM_FREE. */
+    u64 cjk_size = 0;
+    void *cjk_data = ui_fonts_read_file(read_file, cjk_path, UI_FONT_FILE_MAX_SIZE, &cjk_size);
+    if (!cjk_data)
     {
         io.Fonts->AddFontDefault();
         snprintf(result.message, sizeof(result.message),
-                 "fonts: %s not found; the default font shows Latin only (see docs\\ASSETS.md)", UI_FONT_CJK_FILE);
+                 "fonts: %s not found; the default font shows Latin only (see docs/ASSETS.md)", UI_FONT_CJK_FILE);
         return result;
     }
 
@@ -137,7 +157,7 @@ ui_fonts_load(const char *data_dir, const char *pack, u32 pixel_size)
             if (big5_rows[row][index]) builder.AddChar((ImWchar)big5_rows[row][index]);
         }
     }
-    ui_fonts_add_pack_text(&builder, data_dir, pack);
+    ui_fonts_add_pack_text(&builder, read_file, data_dir, pack);
     ui_font_glyph_ranges.clear();
     builder.BuildRanges(&ui_font_glyph_ranges);
     for (int index = 0; index + 1 < ui_font_glyph_ranges.Size; index += 2)
@@ -150,17 +170,19 @@ ui_fonts_load(const char *data_dir, const char *pack, u32 pixel_size)
     config.OversampleH = 1;
     config.OversampleV = 1;
     config.PixelSnapH  = true;
-    result.loaded_cjk = io.Fonts->AddFontFromFileTTF(cjk_path, size, &config, ui_font_glyph_ranges.Data) != 0;
+    result.loaded_cjk = io.Fonts->AddFontFromMemoryTTF(cjk_data, (int)cjk_size, size, &config, ui_font_glyph_ranges.Data) != 0;
     if (!result.loaded_cjk)
     {
         io.Fonts->AddFontDefault();
         snprintf(result.message, sizeof(result.message), "fonts: %s did not load; the default font shows Latin only", cjk_path);
         return result;
     }
-    if (ui_fonts_file_exists(thai_path))
+    u64 thai_size = 0;
+    void *thai_data = ui_fonts_read_file(read_file, thai_path, UI_FONT_FILE_MAX_SIZE, &thai_size);
+    if (thai_data)
     {
         config.MergeMode = true;
-        result.loaded_thai = io.Fonts->AddFontFromFileTTF(thai_path, size, &config, ui_font_thai_ranges) != 0;
+        result.loaded_thai = io.Fonts->AddFontFromMemoryTTF(thai_data, (int)thai_size, size, &config, ui_font_thai_ranges) != 0;
     }
     snprintf(result.message, sizeof(result.message), "fonts: %s%s, %u code points, %u px",
              UI_FONT_CJK_FILE, result.loaded_thai ? " + " UI_FONT_THAI_FILE : "", result.glyph_count, pixel_size);

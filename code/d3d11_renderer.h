@@ -9,6 +9,7 @@
 #include <d3d11.h>
 #include <d3dcompiler.h>
 #include "base.h"
+#include "hexdom.h"             /* the file reader of the platform */
 #include "render/render.h"
 #include "render/terrain_mesh.h"
 #include "render/placeholder_meshes.h"
@@ -77,6 +78,7 @@ struct d3d11_renderer
     ID3D11Device            *device;
     ID3D11DeviceContext     *context;
     char                     data_dir[260];
+    platform_read_entire_file *read_file;   /* the file reader of the platform */
 
     ID3D11VertexShader      *terrain_vs;
     ID3D11PixelShader       *terrain_ps;
@@ -233,26 +235,16 @@ d3d11_make_texture(d3d11_renderer *r, const u32 *rgba, u32 width, u32 height, b3
     return view;
 }
 
-/* Reads a whole file from data_dir into the arena; zero size when absent. */
+/* Reads a whole file of data_dir into the arena through the file reader
+   of the platform; zero size when absent. */
 internal u8 *
 d3d11_read_data_file(d3d11_renderer *r, const char *relative, memory_arena *arena, u64 *size_out)
 {
     char path[520];
-    snprintf(path, sizeof(path), "%s\\%s", r->data_dir, relative);
-    *size_out = 0;
-    HANDLE file = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
-    if (file == INVALID_HANDLE_VALUE) return 0;
-    LARGE_INTEGER size;
-    u8 *data = 0;
-    if (GetFileSizeEx(file, &size) && size.QuadPart > 0 && (u64)size.QuadPart + 16 < arena->size - arena->used)
-    {
-        data = PushArray(arena, (u64)size.QuadPart, u8);
-        DWORD read = 0;
-        if (ReadFile(file, data, (DWORD)size.QuadPart, &read, 0) && read == (DWORD)size.QuadPart) *size_out = read;
-        else data = 0;
-    }
-    CloseHandle(file);
-    return data;
+    snprintf(path, sizeof(path), "%s/%s", r->data_dir, relative);
+    read_file_result file = r->read_file(path, arena);
+    *size_out = file.contents ? file.size : 0;
+    return *size_out ? (u8 *)file.contents : 0;
 }
 
 /* The placeholder material atlas: one flat colour tile per terrain kind,
@@ -317,20 +309,17 @@ d3d11_placeholder_mesh(d3d11_renderer *r, u32 mesh_id, memory_arena *arena, d3d1
     return mesh->vertices && mesh->indices;
 }
 
-/* The engine's flat mesh file: "HXM1", u32 vertex count, u32 index count,
-   vertices (position, normal, uv as 8 floats), indices (u32). */
+/* A mesh file of the pack (render_mesh_file_parse) as a GPU mesh. */
 internal b32
 d3d11_load_mesh_file(d3d11_renderer *r, const char *relative, memory_arena *arena, d3d11_mesh *mesh)
 {
     u64 size = 0;
     u8 *data = d3d11_read_data_file(r, relative, arena, &size);
-    if (!data || size < 12 || memcmp(data, "HXM1", 4) != 0) return false;
-    u32 vertex_count = *(u32 *)(data + 4), index_count = *(u32 *)(data + 8);
-    u64 needed = 12 + (u64)vertex_count * sizeof(d3d11_mesh_vertex) + (u64)index_count * 4;
-    if (size < needed || !vertex_count || !index_count) return false;
-    mesh->vertices = d3d11_make_buffer(r, data + 12, vertex_count * (u32)sizeof(d3d11_mesh_vertex), D3D11_BIND_VERTEX_BUFFER, false);
-    mesh->indices  = d3d11_make_buffer(r, data + 12 + (u64)vertex_count * sizeof(d3d11_mesh_vertex), index_count * 4, D3D11_BIND_INDEX_BUFFER, false);
-    mesh->index_count = index_count;
+    render_mesh_file file = {};
+    if (!render_mesh_file_parse(data, size, &file)) return false;
+    mesh->vertices = d3d11_make_buffer(r, file.vertices, file.vertex_count * (u32)sizeof(d3d11_mesh_vertex), D3D11_BIND_VERTEX_BUFFER, false);
+    mesh->indices  = d3d11_make_buffer(r, file.indices, file.index_count * 4, D3D11_BIND_INDEX_BUFFER, false);
+    mesh->index_count = file.index_count;
     return mesh->vertices && mesh->indices;
 }
 
@@ -389,10 +378,11 @@ d3d11_load_base_model(d3d11_renderer *r, const char *name, memory_arena *arena, 
 
 internal b32
 d3d11_renderer_init(d3d11_renderer *r, ID3D11Device *device, ID3D11DeviceContext *context,
-                    const char *data_dir, memory_arena *scratch)
+                    platform_read_entire_file *read_file, const char *data_dir, memory_arena *scratch)
 {
     *r = {};
     r->device = device; r->context = context;
+    r->read_file = read_file;
     snprintf(r->data_dir, sizeof(r->data_dir), "%s", data_dir);
 
     ID3DBlob *vs_blob = 0, *ps_blob = 0;

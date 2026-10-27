@@ -3300,8 +3300,8 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->Yield(2);
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_REPLAY_PAIR), 1u);
         IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_REPLAY_PAIR), (u32)ENGINE_REPLAY_DEVELOP);
-        IM_CHECK_STR_EQ(v.recorder.last_replay_before, "pairs\\develop\\001\\before.s11");
-        IM_CHECK_STR_EQ(v.recorder.last_replay_after, "pairs\\develop\\001\\after.s11");
+        IM_CHECK_STR_EQ(v.recorder.last_replay_before, "pairs/develop/001/before.s11");
+        IM_CHECK_STR_EQ(v.recorder.last_replay_after, "pairs/develop/001/after.s11");
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
         IM_CHECK(ctx->ItemExists("fidelity_diffs"));
         IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_REPLAY_DIFF_AT), 1u);

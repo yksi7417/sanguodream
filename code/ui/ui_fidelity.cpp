@@ -40,8 +40,8 @@ ui_draw_fidelity_pairs(ui_state *ui, engine_api *api)
         if (ImGui::SmallButton(label))
         {
             char before[ENGINE_REPLAY_PATH_SIZE + 16], after[ENGINE_REPLAY_PATH_SIZE + 16];
-            snprintf(before, sizeof(before), "%s\\before.s11", pair.folder);
-            snprintf(after, sizeof(after), "%s\\after.s11", pair.folder);
+            snprintf(before, sizeof(before), "%s/before.s11", pair.folder);
+            snprintf(after, sizeof(after), "%s/after.s11", pair.folder);
             ui->fidelity.report     = api->replay_pair(e, before, &pair.command, after);
             ui->fidelity.pair       = index;
             ui->fidelity.has_report = true;

@@ -21,24 +21,24 @@ struct test_text_file
 
 global_variable const test_text_file test_text_files[] =
 {
-    { "root\\pack\\text\\locales.tsv",
+    { "root/pack/text/locales.tsv",
       "code\tname\n"
       "zh-TW\t\xE7\xB9\x81\xE9\xAB\x94\xE4\xB8\xAD\xE6\x96\x87\n"
       "en\tEnglish\n"
       "ko\t\xED\x95\x9C\xEA\xB5\xAD\xEC\x96\xB4\n"
       "../bad\tnot a locale code\n" },
-    { "root\\pack\\text\\en.tsv",
+    { "root/pack/text/en.tsv",
       "id\ttext\tnote\n"
       "menu.windows\tWindows\tthe main menu\n"
       "only.en\tOnly English\n"
       "status.0\tRuler\n"
       "status.8\tDead\n" },
-    { "root\\pack\\text\\zh-TW.tsv",
+    { "root/pack/text/zh-TW.tsv",
       "\xEF\xBB\xBFid\ttext\r\n"
       "# a comment\r\n"
       "menu.windows\t" TEST_UTF8_WINDOW "\r\n"
       "status.0\t" TEST_UTF8_RULER "\r\n" },
-    { "root\\pack\\names\\en.tsv",
+    { "root/pack/names/en.tsv",
       "key\ttext\n"
       "B1E4\tCao\n" },
 };

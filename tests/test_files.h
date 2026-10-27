@@ -102,7 +102,8 @@ internal PLATFORM_WRITE_ENTIRE_FILE(test_platform_write_entire_file)
     }
     char folder[MAX_PATH];
     snprintf(folder, MAX_PATH, "%s", resolved);
-    char *last = strrchr(folder, '\\');
+    char *last = 0;   /* the game writes '/' and the exe folder has '\' */
+    for (char *at = folder; *at; ++at) if (*at == '\\' || *at == '/') last = at;
     if (last) { *last = 0; CreateDirectoryA(folder, 0); }
     FILE *file = fopen(resolved, "wb");
     if (!file) return false;

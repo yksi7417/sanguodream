@@ -179,7 +179,7 @@ engine_save_get(engine_save_cursor *cursor, void *data, u64 size)
 internal void
 engine_save_path(engine *e, u32 slot, char *out, u32 out_size)
 {
-    snprintf(out, out_size, "%s\\slot_%02u.hxs", e->save_folder, slot + 1);
+    snprintf(out, out_size, "%s/slot_%02u.hxs", e->save_folder, slot + 1);
 }
 
 internal engine_save_header
@@ -323,6 +323,22 @@ engine_api_save_game(void *opaque, u32 slot, const char *comment)
     return ENGINE_SAVE_OK;
 }
 
+/* True if two paths name the same folder. A '\' and a '/' are the same
+   character, because the saves of the builds before 2026-10-27 have
+   "..\data\placeholder" and the later builds have "../data/placeholder". */
+internal b32
+engine_same_path(const char *a, const char *b)
+{
+    for (;; ++a, ++b)
+    {
+        b32 a_separator = *a == '\\' || *a == '/';
+        b32 b_separator = *b == '\\' || *b == '/';
+        if (a_separator != b_separator) return false;
+        if (!a_separator && *a != *b) return false;
+        if (!*a) return true;
+    }
+}
+
 /* Reads and checks the header of a slot file. The file stays in the
    transient arena above mark; the caller resets it. */
 internal engine_save_status
@@ -381,7 +397,7 @@ engine_read_slot(engine *e, u32 slot, engine_save_header *header, engine_save_cu
        still loads. */
     if (header->version < 3 && header->sim_size != 511304) return ENGINE_SAVE_OTHER_VERSION;
     header->pack[sizeof(header->pack) - 1] = 0;
-    if (strcmp(header->pack, e->content_folder) != 0) return ENGINE_SAVE_OTHER_PACK;
+    if (!engine_same_path(header->pack, e->content_folder)) return ENGINE_SAVE_OTHER_PACK;
     return ENGINE_SAVE_OK;
 }
 

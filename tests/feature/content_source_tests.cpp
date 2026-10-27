@@ -89,7 +89,7 @@ feature_content_source_install_tests(test_counts *counts)
 
     engine_content_source names = api->content_source(e, ENGINE_ASSET_CITY_NAMES);
     TEST_CHECK(counts, names.source == ENGINE_SOURCE_INSTALL && names.count == SCENARIO_CITY_COUNT &&
-                       strstr(names.path, "media\\scenario\\Scenario.s11") != 0,
+                       strstr(names.path, "media/scenario/Scenario.s11") != 0,
                "the city names come from Scenario.s11 of the install");
 
     engine_fixture pack;
@@ -113,7 +113,7 @@ feature_content_source_install_tests(test_counts *counts)
     TEST_CHECK(counts, scenario.number == 2 && scenario.year == 194 && scenario.month == 6 &&
                        content_title_is_scen002(scenario.title),
                "the install scenario is 群雄割據 of 194, month 6");
-    TEST_CHECK(counts, strstr(scenario.file, "media\\scenario\\SCEN002.s11") != 0, "the install scenario names its file");
+    TEST_CHECK(counts, strstr(scenario.file, "media/scenario/SCEN002.s11") != 0, "the install scenario names its file");
     TEST_CHECK(counts, api->load_scenario(e, scenario.file).status == ENGINE_LOAD_OK,
                "load_scenario starts a game from the file of the install");
 

@@ -84,7 +84,7 @@ engine_default_config(void)
     c.read_entire_file = 0;
     c.write_entire_file = 0;
     c.save_folder      = "saves";
-    c.content_folder   = HEXDOM_DATA_ROOT "\\" HEXDOM_CONTENT_PACK;
+    c.content_folder   = HEXDOM_DATA_ROOT "/" HEXDOM_CONTENT_PACK;
     return c;
 }
 
@@ -121,7 +121,7 @@ engine_read_table(engine *e, const char *folder, const char *file_name, tsv_tabl
 {
     if (!e->read_entire_file || !folder) return false;
     char path[260];
-    snprintf(path, sizeof(path), "%s\\%s", folder, file_name);
+    snprintf(path, sizeof(path), "%s/%s", folder, file_name);
     read_file_result file = e->read_entire_file(path, &e->scratch);
     if (!file.contents) return false;
     char *text = (char *)arena_push_size(&e->scratch, file.size + 1);
