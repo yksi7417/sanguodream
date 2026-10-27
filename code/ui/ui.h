@@ -249,6 +249,7 @@ struct ui_state
     } scene;
     bool show_units;             /* M11: the Units panel, a list of the units to frame */
     bool show_settings;
+    bool show_credits;           /* the Credits window, a second window of the Settings dialog */
     bool show_city;
     bool show_develop;
     bool show_raw;               /* the id and code columns show the raw numbers, not the names */

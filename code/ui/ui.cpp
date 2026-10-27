@@ -20,6 +20,7 @@ ui_label(char *out, u32 out_size, ui_state *ui, const char *text_id, const char 
 #include "ui/ui_map.cpp"
 #include "ui/ui_world.cpp"   /* includes ui_table.cpp for its tables */
 #include "ui/ui_settings.cpp"
+#include "ui/ui_credits.cpp"
 #include "ui/ui_city.cpp"
 #include "ui/ui_city_commands.cpp"
 #include "ui/ui_officer_pick.cpp" /* M19: 選擇執行武將 */
@@ -70,6 +71,7 @@ ui_init(ui_state *ui, text_catalog *text)
     ui->show_cities   = true;
     ui->show_scene    = true;
     ui->show_settings = false;
+    ui->show_credits  = false;
     ui->show_city     = true;
     ui->show_develop  = false;
     ui->show_raw      = false;
@@ -640,6 +642,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (tools && ui->show_ledger) ui_draw_ledger(ui, api);
     if (tools && ui->show_memory) ui_draw_memory(ui, api, frame);
     if (ui->show_settings) ui_draw_settings(ui, api);
+    if (ui->show_credits)  ui_draw_credits(ui);
     /* M19, ui/city-commands.md: in the game mode the city panel hides while
        a command dialog of the city is open. */
     bool command_open = ui->show_develop || ui->show_picker;

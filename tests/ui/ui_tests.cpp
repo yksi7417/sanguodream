@@ -788,6 +788,7 @@ register_ui_tests(ImGuiTestEngine *e)
         v.recorder.officer_count = 2;
         v.recorder.city_count    = 2;
         v.ui.show_settings       = true;
+        v.ui.show_credits        = true;
         v.ui.show_city           = true;
         v.ui.show_develop        = true;
         v.ui.show_economy        = true;
@@ -3976,6 +3977,34 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->ItemInputValue("###font_size", 99);                                            /* out of range: the panel clamps */
         ctx->Yield();
         IM_CHECK_EQ(v.ui.font_size, HEXDOM_FONT_MAX_PIXELS);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "credits_button_opens_each_credit_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.ui.show_settings = true;
+        ctx->SetRef("###Settings");
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.show_credits);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###open_credits");
+        ctx->Yield(2);
+        IM_CHECK(v.ui.show_credits);
+        IM_CHECK(ctx->WindowInfo("//###Credits").Window != 0);
+        for (u32 index = 0; index < ArrayCount(ui_credits); ++index)
+        {
+            char path[96];
+            snprintf(path, sizeof(path), "//###Credits/###credit_%s", ui_credits[index].id);
+            IM_CHECK(ctx->ItemExists(path));                                             /* each credit has its row */
+        }
+        ctx->WindowClose("//###Credits");
+        ctx->Yield();
+        IM_CHECK(!v.ui.show_credits);
+        IM_CHECK(v.ui.show_settings);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 

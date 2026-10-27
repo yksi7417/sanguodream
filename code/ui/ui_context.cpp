@@ -58,6 +58,9 @@ ui_context_close(ui_state *ui)
             ui->combat.pick    = UI_PICK_NONE;
             ui->units.selected = ENGINE_NO_UNIT;   /* M22: the selection ends with its dialog */
             break;
+        case UI_CONTEXT_SETTINGS:
+            ui->show_settings = ui->show_credits = false;
+            break;
         default:
         {
             bool *flag = ui_context_flag(ui, ui->context.kind);
@@ -161,6 +164,7 @@ ui_context_back(ui_state *ui)
         }
         if (ui->show_unit_menu) { ui->show_unit_menu = false; ui->units.has_pending_move = false; return; }   /* G2-045: the unit stays */
     }
+    if (ui->context.kind == UI_CONTEXT_SETTINGS && ui->show_credits) { ui->show_credits = false; return; }   /* the credits go back to the settings */
     if (ui->context.kind == UI_CONTEXT_UNIT || ui->context.kind == UI_CONTEXT_UNIT_POPUP) ui_select_unit(ui, ENGINE_NO_UNIT);
     ui_context_close(ui);
 }

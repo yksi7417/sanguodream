@@ -7,6 +7,9 @@ an open licence. No asset comes from the original game.
 ## The rules for an asset
 - Use an asset only if its licence lets you copy and distribute it.
 - Keep the licence text next to the asset.
+- Add a row for the asset to ui_credits in code/ui/ui_credits.cpp. The
+  Credits window of the Settings dialog shows each row. Add its text ids
+  to each file under data/placeholder/text.
 - Check in an asset only if it is smaller than 20 MB and its licence allows
   it. Otherwise, add a download step to a script under misc/ and write the
   step here.

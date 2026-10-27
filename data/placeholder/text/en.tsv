@@ -1571,3 +1571,29 @@ say.captive_escaped	I have learned the guard roster. Now is the time to run!	我
 log.captive_escaped	{subject}: escaped from prison	{subject}：逃亡
 war.soldiers	soldiers	the value that rises over a unit after a hit: "-495 soldiers"
 war.morale	morale	the value that rises over a unit after a hit: "-10 morale"
+settings.credits	Credits	button: opens the Credits window
+credits.title	Credits	window title
+credits.intro	hexdom uses the works of these people. Thank you to each of them.	the first line of the Credits window
+credits.author	Author	label of a credit
+credits.licence	Licence	label of a credit
+credits.section.art	Art and models	section of the Credits window
+credits.section.fonts	Fonts	section of the Credits window
+credits.section.code	Code	section of the Credits window
+credits.section.data	Data	section of the Credits window
+credits.section.tests	Tools of the tests (not in the game)	section of the Credits window
+credits.use.meshy_city	The 3D model of the big cities	what the game uses the work for
+credits.work.own_art	Unit and base art	a work of the project
+credits.author.own_art	The hexdom project, with Google Gemini	author of the work
+credits.licence.own_art	Own work of the hexdom project	licence of the work
+credits.use.own_art	The pictures of the units and the cards of the bases	what the game uses the work for
+credits.work.portraits	Officer portraits	a work of the project
+credits.author.portraits	The hexdom project, with an image model	author of the work
+credits.licence.portraits	Not recorded yet	docs/ASSETS.md: the licence of the portraits is not recorded
+credits.use.portraits	The faces of the officers	what the game uses the work for
+credits.use.noto_cjk	Chinese, Japanese, Korean and Latin text	what the game uses the work for
+credits.use.noto_thai	Thai text	what the game uses the work for
+credits.use.imgui	The windows, the menus and the text of the interface	what the game uses the work for
+credits.use.stb	The font loader and the text boxes, inside Dear ImGui	what the game uses the work for
+credits.use.unicode_big5	The table that converts the Big5 names to Unicode	what the game uses the work for
+credits.use.imgui_test_engine	The tests of the panels. The game does not include it.	what the game uses the work for
+credits.original	hexdom contains no text, picture, sound or font from the original game.	the last line of the Credits window

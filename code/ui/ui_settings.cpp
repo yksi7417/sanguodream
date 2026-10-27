@@ -90,9 +90,10 @@ internal void
 ui_draw_settings(ui_state *ui, engine_api *api)
 {
     char title[128];
-    ImGui::SetNextWindowSize(ImVec2(420, 200), ImGuiCond_FirstUseEver);
     ui_context_place(ui, 0);   /* the game mode: the dialog opens next to its entity */
-    if (ImGui::Begin(ui_label(title, sizeof(title), ui, "settings.title", "Settings"), &ui->show_settings))
+    /* The window fits its contents, so the Credits button at the bottom shows without a scroll. */
+    if (ImGui::Begin(ui_label(title, sizeof(title), ui, "settings.title", "Settings"), &ui->show_settings,
+                     ImGuiWindowFlags_AlwaysAutoResize))
     {
         ui_context_track(ui);
         ui_draw_game_settings(ui, api);
@@ -114,6 +115,8 @@ ui_draw_settings(ui_state *ui, engine_api *api)
             ImGui::Text("%s: %llu", text_get(ui->text, "settings.missing"),
                         (unsigned long long)ui->text->stats.missing_strings);
         }
+        ImGui::Separator();
+        if (ImGui::Button(ui_label(label, sizeof(label), ui, "settings.credits", "open_credits"))) ui->show_credits = true;
     }
     ImGui::End();
 }

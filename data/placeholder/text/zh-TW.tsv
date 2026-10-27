@@ -1569,3 +1569,29 @@ turn.our_turn	可終於輪到我們了啊。
 say.captive_escaped	我已摸清了警備的編制，趁現在快點逃吧！
 war.soldiers	兵
 war.morale	氣力
+settings.credits	製作群
+credits.title	製作群
+credits.intro	hexdom 使用了以下作者的作品，謹此致謝。
+credits.author	作者
+credits.licence	授權
+credits.section.art	美術與模型
+credits.section.fonts	字型
+credits.section.code	程式碼
+credits.section.data	資料
+credits.section.tests	測試工具（不含於遊戲中）
+credits.use.meshy_city	大都市的 3D 模型
+credits.work.own_art	部隊與據點美術
+credits.author.own_art	hexdom 專案，使用 Google Gemini 製作
+credits.licence.own_art	hexdom 專案原創作品
+credits.use.own_art	部隊圖像與據點圖卡
+credits.work.portraits	武將頭像
+credits.author.portraits	hexdom 專案，使用圖像模型製作
+credits.licence.portraits	尚未記錄
+credits.use.portraits	武將的臉孔
+credits.use.noto_cjk	中文、日文、韓文與拉丁文字
+credits.use.noto_thai	泰文文字
+credits.use.imgui	介面的視窗、選單與文字
+credits.use.stb	Dear ImGui 內的字型載入與文字輸入
+credits.use.unicode_big5	將 Big5 名稱轉為 Unicode 的對照表
+credits.use.imgui_test_engine	面板的自動測試，不含於遊戲中。
+credits.original	hexdom 不含原作遊戲的任何文字、圖像、音效或字型。
