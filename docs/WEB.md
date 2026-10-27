@@ -15,6 +15,49 @@ The game code does not change for it.
 3. A commit that adds a render feature changes d3d11_renderer.h and
    webgl2_renderer.h together.
 
+## The web game (Option A)
+To build and run it:
+1. Make the web font one time: `C:\tools\hexdom-venv\Scripts\python -I misc\subset_font.py`.
+2. Run `build_web.bat`. It writes build/web/index.html, index.js,
+   index.wasm and index.data.
+3. Serve build/web with a static server, for example
+   `python -m http.server 8090 --directory build/web`, and open
+   http://localhost:8090.
+
+The parts of the web platform layer:
+
+| File | Job |
+|---|---|
+| code/wasm_hexdom.cpp | The platform layer. It includes hexdom.cpp (HEXDOM_STATIC_GAME). The browser calls wasm_frame for each frame. |
+| code/webgl2_renderer.h | The scene: the terrain, the grid, the meshes, the 3D models of the bases and the billboards. |
+| code/wasm_portraits.h | The default portraits and the generated faces as WebGL2 textures. |
+| code/wasm_imconfig.h | 32-bit ImGui indices. The draw list of the main map has more than 65536 vertices. |
+| web/shell.html | The page: a canvas that fills the window. |
+
+The rules of the web build:
+- The current folder is /build, and index.data holds /data and the three
+  scenario files of the title menu. Thus the paths of the game are the
+  same as on Windows.
+- The saves are in IndexedDB, mounted at /build/saves. The platform writes
+  IndexedDB after each save and every 600 frames.
+- The renderer sends the matrix of camera_view_projection without a
+  change. The shaders use a row_major block and move the depth from the
+  range of D3D to the range of WebGL2. The CPU pick stays the same.
+- ImGui uses its GLFW backend on the GLFW of Emscripten, and its OpenGL3
+  backend. Each frame, the GLFW window takes the CSS size of the canvas.
+
+The status on 2026-10-27:
+- The title menu, the scenario list, the ruler list, the settings and the
+  main map work in the browser pane. The 3D model of the big city shows at
+  陳留 and 濮陽. The wheel zooms the map.
+- These checks are open:
+  - a portrait on the screen
+  - a save, a reload of the page, and a load
+  - the loss of the WebGL2 context
+  - the parity test of the 3D scene against the Windows build
+- The download is approximately 26 MB. The model of the big city is 12 MB
+  of it.
+
 ## Phase 0 status
 
 | Step | Status |

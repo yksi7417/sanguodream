@@ -39,7 +39,7 @@ typedef double   f64;
 #  if defined(_MSC_VER)
 #    define Assert(x) do { if (!(x)) { __debugbreak(); } } while (0)
 #  else
-#    define Assert(x) do { if (!(x)) { *(volatile int *)0 = 0; } } while (0)
+#    define Assert(x) do { if (!(x)) { __builtin_trap(); } } while (0)   /* a write to address 0 does not stop a WebAssembly build */
 #  endif
 #else
 #  define Assert(x)

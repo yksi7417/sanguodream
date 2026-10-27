@@ -65,9 +65,10 @@ decompilation of it.
                     demo walkthroughs and records them to build\demos.
                     With --web, it runs only the tests of build_web.bat
                     under node
-- build_web.bat     builds the unit tests and the feature tests as
-                    WebAssembly (build\unit_tests.js, feature_tests.js)
-                    with the Emscripten SDK in C:\tools\emsdk (docs/WEB.md)
+- build_web.bat     builds the web game into build\web (index.html, .js,
+                    .wasm, .data) with the Emscripten SDK in C:\tools\emsdk.
+                    "build_web.bat tests" builds the unit tests and the
+                    feature tests as WebAssembly (docs/WEB.md)
 - build\feature_tests.exe [fixtures-dir]   default spec-src\spec\fixtures
 - build\ui_tests.exe [filter]              for example "ui", "e2e",
                                            "ui/advance"
@@ -92,6 +93,14 @@ decompilation of it.
                          win32_hexdom.exe and demo_player.exe
 - code/win32_portraits.h the default portraits: maps the archive, makes a
                          texture for each picture on demand (docs/ASSETS.md)
+- code/wasm_hexdom.cpp   the web platform layer: Emscripten, WebGL2, ImGui
+                         GLFW and OpenGL3 backends, saves in IndexedDB; it
+                         includes hexdom.cpp (docs/WEB.md)
+- code/webgl2_renderer.h the WebGL2 port of d3d11_renderer.h. A change to
+                         one renderer goes into the other in the same commit
+- code/wasm_portraits.h  the portraits and the generated faces of the web
+- code/wasm_imconfig.h   the ImGui settings of the web build
+- web/shell.html         the page of the web build
 - code/render/           render commands and camera; png.h, zip.h and
                          jpeg.h decoders; portraits.h, the picture of an
                          officer

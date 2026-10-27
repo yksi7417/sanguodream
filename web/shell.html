@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hexdom</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #17191f; color: #c8c8c8;
+               font: 14px system-ui, sans-serif; }
+  /* The GLFW backend of ImGui sizes the window to the CSS size of the canvas. */
+  #canvas { display: block; width: 100vw; height: 100vh; border: 0; outline: none; }
+  #status { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+            pointer-events: none; }
+</style>
+</head>
+<body>
+<!-- The right mouse button is a game command: the page shows no context menu. -->
+<canvas id="canvas" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
+<div id="status">Loading hexdom...</div>
+<script>
+  var statusElement = document.getElementById("status");
+  var Module = {
+    canvas: document.getElementById("canvas"),
+    print: function (text) { console.log(text); },
+    printErr: function (text) { console.error(text); },
+    setStatus: function (text) {
+      statusElement.textContent = text;
+      statusElement.style.display = text ? "flex" : "none";
+    },
+    monitorRunDependencies: function (left) {
+      Module.setStatus(left ? "Loading hexdom... (" + left + ")" : "");
+    },
+  };
+  window.addEventListener("error", function () { Module.setStatus("hexdom stopped. The console has the details."); });
+</script>
+{{{ SCRIPT }}}
+</body>
+</html>
