@@ -256,17 +256,19 @@ placeholder mesh.
 | Texture | the base colour of the model, RGB, 1024 pixels at most. The renderer makes the mip levels at the start. |
 | Source | a binary glTF file (GLB). misc/glb_import.py converts it. provenance.tsv in the folder has one row for each model. |
 | Licence | the licence of the source of each model, in provenance.tsv. CC-BY-4.0.txt gives the credit and the licence of the Meshy models. |
-| Models now | Four models from Meshy, CC BY 4.0. The table below gives each model. |
+| Models now | Six models from Meshy, CC BY 4.0. The table below gives each model. |
 
 | Model | Kind | Source GLB | Triangles | Mesh file | Licence |
 |---|---|---|---|---|---|
 | base_big_city | the big city | Meshy_AI_Walled_Imperial_City_1026143943_texture.glb | 354,640 | 10.9 MB | CC BY 4.0, credit "Meshy" |
 | base_city | the city | city-30k.glb | 30,100 | 1.2 MB | CC BY 4.0, credit "Meshy" |
 | facility_farm | the farm shape: the farm, the military farm | farm-lv1-game-ready.glb | 39,730 | 1.8 MB | CC BY 4.0, credit "Meshy" |
-| facility_market | the market shape: the market, the great market, the black market, the fish market | market-lv1-textured.glb | 354,934 | 10.7 MB | CC BY 4.0, credit "Meshy" |
+| base_gate | the pass | gate-30k.glb | 32,164 | 1.4 MB | CC BY 4.0, credit "Meshy" |
+| base_port | the port | port-30k.glb | 29,712 | 1.2 MB | CC BY 4.0, credit "Meshy" |
+| facility_market | the market shape: the market, the great market, the black market, the fish market | market-lv1-30k.glb | 30,168 | 1.1 MB | CC BY 4.0, credit "Meshy" |
 
-The owner of the repository made the city, the farm and the market on
-2026-10-27. The GLB files came from the shared Google Drive folder "Three
+The owner of the repository made the city, the pass, the port, the farm
+and the market on 2026-10-27. The GLB files came from the shared Google Drive folder "Three
 Kingdoms Animations — Map Art", subfolder 07-3D-Models. Each texture is
 1024 x 1024 pixels.
 
@@ -286,10 +288,10 @@ facilities, so the renderer uses two rules:
 On 2026-10-27 the wide view of the map took 326 ms for each frame with
 the market model and no rules. With the rules it takes 33 ms, the same
 time as without the facility models. A near view with three markets
-takes 22 ms. A new model of a facility must have 40,000 triangles or
-less. The market model has more. Replace it when an export with fewer
-triangles is available. Meshy can export a model with a lower count of
-triangles, for example city-30k.glb.
+takes 22 ms. A new model must have 40,000 triangles or less. Meshy can
+export a model with a lower count of triangles, for example city-30k.glb.
+The market of the first import had 354,934 triangles. market-lv1-30k.glb
+replaced it on the same day.
 
 The scene scales the model to the width of the card of its kind
 (render_base_model_instance in code/render/render.h). A city model is 5
@@ -299,7 +301,35 @@ red pixel of the texture takes the colour of the owner, as the red mask
 of the card does. On the model of a facility, a flat red pixel takes the
 colour of the facility kind (ui_facility_look.cpp).
 
-To import a model, put the GLB in art-src/models, out of git. Then run
+To import the new models of the Drive folder, run misc/drive_models.py
+from the root of the repository. The script needs no sign-in, because the
+owner shares the folder by link. It does these steps:
+- It finds the model name of each GLB from the start of its file name:
+  big-city, city, gate, port, market-lv1 and farm-lv1.
+- It skips a GLB that provenance.tsv names as a source, and a GLB with
+  more than 40,000 triangles.
+- It keeps a model that the pack has, unless you give --replace NAME.
+- It downloads each new GLB one time into art-src/models/drive, out of
+  git, and imports it with misc/glb_import.py.
+- It writes the row of the model in provenance.tsv.
+
+    python -X utf8 -E misc\drive_models.py --list
+    python -X utf8 -E misc\drive_models.py
+    python -X utf8 -E misc\drive_models.py --replace facility_market
+
+--list prints the decision for each file and changes nothing. After an
+import, add the model to the table above, run build.bat and
+run_tests.bat, and look at the model in the game.
+
+These files of the folder are not in the game yet (2026-10-27):
+- market-lv2 and market-lv3: the markets of level 2 and level 3. The
+  scene gives the renderer no level of a facility. To use them, the
+  scene must push a level, or a shape for each level.
+- big-city-v2-rectangular-30k.glb: base_big_city already has a model.
+  Give --replace base_big_city to use it. It has 30,140 triangles in
+  place of 354,640, and it makes the download 11 MB smaller.
+
+To import one GLB by hand, put it in art-src/models, out of git. Then run
 this command from the root of the repository. The name is one of the
 names in the "Files" row.
 

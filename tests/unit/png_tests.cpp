@@ -109,7 +109,7 @@ unit_sprite_file_tests(test_counts *counts)
 
 /* The 3D models of the pack (docs/ASSETS.md, "Base models"): the mesh file
    of each model parses as HXM1, and the decoder reads its texture. The
-   pack has the models of the city, the big city, the market and the farm. */
+   pack has the models of the four base kinds, the market and the farm. */
 internal void
 unit_model_file_tests(test_counts *counts)
 {
@@ -138,8 +138,8 @@ unit_model_file_tests(test_counts *counts)
         models_read &= parsed && texture.contents != 0 && image.error == 0 && image.width > 0 && image.width <= 1024 && image.height <= 1024;
         model_count++;
     }
-    TEST_CHECK(counts, models_read && model_count == 4,
-               "the pack has the models of the city, the big city, the market and the farm, and each mesh and texture reads");
+    TEST_CHECK(counts, models_read && model_count == 6,
+               "the pack has the models of the four base kinds, the market and the farm, and each mesh and texture reads");
     test_arena_destroy(&arena);
 }
 

@@ -3,4 +3,6 @@ file	source	model	date	licence	note
 base_big_city	Meshy_AI_Walled_Imperial_City_1026143943_texture.glb	Meshy (image to 3D, free plan)	2026-10-27	CC BY 4.0, credit "Meshy"	354640 triangles, the base colour texture at 1024 pixels
 base_city	city-30k.glb, Google Drive "Three Kingdoms Animations — Map Art"/07-3D-Models	Meshy (free plan)	2026-10-27	CC BY 4.0, credit "Meshy"	30100 triangles, the base colour texture at 1024 pixels
 facility_farm	farm-lv1-game-ready.glb, Google Drive "Three Kingdoms Animations — Map Art"/07-3D-Models	Meshy (free plan)	2026-10-27	CC BY 4.0, credit "Meshy"	39730 triangles, the base colour texture at 1024 pixels
-facility_market	market-lv1-textured.glb, Google Drive "Three Kingdoms Animations — Map Art"/07-3D-Models	Meshy (free plan)	2026-10-27	CC BY 4.0, credit "Meshy"	354934 triangles, the base colour texture at 1024 pixels
+facility_market	market-lv1-30k.glb, Google Drive "Three Kingdoms Animations — Map Art"/07-3D-Models	Meshy (free plan)	2026-10-27	CC BY 4.0, credit "Meshy"	30168 triangles, the base colour texture at 1024 pixels
+base_gate	gate-30k.glb, Google Drive "Three Kingdoms Animations — Map Art"/07-3D-Models	Meshy (free plan)	2026-10-27	CC BY 4.0, credit "Meshy"	32164 triangles, the base colour texture at 1024 pixels
+base_port	port-30k.glb, Google Drive "Three Kingdoms Animations — Map Art"/07-3D-Models	Meshy (free plan)	2026-10-27	CC BY 4.0, credit "Meshy"	29712 triangles, the base colour texture at 1024 pixels

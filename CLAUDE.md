@@ -143,6 +143,9 @@ decompilation of it.
                          or of a facility shape,
                          data/<pack>/models/<name>.hxm and .png
                          (docs/ASSETS.md, "Base models")
+- misc/drive_models.py   imports the new GLBs of the shared Drive folder
+                         07-3D-Models with glb_import.py; --list shows
+                         the decision for each file (docs/ASSETS.md)
 - misc/subset_font.py    writes the subset of the CJK font for the web
                          build to build/web/fonts (docs/WEB.md)
 - misc/make_portraits.py  makes data/civil_war/Portraits.zip, the 224 x 280
