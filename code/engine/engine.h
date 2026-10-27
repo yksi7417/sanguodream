@@ -1622,6 +1622,80 @@ typedef engine_content_source   engine_content_source_fn(void *engine, u8 asset)
 typedef u32                     engine_install_scenario_count_fn(void *engine);
 typedef engine_install_scenario engine_install_scenario_at_fn(void *engine, u32 index);
 
+/* The replay of a game (docs/REPLAY.md; engine_game_replay.cpp). The
+   engine records the start state of the game and each step after it: a
+   command of a player, a change of the settings, a change of the human
+   factions, or a clear of the ledger. A viewer rebuilds the state after N
+   steps from the start state. The live game stays in memory, and close
+   returns to it. The AI factions act inside the end_turn step of a
+   player. The events of that step show what they did. Later, the players
+   and the spectators of one game instance can watch the same record. */
+enum engine_step_kind
+{
+    ENGINE_STEP_COMMAND,        /* a command: command holds its sim_command_kind */
+    ENGINE_STEP_SETTINGS,       /* set_settings */
+    ENGINE_STEP_HUMAN,          /* set_faction_human: force is the faction, value is 1 for a player */
+    ENGINE_STEP_LEDGER_CLEAR,   /* ledger_clear */
+    ENGINE_STEP_KIND_COUNT
+};
+
+enum engine_game_replay_status
+{
+    ENGINE_GAME_REPLAY_EMPTY,       /* no step since the load: the start state is not taken yet */
+    ENGINE_GAME_REPLAY_RECORDING,
+    ENGINE_GAME_REPLAY_FULL,        /* the record is full: the later steps are not in it */
+    ENGINE_GAME_REPLAY_NO_MEMORY,   /* the permanent arena cannot hold the record */
+};
+
+#define ENGINE_NO_STEP U32_MAX
+
+struct engine_game_replay_info
+{
+    u8          status;        /* engine_game_replay_status */
+    b32         viewing;       /* the game shows a past step; a command returns to the live game first */
+    u32         step_count;
+    u32         view_step;     /* the steps that the view applied to the start state; step_count when live */
+    u32         version;       /* the format version of the record */
+    u64         seed;          /* the PRNG state of the start state */
+    u32         start_turn;
+    engine_date start_date;
+    u32         first_edit;    /* the first step after a change outside the steps; ENGINE_NO_STEP if none */
+};
+
+struct engine_game_replay_step
+{
+    u32          index;        /* ENGINE_NO_STEP for an index out of range */
+    u8           kind;         /* engine_step_kind */
+    u8           command;      /* sim_command_kind of an ENGINE_STEP_COMMAND */
+    const char  *key;          /* a static string: the command name, or "settings", "human", "ledger_clear" */
+    u8           force;        /* the faction that acted; ENGINE_NO_FACTION if none */
+    u32          turn;         /* the sim turn before the step */
+    engine_date  date;
+    u32          command_id;   /* 0 if the step is no command */
+    u16          officer;      /* the first officer of the command; ENGINE_NO_OFFICER if none */
+    engine_place place;        /* the place of the first event of the step that has a place */
+    u32          first_event;  /* the ledger index of the first event of the step */
+    u32          event_count;
+    u32          value;        /* ENGINE_STEP_HUMAN: 1 if the faction became a player */
+    b32          edited;       /* the state changed outside the steps before this step: the replay can differ from here */
+};
+
+struct engine_game_replay_view
+{
+    b32 ok;                    /* false: no record, or the step is out of range */
+    u32 step;
+    b32 matches;               /* the rebuilt state has the checksum that the live game had after this step */
+};
+
+typedef engine_game_replay_info engine_game_replay_info_fn(void *engine);
+typedef engine_game_replay_step engine_game_replay_step_at_fn(void *engine, u32 index);
+/* Shows the state after the first `step` steps: 0 is the start state,
+   step_count is the live game. */
+typedef engine_game_replay_view engine_game_replay_view_fn(void *engine, u32 step);
+typedef void                    engine_game_replay_close_fn(void *engine);   /* back to the live game */
+/* The first step in this turn or later: the view of it shows the start of the turn. */
+typedef u32                     engine_game_replay_turn_step_fn(void *engine, u32 turn);
+
 struct engine_api
 {
     void *engine;
@@ -1854,6 +1928,12 @@ struct engine_api
     engine_content_source_fn         *content_source;
     engine_install_scenario_count_fn *install_scenario_count;
     engine_install_scenario_at_fn    *install_scenario_at;
+    /* The replay of a game */
+    engine_game_replay_info_fn       *game_replay_info;
+    engine_game_replay_step_at_fn    *game_replay_step_at;
+    engine_game_replay_view_fn       *game_replay_view;
+    engine_game_replay_close_fn      *game_replay_close;
+    engine_game_replay_turn_step_fn  *game_replay_turn_step;
 };
 
 #define ENGINE_NO_BASE 0xFFFFFFFFu

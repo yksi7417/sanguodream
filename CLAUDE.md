@@ -50,6 +50,8 @@ decompilation of it.
 - docs/GRAPHICS.md           the plan for the art and the animation (G1-G6)
 - docs/WEB.md                the WebAssembly build: the plan, the status of
                              phase 0 and the memory budget
+- docs/REPLAY.md             the replay of a game, step by step: the record,
+                             the checkpoints and the format in the save file
 - docs/art/GEMINI-PROMPTS.md the prompts that make the art with Gemini
 
 ## Build and run
@@ -69,9 +71,12 @@ decompilation of it.
                     .wasm, .data) with the Emscripten SDK in C:\tools\emsdk.
                     "build_web.bat tests" builds the unit tests and the
                     feature tests as WebAssembly (docs/WEB.md)
+- build_web.bat test-game   builds the web game with the test hooks into
+                    build\webtest; then "npm test" in tests\web runs the
+                    Playwright smoke tests (docs/WEB.md, "The browser tests")
 - deploy_web.bat    builds the web game and deploys it to the fly.io app
-                    sanguodream, behind a password (docs/WEB.md, "The
-                    fly.io site")
+                    sanguodream, for the members of the house (docs/WEB.md,
+                    "The fly.io site")
 - build\feature_tests.exe [fixtures-dir]   default spec-src\spec\fixtures
 - build\ui_tests.exe [filter]              for example "ui", "e2e",
                                            "ui/advance"
@@ -104,8 +109,13 @@ decompilation of it.
 - code/wasm_portraits.h  the portraits and the generated faces of the web
 - code/wasm_imconfig.h   the ImGui settings of the web build
 - web/shell.html         the page of the web build
-- web/server.py          the static server of the fly.io site: basic auth
-                         and gzip (Dockerfile, fly.toml)
+- web/server.py          the server of the fly.io site (Dockerfile,
+                         fly.toml). web/auth.py signs in the users,
+                         web/storage.py keeps the saves in S3, and
+                         web/broadcast.py relays the optional YouTube
+                         broadcast
+- code/wasm_test_hooks.h the test hooks of "build_web.bat test-game" for
+                         the Playwright smoke tests in tests/web
 - code/render/           render commands and camera; png.h, zip.h and
                          jpeg.h decoders; portraits.h, the picture of an
                          officer

@@ -1,5 +1,6 @@
 # The fly.io site of the web game (docs/WEB.md, "The fly.io site").
-# The password is the fly secret SITE_PASSWORD. It is not in this repository.
+# The secrets (SESSION_SECRET, HOUSE_PASSWORD, the keys of the sign-in
+# providers, of the bucket and of YouTube) are not in this repository.
 app = 'sanguodream'
 primary_region = 'iad'
 
@@ -13,7 +14,14 @@ primary_region = 'iad'
   min_machines_running = 0
   processes = ['app']
 
+  [[http_service.checks]]
+    grace_period = '30s'
+    interval = '60s'
+    method = 'GET'
+    path = '/healthz'
+    timeout = '5s'
+
 [[vm]]
-  memory = '256mb'
+  memory = '512mb'
   cpu_kind = 'shared'
   cpus = 1

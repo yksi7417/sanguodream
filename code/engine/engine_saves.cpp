@@ -278,48 +278,80 @@ engine_has_game(engine *e)
     return e->sim->officers.count > 0 && e->sim->cities.count > 0;
 }
 
+/* The bytes of an image of the game with this many ledger events: the
+   header, the member table, sim_state, the arrays and the ledger. A slot
+   file is one image. The replay of a game keeps its start state as one
+   image (engine_game_replay.cpp). */
+internal u64
+engine_save_image_size(engine *e, u32 ledger_count)
+{
+    sim_state *sim = e->sim;
+    engine_save_member members[ENGINE_SAVE_MEMBER_CAPACITY];
+    u32 member_count = engine_save_members(members);
+    u64 cells = (u64)sim->map.width * sim->map.height;
+    return sizeof(engine_save_header) + sizeof(engine_save_member) * member_count + sizeof(sim_state) +
+           (sizeof(u16) + sizeof(u8) + 3 * sizeof(u32)) * sim->entities.capacity +
+           (sizeof(entity_id) + sizeof(officer_component)) * sim->officers.capacity +
+           (sizeof(entity_id) + sizeof(city_component)) * sim->cities.capacity + 4 * cells + sizeof(sim_event) * (u64)ledger_count;
+}
+
+/* Writes the image of the live game with this slot info. An image
+   without the ledger has a ledger count of 0. */
+internal void
+engine_save_write_image(engine *e, engine_save_cursor *cursor, engine_save_slot slot, b32 with_ledger = true)
+{
+    engine_save_header header = engine_save_header_of(e);
+    header.slot = slot;
+    if (!with_ledger) header.ledger_count = 0;
+    engine_save_member members[ENGINE_SAVE_MEMBER_CAPACITY];
+    header.member_count = engine_save_members(members);
+    engine_save_put(cursor, &header, sizeof(header));
+    engine_save_put(cursor, members, sizeof(engine_save_member) * header.member_count);
+    engine_save_put(cursor, e->sim, sizeof(sim_state));
+    engine_save_arrays(cursor, e->sim, true, (u32)sizeof(officer_component), (u32)sizeof(city_component));
+    engine_save_put(cursor, e->ledger, sizeof(sim_event) * (u64)header.ledger_count);
+}
+
+internal void engine_game_replay_return_live(engine *e);   /* engine_game_replay.cpp */
+internal u64  engine_game_replay_saved_size(engine *e);
+internal void engine_game_replay_write(engine *e, engine_save_cursor *cursor);
+internal void engine_game_replay_read(engine *e, engine_save_cursor *cursor);
+
+/* A save while a replay view is open saves the live game: the view
+   closes first. The record of the replay follows the image. */
 internal engine_save_status
 engine_api_save_game(void *opaque, u32 slot, const char *comment)
 {
     engine *e = (engine *)opaque;
     if (slot >= ENGINE_SAVE_SLOTS) return ENGINE_SAVE_BAD_SLOT;
     if (!e->write_entire_file)     return ENGINE_SAVE_NO_WRITER;
+    engine_game_replay_return_live(e);
     if (!engine_has_game(e))       return ENGINE_SAVE_NO_GAME;
     sim_state *sim = e->sim;
-    engine_save_header header = engine_save_header_of(e);
-    header.slot.used  = true;
-    snprintf(header.slot.comment, sizeof(header.slot.comment), "%s", comment ? comment : "");
-    header.slot.year  = sim->turns.date.year;
-    header.slot.month = sim->turns.date.month;
-    header.slot.day   = (u8)(1 + 10 * sim->turns.date.turn_of_month);
+    engine_save_slot info = {};
+    info.used  = true;
+    snprintf(info.comment, sizeof(info.comment), "%s", comment ? comment : "");
+    info.year  = sim->turns.date.year;
+    info.month = sim->turns.date.month;
+    info.day   = (u8)(1 + 10 * sim->turns.date.turn_of_month);
     u8 player = sim_whose_turn(sim);
-    header.slot.player = player == SIM_NO_FORCE ? (u8)ENGINE_NO_FACTION : player;
-    header.slot.turn  = sim->turn;
+    info.player = player == SIM_NO_FORCE ? (u8)ENGINE_NO_FACTION : player;
+    info.turn  = sim->turn;
 
-    engine_save_member members[ENGINE_SAVE_MEMBER_CAPACITY];
-    header.member_count = engine_save_members(members);
-
-    u64 cells = (u64)sim->map.width * sim->map.height;
-    u64 size  = sizeof(header) + sizeof(engine_save_member) * header.member_count + sizeof(sim_state) +
-                (sizeof(u16) + sizeof(u8) + 3 * sizeof(u32)) * sim->entities.capacity +
-                (sizeof(entity_id) + sizeof(officer_component)) * sim->officers.capacity +
-                (sizeof(entity_id) + sizeof(city_component)) * sim->cities.capacity + 4 * cells + sizeof(sim_event) * (u64)e->ledger_count;
+    u64 size = engine_save_image_size(e, e->ledger_count) + engine_game_replay_saved_size(e);
     memory_arena *arena = e->transient;
     u64 mark = arena->used;
     if (arena->size - arena->used < size + 16) return ENGINE_SAVE_NO_MEMORY;
     u8 *buffer = (u8 *)arena_push_size(arena, size);
     engine_save_cursor cursor = { buffer, buffer + size, true };
-    engine_save_put(&cursor, &header, sizeof(header));
-    engine_save_put(&cursor, members, sizeof(engine_save_member) * header.member_count);
-    engine_save_put(&cursor, sim, sizeof(sim_state));
-    engine_save_arrays(&cursor, sim, true, (u32)sizeof(officer_component), (u32)sizeof(city_component));
-    engine_save_put(&cursor, e->ledger, sizeof(sim_event) * (u64)e->ledger_count);
+    engine_save_write_image(e, &cursor, info);
+    engine_game_replay_write(e, &cursor);
     char path[256];
     engine_save_path(e, slot, path, sizeof(path));
     b32 written = cursor.ok && e->write_entire_file(path, buffer, (u64)(cursor.at - buffer));
     arena->used = mark;
     if (!written) return ENGINE_SAVE_WRITE_FAILED;
-    e->slots[slot] = header.slot;
+    e->slots[slot] = info;
     return ENGINE_SAVE_OK;
 }
 
@@ -339,18 +371,11 @@ engine_same_path(const char *a, const char *b)
     }
 }
 
-/* Reads and checks the header of a slot file. The file stays in the
-   transient arena above mark; the caller resets it. */
+/* Reads and checks the header of an image at the cursor: a slot file, or
+   the start state of a replay. */
 internal engine_save_status
-engine_read_slot(engine *e, u32 slot, engine_save_header *header, engine_save_cursor *cursor)
+engine_save_read_header(engine *e, engine_save_header *header, engine_save_cursor *cursor)
 {
-    if (slot >= ENGINE_SAVE_SLOTS) return ENGINE_SAVE_BAD_SLOT;
-    if (!e->read_entire_file)      return ENGINE_SAVE_NO_READER;
-    char path[256];
-    engine_save_path(e, slot, path, sizeof(path));
-    read_file_result file = e->read_entire_file(path, e->transient);
-    if (!file.contents) return ENGINE_SAVE_NO_FILE;
-    *cursor = { (u8 *)file.contents, (u8 *)file.contents + file.size, true };
     u32 magic_version[2];
     engine_save_get(cursor, magic_version, sizeof(magic_version));
     if (!cursor->ok || magic_version[0] != ENGINE_SAVE_MAGIC) return ENGINE_SAVE_BAD_FILE;
@@ -401,28 +426,40 @@ engine_read_slot(engine *e, u32 slot, engine_save_header *header, engine_save_cu
     return ENGINE_SAVE_OK;
 }
 
+/* Reads and checks the header of a slot file. The file stays in the
+   transient arena above mark; the caller resets it. */
 internal engine_save_status
-engine_api_load_game(void *opaque, u32 slot)
+engine_read_slot(engine *e, u32 slot, engine_save_header *header, engine_save_cursor *cursor)
 {
-    engine *e = (engine *)opaque;
+    if (slot >= ENGINE_SAVE_SLOTS) return ENGINE_SAVE_BAD_SLOT;
+    if (!e->read_entire_file)      return ENGINE_SAVE_NO_READER;
+    char path[256];
+    engine_save_path(e, slot, path, sizeof(path));
+    read_file_result file = e->read_entire_file(path, e->transient);
+    if (!file.contents) return ENGINE_SAVE_NO_FILE;
+    *cursor = { (u8 *)file.contents, (u8 *)file.contents + file.size, true };
+    return engine_save_read_header(e, header, cursor);
+}
+
+/* Loads the image after its header into the live sim and the ledger. The
+   cursor then stands after the ledger. The copies of the load stay in the
+   transient arena; the caller resets it. */
+internal engine_save_status
+engine_save_load_image(engine *e, const engine_save_header *in, engine_save_cursor *cursor)
+{
     sim_state *sim = e->sim;
     memory_arena *arena = e->transient;
-    u64 mark = arena->used;
-    engine_save_header header;
-    engine_save_cursor cursor;
-    engine_save_status status = engine_read_slot(e, slot, &header, &cursor);
-    if (status == ENGINE_SAVE_OK &&
-        (header.entity_capacity != sim->entities.capacity || header.officer_capacity != sim->officers.capacity ||
-         header.city_capacity != sim->cities.capacity || header.map_width != sim->map.width || header.map_height != sim->map.height ||
-         header.ledger_count > e->ledger_capacity))
+    engine_save_header header = *in;
+    if (header.entity_capacity != sim->entities.capacity || header.officer_capacity != sim->officers.capacity ||
+        header.city_capacity != sim->cities.capacity || header.map_width != sim->map.width || header.map_height != sim->map.height ||
+        header.ledger_count > e->ledger_capacity)
     {
-        status = ENGINE_SAVE_OTHER_VERSION;
+        return ENGINE_SAVE_OTHER_VERSION;
     }
-    if (status != ENGINE_SAVE_OK) { arena->used = mark; return status; }
 
     /* Version 3: the member table stands after the header. */
     engine_save_member members[ENGINE_SAVE_MEMBER_CAPACITY];
-    if (header.version == 3) engine_save_get(&cursor, members, sizeof(engine_save_member) * header.member_count);
+    if (header.version == 3) engine_save_get(cursor, members, sizeof(engine_save_member) * header.member_count);
 
     /* Check the length before the copy: a short file changes nothing. */
     u64 cells = (u64)sim->map.width * sim->map.height;
@@ -430,7 +467,7 @@ engine_api_load_game(void *opaque, u32 slot)
                 (sizeof(entity_id) + header.officer_size) * sim->officers.capacity +
                 (sizeof(entity_id) + header.city_size) * sim->cities.capacity + (sim->fire ? 4 : 3) * cells +
                 (u64)header.event_size * (u64)header.ledger_count;
-    if (!cursor.ok || (u64)(cursor.end - cursor.at) < rest) { arena->used = mark; return ENGINE_SAVE_BAD_FILE; }
+    if (!cursor->ok || (u64)(cursor->end - cursor->at) < rest) return ENGINE_SAVE_BAD_FILE;
 
     sim_state *live = PushStruct(arena, sim_state);
     *live = *sim;
@@ -446,7 +483,7 @@ engine_api_load_game(void *opaque, u32 slot)
     if (header.version == 1) { table = engine_save_members_v1; table_count = ArrayCount(engine_save_members_v1); }
     if (header.version == 2) { table = engine_save_members_v2; table_count = ArrayCount(engine_save_members_v2); }
     u8 *old = PushArray(arena, header.sim_size, u8);
-    engine_save_get(&cursor, old, header.sim_size);
+    engine_save_get(cursor, old, header.sim_size);
     engine_save_member fresh[ENGINE_SAVE_MEMBER_CAPACITY];
     u32 fresh_count = engine_save_members(fresh);
     memset(sim, 0, sizeof(sim_state));
@@ -480,18 +517,35 @@ engine_api_load_game(void *opaque, u32 slot)
     sim->map_layers           = live->map_layers;   /* M10: the map data comes from the pack, not from the save */
     sim->scratch              = live->scratch;
     sim->ruleset              = live->ruleset;
-    engine_save_arrays(&cursor, sim, false, header.officer_size, header.city_size);
+    engine_save_arrays(cursor, sim, false, header.officer_size, header.city_size);
     if (header.event_size == sizeof(sim_event))
     {
-        engine_save_get(&cursor, e->ledger, sizeof(sim_event) * (u64)header.ledger_count);
+        engine_save_get(cursor, e->ledger, sizeof(sim_event) * (u64)header.ledger_count);
         e->ledger_count = header.ledger_count;
     }
     else
     {
         e->ledger_count = 0;   /* the events of another build do not read; the game goes on without its history */
+        cursor->at += (u64)header.event_size * (u64)header.ledger_count;
     }
-    arena->used = mark;
     return ENGINE_SAVE_OK;
+}
+
+/* A file that does not load changes nothing. A file that loads gives the
+   game, its ledger, and the record of its replay if the file has one. */
+internal engine_save_status
+engine_api_load_game(void *opaque, u32 slot)
+{
+    engine *e = (engine *)opaque;
+    memory_arena *arena = e->transient;
+    u64 mark = arena->used;
+    engine_save_header header;
+    engine_save_cursor cursor;
+    engine_save_status status = engine_read_slot(e, slot, &header, &cursor);
+    if (status == ENGINE_SAVE_OK) status = engine_save_load_image(e, &header, &cursor);
+    if (status == ENGINE_SAVE_OK) engine_game_replay_read(e, &cursor);
+    arena->used = mark;
+    return status;
 }
 
 internal engine_save_slot

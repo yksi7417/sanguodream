@@ -24,6 +24,58 @@ struct engine_event_tone
 
 #define ENGINE_SPEAKER_RING 256   /* the last commands and their first officers */
 
+/* The replay of a game (engine_game_replay.cpp): the start image, the
+   steps, the checkpoints, and the image of the live game while a view is
+   open. */
+#define ENGINE_GAME_REPLAY_CHECKPOINTS 16
+struct engine_game_replay_step_record;
+struct engine_game_replay_checkpoint
+{
+    u8  *image;             /* an image without the ledger */
+    u64  size;
+    u32  step;              /* the steps that the image holds */
+    u32  turn;              /* the sim turn of the image */
+    u32  ledger_count;
+};
+
+struct engine_game_replay_state
+{
+    u8   status;            /* engine_game_replay_status */
+    b32  viewing;
+    b32  applying;          /* the view applies recorded steps: they are not recorded again */
+    u8  *start;             /* the image of the start state */
+    u64  start_size;
+    u32  start_turn;
+    u8  *live;              /* the image of the live game while a view is open */
+    u64  live_size;
+    u64  image_capacity;
+    engine_game_replay_step_record *steps;
+    u32  step_count;
+    u32  view_step;
+    u64  start_checksum;
+    u64  last_checksum;     /* the state after the last step */
+    u32  first_edit;
+    u32  last_clear;        /* the steps up to the last ledger_clear step; 0 if none */
+    engine_game_replay_checkpoint checkpoints[ENGINE_GAME_REPLAY_CHECKPOINTS];
+    u32  checkpoint_count;
+    u32  checkpoint_capacity;   /* the images that the memory holds; 0 if none */
+    u32  checkpoint_turns;      /* the turns between two checkpoints */
+    u64  checkpoint_image_capacity;
+    u32  live_speaker_commands[ENGINE_SPEAKER_RING];   /* the speakers of the live game while a view is open */
+    u16  live_speaker_officers[ENGINE_SPEAKER_RING];
+};
+
+/* The facts of a step before it runs. */
+struct engine_game_replay_pending
+{
+    b32         record;
+    b32         edited;
+    u8          force;
+    u32         turn;
+    engine_date date;
+    u32         first_event;
+};
+
 struct engine
 {
     memory_arena *permanent;
@@ -69,6 +121,7 @@ struct engine
     faction_palette   faction_palette;                          /* faction_colours.tsv */
     u32               faction_colour_stamp;                     /* the turn order of the last assignment; 0 = none */
     u8                faction_colour_rows[SIM_FORCE_CAPACITY];  /* the palette row of each force */
+    engine_game_replay_state game_replay;                       /* the replay of a game, step by step */
 };
 
 internal engine_config
@@ -243,10 +296,17 @@ internal engine_event_report engine_api_event_report(void *opaque, u32 ledger_in
 internal char *engine_read_map_text(engine *e, const char *folder, u32 *width, u32 *height);   /* engine_map.cpp */
 internal b32   engine_load_pack_map(engine *e, const char *folder, const char *hexes_text);
 
+/* engine_game_replay.cpp: the record of the steps of a game */
+internal engine_game_replay_pending engine_game_replay_begin_step(engine *e, b32 command);
+internal void engine_game_replay_end_step(engine *e, const engine_game_replay_pending *pending, u8 kind, const sim_command *command,
+                                          const engine_settings *settings, u8 force, u32 value);
+internal void engine_game_replay_reset(engine *e);
+
 internal engine *
 engine_create(memory_arena *permanent, memory_arena *transient, engine_config config)
 {
     engine *e = PushStruct(permanent, engine);
+    e->game_replay.first_edit = ENGINE_NO_STEP;
     e->permanent = permanent;
     e->transient = transient;
     e->scratch   = arena_sub(transient, ENGINE_SCRATCH_SIZE);
@@ -313,16 +373,23 @@ engine_ledger_append(engine *e, sim_event_sink *sink)
     }
 }
 
-/* Runs one command against the sim and ledgers what it emitted. */
+/* Runs one command against the sim and ledgers what it emitted. The
+   replay records it as a step. A command that comes while a replay view
+   is open runs on the live game: the view closes first, and the command
+   takes the next id of the live game. */
 internal void
 engine_run(engine *e, sim_command command, u32 *events_emitted)
 {
+    b32 from_view = e->game_replay.viewing && !e->game_replay.applying;
+    engine_game_replay_pending pending = engine_game_replay_begin_step(e, true);
+    if (from_view) command.id = sim_make_command(e->sim, command.kind).id;
     arena_reset(&e->scratch);
     sim_event_sink sink = sim_sink_from_arena(&e->scratch, ENGINE_SINK_CAPACITY);
     sim_apply(e->sim, command, &sink);
     engine_note_speaker(e, &command);   /* M18 */
     engine_ledger_append(e, &sink);
     if (events_emitted) *events_emitted += sink.count;
+    engine_game_replay_end_step(e, &pending, ENGINE_STEP_COMMAND, &command, 0, pending.force, 0);
 }
 
 internal sim_command
@@ -621,6 +688,7 @@ engine_api_load_save(void *opaque, const char *path)
         result.detail = "the save has more officers or cities than the game can hold";
         return result;
     }
+    engine_game_replay_reset(e);   /* a new game: a new record */
     engine_ledger_append(e, &sink);
     result.status     = ENGINE_LOAD_OK;
     result.command_id = command.id;
@@ -675,10 +743,14 @@ engine_api_advance_turns(void *opaque, u32 count)
     return emitted;
 }
 
+/* A step of the replay: the replay clears the ledger at the same place. */
 internal void
 engine_api_ledger_clear(void *opaque)
 {
-    ((engine *)opaque)->ledger_count = 0;
+    engine *e = (engine *)opaque;
+    engine_game_replay_pending pending = engine_game_replay_begin_step(e, false);
+    e->ledger_count = 0;
+    engine_game_replay_end_step(e, &pending, ENGINE_STEP_LEDGER_CLEAR, 0, 0, pending.force, 0);
 }
 
 internal void
@@ -1073,10 +1145,14 @@ engine_api_command_develop(void *opaque, u8 city_id, u8 facility, const u16 offi
     return result;
 }
 
+/* A step of the replay: a seat of a player opens or closes. */
 internal void
 engine_api_set_faction_human(void *opaque, u8 force_id, b32 human)
 {
-    ((engine *)opaque)->sim->turns.human[force_id] = human;
+    engine *e = (engine *)opaque;
+    engine_game_replay_pending pending = engine_game_replay_begin_step(e, false);
+    e->sim->turns.human[force_id] = human;
+    engine_game_replay_end_step(e, &pending, ENGINE_STEP_HUMAN, 0, 0, force_id, human ? 1 : 0);
 }
 
 internal void
@@ -1362,6 +1438,7 @@ engine_api_set_city_resource(void *opaque, u8 city_id, u8 resource, u32 index, u
 #include "engine/engine_content.cpp"    /* M16 */
 #include "engine/engine_report.cpp"     /* M18 */
 #include "engine/engine_colours.cpp"    /* the flag colours of the factions */
+#include "engine/engine_game_replay.cpp" /* the replay of a game, step by step */
 
 internal engine_api
 engine_make_api(engine *e)
@@ -1438,5 +1515,6 @@ engine_make_api(engine *e)
     engine_bind_replay_api(&api);
     engine_bind_content_api(&api);
     engine_bind_colours_api(&api);
+    engine_bind_game_replay_api(&api);
     return api;
 }

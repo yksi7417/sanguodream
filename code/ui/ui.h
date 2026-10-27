@@ -65,6 +65,7 @@ enum ui_hud_tab { UI_HUD_TAB_BASES, UI_HUD_TAB_OFFICERS, UI_HUD_TAB_UNITS, UI_HU
 #define UI_MESSAGE_HEIGHT          197.0f
 #define UI_MESSAGE_MARGIN          12.0f
 #define UI_FEEL_PASS_LIMIT         300    /* the AI turns that one 進行 can end before a player acts */
+#define UI_REPLAY_EVENT_LINES      256    /* the log lines of one step that the Replay panel shows */
 /* M18: the feedback of a command (ui_report.cpp; main-map.md, "Bottom-left
    panel", "Speech bubble", "Floating value"). */
 #define UI_LOG_CAPACITY            4096   /* the lines of the message log; the oldest go first */
@@ -440,6 +441,14 @@ struct ui_state
         u32                  pair;         /* the row of the last replay */
         engine_replay_report report;
     } fidelity;
+    bool show_replay;            /* the replay of the game, step by step (ui_game_replay.cpp) */
+    struct
+    {
+        bool viewing;            /* the engine shows a past step: the updates of the turn feedback wait */
+        bool matches;            /* the last view has the checksum of the live game */
+        u32  position;           /* the steps that the view applied; the step count when live */
+        int  turn;               /* the turn of the jump */
+    } replay;
     bool show_ai;                /* M15: the AI view: the options of the last AI turn of a faction */
     struct
     {

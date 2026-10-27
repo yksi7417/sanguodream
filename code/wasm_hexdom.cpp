@@ -14,7 +14,9 @@
      Windows.
    - The saves are in IndexedDB (IDBFS, mounted at /build/saves). The
      platform starts the game after the first read of IndexedDB, and it
-     writes IndexedDB again after each save. */
+     writes IndexedDB again after each save.
+   - If the server keeps the saves (web/server.py), the page reads them
+     before the start and sends each new save (web/shell.html). */
 
 #define HEXDOM_STATIC_GAME 1
 
@@ -61,6 +63,10 @@ struct wasm_state
 };
 
 global_variable wasm_state g_wasm;
+
+#if HEXDOM_WEB_TEST
+#include "wasm_test_hooks.h"       /* only in "build_web.bat test-game"; it uses g_wasm */
+#endif
 
 /* ---- logging and files -------------------------------------------------- */
 
@@ -136,6 +142,11 @@ internal PLATFORM_WRITE_ENTIRE_FILE(wasm_write_entire_file)
     b32 ok = fwrite(data, 1, (size_t)size, file) == (size_t)size;
     fclose(file);
     wasm_sync_saves();
+    /* The page sends the save to the server, if the server keeps the saves (web/shell.html). */
+    if (ok)
+    {
+        EM_ASM({ if (Module.hexdomPushSave) Module.hexdomPushSave(UTF8ToString($0)); }, path);
+    }
     return ok;
 }
 
@@ -191,6 +202,9 @@ wasm_frame(void)
     wasm_images_begin_frame();
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
+#if HEXDOM_WEB_TEST
+    wasm_test_begin_frame(state->imgui);
+#endif
     ImGui::NewFrame();
 
     arena_reset(&state->frame);
@@ -212,6 +226,9 @@ wasm_frame(void)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     webgl2_renderer_draw(&state->renderer, commands, &state->frame);
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+#if HEXDOM_WEB_TEST
+    wasm_test_end_frame();
+#endif
 
     wasm_track_peak("permanent", state->memory.permanent_used, state->memory.permanent_size, &state->peak_permanent);
     wasm_track_peak("transient", state->memory.transient_used, state->memory.transient_size, &state->peak_transient);
@@ -321,7 +338,9 @@ main(void)
         FS.mount(IDBFS, {}, "/build/saves");
         FS.syncfs(true, function(error) {
             if (error) console.log("platform: IndexedDB does not read: " + error);
-            _wasm_start();
+            /* The page reads the saves of the server first, if the server keeps them. */
+            if (Module.hexdomPullSaves) Module.hexdomPullSaves(_wasm_start);
+            else _wasm_start();
         });
     });
     return 0;

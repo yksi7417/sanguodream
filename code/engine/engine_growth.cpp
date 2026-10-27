@@ -174,9 +174,11 @@ engine_api_start_disaster(void *opaque, u8 city_id, u8 disaster)
     return result;
 }
 
+/* A step of the replay: the Settings dialog can change the game while it runs. */
 internal void
 engine_api_set_settings(void *opaque, engine_settings settings)
 {
+    engine_game_replay_pending pending = engine_game_replay_begin_step((engine *)opaque, false);
     ((engine *)opaque)->sim->settings.disasters      = settings.disasters;
     ((engine *)opaque)->sim->settings.ability_change = settings.ability_change;
     ((engine *)opaque)->sim->settings.lifespan       = settings.lifespan;
@@ -191,6 +193,7 @@ engine_api_set_settings(void *opaque, engine_settings settings)
     sim->settings.duel_mode       = settings.duel_mode < DUEL_MODE_COUNT ? settings.duel_mode : (u8)DUEL_MODE_MANUAL;
     sim->settings.difficulty      = settings.difficulty < DIFFICULTY_COUNT ? settings.difficulty : (u8)DIFFICULTY_NORMAL;
     sim_apply_start_settings(sim, &before);
+    engine_game_replay_end_step((engine *)opaque, &pending, ENGINE_STEP_SETTINGS, 0, &settings, pending.force, 0);
 }
 
 internal void

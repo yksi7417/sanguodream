@@ -1597,3 +1597,88 @@ credits.use.stb	The font loader and the text boxes, inside Dear ImGui	what the g
 credits.use.unicode_big5	The table that converts the Big5 names to Unicode	what the game uses the work for
 credits.use.imgui_test_engine	The tests of the panels. The game does not include it.	what the game uses the work for
 credits.original	hexdom contains no text, picture, sound or font from the original game.	the last line of the Credits window
+# The Replay panel: the replay of the game, step by step.
+menu.replay	Replay	menu item: the replay of the game, step by step
+hud.replay	Replay	system menu item: open the replay of the game
+replay.title	Replay	panel title: the replay of the game
+replay.position	Step %u / %u   Turn %u   %u-%02u-%02u	the step of the view, the step count, the turn and the date of the view
+replay.is_live	The map shows the live game.	the panel shows no past step
+replay.empty	No step since the load.	the record has no step
+replay.full	The record is full. The later steps are not in it.	the record is full
+replay.no_memory	The memory cannot hold the record.	the record has no memory
+replay.edited	A change outside the steps came before step %u. The replay can differ from that step.	the first step after an edit
+replay.differs	This state differs from the live game at this step.	the checksum of the view is not the checksum of the live game
+replay.first	|<	button: the start of the game
+replay.back	<	button: one step back
+replay.forward	>	button: one step forward
+replay.last	>|	button: the last step
+replay.live	Live	button: back to the live game
+replay.turn	Turn	input: the turn of the jump
+replay.go	Go	button: jump to the first step of the turn
+replay.column.step	Step	column: the number of the step
+replay.column.turn	Turn	column: the turn of the step
+replay.column.player	Player	column: the faction that acted
+replay.column.action	Action	column: what the step did
+replay.column.place	Place	column: where the step acted
+replay.events	Events of this step: %u	the count of the events of the step
+replay.step.none	None	the action of a replay step
+replay.step.end_turn	End turn	the action of a replay step
+replay.step.load_save	Load	the action of a replay step
+replay.step.load_name_index	Load the names	the action of a replay step
+replay.step.develop	Develop	the action of a replay step
+replay.step.patrol	Patrol	the action of a replay step
+replay.step.conscript	Conscript	the action of a replay step
+replay.step.train	Train	the action of a replay step
+replay.step.merchant	Merchant	the action of a replay step
+replay.step.produce	Produce	the action of a replay step
+replay.step.damage_facility	Damage a facility	the action of a replay step
+replay.step.research	Research	the action of a replay step
+replay.step.merge	Merge	the action of a replay step
+replay.step.start_disaster	Disaster	the action of a replay step
+replay.step.sortie	Sortie	the action of a replay step
+replay.step.transport	Transport	the action of a replay step
+replay.step.move	Move	the action of a replay step
+replay.step.destroy_target	Destroy	the action of a replay step
+replay.step.drive_target	Drive	the action of a replay step
+replay.step.follow	Follow	the action of a replay step
+replay.step.delegate	Delegate	the action of a replay step
+replay.step.attack_facility	Attack a facility	the action of a replay step
+replay.step.move_officers	Move officers	the action of a replay step
+replay.step.summon	Summon	the action of a replay step
+replay.step.wait	Wait	the action of a replay step
+replay.step.retreat	Retreat	the action of a replay step
+replay.step.supply	Supply	the action of a replay step
+replay.step.attack	Attack	the action of a replay step
+replay.step.joint_attack	Joint attack	the action of a replay step
+replay.step.tactic	Tactic	the action of a replay step
+replay.step.plot	Plot	the action of a replay step
+replay.step.build	Build	the action of a replay step
+replay.step.repair	Repair	the action of a replay step
+replay.step.dismantle	Dismantle	the action of a replay step
+replay.step.search	Search	the action of a replay step
+replay.step.recruit	Recruit	the action of a replay step
+replay.step.reward	Reward	the action of a replay step
+replay.step.give_item	Give an item	the action of a replay step
+replay.step.appoint	Appoint	the action of a replay step
+replay.step.matchmake	Matchmake	the action of a replay step
+replay.step.release	Release	the action of a replay step
+replay.step.exile	Exile	the action of a replay step
+replay.step.captive	Captive	the action of a replay step
+replay.step.diplomacy	Diplomacy	the action of a replay step
+replay.step.faction_plot	Plot on a faction	the action of a replay step
+replay.step.duel	Duel	the action of a replay step
+replay.step.duel_action	Duel action	the action of a replay step
+replay.step.debate	Debate	the action of a replay step
+replay.step.debate_action	Debate action	the action of a replay step
+replay.step.corps	Corps	the action of a replay step
+replay.step.adviser	Adviser	the action of a replay step
+replay.step.council	Council	the action of a replay step
+replay.step.event_choice	Event choice	the action of a replay step
+replay.step.trigger_event	Event	the action of a replay step
+replay.step.create_officer	New officer	the action of a replay step
+replay.step.research_ability	Research an ability	the action of a replay step
+replay.step.train_officer	Train an officer	the action of a replay step
+replay.step.trigger_history	Historical event	the action of a replay step
+replay.step.settings	Settings	the action of a replay step
+replay.step.human	Player faction	the action of a replay step
+replay.step.ledger_clear	Clear the log	the action of a replay step
