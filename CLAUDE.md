@@ -62,7 +62,12 @@ decompilation of it.
 - run_tests.bat     unit_tests.exe -> feature_tests.exe -> ui_tests.exe,
                     stops at the first layer that fails; --e2e adds the
                     window smoke run. With --demo, it runs only the
-                    demo walkthroughs and records them to build\demos
+                    demo walkthroughs and records them to build\demos.
+                    With --web, it runs only the tests of build_web.bat
+                    under node
+- build_web.bat     builds the unit tests and the feature tests as
+                    WebAssembly (build\unit_tests.js, feature_tests.js)
+                    with the Emscripten SDK in C:\tools\emsdk (docs/WEB.md)
 - build\feature_tests.exe [fixtures-dir]   default spec-src\spec\fixtures
 - build\ui_tests.exe [filter]              for example "ui", "e2e",
                                            "ui/advance"
@@ -113,6 +118,8 @@ decompilation of it.
 - misc/glb_import.py     converts a GLB into the 3D model of a base kind,
                          data/<pack>/models/<name>.hxm and .png
                          (docs/ASSETS.md, "Base models")
+- misc/subset_font.py    writes the subset of the CJK font for the web
+                         build to build/web/fonts (docs/WEB.md)
 - misc/make_portraits.py  makes data/civil_war/Portraits.zip, the 224 x 280
                          portraits, from the source archives (docs/ASSETS.md)
 - data/placeholder/      the content pack: text/<locale>.tsv (UI strings),

@@ -65,14 +65,14 @@ unit_sprite_file_tests(test_counts *counts)
         else
         {
             arena.used = 0;
-            snprintf(path, sizeof(path), "%s\\..\\data\\placeholder\\%s", exe_dir, render_sprite_files[id]);
+            snprintf(path, sizeof(path), "%s/../data/placeholder/%s", exe_dir, render_sprite_files[id]);
             test_file placeholder = test_read_file(path, &arena);
             if (placeholder.contents) image = png_decode(placeholder.contents, placeholder.size, &arena);
             placeholders_decode &= placeholder.contents != 0 && image.error == 0 && image.width == 64 && image.height == 64;
         }
         if (!render_sprite_art_files[id]) continue;
         arena.used = 0;
-        snprintf(path, sizeof(path), "%s\\..\\data\\placeholder\\%s", exe_dir, render_sprite_art_files[id]);
+        snprintf(path, sizeof(path), "%s/../data/placeholder/%s", exe_dir, render_sprite_art_files[id]);
         test_file file = test_read_file(path, &arena);
         if (!file.contents) continue;   /* a pack without the art of a class uses the placeholder */
         image = png_decode(file.contents, file.size, &arena);

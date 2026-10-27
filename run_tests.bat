@@ -4,6 +4,7 @@ REM   run_tests.bat          unit -> feature -> ui (headless)
 REM   run_tests.bat --e2e    also runs the window for 120 frames and checks its log
 REM   run_tests.bat --demo   only the demo walkthroughs: records build\demos\<test>.mp4 (or .gif)
 REM                          and a PNG of each panel; builds nothing
+REM   run_tests.bat --web    only the unit and feature tests of build_web.bat, under node
 setlocal
 set ROOT=%~dp0
 if not exist "%ROOT%build\unit_tests.exe" (
@@ -12,6 +13,7 @@ if not exist "%ROOT%build\unit_tests.exe" (
 )
 pushd "%ROOT%build"
 if /i "%~1"=="--demo" goto :demo
+if /i "%~1"=="--web" goto :web
 
 echo === unit ===
 .\unit_tests.exe
@@ -34,6 +36,26 @@ if /i "%~1"=="--e2e" (
   echo PASS window smoke run
 )
 
+popd
+echo ALL PASS
+exit /b 0
+
+REM The unit tests and the feature tests of build_web.bat, as WebAssembly under
+REM node (docs/WEB.md). They run in build\, so they find the files as on Windows.
+:web
+if not exist unit_tests.js (
+  echo run_tests.bat: build first ^(build_web.bat^)
+  goto :fail
+)
+set NODE=node
+where node >nul 2>&1
+if errorlevel 1 for /d %%n in ("%EMSDK%\node\*" "C:\tools\emsdk\node\*") do if exist "%%n\bin\node.exe" set NODE="%%n\bin\node.exe"
+echo === unit (web) ===
+%NODE% unit_tests.js
+if errorlevel 1 goto :fail
+echo === feature (web) ===
+%NODE% feature_tests.js
+if errorlevel 1 goto :fail
 popd
 echo ALL PASS
 exit /b 0

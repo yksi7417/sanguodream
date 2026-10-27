@@ -6,8 +6,8 @@
    the officer/city cross-checks. Three ranges of the spec do not cover the
    sample (QUESTIONS.md, Q-016); these tests do not assert them. */
 
-#define SAMPLE_SAVE_RELATIVE_PATH "..\\spec-src\\spec\\fixtures\\saves\\sample.s11"
-#define SAMPLE_README_RELATIVE_PATH "..\\spec-src\\spec\\fixtures\\saves\\README.md"
+#define SAMPLE_SAVE_RELATIVE_PATH "../spec-src/spec/fixtures/saves/sample.s11"
+#define SAMPLE_README_RELATIVE_PATH "../spec-src/spec/fixtures/saves/README.md"
 
 /* save-file.md, Officer array slots and City record. */
 #define SPEC_BUILT_IN_OFFICERS    852
@@ -59,7 +59,7 @@ feature_load_failure_tests(test_counts *counts)
     /* Files written next to the executable for this test, then deleted. */
     char exe_dir[MAX_PATH], path[MAX_PATH];
     test_exe_dir(exe_dir, MAX_PATH);
-    snprintf(path, MAX_PATH, "%s\\load_save_test_oversized.tmp", exe_dir);
+    snprintf(path, MAX_PATH, "%s/load_save_test_oversized.tmp", exe_dir);
     FILE *file = fopen(path, "wb");
     u8 zeros[4096] = {};
     for (u32 block = 0; file && block < (u32)(Megabytes(5) / sizeof(zeros)); ++block) fwrite(zeros, 1, sizeof(zeros), file);
@@ -71,9 +71,9 @@ feature_load_failure_tests(test_counts *counts)
 
     memory_arena copy_arena = test_arena_create(Megabytes(1));
     char sample_path[MAX_PATH];
-    test_fixture_path(sample_path, MAX_PATH, "saves\\sample.s11");
+    test_fixture_path(sample_path, MAX_PATH, "saves/sample.s11");
     test_file sample = test_read_file(sample_path, &copy_arena);
-    snprintf(path, MAX_PATH, "%s\\load_save_test_bad_magic.tmp", exe_dir);
+    snprintf(path, MAX_PATH, "%s/load_save_test_bad_magic.tmp", exe_dir);
     file = fopen(path, "wb");
     if (file && sample.contents)
     {

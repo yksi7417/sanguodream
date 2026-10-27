@@ -11,9 +11,9 @@
    the name-index tables and the alignment of SCEN002 against the save that
    started from it. sample.s11 was saved from SCEN002 (fixtures README). */
 
-#define SCEN002_FIXTURE      "scenarios\\SCEN002.s11"
-#define NAME_INDEX_FIXTURE   "scenarios\\Scenario.s11"
-#define SAMPLE_SAVE_FIXTURE  "saves\\sample.s11"
+#define SCEN002_FIXTURE      "scenarios/SCEN002.s11"
+#define NAME_INDEX_FIXTURE   "scenarios/Scenario.s11"
+#define SAMPLE_SAVE_FIXTURE  "saves/sample.s11"
 
 /* scenario-file.md, Container, Layout and Officer record. */
 #define SPEC_SCENARIO_NAMED_OFFICERS   850

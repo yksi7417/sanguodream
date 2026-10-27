@@ -147,9 +147,9 @@ unit_map_tests(test_counts *counts)
 {
     memory_arena arena = test_arena_create(Megabytes(64));
     tsv_table types = {}, bases = {}, slots = {}, sites = {};
-    char *hexes = unit_map_read("map\\hexes.tsv", &arena);
-    b32 read = hexes && unit_map_table("map\\terrain-types.tsv", &arena, &types) && unit_map_table("map\\bases.tsv", &arena, &bases) &&
-               unit_map_table("map\\slots.tsv", &arena, &slots) && unit_map_table("map\\sites.tsv", &arena, &sites);
+    char *hexes = unit_map_read("map/hexes.tsv", &arena);
+    b32 read = hexes && unit_map_table("map/terrain-types.tsv", &arena, &types) && unit_map_table("map/bases.tsv", &arena, &bases) &&
+               unit_map_table("map/slots.tsv", &arena, &slots) && unit_map_table("map/sites.tsv", &arena, &sites);
     TEST_CHECK(counts, read, "the map fixtures of the spec are readable");
     sim_content *content = PushStruct(&arena, sim_content);
     TEST_CHECK(counts, read && unit_map_terrain(content, &types), "terrain-types.tsv has the 20 terrains");

@@ -6,8 +6,8 @@
    The name lengths come from spec_city_name_characters in
    scenario_fixture_tests.cpp. */
 
-#define NAME_INDEX_RELATIVE_PATH "..\\spec-src\\spec\\fixtures\\scenarios\\Scenario.s11"
-#define SCEN002_RELATIVE_PATH    "..\\spec-src\\spec\\fixtures\\scenarios\\SCEN002.s11"
+#define NAME_INDEX_RELATIVE_PATH "../spec-src/spec/fixtures/scenarios/Scenario.s11"
+#define SCEN002_RELATIVE_PATH    "../spec-src/spec/fixtures/scenarios/SCEN002.s11"
 
 internal b32
 feature_no_city_names(engine_api *api)

@@ -161,7 +161,7 @@ internal void
 unit_inflate_sample_save_tests(test_counts *counts, memory_arena *arena)
 {
     char path[MAX_PATH];
-    test_fixture_path(path, MAX_PATH, "saves\\sample.s11");
+    test_fixture_path(path, MAX_PATH, "saves/sample.s11");
     test_file file = test_read_file(path, arena);
     TEST_CHECK(counts, file.contents != 0, "sample.s11 is readable");
     if (!file.contents) return;

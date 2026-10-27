@@ -93,12 +93,12 @@ feature_save_load_tests(test_counts *counts)
     /* A damaged file and an empty slot. */
     char junk[64] = "not a save";
     char path[MAX_PATH];
-    snprintf(path, sizeof(path), "test_saves\\slot_%02u.hxs", 31);
+    snprintf(path, sizeof(path), "test_saves/slot_%02u.hxs", 31);
     test_platform_write_entire_file(path, junk, sizeof(junk));
     char exe_dir[MAX_PATH], empty_path[MAX_PATH];
     test_exe_dir(exe_dir, MAX_PATH);
-    snprintf(empty_path, sizeof(empty_path), "%s\\test_saves\\slot_32.hxs", exe_dir);
-    DeleteFileA(empty_path);
+    snprintf(empty_path, sizeof(empty_path), "%s/test_saves/slot_32.hxs", exe_dir);
+    remove(empty_path);
     feature_game_digest before = feature_digest(api_b);
     TEST_CHECK(counts, api_b->load_game(api_b->engine, 30) == ENGINE_SAVE_BAD_FILE && api_b->load_game(api_b->engine, 31) == ENGINE_SAVE_NO_FILE,
                "refused: a file that is not a save, and an empty slot");

@@ -11,7 +11,8 @@
    the measured count of each pair as a ceiling. A change that makes a
    replay worse fails. A change that makes it better lowers the ceiling. */
 
-#define FEATURE_REPLAY_PAIRS_RELATIVE "..\\spec-src\\spec\\fixtures\\saves\\pairs"
+#define FEATURE_REPLAY_PAIRS_RELATIVE "../spec-src/spec/fixtures/saves/pairs"
+#define FEATURE_REPLAY_MAX_ENTRIES    128   /* the rule folders, and the numbers of one rule */
 
 struct feature_replay_expected
 {
@@ -58,12 +59,8 @@ internal void
 feature_replay_path(const char *relative, char *out, u32 out_size)
 {
     char exe_dir[MAX_PATH];
-    DWORD length = GetModuleFileNameA(0, exe_dir, MAX_PATH);
-    for (DWORD i = length; i > 0; --i)
-    {
-        if (exe_dir[i - 1] == '\\') { exe_dir[i - 1] = 0; break; }
-    }
-    snprintf(out, out_size, "%s\\%s", exe_dir, relative);
+    test_exe_dir(exe_dir, MAX_PATH);
+    snprintf(out, out_size, "%s/%s", exe_dir, relative);
 }
 
 /* The row of pairs.tsv for a folder of the spec, or ENGINE_REPLAY_PAIR_CAPACITY. */
@@ -83,35 +80,29 @@ feature_replay_row(engine_api *api, const char *rule, u32 number)
 internal u32
 feature_replay_folders_have_rows(engine_api *api, test_counts *counts)
 {
-    char pattern[MAX_PATH], rules_dir[MAX_PATH];
+    char rules_dir[MAX_PATH];
     feature_replay_path(FEATURE_REPLAY_PAIRS_RELATIVE, rules_dir, sizeof(rules_dir));
-    snprintf(pattern, sizeof(pattern), "%s\\*", rules_dir);
     u32 folders = 0;
-    WIN32_FIND_DATAA rule_entry;
-    HANDLE rules = FindFirstFileA(pattern, &rule_entry);
-    if (rules == INVALID_HANDLE_VALUE) return 0;
-    do
+    local_persist test_folder_entry rules[FEATURE_REPLAY_MAX_ENTRIES], numbers[FEATURE_REPLAY_MAX_ENTRIES];
+    u32 rule_count = test_list_folder(rules_dir, rules, FEATURE_REPLAY_MAX_ENTRIES);
+    for (u32 rule = 0; rule < rule_count; ++rule)
     {
-        if (!(rule_entry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) || rule_entry.cFileName[0] == '.') continue;
-        char numbers_pattern[MAX_PATH];
-        snprintf(numbers_pattern, sizeof(numbers_pattern), "%s\\%s\\*", rules_dir, rule_entry.cFileName);
-        WIN32_FIND_DATAA number_entry;
-        HANDLE numbers = FindFirstFileA(numbers_pattern, &number_entry);
-        if (numbers == INVALID_HANDLE_VALUE) continue;
-        do
+        if (!rules[rule].is_folder) continue;
+        char numbers_dir[MAX_PATH];
+        snprintf(numbers_dir, sizeof(numbers_dir), "%s/%s", rules_dir, rules[rule].name);
+        u32 number_count = test_list_folder(numbers_dir, numbers, FEATURE_REPLAY_MAX_ENTRIES);
+        for (u32 number = 0; number < number_count; ++number)
         {
-            if (!(number_entry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) || number_entry.cFileName[0] == '.') continue;
+            if (!numbers[number].is_folder) continue;
             folders++;
-            u32 row = feature_replay_row(api, rule_entry.cFileName, (u32)atoi(number_entry.cFileName));
+            u32 row = feature_replay_row(api, rules[rule].name, (u32)atoi(numbers[number].name));
             char label[160];
             snprintf(label, sizeof(label), "the pair %s/%s has a row in pairs.tsv with a command the engine can replay",
-                     rule_entry.cFileName, number_entry.cFileName);
+                     rules[rule].name, numbers[number].name);
             TEST_CHECK(counts, row < ENGINE_REPLAY_PAIR_CAPACITY &&
                                api->replay_pair_at(api->engine, row).command.kind != ENGINE_REPLAY_NO_COMMAND, label);
-        } while (FindNextFileA(numbers, &number_entry));
-        FindClose(numbers);
-    } while (FindNextFileA(rules, &rule_entry));
-    FindClose(rules);
+        }
+    }
     return folders;
 }
 
@@ -119,8 +110,8 @@ internal engine_replay_report
 feature_replay_run(engine_api *api, engine_replay_pair *pair)
 {
     char before[ENGINE_REPLAY_PATH_SIZE + 16], after[ENGINE_REPLAY_PATH_SIZE + 16];
-    snprintf(before, sizeof(before), "%s\\before.s11", pair->folder);
-    snprintf(after, sizeof(after), "%s\\after.s11", pair->folder);
+    snprintf(before, sizeof(before), "%s/before.s11", pair->folder);
+    snprintf(after, sizeof(after), "%s/after.s11", pair->folder);
     return api->replay_pair(api->engine, before, &pair->command, after);
 }
 

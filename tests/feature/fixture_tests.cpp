@@ -4,8 +4,7 @@
    step of the TDD loop and the signal to implement it. */
 
 #define _CRT_SECURE_NO_WARNINGS
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>   /* directory listing only */
+/* The directory listing is test_list_folder of tests/test_files.h. */
 
 /* The table parser is code/sim/tables.h, the same one that reads the
    content pack. This file only reads the file. */
@@ -745,8 +744,8 @@ fixture_journey_days(tsv_table *table, engine_api *api, test_counts *counts)
     tsv_table cities = {}, bases = {};
     char exe_dir[MAX_PATH], city_path[MAX_PATH], base_path[MAX_PATH];
     test_exe_dir(exe_dir, MAX_PATH);
-    snprintf(city_path, MAX_PATH, "%s\\" HEXDOM_DATA_ROOT "\\placeholder\\cities.tsv", exe_dir);
-    snprintf(base_path, MAX_PATH, "%s\\" HEXDOM_DATA_ROOT "\\placeholder\\bases.tsv", exe_dir);
+    snprintf(city_path, MAX_PATH, "%s/" HEXDOM_DATA_ROOT "/placeholder/cities.tsv", exe_dir);
+    snprintf(base_path, MAX_PATH, "%s/" HEXDOM_DATA_ROOT "/placeholder/bases.tsv", exe_dir);
     test_file city_file = test_read_file(city_path, &arena);
     test_file base_file = test_read_file(base_path, &arena);
     b32 tables = city_file.contents && base_file.contents && tsv_parse((char *)city_file.contents, &arena, &cities) &&
@@ -987,31 +986,28 @@ find_fixture_handler(const char *mechanic)
    without .tsv, after prefix ("" or "map/"). With real_map, each file gets
    an engine with the map of the pack and the sample save (M10). Returns the
    number of files seen. */
+#define FEATURE_FIXTURE_MAX_FILES 512
+
 internal u32
 feature_fixture_tests(const char *dir, const char *prefix, b32 real_map, memory_arena *arena, test_counts *totals)
 {
-    char pattern[MAX_PATH];
-    snprintf(pattern, sizeof(pattern), "%s\\*.tsv", dir);
-
-    WIN32_FIND_DATAA found;
-    HANDLE search = FindFirstFileA(pattern, &found);
-    if (search == INVALID_HANDLE_VALUE)
-    {
-        printf("fixtures: none found in %s\n", dir);
-        return 0;
-    }
+    test_folder_entry *entries = PushArray(arena, FEATURE_FIXTURE_MAX_FILES, test_folder_entry);
+    u32 entry_count = test_list_folder(dir, entries, FEATURE_FIXTURE_MAX_FILES);
 
     u32 file_count = 0;
-    do
+    for (u32 entry = 0; entry < entry_count; ++entry)
     {
+        const char *name = entries[entry].name;
+        size_t length = strlen(name);
+        if (entries[entry].is_folder || length < 4 || strcmp(name + length - 4, ".tsv") != 0) continue;
         file_count++;
         char mechanic[MAX_PATH];
-        snprintf(mechanic, sizeof(mechanic), "%s%s", prefix, found.cFileName);
+        snprintf(mechanic, sizeof(mechanic), "%s%s", prefix, name);
         char *dot = strrchr(mechanic, '.');
         if (dot) *dot = 0;
 
         char path[MAX_PATH];
-        snprintf(path, sizeof(path), "%s\\%s", dir, found.cFileName);
+        snprintf(path, sizeof(path), "%s/%s", dir, name);
 
         tsv_table table = {};
         if (!tsv_load(path, arena, &table))
@@ -1047,7 +1043,7 @@ feature_fixture_tests(const char *dir, const char *prefix, b32 real_map, memory_
         totals->passed += counts.passed;
         totals->failed += counts.failed;
         engine_fixture_destroy(&f);
-    } while (FindNextFileA(search, &found));
-    FindClose(search);
+    }
+    if (!file_count) printf("fixtures: none found in %s\n", dir);
     return file_count;
 }

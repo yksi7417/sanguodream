@@ -10,7 +10,7 @@
    sim_state breaks this test, add a migration to engine_saves.cpp, or
    make the load refuse the old files. Never let the test go. */
 
-#define FEATURE_COMPAT_SAVE_FOLDER "..\\tests\\fixtures\\saves"
+#define FEATURE_COMPAT_SAVE_FOLDER "../tests/fixtures/saves"
 #define FEATURE_LAYOUT_SLOT        29   /* slot_30.hxs of test_saves: the layout test writes it */
 
 internal void
@@ -73,7 +73,7 @@ feature_save_compat_tests(test_counts *counts)
     TEST_CHECK(counts, api->save_game(e, FEATURE_LAYOUT_SLOT, "layout") == ENGINE_SAVE_OK, "a game of this build saves");
     char exe_dir[MAX_PATH], path[MAX_PATH];
     test_exe_dir(exe_dir, MAX_PATH);
-    snprintf(path, sizeof(path), "%s\\%s\\slot_%02u.hxs", exe_dir, FEATURE_TEST_SAVE_FOLDER, FEATURE_LAYOUT_SLOT + 1);
+    snprintf(path, sizeof(path), "%s/%s/slot_%02u.hxs", exe_dir, FEATURE_TEST_SAVE_FOLDER, FEATURE_LAYOUT_SLOT + 1);
     FILE *file = fopen(path, "r+b");
     b32 flipped = false;
     if (file)

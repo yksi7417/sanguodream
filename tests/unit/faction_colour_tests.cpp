@@ -10,7 +10,7 @@ unit_colour_pack_palette(const char *pack, memory_arena *arena, faction_palette 
 {
     char exe_dir[MAX_PATH], path[MAX_PATH];
     test_exe_dir(exe_dir, MAX_PATH);
-    snprintf(path, MAX_PATH, "%s\\..\\data\\%s\\faction_colours.tsv", exe_dir, pack);
+    snprintf(path, MAX_PATH, "%s/../data/%s/faction_colours.tsv", exe_dir, pack);
     char *text = (char *)test_read_file(path, arena).contents;
     tsv_table table = {};
     u32 bad_row = 0;

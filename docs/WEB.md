@@ -23,9 +23,32 @@ The game code does not change for it.
 | HEXDOM_EXPORT and HEXDOM_STATIC_GAME (hexdom.h) | Done. The web build includes hexdom.cpp in its platform unit. |
 | The fonts, the models and the textures load through platform_api | Done. ui_fonts_load and d3d11_renderer_init get the file reader of the platform. render_mesh_file_parse reads the mesh files for each renderer. |
 | The peak use of each memory block | Done. The window writes it to build/hexdom.log when it closes. |
-| tests/test_files.h without windows.h | Open. It needs the Emscripten SDK to check. |
-| The unit tests and the feature tests under emcc and node | Open. It needs the Emscripten SDK. |
-| A subset of the CJK font for the web | Open. It needs fontTools. The Windows build keeps the full font. |
+| tests/test_files.h without windows.h | Done. The helpers have a Windows half and a POSIX half. test_list_folder replaces FindFirstFile in the feature tests. |
+| The unit tests and the feature tests under emcc and node | Done. build_web.bat builds build/unit_tests.js and build/feature_tests.js. `run_tests.bat --web` runs them. Each suite gives the same counts as on Windows. |
+| A subset of the CJK font for the web | Done. misc/subset_font.py writes build/web/fonts/NotoSansCJKtc-Regular.otf. The Windows build keeps the full font. |
+
+## The tools
+- The Emscripten SDK is in C:\tools\emsdk. To install it, clone
+  github.com/emscripten-core/emsdk, then run `emsdk install latest` and
+  `emsdk activate latest`. build_web.bat calls emsdk_env.bat itself. To
+  use another folder, set EMSDK.
+- fontTools is in the virtual environment C:\tools\hexdom-venv, because
+  `python -I` does not read the packages of the user. To make it, run
+  `python -m venv C:\tools\hexdom-venv`, then
+  `C:\tools\hexdom-venv\Scripts\python -m pip install fonttools`.
+- To make the font, run
+  `C:\tools\hexdom-venv\Scripts\python -I misc\subset_font.py` from the
+  root of the repository. The script takes approximately 25 minutes. The
+  subset is 3.4 MB in place of 16.4 MB, with 14,212 code points. ImGui
+  builds the same atlas from it as from the full font: 14,300 glyphs.
+
+## The web build of the tests
+- build_web.bat compiles with the warnings of build.bat, and with
+  -Werror. It also turns off one clang check that MSVC does not have: a u8
+  that the code compares with a capacity of 256.
+- The tests use NODERAWFS, so they read the real files of the repository.
+  On POSIX, test_exe_dir gives the current folder. Thus
+  `run_tests.bat --web` runs them in build/, as on Windows.
 
 ## The memory budget
 The window reserves these blocks. The peak is from the title screen with

@@ -150,19 +150,15 @@ main(int argc, char **argv)
     else
     {
         char exe_dir[MAX_PATH];
-        DWORD length = GetModuleFileNameA(0, exe_dir, MAX_PATH);
-        for (DWORD i = length; i > 0; --i)
-        {
-            if (exe_dir[i - 1] == '\\') { exe_dir[i - 1] = 0; break; }
-        }
-        snprintf(fixtures_dir, sizeof(fixtures_dir), "%s\\..\\spec-src\\spec\\fixtures", exe_dir);
+        test_exe_dir(exe_dir, MAX_PATH);
+        snprintf(fixtures_dir, sizeof(fixtures_dir), "%s/../spec-src/spec/fixtures", exe_dir);
     }
 
     memory_arena arena = test_arena_create(Megabytes(64));
     test_counts fixture_counts = {};
     u32 files = feature_fixture_tests(fixtures_dir, "", false, &arena, &fixture_counts);
     char map_dir[MAX_PATH];
-    snprintf(map_dir, sizeof(map_dir), "%s\\map", fixtures_dir);
+    snprintf(map_dir, sizeof(map_dir), "%s/map", fixtures_dir);
     arena_reset(&arena);
     files += feature_fixture_tests(map_dir, "map/", true, &arena, &fixture_counts);   /* M10: the map fixtures */
     printf("%s %u/%u feature/fixtures (%u files)\n", fixture_counts.failed ? "FAIL" : "PASS",

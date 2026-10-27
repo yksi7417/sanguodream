@@ -92,7 +92,7 @@ feature_map_data_tests(test_counts *counts)
     void *e = api->engine;
     engine_map_info info = api->map_info(e);
     TEST_CHECK(counts, info.real_map && strcmp(info.detail, "ok") == 0 && info.width == 200 && info.height == 200,
-               "the engine loads map\\hexes.tsv of the pack: 200 x 200 hexes (F-077)");
+               "the engine loads map/hexes.tsv of the pack: 200 x 200 hexes (F-077)");
     TEST_CHECK(counts, info.cities == 42 && info.gates == 10 && info.ports == 35 && info.city_hexes == 294 && info.port_hexes == 35,
                "42 cities of 7 hexes, 10 gates and 35 ports");
     TEST_CHECK(counts, info.gate_hexes == 10 && info.gate_side_cliffs == 28, "the side hexes of the gates are cliff; 10 gate hexes stay (F-151)");
