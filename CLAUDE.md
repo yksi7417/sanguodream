@@ -50,6 +50,8 @@ decompilation of it.
 - docs/GRAPHICS.md           the plan for the art and the animation (G1-G6)
 - docs/WEB.md                the WebAssembly build: the plan, the status of
                              phase 0 and the memory budget
+- docs/REPLAY.md             the replay of a game, step by step: the record,
+                             the checkpoints and the format in the save file
 - docs/art/GEMINI-PROMPTS.md the prompts that make the art with Gemini
 
 ## Build and run

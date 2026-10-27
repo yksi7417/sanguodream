@@ -406,6 +406,7 @@ ui_draw_system_menu(ui_state *ui, engine_api *api)
         if (ui_menu_item(ui, "topbar.load", "open_load", true))          { ui_open_saveload(ui, api, false); ui_context_open(ui, api, UI_CONTEXT_SAVELOAD, x, y); }
         if (ui_menu_item(ui, "hud.settings", "settings", true))          ui_context_open(ui, api, UI_CONTEXT_SETTINGS, x, y);
         if (ui_menu_item(ui, "hud.edit", "edit", true))                  ui_context_open(ui, api, UI_CONTEXT_EDITOR, x, y);
+        if (ui_menu_item(ui, "hud.replay", "replay", true))              { ui_context_close(ui); ui->show_replay = true; }
         if (ui_menu_item(ui, "hud.to_title", "to_title", true))         { ui_context_close(ui); ui->show_title = true; }
         if (ui_menu_item(ui, "hud.quit", "quit", true))                  { ui_context_close(ui); ui->quit_requested = true; }
     }

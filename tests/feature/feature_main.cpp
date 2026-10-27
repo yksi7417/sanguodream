@@ -43,6 +43,7 @@
 #include "report_tests.cpp"     /* M18 */
 #include "save_compat_tests.cpp" /* the saves of older builds (the play report of 2026-10-23) */
 #include "colour_tests.cpp"      /* the flag colours of the factions */
+#include "game_replay_tests.cpp" /* the replay of a game, step by step */
 #include "fixture_tests.cpp"
 
 int
@@ -141,6 +142,10 @@ main(int argc, char **argv)
     test_counts colour_counts = {};
     feature_colour_tests(&colour_counts);
     failed |= test_report("feature/colours", &colour_counts);
+
+    test_counts game_replay_counts = {};
+    feature_game_replay_tests(&game_replay_counts);
+    failed |= test_report("feature/game_replay", &game_replay_counts);
 
     char fixtures_dir[MAX_PATH];
     if (argc > 1)

@@ -137,6 +137,7 @@ engine_replay_resume(engine *e, const char *path)
     sim_event_sink sink = sim_sink_from_arena(&e->scratch, ENGINE_SINK_CAPACITY);
     sim_command command = sim_make_command(e->sim, SIM_COMMAND_LOAD_SAVE);
     if (!sim_load_save(e->sim, &save, command, &sink)) return false;
+    engine_game_replay_reset(e);   /* the pair replaces the game: a new record */
     engine_ledger_append(e, &sink);
     return true;
 }

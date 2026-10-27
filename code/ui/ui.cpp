@@ -58,6 +58,7 @@ ui_scene_mark(u32 *overlay, engine_terrain_view view, hex_coord h, u32 rgba)
 #include "ui/ui_information.cpp" /* M21: the information menu, the tables and the detail panels */
 #include "ui/ui_political.cpp"   /* M21: the political map 中地圖 and the hover panels */
 #include "ui/ui_ai.cpp"       /* M15: needs ui_locate.cpp */
+#include "ui/ui_game_replay.cpp" /* the replay of the game; needs ui_locate.cpp and ui_report.cpp */
 
 internal void
 ui_init(ui_state *ui, text_catalog *text)
@@ -157,6 +158,10 @@ ui_init(ui_state *ui, text_catalog *text)
     ui->show_fidelity         = false;   /* M13 */
     ui->show_ai               = false;   /* M15 */
     ui->show_content          = false;   /* M16 */
+    ui->show_replay           = false;
+    ui->replay                = {};
+    ui->replay.matches        = true;
+    ui->replay.turn           = 1;
     ui->ai.faction            = ENGINE_NO_FACTION;
     ui->ruler.viceroy         = ENGINE_NO_OFFICER;
     ui->ruler.adviser         = ENGINE_NO_OFFICER;
@@ -230,6 +235,7 @@ ui_draw_menu_bar(ui_state *ui, engine_api *api, ui_frame_info *frame)
         ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.bases", "Bases"), 0, &ui->show_bases);
         ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.fidelity", "Fidelity"), 0, &ui->show_fidelity);
         ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.ai", "AI"), 0, &ui->show_ai);
+        ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.replay", "GameReplay"), 0, &ui->show_replay);
         ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.content", "Content"), 0, &ui->show_content);
         ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.title", "TitleMenu"), 0, &ui->show_title);
         ImGui::MenuItem(ui_label(label, sizeof(label), ui, "menu.abilities", "AbilitiesMenu"), 0, &ui->show_abilities);
@@ -623,12 +629,15 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->hud_mode && ImGui::IsKeyPressed(ImGuiKey_F12, false)) ui->show_debug_panels = !ui->show_debug_panels;
     bool tools = !ui->hud_mode || ui->show_debug_panels;
     bool in_game = !ui->show_title && !ui->show_scenarios && !ui->show_rulers && !ui->show_start_settings;
-    ui_feel_update(ui, api, frame->dt_seconds, in_game);   /* M17: the rider, the load transition and the turn start */
+    ui_feel_update(ui, api, frame->dt_seconds, in_game && !ui->replay.viewing);   /* M17: the rider, the load transition and the turn start */
     bool hud_ready = ui->hud_mode && in_game && !ui_feel_in_transition(ui);
-    if (in_game) ui_report_update(ui, api, frame->dt_seconds);   /* M18: the log and the feedback read the new events */
-    if (in_game) ui_round_update(ui, api, frame->dt_seconds);    /* M20: the next step of the show of the AI round */
-    if (in_game) ui_war_update(ui, api, frame->dt_seconds);      /* the walk, the strikes and the hits */
-    if (in_game) ui_captive_update(ui, api);                     /* 俘虜處置: the new captures of the player */
+    /* A replay view shows a past step: the feedback of the turn waits, so
+       that the log and the messages do not read the past events again. */
+    bool live = in_game && !ui->replay.viewing;
+    if (live) ui_report_update(ui, api, frame->dt_seconds);   /* M18: the log and the feedback read the new events */
+    if (live) ui_round_update(ui, api, frame->dt_seconds);    /* M20: the next step of the show of the AI round */
+    if (live) ui_war_update(ui, api, frame->dt_seconds);      /* the walk, the strikes and the hits */
+    if (live) ui_captive_update(ui, api);                     /* 俘虜處置: the new captures of the player */
     if (tools) ui_draw_menu_bar(ui, api, frame);
     if (tools && ui->show_demo)   ImGui::ShowDemoWindow(&ui->show_demo);
     if (tools && ui->show_sim)    ui_draw_simulation(ui, api);
@@ -673,6 +682,8 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->show_bases)      ui_draw_bases(ui, api);
     if (ui->show_fidelity)   ui_draw_fidelity(ui, api);   /* M13 */
     if (ui->show_ai)         ui_draw_ai(ui, api);         /* M15 */
+    if (ui->show_replay)          ui_draw_game_replay(ui, api);   /* the replay of the game */
+    else if (ui->replay.viewing)  ui_replay_close(ui, api);       /* the closed panel returns to the live game */
     if (ui->show_content)    ui_draw_content(ui, api);    /* M16 */
     ui_draw_event_dialog(ui, api);   /* opens while an event waits for a choice */
     ui_draw_game_screens(ui, api);   /* M9: the title, the scenario list, the top bar and the other game screens */
@@ -699,7 +710,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
         ui_scene_handle_mouse(ui, api, frame->render ? frame->render->viewport_width : display.x,
                               frame->render ? frame->render->viewport_height : display.y);
         bool screen_open = ui->info.screen != 0 || ui->show_political;   /* M21: a screen of the information menu covers the map */
-        if (hud_ready && !ui_feel_messages_open(ui) && !ui->round.playing && !ui->round.confirm && !screen_open) ui_hud_scene_clicks(ui, api);   /* the dialogs at the clicked city, unit or map */
+        if (hud_ready && !ui->replay.viewing && !ui_feel_messages_open(ui) && !ui->round.playing && !ui->round.confirm && !screen_open) ui_hud_scene_clicks(ui, api);   /* the dialogs at the clicked city, unit or map */
         if (hud_ready && !screen_open) ui_draw_hover_panel(ui, api);   /* M21: the hover panel of a city or a unit */
         ui_scene_handle_keys(ui, frame->dt_seconds);
         ui_follow_selection(ui, api);   /* M11: a picked city or unit moves the camera */

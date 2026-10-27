@@ -141,6 +141,11 @@ enum recorder_call_kind
     RECORDER_CONTENT_SOURCE,       /* arg = the asset kind */
     RECORDER_INSTALL_SCENARIO_COUNT,
     RECORDER_INSTALL_SCENARIO_AT,  /* arg = the index */
+    RECORDER_GAME_REPLAY_INFO,     /* the replay of a game. The view and the close change what shows, not the game. */
+    RECORDER_GAME_REPLAY_STEP_AT,  /* arg = the index */
+    RECORDER_GAME_REPLAY_VIEW,     /* arg = the step */
+    RECORDER_GAME_REPLAY_CLOSE,
+    RECORDER_GAME_REPLAY_TURN_STEP, /* arg = the turn */
     RECORDER_END_TURN,        /* commands start here */
     RECORDER_ADVANCE_TURNS,
     RECORDER_LEDGER_CLEAR,
@@ -298,6 +303,8 @@ struct engine_recorder
     u8            portrait_source;    /* script the source of content_source(ENGINE_ASSET_PORTRAITS) */
     u8            unit0_effective_type;   /* U-003: the class that unit 0 fights with; 0 = its unit_type (the pike) */
     b32           building_complete;  /* U-001: the camp at (2, 3) is complete; false = a build in progress */
+    b32           replay_viewing;     /* the replay of a game: a view is open */
+    u32           replay_view_step;
 };
 
 internal void
@@ -1970,6 +1977,81 @@ internal engine_install_scenario recorder_install_scenario_at(void *o, u32 index
     snprintf(scenario.file, sizeof(scenario.file), "%s", RECORDER_INSTALL_SCENARIO_FILE);
     return scenario;
 }
+/* The replay of a game: a scripted record of six steps in three turns.
+   The steps of force 1 patrol city 0; the steps of force 2 end the turn.
+   Step 1 has one event at ledger index 0, on the map at hex (2, 3). */
+#define RECORDER_REPLAY_STEPS 6
+internal engine_game_replay_info recorder_game_replay_info(void *o)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_GAME_REPLAY_INFO, 0);
+    engine_game_replay_info info = {};
+    info.status     = ENGINE_GAME_REPLAY_RECORDING;
+    info.viewing    = r->replay_viewing;
+    info.step_count = RECORDER_REPLAY_STEPS;
+    info.view_step  = r->replay_viewing ? r->replay_view_step : RECORDER_REPLAY_STEPS;
+    info.version    = 1;
+    info.start_turn = 1;
+    info.first_edit = ENGINE_NO_STEP;
+    return info;
+}
+internal engine_game_replay_step recorder_game_replay_step_at(void *o, u32 index)
+{
+    recorder_record((engine_recorder *)o, RECORDER_GAME_REPLAY_STEP_AT, index);
+    engine_game_replay_step step = {};
+    step.index = ENGINE_NO_STEP;
+    if (index >= RECORDER_REPLAY_STEPS) return step;
+    b32 patrol = index % 2 == 0;
+    step.index       = index;
+    step.kind        = ENGINE_STEP_COMMAND;
+    step.command     = (u8)(patrol ? SIM_COMMAND_PATROL : SIM_COMMAND_END_TURN);
+    step.key         = patrol ? "patrol" : "end_turn";
+    step.force       = (u8)(patrol ? 1 : 2);
+    step.turn        = 1 + index / 2;
+    step.command_id  = 10 + index;
+    step.officer     = ENGINE_NO_OFFICER;
+    step.first_event = index == 1 ? 0 : ENGINE_NO_EVENT;
+    step.event_count = index == 1 ? 1 : 0;
+    step.place.kind  = ENGINE_PLACE_NONE;
+    step.place.force = ENGINE_NO_FACTION;
+    step.place.officer = ENGINE_NO_OFFICER;
+    if (index == 1)
+    {
+        step.place.kind   = ENGINE_PLACE_HEX;
+        step.place.on_map = true;
+        step.place.q      = 2;
+        step.place.r      = 3;
+    }
+    return step;
+}
+internal engine_game_replay_view recorder_game_replay_view(void *o, u32 step)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_GAME_REPLAY_VIEW, step);
+    engine_game_replay_view view = {};
+    view.step = step;
+    if (step > RECORDER_REPLAY_STEPS) return view;
+    r->replay_viewing   = true;
+    r->replay_view_step = step;
+    view.ok      = true;
+    view.matches = true;
+    return view;
+}
+internal void recorder_game_replay_close(void *o)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_GAME_REPLAY_CLOSE, 0);
+    r->replay_viewing = false;
+}
+internal u32 recorder_game_replay_turn_step(void *o, u32 turn)
+{
+    recorder_record((engine_recorder *)o, RECORDER_GAME_REPLAY_TURN_STEP, turn);
+    for (u32 index = 0; index < RECORDER_REPLAY_STEPS; ++index)
+    {
+        if (1 + index / 2 >= turn) return index;
+    }
+    return RECORDER_REPLAY_STEPS;
+}
 internal void recorder_set_unit_grain(void *o, u32 unit_id, u32 grain)
 {
     (void)grain;
@@ -2269,6 +2351,11 @@ recorder_make_api(engine_recorder *r)
     api.content_source         = recorder_content_source;
     api.install_scenario_count = recorder_install_scenario_count;
     api.install_scenario_at    = recorder_install_scenario_at;
+    api.game_replay_info       = recorder_game_replay_info;   /* the replay of a game */
+    api.game_replay_step_at    = recorder_game_replay_step_at;
+    api.game_replay_view       = recorder_game_replay_view;
+    api.game_replay_close      = recorder_game_replay_close;
+    api.game_replay_turn_step  = recorder_game_replay_turn_step;
     return api;
 }
 

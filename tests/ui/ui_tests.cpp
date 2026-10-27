@@ -3307,6 +3307,68 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_REPLAY_DIFF_AT), 1u);
     };
 
+    /* The Replay panel lists the steps of the game. The buttons, the rows
+       and the turn jump each ask for one view. Live closes the view. No
+       control commands the game. */
+    t = IM_REGISTER_TEST(e, "ui", "replay_panel_steps_through_the_game");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.show_replay         = true;
+        recorder_reset(&v.recorder);
+        ctx->Yield(2);
+        ctx->SetRef("###GameReplay");
+        IM_CHECK(ctx->ItemExists("replay_steps/###replay_step5"));
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_GAME_REPLAY_STEP_AT), (u32)RECORDER_REPLAY_STEPS);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_GAME_REPLAY_VIEW), 0u);   /* the open shows the live game */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###replay_back");
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_GAME_REPLAY_VIEW), 1u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_GAME_REPLAY_VIEW), 5u);   /* the live game is step 6 */
+        ctx->ItemClick("###replay_back");
+        ctx->ItemClick("###replay_forward");
+        IM_CHECK_EQ(recorder_count_arg(&v.recorder, RECORDER_GAME_REPLAY_VIEW, 4), 1u);
+        IM_CHECK_EQ(recorder_count_arg(&v.recorder, RECORDER_GAME_REPLAY_VIEW, 5), 2u);
+        IM_CHECK(v.ui.replay.viewing && v.ui.replay.position == 5);
+
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###replay_first");
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_GAME_REPLAY_VIEW), 0u);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("replay_steps/###replay_step1");
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_GAME_REPLAY_VIEW), 2u);   /* a row shows the state after its step */
+        IM_CHECK_GE(recorder_count_arg(&v.recorder, RECORDER_EVENT_REPORT, 0), 1u);    /* the log lines of the step */
+
+        recorder_reset(&v.recorder);
+        ctx->ItemInputValue("###replay_turn", 3);
+        ctx->ItemClick("###replay_go");
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_GAME_REPLAY_TURN_STEP), 3u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_GAME_REPLAY_VIEW), 4u);   /* the first step of turn 3 */
+
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###replay_live");
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_GAME_REPLAY_CLOSE), 1u);
+        IM_CHECK(!v.ui.replay.viewing);
+        ctx->ItemClick("###replay_last");
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_GAME_REPLAY_VIEW), 6u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+
+        /* A close of the panel returns to the live game. */
+        recorder_reset(&v.recorder);
+        v.ui.show_replay = false;
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_GAME_REPLAY_CLOSE), 1u);
+        IM_CHECK(!v.recorder.replay_viewing);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
     /* M15: the AI panel reads the record of the last AI turn of the chosen
        faction. It shows one row for each option and commands nothing. */
     t = IM_REGISTER_TEST(e, "ui", "ai_panel_reads_the_record_of_the_faction");

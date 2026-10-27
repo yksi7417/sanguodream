@@ -325,6 +325,7 @@ engine_api_load_scenario(void *opaque, const char *path)
         return result;
     }
     for (u32 force = 0; force < SIM_FORCE_CAPACITY; ++force) e->sim->turns.human[force] = false;
+    engine_game_replay_reset(e);   /* a new game: a new record */
     engine_ledger_append(e, &sink);
     result.status     = ENGINE_LOAD_OK;
     result.command_id = command.id;
