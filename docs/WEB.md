@@ -58,6 +58,42 @@ The status on 2026-10-27:
 - The download is approximately 26 MB. The model of the big city is 12 MB
   of it.
 
+## The fly.io site
+The fly.io app sanguodream serves the web game at https://sanguodream.fly.dev.
+A password protects the site. The pack holds data from the original game,
+so the site must not be public.
+
+| File | Job |
+|---|---|
+| web/server.py | The static server. It asks for HTTP basic auth and sends the .gz copy of a file to a browser that accepts gzip. |
+| Dockerfile | The image: Python 3.12, web/server.py and the four files of build/web. It does not compile the game. |
+| .dockerignore | It lets only these five files into the context of the builder. |
+| fly.toml | The app, the region iad and port 8080. The machine stops when nobody uses it. |
+| deploy_web.bat | It runs build_web.bat, then `flyctl deploy --remote-only --ha=false`. |
+
+The rules of the site:
+- The password is the fly secret SITE_PASSWORD. The user name is the
+  secret SITE_USER, and the default is "hexdom". Never write the password
+  in a file of this repository.
+- If SITE_PASSWORD is empty, the server does not start.
+- After a wrong password, the server waits 1 second.
+- web/shell.html gives index.wasm and index.data an address without the
+  password. Thus an address of the form `user:password@host` also works.
+- The builder of fly.io makes the image. Docker is not necessary on this
+  computer.
+- There is no deploy workflow on GitHub. A build there needs the font
+  subset of approximately 25 minutes and the private spec submodule.
+
+To deploy:
+1. Set the password one time:
+   `flyctl secrets set SITE_PASSWORD=<password> -a sanguodream`.
+2. Run `deploy_web.bat`.
+3. Open https://sanguodream.fly.dev and type the user name and the
+   password.
+
+To use the site without a public address, run
+`flyctl proxy 8080 -a sanguodream` and open http://localhost:8080.
+
 ## Phase 0 status
 
 | Step | Status |

@@ -1,0 +1,7 @@
+# The image needs only the server and the web build (Dockerfile).
+*
+!web/server.py
+!build/web/index.html
+!build/web/index.js
+!build/web/index.wasm
+!build/web/index.data

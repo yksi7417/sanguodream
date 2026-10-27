@@ -21,6 +21,9 @@
   var statusElement = document.getElementById("status");
   var Module = {
     canvas: document.getElementById("canvas"),
+    // The fly.io site asks for a password. If the address holds it ("user:pw@host"), fetch
+    // refuses each relative URL. The browser sends the password again from its cache.
+    locateFile: function (path) { return new URL(path, location.origin + location.pathname).href; },
     print: function (text) { console.log(text); },
     printErr: function (text) { console.error(text); },
     setStatus: function (text) {

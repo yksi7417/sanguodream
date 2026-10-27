@@ -1,0 +1,19 @@
+# The fly.io site of the web game (docs/WEB.md, "The fly.io site").
+# The password is the fly secret SITE_PASSWORD. It is not in this repository.
+app = 'sanguodream'
+primary_region = 'iad'
+
+[build]
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+[[vm]]
+  memory = '256mb'
+  cpu_kind = 'shared'
+  cpus = 1

@@ -69,6 +69,9 @@ decompilation of it.
                     .wasm, .data) with the Emscripten SDK in C:\tools\emsdk.
                     "build_web.bat tests" builds the unit tests and the
                     feature tests as WebAssembly (docs/WEB.md)
+- deploy_web.bat    builds the web game and deploys it to the fly.io app
+                    sanguodream, behind a password (docs/WEB.md, "The
+                    fly.io site")
 - build\feature_tests.exe [fixtures-dir]   default spec-src\spec\fixtures
 - build\ui_tests.exe [filter]              for example "ui", "e2e",
                                            "ui/advance"
@@ -101,6 +104,8 @@ decompilation of it.
 - code/wasm_portraits.h  the portraits and the generated faces of the web
 - code/wasm_imconfig.h   the ImGui settings of the web build
 - web/shell.html         the page of the web build
+- web/server.py          the static server of the fly.io site: basic auth
+                         and gzip (Dockerfile, fly.toml)
 - code/render/           render commands and camera; png.h, zip.h and
                          jpeg.h decoders; portraits.h, the picture of an
                          officer
