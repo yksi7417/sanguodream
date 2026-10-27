@@ -124,6 +124,9 @@ def open_storage():
     bucket = os.environ.get("BUCKET_NAME", "")
     if bucket:
         return S3Storage(bucket)
+    # On fly.io a folder of the machine does not stay after a deploy, so the server needs the bucket.
+    if os.environ.get("FLY_APP_NAME"):
+        raise SystemExit("storage.py: BUCKET_NAME is empty; run flyctl storage create -a <app>")
     return FolderStorage(os.environ.get("STORAGE_DIR", "storage"))
 
 
