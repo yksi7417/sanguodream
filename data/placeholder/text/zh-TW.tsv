@@ -1129,6 +1129,8 @@ hud.settings	環境設定
 hud.edit	編輯
 hud.help	?
 help.title	說明
+about.version	版本
+about.build	建置
 help.text	左鍵點選都市：都市情報與指令選單。\n左鍵點選自軍部隊：選擇部隊。再點一次：指令選單。\n點選移動範圍內的地點：部隊移動。\n右鍵：返回上一層。在空地上：地圖選單。\n右鍵點選自軍部隊：詳細情報、所屬武將。\nW A S D：移動視角。Q E：旋轉視角。滾輪：縮放。\nF12：除錯面板。
 confirm.proceed	將結束%s軍的戰略，有尚未行動的部隊存在，請問是否確定？
 confirm.yes	是

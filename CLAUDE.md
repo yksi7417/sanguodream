@@ -98,6 +98,10 @@ decompilation of it.
 ## Layout
 - code/base.h            types, macros, memory arenas
 - code/hexdom.h          the DLL contract (game_memory, platform_api, input)
+- code/version.h         HEXDOM_VERSION changes by hand at a release.
+                         misc/build_number.bat gives the build number and
+                         the commit. The title and the help window show
+                         them.
 - code/hexdom.cpp        game DLL, unity build of ecs/ sim/ engine/ ui/
 - code/win32_hexdom.cpp  platform layer: window, D3D11, ImGui backends,
                          fonts, memory block, hot reload
@@ -114,10 +118,10 @@ decompilation of it.
 - code/wasm_imconfig.h   the ImGui settings of the web build
 - web/shell.html         the page of the web build
 - web/server.py          the server of the fly.io site (Dockerfile,
-                         fly.toml). web/auth.py signs in the users,
-                         web/storage.py keeps the saves in S3,
+                         fly.toml). web/auth.py signs in the users, and
+                         web/storage.py keeps the saves in S3.
                          web/game_files.py serves index.wasm and
-                         index.data from the bucket to members, and
+                         index.data from the bucket to members.
                          web/broadcast.py relays the optional YouTube
                          broadcast
 - code/wasm_test_hooks.h the test hooks of "build_web.bat test-game" for

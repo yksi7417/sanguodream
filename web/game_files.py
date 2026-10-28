@@ -27,6 +27,8 @@ BUILDS_PREFIX = "builds/"
 BUILDS_KEPT = 5
 CACHE_CONTROL = "private, max-age=31536000, immutable"
 HASH_CHUNK_BYTES = 1024 * 1024
+# Tigris can answer 408 to one request. The server tries again after these waits; 0 ends the tries.
+PUBLISH_RETRY_SECONDS = (10, 30, 90, 0)
 
 
 def build_id_of(root):
@@ -72,13 +74,20 @@ class GameFiles:
                 "expires": int(time.time()) + GAME_URL_SECONDS if use_bucket else None, "files": files}
 
     async def publish(self, storage):
-        """Put the files of this build in the bucket. After an error, the server keeps its own files."""
+        """Put the files of this build in the bucket. After the last failed try, the server keeps its own files."""
         if not self.build or not hasattr(storage, "put_file"):
             return
         origin = site_origin()
         if not origin:
             print("game_files: no PUBLIC_URL or FLY_APP_NAME for the CORS rule; the server sends the files", flush=True)
             return
+        for attempt, delay in enumerate(PUBLISH_RETRY_SECONDS, start=1):
+            if await self.publish_once(storage, origin, attempt):
+                return
+            if delay:
+                await asyncio.sleep(delay)
+
+    async def publish_once(self, storage, origin, attempt):
         try:
             for name in GAME_FILE_NAMES:
                 if await storage.exists(self.key(name)):
@@ -93,10 +102,12 @@ class GameFiles:
             await storage.set_cors([origin], ["GET", "HEAD"], ["Range"])
             await self.remove_old_builds(storage)
         except Exception as error:   # boto3 has many kinds of errors; each one keeps the files on the server
-            print(f"game_files: the bucket refused the game files, the server sends them: {error}", flush=True)
-            return
+            print(f"game_files: try {attempt}: the bucket refused the game files, the server sends them: {error}",
+                  flush=True)
+            return False
         self.in_bucket = True
         print(f"game_files: the members get build {self.build} from the bucket", flush=True)
+        return True
 
     async def remove_old_builds(self, storage):
         newest = {}

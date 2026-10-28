@@ -20,7 +20,9 @@ set INCLUDES=-I%ROOT%code -I%ROOT%tests -I%ROOT%third_party\imgui -I%ROOT%third_
 REM The same warnings as build.bat /W4 /WX, less the ones that build.bat turns off,
 REM and less one clang check that MSVC does not have: a u8 against a capacity of 256.
 set WARN=-Wall -Wextra -Werror -Wno-unused-parameter -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-function -Wno-missing-field-initializers -Wno-tautological-constant-out-of-range-compare -ferror-limit=0
-set DEFINES=-DHEXDOM_INTERNAL=1 -DHEXDOM_SLOW=1
+REM The build number and the commit for the title and the help window (code/version.h).
+call "%ROOT%misc\build_number.bat"
+set DEFINES=-DHEXDOM_INTERNAL=1 -DHEXDOM_SLOW=1 -DHEXDOM_BUILD_NUMBER=%HEXDOM_BUILD_NUMBER% -DHEXDOM_BUILD_COMMIT=%HEXDOM_BUILD_COMMIT%
 if not exist "%ROOT%build" mkdir "%ROOT%build"
 pushd "%ROOT%build"
 set ERR=0

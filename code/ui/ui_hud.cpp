@@ -522,6 +522,8 @@ ui_draw_help(ui_state *ui)
     {
         ui_context_track(ui);
         ImGui::TextUnformatted(text_get(ui->text, "help.text"));
+        ImGui::Separator();
+        ui_draw_version(ui, "help_version");
     }
     ImGui::End();
 }

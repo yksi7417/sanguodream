@@ -1131,6 +1131,8 @@ hud.settings	Environment	the system menu
 hud.edit	Edit	the system menu: the editor (編輯)
 hud.help	?	the HUD: the help button
 help.title	Help	the help window of the "?" button
+about.version	Version	the title menu and the help window (code/version.h)
+about.build	Build	the count of the commits and the short hash
 help.text	Left click a city: the city panel and its menu.\nLeft click an own unit: select it. Click it again: the command menu.\nClick a hex in the range: the unit moves there.\nRight click: back one level. On the empty map: the map menu.\nRight click an own unit: 詳細情報 and 所屬武將.\nW A S D: move the camera. Q E: turn the camera. Wheel: zoom.\nF12: the debug panels.	the help window
 confirm.proceed	End the strategy of %s? Units of the force have not acted. Continue?	the question before 進行; %s is the ruler
 confirm.yes	Yes	the question before 進行 (是)

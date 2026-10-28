@@ -14,11 +14,14 @@ if errorlevel 1 (
 set ROOT=%~dp0
 set WARN=/W4 /WX /wd4100 /wd4127 /wd4189 /wd4201 /wd4505
 set INCLUDES=/I%ROOT%code /I%ROOT%tests /I%ROOT%third_party\imgui /I%ROOT%third_party\imgui\backends
-set COMMON=/nologo /Zi /Od %WARN% /EHsc- /GR- /MT /FC /DHEXDOM_INTERNAL=1 /DHEXDOM_SLOW=1 %INCLUDES%
+REM The build number and the commit for the title and the help window (code/version.h).
+call "%ROOT%misc\build_number.bat"
+set BUILD_DEFINES=/DHEXDOM_BUILD_NUMBER=%HEXDOM_BUILD_NUMBER% /DHEXDOM_BUILD_COMMIT=%HEXDOM_BUILD_COMMIT%
+set COMMON=/nologo /Zi /Od %WARN% /EHsc- /GR- /MT /FC /DHEXDOM_INTERNAL=1 /DHEXDOM_SLOW=1 %BUILD_DEFINES% %INCLUDES%
 REM UI tests: ImGui built with test-engine hooks, exceptions on (the test engine's coroutine uses std::thread).
 set TE_INCLUDES=/I%ROOT%tests\ui /I%ROOT%third_party\imgui_test_engine
 set TE_DEFINES=/DIMGUI_USER_CONFIG=\"hexdom_te_imconfig.h\"
-set COMMON_TE=/nologo /Zi /Od %WARN% /EHsc /GR- /MT /FC /DHEXDOM_INTERNAL=1 /DHEXDOM_SLOW=1 %INCLUDES% %TE_INCLUDES% %TE_DEFINES%
+set COMMON_TE=/nologo /Zi /Od %WARN% /EHsc /GR- /MT /FC /DHEXDOM_INTERNAL=1 /DHEXDOM_SLOW=1 %BUILD_DEFINES% %INCLUDES% %TE_INCLUDES% %TE_DEFINES%
 REM Not named LINK: the linker reads an environment variable of that name.
 set LINKFLAGS=/link /INCREMENTAL:NO /opt:ref
 if not exist "%ROOT%build" mkdir "%ROOT%build"

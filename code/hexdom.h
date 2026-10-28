@@ -5,6 +5,7 @@
    unloaded and reloaded while the game keeps running. */
 
 #include "base.h"
+#include "version.h"   /* HEXDOM_VERSION and HEXDOM_BUILD_TEXT for the title and the help window */
 
 struct ImGuiContext;
 

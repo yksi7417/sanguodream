@@ -259,6 +259,11 @@ answers without a wait. Until the steps end, and after an error, the server
 sends the files itself, as before. The log shows the result:
 `game_files: the members get build <id> from the bucket`.
 
+Tigris can answer 408 to one request. On 2026-10-28, the first deploy got
+408 for a HeadObject after the upload of index.wasm. Thus the server tries
+the steps four times, after waits of 10, 30 and 90 seconds. Each try
+starts again from step 2 and skips the files that the bucket already has.
+
 The upload uses the keys of the bucket that the server already has. Thus
 a deploy needs no key on the computer of the developer, and
 deploy_web.bat does not change. The image still holds the two files. The

@@ -94,6 +94,20 @@ ui_title_button(ui_state *ui, engine_api *api, const char *text_id, const char *
     else                          ui_title_open(ui, api, choice);
 }
 
+/* The version and the number of the build (code/version.h), for the title and
+   the help window. A disabled Selectable gives the line a stable id for the
+   tests, and a click on it does nothing. */
+internal void
+ui_draw_version(ui_state *ui, const char *stable_id)
+{
+    char line[160];
+    snprintf(line, sizeof(line), "%s %s  %s %s###%s", text_get(ui->text, "about.version"), HEXDOM_VERSION,
+             text_get(ui->text, "about.build"), HEXDOM_BUILD_TEXT, stable_id);
+    ImGui::BeginDisabled();
+    ImGui::Selectable(line, false);
+    ImGui::EndDisabled();
+}
+
 internal void
 ui_draw_title(ui_state *ui, engine_api *api)
 {
@@ -115,6 +129,8 @@ ui_draw_title(ui_state *ui, engine_api *api)
     ui_title_button(ui, api, "title.quit", "title_quit", UI_TITLE_QUIT);
     if (riding)   /* placeholder art for the rider: the bar fills in UI_TITLE_SELECT_SECONDS */
         ImGui::ProgressBar(ui->feel.title_seconds / UI_TITLE_SELECT_SECONDS, ImVec2(320, 0), "");
+    ImGui::Separator();
+    ui_draw_version(ui, "title_version");
     ImGui::End();
 }
 

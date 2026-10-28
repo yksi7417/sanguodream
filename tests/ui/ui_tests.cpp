@@ -1320,6 +1320,29 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
+    /* The title and the help window show the version and the number of the
+       build (code/version.h). The line commands nothing. */
+    t = IM_REGISTER_TEST(e, "ui", "title_and_help_show_the_version_and_the_build");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.ui.show_title = true;
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ImGuiTestItemInfo title = ctx->ItemInfo("//###Title/###title_version", ImGuiTestOpFlags_NoError);
+        IM_CHECK(title.ID != 0);
+        IM_CHECK(strstr(title.DebugLabel, HEXDOM_VERSION) != 0);
+        v.ui.show_title = false;
+        v.ui.hud_mode   = true;    /* the HUD draws the help window */
+        v.ui.show_map   = false;
+        v.ui.show_help  = true;
+        ctx->Yield(2);
+        IM_CHECK(ctx->ItemInfo("//###Help/###help_version", ImGuiTestOpFlags_NoError).ID != 0);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
     /* 進行 with own units that have not acted asks first. 否 keeps the
        turn, 是 ends it. Without such units the turn ends at once. */
     t = IM_REGISTER_TEST(e, "ui", "proceed_with_units_that_have_not_acted_asks_first");
