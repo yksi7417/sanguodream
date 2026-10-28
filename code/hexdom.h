@@ -93,7 +93,7 @@ struct game_memory
     u64   transient_size;
     void *transient;    /* per-session scratch */
     platform_api platform;
-    b32   quit_requested;   /* M9: the game asks the platform to close the window (結束遊戲) */
+    b32   quit_requested;   /* M9: the game asks the platform to close the window (結束遊戲), for one frame */
     u32   font_pixels;      /* the font size that the UI wants; the platform builds the atlas again when it differs (0: the default) */
     u64   permanent_used;   /* the use of the two blocks after each frame. The platform logs */
     u64   transient_used;   /* the peak, to size the blocks of each platform (docs/WEB.md)  */

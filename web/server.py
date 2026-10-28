@@ -236,6 +236,7 @@ async def logout(request):
 async def api_me(request):
     user = await require_member(request)
     return web.json_response({"uid": user["uid"], "name": user["name"], "provider": user["provider"],
+                              "admin": auth.is_admin(user, request.app[KEY_ADMINS]),
                               "can_broadcast": request.app[KEY_BROADCAST].enabled})
 
 
@@ -287,6 +288,23 @@ async def admin_members(request):
     members.sort(key=lambda record: record.get("last_login", 0), reverse=True)
     return web.Response(text=pages.members_page(members), content_type="text/html",
                         headers={"Cache-Control": "no-store"})
+
+
+CLIENT_ERROR_MAX_CHARS = 300
+
+
+async def api_client_error(request):
+    """The page sends the reason when the game stops in the browser (web/shell.html)."""
+    user = await require_member(request)
+    try:
+        report = await request.json()
+    except ValueError:
+        raise web.HTTPBadRequest()
+    message = " ".join(str(report.get("message", "") if isinstance(report, dict) else "").split())
+    agent = " ".join(request.headers.get("User-Agent", "").split())
+    print(f"client: the game stopped for {user['name']}: {message[:CLIENT_ERROR_MAX_CHARS]} "
+          f"[{agent[:CLIENT_ERROR_MAX_CHARS]}]", flush=True)
+    return web.json_response({"logged": True})
 
 
 async def api_broadcast(request):
@@ -360,6 +378,7 @@ def make_app(root):
         web.get("/api/saves", api_saves),
         web.get("/api/saves/{name}", api_save_get),
         web.put("/api/saves/{name}", api_save_put),
+        web.post("/api/client-error", api_client_error),
         web.get("/api/broadcast", api_broadcast),
         web.get("/", game_file),
         web.get("/{name}", game_file),

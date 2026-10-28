@@ -162,7 +162,8 @@ the folder in STORAGE_DIR.
 
 | Request | Job |
 |---|---|
-| GET /api/me | The user: uid, name, provider, and can_broadcast. |
+| GET /api/me | The user: uid, name, provider, admin, and can_broadcast. |
+| POST /api/client-error | The page sends the reason when the game stops. The server writes it to the log with the browser name. |
 | GET /api/saves | The list of the saves: name, size, modified. |
 | GET /api/saves/<name> | The bytes of a save. |
 | PUT /api/saves/<name> | It writes a save. The limit is 16 MB. |
@@ -176,6 +177,39 @@ web/shell.html keeps IndexedDB as a copy in the browser:
   upload fails, the page tries again at the next start.
 - Without the save api, for example with `python -m http.server`, only
   IndexedDB keeps the saves.
+
+### The user badge and the sign-out
+The page shows a badge with the name of the user in the upper right
+corner. A click on the badge opens a menu:
+- the provider of the sign-in
+- "Members", for an admin only
+- "Sign out"
+
+A web page cannot close its window. Thus 結束遊戲 of the game signs the
+user out on the web:
+1. The game sets quit_requested of game_memory for one frame.
+2. wasm_hexdom.cpp calls Module.hexdomQuit of the page.
+3. The page asks the user. If the user agrees, the page signs out and
+   opens the sign-in page.
+
+The user loses the progress after the last save. 返回開頭畫面 in the 設定 menu
+of the HUD goes back to the title without a sign-out.
+
+### The requirements of the device
+The page checks the device before it downloads the game:
+- The browser must have WebAssembly and WebGL2.
+- The device must have a mouse. A phone with only a touch screen fails
+  this check.
+
+If a check fails, the page shows the requirements and does not load the
+game. The user can click "Try anyway". If the game stops later, for
+example when the memory is not sufficient, the page shows the same
+requirements with the reason. The page also sends the reason to
+/api/client-error. To read the reasons, run
+`flyctl logs -a sanguodream` and find the lines that start with "client:".
+
+The game script is in a template element, so it does not run by itself.
+After the checks, the page loads it.
 
 ### The YouTube broadcast
 The broadcast is an option. It is on only if the secret YOUTUBE_STREAM_KEY has a value.
@@ -194,11 +228,17 @@ relay without YouTube, set YOUTUBE_INGEST to a local path: ffmpeg then
 writes the stream to the file `<YOUTUBE_INGEST><YOUTUBE_STREAM_KEY>`.
 
 ### The browser tests
-tests/web has four Playwright smoke tests (smoke.spec.js):
+tests/web has seven Playwright smoke tests (smoke.spec.js):
 - a user signs in, joins the house and sees the title menu
 - the title menu loads a save from the server
 - the city list moves the camera between cities
 - a unit moves beside an enemy base and attacks it
+- the system menu goes back to the title
+- the user badge shows the name and signs the user out
+- the quit button of the title asks, then signs the user out
+
+device.spec.js emulates a phone. The phone sees the requirements page,
+and the page does not download the game.
 
 admin.spec.js has two tests of the members page. The "dev" provider gives
 the email `<name>@dev.test`, and the config sets ADMIN_EMAILS to

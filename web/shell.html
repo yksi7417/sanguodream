@@ -14,6 +14,36 @@
   #live { position: fixed; right: 12px; bottom: 12px; display: none; padding: 6px 12px; border-radius: 6px;
           border: 1px solid #3a3f4b; background: #232731; color: #e8e8e8; font: inherit; cursor: pointer; }
   #live.on { background: #b3261e; border-color: #b3261e; }
+  /* The user badge: the name of the user, and a menu with the members page and the sign-out. */
+  #user { position: fixed; top: 8px; right: 8px; display: none; }
+  #user-button { display: flex; align-items: center; gap: 8px; padding: 3px 12px 3px 3px; border-radius: 18px;
+                 border: 1px solid #3a3f4b; background: rgba(23, 25, 31, 0.85); color: #e8e8e8; font: inherit;
+                 cursor: pointer; }
+  #user-avatar { width: 26px; height: 26px; border-radius: 50%; background: #3d5a80; display: flex;
+                 align-items: center; justify-content: center; font-weight: 600; }
+  #user-menu { display: none; position: absolute; right: 0; top: 40px; min-width: 200px; padding: 6px 0;
+               border: 1px solid #3a3f4b; border-radius: 6px; background: #232731; }
+  #user-menu.open { display: block; }
+  #user-who { padding: 6px 14px 8px; color: #9aa0aa; font-size: 13px; border-bottom: 1px solid #2c313d; }
+  #user-menu a, #user-menu button { display: block; box-sizing: border-box; width: 100%; padding: 8px 14px;
+               border: 0; background: none; color: #e8e8e8; font: inherit; text-align: left;
+               text-decoration: none; cursor: pointer; }
+  #user-menu a:hover, #user-menu button:hover { background: #2c313d; }
+  #user-menu form { margin: 0; }
+  #user-menu [hidden] { display: none; }
+  /* The requirements page: it shows when the device cannot run the game, or when the game stops. */
+  #unsupported { position: fixed; inset: 0; display: none; overflow-y: auto; background: #17191f; color: #d8d8d8; }
+  #unsupported.show { display: block; }
+  #unsupported main { max-width: 540px; margin: 0 auto; padding: 32px 16px; line-height: 1.5; }
+  #unsupported h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  #unsupported h2 { font-size: 16px; font-weight: 600; margin: 20px 0 4px; }
+  #unsupported ul { padding-left: 20px; margin: 6px 0; }
+  #unsupported .zh { color: #9aa0aa; margin: 0 0 12px; }
+  #unsupported .reasons { color: #f08a7e; }
+  #unsupported-detail { color: #9aa0aa; font-size: 12px; word-break: break-word; }
+  #unsupported button { display: block; width: 100%; margin: 10px 0 0; padding: 11px 14px; border: 1px solid #3a3f4b;
+                        border-radius: 6px; background: #232731; color: #e8e8e8; font: inherit; cursor: pointer; }
+  #unsupported [hidden] { display: none; }
 </style>
 </head>
 <body>
@@ -21,6 +51,33 @@
 <canvas id="canvas" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
 <div id="status">Loading hexdom...</div>
 <button id="live" type="button" title="Broadcast the game to YouTube">● Live</button>
+<div id="user">
+  <button id="user-button" type="button" aria-haspopup="true" aria-expanded="false">
+    <span id="user-avatar"></span><span id="user-name"></span>
+  </button>
+  <div id="user-menu">
+    <div id="user-who"></div>
+    <a id="user-admin" href="admin" hidden>Members</a>
+    <form id="user-signout-form" method="post" action="logout"><button id="user-signout" type="submit">Sign out</button></form>
+  </div>
+</div>
+<div id="unsupported" role="alert">
+  <main>
+    <h1 id="unsupported-title">hexdom cannot run on this device</h1>
+    <p class="zh" lang="zh-Hant">這台裝置無法執行 hexdom。</p>
+    <ul class="reasons" id="unsupported-reasons"></ul>
+    <h2>What the game needs</h2>
+    <ul>
+      <li>A computer with a mouse and a keyboard. The game uses the right mouse button.</li>
+      <li>A recent Chrome, Edge, Firefox or Safari with WebGL2 and WebAssembly.</li>
+      <li>Approximately 1 GB of free memory. A phone does not give this much memory to a web page.</li>
+    </ul>
+    <p class="zh" lang="zh-Hant">請使用有滑鼠和鍵盤的電腦，以及新版的 Chrome、Edge、Firefox 或 Safari。</p>
+    <p id="unsupported-detail"></p>
+    <button id="unsupported-try" type="button">Try anyway</button>
+    <button id="unsupported-signout" type="button">Sign out</button>
+  </main>
+</div>
 <script>
   var statusElement = document.getElementById("status");
   var Module = {
@@ -38,7 +95,70 @@
       Module.setStatus(left ? "Loading hexdom... (" + left + ")" : "");
     },
   };
-  window.addEventListener("error", function () { Module.setStatus("hexdom stopped. The console has the details."); });
+  /* ---- The requirements of the device -------------------------------------------------
+     The page checks the device before it downloads the game. If a check fails, the page
+     shows the requirements and does not load the game. "Try anyway" loads it. If the game
+     stops, the page shows the same requirements with the reason, and sends the reason to
+     the log of the server. */
+  function deviceProblems() {
+    var problems = [];
+    if (typeof WebAssembly !== "object") problems.push("This browser has no WebAssembly.");
+    var probe = document.createElement("canvas").getContext("webgl2");
+    if (!probe) problems.push("This browser has no WebGL2.");
+    else if (probe.getExtension("WEBGL_lose_context")) probe.getExtension("WEBGL_lose_context").loseContext();
+    var touchOnly = window.matchMedia("(pointer: coarse)").matches && !window.matchMedia("(any-pointer: fine)").matches;
+    if (touchOnly) problems.push("This device has a touch screen and no mouse.");
+    return problems;
+  }
+
+  var gameStarted = false;
+  function loadGame() {
+    if (gameStarted) return;
+    gameStarted = true;
+    document.getElementById("unsupported").classList.remove("show");
+    Module.setStatus("Loading hexdom...");
+    var template = document.getElementById("game-script").content.querySelector("script");
+    var script = document.createElement("script");
+    script.src = Module.locateFile(template.getAttribute("src"));
+    document.body.appendChild(script);
+  }
+
+  function showRequirements(problems, detail) {
+    var list = document.getElementById("unsupported-reasons");
+    list.textContent = "";
+    problems.forEach(function (problem) {
+      var item = document.createElement("li");
+      item.textContent = problem;
+      list.appendChild(item);
+    });
+    document.getElementById("unsupported-detail").textContent = detail ? "The reason: " + detail : "";
+    document.getElementById("unsupported-title").textContent =
+      gameStarted ? "hexdom stopped on this device" : "hexdom cannot run on this device";
+    document.getElementById("unsupported-try").hidden = gameStarted;
+    Module.setStatus("");
+    document.getElementById("unsupported").classList.add("show");
+  }
+
+  var failureReported = false;
+  function gameFailed(reason) {
+    var detail = String(reason || "unknown").slice(0, 300);
+    if (!failureReported) {
+      failureReported = true;
+      fetch("api/client-error", { method: "POST", headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ message: detail }) }).catch(function () {});
+    }
+    showRequirements(deviceProblems(), detail);
+  }
+
+  Module.onAbort = function (what) { gameFailed(what); };
+  window.addEventListener("error", function (event) { if (gameStarted) gameFailed(event.message); });
+  window.addEventListener("unhandledrejection", function (event) {
+    if (gameStarted && /memory|abort|wasm|webassembly/i.test(String(event.reason))) gameFailed(event.reason);
+  });
+  document.getElementById("unsupported-try").addEventListener("click", loadGame);
+  document.getElementById("unsupported-signout").addEventListener("click", function () {
+    document.getElementById("user-signout-form").submit();
+  });
 
   /* ---- The saves on the server (docs/WEB.md, "The fly.io site") ----------------------
      IndexedDB keeps a copy of the saves in the browser. If the server has a save api,
@@ -104,7 +224,38 @@
     }
     console.log("platform: " + list.saves.length + " saves from the server");
     setupLive(me);
+    setupUser(me);
   }
+
+  /* ---- The user badge and the sign-out ------------------------------------------------ */
+  var PROVIDER_LABELS = { google: "Google", apple: "Apple", facebook: "Facebook", dev: "the test login" };
+
+  function setupUser(me) {
+    var badge = document.getElementById("user");
+    var menu = document.getElementById("user-menu");
+    var button = document.getElementById("user-button");
+    document.getElementById("user-avatar").textContent = Array.from(me.name || "?")[0].toUpperCase();
+    document.getElementById("user-name").textContent = me.name;
+    document.getElementById("user-who").textContent = "Signed in with " + (PROVIDER_LABELS[me.provider] || me.provider);
+    document.getElementById("user-admin").hidden = !me.admin;
+    badge.style.display = "block";
+    function show(open) {
+      menu.classList.toggle("open", open);
+      button.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+    button.addEventListener("click", function (event) { event.stopPropagation(); show(!menu.classList.contains("open")); });
+    document.addEventListener("click", function (event) { if (!badge.contains(event.target)) show(false); });
+    document.addEventListener("keydown", function (event) { if (event.key === "Escape") show(false); });
+  }
+
+  // 結束遊戲 of the game: a web page cannot close, so the page signs the user out.
+  // The saves are on the server already, but the progress after the last save is lost.
+  Module.hexdomQuit = function () {
+    if (!hexdomServer.me) { console.log("platform: the game asks to close; a web page stays open"); return; }
+    var question = "End the game and sign out? The progress after the last save is lost.\n\n" +
+                   "結束遊戲並登出？最後一次存檔之後的進度會遺失。";
+    if (window.confirm(question)) document.getElementById("user-signout-form").submit();
+  };
 
   // wasm_hexdom.cpp calls these two functions.
   Module.hexdomPullSaves = function (done) {
@@ -158,6 +309,14 @@
     live.button.textContent = "● Live";
   }
 </script>
-{{{ SCRIPT }}}
+<!-- A script in a template does not run. loadGame() loads the game after the checks. -->
+<template id="game-script">{{{ SCRIPT }}}</template>
+<script>
+  (function () {
+    var problems = deviceProblems();
+    if (problems.length) showRequirements(problems, "");
+    else loadGame();
+  })();
+</script>
 </body>
 </html>
