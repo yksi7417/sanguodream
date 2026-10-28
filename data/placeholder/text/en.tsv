@@ -921,6 +921,8 @@ scenario_kind.1	base	a scenario of the base game
 scenario_kind.2	PK	a Power Up Kit scenario
 scenario_kind.3	pack	a scenario of the content pack in TSV files (docs/MAPS.md)
 scenario.y1200	1200: The Rival Crowns	一二〇〇年 群王爭霸, the scenario of data/medieval_europe
+scenario.y1200_west	1200: England and France	一二〇〇年 英法爭霸, the scenario of data/medieval_west
+scenario.y1200_east	1200: The Crusades	一二〇〇年 十字軍東征, the scenario of data/medieval_east
 scenario.sample_save	Warlords (saved game)	群雄割據 (存檔)
 scenario.warlords	Warlords	群雄割據
 scenario.lu_bu_campaign	The campaign against Lu Bu	呂布討伐戰

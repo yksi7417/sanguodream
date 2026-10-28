@@ -13,3 +13,5 @@ id	key	name_zh	year	kind	file	status	pack
 6	power_broker	局勢掌控者	0	pk	-	documented	-
 7	women_war	女流之戰	0	pk	-	documented	-
 8	y1200	一二〇〇年 群王爭霸	1200	pack	scenarios/y1200/scenario.tsv	assumed	medieval_europe
+9	y1200_west	一二〇〇年 英法爭霸	1200	pack	scenarios/y1200/scenario.tsv	assumed	medieval_west
+10	y1200_east	一二〇〇年 十字軍東征	1200	pack	scenarios/y1200/scenario.tsv	assumed	medieval_east

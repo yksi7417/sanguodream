@@ -1,0 +1,10 @@
+key	value
+# The scenario of the pack for the year 1200 (docs/MAPS.md, W2). The engine reads year, month, ten_day and number.
+# number: the scenario number of history.tsv. The pack has no history events. 100 is free of the numbers 0 to 13 of the base game.
+# The other files of this folder: forces.tsv, officers.tsv and cities.tsv. misc/make_scenario.py checks them and writes the Big5 names.
+title_zh	一二〇〇年 英法爭霸
+title_en	1200: England and France
+year	1200
+month	1
+ten_day	1
+number	100

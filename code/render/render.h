@@ -616,7 +616,13 @@ global_variable const char *render_mesh_model_files[RENDER_MESH_COUNT][RENDER_MO
     { 0 },   /* RENDER_MESH_SCAFFOLD */
     { "models/facility_market", "models/facility_market_lv2", "models/facility_market_lv3" },   /* RENDER_MESH_STALL: the markets */
     { "models/facility_farm", "models/facility_farm_lv2", "models/facility_farm_lv3" },         /* RENDER_MESH_FIELD: the farms */
-    { "models/facility_barracks", "models/facility_barracks_lv2" },                             /* RENDER_MESH_HALL: the barracks, the drill ground */
+    { "models/facility_barracks", "models/facility_barracks_lv2", "models/facility_barracks_lv3" },   /* RENDER_MESH_HALL: the barracks, the drill ground */
+    { "models/facility_smithy", "models/facility_smithy_lv2", "models/facility_smithy_lv3" },   /* RENDER_MESH_FORGE: the smithy, the workshop */
+    { "models/facility_shipyard" },                                                              /* RENDER_MESH_DOCK: the shipyard */
+    { 0 },   /* RENDER_MESH_SILO */
+    { "models/facility_bronze_sparrow_tower" },                                                  /* RENDER_MESH_TOWER: the bronze sparrow tower */
+    { 0 },   /* RENDER_MESH_OFFICE */
+    { "models/facility_stable", "models/facility_stable_lv2", "models/facility_stable_lv3" },   /* RENDER_MESH_SHED: the stable */
 };
 
 /* The column of render_mesh_model_files for the level of an instance. An

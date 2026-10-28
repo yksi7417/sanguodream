@@ -1,0 +1,43 @@
+key	url	note
+# Written by misc/make_scenario.py. The English Wikipedia article of each officer, by English key (docs/EUROPE.md, E4).
+# officer.<key> comes from the wikipedia column of officers.tsv in the scenario y1200. An officer with - has no row.
+# The game opens only a URL that starts with https://en.wikipedia.org/wiki/
+officer.alexios_iii	https://en.wikipedia.org/wiki/Alexios_III_Angelos
+officer.mourtzouphlos	https://en.wikipedia.org/wiki/Alexios_V_Doukas
+officer.laskaris	https://en.wikipedia.org/wiki/Theodore_I_Laskaris
+officer.niketas	https://en.wikipedia.org/wiki/Niketas_Choniates
+officer.michael_choniates	https://en.wikipedia.org/wiki/Michael_Choniates
+officer.kaloyan	https://en.wikipedia.org/wiki/Kaloyan_of_Bulgaria
+officer.boril	https://en.wikipedia.org/wiki/Boril_of_Bulgaria
+officer.strez	https://en.wikipedia.org/wiki/Strez
+officer.suleiman_ii	https://en.wikipedia.org/wiki/Suleiman_II_of_Rum
+officer.kaykaus	https://en.wikipedia.org/wiki/Kaykaus_I
+officer.al_adil	https://en.wikipedia.org/wiki/Al-Adil_I
+officer.al_kamil	https://en.wikipedia.org/wiki/Al-Kamil
+officer.al_muazzam	https://en.wikipedia.org/wiki/Al-Mu%27azzam_Isa
+officer.al_ashraf	https://en.wikipedia.org/wiki/Al-Ashraf_Musa_ibn_Adil
+officer.emeric	https://en.wikipedia.org/wiki/Emeric,_King_of_Hungary
+officer.andrew_ii	https://en.wikipedia.org/wiki/Andrew_II_of_Hungary
+officer.job	https://en.wikipedia.org/wiki/Job_(archbishop_of_Esztergom)
+officer.leopold_vi	https://en.wikipedia.org/wiki/Leopold_VI_of_Austria
+officer.kuenring	https://en.wikipedia.org/wiki/Hadmar_II_of_Kuenring
+officer.innocent_iii	https://en.wikipedia.org/wiki/Pope_Innocent_III
+officer.capuano	https://en.wikipedia.org/wiki/Peter_of_Capua_the_Elder
+officer.ugolino	https://en.wikipedia.org/wiki/Pope_Gregory_IX
+officer.dandolo	https://en.wikipedia.org/wiki/Enrico_Dandolo
+officer.ziani	https://en.wikipedia.org/wiki/Pietro_Ziani
+officer.morosini	https://en.wikipedia.org/wiki/Thomas_Morosini
+officer.frederick_ii	https://en.wikipedia.org/wiki/Frederick_II,_Holy_Roman_Emperor
+officer.markward	https://en.wikipedia.org/wiki/Markward_von_Annweiler
+officer.pagliara	https://en.wikipedia.org/wiki/Walter_of_Palearia
+officer.diepold	https://en.wikipedia.org/wiki/Dipold_of_Acerra
+officer.al_nasir	https://en.wikipedia.org/wiki/Muhammad_al-Nasir
+officer.abu_hafs	https://en.wikipedia.org/wiki/Abu_Muhammad_Abd_al-Wahid_ibn_Abi_Hafs
+officer.marrakushi	https://en.wikipedia.org/wiki/Abd_al-Wahid_al-Marrakushi
+officer.qaraqush	https://en.wikipedia.org/wiki/Sharaf_al-Din_Qaraqush
+officer.maimonides	https://en.wikipedia.org/wiki/Maimonides
+officer.kaykhusraw	https://en.wikipedia.org/wiki/Kaykhusraw_I
+officer.sgouros	https://en.wikipedia.org/wiki/Leo_Sgouros
+officer.francis	https://en.wikipedia.org/wiki/Francis_of_Assisi
+officer.montferrat	https://en.wikipedia.org/wiki/Boniface_I_of_Montferrat
+officer.brienne	https://en.wikipedia.org/wiki/Walter_III_of_Brienne

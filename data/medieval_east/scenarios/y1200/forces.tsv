@@ -1,0 +1,14 @@
+id	key	name_zh	name_en	ruler
+# The 11 factions of 1200 on this map, in the order of docs/EUROPE.md, E8. id: the force id (faction_colours.tsv gives the colour). ruler: the officer id of officers.tsv.
+# The engine reads id and ruler. The names are for the reader: the game names a faction after its ruler.
+0	byzantium	拜占庭帝國	Byzantine Empire	0
+1	bulgaria	保加利亞帝國	Second Bulgarian Empire	5
+2	rum	羅姆蘇丹國	Sultanate of Rum	8
+3	ayyubid	阿尤布王朝	Ayyubid Sultanate	10
+4	hungary	匈牙利王國	Kingdom of Hungary	14
+5	austria	奧地利公國	Duchy of Austria	17
+6	papacy	教宗國	Papal States	19
+7	venice	威尼斯共和國	Republic of Venice	23
+8	sicily	西西里王國	Kingdom of Sicily	27
+9	almohad	穆瓦希德王朝	Almohad Caliphate	31
+10	ghaniya	加尼亞家族	Banu Ghaniya	35

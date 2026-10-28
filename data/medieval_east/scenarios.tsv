@@ -1,0 +1,7 @@
+id	key	name_zh	year	kind	file	status	pack
+# The scenarios of the pack (docs/MAPS.md, W2). kind pack: the file is the scenario.tsv of a scenario folder, relative to the pack folder.
+# pack: - for a scenario of this pack. Else the folder of another pack under data/: the game starts the engine again with that pack and its map.
+# The rows 1 and 2 lead back to the Three Kingdoms of the placeholder pack. Their files are relative to the executable, as in data/placeholder/scenarios.tsv.
+0	y1200_east	一二〇〇年 十字軍東征	1200	pack	scenarios/y1200/scenario.tsv	assumed	-
+1	warlords	群雄割據	194	base	../spec-src/spec/fixtures/scenarios/SCEN002.s11	documented	placeholder
+2	sample_save	群雄割據 (存檔)	194	save	../spec-src/spec/fixtures/saves/sample.s11	documented	placeholder

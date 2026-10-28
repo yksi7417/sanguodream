@@ -70,6 +70,8 @@ REM spec fixtures are the scenarios of the title menu (data/placeholder/scenario
 set PACK=--preload-file ../data/placeholder@/data/placeholder ^
   --preload-file ../data/civil_war@/data/civil_war ^
   --preload-file ../data/medieval_europe@/data/medieval_europe ^
+  --preload-file ../data/medieval_west@/data/medieval_west ^
+  --preload-file ../data/medieval_east@/data/medieval_east ^
   --preload-file web/fonts/NotoSansCJKtc-Regular.otf@/data/fonts/NotoSansCJKtc-Regular.otf ^
   --preload-file ../data/fonts/NotoSans-Regular.ttf@/data/fonts/NotoSans-Regular.ttf ^
   --preload-file ../data/fonts/NotoSansThai-Regular.ttf@/data/fonts/NotoSansThai-Regular.ttf ^

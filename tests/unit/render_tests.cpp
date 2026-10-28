@@ -167,8 +167,17 @@ unit_render_tests(test_counts *counts)
                            render_mesh_model_files[RENDER_MESH_FIELD][1] && render_mesh_model_files[RENDER_MESH_FIELD][2],
                    "the market and the farm shapes name a model for the levels 2 and 3");
         TEST_CHECK(counts, render_mesh_model_files[RENDER_MESH_HALL][0] && render_mesh_model_files[RENDER_MESH_HALL][1] &&
-                           !render_mesh_model_files[RENDER_MESH_HALL][2],
-                   "the hall shape names a model for the levels 1 and 2, and level 3 uses the model of level 2");
+                           render_mesh_model_files[RENDER_MESH_HALL][2],
+                   "the hall shape names a model for the levels 1 to 3");
+        TEST_CHECK(counts, render_mesh_model_files[RENDER_MESH_FORGE][0] && render_mesh_model_files[RENDER_MESH_FORGE][1] &&
+                           render_mesh_model_files[RENDER_MESH_FORGE][2] && render_mesh_model_files[RENDER_MESH_SHED][0] &&
+                           render_mesh_model_files[RENDER_MESH_SHED][1] && render_mesh_model_files[RENDER_MESH_SHED][2],
+                   "the forge and the shed shapes name a model for the levels 1 to 3");
+        TEST_CHECK(counts, render_mesh_model_files[RENDER_MESH_TOWER][0] && !render_mesh_model_files[RENDER_MESH_TOWER][1],
+                   "the tower shape names a model for level 1: the bronze sparrow tower");
+        TEST_CHECK(counts, render_mesh_model_files[RENDER_MESH_DOCK][0] && !render_mesh_model_files[RENDER_MESH_DOCK][1] &&
+                           !render_mesh_model_files[RENDER_MESH_SILO][0] && !render_mesh_model_files[RENDER_MESH_OFFICE][0],
+                   "the dock shape names a model for level 1, and the silo and the office shapes name none");
         TEST_CHECK(counts, render_model_level_index(0) == 0 && render_model_level_index(1) == 0 && render_model_level_index(2) == 1 &&
                            render_model_level_index(3) == 2 && render_model_level_index(9) == RENDER_MODEL_LEVELS - 1,
                    "level 0 and 1 use the first model column, and a level above the table uses the last");

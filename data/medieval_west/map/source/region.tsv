@@ -1,0 +1,23 @@
+key	value
+# The settings of misc/make_world_map.py for this map. The map is the west of Europe and the Maghreb in the year 1200 (docs/EUROPE.md, E8).
+# lat_* and lon_*: the largest box of the map in degrees. The map is a Lambert azimuthal equal-area projection with its centre in the middle of the box.
+# margin_hexes: the map is the box of the sites plus this margin, inside the box of lat_* and lon_*.
+# city_spacing_hexes: the median distance in hexes from a city to the nearest city. The real map of the placeholder pack has 22. The tool sets the size of a hex from this value.
+# km_per_hex: the distance between the centres of two hexes. If you give it, the tool does not use city_spacing_hexes.
+# max_hexes: the largest map. The terrain mesh needs approximately 1.65 KB of frame memory for each hex. 80000 hexes fit in the 160 MB of each platform. If the map needs more hexes, the tool makes the hexes larger.
+# river_max_scalerank: Natural Earth rivers with this scalerank or less become 河 river hexes. 6 keeps the big rivers only.
+# cliff_metres: a hex with a mean height above this value becomes 崖 cliff (no unit can enter).
+# mountain_metres: a hex with a mean height above this value becomes 荒地 waste.
+name	medieval_west
+lat_min	30.5
+lat_max	56.0
+lon_min	-10.5
+lon_max	15.0
+city_spacing_hexes	22
+km_per_hex	-
+max_hexes	80000
+margin_hexes	12
+river_max_scalerank	6
+cliff_metres	1500
+mountain_metres	800
+seed	1200

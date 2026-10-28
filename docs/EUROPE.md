@@ -480,13 +480,14 @@ crusades at its centre. Each map is a pack of its own, with its own 42
 cities. Thus each map has approximately two times the cities of the
 prototype in each region.
 
-| Map | Pack | Box | Hexes at 11 km | The wars |
+| Map | Pack | Box | Hexes | The wars |
 |---|---|---|---|---|
-| West | medieval_west | 10.5 W to 15 E, 30.5 N to 56 N | approximately 56000 | England and France, the two kings of Germany, the Reconquista, the Albigensian Crusade |
-| East | medieval_east | 8 E to 46 E, 28.5 N to 49 N | approximately 72000 | the crusades in Syria and Egypt, the Fourth Crusade, Byzantium and Bulgaria, the Ayyubids and the Mamluks |
+| West | medieval_west | 10.5 W to 15 E, 30.5 N to 56 N | 268 x 286 = 76648, 10.1 km | England and France, the two kings of Germany, the Reconquista, the Albigensian Crusade |
+| East | medieval_east | 8 E to 46 E, 28.5 N to 49 N | 366 x 217 = 79422, 10.7 km | the crusades in Syria and Egypt, the Fourth Crusade, Byzantium and Bulgaria, the Ayyubids and the Mamluks |
 
 misc/make_world_map.py sets the size of a hex from the distance between
-the cities. The column "Hexes at 11 km" gives the size of the box only.
+the cities. The limit of 80000 hexes stops a finer scale on the east map.
+There the median distance to the nearest city is 17 hexes, not 22.
 
 ### The reasons for the line
 The east edge of the west map is 15 E, not the Rhine:
@@ -544,6 +545,22 @@ New factions can join the east map. These are the first choices:
 - the Abbasid caliphate, with Baghdad.
 
 The west map can add the kingdom of Navarre.
+
+### The result of E8
+Each pack has 42 cities, 10 passes and 35 ports. Each pack has a scenario of 1200.
+
+| Map | Cities that are new | Factions | Officers |
+|---|---|---|---|
+| West | Rouen, Chinon, Lille, Zaragoza, Reims, Coimbra, Cordoba, Brunswick, Roskilde, Genoa, Burgos, Santiago | 17 | 77, with 8 free |
+| East | Antioch, Aleppo, Edessa, Mosul, Baghdad, Damascus, Acre, Nicosia, and 16 more in Anatolia, the Balkans and Italy | 11 | 43, with 6 free |
+
+The notes of the result:
+- Antioch is a city of the east map. It has no owner. Aleppo and Damascus belong to the Ayyubids.
+- The east map has 12 cities without an owner. The factions of the east wait for step 4.
+- The Almohad officers stand in Tunis on the east map, because Marrakesh is not on the map.
+- Rouen and Acre were ports in the prototype. They are cities now.
+- The new game screen lists the games as rows 9 and 10 of scenarios.tsv, with the keys y1200_west and y1200_east.
+- build_web.bat preloads both packs. Each pack adds approximately 3 MB to index.data.
 
 ### The work of E8
 1. Make data/medieval_west and data/medieval_east from a copy of
@@ -619,7 +636,7 @@ wikipedia: 3, 4, 19, 22, 33, 35, 38, 57, 78 and 82.
 | E5 | Coats of arms on the flags | Q-E3 | list done in docs/europe/ARMS.md, external art |
 | E6 | The authorities of the church | Q-E2 | design |
 | E7 | The story mode and the events during the game | no | design |
-| E8 | The west map and the east map, with Antioch on the east map | no | design |
+| E8 | The west map and the east map, with Antioch on the east map | no | done, 42 cities for each map and 11 scenarios in the list |
 
 ## The stage runs
 misc/run_stages.py runs the stages as headless Claude Code sessions, in
