@@ -25,6 +25,8 @@ source. This stage changes data and documents only, not code.
    An earlier run can have left its findings in build/bio_check/*.tsv of
    this worktree. Read them first. Use each result with a source URL, and
    search only for the other officers.
+   A WebFetch of encyclopedia.com and a WebFetch of fmg.ac did not end in
+   an earlier run. Do not fetch these two sites. Use the other sources.
 2. If a sentence of a life has no support in two sources, change or remove
    the sentence. Write in your own words. Copy no sentence of a source.
    Keep each life at three or four sentences.
