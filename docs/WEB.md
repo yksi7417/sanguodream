@@ -55,20 +55,29 @@ The status on 2026-10-27:
   - a save, a reload of the page, and a load
   - the loss of the WebGL2 context
   - the parity test of the 3D scene against the Windows build
-- The download is approximately 48 MB (2026-10-28): index.data is 46.2 MB
-  and index.wasm is 1.7 MB. The twelve 3D models are 35.3 MB of it
+- The download is approximately 84 MB (2026-10-28): index.data is 82.0 MB
+  and index.wasm is 1.7 MB. The 21 3D models are 68.0 MB of it
   (docs/ASSETS.md, "Base models"):
+  - the smithy at level 3: 4.0 MB
+  - the bronze sparrow tower: 3.9 MB
+  - the smithy at level 2: 3.7 MB
+  - the stable at level 3: 3.7 MB
+  - the smithy at level 1: 3.6 MB
+  - the stable at level 2: 3.6 MB
+  - the stable at level 1: 3.5 MB
+  - the barracks at level 3: 3.4 MB
   - the farm at level 1: 3.3 MB
   - the farm at level 2: 3.3 MB
   - the market at level 3: 3.3 MB
+  - the shipyard: 3.3 MB
   - the pass: 3.1 MB
   - the city: 3.0 MB
   - the port: 2.9 MB
   - the big city: 2.8 MB
   - the market at level 2: 2.8 MB
-  - the market at level 1: 2.7 MB
   - the farm at level 3: 2.8 MB
   - the barracks at level 1: 2.8 MB
+  - the market at level 1: 2.7 MB
   - the barracks at level 2: 2.4 MB
 - The 30k model of the big city made the download approximately 10 MB
   smaller.
