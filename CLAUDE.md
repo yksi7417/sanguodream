@@ -115,7 +115,9 @@ decompilation of it.
 - web/shell.html         the page of the web build
 - web/server.py          the server of the fly.io site (Dockerfile,
                          fly.toml). web/auth.py signs in the users,
-                         web/storage.py keeps the saves in S3, and
+                         web/storage.py keeps the saves in S3,
+                         web/game_files.py serves index.wasm and
+                         index.data from the bucket to members, and
                          web/broadcast.py relays the optional YouTube
                          broadcast
 - code/wasm_test_hooks.h the test hooks of "build_web.bat test-game" for

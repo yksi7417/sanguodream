@@ -6,6 +6,7 @@
 !web/storage.py
 !web/pages.py
 !web/broadcast.py
+!web/game_files.py
 !build/web/index.html
 !build/web/index.js
 !build/web/index.wasm

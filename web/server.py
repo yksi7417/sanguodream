@@ -40,6 +40,7 @@ from aiohttp import web
 
 import auth
 import broadcast
+import game_files
 import pages
 import storage
 
@@ -62,6 +63,7 @@ KEY_HTTP = web.AppKey("http", aiohttp.ClientSession)
 KEY_BROADCAST = web.AppKey("broadcast", broadcast.Broadcast)
 KEY_FAILURES = web.AppKey("failures", dict)
 KEY_ADMINS = web.AppKey("admins", frozenset)
+KEY_GAME_FILES = web.AppKey("game_files", game_files.GameFiles)
 
 
 # ---- helpers ---------------------------------------------------------------
@@ -330,6 +332,15 @@ async def game_file(request):
     return web.FileResponse(path, headers={"Cache-Control": "no-cache"})
 
 
+async def api_game_files(request):
+    """The addresses of index.wasm and index.data for a member (game_files.py)."""
+    await require_member(request)
+    files = request.app[KEY_GAME_FILES]
+    if not files.build:
+        raise web.HTTPNotFound()
+    return web.json_response(files.describe(request.app[KEY_STORAGE]), headers={"Cache-Control": "no-store"})
+
+
 async def health(request):
     return web.Response(text="ok")
 
@@ -363,7 +374,9 @@ def make_app(root):
     app[KEY_BROADCAST] = broadcast.Broadcast()
     app[KEY_FAILURES] = {}
     app[KEY_ADMINS] = auth.admin_emails()
+    app[KEY_GAME_FILES] = game_files.GameFiles(app[KEY_ROOT])
     app.cleanup_ctx.append(open_http)
+    app.cleanup_ctx.append(game_files.publish_context(app[KEY_GAME_FILES], app[KEY_STORAGE]))
     app.add_routes([
         web.get("/healthz", health),
         web.get("/login", login),
@@ -380,6 +393,7 @@ def make_app(root):
         web.put("/api/saves/{name}", api_save_put),
         web.post("/api/client-error", api_client_error),
         web.get("/api/broadcast", api_broadcast),
+        web.get("/api/game-files", api_game_files),
         web.get("/", game_file),
         web.get("/{name}", game_file),
     ])
@@ -388,6 +402,7 @@ def make_app(root):
     print(f"server.py: storage {app[KEY_STORAGE].description}", flush=True)
     print(f"server.py: broadcast {'on' if app[KEY_BROADCAST].enabled else 'off'}", flush=True)
     print(f"server.py: {len(app[KEY_ADMINS])} admin emails", flush=True)
+    print(f"server.py: game build {app[KEY_GAME_FILES].build or 'none'}", flush=True)
     return app
 
 

@@ -117,10 +117,123 @@
     gameStarted = true;
     document.getElementById("unsupported").classList.remove("show");
     Module.setStatus("Loading hexdom...");
+    prefetchGameFiles().catch(function (error) {
+      console.log("platform: the page did not prefetch the game files; the game downloads them itself: " + error);
+    }).then(startGameScript);
+  }
+
+  function startGameScript() {
     var template = document.getElementById("game-script").content.querySelector("script");
     var script = document.createElement("script");
     script.src = Module.locateFile(template.getAttribute("src"));
     document.body.appendChild(script);
+  }
+
+  /* ---- The game files (docs/WEB.md, "The game files in the bucket") -------------------
+     The server gives the addresses of index.wasm and index.data to a member: presigned
+     addresses of the bucket, or the files of the server. A presigned address changes at
+     each visit, so the HTTP cache does not keep the files. Thus the page keeps them in
+     the Cache Storage under the build id, and a second visit downloads nothing. The page
+     then gives the bytes to the game. If the bucket fails, the page takes the copy of the
+     server. Without the api, for example with "python -m http.server", the game
+     downloads the files itself. */
+  var GAME_CACHE = "hexdom-game";
+  var WASM_MAGIC = [0x00, 0x61, 0x73, 0x6d];
+
+  async function prefetchGameFiles() {
+    var response = await fetch("api/game-files");
+    if (!response.ok) { console.log("platform: no game files api (" + response.status + ")"); return; }
+    var info = await response.json();
+    var cache = null;
+    try { if (window.caches) cache = await caches.open(GAME_CACHE); } catch (error) { cache = null; }   // a private window
+    var progress = { done: 0, total: info.files["index.wasm"].size + info.files["index.data"].size };
+    var wasm = await gameFile(info, "index.wasm", cache, progress);
+    var data = await gameFile(info, "index.data", cache, progress);
+    if (cache) removeOtherBuilds(cache, info.build);
+    Module.instantiateWasm = function (imports, receive) {
+      WebAssembly.instantiate(wasm, imports)
+        .then(function (result) { wasm = null; receive(result.instance, result.module); })
+        .catch(function (error) { gameFailed(error); });
+      return {};
+    };
+    Module.getPreloadedPackage = function () {
+      var bytes = data;
+      data = null;   // the game copies the files into MEMFS, so the page drops its copy
+      return bytes;
+    };
+    console.log("platform: the game files of build " + info.build + " come from the " + info.source);
+  }
+
+  function gameCacheKey(build, name) { return location.origin + "/game-cache/" + build + "/" + name; }
+
+  function validGameFile(name, bytes, size) {
+    if (!bytes || bytes.byteLength !== size) return false;
+    if (name !== "index.wasm") return true;
+    var head = new Uint8Array(bytes, 0, 4);
+    return WASM_MAGIC.every(function (value, index) { return head[index] === value; });
+  }
+
+  async function gameFile(info, name, cache, progress) {
+    var file = info.files[name];
+    var key = gameCacheKey(info.build, name);
+    if (cache) {
+      try {
+        var cached = await cache.match(key);
+        var kept = cached ? await cached.arrayBuffer() : null;
+        if (validGameFile(name, kept, file.size)) { progress.done += file.size; return kept; }
+      } catch (error) { /* a broken entry: the page downloads the file again */ }
+    }
+    var before = progress.done;
+    var bytes = null;
+    try { bytes = await downloadGameFile(file.url, file.size, progress); }
+    catch (error) { console.log("platform: " + name + " did not download: " + error); }
+    if (!validGameFile(name, bytes, file.size) && file.url !== file.fallback) {
+      console.log("platform: " + name + " from the bucket is not usable; the page takes the copy of the server");
+      progress.done = before;
+      bytes = await downloadGameFile(file.fallback, file.size, progress);
+    }
+    if (!validGameFile(name, bytes, file.size)) throw new Error(name + " does not have " + file.size + " bytes");
+    if (cache) {
+      try { await cache.put(key, new Response(bytes)); }
+      catch (error) { console.log("platform: the Cache Storage does not keep " + name + ": " + error); }
+    }
+    return bytes;
+  }
+
+  async function downloadGameFile(url, size, progress) {
+    var response = await fetch(Module.locateFile(url));
+    if (!response.ok) throw new Error("status " + response.status);
+    var reader = response.body.getReader();
+    var chunks = [];
+    var received = 0;
+    var start = progress.done;
+    for (;;) {
+      var part = await reader.read();
+      if (part.done) break;
+      chunks.push(part.value);
+      received += part.value.length;
+      progress.done = start + Math.min(received, size);
+      Module.setStatus("Loading hexdom... " + Math.floor(100 * progress.done / progress.total) + "%");
+    }
+    var bytes = new Uint8Array(received);
+    var offset = 0;
+    chunks.forEach(function (chunk) { bytes.set(chunk, offset); offset += chunk.length; });
+    // A bucket that does not send Content-Encoding gives the gzip bytes: the page unpacks them.
+    if (received >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b && window.DecompressionStream) {
+      var stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+      return await new Response(stream).arrayBuffer();
+    }
+    return bytes.buffer;
+  }
+
+  async function removeOtherBuilds(cache, build) {
+    try {
+      var keys = await cache.keys();
+      var current = gameCacheKey(build, "");
+      for (var i = 0; i < keys.length; i++) {
+        if (keys[i].url.indexOf(current) !== 0) await cache.delete(keys[i]);
+      }
+    } catch (error) { /* the next visit tries again */ }
   }
 
   function showRequirements(problems, detail) {

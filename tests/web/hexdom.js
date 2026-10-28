@@ -68,6 +68,11 @@ async function signIn(page) {
     await page.click("#house-submit");
     await page.waitForURL((url) => url.pathname === "/");
   }
+  await waitForTitle(page);
+}
+
+// Wait until the game runs and shows the title menu.
+async function waitForTitle(page) {
   await page.waitForFunction(() => typeof Module !== "undefined" && typeof Module._wasm_test_item === "function",
                              null, { timeout: 120_000 });
   await expect.poll(() => item(page, "title_load"), { timeout: 120_000 }).not.toBeNull();
@@ -83,4 +88,4 @@ async function loadFirstSave(page) {
   await expect.poll(() => windowShown(page, "LoadTransition")).toBe(false);
 }
 
-module.exports = { frames, call, item, windowShown, gameState, clickAt, clickItem, clickHex, signIn, loadFirstSave };
+module.exports = { frames, call, item, windowShown, gameState, clickAt, clickItem, clickHex, signIn, waitForTitle, loadFirstSave };

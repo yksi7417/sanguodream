@@ -11,6 +11,8 @@ Two backends have the same functions:
 The keys:
 - users/<uid>.json: the record of a user, as JSON.
 - saves/<uid>/<name>: a save file of a user.
+- builds/<build id>/<name>: index.wasm and index.data of a build, only in the
+  bucket (game_files.py).
 """
 import asyncio
 import json
@@ -87,9 +89,11 @@ class FolderStorage:
 class S3Storage:
     def __init__(self, bucket):
         import boto3  # Only the S3 backend needs boto3.
+        from botocore.config import Config
 
         self.bucket = bucket
-        self.client = boto3.client("s3")
+        # A presigned address needs SigV4. Tigris and S3 accept it for each request.
+        self.client = boto3.client("s3", config=Config(signature_version="s3v4"))
         self.description = f"bucket {bucket}"
 
     async def get(self, key):
@@ -117,6 +121,49 @@ class S3Storage:
             return sorted(items, key=lambda item: item["name"])
 
         return await asyncio.to_thread(read)
+
+    # ---- the game files (game_files.py) ----
+
+    async def exists(self, key):
+        def head():
+            try:
+                self.client.head_object(Bucket=self.bucket, Key=key)
+                return True
+            except self.client.exceptions.ClientError as error:
+                if error.response.get("Error", {}).get("Code") in ("404", "NoSuchKey", "NotFound"):
+                    return False
+                raise
+
+        return await asyncio.to_thread(head)
+
+    async def put_file(self, key, path, content_type, content_encoding, cache_control):
+        extra = {"ContentType": content_type, "CacheControl": cache_control}
+        if content_encoding:
+            extra["ContentEncoding"] = content_encoding
+        await asyncio.to_thread(self.client.upload_file, path, self.bucket, key, ExtraArgs=extra)
+
+    async def set_cors(self, origins, methods, headers):
+        rules = {"CORSRules": [{"AllowedOrigins": origins, "AllowedMethods": methods,
+                                "AllowedHeaders": headers, "MaxAgeSeconds": 3600}]}
+        await asyncio.to_thread(self.client.put_bucket_cors, Bucket=self.bucket, CORSConfiguration=rules)
+
+    async def list_keys(self, prefix):
+        """Each key under the prefix, with the time of its last change."""
+        def read():
+            keys = []
+            for page in self.client.get_paginator("list_objects_v2").paginate(Bucket=self.bucket, Prefix=prefix):
+                keys += [(entry["Key"], int(entry["LastModified"].timestamp())) for entry in page.get("Contents", [])]
+            return keys
+
+        return await asyncio.to_thread(read)
+
+    async def delete(self, key):
+        await asyncio.to_thread(self.client.delete_object, Bucket=self.bucket, Key=key)
+
+    def presigned_get(self, key, seconds):
+        """An address that reads one object until the end time. The signing needs no request."""
+        return self.client.generate_presigned_url("get_object", Params={"Bucket": self.bucket, "Key": key},
+                                                  ExpiresIn=seconds)
 
 
 def open_storage():

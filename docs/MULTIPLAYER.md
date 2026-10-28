@@ -468,7 +468,7 @@ of 2026-10. Check them before a decision.
 | The saves and the logs of the shared games | Small. Tigris gives 5 GB each month without cost. |
 
 Thus the game can stay free for a long time. docs/WEB.md, "The game
-files in the bucket", gives the plan that moves the download out of the
+files in the bucket", tells how the download moves out of the
 machine.
 
 If the cost grows, these ways keep the game free and fair:
