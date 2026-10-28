@@ -13,6 +13,10 @@ The tool also writes names/en.tsv of the pack: the English names by English key
 (docs/EUROPE.md, E2). The rows come from name_en of officers.tsv and forces.tsv of
 the scenario, and from name_en of map/source/sites.tsv of the pack. It checks
 that each officer has a wikipedia cell and a life in lore/en.tsv of the pack.
+
+It also writes names/native.tsv of the pack: name_latin of each officer by the same
+keys (docs/EUROPE.md, E3). It fails if name_latin is empty or has a letter that is not
+Latin.
 """
 import os
 import sys
@@ -64,7 +68,30 @@ def write_names(folder, officers, forces):
         if not row.get("wikipedia") or not (row["wikipedia"] == "-" or row["wikipedia"].startswith("https://en.wikipedia.org/wiki/")):
             fail(where + ": wikipedia must be - or a URL of the English Wikipedia")
         if not lives.get("officer." + row["key"]): fail(where + ": lore/en.tsv of the pack has no life for officer." + row["key"])
+    write_native_names(folder, pack, officers)
     return len(lines) - 3
+
+
+# The Latin letters that the fonts of the game show (code/ui/ui_fonts.h): ASCII, Latin-1,
+# Latin Extended-A and B, the spacing modifier letters (the ayn of "Muhammad al-Nasir"),
+# Latin Extended Additional, and the punctuation block.
+LATIN_RANGES = ((0x20, 0x7E), (0xA0, 0x24F), (0x2B0, 0x2FF), (0x1E00, 0x1EFF), (0x2010, 0x205E))
+
+
+def write_native_names(folder, pack, officers):
+    lines = ["key\ttext\tnote",
+             "# Written by misc/make_scenario.py. The names in their own language, in the Latin script, by English key (docs/EUROPE.md, E3).",
+             "# officer.<key> comes from name_latin of officers.tsv in the scenario %s. The Names setting of the Settings panel shows these rows." % os.path.basename(folder)]
+    for row in officers:
+        where = "officers.tsv id %s" % row["id"]
+        name = row.get("name_latin", "")
+        if not name: fail(where + ": name_latin is empty")
+        for letter in name:
+            if not any(first <= ord(letter) <= last for first, last in LATIN_RANGES):
+                fail("%s: name_latin has the character U+%04X, which is not a Latin letter (question Q-E4)" % (where, ord(letter)))
+        lines.append("officer.%s\t%s" % (row["key"], name))
+    with open(os.path.join(pack, "names", "native.tsv"), "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(lines) + "\n")
 
 
 def main():

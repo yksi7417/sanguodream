@@ -48,7 +48,14 @@ global_variable const test_text_file test_text_files[] =
     { "root/europe/names/en.tsv",
       "key\ttext\n"
       "officer.philip_ii\tPhilip II Augustus\n"
+      "officer.leszek\tLeszek the White\n"
+      "officer.richard\tRichard the Lionheart\n"
       "city.paris\tParis\n" },
+    { "root/europe/names/native.tsv",
+      "key\ttext\n"
+      "officer.philip_ii\tPhilippe II Auguste\n"
+      "officer.leszek\tLeszek Bia\xC5\x82y\n"       /* U+0142 */
+      "city.paris\tLutetia\n" },
     { "root/odd/pack.tsv",
       "key\tvalue\n"
       "default_locale\t../en\n" },
@@ -360,6 +367,44 @@ unit_text_pack_tests(test_counts *counts, memory_arena *arena)
     TEST_CHECK(counts, strcmp(catalog.locale, "ko") == 0, "a pack without pack.tsv keeps the active locale");
 }
 
+/* docs/EUROPE.md, E3: names/native.tsv of the game pack, the names in their own
+   language. The Names setting of the front end turns it on. */
+internal void
+unit_text_native_name_tests(test_counts *counts, memory_arena *arena)
+{
+    text_catalog catalog;
+    text_catalog_init(&catalog, arena_sub(arena, Kilobytes(64)), test_text_read_file, "root", "pack", "en");
+    text_catalog_set_game_pack(&catalog, "europe");
+    text_catalog_set_locale(&catalog, "en");
+
+    TEST_CHECK(counts, !catalog.native_names, "the catalog starts with the English names");
+    const char *english = text_key_name(&catalog, "officer", "philip_ii");
+    TEST_CHECK(counts, english && strcmp(english, "Philip II Augustus") == 0, "the native table does not change the English names when the setting is off");
+
+    catalog.native_names = true;
+    const char *native = text_key_name(&catalog, "officer", "philip_ii");
+    TEST_CHECK(counts, native && strcmp(native, "Philippe II Auguste") == 0, "with the setting on, the key gives the native name");
+    const char *polish = text_key_name(&catalog, "officer", "leszek");
+    TEST_CHECK(counts, polish && strcmp(polish, "Leszek Bia\xC5\x82y") == 0, "a native name keeps its letters with diacritics as UTF-8");
+    const char *lionheart = text_key_name(&catalog, "officer", "richard");
+    TEST_CHECK(counts, lionheart && strcmp(lionheart, "Richard the Lionheart") == 0, "a key that the native table lacks gives the English name");
+    TEST_CHECK(counts, text_key_name(&catalog, "officer", "") == 0, "an empty key has no name, native or not");
+    TEST_CHECK(counts, text_key_name(&catalog, "officer", "nobody") == 0, "a key that no table has gives no name");
+
+    text_catalog_set_locale(&catalog, "zh-TW");
+    const char *chinese_ui = text_key_name(&catalog, "officer", "philip_ii");
+    TEST_CHECK(counts, chinese_ui && strcmp(chinese_ui, "Philippe II Auguste") == 0 && catalog.native_names,
+               "the setting stays after a locale change, and the native table does not depend on the locale");
+
+    catalog.native_names = false;
+    TEST_CHECK(counts, text_key_name(&catalog, "officer", "philip_ii") == 0, "with the setting off in zh-TW, the key has no name again");
+
+    text_catalog_set_game_pack(&catalog, "pack");
+    text_catalog_set_locale(&catalog, "en");
+    catalog.native_names = true;
+    TEST_CHECK(counts, text_key_name(&catalog, "officer", "philip_ii") == 0, "a pack without native.tsv has no native names");
+}
+
 internal void
 unit_text_name_tests(test_counts *counts, memory_arena *arena)
 {
@@ -543,6 +588,7 @@ unit_text_tests(test_counts *counts)
     unit_text_catalog_tests(counts, &arena);
     unit_text_name_tests(counts, &arena);
     unit_text_pack_tests(counts, &arena);
+    unit_text_native_name_tests(counts, &arena);   /* E3 */
     unit_text_label_tests(counts, &arena);
     unit_text_provider_tests(counts, &arena);   /* M18 */
     test_arena_destroy(&arena);

@@ -451,6 +451,7 @@ text_catalog_set_locale(text_catalog *catalog, const char *locale)
     catalog->fallback_strings = empty;
     catalog->names            = empty;
     catalog->pack_names       = empty;
+    catalog->native_pack_names = empty;
     text_copy_utf8(code, catalog->locale, sizeof(catalog->locale));
 
     text_catalog_load_locales(catalog);
@@ -460,7 +461,8 @@ text_catalog_set_locale(text_catalog *catalog, const char *locale)
     catalog->names = text_catalog_load_table(catalog, "names", code, "key");
     if (catalog->game_pack[0] && strcmp(catalog->game_pack, catalog->pack) != 0)
     {
-        catalog->pack_names = text_catalog_load_pack_table(catalog, catalog->game_pack, "names", code, "key");
+        catalog->pack_names        = text_catalog_load_pack_table(catalog, catalog->game_pack, "names", code, "key");
+        catalog->native_pack_names = text_catalog_load_pack_table(catalog, catalog->game_pack, "names", "native", "key");
     }
     catalog->load_count++;
     return true;
@@ -505,6 +507,11 @@ text_key_name(text_catalog *catalog, const char *kind, const char *key)
     text_append(id, sizeof(id), &used, kind);
     text_append(id, sizeof(id), &used, ".");
     text_append(id, sizeof(id), &used, key);
+    if (catalog->native_names)
+    {
+        const char *native = text_table_find(&catalog->native_pack_names, id);
+        if (native) return native;
+    }
     return text_table_find(&catalog->pack_names, id);
 }
 

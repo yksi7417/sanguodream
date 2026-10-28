@@ -532,6 +532,43 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_STR_EQ(v.text.locale, "zh-TW");   /* pack.tsv of the placeholder pack */
     };
 
+    /* docs/EUROPE.md, E3: the Names choice of the Settings panel. */
+    t = IM_REGISTER_TEST(e, "ui", "names_choice_of_the_settings_panel_shows_the_native_name_of_an_officer_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 1;
+        v.recorder.officer_key   = "philip_ii";
+        v.ui.show_settings       = true;
+        text_catalog_use_game_pack(&v.text, "medieval_europe");
+        IM_CHECK(!v.text.native_names);   /* the default is English */
+        ctx->SetRef("###Settings");
+        ctx->Yield(2);
+        engine_officer philip = v.api.officer_at(v.api.engine, 0);
+        char name[UI_NAME_SIZE * 2];
+        ui_officer_name(&v.ui, &philip, name, sizeof(name));
+        IM_CHECK_STR_EQ(name, "Philip II Augustus");
+
+        recorder_reset(&v.recorder);
+        u32 loads = v.text.load_count;
+        ctx->ComboClick("###Names/###names_native");
+        ctx->Yield(2);
+        IM_CHECK(v.text.native_names);
+        ui_officer_name(&v.ui, &philip, name, sizeof(name));
+        IM_CHECK_STR_EQ(name, "Philippe II Auguste");
+        IM_CHECK_EQ(v.text.load_count, loads);   /* no file loads for the choice */
+
+        ctx->ComboClick("###Names/###names_english");
+        ctx->Yield(2);
+        IM_CHECK(!v.text.native_names);
+        ui_officer_name(&v.ui, &philip, name, sizeof(name));
+        IM_CHECK_STR_EQ(name, "Philip II Augustus");
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);   /* the Names choice is a front end setting */
+        text_catalog_use_game_pack(&v.text, HEXDOM_CONTENT_PACK);
+    };
+
     t = IM_REGISTER_TEST(e, "ui", "cities_panel_shows_names_through_the_text_module_and_commands_nothing");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;

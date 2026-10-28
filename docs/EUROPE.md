@@ -109,6 +109,29 @@ The display:
   ImGui does not do this. Thus the UI does not show the Arabic script
   until a later step adds a shaper. See question Q-E4.
 
+The implementation:
+- misc/make_scenario.py writes names/native.tsv of the pack. The row
+  officer.<key> has the name_latin of the officer. The tool stops if a
+  name_latin is empty or has a letter that is not Latin.
+- The text module loads names/native.tsv of the game pack with the names of
+  the locale. The table does not depend on the locale.
+- The field native_names of text_catalog is the Names setting. If it is on,
+  text_key_name looks in the native table first. A key that the native table
+  lacks gives the normal name. The setting loads no file.
+- The Settings panel has the combo Names. The combo sets native_names and
+  commands nothing in the engine. The setting stays when the locale changes.
+- The CJK font has no glyph for six letters of the native names. These
+  letters are "ł", "ř", "ʿ", "ḥ", "ṣ" and "ẓ". The loader merges Noto Sans
+  (SIL OFL 1.1) for the Latin Extended ranges. docs/ASSETS.md lists the font.
+  The web build packs the font.
+
+Tests:
+- unit_text_native_name_tests checks the table, the setting, the fallback
+  to the normal name and a pack without native.tsv.
+- The ui test "names_choice_of_the_settings_panel_shows_the_native_name_of_an_officer_and_commands_nothing"
+  chooses "Own language" and "English", checks the name of an officer with
+  a key, and checks that the choice commands nothing.
+
 ## E4. The life of each officer
 Each of the 103 officers gets a short life of three or four sentences and
 the URL of the English Wikipedia article.
@@ -356,7 +379,7 @@ wikipedia: 3, 4, 19, 22, 33, 35, 38, 57, 78 and 82.
 |---|---|---|---|
 | E1 | pack.tsv and the default locale | no | done |
 | E2 | English keys in engine_api, names of the pack | no | done |
-| E3 | Native names in officers.tsv and the Names setting | Q-E4 for Arabic | data done, UI to do |
+| E3 | Native names in officers.tsv and the Names setting | Q-E4 for Arabic | done, Latin script only |
 | E4 | Lives and Wikipedia URLs, the officer panel | no | data done, UI to do |
 | E5 | Coats of arms on the flags | Q-E3 | research |
 | E6 | The authorities of the church | Q-E1, Q-E2, Q-E7 | design |

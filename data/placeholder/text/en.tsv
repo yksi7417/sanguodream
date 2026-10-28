@@ -1690,3 +1690,6 @@ replay.step.trigger_history	Historical event	the action of a replay step
 replay.step.settings	Settings	the action of a replay step
 replay.step.human	Player faction	the action of a replay step
 replay.step.ledger_clear	Clear the log	the action of a replay step
+settings.names	Names	E3: the combo that chooses the language of the names of the officers
+settings.names_english	English	E3: the value of the Names combo
+settings.names_native	Own language	E3: the value of the Names combo; the name in the Latin script of its own language

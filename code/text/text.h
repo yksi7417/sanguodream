@@ -125,6 +125,8 @@ struct text_catalog
     text_table   names;                       /* names/<locale>.tsv; may be empty */
     char         game_pack[TEXT_PACK_SIZE];   /* the pack of the engine; "" or pack for the base pack (docs/EUROPE.md, E2) */
     text_table   pack_names;                  /* names/<locale>.tsv of the game pack, keyed by "<kind>.<English key>" */
+    text_table   native_pack_names;           /* names/native.tsv of the game pack, in the Latin script (docs/EUROPE.md, E3) */
+    b32          native_names;                /* the Names setting: text_key_name gives the native name first */
     u32          locale_count;
     text_locale_info locales[TEXT_MAX_LOCALES];   /* from text/locales.tsv, in file order */
     u32          load_count;                  /* increments with each text_catalog_set_locale */
@@ -172,7 +174,11 @@ internal void text_catalog_use_game_pack(text_catalog *catalog, const char *pack
 /* The name of a record of the game pack by its English key: the row
    "<kind>.<key>" of the names of the game pack in the active locale, for
    example "officer.philip_ii". 0 if the key is empty or has no row. The
-   fallback locale does not apply, so zh-TW keeps the Big5 names. */
+   fallback locale does not apply, so zh-TW keeps the Big5 names.
+   docs/EUROPE.md, E3: if native_names is on, the row of names/native.tsv
+   comes first. A key that the native table lacks gives the normal name. The
+   native table does not depend on the locale, and the setting does not
+   load a file. */
 internal const char *text_key_name(text_catalog *catalog, const char *kind, const char *key);
 
 /* The label of an enum code, in out: the text of "<prefix>.<code>" in the

@@ -47,6 +47,26 @@ ui_draw_language_combo(ui_state *ui)
     }
 }
 
+/* docs/EUROPE.md, E3: the Names choice. "English" shows the name by English key. "Own language"
+   shows the name in the Latin script of its own language. The choice is one flag of the text
+   catalog, so it loads no file and commands nothing in the engine. */
+internal void
+ui_draw_names_combo(ui_state *ui)
+{
+    text_catalog *text = ui->text;
+    char label[128];
+    const bool native = text->native_names != 0;
+    const char *shown = native ? text_get(text, "settings.names_native") : text_get(text, "settings.names_english");
+    if (ImGui::BeginCombo(ui_label(label, sizeof(label), ui, "settings.names", "Names"), shown))
+    {
+        snprintf(label, sizeof(label), "%s###names_english", text_get(text, "settings.names_english"));
+        if (ImGui::Selectable(label, !native)) text->native_names = false;
+        snprintf(label, sizeof(label), "%s###names_native", text_get(text, "settings.names_native"));
+        if (ImGui::Selectable(label, native)) text->native_names = true;
+        ImGui::EndCombo();
+    }
+}
+
 /* The game settings of the engine (game-setup-and-modes.md). A change is
    one set_settings call. */
 internal void
@@ -102,6 +122,7 @@ ui_draw_settings(ui_state *ui, engine_api *api)
         if (ui->text)
         {
             ui_draw_language_combo(ui);
+            ui_draw_names_combo(ui);
             if (!text_catalog_has_strings(ui->text))
             {
                 ImGui::TextDisabled("%s", text_get(ui->text, "settings.no_strings"));

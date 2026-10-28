@@ -71,6 +71,7 @@ set PACK=--preload-file ../data/placeholder@/data/placeholder ^
   --preload-file ../data/civil_war@/data/civil_war ^
   --preload-file ../data/medieval_europe@/data/medieval_europe ^
   --preload-file web/fonts/NotoSansCJKtc-Regular.otf@/data/fonts/NotoSansCJKtc-Regular.otf ^
+  --preload-file ../data/fonts/NotoSans-Regular.ttf@/data/fonts/NotoSans-Regular.ttf ^
   --preload-file ../data/fonts/NotoSansThai-Regular.ttf@/data/fonts/NotoSansThai-Regular.ttf ^
   --preload-file ../spec-src/spec/fixtures/saves/sample.s11@/spec-src/spec/fixtures/saves/sample.s11 ^
   --preload-file ../spec-src/spec/fixtures/scenarios/SCEN002.s11@/spec-src/spec/fixtures/scenarios/SCEN002.s11 ^
