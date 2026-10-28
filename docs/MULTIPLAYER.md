@@ -340,6 +340,151 @@ The app sanguodream serves the rooms. The plan needs these changes:
   log in the bucket is at most 30 seconds old, and the clients have the
   newer steps. The first client to connect sends those steps again.
 
+## Other options for the relay
+A managed service can carry the messages in place of the relay. This
+section compares the options by the work that stays for the owner. The
+relay of this plan has four jobs:
+1. The order. The relay gives each step one number. Each player applies
+   the steps in that order.
+2. The seat check. Only the seat that acts can send a step.
+3. The log. A player who joins later gets the steps after the last
+   snapshot.
+4. The timers. After a deadline, the relay sends end_turn and
+   set_faction_human.
+
+The order is the hard job. Two senders can send at the same moment, for
+example the player who acts and the timer of the deadline. A broker
+without one order can then deliver the two steps in two orders to two
+players. The two engines then have a desync.
+
+| Option | The order | The seat check | The log | The timers | What stays on fly.io | The cost (2026-10) |
+|---|---|---|---|---|---|---|
+| The own relay in server.py (the choice) | Yes: one room in one process | Yes | The bucket | Yes | The site as now, with one more module | The current machine |
+| EMQX Serverless: MQTT over WebSocket | Only for each topic. No number for each step. | A fixed ACL for each topic. It does not know whose turn it is. | A retained message keeps only the last message of a topic | No | The sign-in, the saves, the files, the accounts of the broker, the timers and the log | Free for 1 million session minutes, 1 GB and 1 million rule actions each month, with up to 1000 connections. With a spend limit of 0, the deployment stops at the limit. |
+| Cloudflare Durable Objects | Yes: one object for each room, with one thread | Yes, in our code | The SQLite store of the object | Yes: the alarms | The sign-in and the saves, or nothing after a full move | A free plan with daily limits. A socket that sleeps costs no time. |
+| Ably, Pusher or PubNub | For each channel, without a check | The capabilities of a token, fixed | A history with limits | No | The sign-in, the saves, the timers and the checks | Free plans with limits on the messages |
+| Supabase Realtime with Postgres | Yes: a unique key on the number of the step | The rules of the rows | A table | pg_cron | The sign-in and the saves | A free plan. A free project pauses after a week without use. |
+| WebRTC between the browsers, with the browser of the host as the relay | Yes | Yes | Only while the host is online | Yes | A server for the signals | No relay traffic. No correspondence game. Discord has no WebRTC in an Activity. |
+
+The facts of EMQX Serverless:
+- The EMQX Cloud documents say that a Serverless deployment has no JWT
+  authentication. Thus the fly.io server must make a user name and a
+  password in the broker for each player, through the api of EMQX.
+- The broker gives no number to a step and keeps no deadline. Thus the
+  fly.io server keeps the order, the timers and the log.
+- EMQX then removes only the socket code of rooms.py. It adds a second
+  system, a second set of secrets and a quota that can stop a game.
+
+The decision for MP2: the plan keeps the own relay. The site already has
+the sign-in, the bucket and a WebSocket. The relay adds one module, not
+one machine. fly.io keeps the TLS, the restarts and the health check.
+The relay has no database and no second process.
+
+These rules keep a later move open:
+- web/rooms.py holds the rules of a room without aiohttp. Its tests do
+  not need a socket. A port to a Durable Object is then a small job.
+- The engine also checks the seat of each remote step. step_apply
+  refuses a step from a seat that does not act. Thus the copies stay the
+  same on a broker without a seat check.
+- Durable Objects are the best fit for a later move (Q-12). Each room is
+  one object with one thread, a store and alarms.
+
+## Discord as the social layer
+Discord can give the voice, the video, the chat and the invites. It
+cannot be the relay. These facts come from the Discord documents for
+Activities:
+- An Activity is a web page in a voice channel of Discord. The players
+  talk, see video and write in Discord while they play.
+- The Embedded App SDK gives the identity of the user and the
+  participants of the channel. It gives no network for the game.
+- Discord sends each request of an Activity through its proxy. In the
+  developer portal, the owner maps a path prefix to a site, for example
+  /api to sanguodream.fly.dev. The proxy also carries a WebSocket.
+- A developer forum reports that an Activity cannot use WebRTC.
+
+Thus the relay stays on fly.io, and Discord reaches it through the
+proxy. A bot that posts the steps as messages of a channel is not a
+relay. Discord limits the rate of the messages of a bot, and each step
+then shows in the channel.
+
+The plan for Discord (MP8):
+1. Make a Discord app with an Activity. Install it only in the Discord
+   server of the house. Do not list it in the App Directory, because the
+   data of the original must not be public.
+2. Add "discord" as a provider to web/auth.py. In an Activity, the SDK
+   gives a code. The server changes the code for the identity of the
+   Discord user.
+3. In an Activity, the page sends a signed token in the hello message in
+   place of the session cookie. The token has the format of the cookies
+   and the key SESSION_SECRET.
+4. The voice channel is the lobby. The Activity makes one room for the
+   channel, and each participant takes a seat.
+5. Inside Discord, the voice and the chat of Discord replace the chat of
+   MP7. The site outside Discord keeps its own chat.
+6. The house password stays. A Discord user who is not a member types
+   it one time.
+
+## The content and the licence
+The code of hexdom is clean-room. The data of some packs is not:
+- The placeholder pack and the install reader of M16 use data of the
+  original game. This data has the scenarios, the officers, the names
+  and the map.
+- Koei Tecmo owns this data. The name 三國志 is a trademark.
+- Thus the site stays for members only (docs/WEB.md). A public site, a
+  public Activity or a sale needs a game without the data of the
+  original.
+- The start image and the snapshots of a shared game hold the state of
+  the game. With the data of the original, they hold that data. Thus a
+  public server must not keep them for a game with that data.
+
+This document is not legal advice. Ask a lawyer for intellectual property
+before a public release.
+
+The path to a public game:
+1. Make an original pack for the Three Kingdoms. It has its own officers,
+   its own values, its own portraits (docs/art/GEMINI-PROMPTS.md) and a
+   map from real geography (docs/MAPS.md). The history of the period and
+   the old text of the novel 三國演義 are in the public domain. A modern
+   translation is not.
+2. Give the game a name that is not 三國志.
+3. Keep the install reader of M16 for a player who owns the original.
+   The data then stays on the computer of that player, in a game for one
+   player.
+4. Check the licence of the Dear ImGui Test Engine before a commercial
+   use (CLAUDE.md). Only the test builds use it.
+
+## The cost of the site and a free game
+The relay does not run the sim, so the server has little work. The main
+cost is the download of the game. A new player downloads approximately
+36 MB (docs/WEB.md). The table gives estimates from public price pages
+of 2026-10. Check them before a decision.
+
+| Item | Estimate |
+|---|---|
+| The fly.io machine, a shared CPU with 512 MB | A few US dollars each month |
+| The traffic out of fly.io in North America and Europe | Approximately 0.02 USD for each GB |
+| 10,000 new players in a month, with the files from fly.io | Approximately 360 GB, or approximately 7 USD |
+| The same download from the bucket, Tigris or R2 | No cost for the traffic |
+| The saves and the logs of the shared games | Small. Tigris gives 5 GB each month without cost. |
+
+Thus the game can stay free for a long time. docs/WEB.md, "The game
+files in the bucket", gives the plan that moves the download out of the
+machine.
+
+If the cost grows, these ways keep the game free and fair:
+- donations, with a badge for a supporter;
+- items for the look only, for example flags, frames of portraits and
+  skins of units. An item never gives power in the game. US-042 of the
+  wish list is a joke;
+- paid content packs, for example new eras, maps and campaigns. The base
+  game stays free;
+- a paid desktop version with its own content, for example on Steam;
+- purchases inside a Discord Activity. Check the terms and the share of
+  Discord first.
+
+Each way needs a game without the data of the original. See "The
+content and the licence".
+
 ## The milestones
 Each milestone ends with its tests green in `run_tests.bat`,
 `run_tests.bat --web` and `npm test` in tests/web. The C++ tests follow
@@ -464,6 +609,21 @@ The tests:
 - Browser: a spectator sees the moves and cannot take a seat while the
   game runs.
 
+### MP8 The Discord Activity
+- The Discord app, its Activity and the map of the proxy to the site.
+- The provider "discord" in web/auth.py and the signed token of the
+  hello message.
+- One room for each voice channel.
+
+The tests:
+- Server: the provider "discord" with a fake token endpoint gives the
+  record of the user. A hello with a bad token gets 401.
+- Browser: a page with a token in place of the cookie joins a room and
+  gets the steps.
+- A browser test cannot run inside Discord. Thus a member checks the
+  Activity in a test server of Discord and writes the result in the play
+  reports.
+
 ## The open questions for the user
 | Id | Question | The default of the plan |
 |---|---|---|
@@ -478,3 +638,7 @@ The tests:
 | Q-9 | Can the Windows build join an online game? | Not before MP7. The codec already permits it. |
 | Q-10 | Can each member of the house see and join each open room, or only a player with the link? | Each member sees the open rooms |
 | Q-11 | Can a spectator watch a game, and does the host decide? | Yes, and the host decides |
+| Q-12 | Do you want to move the relay to Cloudflare Durable Objects later? | No. The relay stays on fly.io until the machine is not sufficient. |
+| Q-13 | Do you want the Discord Activity, and in which Discord server? | Yes, in MP8, only in the Discord server of the house |
+| Q-14 | Do you want a public release? It needs an original Three Kingdoms pack and a new name. | No. The site stays for members until a lawyer agrees. |
+| Q-15 | If the cost grows, which way to pay for the site do you prefer? | Donations first |

@@ -231,6 +231,122 @@ of the channel, so a broadcast becomes content to share. To check the
 relay without YouTube, set YOUTUBE_INGEST to a local path: ffmpeg then
 writes the stream to the file `<YOUTUBE_INGEST><YOUTUBE_STREAM_KEY>`.
 
+### The game files in the bucket (a plan)
+This plan moves the two big files of the game out of the machine and into
+a bucket. The download then costs nothing at fly.io. Only members get the
+files. Nothing in this section exists in code yet.
+
+The files that move are index.wasm and index.data, 36.5 MB of the 36.6
+MB. index.html and index.js stay on the server. index.html needs the
+sign-in, so a person without a session never sees the page.
+
+The choice of the bucket:
+| Bucket | Facts | Use |
+|---|---|---|
+| Tigris, the bucket of the saves | No fee for the traffic out (tigrisdata.com/pricing, 2026-10). The server already has its keys. No new account. | The recommended bucket |
+| Cloudflare R2 | No fee for the traffic out, and 10 GB of storage without cost. It needs a Cloudflare account and a second set of keys. | The second option |
+
+The steps are the same for the two buckets. Only the endpoint and the
+keys change.
+
+#### Only members get the files
+1. The bucket stays private. It has no public address. In R2, do not
+   connect a public domain, and leave the r2.dev address off. A request
+   without a signature gets 403.
+2. The page asks the server for the addresses of the files: GET
+   /api/game-files. The server calls require_member, as for each api. A
+   person who is not a member gets 401 and no address.
+3. For a member, the server makes a presigned address for each file. The
+   address holds a signature from the keys of the server and an end time
+   of 10 minutes.
+4. The browser downloads each file directly from the bucket. A download
+   that starts before the end time continues after it.
+5. The signature covers the key of one file. A changed address gets 403.
+
+A member can give an address to another person. The address then works
+until its end time. A member can also copy the files from the browser
+today. Thus the bucket gives the same protection as the server now.
+
+#### The cache in the browser
+A presigned address changes at each request. Thus the HTTP cache of the
+browser does not keep the files between two visits. web/shell.html keeps
+them in the Cache Storage of the browser, under the build id:
+1. If the Cache Storage has the files of the build id, the page uses
+   them and downloads nothing.
+2. Else, the page downloads the files and puts them in the Cache
+   Storage. It removes the files of the other builds.
+3. The page gives the bytes to the game through Module.wasmBinary and
+   Module.getPreloadedPackage.
+
+#### The build id and the keys in the bucket
+The build id is the first 16 hex digits of the SHA-256 of index.wasm and
+index.data. docs/MULTIPLAYER.md uses the same build id for the rooms.
+
+| Key | Contents |
+|---|---|
+| `builds/<build id>/index.wasm` | The gzip copy, with Content-Type application/wasm and Content-Encoding gzip |
+| `builds/<build id>/index.data` | The gzip copy, with Content-Type application/octet-stream and Content-Encoding gzip |
+
+Each object has Cache-Control `private, max-age=31536000, immutable`.
+The keys of the saves start with users/ and saves/, so the two kinds of
+keys never meet.
+
+#### The setup, one time
+For Tigris:
+1. Open the dashboard with `flyctl storage dashboard -a sanguodream`.
+2. Make a second access key for the bucket, for the upload from this
+   computer.
+3. Set the key in the environment of the user on this computer:
+   GAME_ACCESS_KEY_ID, GAME_SECRET_ACCESS_KEY, GAME_ENDPOINT and
+   GAME_BUCKET. GAME_ENDPOINT is the value of AWS_ENDPOINT_URL_S3 of the
+   app. Never write a key in a file of this repository.
+4. Run `misc\upload_game.py --setup-cors` one time. It lets the bucket
+   answer GET and HEAD from https://sanguodream.fly.dev, with the header
+   Range.
+5. The server needs no new secret. If GAME_BUCKET is empty on fly.io,
+   the server uses the bucket of the saves and its keys.
+
+For Cloudflare R2:
+1. In the Cloudflare dashboard, open R2 and make a bucket, for example
+   sanguodream-game.
+2. Make an R2 API token with "Object Read & Write" for this bucket only.
+   Set it on this computer as in step 3 for Tigris. GAME_ENDPOINT is
+   `https://<account id>.r2.cloudflarestorage.com`.
+3. Make a second R2 API token with "Object Read only" for this bucket
+   only. Set it on fly.io:
+   `flyctl secrets set GAME_BUCKET=... GAME_ENDPOINT=... GAME_ACCESS_KEY_ID=... GAME_SECRET_ACCESS_KEY=... -a sanguodream`.
+4. In the settings of the bucket, add a CORS rule. The origin is
+   https://sanguodream.fly.dev, the methods are GET and HEAD, and the
+   header is Range.
+
+#### The deploy
+deploy_web.bat does these steps in this order:
+1. It runs build_web.bat.
+2. It runs misc\upload_game.py. The tool computes the build id. It sends
+   the two gzip files to `builds/<build id>/` if the bucket does not have
+   them. It writes build/web/build_id.txt.
+3. It runs `flyctl deploy`. The Dockerfile copies index.html, index.js
+   and build_id.txt, but not the two big files. Thus the image is
+   smaller and the deploy is faster.
+4. If a step fails, deploy_web.bat stops. The upload comes before the
+   deploy, so a new server never names a file that the bucket does not
+   have.
+
+The upload tool keeps the last five builds in the bucket and removes the
+older builds. A page that started before a deploy thus keeps its files.
+
+Without a bucket, for example for a local server and for the browser
+tests, /api/game-files gives the addresses of the server. The server
+then sends the files as now.
+
+The tests of this plan:
+- Server: /api/game-files without a member session gets 401. With a
+  member, it gives the addresses of the build id, with an end time of 10
+  minutes or less.
+- Browser: the page loads the game from the addresses of
+  /api/game-files. A second load of the page downloads nothing.
+- Browser: the browser decompresses the gzip files from the bucket.
+
 ### The browser tests
 tests/web has seven Playwright smoke tests (smoke.spec.js):
 - a user signs in, joins the house and sees the title menu
