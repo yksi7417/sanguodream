@@ -375,20 +375,68 @@ The stages that need no answer now:
 
 E5, E6 and E7 get a brief after the player answers their questions.
 
+### The order of the stages
+misc/stages/plan.tsv gives the order. A stage waits for another stage only
+for a real need: a result that it uses, or a file that both stages edit.
+All other stages run in parallel.
+
+```mermaid
+flowchart LR
+    subgraph now["Ready now"]
+        bio[bio_check<br/>data and docs]
+        e3[e3_native_names<br/>text module, fonts, Settings]
+        e4[e4_officer_panel<br/>text module, platform link]
+        e3 --> e4
+    end
+    subgraph wait["Waits for answers"]
+        q3{{Q-E3 licence}} --> art[e5 art<br/>new arms, Meshy credits] --> e5[e5_arms<br/>flags, textures]
+        q1{{Q-E1, Q-E2, Q-E7}} --> e6[e6_church<br/>sim rules, engine_api]
+        q5{{Q-E5}} --> e7[e7_story<br/>story pages]
+    end
+    e4 --> e5
+    e6 --> e7
+    bio --> e7
+    e4 --> check[check<br/>all tests, e2e, web build]
+    bio --> check
+    e5 --> check
+    e7 --> check
+```
+
+The reasons for each arrow:
+- e3_native_names before e4_officer_panel: both edit the text module and
+  misc/make_scenario.py.
+- e4_officer_panel before e5_arms: both add a function to the platform
+  contract in code/hexdom.h.
+- e6_church before e7_story: the story tells the rules of the
+  authorities.
+- bio_check before e7_story: the pages of the rulers use the checked
+  facts.
+- e6_church edits code/sim/ and engine_api. It can run in parallel with
+  e3_native_names and e4_officer_panel.
+
 To run the stages:
 1. Set the API key in your own terminal, not in a chat. The key goes into
    the user environment and stays out of the repository. The tool reads
    CLAUDE_API_KEY or ANTHROPIC_API_KEY:
 
-       [Environment]::SetEnvironmentVariable("CLAUDE_API_KEY", "<key>", "User")
+       [Environment]::SetEnvironmentVariable("ANTHROPIC_API_KEY", "<key>", "User")
 
-2. Start the stages from the root of the repository:
+2. Print the waves of the plan. This step starts nothing:
 
-       python -X utf8 misc\run_stages.py e3_native_names e4_officer_panel bio_check
+       python -X utf8 misc\run_stages.py --plan --dry-run
 
-3. Look at the progress:
+3. Start the plan from the root of the repository. The tool stays open
+   until the last stage ends:
+
+       python -X utf8 misc\run_stages.py --plan
+
+4. Look at the progress in another terminal:
 
        python -X utf8 misc\run_stages.py --status
+
+To start one stage without the plan, give its name:
+
+    python -X utf8 misc\run_stages.py bio_check
 
 The tool makes the worktree ..\hexdom-<stage> on the branch
 stage/<stage>. The session writes its output to build\stage.jsonl of that
