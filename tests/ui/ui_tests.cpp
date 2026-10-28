@@ -4641,6 +4641,13 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(ui_test_count_meshes(v.frame.render, RENDER_MESH_SETTLEMENT, 0), 2u);   /* one settlement for each city */
         f32 built_scale = 0.0f, building_scale = 0.0f;
         IM_CHECK_EQ(ui_test_count_meshes(v.frame.render, RENDER_MESH_STALL, &built_scale), 4u);        /* two markets in each city */
+        u32 stalls_with_level = 0;
+        for (u32 index = 0; index < v.frame.render->mesh_instance_count; ++index)
+        {
+            render_mesh_instance *instance = v.frame.render->mesh_instances + index;
+            if (instance->mesh_id == RENDER_MESH_STALL && instance->level == 1) stalls_with_level++;
+        }
+        IM_CHECK_EQ(stalls_with_level, 4u);   /* the level of facility_at picks the model of the market */
         v.recorder.building_complete = true;                                                          /* U-001: no scaffold for the field camp */
         ctx->Yield();
         IM_CHECK_EQ(ui_test_count_meshes(v.frame.render, RENDER_MESH_SCAFFOLD, 0), 2u);                /* the farm under construction of each city */

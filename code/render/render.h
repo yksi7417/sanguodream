@@ -475,6 +475,8 @@ struct render_mesh_instance
     u32 art_sprite;        /* RENDER_NO_ART, or the render_sprite of the art of a base:
                               the platform draws that picture in place of the mesh
                               when the pack has it (render_base_billboard) */
+    u32 level;             /* the level of a facility, 1 to 3, for its model
+                              (render_mesh_model_files). 0 for other instances */
 };
 
 #define RENDER_NO_ART 0    /* sprite 0 is the figure of a unit, never the art of a base */
@@ -600,18 +602,31 @@ global_variable const char *render_base_model_files[RENDER_SPRITE_COUNT - RENDER
     "models/base_city", "models/base_big_city", "models/base_gate", "models/base_port",
 };
 
-/* The 3D models of the placeholder shapes, by render_mesh_id
-   (docs/ASSETS.md, "Base models"). The platform draws the model in place
-   of the shape when the pack has both files. Each facility kind with that
-   shape shows the model (ui_facility_look.cpp). The shapes and the models
-   have a footprint of one unit, so the model keeps the scale of the
-   instance. 0: the shape has no model. */
-global_variable const char *render_mesh_model_files[RENDER_MESH_COUNT] = {
-    0,                          /* RENDER_MESH_SETTLEMENT: a base has the models above */
-    0,                          /* RENDER_MESH_SCAFFOLD */
-    "models/facility_market",   /* RENDER_MESH_STALL: the markets */
-    "models/facility_farm",     /* RENDER_MESH_FIELD: the farms */
+/* The 3D models of the placeholder shapes, by render_mesh_id and by the
+   level of the facility (docs/ASSETS.md, "Base models"). The platform
+   draws the model in place of the shape when the pack has both files.
+   Each facility kind with that shape shows the model (ui_facility_look.cpp).
+   A level without a model uses the model of the next lower level. The
+   shapes and the models have a footprint of one unit, so the model keeps
+   the scale of the instance. 0: the shape has no model at that level. */
+#define RENDER_MODEL_LEVELS 3
+
+global_variable const char *render_mesh_model_files[RENDER_MESH_COUNT][RENDER_MODEL_LEVELS] = {
+    { 0 },   /* RENDER_MESH_SETTLEMENT: a base has the models above */
+    { 0 },   /* RENDER_MESH_SCAFFOLD */
+    { "models/facility_market", "models/facility_market_lv2", "models/facility_market_lv3" },   /* RENDER_MESH_STALL: the markets */
+    { "models/facility_farm" },                                                                 /* RENDER_MESH_FIELD: the farms */
 };
+
+/* The column of render_mesh_model_files for the level of an instance. An
+   instance without a level (0) and a level above the table use the
+   nearest column. */
+internal u32
+render_model_level_index(u32 level)
+{
+    if (level <= 1) return 0;
+    return level > RENDER_MODEL_LEVELS ? RENDER_MODEL_LEVELS - 1 : level - 1;
+}
 
 /* The instance of the model of a base. misc/glb_import.py makes the
    larger side of the footprint one unit, with the ground at y = 0. The
@@ -706,6 +721,7 @@ render_push_mesh(render_commands *rc, u32 mesh_id, v3 position, f32 yaw, f32 sca
     render_mesh_instance *m = rc->mesh_instances + rc->mesh_instance_count++;
     m->mesh_id = mesh_id; m->position = position; m->yaw = yaw; m->scale = scale; m->tint = tint;
     m->art_sprite = RENDER_NO_ART;
+    m->level = 0;
 }
 
 /* A base: the placeholder mesh, and the sprite of its art. The platform
@@ -716,6 +732,17 @@ render_push_base(render_commands *rc, u32 mesh_id, u32 art_sprite, v3 position, 
     u32 before = rc->mesh_instance_count;
     render_push_mesh(rc, mesh_id, position, yaw, scale, tint);
     if (rc->mesh_instance_count > before) rc->mesh_instances[before].art_sprite = art_sprite;
+}
+
+/* A facility: the placeholder shape of its kind and its level. The
+   platform draws the model of that shape and level in place of the shape
+   when the pack has it (render_mesh_model_files). */
+internal void
+render_push_facility(render_commands *rc, u32 mesh_id, u32 level, v3 position, f32 yaw, f32 scale, u32 tint)
+{
+    u32 before = rc->mesh_instance_count;
+    render_push_mesh(rc, mesh_id, position, yaw, scale, tint);
+    if (rc->mesh_instance_count > before) rc->mesh_instances[before].level = level;
 }
 
 internal void

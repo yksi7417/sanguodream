@@ -109,17 +109,18 @@ unit_sprite_file_tests(test_counts *counts)
 
 /* The 3D models of the pack (docs/ASSETS.md, "Base models"): the mesh file
    of each model parses as HXM1, and the decoder reads its texture. The
-   pack has the models of the four base kinds, the market and the farm. */
+   pack has the models of the four base kinds, the market at its three
+   levels and the farm. */
 internal void
 unit_model_file_tests(test_counts *counts)
 {
     memory_arena arena = test_arena_create(Megabytes(48));
     char exe_dir[MAX_PATH], path[MAX_PATH * 2];
     test_exe_dir(exe_dir, MAX_PATH);
-    const char *names[RENDER_SPRITE_COUNT - RENDER_SPRITE_FIRST_BASE + RENDER_MESH_COUNT] = {};
+    const char *names[RENDER_SPRITE_COUNT - RENDER_SPRITE_FIRST_BASE + RENDER_MESH_COUNT * RENDER_MODEL_LEVELS] = {};
     u32 name_count = 0;
     for (u32 kind = 0; kind < RENDER_SPRITE_COUNT - RENDER_SPRITE_FIRST_BASE; ++kind) names[name_count++] = render_base_model_files[kind];
-    for (u32 mesh_id = 0; mesh_id < RENDER_MESH_COUNT; ++mesh_id) names[name_count++] = render_mesh_model_files[mesh_id];
+    for (u32 model_index = 0; model_index < RENDER_MESH_COUNT * RENDER_MODEL_LEVELS; ++model_index) names[name_count++] = render_mesh_model_files[0][model_index];
     b32 models_read = true;
     u32 model_count = 0;
     for (u32 index = 0; index < name_count; ++index)
@@ -138,8 +139,8 @@ unit_model_file_tests(test_counts *counts)
         models_read &= parsed && texture.contents != 0 && image.error == 0 && image.width > 0 && image.width <= 1024 && image.height <= 1024;
         model_count++;
     }
-    TEST_CHECK(counts, models_read && model_count == 6,
-               "the pack has the models of the four base kinds, the market and the farm, and each mesh and texture reads");
+    TEST_CHECK(counts, models_read && model_count == 8,
+               "the pack has the models of the four base kinds, the market at levels 1 to 3 and the farm, and each mesh and texture reads");
     test_arena_destroy(&arena);
 }
 

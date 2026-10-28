@@ -251,12 +251,12 @@ placeholder mesh.
 
 | Item | Value |
 |---|---|
-| Files | base_city, base_big_city, base_gate and base_port for the bases. facility_market and facility_farm for the shapes of the facilities. Each model has two files: <name>.hxm and <name>.png. |
+| Files | base_city, base_big_city, base_gate and base_port for the bases. facility_market, facility_market_lv2, facility_market_lv3 and facility_farm for the shapes of the facilities. Each model has two files: <name>.hxm and <name>.png. |
 | Mesh | the HXM1 format of the engine: positions, normals and uv. The larger side of the footprint is one unit. The ground is at y = 0. |
 | Texture | the base colour of the model, RGB, 1024 pixels at most. The renderer makes the mip levels at the start. |
 | Source | a binary glTF file (GLB). misc/glb_import.py converts it. provenance.tsv in the folder has one row for each model. |
 | Licence | the licence of the source of each model, in provenance.tsv. CC-BY-4.0.txt gives the credit and the licence of the Meshy models. |
-| Models now | Six models from Meshy, CC BY 4.0. The table below gives each model. |
+| Models now | Eight models from Meshy, CC BY 4.0. The table below gives each model. |
 
 | Model | Kind | Source GLB | Triangles | Mesh file | Licence |
 |---|---|---|---|---|---|
@@ -265,10 +265,12 @@ placeholder mesh.
 | facility_farm | the farm shape: the farm, the military farm | farm-lv1-game-ready.glb | 39,730 | 1.8 MB | CC BY 4.0, credit "Meshy" |
 | base_gate | the pass | gate-30k.glb | 32,164 | 1.4 MB | CC BY 4.0, credit "Meshy" |
 | base_port | the port | port-30k.glb | 29,712 | 1.2 MB | CC BY 4.0, credit "Meshy" |
-| facility_market | the market shape: the market, the great market, the black market, the fish market | market-lv1-30k.glb | 30,168 | 1.1 MB | CC BY 4.0, credit "Meshy" |
+| facility_market | the market shape at level 1: the market, the great market, the black market, the fish market | market-lv1-30k.glb | 30,168 | 1.1 MB | CC BY 4.0, credit "Meshy" |
+| facility_market_lv2 | the market shape at level 2 | market-lv2-30k.glb | 29,488 | 1.2 MB | CC BY 4.0, credit "Meshy" |
+| facility_market_lv3 | the market shape at level 3 | market-lv3-game-ready.glb | 38,060 | 1.6 MB | CC BY 4.0, credit "Meshy" |
 
 The owner of the repository made the city, the pass, the port, the farm
-and the market on 2026-10-27. The GLB files came from the shared Google Drive folder "Three
+and the three markets on 2026-10-27. The GLB files came from the shared Google Drive folder "Three
 Kingdoms Animations — Map Art", subfolder 07-3D-Models. Each texture is
 1024 x 1024 pixels.
 
@@ -277,6 +279,11 @@ The model of a facility replaces the placeholder shape of its kind
 that shape shows the model. The model keeps the scale of the shape, so it
 covers the same part of the slot hex. A build in progress shows the model
 under the scaffold.
+
+A facility has a level from 1 to 3. The scene gives the level to the
+renderer (render_push_facility). render_mesh_model_files has a column for
+each level. A level without a model uses the model of the next lower
+level. Now only the market has a model for the levels 2 and 3.
 
 A model with many triangles costs time on each frame. The map has many
 facilities, so the renderer uses two rules:
@@ -305,7 +312,8 @@ To import the new models of the Drive folder, run misc/drive_models.py
 from the root of the repository. The script needs no sign-in, because the
 owner shares the folder by link. It does these steps:
 - It finds the model name of each GLB from the start of its file name:
-  big-city, city, gate, port, market-lv1 and farm-lv1.
+  big-city, city, gate, port, market-lv1, market-lv2, market-lv3 and
+  farm-lv1.
 - It skips a GLB that provenance.tsv names as a source, and a GLB with
   more than 40,000 triangles.
 - It keeps a model that the pack has, unless you give --replace NAME.
@@ -321,10 +329,7 @@ owner shares the folder by link. It does these steps:
 import, add the model to the table above, run build.bat and
 run_tests.bat, and look at the model in the game.
 
-These files of the folder are not in the game yet (2026-10-27):
-- market-lv2 and market-lv3: the markets of level 2 and level 3. The
-  scene gives the renderer no level of a facility. To use them, the
-  scene must push a level, or a shape for each level.
+This file of the folder is not in the game yet (2026-10-27):
 - big-city-v2-rectangular-30k.glb: base_big_city already has a model.
   Give --replace base_big_city to use it. It has 30,140 triangles in
   place of 354,640, and it makes the download 11 MB smaller.

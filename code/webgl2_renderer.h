@@ -123,7 +123,7 @@ struct webgl2_renderer
     gl_sprite     sprites[GL_MAX_SPRITES];
     u32           sprite_count;
     gl_base_model base_models[GL_BASE_KINDS];
-    gl_base_model mesh_models[RENDER_MESH_COUNT];   /* render_mesh_model_files */
+    gl_base_model mesh_models[RENDER_MESH_COUNT][RENDER_MODEL_LEVELS];   /* render_mesh_model_files */
     GLuint        instances;       /* shared by the meshes and the billboards */
     u32           instance_capacity;
     GLuint        billboard_quad;
@@ -486,10 +486,13 @@ webgl2_renderer_init(webgl2_renderer *r, platform_read_entire_file *read_file, c
     {
         gl_load_base_model(r, render_base_model_files[kind], scratch, r->base_models + kind);
     }
-    /* The models of the placeholder shapes, for example the market. */
+    /* The models of the placeholder shapes for each level, for example the market. */
     for (u32 mesh_id = 0; mesh_id < RENDER_MESH_COUNT; ++mesh_id)
     {
-        gl_load_base_model(r, render_mesh_model_files[mesh_id], scratch, r->mesh_models + mesh_id);
+        for (u32 level = 0; level < RENDER_MODEL_LEVELS; ++level)
+        {
+            gl_load_base_model(r, render_mesh_model_files[mesh_id][level], scratch, r->mesh_models[mesh_id] + level);
+        }
     }
 
     r->instance_capacity = RENDER_MAX_MESH_INSTANCES > RENDER_MAX_BILLBOARDS ? RENDER_MAX_MESH_INSTANCES : RENDER_MAX_BILLBOARDS;
@@ -607,15 +610,24 @@ gl_has_art(webgl2_renderer *r, render_mesh_instance *m)
 
 /* The 3D model that the platform draws for an instance, or 0. A model goes
    before the art card and before the placeholder mesh. A base uses only
-   the model of its kind. Another instance uses the model of its shape,
-   if the camera is near (render_shape_models_on). */
+   the model of its kind. Another instance uses the model of its shape and
+   its level, or of the next lower level with a model, if the camera is
+   near (render_shape_models_on). */
 internal gl_base_model *
 gl_model_of(webgl2_renderer *r, render_mesh_instance *m, const camera *cam)
 {
-    gl_base_model *model = 0;
-    if (m->art_sprite >= RENDER_SPRITE_FIRST_BASE && m->art_sprite < RENDER_SPRITE_COUNT) model = r->base_models + (m->art_sprite - RENDER_SPRITE_FIRST_BASE);
-    else if (m->mesh_id < RENDER_MESH_COUNT && render_shape_models_on(cam)) model = r->mesh_models + m->mesh_id;
-    return model && model->texture ? model : 0;
+    if (m->art_sprite >= RENDER_SPRITE_FIRST_BASE && m->art_sprite < RENDER_SPRITE_COUNT)
+    {
+        gl_base_model *model = r->base_models + (m->art_sprite - RENDER_SPRITE_FIRST_BASE);
+        return model->texture ? model : 0;
+    }
+    if (m->mesh_id >= RENDER_MESH_COUNT || !render_shape_models_on(cam)) return 0;
+    for (s32 level = (s32)render_model_level_index(m->level); level >= 0; --level)
+    {
+        gl_base_model *model = r->mesh_models[m->mesh_id] + level;
+        if (model->texture) return model;
+    }
+    return 0;
 }
 
 /* One instanced draw of a model, with its texture, for each instance
@@ -748,7 +760,7 @@ webgl2_renderer_draw(webgl2_renderer *r, render_commands *rc, memory_arena *scra
        that has a model in the pack */
     glUseProgram(r->model_program);
     for (u32 kind = 0; kind < GL_BASE_KINDS; ++kind) gl_draw_model(r, rc, fc.view_projection, r->base_models + kind, scratch);
-    for (u32 mesh_id = 0; mesh_id < RENDER_MESH_COUNT; ++mesh_id) gl_draw_model(r, rc, fc.view_projection, r->mesh_models + mesh_id, scratch);
+    for (u32 model_index = 0; model_index < RENDER_MESH_COUNT * RENDER_MODEL_LEVELS; ++model_index) gl_draw_model(r, rc, fc.view_projection, r->mesh_models[0] + model_index, scratch);
 
     /* billboards: one instanced draw per sprite id, alpha tested, drawn last.
        The quad winds counter-clockwise on the screen, so the back-face cull
