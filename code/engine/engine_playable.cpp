@@ -193,7 +193,7 @@ engine_api_trigger_history(void *opaque, u32 row, u8 force_id)
 internal void
 engine_load_scenarios(engine *e, const char *folder)
 {
-    static const char *kinds[ENGINE_SCENARIO_KIND_COUNT] = { "save", "base", "pk" };
+    static const char *kinds[ENGINE_SCENARIO_KIND_COUNT] = { "save", "base", "pk", "pack" };
     e->scenario_count = 0;
     tsv_table table = {};
     arena_reset(&e->scratch);
@@ -215,7 +215,13 @@ engine_load_scenarios(engine *e, const char *folder)
         scenario->kind = (u8)kind;
         scenario->year = (u16)year;
         memcpy(scenario->key, key, strlen(key) + 1);
-        if (strcmp(file, "-") != 0) memcpy(scenario->file, file, strlen(file) + 1);
+        /* W2: the file of a pack scenario is relative to the pack folder. */
+        if (kind == ENGINE_SCENARIO_PACK && (u32)snprintf(scenario->file, sizeof(scenario->file), "%s/%s", folder, file) >= sizeof(scenario->file))
+        {
+            e->scenario_count = 0;
+            break;
+        }
+        if (kind != ENGINE_SCENARIO_PACK && strcmp(file, "-") != 0) memcpy(scenario->file, file, strlen(file) + 1);
         e->scenario_count++;
     }
     arena_reset(&e->scratch);
@@ -293,6 +299,9 @@ engine_api_load_scenario(void *opaque, const char *path)
 {
     engine *e = (engine *)opaque;
     engine_load_result result;
+    /* W2: a path to a .tsv file is the scenario.tsv of a pack scenario (engine_pack_scenario.cpp). */
+    size_t length = path ? strlen(path) : 0;
+    if (length > 4 && strcmp(path + length - 4, ".tsv") == 0) return engine_load_pack_scenario(e, path);
     read_file_result file;
     if (!engine_read_file_to_scratch(e, path, &file, &result)) return result;
     scenario_file scenario;

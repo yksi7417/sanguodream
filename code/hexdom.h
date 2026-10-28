@@ -97,6 +97,7 @@ struct game_memory
     u32   font_pixels;      /* the font size that the UI wants; the platform builds the atlas again when it differs (0: the default) */
     u64   permanent_used;   /* the use of the two blocks after each frame. The platform logs */
     u64   transient_used;   /* the peak, to size the blocks of each platform (docs/WEB.md)  */
+    char  content_pack[64]; /* "--pack NAME": the folder under HEXDOM_DATA_ROOT of the rules and the map. Empty: HEXDOM_CONTENT_PACK (docs/MAPS.md) */
 };
 
 #define GAME_UPDATE_AND_RENDER(name) void name(game_memory *memory, game_input *input, \

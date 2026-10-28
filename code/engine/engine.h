@@ -775,7 +775,8 @@ struct engine_faction_chart
 
 /* M9: one row of scenarios.tsv (game-setup-and-modes.md, F-133). */
 #define ENGINE_SCENARIO_CAPACITY 16
-enum engine_scenario_kind { ENGINE_SCENARIO_SAVE, ENGINE_SCENARIO_BASE, ENGINE_SCENARIO_PK, ENGINE_SCENARIO_KIND_COUNT };
+/* ENGINE_SCENARIO_PACK: TSV files of the content pack (docs/MAPS.md, W2). The file is the scenario.tsv of the scenario folder. */
+enum engine_scenario_kind { ENGINE_SCENARIO_SAVE, ENGINE_SCENARIO_BASE, ENGINE_SCENARIO_PK, ENGINE_SCENARIO_PACK, ENGINE_SCENARIO_KIND_COUNT };
 
 struct engine_scenario
 {

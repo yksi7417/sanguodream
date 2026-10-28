@@ -272,6 +272,7 @@ struct engine_recorder
     b32           has_names;          /* city_name_at answers only after a name index load */
     u8            foreign_city;       /* this scripted city belongs to force 2, not to force 1; 0 = none (city 0 is always force 1) */
     b32           own_base_hex;       /* hex_at reports location 42 and base_at_hex reports index 0 (recorder_base_at: force 1) at the axial hex (3, 2) */
+    b32           pack_base_keys;     /* recorder_base_at gives keys without a UI string: the label takes the name index (docs/MAPS.md, W2) */
     char          last_name_index_path[RECORDER_MAX_PATH];
     sim_refusal   can_issue_refusal;  /* script the answer of can_issue and command_develop */
     engine_command last_develop;      /* the arguments of the last command_develop */
@@ -1557,7 +1558,8 @@ internal engine_base recorder_base_at(void *o, u32 index)
     base.force = ENGINE_NO_FACTION;
     if (index >= 2) return base;
     base.id = (u8)(42 + index * 10);
-    snprintf(base.key, sizeof(base.key), "%s", index ? "anping" : "hu_guan");
+    if (((engine_recorder *)o)->pack_base_keys) snprintf(base.key, sizeof(base.key), "%s", index ? "pack_port" : "pack_pass");
+    else                                        snprintf(base.key, sizeof(base.key), "%s", index ? "anping" : "hu_guan");
     base.type = (u8)index;
     base.owner_city = 0;
     base.force = 1;

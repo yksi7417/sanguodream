@@ -100,7 +100,7 @@ ui_hud_row_label(ui_state *ui, engine_api *api, ui_hud_row *row, char *out, u32 
         case 1:
         {
             engine_base base = api->base_at(api->engine, row->id);
-            snprintf(name, sizeof(name), "%s", ui_text_with_key(ui, "base", base.key));
+            ui_base_name(ui, api, &base, name, sizeof(name));
         } break;
         case 2:
         {

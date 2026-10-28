@@ -84,7 +84,7 @@ ui_region_name(ui_state *ui, engine_api *api, u8 region, char *out, u32 out_size
     if (region >= CONTENT_FIRST_BASE && region < CONTENT_FIRST_BASE + CONTENT_BASE_COUNT)
     {
         engine_base base = api->base_at(api->engine, (u32)region - CONTENT_FIRST_BASE);
-        if (base.id != ENGINE_NO_ROW) { snprintf(out, out_size, "%s", ui_text_with_key(ui, "base", base.key)); return; }
+        if (base.id != ENGINE_NO_ROW) { ui_base_name(ui, api, &base, out, out_size); return; }
     }
     snprintf(out, out_size, "%s", region == ENGINE_NO_REGION ? "-" : text_get(ui->text, "hexinfo.outer"));
 }
@@ -478,7 +478,8 @@ ui_draw_scene_labels(ui_state *ui, engine_api *api)
         f32 x = 0.0f, y = 0.0f;
         if (base.id == ENGINE_NO_ROW || !ui_scene_screen(api, view_projection, hex_make(base.q, base.r), UI_LABEL_LIFT, &x, &y)) continue;
         f32 fraction = base.durability_max ? (f32)base.durability / (f32)base.durability_max : 1.0f;
-        ui_draw_plate(draw, x, y, ui_text_with_key(ui, "base", base.key), base.troops, fraction, ui_faction_color(api, base.force), false);
+        char name[UI_NAME_SIZE * 2];
+        ui_draw_plate(draw, x, y, ui_base_name(ui, api, &base, name, sizeof(name)), base.troops, fraction, ui_faction_color(api, base.force), false);
     }
     for (u32 id = 0; id < api->unit_count(api->engine); ++id)
     {

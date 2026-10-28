@@ -34,6 +34,7 @@
 #include "rivals_tests.cpp"
 #include "playable_tests.cpp"
 #include "map_tests.cpp"
+#include "world_map_tests.cpp"   /* a map from real geography (docs/MAPS.md) */
 #include "save_map_tests.cpp"
 #include "replay_tests.cpp"
 #include "ai_tests.cpp"
@@ -112,6 +113,10 @@ main(int argc, char **argv)
     test_counts map_counts = {};
     feature_map_tests(&map_counts);
     failed |= test_report("feature/map", &map_counts);
+    test_counts world_map_counts = {};
+    feature_world_map_tests(&world_map_counts);
+    feature_pack_scenario_tests(&world_map_counts);
+    failed |= test_report("feature/world_map", &world_map_counts);
     test_counts save_map_counts = {};
     feature_save_map_tests(&save_map_counts);
     failed |= test_report("feature/save_map", &save_map_counts);

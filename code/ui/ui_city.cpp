@@ -21,6 +21,20 @@ ui_text_with_key(ui_state *ui, const char *prefix, const char *key)
     return text_get(ui->text, id);
 }
 
+/* The name of a pass or a port: the UI string "base.<key>", or else the
+   Big5 name of the name index. A pack with its own scenario names its bases
+   in its bases.tsv (docs/MAPS.md, W2). Returns out. */
+internal const char *
+ui_base_name(ui_state *ui, engine_api *api, const engine_base *base, char *out, u32 out_size)
+{
+    char id[64];
+    snprintf(id, sizeof(id), "base.%s", base->key);
+    const char *text = text_get(ui->text, id);
+    if (text != id) snprintf(out, out_size, "%s", text);
+    else            ui_location_text(ui, api, base->id, out, out_size);
+    return out;
+}
+
 internal const char *
 ui_facility_name(ui_state *ui, engine_api *api, u8 facility)
 {
@@ -57,7 +71,7 @@ ui_city_label(ui_state *ui, engine_api *api, u8 city_id, char *out, u32 out_size
     {
         /* A port or a pass is a base of the spec too (the play report of 2026-10-23): its name is "base.<key>". */
         engine_base base = api->base_at(api->engine, (u32)city_id - CONTENT_FIRST_BASE);
-        if (base.id != ENGINE_NO_ROW) { snprintf(out, out_size, "%s", ui_text_with_key(ui, "base", base.key)); return; }
+        if (base.id != ENGINE_NO_ROW) { ui_base_name(ui, api, &base, out, out_size); return; }
     }
     engine_city_name name = api->city_name_at(api->engine, city_id);
     char decoded[UI_NAME_SIZE] = "";

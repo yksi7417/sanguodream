@@ -53,6 +53,8 @@ decompilation of it.
 - docs/REPLAY.md             the replay of a game, step by step: the record,
                              the checkpoints and the format in the save file
 - docs/art/GEMINI-PROMPTS.md the prompts that make the art with Gemini
+- docs/MAPS.md               maps from real geography: the scale, the
+                             licences of the data, the tool and the plan
 
 ## Build and run
 - build.bat         builds build\hexdom.dll, build\win32_hexdom.exe, the
@@ -87,8 +89,10 @@ decompilation of it.
                     [--name-index <Scenario.s11>]   prints a save as JSON
                     with the clean-room loader; with --name-index, each
                     city also has its name bytes
-- build\win32_hexdom.exe [--frames N]      the game window; --frames exits
-                    after N frames with exit code 0; log in build\hexdom.log
+- build\win32_hexdom.exe [--frames N] [--pack NAME]   the game window.
+                    With --frames, it exits after N frames with exit
+                    code 0. With --pack, it loads the rules and the map
+                    of data\NAME. The log is build\hexdom.log
 - Hot reload: leave win32_hexdom.exe open, edit, then run build.bat dll.
 
 ## Layout
@@ -136,6 +140,11 @@ decompilation of it.
 - misc/gif_encode.cpp    the GIF encoder of demo_player.exe without ffmpeg
 - misc/make_map_pack.py  copies the map fixtures of the spec into the pack
                          (run it after a spec update; tutorial 22)
+- misc/make_world_map.py  makes the map, cities.tsv and bases.tsv of a pack
+                         from real geography: NOAA ETOPO heights and
+                         Natural Earth vectors (docs/MAPS.md)
+- misc/make_scenario.py  checks a scenario of a pack (TSV files) and writes
+                         the Big5 names of its officers (docs/MAPS.md)
 - misc/make_pair_index.py  writes data/placeholder/pairs.tsv from the save
                          pairs of the spec (run it after a spec update;
                          tutorial 26)
@@ -157,6 +166,9 @@ decompilation of it.
                          copies them and writes movement_costs.tsv
 - data/civil_war/        the second content pack (M9): the same engine code
                          with other data; see its README.md
+- data/medieval_europe/  the prototype map from real geography: Europe and
+                         North Africa in 1200, with its own scenario in
+                         scenarios/y1200; see its README.md
 - data/fonts/, data/unicode/   open-licence assets; see docs/ASSETS.md
 - tests/unit/            per-module unit tests
 - tests/feature/         engine_api behaviour tests and the fixture runner

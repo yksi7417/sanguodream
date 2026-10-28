@@ -919,6 +919,8 @@ scenarios.unavailable	The clean room does not have this scenario file.	tooltip
 scenario_kind.0	save	a saved game
 scenario_kind.1	base	a scenario of the base game
 scenario_kind.2	PK	a Power Up Kit scenario
+scenario_kind.3	pack	a scenario of the content pack in TSV files (docs/MAPS.md)
+scenario.y1200	1200: The Rival Crowns	一二〇〇年 群王爭霸, the scenario of data/medieval_europe
 scenario.sample_save	Warlords (saved game)	群雄割據 (存檔)
 scenario.warlords	Warlords	群雄割據
 scenario.lu_bu_campaign	The campaign against Lu Bu	呂布討伐戰
@@ -1595,6 +1597,8 @@ credits.use.noto_thai	Thai text	what the game uses the work for
 credits.use.imgui	The windows, the menus and the text of the interface	what the game uses the work for
 credits.use.stb	The font loader and the text boxes, inside Dear ImGui	what the game uses the work for
 credits.use.unicode_big5	The table that converts the Big5 names to Unicode	what the game uses the work for
+credits.use.natural_earth	The coasts, lakes, rivers and deserts of the maps from real geography	what the game uses the work for
+credits.use.noaa_etopo	The heights of the maps from real geography	what the game uses the work for
 credits.use.imgui_test_engine	The tests of the panels. The game does not include it.	what the game uses the work for
 credits.original	hexdom contains no text, picture, sound or font from the original game.	the last line of the Credits window
 # The Replay panel: the replay of the game, step by step.

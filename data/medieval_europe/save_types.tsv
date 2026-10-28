@@ -1,0 +1,59 @@
+save_type	kind	key	level	name_zh	status
+# The facility types of the building array of a save (formats/save-file.md, payload 0x0008A3) and of fixtures/map/facility-types.tsv, mapped to the rows of this pack (M11).
+# kind: base (records 0..86), facility (a domestic facility on a slot: key of facilities.tsv, level 1..3), building (key of buildings.tsv), natural (a dike or a rockfall of the map), temple, ruin, none (the pack has nothing for it; the load skips it).
+# The ids 50..59 are the level 2 and level 3 markets, farms, barracks, smithies and stables (facility-types.tsv). Types without a row (14, 15, 25 to 27, 60 to 63) load as none.
+0	base	-	0	都市	documented
+1	base	-	0	關所	documented
+2	base	-	0	港	documented
+3	building	camp	0	陣	documented
+4	building	fort	0	砦	documented
+5	building	citadel	0	城塞	documented
+6	building	arrow_tower	0	箭樓	documented
+7	building	repeating_tower	0	連弩樓	documented
+8	building	earth_wall	0	土壘	documented
+9	building	stone_wall	0	石牆	documented
+10	building	catapult_tower	0	投石台	documented
+11	building	drum_tower	0	太鼓台	documented
+12	building	music_tower	0	軍樂台	documented
+13	building	stone_maze	0	石兵八陣	documented
+16	building	fire_seed	0	火種	documented
+17	building	fire_seed_2	0	火焰種	documented
+18	building	fire_ball	0	火球	documented
+19	building	fire_ball_2	0	火焰球	documented
+20	building	fire_ship	0	火船	documented
+21	building	fire_ball_3	0	業火球	documented
+22	building	fire_seed_3	0	業火種	documented
+23	natural	rockfall	0	落石	documented
+24	natural	dike	0	堤防	documented
+28	ruin	-	0	遺跡	documented
+29	temple	-	0	廟	documented
+30	facility	bronze_sparrow_tower	1	銅雀台	documented
+31	facility	market	1	市場 Lv1	documented
+32	facility	farm	1	農場 Lv1	documented
+33	facility	barracks	1	兵舍 Lv1	documented
+34	facility	smithy	1	鍛冶廠 Lv1	documented
+35	facility	stable	1	廄舍 Lv1	documented
+36	facility	workshop	1	工房	documented
+37	facility	shipyard	1	造船廠	documented
+38	facility	mint	1	造幣廠	documented
+39	facility	granary	1	穀倉	documented
+40	facility	tally_office	1	符節台	documented
+41	facility	military_office	1	軍事府	documented
+42	facility	personnel_office	1	人材府	documented
+43	facility	diplomacy_office	1	外交府	documented
+44	facility	plot_office	1	計略府	documented
+45	facility	drill_ground	1	鍊兵所	documented
+46	facility	great_market	1	大市場	documented
+47	facility	fish_market	1	魚市	documented
+48	facility	black_market	1	黑市	documented
+49	facility	military_farm	1	軍屯農	documented
+50	facility	market	2	市場 Lv2	documented
+51	facility	market	3	市場 Lv3	documented
+52	facility	farm	2	農場 Lv2	documented
+53	facility	farm	3	農場 Lv3	documented
+54	facility	barracks	2	兵舍 Lv2	documented
+55	facility	barracks	3	兵舍 Lv3	documented
+56	facility	smithy	2	鍛冶廠 Lv2	documented
+57	facility	smithy	3	鍛冶廠 Lv3	documented
+58	facility	stable	2	廄舍 Lv2	documented
+59	facility	stable	3	廄舍 Lv3	documented

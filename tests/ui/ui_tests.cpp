@@ -1165,6 +1165,38 @@ register_ui_tests(ImGuiTestEngine *e)
         }
     };
 
+    /* W2 (docs/MAPS.md): a pack with its own scenario names its passes and
+       ports in bases.tsv. A base key without a UI string takes the name of the
+       name index; a key with a UI string does not ask for it. */
+    t = IM_REGISTER_TEST(e, "ui", "a_base_without_a_ui_string_takes_the_name_of_the_name_index");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.has_names = true;
+        v.ui.hud_mode        = true;
+        v.ui.show_map        = false;
+        ctx->Yield(2);
+        IM_CHECK(recorder_count(&v.recorder, RECORDER_BASE_AT) > 0);
+        u32 base_names = 0;
+        for (u32 index = 0; index < v.recorder.call_count; ++index)
+        {
+            if (v.recorder.calls[index].kind == RECORDER_LOCATION_NAME_AT && v.recorder.calls[index].arg >= NAME_INDEX_FIRST_GATE_ID) base_names++;
+        }
+        IM_CHECK_EQ(base_names, 0u);   /* hu_guan and anping have UI strings */
+        recorder_reset(&v.recorder);
+        v.recorder.has_names      = true;
+        v.recorder.pack_base_keys = true;
+        ctx->Yield(2);
+        for (u32 index = 0; index < v.recorder.call_count; ++index)
+        {
+            if (v.recorder.calls[index].kind == RECORDER_LOCATION_NAME_AT && v.recorder.calls[index].arg >= NAME_INDEX_FIRST_GATE_ID) base_names++;
+        }
+        IM_CHECK(base_names > 0);      /* pack_pass and pack_port take the name index */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
     /* The map menu has the five items of the original: no 此處情報. */
     t = IM_REGISTER_TEST(e, "ui", "map_menu_has_the_five_items_of_the_original");
     t->SetVarsDataType<ui_test_vars>();
