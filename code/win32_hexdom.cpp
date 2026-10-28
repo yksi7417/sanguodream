@@ -11,6 +11,7 @@
 #include "base.h"
 #include "hexdom.h"
 #include "win32_window.h"
+#include <shellapi.h>
 #include "win32_portraits.h"
 #include "text/text.h"
 #include "text/text.cpp"
@@ -54,6 +55,18 @@ win32_log(const char *message)
 internal PLATFORM_LOG(win32_platform_log)
 {
     win32_log(message);
+}
+
+/* Opens a link of the English Wikipedia in the default browser. The platform
+   checks the link again, so a bad link never reaches the shell. */
+internal PLATFORM_OPEN_URL(win32_open_url)
+{
+    if (!text_link_is_allowed(url)) return false;
+    wchar_t wide_url[2048];
+    int length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, url, -1, wide_url, (int)ArrayCount(wide_url));
+    if (length <= 0) return false;
+    HINSTANCE result = ShellExecuteW(0, L"open", wide_url, 0, 0, SW_SHOWNORMAL);
+    return (INT_PTR)result > 32;
 }
 
 /* A relative path is relative to the folder of the executable, not to the
@@ -325,6 +338,7 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
     win32_log(portrait_message);
     win32_faces_init(&g_win32_faces, window.device);
     memory.platform.face_texture = win32_face_texture;
+    memory.platform.open_url     = win32_open_url;
 
     win32_game_code game = win32_load_game_code(&g_win32);
     win32_log(game.is_valid ? "platform: loaded hexdom.dll" : "platform: hexdom.dll not loaded yet");

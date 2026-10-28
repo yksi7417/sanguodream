@@ -146,11 +146,54 @@ the URL of the English Wikipedia article.
   the Wikipedia article. On Windows, the platform opens the link in the
   default browser. On the web, the page opens it in a new tab.
 
+The display:
+- The panel is 武將情報, in the function ui_draw_officer_detail. The life
+  is a wrapped text of 28 times the height of the font, under the skill line.
+- The button "Wikipedia" is after the life. Its text id is officer.wikipedia.
+- An officer without a life shows no text. An officer without a link
+  shows no button. The Three Kingdoms pack has no lives, so its panel does
+  not change.
+- The button calls the platform and commands nothing in the engine.
+
+The implementation:
+- The UI does not read officers.tsv. misc/make_scenario.py writes
+  lore/links.tsv of the pack. The row officer.<key> has the URL. An officer
+  with "-" has no row.
+- The text module loads lore/<locale>.tsv and lore/links.tsv of the game
+  pack. text_key_lore gives the life. text_key_link gives the URL.
+- If the locale has no life for a key, text_key_lore gives the life of the
+  fallback locale (English). The links table does not depend on the locale.
+- The platform has a new function, open_url in platform_api
+  (code/hexdom.h). The function gives false if it did not open the link.
+- text_link_is_allowed accepts a URL only if it starts with
+  https://en.wikipedia.org/wiki/ and has a name after the prefix. The URL
+  must have no space and no control character. It must also have none of
+  the characters " < > \ ^ ` { | }. The UI and each platform call the
+  function, so a bad link never reaches the system.
+- win32_open_url converts the URL from UTF-8 and calls ShellExecuteW. The
+  link of a Wikipedia article can have letters outside ASCII. build.bat
+  links shell32.lib for this call.
+- wasm_open_url calls window.open with the target _blank and the option
+  noopener. The game runs in the frame loop, not in a handler of a click of
+  the page. A browser can thus block the new tab. No test checks this yet.
+- The font loader scans lore/<locale>.tsv for glyphs, as it does for
+  names/<locale>.tsv.
+- The headless tests and demo_player give no open_url. In that case the
+  panel shows no button.
+
 Tests:
 - A tool check in misc/make_scenario.py makes sure that each officer has
-  a life and a URL.
-- A ui test opens the officer panel and checks the call to the platform
-  that opens the link.
+  a life and that each wikipedia cell is "-" or an allowed URL. The check
+  uses the same rule as text_link_is_allowed.
+- unit_text_lore_tests checks the lives, the fallback locale, the links
+  table and a pack without lore. unit_text_link_tests checks the allowed
+  and the refused URLs.
+- The ui test "officer_panel_shows_the_life_and_the_wikipedia_button_opens_the_link_and_commands_nothing"
+  opens the panel and checks the life. It clicks the button and checks the
+  URL that the platform gets. It also checks that nothing goes to the engine.
+- The ui test "officer_panel_shows_no_button_without_a_link_and_no_text_without_a_life"
+  checks an officer with a life and no link, an officer without a key, and
+  the Three Kingdoms pack.
 
 ## E5. The coat of arms of each faction
 The flag of a unit shows the coat of arms of the faction. The arms also
@@ -389,7 +432,7 @@ wikipedia: 3, 4, 19, 22, 33, 35, 38, 57, 78 and 82.
 | E1 | pack.tsv and the default locale | no | done |
 | E2 | English keys in engine_api, names of the pack | no | done |
 | E3 | Native names in officers.tsv and the Names setting | Q-E4 for Arabic | done, Latin script only |
-| E4 | Lives and Wikipedia URLs, the officer panel | no | data done, UI to do |
+| E4 | Lives and Wikipedia URLs, the officer panel | no | done |
 | E5 | Coats of arms on the flags | Q-E3 | research |
 | E6 | The authorities of the church | Q-E1, Q-E2, Q-E7 | design |
 | E7 | The story mode | Q-E5 | design |

@@ -56,6 +56,18 @@ global_variable const test_text_file test_text_files[] =
       "officer.philip_ii\tPhilippe II Auguste\n"
       "officer.leszek\tLeszek Bia\xC5\x82y\n"       /* U+0142 */
       "city.paris\tLutetia\n" },
+    { "root/europe/lore/en.tsv",
+      "key\ttext\tnote\n"
+      "# the lives\n"
+      "officer.philip_ii\tKing of France from 1180.\\nHe won Normandy.\n"
+      "officer.leszek\tDuke of Poland.\n" },
+    { "root/europe/lore/ko.tsv",
+      "key\ttext\n"
+      "officer.philip_ii\t\xED\x94\x84\xEB\x9E\x91\xEC\x8A\xA4 \xEC\x99\x95.\n" },
+    { "root/europe/lore/links.tsv",
+      "key\turl\n"
+      "officer.philip_ii\thttps://en.wikipedia.org/wiki/Philip_II_of_France\n"
+      "officer.bad\thttps://example.org/wiki/Philip\n" },
     { "root/odd/pack.tsv",
       "key\tvalue\n"
       "default_locale\t../en\n" },
@@ -405,6 +417,63 @@ unit_text_native_name_tests(test_counts *counts, memory_arena *arena)
     TEST_CHECK(counts, text_key_name(&catalog, "officer", "philip_ii") == 0, "a pack without native.tsv has no native names");
 }
 
+/* docs/EUROPE.md, E4: lore/<locale>.tsv and lore/links.tsv of the game pack,
+   the life of an officer and the link to its article. */
+internal void
+unit_text_lore_tests(test_counts *counts, memory_arena *arena)
+{
+    text_catalog catalog;
+    text_catalog_init(&catalog, arena_sub(arena, Kilobytes(64)), test_text_read_file, "root", "pack", "en");
+    text_catalog_set_game_pack(&catalog, "europe");
+    text_catalog_set_locale(&catalog, "en");
+
+    const char *life = text_key_lore(&catalog, "officer", "philip_ii");
+    TEST_CHECK(counts, life && strcmp(life, "King of France from 1180.\nHe won Normandy.") == 0, "the key gives the life, with the new line unescaped");
+    const char *poland = text_key_lore(&catalog, "officer", "leszek");
+    TEST_CHECK(counts, poland && strcmp(poland, "Duke of Poland.") == 0, "a second officer has its own life");
+    TEST_CHECK(counts, text_key_lore(&catalog, "officer", "richard") == 0, "an officer without a row has no life");
+    TEST_CHECK(counts, text_key_lore(&catalog, "officer", "") == 0, "an empty key has no life");
+    TEST_CHECK(counts, text_key_lore(&catalog, "city", "philip_ii") == 0, "the kind is part of the key");
+
+    const char *link = text_key_link(&catalog, "officer", "philip_ii");
+    TEST_CHECK(counts, link && strcmp(link, "https://en.wikipedia.org/wiki/Philip_II_of_France") == 0, "the key gives the link");
+    TEST_CHECK(counts, text_key_link(&catalog, "officer", "leszek") == 0, "an officer without a row has no link");
+    TEST_CHECK(counts, text_key_link(&catalog, "officer", "bad") == 0, "a link outside the English Wikipedia is not a link");
+    TEST_CHECK(counts, text_key_link(&catalog, "officer", "") == 0, "an empty key has no link");
+
+    text_catalog_set_locale(&catalog, "ko");
+    const char *korean = text_key_lore(&catalog, "officer", "philip_ii");
+    TEST_CHECK(counts, korean && strcmp(korean, "\xED\x94\x84\xEB\x9E\x91\xEC\x8A\xA4 \xEC\x99\x95.") == 0, "a locale with its own life gives that life");
+    const char *fallback = text_key_lore(&catalog, "officer", "leszek");
+    TEST_CHECK(counts, fallback && strcmp(fallback, "Duke of Poland.") == 0, "a life that the locale lacks comes from the fallback locale");
+    TEST_CHECK(counts, text_key_link(&catalog, "officer", "philip_ii") != 0, "the links do not depend on the locale");
+
+    text_catalog_set_locale(&catalog, "zh-TW");
+    TEST_CHECK(counts, text_key_lore(&catalog, "officer", "leszek") != 0, "a locale without a lore file shows the fallback locale");
+
+    text_catalog_set_game_pack(&catalog, "pack");
+    text_catalog_set_locale(&catalog, "en");
+    TEST_CHECK(counts, text_key_lore(&catalog, "officer", "philip_ii") == 0 && text_key_link(&catalog, "officer", "philip_ii") == 0,
+               "a pack without lore files has no life and no link");
+}
+
+internal void
+unit_text_link_tests(test_counts *counts)
+{
+    TEST_CHECK(counts, text_link_is_allowed("https://en.wikipedia.org/wiki/Philip_II_of_France"), "an article of the English Wikipedia is allowed");
+    TEST_CHECK(counts, text_link_is_allowed("https://en.wikipedia.org/wiki/\xC3\x81lvaro_N\xC3\xBA\xC3\xB1" "ez_de_Lara_(died_1218)"), "UTF-8 letters, a bracket and a comma are allowed");
+    TEST_CHECK(counts, !text_link_is_allowed(0), "no URL is not allowed");
+    TEST_CHECK(counts, !text_link_is_allowed(""), "an empty URL is not allowed");
+    TEST_CHECK(counts, !text_link_is_allowed("https://en.wikipedia.org/wiki/"), "the prefix alone is not allowed");
+    TEST_CHECK(counts, !text_link_is_allowed("http://en.wikipedia.org/wiki/Paris"), "http is not allowed");
+    TEST_CHECK(counts, !text_link_is_allowed("https://fr.wikipedia.org/wiki/Paris"), "another language is not allowed");
+    TEST_CHECK(counts, !text_link_is_allowed("https://en.wikipedia.org.evil.example/wiki/Paris"), "a longer host name is not allowed");
+    TEST_CHECK(counts, !text_link_is_allowed("file:///C:/Windows/notepad.exe"), "a file is not allowed");
+    TEST_CHECK(counts, !text_link_is_allowed("https://en.wikipedia.org/wiki/Paris Hilton"), "a space is not allowed");
+    TEST_CHECK(counts, !text_link_is_allowed("https://en.wikipedia.org/wiki/Paris\"&calc"), "a quote is not allowed");
+    TEST_CHECK(counts, !text_link_is_allowed("https://en.wikipedia.org/wiki/Paris\n"), "a control character is not allowed");
+}
+
 internal void
 unit_text_name_tests(test_counts *counts, memory_arena *arena)
 {
@@ -589,6 +658,8 @@ unit_text_tests(test_counts *counts)
     unit_text_name_tests(counts, &arena);
     unit_text_pack_tests(counts, &arena);
     unit_text_native_name_tests(counts, &arena);   /* E3 */
+    unit_text_lore_tests(counts, &arena);          /* E4 */
+    unit_text_link_tests(counts);                  /* E4 */
     unit_text_label_tests(counts, &arena);
     unit_text_provider_tests(counts, &arena);   /* M18 */
     test_arena_destroy(&arena);

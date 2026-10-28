@@ -10,8 +10,9 @@
    - Latin and Latin-1, Vietnamese, Latin Extended, Thai, kana and CJK
      punctuation
    - each code point of the Big5 table (the zh-TW names)
-   - each character of text/<locale>.tsv and names/<locale>.tsv of each
-     locale in text/locales.tsv (for example the Hangul of a Korean file)
+   - each character of text/<locale>.tsv, names/<locale>.tsv and
+     lore/<locale>.tsv of each locale in text/locales.tsv (for example
+     the Hangul of a Korean file)
 
    The fonts are in data/fonts/ (docs/ASSETS.md). If the CJK font is not
    there, the loader uses the default ImGui font, which has Latin only. */
@@ -124,6 +125,8 @@ ui_fonts_add_pack_text(ImFontGlyphRangesBuilder *builder, platform_read_entire_f
         snprintf(path, sizeof(path), "%s/%s/text/%s.tsv", data_dir, pack, locales.row_keys[row]);
         ui_fonts_add_file_text(builder, read_file, path);
         snprintf(path, sizeof(path), "%s/%s/names/%s.tsv", data_dir, pack, locales.row_keys[row]);
+        ui_fonts_add_file_text(builder, read_file, path);
+        snprintf(path, sizeof(path), "%s/%s/lore/%s.tsv", data_dir, pack, locales.row_keys[row]);
         ui_fonts_add_file_text(builder, read_file, path);
     }
     IM_FREE(arena_memory);

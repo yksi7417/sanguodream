@@ -126,6 +126,9 @@ struct text_catalog
     char         game_pack[TEXT_PACK_SIZE];   /* the pack of the engine; "" or pack for the base pack (docs/EUROPE.md, E2) */
     text_table   pack_names;                  /* names/<locale>.tsv of the game pack, keyed by "<kind>.<English key>" */
     text_table   native_pack_names;           /* names/native.tsv of the game pack, in the Latin script (docs/EUROPE.md, E3) */
+    text_table   pack_lore;                   /* lore/<locale>.tsv of the game pack, keyed by "<kind>.<English key>" (E4) */
+    text_table   fallback_pack_lore;          /* lore/<fallback locale>.tsv of the game pack */
+    text_table   pack_links;                  /* lore/links.tsv of the game pack: the URL of the article of each record */
     b32          native_names;                /* the Names setting: text_key_name gives the native name first */
     u32          locale_count;
     text_locale_info locales[TEXT_MAX_LOCALES];   /* from text/locales.tsv, in file order */
@@ -180,6 +183,24 @@ internal void text_catalog_use_game_pack(text_catalog *catalog, const char *pack
    native table does not depend on the locale, and the setting does not
    load a file. */
 internal const char *text_key_name(text_catalog *catalog, const char *kind, const char *key);
+
+/* docs/EUROPE.md, E4: the life of a record of the game pack by its English
+   key: the row "<kind>.<key>" of lore/<locale>.tsv of the game pack. If the
+   locale has no row, the row of the fallback locale comes next. 0 if the key
+   is empty or no table has a row. */
+internal const char *text_key_lore(text_catalog *catalog, const char *kind, const char *key);
+
+/* The link to the article of a record: the row "<kind>.<key>" of
+   lore/links.tsv of the game pack. The table does not depend on the locale.
+   0 if the key is empty, the row is absent, or text_link_is_allowed refuses
+   the URL. */
+internal const char *text_key_link(text_catalog *catalog, const char *kind, const char *key);
+
+/* True if the URL is an article of the English Wikipedia: it starts with
+   "https://en.wikipedia.org/wiki/", it has a name after that prefix, and it
+   has no space, control character or quote. The front end and the platform
+   both check a URL with this function before they open it. */
+internal b32 text_link_is_allowed(const char *url);
 
 /* The label of an enum code, in out: the text of "<prefix>.<code>" in the
    active locale, else in the fallback locale. A code that no locale has

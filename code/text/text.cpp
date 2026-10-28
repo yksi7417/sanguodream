@@ -452,6 +452,9 @@ text_catalog_set_locale(text_catalog *catalog, const char *locale)
     catalog->names            = empty;
     catalog->pack_names       = empty;
     catalog->native_pack_names = empty;
+    catalog->pack_lore         = empty;
+    catalog->fallback_pack_lore = empty;
+    catalog->pack_links        = empty;
     text_copy_utf8(code, catalog->locale, sizeof(catalog->locale));
 
     text_catalog_load_locales(catalog);
@@ -463,6 +466,11 @@ text_catalog_set_locale(text_catalog *catalog, const char *locale)
     {
         catalog->pack_names        = text_catalog_load_pack_table(catalog, catalog->game_pack, "names", code, "key");
         catalog->native_pack_names = text_catalog_load_pack_table(catalog, catalog->game_pack, "names", "native", "key");
+        /* docs/EUROPE.md, E4: the lives and the links of the game pack. */
+        catalog->pack_lore = text_catalog_load_pack_table(catalog, catalog->game_pack, "lore", code, "key");
+        if (strcmp(code, catalog->fallback_locale) == 0) catalog->fallback_pack_lore = catalog->pack_lore;
+        else catalog->fallback_pack_lore = text_catalog_load_pack_table(catalog, catalog->game_pack, "lore", catalog->fallback_locale, "key");
+        catalog->pack_links = text_catalog_load_pack_table(catalog, catalog->game_pack, "lore", "links", "key");
     }
     catalog->load_count++;
     return true;
@@ -497,16 +505,59 @@ text_catalog_use_game_pack(text_catalog *catalog, const char *pack)
     text_catalog_set_locale(catalog, locale);
 }
 
+/* The row id of a record of the game pack: "<kind>.<key>". False if the key is empty. */
+internal b32
+text_record_id(text_catalog *catalog, const char *kind, const char *key, char *id, u32 id_size)
+{
+    if (!catalog || !key || !key[0]) return false;
+    u32 used = 0;
+    id[0] = 0;
+    text_append(id, id_size, &used, kind);
+    text_append(id, id_size, &used, ".");
+    text_append(id, id_size, &used, key);
+    return true;
+}
+
+internal const char *
+text_key_lore(text_catalog *catalog, const char *kind, const char *key)
+{
+    char id[TEXT_PACK_SIZE + 64];
+    if (!text_record_id(catalog, kind, key, id, sizeof(id))) return 0;
+    const char *life = text_table_find(&catalog->pack_lore, id);
+    return life ? life : text_table_find(&catalog->fallback_pack_lore, id);
+}
+
+internal b32
+text_link_is_allowed(const char *url)
+{
+    static const char prefix[] = "https://en.wikipedia.org/wiki/";
+    if (!url || strncmp(url, prefix, sizeof(prefix) - 1) != 0) return false;
+    const u8 *name = (const u8 *)url + sizeof(prefix) - 1;
+    if (!*name) return false;
+    for (; *name; ++name)
+    {
+        u8 letter = *name;
+        if (letter <= 0x20 || letter == 0x7F) return false;   /* a space or a control character */
+        if (letter == '"' || letter == '<' || letter == '>' || letter == '\\' || letter == '^' ||
+            letter == '`' || letter == '{' || letter == '|' || letter == '}') return false;
+    }
+    return true;
+}
+
+internal const char *
+text_key_link(text_catalog *catalog, const char *kind, const char *key)
+{
+    char id[TEXT_PACK_SIZE + 64];
+    if (!text_record_id(catalog, kind, key, id, sizeof(id))) return 0;
+    const char *url = text_table_find(&catalog->pack_links, id);
+    return text_link_is_allowed(url) ? url : 0;
+}
+
 internal const char *
 text_key_name(text_catalog *catalog, const char *kind, const char *key)
 {
-    if (!catalog || !key || !key[0]) return 0;
     char id[TEXT_PACK_SIZE + 64];
-    u32 used = 0;
-    id[0] = 0;
-    text_append(id, sizeof(id), &used, kind);
-    text_append(id, sizeof(id), &used, ".");
-    text_append(id, sizeof(id), &used, key);
+    if (!text_record_id(catalog, kind, key, id, sizeof(id))) return 0;
     if (catalog->native_names)
     {
         const char *native = text_table_find(&catalog->native_pack_names, id);

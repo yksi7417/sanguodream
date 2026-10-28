@@ -135,6 +135,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     frame_info.face_texture     = memory->platform.face_texture;
     frame_info.net_send         = memory->platform.net_send;
     frame_info.net_poll         = memory->platform.net_poll;
+    frame_info.open_url         = memory->platform.open_url;
     ui_draw(&game->ui, &game->api, &frame_info);
     if (game->ui.game.pack_request[0])
     {

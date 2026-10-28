@@ -149,6 +149,15 @@ internal PLATFORM_WRITE_ENTIRE_FILE(wasm_write_entire_file)
     return ok;
 }
 
+/* Opens a link of the English Wikipedia in a new tab. The platform checks
+   the link again, so the page never opens another host. */
+internal PLATFORM_OPEN_URL(wasm_open_url)
+{
+    if (!text_link_is_allowed(url)) return false;
+    EM_ASM({ window.open(UTF8ToString($0), "_blank", "noopener"); }, url);
+    return true;
+}
+
 internal void *
 wasm_imgui_alloc(size_t size, void *user)
 {
@@ -410,6 +419,7 @@ wasm_start(void)
     memory->platform.net_send     = wasm_net_send;   /* MP3: the socket of a shared game is in the page */
     memory->platform.net_poll     = wasm_net_poll;
     wasm_net_install();
+    memory->platform.open_url     = wasm_open_url;
 
     state->last_time = emscripten_get_now();
     wasm_log("platform: the game starts");

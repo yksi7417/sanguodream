@@ -12,7 +12,11 @@ with its row and not only as "a bad row" in the game.
 The tool also writes names/en.tsv of the pack: the English names by English key
 (docs/EUROPE.md, E2). The rows come from name_en of officers.tsv and forces.tsv of
 the scenario, and from name_en of map/source/sites.tsv of the pack. It checks
-that each officer has a wikipedia cell and a life in lore/en.tsv of the pack.
+that each officer has a life in lore/en.tsv of the pack. It checks that each wikipedia
+cell is - or a URL of the English Wikipedia (it must start with
+https://en.wikipedia.org/wiki/ and have a name, without a space, a control character or one of the
+characters in LINK_FORBIDDEN). It writes lore/links.tsv of the pack: the URL by officer.<key>,
+and no row for an officer with - (docs/EUROPE.md, E4).
 
 It also writes names/native.tsv of the pack: name_latin of each officer by the same
 keys (docs/EUROPE.md, E3). It fails if name_latin is empty or has a letter that is not
@@ -63,13 +67,38 @@ def write_names(folder, officers, forces):
     if os.path.exists(lore_path):
         _, _, _, lore = read(lore_path)
         lives = {row["key"]: row["text"] for row in lore}
+    links = []
     for row in officers:
         where = "officers.tsv id %s" % row["id"]
-        if not row.get("wikipedia") or not (row["wikipedia"] == "-" or row["wikipedia"].startswith("https://en.wikipedia.org/wiki/")):
-            fail(where + ": wikipedia must be - or a URL of the English Wikipedia")
+        url = row.get("wikipedia", "")
+        if url != "-" and not link_is_allowed(url):
+            fail(where + ": wikipedia must be - or a URL that starts with " + LINK_PREFIX + " and has a name")
         if not lives.get("officer." + row["key"]): fail(where + ": lore/en.tsv of the pack has no life for officer." + row["key"])
+        if url != "-": links.append("officer.%s\t%s" % (row["key"], url))
+    write_links(folder, pack, links)
     write_native_names(folder, pack, officers)
     return len(lines) - 3
+
+
+# The prefix of each link that the game opens. code/text/text.cpp, text_link_is_allowed, has
+# the same rule, and the platform checks it again before it opens a link.
+LINK_PREFIX = "https://en.wikipedia.org/wiki/"
+LINK_FORBIDDEN = '"<>\\^`{|}'
+
+
+def link_is_allowed(url):
+    if not url.startswith(LINK_PREFIX) or len(url) == len(LINK_PREFIX): return False
+    return not any(ord(c) <= 0x20 or ord(c) == 0x7F or c in LINK_FORBIDDEN for c in url)
+
+
+def write_links(folder, pack, links):
+    lines = ["key\turl\tnote",
+             "# Written by misc/make_scenario.py. The English Wikipedia article of each officer, by English key (docs/EUROPE.md, E4).",
+             "# officer.<key> comes from the wikipedia column of officers.tsv in the scenario %s. An officer with - has no row." % os.path.basename(folder),
+             "# The game opens only a URL that starts with " + LINK_PREFIX]
+    os.makedirs(os.path.join(pack, "lore"), exist_ok=True)
+    with open(os.path.join(pack, "lore", "links.tsv"), "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(lines + links) + "\n")
 
 
 # The Latin letters that the fonts of the game show (code/ui/ui_fonts.h): ASCII, Latin-1,

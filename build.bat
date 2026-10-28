@@ -98,7 +98,7 @@ REM (the exe cannot be relinked while it is running).
 if /i "%~1"=="dll" goto :done
 
 REM Platform layer.
-cl %COMMON% ..\code\win32_hexdom.cpp /Fe:win32_hexdom.exe %LINKFLAGS% /SUBSYSTEM:WINDOWS imgui.lib user32.lib gdi32.lib d3d11.lib dxgi.lib d3dcompiler.lib
+cl %COMMON% ..\code\win32_hexdom.cpp /Fe:win32_hexdom.exe %LINKFLAGS% /SUBSYSTEM:WINDOWS imgui.lib user32.lib gdi32.lib shell32.lib d3d11.lib dxgi.lib d3dcompiler.lib
 if errorlevel 1 set ERR=1
 
 REM The test pyramid, bottom to top.

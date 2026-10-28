@@ -301,6 +301,18 @@ ui_test_click_header(ImGuiTestContext *ctx, const char *table_ref, int column_n,
     ctx->ItemClick(ImHashStr(label, 0, column_id));                            /* TableHeader: GetID(label) */
 }
 
+/* A double of the link opener of the platform: it records the URL that the
+   UI asks for. */
+global_variable u32  g_ui_test_open_url_calls;
+global_variable char g_ui_test_open_url_last[256];
+
+internal PLATFORM_OPEN_URL(ui_test_open_url)
+{
+    g_ui_test_open_url_calls += 1;
+    snprintf(g_ui_test_open_url_last, sizeof(g_ui_test_open_url_last), "%s", url);
+    return true;
+}
+
 /* Moves the mouse to the center of a hex of the Hex map panel and clicks it. */
 internal void
 ui_test_click_cell(ImGuiTestContext *ctx, ui_test_vars &v, hex_coord cell)
@@ -322,6 +334,18 @@ ui_test_click_cell(ImGuiTestContext *ctx, ui_test_vars &v, hex_coord cell)
     ctx->Yield();
 }
 
+/* Clicks the row of an officer in the table of 武將情報 near its left edge. The center of a row can lie on the
+   resize grip between two columns, and the grip takes the click. */
+internal void
+ui_test_click_info_row(ImGuiTestContext *ctx, const char *row)
+{
+    ImGuiTestItemInfo info = ctx->ItemInfo(row);
+    IM_CHECK(info.ID != 0);
+    ctx->MouseMoveToPos(ImVec2(info.RectFull.Min.x + 20.0f, (info.RectFull.Min.y + info.RectFull.Max.y) * 0.5f));
+    ctx->MouseClick(0);
+    ctx->Yield();
+}
+
 /* True if the window was drawn in the last frame. A window that never
    showed, or that hides now, gives false. */
 internal bool
@@ -329,6 +353,20 @@ ui_test_window_active(ImGuiTestContext *ctx, const char *ref)
 {
     ImGuiWindow *window = ctx->WindowInfo(ref, ImGuiTestOpFlags_NoError).Window;
     return window != 0 && window->Active;
+}
+
+/* True if a child window with this name was drawn in the last frame. The name of a child
+   is the name of its parent, a slash, its own name and its id, so the test looks inside. */
+internal bool
+ui_test_child_active(const char *child_name)
+{
+    ImGuiContext *context = ImGui::GetCurrentContext();
+    for (int index = 0; index < context->Windows.Size; ++index)
+    {
+        ImGuiWindow *window = context->Windows[index];
+        if (window->Active && window->ParentWindow && strstr(window->Name, child_name)) return true;
+    }
+    return false;
 }
 
 /* 進行 of the map menu. M22: if units of the player have not acted, the
@@ -608,6 +646,67 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_STR_EQ(name, "Philip II Augustus");
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);   /* the Names choice is a front end setting */
         text_catalog_use_game_pack(&v.text, HEXDOM_CONTENT_PACK);
+    };
+
+    /* docs/EUROPE.md, E4: the life of an officer and the Wikipedia button in 武將情報. */
+    t = IM_REGISTER_TEST(e, "ui", "officer_panel_shows_the_life_and_the_wikipedia_button_opens_the_link_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 1;
+        v.recorder.officer_key   = "philip_ii";
+        v.frame.open_url         = ui_test_open_url;
+        v.ui.hud_mode            = true;
+        text_catalog_use_game_pack(&v.text, "medieval_europe");
+        g_ui_test_open_url_calls = 0;
+        ctx->Yield();
+        ui_info_open(&v.ui, &v.api, UI_INFO_OFFICERS, false);
+        ctx->Yield(2);
+        ui_test_click_info_row(ctx, "//###InfoTable/**/###info_row100");
+        ctx->Yield(2);
+        IM_CHECK(v.ui.info.detail && v.ui.info.detail_id == 100);
+        IM_CHECK(ui_test_child_active("###officer_life"));   /* the life shows under the abilities */
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("//###InfoDetail/**/###officer_wikipedia");
+        ctx->Yield();
+        IM_CHECK_EQ(g_ui_test_open_url_calls, 1u);
+        IM_CHECK_STR_EQ(g_ui_test_open_url_last, "https://en.wikipedia.org/wiki/Philip_II_of_France");
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);   /* the button is a front end action */
+        text_catalog_use_game_pack(&v.text, HEXDOM_CONTENT_PACK);
+    };
+
+    /* An officer without a key shows no life and no button. An officer with a life and without an article shows the life only. */
+    t = IM_REGISTER_TEST(e, "ui", "officer_panel_shows_no_button_without_a_link_and_no_text_without_a_life");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 1;
+        v.recorder.officer_key   = "guerin";   /* a life, and the article column is "-" */
+        v.frame.open_url         = ui_test_open_url;
+        v.ui.hud_mode            = true;
+        text_catalog_use_game_pack(&v.text, "medieval_europe");
+        ctx->Yield();
+        ui_info_open(&v.ui, &v.api, UI_INFO_OFFICERS, false);
+        ctx->Yield(2);
+        ui_test_click_info_row(ctx, "//###InfoTable/**/###info_row100");
+        ctx->Yield(2);
+        IM_CHECK(ui_test_child_active("###officer_life"));
+        IM_CHECK(!ctx->ItemExists("//###InfoDetail/**/###officer_wikipedia"));
+
+        v.recorder.officer_key = 0;   /* a save officer: no key, so no life and no link */
+        ctx->Yield(2);
+        IM_CHECK(!ui_test_child_active("###officer_life"));
+        IM_CHECK(!ctx->ItemExists("//###InfoDetail/**/###officer_wikipedia"));
+
+        text_catalog_use_game_pack(&v.text, HEXDOM_CONTENT_PACK);
+        v.recorder.officer_key = "philip_ii";
+        ctx->Yield(2);
+        IM_CHECK(!ui_test_child_active("###officer_life"));   /* the Three Kingdoms pack has no lives */
+        IM_CHECK(!ctx->ItemExists("//###InfoDetail/**/###officer_wikipedia"));
     };
 
     t = IM_REGISTER_TEST(e, "ui", "cities_panel_shows_names_through_the_text_module_and_commands_nothing");

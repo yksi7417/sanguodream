@@ -145,7 +145,8 @@ decompilation of it.
 - code/engine/           the backend: owns the sim and the event ledger,
                          exposes engine_api
 - code/text/             front end text: Big5 to UTF-8 (a script writes
-                         big5_table.h), UI strings and names for each locale
+                         big5_table.h), UI strings, names and lives for each
+                         locale
 - code/ui/               ImGui panels; call engine_api only; ui_fonts.h
                          loads the fonts for the executables
 - tests/test_framework.h one check macro, counters, heap arenas
@@ -160,9 +161,10 @@ decompilation of it.
 - misc/make_world_map.py  makes the map, cities.tsv and bases.tsv of a pack
                          from real geography: NOAA ETOPO heights and
                          Natural Earth vectors (docs/MAPS.md)
-- misc/make_scenario.py  checks a scenario of a pack (TSV files) and writes
-                         the Big5 names of its officers (docs/MAPS.md) and
-                         names/en.tsv of the pack (docs/EUROPE.md)
+- misc/make_scenario.py  checks a scenario of a pack (TSV files). It writes
+                         the Big5 names of its officers (docs/MAPS.md).
+                         It also writes names/en.tsv and lore/links.tsv of
+                         the pack (docs/EUROPE.md)
 - misc/make_pair_index.py  writes data/placeholder/pairs.tsv from the save
                          pairs of the spec (run it after a spec update;
                          tutorial 26)

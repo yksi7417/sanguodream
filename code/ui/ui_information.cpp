@@ -63,6 +63,7 @@ global_variable const ui_info_item ui_info_items[] =
 #define UI_INFO_TABLE_WIDTH   806.0f   /* information-screens.md: the frame of a table */
 #define UI_INFO_TABLE_ROWS    22
 #define UI_INFO_LIST_WIDTH    110.0f   /* the list at the left of a detail panel */
+#define UI_OFFICER_LIFE_WIDTH_EM 28.0f /* the width of the life of an officer, in the height of the font */
 
 internal void ui_draw_city_game_fields(ui_state *ui, engine_api *api, u8 city_id);   /* ui_city.cpp */
 
@@ -420,6 +421,32 @@ ui_info_detail_list(ui_state *ui, engine_api *api)
     ImGui::EndChild();
 }
 
+/* The life of an officer of the pack, under the abilities, and the button of its Wikipedia article.
+   An officer without a life shows no text. An officer without an allowed link shows no button.
+   The button calls the platform and commands nothing to the engine (docs/EUROPE.md, E4). */
+internal void
+ui_draw_officer_life(ui_state *ui, const char *officer_key)
+{
+    const char *life = text_key_lore(ui->text, "officer", officer_key);
+    if (life)
+    {
+        ImGui::Separator();
+        f32 width = ImGui::GetFontSize() * UI_OFFICER_LIFE_WIDTH_EM;
+        ImGui::BeginChild("###officer_life", ImVec2(width, 0), ImGuiChildFlags_AutoResizeY);
+        ImGui::PushTextWrapPos(width);
+        ImGui::TextUnformatted(life);
+        ImGui::PopTextWrapPos();
+        ImGui::EndChild();
+    }
+    const char *url = text_key_link(ui->text, "officer", officer_key);
+    if (url && ui->open_url && text_link_is_allowed(url))
+    {
+        char label[UI_NAME_SIZE * 2];
+        snprintf(label, sizeof(label), "%s###officer_wikipedia", text_get(ui->text, "officer.wikipedia"));
+        if (ImGui::Button(label)) ui->open_url(url);
+    }
+}
+
 internal void
 ui_draw_officer_detail(ui_state *ui, engine_api *api)
 {
@@ -447,6 +474,7 @@ ui_draw_officer_detail(ui_state *ui, engine_api *api)
     if (officer.status == 0) ImGui::Text("%s ---   %s %u", text_get(ui->text, "info.col.loyalty"), text_get(ui->text, "column.merit"), officer.merit);
     else ImGui::Text("%s %u   %s %u", text_get(ui->text, "info.col.loyalty"), detail.loyalty, text_get(ui->text, "column.merit"), officer.merit);
     ImGui::Text("%s %s", text_get(ui->text, "info.col.skill"), ui_info_skill_name(ui, api, officer.skill_number));
+    ui_draw_officer_life(ui, officer.key);
 }
 
 internal void
