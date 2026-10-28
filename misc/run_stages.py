@@ -198,7 +198,8 @@ def status():
             continue
         result = result_of(stage)
         if not result:
-            print("%-20s running (%d bytes of output)" % (stage, os.path.getsize(path)))
+            state = "running" if running_session(stage) else "stopped before its end"
+            print("%-20s %s (%d bytes of output)" % (stage, state, os.path.getsize(path)))
             continue
         text = (result.get("result") or "").replace("\n", " ")
         print("%-20s %s, %s turns, %.2f USD: %s" % (stage, result.get("subtype"), result.get("num_turns"),

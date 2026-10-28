@@ -6,6 +6,9 @@ Other stages run at the same time in other worktrees.
 
 ## How to work
 - Read CLAUDE.md, docs/EUROPE.md and the brief of your stage first.
+- An earlier run of your stage can have stopped before its commit. Run
+  `git status` first. If the worktree has changes, read `git diff` and the
+  new files. Keep the good work, complete it, and do not start again.
 - Follow CLAUDE.md: TDD, the Handmade style, and Simplified Technical
   English for documents, comments and commit messages.
 - Work only in {worktree}. Do not edit another worktree.

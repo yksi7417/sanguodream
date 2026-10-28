@@ -23,7 +23,7 @@ source. This stage changes data and documents only, not code.
 ## The work
 1. For each officer, find a second source with WebSearch and WebFetch.
    An earlier run can have left its findings in build/bio_check/*.tsv of
-   this worktree. Read them first. Use each finding with a source URL, and
+   this worktree. Read them first. Use each result with a source URL, and
    search only for the other officers.
 2. If a sentence of a life has no support in two sources, change or remove
    the sentence. Write in your own words. Copy no sentence of a source.
