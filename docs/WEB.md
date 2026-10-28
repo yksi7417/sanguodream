@@ -349,6 +349,12 @@ rooms.spec.js has three tests of the rooms of the shared games
 - a member makes a room, takes a seat, starts the game and gets the
   welcome on the socket
 
+multiplayer.spec.js has one test of a game together (docs/MULTIPLAYER.md,
+MP3). Two browser contexts sign in as "Tester" and "Guest". The host
+clicks "Play online", and the guest opens the invite link. Each takes a
+seat, and the host starts the game. Each player ends a turn of a faction.
+After each step, the two pages have the same steps and the same checksum.
+
 To run them:
 1. Run `build_web.bat test-game`. It writes build/webtest: the game with
    the test hooks of code/wasm_test_hooks.h.

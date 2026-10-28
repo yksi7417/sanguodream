@@ -25,6 +25,7 @@ struct feature_mp_pair
     b32  numbered;        /* each step has the next number */
     b32  applied;         /* B applied each step */
     b32  agreed;          /* after each step, B has the checksum of A */
+    b32  started;         /* B loaded the start image of A */
 };
 
 /* The same start on each engine: the sample save, one human faction, and
@@ -48,10 +49,43 @@ feature_mp_pair_init(feature_mp_pair *pair)
     *pair = {};
     feature_replay_fixture_init(&pair->a);
     feature_replay_fixture_init(&pair->b);
-    u8 city_b, force_b;
     feature_mp_start(&pair->a.api, &pair->city, &pair->force);
-    feature_mp_start(&pair->b.api, &city_b, &force_b);
+    /* B takes the start image of A (MP3), as a guest takes the image of the host. */
+    engine_api *a = &pair->a.api, *b = &pair->b.api;
+    u32 size = a->start_image_size(a->engine);
+    u8 *image = (u8 *)malloc(size);
+    u32 written = a->start_image(a->engine, image, size);
+    pair->started = written > 0 && b->load_start_image(b->engine, image, written);
+    free(image);
     pair->numbered = pair->applied = pair->agreed = true;
+}
+
+/* The start image: B gets the state of A, also without a load of its own. */
+internal void
+feature_mp_start_image_tests(test_counts *counts)
+{
+    feature_mp_pair pair;
+    feature_mp_pair_init(&pair);
+    engine_api *a = &pair.a.api, *b = &pair.b.api;
+    TEST_CHECK(counts, pair.started, "B loads the start image of A");
+    TEST_CHECK(counts, a->state_checksum(a->engine) == b->state_checksum(b->engine) &&
+                       feature_replay_observe(a) == feature_replay_observe(b),
+               "after the start image, B has the checksum and the cities, officers and units of A");
+    TEST_CHECK(counts, b->ledger_count(b->engine) == a->ledger_count(a->engine), "the start image holds the ledger");
+    TEST_CHECK(counts, b->game_replay_info(b->engine).status == ENGINE_GAME_REPLAY_EMPTY, "the start image starts a new replay record");
+    u8 small[16];
+    TEST_CHECK(counts, a->start_image(a->engine, small, sizeof(small)) == 0, "a short buffer takes no start image");
+    TEST_CHECK(counts, !b->load_start_image(b->engine, small, sizeof(small)) &&
+                       b->state_checksum(b->engine) == a->state_checksum(a->engine),
+               "bytes that are no image change nothing");
+    b->multiplayer_begin(b->engine, ENGINE_NO_FACTION, false);
+    u32 size = a->start_image_size(a->engine);
+    u8 *image = (u8 *)malloc(size);
+    u32 written = a->start_image(a->engine, image, size);
+    TEST_CHECK(counts, !b->load_start_image(b->engine, image, written), "a shared game refuses a start image");
+    free(image);
+    engine_fixture_destroy(&pair.a);
+    engine_fixture_destroy(&pair.b);
 }
 
 /* Moves each step of one engine to the other, as the server relays them. */
@@ -67,6 +101,7 @@ feature_mp_relay_from(feature_mp_pair *pair, engine_api *from, engine_api *to)
         engine_step_apply_result applied = to->step_apply(to->engine, bytes, out.size);
         if (applied.status != ENGINE_STEP_APPLIED) pair->applied = false;
         if (applied.checksum != out.checksum || out.checksum != to->state_checksum(to->engine)) pair->agreed = false;
+        if (out.acting != to->whose_turn(to->engine)) pair->agreed = false;   /* the faction of the checksum message */
         pair->steps++;
     }
 }
@@ -328,6 +363,7 @@ feature_mp_record_checksum_tests(test_counts *counts)
 internal void
 feature_multiplayer_tests(test_counts *counts)
 {
+    feature_mp_start_image_tests(counts);
     feature_mp_lockstep_tests(counts);
     feature_mp_lock_tests(counts);
     feature_mp_bytes_tests(counts);

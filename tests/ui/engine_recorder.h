@@ -149,6 +149,7 @@ enum recorder_call_kind
     RECORDER_MULTIPLAYER_INFO,     /* a shared game */
     RECORDER_STEPS_OUTGOING,       /* a take from the queue sends a step that already ran */
     RECORDER_STATE_CHECKSUM,
+    RECORDER_START_IMAGE,          /* the image of the start of a shared game: a read */
     RECORDER_END_TURN,        /* commands start here */
     RECORDER_ADVANCE_TURNS,
     RECORDER_LEDGER_CLEAR,
@@ -234,6 +235,7 @@ enum recorder_call_kind
     RECORDER_MULTIPLAYER_END,
     RECORDER_STEP_APPLY,           /* arg = the bytes */
     RECORDER_SET_SEED,
+    RECORDER_LOAD_START_IMAGE,     /* arg = the bytes */
     RECORDER_CALL_KIND_COUNT
 };
 
@@ -2111,6 +2113,24 @@ internal void recorder_set_seed(void *o, u64 seed)
 {
     recorder_record((engine_recorder *)o, RECORDER_SET_SEED, (u32)seed);
 }
+internal u32 recorder_start_image_size(void *o)
+{
+    recorder_record((engine_recorder *)o, RECORDER_START_IMAGE, 0);
+    return 16;
+}
+internal u32 recorder_start_image(void *o, u8 *buffer, u32 capacity)
+{
+    recorder_record((engine_recorder *)o, RECORDER_START_IMAGE, capacity);
+    if (!buffer || capacity < 16) return 0;
+    memset(buffer, 0x5A, 16);
+    return 16;
+}
+internal b32 recorder_load_start_image(void *o, const u8 *bytes, u32 size)
+{
+    (void)bytes;
+    recorder_record((engine_recorder *)o, RECORDER_LOAD_START_IMAGE, size);
+    return true;
+}
 
 internal void recorder_set_unit_grain(void *o, u32 unit_id, u32 grain)
 {
@@ -2423,6 +2443,9 @@ recorder_make_api(engine_recorder *r)
     api.step_apply             = recorder_step_apply;
     api.state_checksum         = recorder_state_checksum;
     api.set_seed               = recorder_set_seed;
+    api.start_image_size       = recorder_start_image_size;
+    api.start_image            = recorder_start_image;
+    api.load_start_image       = recorder_load_start_image;
     return api;
 }
 

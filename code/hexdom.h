@@ -63,6 +63,45 @@ typedef PLATFORM_FACE_TEXTURE(platform_face_texture);
 typedef void *imgui_alloc_fn(size_t size, void *user);
 typedef void  imgui_free_fn(void *ptr, void *user);
 
+/* A shared game (docs/MULTIPLAYER.md, MP3). The web page owns the lobby and
+   the socket of the room. The game sends its steps and checksums to the
+   page, and it takes the events of the page one at a time. A platform
+   without a network leaves net_send and net_poll zero. */
+enum platform_net_kind
+{
+    PLATFORM_NET_NONE,
+    /* from the game to the page */
+    PLATFORM_NET_HOST,      /* data: the start image. text: one line "force<TAB>name" for each seat */
+    PLATFORM_NET_STEP,      /* step: the number. data: the bytes of the engine */
+    PLATFORM_NET_CHECKSUM,  /* step, checksum and acting: the state after the step; step -1 is the start */
+    /* from the page to the game */
+    PLATFORM_NET_JOIN,      /* data: the start image. seat, host. text: one line "force<TAB>player" for each seat */
+    PLATFORM_NET_SEATS,     /* text: one line "force<TAB>player<TAB>online" for each seat with a player */
+    PLATFORM_NET_DESYNC,    /* step */
+    PLATFORM_NET_ERROR,     /* text: the reason */
+    PLATFORM_NET_KIND_COUNT
+};
+
+#define PLATFORM_NET_NO_SEAT 0xFF
+
+struct platform_net_event
+{
+    u32         kind;       /* platform_net_kind */
+    s32         step;
+    u64         checksum;
+    u8          acting;
+    u8          seat;       /* PLATFORM_NET_NO_SEAT for a spectator */
+    b32         host;
+    u32         size;       /* the bytes of data */
+    const u8   *data;       /* an event of the page: valid until the next net_poll */
+    const char *text;
+};
+
+#define PLATFORM_NET_SEND(name) void name(const platform_net_event *event)
+typedef PLATFORM_NET_SEND(platform_net_send);
+#define PLATFORM_NET_POLL(name) b32 name(platform_net_event *event)
+typedef PLATFORM_NET_POLL(platform_net_poll);
+
 struct platform_api
 {
     platform_read_entire_file *read_entire_file;
@@ -74,6 +113,8 @@ struct platform_api
     const portrait_list       *portraits;        /* the default portraits; zero without the archive */
     platform_portrait_texture *portrait_texture;
     platform_face_texture     *face_texture;     /* the generated faces; zero without a device */
+    platform_net_send         *net_send;         /* MP3: zero without a network (the Windows build) */
+    platform_net_poll         *net_poll;
 };
 
 struct render_commands;

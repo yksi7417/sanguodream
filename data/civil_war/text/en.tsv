@@ -1060,6 +1060,16 @@ cities.all	All cities	check box: list every city, not only the cities of the pla
 table.filter	filter	hint in the filter box of a table
 city.not_yours	This city is not yours. It takes no command from you.	the City panel for a city of another force
 city.not_your_seat	Another player acts now. Wait for your turn.	the City panel in a shared game when the faction of another player acts
+net.title	Online game	the banner of a shared game
+net.play_online	Play online	a button of the start settings: the page makes a room
+net.waiting	Waiting for the players. The page shows the invite link.	the host waits for the start of the room
+net.your_turn	Your turn	the banner when the faction of the local seat acts
+net.acts	acts now	after the name of the player whose faction acts
+net.computer_acts	The computer acts	the banner when a faction of the AI acts
+net.desync	The copies of the game differ at step	a desync: the number of the step follows
+net.bad_image	The start image of the room does not load.	the error of a bad start image
+net.missing_step	A step of the game is missing. Open the page again.	the error of a gap in the steps
+net.bad_step	A step of another player does not apply.	the error of a bad step
 settings.font_size	Font size	slider, pixels
 event.transport_arrived	Transport arrived	輸送隊到達
 event_role.transport_arrived.a	Leader	主將

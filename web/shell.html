@@ -44,6 +44,15 @@
   #unsupported button { display: block; width: 100%; margin: 10px 0 0; padding: 11px 14px; border: 1px solid #3a3f4b;
                         border-radius: 6px; background: #232731; color: #e8e8e8; font: inherit; cursor: pointer; }
   #unsupported [hidden] { display: none; }
+  /* The lobby of a shared game (docs/MULTIPLAYER.md). */
+  #room { position: fixed; top: 8px; left: 8px; display: none; max-width: 360px; padding: 8px 14px;
+          border: 1px solid #3a3f4b; border-radius: 6px; background: rgba(35, 39, 49, 0.95); color: #e8e8e8; }
+  #room h2 { font-size: 16px; margin: 4px 0 8px; }
+  #room p { margin: 4px 0; word-break: break-all; }
+  #room ul { padding-left: 18px; margin: 6px 0; }
+  #room button { margin: 2px 0 2px 8px; padding: 3px 10px; border: 1px solid #3a3f4b; border-radius: 4px;
+                 background: #2c313d; color: #e8e8e8; font: inherit; cursor: pointer; }
+  #room-status { color: #f0c27e; }
 </style>
 </head>
 <body>
@@ -144,6 +153,7 @@
     var response = await fetch("api/game-files");
     if (!response.ok) { console.log("platform: no game files api (" + response.status + ")"); return; }
     var info = await response.json();
+    net.build = info.build;   // a shared game checks the build of each player (docs/MULTIPLAYER.md)
     var cache = null;
     try { if (window.caches) cache = await caches.open(GAME_CACHE); } catch (error) { cache = null; }   // a private window
     var progress = { done: 0, total: info.files["index.wasm"].size + info.files["index.data"].size };
@@ -338,6 +348,8 @@
     console.log("platform: " + list.saves.length + " saves from the server");
     setupLive(me);
     setupUser(me);
+    var game = new URLSearchParams(location.search).get("game");
+    if (game && /^[0-9a-f]{16}$/.test(game)) openRoom(game);
   }
 
   /* ---- The user badge and the sign-out ------------------------------------------------ */
@@ -379,6 +391,198 @@
     var name = path.split("/").pop();
     if (hexdomServer.uid && path.indexOf("saves/") === 0 && isSaveName(name)) uploadSave(name);
   };
+
+  /* ---- A shared game (docs/MULTIPLAYER.md, MP3; web/rooms.py) -----------------------
+     The page owns the lobby and the socket of the room. The game and the page talk
+     through Module.hexdomNetSend (the game sends) and Module.hexdomNetPush (the page
+     pushes an event; code/wasm_hexdom.cpp). The kinds are platform_net_kind of
+     code/hexdom.h.
+     - "Play online" in the game: the page makes the room, sends the start image and
+       shows the lobby with the invite link.
+     - The lobby: each member takes a seat. The host starts the game.
+     - The start: the page opens the socket. After the welcome, it gives the start
+       image and the seats to the game (join), then each step of the socket.
+     The page shows names with textContent, never as HTML. */
+  var NET = { HOST: 1, STEP: 2, CHECKSUM: 3, JOIN: 4, SEATS: 5, DESYNC: 6, ERROR: 7 };
+  var NET_POLL_MS = 2000;
+  var net = { build: null, ready: false, early: [], gid: null, room: null, socket: null, joined: false,
+              online: [], poll: null };
+
+  // The events wait until the game runs and the join went first, in their order.
+  function flushEarly() {
+    var early = net.early;
+    net.early = [];
+    early.forEach(function (event) { Module.hexdomNetPush.apply(null, event); });
+  }
+  Module.hexdomNetReady = function () {
+    net.ready = true;
+    if (net.joined) flushEarly();
+  };
+  function netPush(kind, step, seat, host, bytes, text) {
+    var event = [kind, step, seat, host, bytes || null, text || ""];
+    if (net.ready && net.joined && !net.early.length) Module.hexdomNetPush.apply(null, event);
+    else net.early.push(event);
+  }
+
+  Module.hexdomNetSend = function (kind, step, low, high, acting, bytes, text) {
+    if (kind === NET.HOST) hostRoom(bytes, text).catch(function (error) { roomStatus("The room was not made: " + error); });
+    else if (kind === NET.STEP) sendStep(step, bytes);
+    else if (kind === NET.CHECKSUM) {
+      var checksum = ("00000000" + high.toString(16)).slice(-8) + ("00000000" + low.toString(16)).slice(-8);
+      sendJson({ type: "checksum", step: step, checksum: checksum, acting: acting });
+    }
+  };
+
+  async function postJson(url, body) {
+    var response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    var data = await response.json().catch(function () { return {}; });
+    if (!response.ok) throw new Error(data.error || ("status " + response.status));
+    return data;
+  }
+
+  async function hostRoom(image, text) {
+    var factions = text.split("\n").filter(Boolean).map(function (line) {
+      var parts = line.split("\t");
+      return { force: parseInt(parts[0], 10), name: parts[1] || "" };
+    });
+    var name = (hexdomServer.me ? hexdomServer.me.name + "'s game" : "Online game");
+    var room = await postJson("api/games", { name: name, scenario: "", pack: "", mode: "live", turn_seconds: 300, factions: factions });
+    var put = await fetch("api/games/" + room.gid + "/start-image", { method: "PUT", body: image });
+    if (!put.ok) throw new Error("the start image did not upload (" + put.status + ")");
+    history.replaceState(null, "", location.pathname + "?game=" + room.gid);
+    openRoom(room.gid);
+  }
+
+  function roomPanel() {
+    var panel = document.getElementById("room");
+    if (!panel) {
+      panel = document.createElement("div");
+      panel.id = "room";
+      document.body.appendChild(panel);
+    }
+    return panel;
+  }
+  function roomStatus(text) {
+    console.log("platform: room: " + text);
+    var line = document.getElementById("room-status");
+    if (line) line.textContent = text;
+  }
+  function element(tag, text, id) {
+    var node = document.createElement(tag);
+    if (text !== undefined) node.textContent = text;
+    if (id) node.id = id;
+    return node;
+  }
+
+  function openRoom(gid) {
+    net.gid = gid;
+    refreshRoom();
+    if (!net.poll) net.poll = setInterval(refreshRoom, NET_POLL_MS);
+  }
+
+  async function refreshRoom() {
+    var response = await fetch("api/games/" + net.gid).catch(function () { return null; });
+    if (!response || !response.ok) { roomStatus("The room does not load."); return; }
+    net.room = await response.json();
+    drawRoom();
+    if (net.room.state !== "open" && !net.socket) {
+      clearInterval(net.poll);
+      net.poll = null;
+      connectRoom();
+    }
+  }
+
+  function drawRoom() {
+    var room = net.room, panel = roomPanel();
+    panel.replaceChildren();
+    panel.appendChild(element("h2", room.name));
+    if (room.state === "open") {
+      var link = location.origin + "/r/" + room.code;
+      panel.appendChild(element("p", "Invite link: " + link, "room-link"));
+      panel.appendChild(element("p", "Room code: " + room.code, "room-code"));
+    }
+    var list = element("ul");
+    room.seats.forEach(function (seat) {
+      var item = element("li", seat.name + ": " + (seat.user || "the computer"));
+      item.className = "seat";
+      if (room.state === "open") {
+        var take = element("button", seat.user ? "Leave" : "Take", "seat-" + seat.force);
+        take.type = "button";
+        take.addEventListener("click", function () {
+          postJson("api/games/" + net.gid + "/seat", { force: seat.user ? null : seat.force })
+            .then(refreshRoom).catch(function (error) { roomStatus(String(error.message || error)); });
+        });
+        item.appendChild(take);
+      }
+      list.appendChild(item);
+    });
+    panel.appendChild(list);
+    if (room.state === "open") {
+      var start = element("button", "Start the game", "room-start");
+      start.type = "button";
+      start.addEventListener("click", function () {
+        postJson("api/games/" + net.gid + "/start", {}).then(refreshRoom).catch(function (error) { roomStatus(String(error.message || error)); });
+      });
+      panel.appendChild(start);
+    }
+    panel.appendChild(element("p", "", "room-status"));
+    panel.style.display = net.joined ? "none" : "block";
+  }
+
+  function seatsText(withOnline) {
+    return net.room.seats.map(function (seat) {
+      var line = seat.force + "\t" + (seat.user || "");
+      if (withOnline) line += "\t" + (net.online.indexOf(seat.force) >= 0 ? 1 : 0);
+      return line;
+    }).join("\n");
+  }
+
+  function connectRoom() {
+    var scheme = location.protocol === "https:" ? "wss://" : "ws://";
+    var socket = new WebSocket(scheme + location.host + location.pathname.replace(/[^/]*$/, "") + "api/games/" + net.gid + "/socket");
+    socket.binaryType = "arraybuffer";
+    net.socket = socket;
+    socket.onopen = function () {
+      socket.send(JSON.stringify({ type: "hello", gid: net.gid, build: net.build || net.room.build, last_step: -1 }));
+    };
+    socket.onmessage = function (event) {
+      if (typeof event.data !== "string") {
+        var view = new DataView(event.data);
+        netPush(NET.STEP, view.getUint32(0, true), 0, false, new Uint8Array(event.data, 8), "");
+        return;
+      }
+      var message = JSON.parse(event.data);
+      if (message.type === "welcome") joinRoom(message);
+      else if (message.type === "presence") { net.online = message.seats; netPush(NET.SEATS, 0, 0, false, null, seatsText(true)); }
+      else if (message.type === "desync") netPush(NET.DESYNC, message.step, 0, false, null, "");
+      else if (message.type === "error") { roomStatus(message.reason); netPush(NET.ERROR, 0, 0, false, null, message.reason); }
+    };
+    socket.onclose = function () { roomStatus("The connection to the room closed. Open the page again."); };
+  }
+
+  async function joinRoom(welcome) {
+    net.room = welcome.room;
+    var response = await fetch("api/games/" + net.gid + "/start-image");
+    if (!response.ok) { roomStatus("The start image does not load."); return; }
+    var image = new Uint8Array(await response.arrayBuffer());
+    var seat = welcome.seat === null ? 0xFF : welcome.seat;
+    // The join goes before the steps that came during the load of the start image.
+    net.early.unshift([NET.JOIN, 0, seat, welcome.host, image, seatsText(false)]);
+    net.joined = true;
+    if (net.ready) flushEarly();
+    drawRoom();
+  }
+
+  function sendJson(message) {
+    if (net.socket && net.socket.readyState === WebSocket.OPEN) net.socket.send(JSON.stringify(message));
+  }
+  function sendStep(step, bytes) {
+    if (!net.socket || net.socket.readyState !== WebSocket.OPEN) { roomStatus("A step did not go to the room."); return; }
+    var message = new Uint8Array(8 + bytes.length);
+    new DataView(message.buffer).setUint32(0, step, true);
+    message.set(bytes, 8);
+    net.socket.send(message);
+  }
 
   /* ---- The YouTube broadcast, an option (web/broadcast.py) ----------------------------
      The button shows only if the server has a stream key. The page records the canvas

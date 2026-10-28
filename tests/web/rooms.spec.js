@@ -36,6 +36,7 @@ test("a member makes a room, takes a seat, starts it and gets the welcome on the
                                             factions: [{ force: 2, name: "Cao" }, { force: 5, name: "Liu" }] });
     const room = await made.json();
     await post(`/api/games/${room.gid}/seat`, { force: 2 });
+    await fetch(`/api/games/${room.gid}/start-image`, { method: "PUT", body: new Uint8Array([1, 2, 3]) });
     const started = await (await post(`/api/games/${room.gid}/start`, {})).json();
     const games = await (await fetch("/api/games")).json();
     const welcome = await new Promise((resolve, reject) => {

@@ -221,6 +221,9 @@ struct ui_table_source
     u32              capacity;
 };
 
+#define UI_NET_SEATS     8    /* the human seats of a shared game (docs/MULTIPLAYER.md, Q-1) */
+#define UI_NET_NAME_SIZE 64
+
 struct ui_state
 {
     bool show_demo;
@@ -687,6 +690,20 @@ struct ui_state
         bool      scroll_request; /* M11: the canvas scrolls to scroll_to in the next frame */
         hex_coord scroll_to;
     } map;
+    /* MP3: a shared game (ui_multiplayer.cpp). The page owns the room; this is what the game knows of it. */
+    struct
+    {
+        bool available;          /* the platform has a network: the start settings show "Play online" */
+        bool host_request;       /* "Play online": the next frame sends the start image and the seats to the page */
+        bool waiting;            /* the host waits for the start of the room */
+        bool joined;             /* the start image loaded, and multiplayer_begin ran */
+        u32  seat_count;
+        u8   seat_force[UI_NET_SEATS];
+        char seat_player[UI_NET_SEATS][UI_NET_NAME_SIZE];   /* "" for a faction of the AI */
+        bool seat_online[UI_NET_SEATS];
+        s32  desync_step;        /* -1: none */
+        char error[96];
+    } net;
 };
 
 /* Per-frame facts that belong to the front end, not the engine. render and
@@ -703,6 +720,8 @@ struct ui_frame_info
     const portrait_list       *portraits;          /* the default portraits; zero without the archive */
     platform_portrait_texture *portrait_texture;   /* zero in the headless tests: no texture */
     platform_face_texture     *face_texture;       /* the generated faces (render/faces.h); zero in the headless tests */
+    platform_net_send         *net_send;           /* MP3: the socket of a shared game; zero without a network */
+    platform_net_poll         *net_poll;
 };
 
 /* The caller loads a locale into the catalog before the first frame. */

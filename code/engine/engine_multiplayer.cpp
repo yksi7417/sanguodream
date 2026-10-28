@@ -143,6 +143,8 @@ engine_multiplayer_queue(engine *e, u8 kind, const sim_command *command, const e
     mp->queue_sizes[slot]     = size;
     mp->queue_steps[slot]     = step;
     mp->queue_checksums[slot] = engine_game_replay_checksum(e);
+    u8 after = sim_whose_turn(e->sim);
+    mp->queue_acting[slot]    = after == SIM_NO_FORCE ? (u8)ENGINE_NO_FACTION : after;
     mp->queue_count++;
 }
 
@@ -196,6 +198,7 @@ engine_api_steps_outgoing(void *opaque, u8 *buffer, u32 capacity)
     out.size     = mp->queue_sizes[slot];
     out.step     = mp->queue_steps[slot];
     out.checksum = mp->queue_checksums[slot];
+    out.acting   = mp->queue_acting[slot];
     mp->queue_first = (mp->queue_first + 1) % ENGINE_STEP_QUEUE_CAPACITY;
     mp->queue_count--;
     return out;
@@ -280,9 +283,46 @@ engine_api_set_seed(void *opaque, u64 seed)
     e->sim->rng = seed ? seed : 0x9E3779B97F4A7C15ull;   /* the rule of sim_init: the PRNG has no zero state */
 }
 
+internal u32
+engine_api_start_image_size(void *opaque)
+{
+    engine *e = (engine *)opaque;
+    return (u32)engine_save_image_size(e, e->ledger_count);
+}
+
+internal u32
+engine_api_start_image(void *opaque, u8 *buffer, u32 capacity)
+{
+    engine *e = (engine *)opaque;
+    if (!buffer) return 0;
+    return (u32)engine_game_replay_take_image(e, buffer, capacity, true);
+}
+
+/* The image goes through a copy in the transient arena: the loader reads
+   from a buffer of the engine, and the bytes of the caller stay as they are. */
+internal b32
+engine_api_load_start_image(void *opaque, const u8 *bytes, u32 size)
+{
+    engine *e = (engine *)opaque;
+    if (engine_setter_locked(e) || !bytes || !size) return false;
+    memory_arena *arena = e->transient;
+    if (arena->size - arena->used < (u64)size + 64) return false;
+    u64 mark = arena->used;
+    u8 *copy = (u8 *)arena_push_size(arena, size);
+    memcpy(copy, bytes, size);
+    engine_game_replay_return_live(e);
+    b32 loaded = engine_game_replay_load_image(e, copy, size);
+    arena->used = mark;
+    if (loaded) engine_game_replay_reset(e);   /* the start image is the start of a new record */
+    return loaded;
+}
+
 internal void
 engine_bind_multiplayer_api(engine_api *api)
 {
+    api->start_image_size  = engine_api_start_image_size;
+    api->start_image       = engine_api_start_image;
+    api->load_start_image  = engine_api_load_start_image;
     api->multiplayer_begin = engine_api_multiplayer_begin;
     api->multiplayer_end   = engine_api_multiplayer_end;
     api->multiplayer_info  = engine_api_multiplayer_info;

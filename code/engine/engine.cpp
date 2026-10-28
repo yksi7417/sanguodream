@@ -92,6 +92,7 @@ struct engine_multiplayer_state
     u32 queue_sizes[ENGINE_STEP_QUEUE_CAPACITY];
     u32 queue_steps[ENGINE_STEP_QUEUE_CAPACITY];
     u64 queue_checksums[ENGINE_STEP_QUEUE_CAPACITY];
+    u8  queue_acting[ENGINE_STEP_QUEUE_CAPACITY];
     u8  queue_bytes[ENGINE_STEP_QUEUE_CAPACITY][ENGINE_STEP_WIRE_CAPACITY];
 };
 
