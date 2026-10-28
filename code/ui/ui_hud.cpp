@@ -200,6 +200,26 @@ ui_hud_row_click(ui_state *ui, engine_api *api, ui_hud_row *row, bool open)
     }
 }
 
+/* The row behind the header of a tab: the shown city, or the ruler of the
+   force on the officers tab. id is U32_MAX when there is no such item. */
+internal ui_hud_row
+ui_hud_header_row(engine_api *api, u8 force, int tab, u8 shown_city)
+{
+    ui_hud_row head = { 0, U32_MAX, true };
+    if (tab != UI_HUD_TAB_OFFICERS)
+    {
+        if (shown_city != ENGINE_NO_CITY) head.id = shown_city;
+        return head;
+    }
+    head.kind = 2;
+    u16 ruler = api->force_ruler(api->engine, force);
+    for (u32 index = 0; ruler != ENGINE_NO_OFFICER && index < api->officer_count(api->engine); ++index)
+    {
+        if (api->officer_at(api->engine, index).officer_id == ruler) { head.id = index; break; }
+    }
+    return head;
+}
+
 /* The list panel: three tabs, a header row and the rows. */
 internal void
 ui_draw_hud_list(ui_state *ui, engine_api *api, u8 force)
@@ -226,7 +246,15 @@ ui_draw_hud_list(ui_state *ui, engine_api *api, u8 force)
         }
         if (tab == UI_HUD_TAB_OFFICERS) ui_force_text(ui, api, force, header, sizeof(header));
         else                            ui_city_label(ui, api, shown, header, sizeof(header));
-        ImGui::TextUnformatted(header);
+        /* The header is a row too (the player, 2026-10-28): a click moves the
+           camera to the city, or to the ruler on the officers tab. A right
+           click opens its dialog, as on a row. */
+        ui_hud_row head = ui_hud_header_row(api, force, tab, shown);
+        char head_label[UI_NAME_SIZE * 2 + 32];
+        snprintf(head_label, sizeof(head_label), "%s###hud_head%d", header, tab);
+        ImVec2 head_size(0.0f, UI_LIST_PITCH - ImGui::GetStyle().ItemSpacing.y);
+        if (ImGui::Selectable(head_label, false, 0, head_size) && head.id != U32_MAX) ui_hud_row_click(ui, api, &head, false);
+        if (ImGui::IsItemHovered() && ui_right_clicked() && head.id != U32_MAX) ui_hud_row_click(ui, api, &head, true);
         ImGui::Separator();
         f32 height = UI_LIST_PITCH * (f32)UI_HUD_LIST_ROWS;
         if (ImGui::BeginChild("###hud_rows", ImVec2(0.0f, height)))

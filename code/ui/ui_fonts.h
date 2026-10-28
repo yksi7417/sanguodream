@@ -7,10 +7,12 @@
 
    ImGui 1.91 puts each glyph in one texture when it builds the atlas, so
    the loader adds only the glyphs that the game can show:
-   - Latin and Latin-1, Vietnamese, Thai, kana and CJK punctuation
+   - Latin and Latin-1, Vietnamese, Latin Extended, Thai, kana and CJK
+     punctuation
    - each code point of the Big5 table (the zh-TW names)
-   - each character of text/<locale>.tsv and names/<locale>.tsv of each
-     locale in text/locales.tsv (for example the Hangul of a Korean file)
+   - each character of text/<locale>.tsv, names/<locale>.tsv and
+     lore/<locale>.tsv of each locale in text/locales.tsv (for example
+     the Hangul of a Korean file)
 
    The fonts are in data/fonts/ (docs/ASSETS.md). If the CJK font is not
    there, the loader uses the default ImGui font, which has Latin only. */
@@ -21,6 +23,7 @@
 #include "text/text.h"
 
 #define UI_FONT_CJK_FILE   "NotoSansCJKtc-Regular.otf"   /* Latin, CJK, kana and Hangul */
+#define UI_FONT_LATIN_FILE "NotoSans-Regular.ttf"        /* merged into the CJK font: Latin Extended (E3) */
 #define UI_FONT_THAI_FILE  "NotoSansThai-Regular.ttf"    /* merged into the CJK font */
 #define UI_FONT_PATH_SIZE  512
 #define UI_FONT_FILE_MAX_SIZE  Megabytes(24)   /* the CJK font is 16.4 MB */
@@ -29,8 +32,9 @@
 struct ui_font_result
 {
     b32  loaded_cjk;
+    b32  loaded_latin;
     b32  loaded_thai;
-    u32  glyph_count;          /* code points that the atlas asks the font for */
+    u32  glyph_count;         /* code points that the atlas asks the font for */
     char message[256];         /* one line for the log of the platform layer */
 };
 
@@ -44,6 +48,17 @@ global_variable const ImWchar ui_font_extra_ranges[] =
     0x3000, 0x30FF,   /* CJK symbols and punctuation, hiragana, katakana */
     0x31F0, 0x31FF,   /* katakana phonetic extensions */
     0xFF00, 0xFFEF,   /* half-width and full-width forms */
+    0,
+};
+
+/* docs/EUROPE.md, E3: the letters of the native names. The CJK font lacks some of them, for
+   example "ł", "ř" and "ṣ". The Latin font has them all. */
+global_variable const ImWchar ui_font_latin_extended_ranges[] =
+{
+    0x0100, 0x024F,   /* Latin Extended-A and B */
+    0x02B0, 0x02FF,   /* spacing modifier letters: the ayn and the hamza of the Arabic names in Latin */
+    0x0300, 0x036F,   /* combining diacritical marks */
+    0x1E00, 0x1EFF,   /* Latin Extended Additional */
     0,
 };
 
@@ -111,6 +126,8 @@ ui_fonts_add_pack_text(ImFontGlyphRangesBuilder *builder, platform_read_entire_f
         ui_fonts_add_file_text(builder, read_file, path);
         snprintf(path, sizeof(path), "%s/%s/names/%s.tsv", data_dir, pack, locales.row_keys[row]);
         ui_fonts_add_file_text(builder, read_file, path);
+        snprintf(path, sizeof(path), "%s/%s/lore/%s.tsv", data_dir, pack, locales.row_keys[row]);
+        ui_fonts_add_file_text(builder, read_file, path);
     }
     IM_FREE(arena_memory);
     IM_FREE(contents);
@@ -130,8 +147,10 @@ ui_fonts_load(platform_read_entire_file *read_file, const char *data_dir, const 
     if (pixel_size < HEXDOM_FONT_MIN_PIXELS || pixel_size > HEXDOM_FONT_MAX_PIXELS) pixel_size = HEXDOM_FONT_DEFAULT_PIXELS;
     f32 size = (f32)pixel_size;
     char cjk_path[UI_FONT_PATH_SIZE];
+    char latin_path[UI_FONT_PATH_SIZE];
     char thai_path[UI_FONT_PATH_SIZE];
     snprintf(cjk_path, sizeof(cjk_path), "%s/fonts/%s", data_dir, UI_FONT_CJK_FILE);
+    snprintf(latin_path, sizeof(latin_path), "%s/fonts/%s", data_dir, UI_FONT_LATIN_FILE);
     snprintf(thai_path, sizeof(thai_path), "%s/fonts/%s", data_dir, UI_FONT_THAI_FILE);
 
     /* The atlas owns the font data and frees it with IM_FREE. */
@@ -149,6 +168,7 @@ ui_fonts_load(platform_read_entire_file *read_file, const char *data_dir, const 
     builder.AddRanges(io.Fonts->GetGlyphRangesDefault());
     builder.AddRanges(io.Fonts->GetGlyphRangesVietnamese());
     builder.AddRanges(ui_font_extra_ranges);
+    builder.AddRanges(ui_font_latin_extended_ranges);
     builder.AddRanges(ui_font_thai_ranges);
     for (u32 row = 0; row < BIG5_ROW_COUNT; ++row)
     {
@@ -177,15 +197,22 @@ ui_fonts_load(platform_read_entire_file *read_file, const char *data_dir, const 
         snprintf(result.message, sizeof(result.message), "fonts: %s did not load; the default font shows Latin only", cjk_path);
         return result;
     }
+    config.MergeMode = true;
+    u64 latin_size = 0;
+    void *latin_data = ui_fonts_read_file(read_file, latin_path, UI_FONT_FILE_MAX_SIZE, &latin_size);
+    if (latin_data)
+    {
+        result.loaded_latin = io.Fonts->AddFontFromMemoryTTF(latin_data, (int)latin_size, size, &config, ui_font_latin_extended_ranges) != 0;
+    }
     u64 thai_size = 0;
     void *thai_data = ui_fonts_read_file(read_file, thai_path, UI_FONT_FILE_MAX_SIZE, &thai_size);
     if (thai_data)
     {
-        config.MergeMode = true;
         result.loaded_thai = io.Fonts->AddFontFromMemoryTTF(thai_data, (int)thai_size, size, &config, ui_font_thai_ranges) != 0;
     }
-    snprintf(result.message, sizeof(result.message), "fonts: %s%s, %u code points, %u px",
-             UI_FONT_CJK_FILE, result.loaded_thai ? " + " UI_FONT_THAI_FILE : "", result.glyph_count, pixel_size);
+    snprintf(result.message, sizeof(result.message), "fonts: %s%s%s, %u code points, %u px",
+             UI_FONT_CJK_FILE, result.loaded_latin ? " + " UI_FONT_LATIN_FILE : "",
+             result.loaded_thai ? " + " UI_FONT_THAI_FILE : "", result.glyph_count, pixel_size);
     return result;
 }
 

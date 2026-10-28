@@ -41,6 +41,36 @@ global_variable const test_text_file test_text_files[] =
     { "root/pack/names/en.tsv",
       "key\ttext\n"
       "B1E4\tCao\n" },
+    { "root/europe/pack.tsv",
+      "key\tvalue\n"
+      "# the settings of the pack\n"
+      "default_locale\ten\n" },
+    { "root/europe/names/en.tsv",
+      "key\ttext\n"
+      "officer.philip_ii\tPhilip II Augustus\n"
+      "officer.leszek\tLeszek the White\n"
+      "officer.richard\tRichard the Lionheart\n"
+      "city.paris\tParis\n" },
+    { "root/europe/names/native.tsv",
+      "key\ttext\n"
+      "officer.philip_ii\tPhilippe II Auguste\n"
+      "officer.leszek\tLeszek Bia\xC5\x82y\n"       /* U+0142 */
+      "city.paris\tLutetia\n" },
+    { "root/europe/lore/en.tsv",
+      "key\ttext\tnote\n"
+      "# the lives\n"
+      "officer.philip_ii\tKing of France from 1180.\\nHe won Normandy.\n"
+      "officer.leszek\tDuke of Poland.\n" },
+    { "root/europe/lore/ko.tsv",
+      "key\ttext\n"
+      "officer.philip_ii\t\xED\x94\x84\xEB\x9E\x91\xEC\x8A\xA4 \xEC\x99\x95.\n" },
+    { "root/europe/lore/links.tsv",
+      "key\turl\n"
+      "officer.philip_ii\thttps://en.wikipedia.org/wiki/Philip_II_of_France\n"
+      "officer.bad\thttps://example.org/wiki/Philip\n" },
+    { "root/odd/pack.tsv",
+      "key\tvalue\n"
+      "default_locale\t../en\n" },
 };
 
 internal PLATFORM_READ_ENTIRE_FILE(test_text_read_file)
@@ -303,6 +333,147 @@ unit_text_catalog_tests(test_counts *counts, memory_arena *arena)
     TEST_CHECK(counts, catalog.load_count == 3, "each valid locale change loads the files again");
 }
 
+/* docs/EUROPE.md, E1 and E2: the default locale of a pack and the names of
+   the game pack by English key. */
+internal void
+unit_text_pack_tests(test_counts *counts, memory_arena *arena)
+{
+    text_catalog catalog;
+    text_catalog_init(&catalog, arena_sub(arena, Kilobytes(64)), test_text_read_file, "root", "pack", "en");
+    char locale[TEXT_LOCALE_SIZE] = "x";
+    TEST_CHECK(counts, text_pack_default_locale(&catalog, "europe", locale, sizeof(locale)) && strcmp(locale, "en") == 0,
+               "pack.tsv of a pack gives its default locale");
+    TEST_CHECK(counts, !text_pack_default_locale(&catalog, "pack", locale, sizeof(locale)) && locale[0] == 0,
+               "a pack without pack.tsv has no default locale");
+    TEST_CHECK(counts, !text_pack_default_locale(&catalog, "odd", locale, sizeof(locale)), "a default locale with a path is refused");
+
+    text_catalog_set_locale(&catalog, "en");
+    TEST_CHECK(counts, text_key_name(&catalog, "officer", "philip_ii") == 0, "without a game pack, a key has no name");
+    text_catalog_set_game_pack(&catalog, "europe");
+    TEST_CHECK(counts, text_key_name(&catalog, "officer", "philip_ii") == 0, "the names of the game pack load at the next locale change");
+    text_catalog_set_locale(&catalog, "en");
+    const char *philip = text_key_name(&catalog, "officer", "philip_ii");
+    TEST_CHECK(counts, philip && strcmp(philip, "Philip II Augustus") == 0, "en: the key of an officer gives the row of the game pack");
+    const char *paris = text_key_name(&catalog, "city", "paris");
+    TEST_CHECK(counts, paris && strcmp(paris, "Paris") == 0, "the prefix chooses the kind of record");
+    TEST_CHECK(counts, text_key_name(&catalog, "city", "philip_ii") == 0, "a key of another kind has no name");
+    TEST_CHECK(counts, text_key_name(&catalog, "officer", "") == 0, "an empty key has no name");
+    char out[64];
+    const u8 family[4] = { 0xB1, 0xE4, 0x00, 0x00 };
+    TEST_CHECK(counts, strcmp(text_name(&catalog, family, sizeof(family), out, sizeof(out)), "Cao") == 0,
+               "the names of the base pack by Big5 key stay");
+
+    text_catalog_set_locale(&catalog, "zh-TW");
+    TEST_CHECK(counts, text_key_name(&catalog, "officer", "philip_ii") == 0,
+               "zh-TW: the game pack has no names file, so the key has no name and the Big5 bytes show");
+    text_catalog_set_game_pack(&catalog, "pack");
+    text_catalog_set_locale(&catalog, "en");
+    TEST_CHECK(counts, text_key_name(&catalog, "officer", "philip_ii") == 0, "the base pack as the game pack has no keyed names");
+
+    text_catalog_set_locale(&catalog, "zh-TW");
+    text_catalog_use_game_pack(&catalog, "europe");
+    TEST_CHECK(counts, strcmp(catalog.locale, "en") == 0 && text_key_name(&catalog, "officer", "philip_ii") != 0,
+               "a new engine of a pack with a default locale switches to that locale and loads the names");
+    text_catalog_set_locale(&catalog, "ko");
+    text_catalog_use_game_pack(&catalog, "pack");
+    TEST_CHECK(counts, strcmp(catalog.locale, "ko") == 0, "a pack without pack.tsv keeps the active locale");
+}
+
+/* docs/EUROPE.md, E3: names/native.tsv of the game pack, the names in their own
+   language. The Names setting of the front end turns it on. */
+internal void
+unit_text_native_name_tests(test_counts *counts, memory_arena *arena)
+{
+    text_catalog catalog;
+    text_catalog_init(&catalog, arena_sub(arena, Kilobytes(64)), test_text_read_file, "root", "pack", "en");
+    text_catalog_set_game_pack(&catalog, "europe");
+    text_catalog_set_locale(&catalog, "en");
+
+    TEST_CHECK(counts, !catalog.native_names, "the catalog starts with the English names");
+    const char *english = text_key_name(&catalog, "officer", "philip_ii");
+    TEST_CHECK(counts, english && strcmp(english, "Philip II Augustus") == 0, "the native table does not change the English names when the setting is off");
+
+    catalog.native_names = true;
+    const char *native = text_key_name(&catalog, "officer", "philip_ii");
+    TEST_CHECK(counts, native && strcmp(native, "Philippe II Auguste") == 0, "with the setting on, the key gives the native name");
+    const char *polish = text_key_name(&catalog, "officer", "leszek");
+    TEST_CHECK(counts, polish && strcmp(polish, "Leszek Bia\xC5\x82y") == 0, "a native name keeps its letters with diacritics as UTF-8");
+    const char *lionheart = text_key_name(&catalog, "officer", "richard");
+    TEST_CHECK(counts, lionheart && strcmp(lionheart, "Richard the Lionheart") == 0, "a key that the native table lacks gives the English name");
+    TEST_CHECK(counts, text_key_name(&catalog, "officer", "") == 0, "an empty key has no name, native or not");
+    TEST_CHECK(counts, text_key_name(&catalog, "officer", "nobody") == 0, "a key that no table has gives no name");
+
+    text_catalog_set_locale(&catalog, "zh-TW");
+    const char *chinese_ui = text_key_name(&catalog, "officer", "philip_ii");
+    TEST_CHECK(counts, chinese_ui && strcmp(chinese_ui, "Philippe II Auguste") == 0 && catalog.native_names,
+               "the setting stays after a locale change, and the native table does not depend on the locale");
+
+    catalog.native_names = false;
+    TEST_CHECK(counts, text_key_name(&catalog, "officer", "philip_ii") == 0, "with the setting off in zh-TW, the key has no name again");
+
+    text_catalog_set_game_pack(&catalog, "pack");
+    text_catalog_set_locale(&catalog, "en");
+    catalog.native_names = true;
+    TEST_CHECK(counts, text_key_name(&catalog, "officer", "philip_ii") == 0, "a pack without native.tsv has no native names");
+}
+
+/* docs/EUROPE.md, E4: lore/<locale>.tsv and lore/links.tsv of the game pack,
+   the life of an officer and the link to its article. */
+internal void
+unit_text_lore_tests(test_counts *counts, memory_arena *arena)
+{
+    text_catalog catalog;
+    text_catalog_init(&catalog, arena_sub(arena, Kilobytes(64)), test_text_read_file, "root", "pack", "en");
+    text_catalog_set_game_pack(&catalog, "europe");
+    text_catalog_set_locale(&catalog, "en");
+
+    const char *life = text_key_lore(&catalog, "officer", "philip_ii");
+    TEST_CHECK(counts, life && strcmp(life, "King of France from 1180.\nHe won Normandy.") == 0, "the key gives the life, with the new line unescaped");
+    const char *poland = text_key_lore(&catalog, "officer", "leszek");
+    TEST_CHECK(counts, poland && strcmp(poland, "Duke of Poland.") == 0, "a second officer has its own life");
+    TEST_CHECK(counts, text_key_lore(&catalog, "officer", "richard") == 0, "an officer without a row has no life");
+    TEST_CHECK(counts, text_key_lore(&catalog, "officer", "") == 0, "an empty key has no life");
+    TEST_CHECK(counts, text_key_lore(&catalog, "city", "philip_ii") == 0, "the kind is part of the key");
+
+    const char *link = text_key_link(&catalog, "officer", "philip_ii");
+    TEST_CHECK(counts, link && strcmp(link, "https://en.wikipedia.org/wiki/Philip_II_of_France") == 0, "the key gives the link");
+    TEST_CHECK(counts, text_key_link(&catalog, "officer", "leszek") == 0, "an officer without a row has no link");
+    TEST_CHECK(counts, text_key_link(&catalog, "officer", "bad") == 0, "a link outside the English Wikipedia is not a link");
+    TEST_CHECK(counts, text_key_link(&catalog, "officer", "") == 0, "an empty key has no link");
+
+    text_catalog_set_locale(&catalog, "ko");
+    const char *korean = text_key_lore(&catalog, "officer", "philip_ii");
+    TEST_CHECK(counts, korean && strcmp(korean, "\xED\x94\x84\xEB\x9E\x91\xEC\x8A\xA4 \xEC\x99\x95.") == 0, "a locale with its own life gives that life");
+    const char *fallback = text_key_lore(&catalog, "officer", "leszek");
+    TEST_CHECK(counts, fallback && strcmp(fallback, "Duke of Poland.") == 0, "a life that the locale lacks comes from the fallback locale");
+    TEST_CHECK(counts, text_key_link(&catalog, "officer", "philip_ii") != 0, "the links do not depend on the locale");
+
+    text_catalog_set_locale(&catalog, "zh-TW");
+    TEST_CHECK(counts, text_key_lore(&catalog, "officer", "leszek") != 0, "a locale without a lore file shows the fallback locale");
+
+    text_catalog_set_game_pack(&catalog, "pack");
+    text_catalog_set_locale(&catalog, "en");
+    TEST_CHECK(counts, text_key_lore(&catalog, "officer", "philip_ii") == 0 && text_key_link(&catalog, "officer", "philip_ii") == 0,
+               "a pack without lore files has no life and no link");
+}
+
+internal void
+unit_text_link_tests(test_counts *counts)
+{
+    TEST_CHECK(counts, text_link_is_allowed("https://en.wikipedia.org/wiki/Philip_II_of_France"), "an article of the English Wikipedia is allowed");
+    TEST_CHECK(counts, text_link_is_allowed("https://en.wikipedia.org/wiki/\xC3\x81lvaro_N\xC3\xBA\xC3\xB1" "ez_de_Lara_(died_1218)"), "UTF-8 letters, a bracket and a comma are allowed");
+    TEST_CHECK(counts, !text_link_is_allowed(0), "no URL is not allowed");
+    TEST_CHECK(counts, !text_link_is_allowed(""), "an empty URL is not allowed");
+    TEST_CHECK(counts, !text_link_is_allowed("https://en.wikipedia.org/wiki/"), "the prefix alone is not allowed");
+    TEST_CHECK(counts, !text_link_is_allowed("http://en.wikipedia.org/wiki/Paris"), "http is not allowed");
+    TEST_CHECK(counts, !text_link_is_allowed("https://fr.wikipedia.org/wiki/Paris"), "another language is not allowed");
+    TEST_CHECK(counts, !text_link_is_allowed("https://en.wikipedia.org.evil.example/wiki/Paris"), "a longer host name is not allowed");
+    TEST_CHECK(counts, !text_link_is_allowed("file:///C:/Windows/notepad.exe"), "a file is not allowed");
+    TEST_CHECK(counts, !text_link_is_allowed("https://en.wikipedia.org/wiki/Paris Hilton"), "a space is not allowed");
+    TEST_CHECK(counts, !text_link_is_allowed("https://en.wikipedia.org/wiki/Paris\"&calc"), "a quote is not allowed");
+    TEST_CHECK(counts, !text_link_is_allowed("https://en.wikipedia.org/wiki/Paris\n"), "a control character is not allowed");
+}
+
 internal void
 unit_text_name_tests(test_counts *counts, memory_arena *arena)
 {
@@ -485,6 +656,10 @@ unit_text_tests(test_counts *counts)
     unit_text_table_tests(counts, &arena);
     unit_text_catalog_tests(counts, &arena);
     unit_text_name_tests(counts, &arena);
+    unit_text_pack_tests(counts, &arena);
+    unit_text_native_name_tests(counts, &arena);   /* E3 */
+    unit_text_lore_tests(counts, &arena);          /* E4 */
+    unit_text_link_tests(counts);                  /* E4 */
     unit_text_label_tests(counts, &arena);
     unit_text_provider_tests(counts, &arena);   /* M18 */
     test_arena_destroy(&arena);

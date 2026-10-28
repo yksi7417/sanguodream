@@ -627,6 +627,7 @@ struct ui_state
     const portrait_list       *portraits;
     platform_portrait_texture *portrait_texture;
     platform_face_texture     *face_texture;
+    platform_open_url         *open_url;   /* E4: the Wikipedia button of the officer panel; zero in the headless tests */
     /* The game mode (main-map.md): the HUD at the top left with the list of
        the bases, officers and units, the mini map at the bottom right, and
        one dialog on demand at the entity that the player clicks. */
@@ -722,6 +723,7 @@ struct ui_frame_info
     platform_face_texture     *face_texture;       /* the generated faces (render/faces.h); zero in the headless tests */
     platform_net_send         *net_send;           /* MP3: the socket of a shared game; zero without a network */
     platform_net_poll         *net_poll;
+    platform_open_url         *open_url;           /* opens a link of the English Wikipedia; zero in the headless tests */
 };
 
 /* The caller loads a locale into the catalog before the first frame. */

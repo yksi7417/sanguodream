@@ -301,6 +301,18 @@ ui_test_click_header(ImGuiTestContext *ctx, const char *table_ref, int column_n,
     ctx->ItemClick(ImHashStr(label, 0, column_id));                            /* TableHeader: GetID(label) */
 }
 
+/* A double of the link opener of the platform: it records the URL that the
+   UI asks for. */
+global_variable u32  g_ui_test_open_url_calls;
+global_variable char g_ui_test_open_url_last[256];
+
+internal PLATFORM_OPEN_URL(ui_test_open_url)
+{
+    g_ui_test_open_url_calls += 1;
+    snprintf(g_ui_test_open_url_last, sizeof(g_ui_test_open_url_last), "%s", url);
+    return true;
+}
+
 /* Moves the mouse to the center of a hex of the Hex map panel and clicks it. */
 internal void
 ui_test_click_cell(ImGuiTestContext *ctx, ui_test_vars &v, hex_coord cell)
@@ -322,6 +334,18 @@ ui_test_click_cell(ImGuiTestContext *ctx, ui_test_vars &v, hex_coord cell)
     ctx->Yield();
 }
 
+/* Clicks the row of an officer in the table of 武將情報 near its left edge. The center of a row can lie on the
+   resize grip between two columns, and the grip takes the click. */
+internal void
+ui_test_click_info_row(ImGuiTestContext *ctx, const char *row)
+{
+    ImGuiTestItemInfo info = ctx->ItemInfo(row);
+    IM_CHECK(info.ID != 0);
+    ctx->MouseMoveToPos(ImVec2(info.RectFull.Min.x + 20.0f, (info.RectFull.Min.y + info.RectFull.Max.y) * 0.5f));
+    ctx->MouseClick(0);
+    ctx->Yield();
+}
+
 /* True if the window was drawn in the last frame. A window that never
    showed, or that hides now, gives false. */
 internal bool
@@ -329,6 +353,20 @@ ui_test_window_active(ImGuiTestContext *ctx, const char *ref)
 {
     ImGuiWindow *window = ctx->WindowInfo(ref, ImGuiTestOpFlags_NoError).Window;
     return window != 0 && window->Active;
+}
+
+/* True if a child window with this name was drawn in the last frame. The name of a child
+   is the name of its parent, a slash, its own name and its id, so the test looks inside. */
+internal bool
+ui_test_child_active(const char *child_name)
+{
+    ImGuiContext *context = ImGui::GetCurrentContext();
+    for (int index = 0; index < context->Windows.Size; ++index)
+    {
+        ImGuiWindow *window = context->Windows[index];
+        if (window->Active && window->ParentWindow && strstr(window->Name, child_name)) return true;
+    }
+    return false;
 }
 
 /* 進行 of the map menu. M22: if units of the player have not acted, the
@@ -545,6 +583,130 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(v.text.stats.name_lookups - before.name_lookups, 16ull);           /* family and given name of each row and of its ruler */
         IM_CHECK_EQ(v.text.stats.decoded_names - before.decoded_names, 8ull);          /* zh-TW has no names file: Big5 decode; the given names are empty */
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* docs/EUROPE.md, E2: an officer of a pack has a name by English key. */
+    t = IM_REGISTER_TEST(e, "ui", "officers_panel_names_an_officer_of_a_pack_by_its_english_key_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 2;
+        v.recorder.officer_key   = "philip_ii";
+        text_catalog_use_game_pack(&v.text, "medieval_europe");
+        IM_CHECK_STR_EQ(v.text.locale, "en");   /* pack.tsv of the pack */
+        ctx->SetRef("###Officers");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        engine_officer philip = v.api.officer_at(v.api.engine, 0), other = v.api.officer_at(v.api.engine, 1);
+        char name[UI_NAME_SIZE * 2];
+        ui_officer_name(&v.ui, &philip, name, sizeof(name));
+        IM_CHECK_STR_EQ(name, "Philip II Augustus");
+        ui_officer_name(&v.ui, &other, name, sizeof(name));
+        IM_CHECK(strcmp(name, "Philip II Augustus") != 0 && name[0]);   /* no key: the Big5 bytes */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        text_catalog_use_game_pack(&v.text, HEXDOM_CONTENT_PACK);
+        IM_CHECK_STR_EQ(v.text.locale, "zh-TW");   /* pack.tsv of the placeholder pack */
+    };
+
+    /* docs/EUROPE.md, E3: the Names choice of the Settings panel. */
+    t = IM_REGISTER_TEST(e, "ui", "names_choice_of_the_settings_panel_shows_the_native_name_of_an_officer_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 1;
+        v.recorder.officer_key   = "philip_ii";
+        v.ui.show_settings       = true;
+        text_catalog_use_game_pack(&v.text, "medieval_europe");
+        IM_CHECK(!v.text.native_names);   /* the default is English */
+        ctx->SetRef("###Settings");
+        ctx->Yield(2);
+        engine_officer philip = v.api.officer_at(v.api.engine, 0);
+        char name[UI_NAME_SIZE * 2];
+        ui_officer_name(&v.ui, &philip, name, sizeof(name));
+        IM_CHECK_STR_EQ(name, "Philip II Augustus");
+
+        recorder_reset(&v.recorder);
+        u32 loads = v.text.load_count;
+        ctx->ComboClick("###Names/###names_native");
+        ctx->Yield(2);
+        IM_CHECK(v.text.native_names);
+        ui_officer_name(&v.ui, &philip, name, sizeof(name));
+        IM_CHECK_STR_EQ(name, "Philippe II Auguste");
+        IM_CHECK_EQ(v.text.load_count, loads);   /* no file loads for the choice */
+
+        ctx->ComboClick("###Names/###names_english");
+        ctx->Yield(2);
+        IM_CHECK(!v.text.native_names);
+        ui_officer_name(&v.ui, &philip, name, sizeof(name));
+        IM_CHECK_STR_EQ(name, "Philip II Augustus");
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);   /* the Names choice is a front end setting */
+        text_catalog_use_game_pack(&v.text, HEXDOM_CONTENT_PACK);
+    };
+
+    /* docs/EUROPE.md, E4: the life of an officer and the Wikipedia button in 武將情報. */
+    t = IM_REGISTER_TEST(e, "ui", "officer_panel_shows_the_life_and_the_wikipedia_button_opens_the_link_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 1;
+        v.recorder.officer_key   = "philip_ii";
+        v.frame.open_url         = ui_test_open_url;
+        v.ui.hud_mode            = true;
+        text_catalog_use_game_pack(&v.text, "medieval_europe");
+        g_ui_test_open_url_calls = 0;
+        ctx->Yield();
+        ui_info_open(&v.ui, &v.api, UI_INFO_OFFICERS, false);
+        ctx->Yield(2);
+        ui_test_click_info_row(ctx, "//###InfoTable/**/###info_row100");
+        ctx->Yield(2);
+        IM_CHECK(v.ui.info.detail && v.ui.info.detail_id == 100);
+        IM_CHECK(ui_test_child_active("###officer_life"));   /* the life shows under the abilities */
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("//###InfoDetail/**/###officer_wikipedia");
+        ctx->Yield();
+        IM_CHECK_EQ(g_ui_test_open_url_calls, 1u);
+        IM_CHECK_STR_EQ(g_ui_test_open_url_last, "https://en.wikipedia.org/wiki/Philip_II_of_France");
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);   /* the button is a front end action */
+        text_catalog_use_game_pack(&v.text, HEXDOM_CONTENT_PACK);
+    };
+
+    /* An officer without a key shows no life and no button. An officer with a life and without an article shows the life only. */
+    t = IM_REGISTER_TEST(e, "ui", "officer_panel_shows_no_button_without_a_link_and_no_text_without_a_life");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 1;
+        v.recorder.officer_key   = "guerin";   /* a life, and the article column is "-" */
+        v.frame.open_url         = ui_test_open_url;
+        v.ui.hud_mode            = true;
+        text_catalog_use_game_pack(&v.text, "medieval_europe");
+        ctx->Yield();
+        ui_info_open(&v.ui, &v.api, UI_INFO_OFFICERS, false);
+        ctx->Yield(2);
+        ui_test_click_info_row(ctx, "//###InfoTable/**/###info_row100");
+        ctx->Yield(2);
+        IM_CHECK(ui_test_child_active("###officer_life"));
+        IM_CHECK(!ctx->ItemExists("//###InfoDetail/**/###officer_wikipedia"));
+
+        v.recorder.officer_key = 0;   /* a save officer: no key, so no life and no link */
+        ctx->Yield(2);
+        IM_CHECK(!ui_test_child_active("###officer_life"));
+        IM_CHECK(!ctx->ItemExists("//###InfoDetail/**/###officer_wikipedia"));
+
+        text_catalog_use_game_pack(&v.text, HEXDOM_CONTENT_PACK);
+        v.recorder.officer_key = "philip_ii";
+        ctx->Yield(2);
+        IM_CHECK(!ui_test_child_active("###officer_life"));   /* the Three Kingdoms pack has no lives */
+        IM_CHECK(!ctx->ItemExists("//###InfoDetail/**/###officer_wikipedia"));
     };
 
     t = IM_REGISTER_TEST(e, "ui", "cities_panel_shows_names_through_the_text_module_and_commands_nothing");
@@ -4573,6 +4735,38 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
+    /* The header of the list is a row too (the player, 2026-10-28): a click
+       on the city of the header frames that city. On the officers tab the
+       header is the ruler of the force. */
+    t = IM_REGISTER_TEST(e, "ui", "hud_header_frames_its_city_and_names_the_ruler");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.hud_mode            = true;
+        v.ui.scene.headless      = true;
+        v.ui.show_city           = false;
+        v.ui.city.selected       = ENGINE_NO_CITY;   /* the header shows the first own city: city 0 */
+        ctx->Yield(2);
+        v.ui.scene.cam.target = v3_make(500.0f, v.ui.scene.cam.target.y, 500.0f);
+        recorder_reset(&v.recorder);
+        ctx->SetRef("//###HUD");
+        ImGuiTestItemInfo head = ctx->ItemInfo("**/###hud_head0");
+        IM_CHECK(head.ID != 0);
+        ctx->ItemClick(head.ID);
+        ctx->Yield(2);
+        v3 expected = hex_world_center(hex_make(1, 1), v.ui.scene.cam.target.y);   /* the scripted centre of city 0 */
+        IM_CHECK(fabsf(v.ui.scene.cam.target.x - expected.x) < 1e-3f && fabsf(v.ui.scene.cam.target.z - expected.z) < 1e-3f);
+        IM_CHECK(!v.ui.show_city);                                                  /* a left click only frames */
+        ui_hud_row ruler = ui_hud_header_row(&v.api, 1, UI_HUD_TAB_OFFICERS, 0);
+        IM_CHECK(ruler.kind == 2 && ruler.id != U32_MAX);
+        IM_CHECK_EQ(v.api.officer_at(v.api.engine, ruler.id).officer_id, 100);    /* the scripted ruler of force 1 */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
     /* The game mode: 進行 of the map menu ends the turn with one command and closes the menu. */
     t = IM_REGISTER_TEST(e, "ui", "map_menu_proceed_issues_one_end_turn");
     t->SetVarsDataType<ui_test_vars>();
@@ -4792,6 +4986,70 @@ register_ui_tests(ImGuiTestEngine *e)
         passable[1] = passable[4] = false;                                               /* two open axes, cliffs on axis 1: the gap is axis 0 or 2 */
         passable[2] = false;                                                             /* axis 2 loses one side */
         IM_CHECK_EQ(ui_gate_axis(passable, road), 0u);
+    };
+
+    /* The effects of the map (the player, 2026-10-28): the flames of a land
+       fire stay on the hex and the dizzy spiral goes with the unit. A cell
+       that does not burn without a unit (water; column 3 of the recorder)
+       gives its flames to the unit on it. A confused unit gets the spiral
+       and no flames. */
+    t = IM_REGISTER_TEST(e, "ui", "map_effects_put_the_fire_on_the_hex_and_the_dizziness_on_the_unit");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_effect effects[32];
+        u32 count = 0;
+        auto has = [&](u8 kind, hex_coord hex, u32 unit) -> bool
+        {
+            for (u32 index = 0; index < count; ++index)
+            {
+                ui_effect *effect = effects + index;
+                if (effect->kind != kind) continue;
+                if (kind == UI_EFFECT_FIRE_HEX ? (effect->hex.q == hex.q && effect->hex.r == hex.r) : effect->unit == unit) return true;
+            }
+            return false;
+        };
+        recorder_reset(&v.recorder);
+        hex_coord land = hex_make(1, 3);   /* unit 1, on forest */
+        hex_offset land_cell = hex_to_offset(land);
+        v.recorder.fire_cell = (u8)(land_cell.row * 8 + land_cell.col);
+        count = ui_scene_effects(&v.api, effects, ArrayCount(effects));
+        IM_CHECK(has(UI_EFFECT_FIRE_HEX, land, 0) && has(UI_EFFECT_DIZZY, land, 1) && !has(UI_EFFECT_FIRE_UNIT, land, 1));
+
+        v.recorder.unit_shift = 2;          /* unit 0 at (3, 2): column 3 does not burn without a unit */
+        hex_coord water = hex_make(3, 2);
+        hex_offset water_cell = hex_to_offset(water);
+        IM_CHECK_EQ(water_cell.col, 3);
+        v.recorder.fire_cell = (u8)(water_cell.row * 8 + water_cell.col);
+        count = ui_scene_effects(&v.api, effects, ArrayCount(effects));
+        IM_CHECK(has(UI_EFFECT_FIRE_UNIT, water, 0) && has(UI_EFFECT_DIZZY, water, 0) && !has(UI_EFFECT_FIRE_HEX, water, 0));
+
+        v.recorder.unit_shift  = 0;
+        v.recorder.fire_cell   = 0;         /* cell 9: no unit stands there */
+        v.recorder.unit0_state = UNIT_STATE_CONFUSED;
+        count = ui_scene_effects(&v.api, effects, ArrayCount(effects));
+        IM_CHECK(has(UI_EFFECT_DIZZY, hex_make(1, 2), 0) && !has(UI_EFFECT_FIRE_UNIT, hex_make(1, 2), 0) && !has(UI_EFFECT_DIZZY, land, 1));
+        v.recorder.unit0_state = 0;
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* The pier side of a port faces the water: the neighbour of water with
+       the most water beside it. A port without water keeps the default. */
+    t = IM_REGISTER_TEST(e, "ui", "port_direction_faces_the_water");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        (void)ctx;
+        b32 water[HEX_DIRECTION_COUNT] = {};
+        IM_CHECK_EQ(ui_port_direction(water), (u32)HEX_DIRECTION_COUNT);   /* no water */
+        water[2] = true;
+        IM_CHECK_EQ(ui_port_direction(water), 2u);
+        water[2] = false;
+        water[5] = water[0] = water[1] = true;                              /* a bay: the middle of the water faces out */
+        IM_CHECK_EQ(ui_port_direction(water), 0u);
     };
 
     /* The scene draws a gate on each pass and a pier on each port, in the

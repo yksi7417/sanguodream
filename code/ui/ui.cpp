@@ -51,6 +51,7 @@ ui_scene_mark(u32 *overlay, engine_terrain_view view, hex_coord h, u32 rgba)
 
 #include "ui/ui_scene.cpp"
 #include "ui/ui_locate.cpp"   /* M11 */
+#include "ui/ui_effects.cpp"  /* the fire and the dizzy units on the map; needs ui_locate.cpp */
 #include "ui/ui_report.cpp"   /* M18: the log, the speech bubble and the values; needs ui_locate.cpp */
 #include "ui/ui_round.cpp"    /* M20: the show of the AI round; needs ui_report.cpp */
 #include "ui/ui_war.cpp"      /* the walk, the strikes and the hits; needs ui_round.cpp */
@@ -628,6 +629,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     ui->portraits        = frame->portraits;
     ui->portrait_texture = frame->portrait_texture;
     ui->face_texture     = frame->face_texture;
+    ui->open_url         = frame->open_url;
     if (!ui->show_map) ui->map.focused = false;   /* a closed panel takes no keys */
     /* The game mode hides the debug menu bar and the debug tools; F12 shows them. */
     if (ui->hud_mode && ImGui::IsKeyPressed(ImGuiKey_F12, false)) ui->show_debug_panels = !ui->show_debug_panels;

@@ -60,6 +60,13 @@ typedef PLATFORM_PORTRAIT_TEXTURE(platform_portrait_texture);
 #define PLATFORM_FACE_TEXTURE(name) u64 name(u32 officer_id, u32 key)
 typedef PLATFORM_FACE_TEXTURE(platform_face_texture);
 
+/* docs/EUROPE.md, E4: opens a link of the English Wikipedia. The platform
+   opens it in the default browser, or in a new tab on the web. The platform
+   refuses a URL for which text_link_is_allowed (text/text.h) gives false.
+   False if it does not open the link. */
+#define PLATFORM_OPEN_URL(name) b32 name(const char *url)
+typedef PLATFORM_OPEN_URL(platform_open_url);
+
 typedef void *imgui_alloc_fn(size_t size, void *user);
 typedef void  imgui_free_fn(void *ptr, void *user);
 
@@ -115,6 +122,7 @@ struct platform_api
     platform_face_texture     *face_texture;     /* the generated faces; zero without a device */
     platform_net_send         *net_send;         /* MP3: zero without a network (the Windows build) */
     platform_net_poll         *net_poll;
+    platform_open_url         *open_url;         /* E4: the Wikipedia button of the officer panel */
 };
 
 struct render_commands;

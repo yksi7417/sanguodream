@@ -1,0 +1,106 @@
+key	text	note
+# Written by misc/make_scenario.py. The names in their own language, in the Latin script, by English key (docs/EUROPE.md, E3).
+# officer.<key> comes from name_latin of officers.tsv in the scenario y1200. The Names setting of the Settings panel shows these rows.
+officer.philip_ii	Philippe II Auguste
+officer.louis_viii	Louis VIII le Lion
+officer.blanche	Blanche de Castille
+officer.des_barres	Guillaume II des Barres
+officer.guerin	Guérin
+officer.dreux	Robert II de Dreux
+officer.montfort	Simon IV de Montfort
+officer.john	King John
+officer.marshal	William Marshal
+officer.hubert_walter	Hubert Walter
+officer.de_burgh	Hubert de Burgh
+officer.eleanor	Aliénor d'Aquitaine
+officer.lacy	Hugh de Lacy
+officer.fitzhenry	Meiler FitzHenry
+officer.longespee	William Longespee
+officer.geoffrey_york	Geoffrey of York
+officer.raymond_vi	Raymond VI de Toulouse
+officer.trencavel	Raimond-Roger Trencavel
+officer.foix	Raymond-Roger de Foix
+officer.comminges	Bernard IV de Comminges
+officer.peter_ii	Pere el Catòlic
+officer.alfonso_provence	Alfons II de Provença
+officer.montcada	Guillem Ramon II de Montcada
+officer.nuno_sanchez	Nunó Sanç
+officer.alfonso_viii	Alfonso VIII de Castilla
+officer.haro	Diego López II de Haro
+officer.rada	Rodrigo Jiménez de Rada
+officer.lara	Álvaro Núñez de Lara
+officer.alfonso_ix	Alfonso IX de León
+officer.berenguela	Berenguela de Castilla
+officer.castro	Pedro Fernández de Castro el Castellano
+officer.sancho_i	Sancho I de Portugal
+officer.afonso_ii	Afonso II de Portugal
+officer.sousa	Gonçalo Mendes II de Sousa
+officer.al_nasir	Muḥammad al-Nāṣir
+officer.ibn_jami	Abū Saʿīd ʿUthmān ibn Jāmiʿ
+officer.abu_hafs	Abū Muḥammad ʿAbd al-Wāḥid
+officer.marrakushi	ʿAbd al-Wāḥid al-Marrākushī
+officer.yahya	Yaḥyā ibn Isḥāq ibn Ghāniya
+officer.qaraqush	Sharaf al-Dīn Qarāqūsh
+officer.al_adil	al-ʿĀdil Sayf al-Dīn Aḥmad
+officer.al_kamil	al-Kāmil Nāṣir al-Dīn Muḥammad
+officer.al_muazzam	al-Muʿaẓẓam ʿĪsā ibn al-ʿĀdil
+officer.al_ashraf	al-Ashraf Mūsā
+officer.alexios_iii	Alexios III Angelos
+officer.mourtzouphlos	Alexios V Doukas
+officer.laskaris	Theodōros I Laskarēs
+officer.niketas	Nikētas Chōniatēs
+officer.michael_choniates	Michaēl Chōniatēs
+officer.kaloyan	Kaloyan
+officer.boril	Boril
+officer.strez	Strez
+officer.suleiman_ii	Soleymān-e Dovvom
+officer.kaykaus	Keykāvus-e Yekom
+officer.philip_swabia	Philipp von Schwaben
+officer.kalden	Heinrich von Kalden
+officer.querfurt	Konrad von Querfurt
+officer.ludolf	Ludolf von Kroppenstedt
+officer.otto_iv	Otto IV.
+officer.adolf_altena	Adolf von Altena
+officer.henry_palatine	Heinrich (V.) der Ältere von Braunschweig
+officer.brabant	Hendrik I van Brabant
+officer.frederick_ii	Federico II di Svevia
+officer.markward	Markward von Annweiler
+officer.pagliara	Gualtiero di Palearia
+officer.diepold	Diepold von Schweinspeunt
+officer.leopold_vi	Leopold VI.
+officer.kuenring	Hadmar II. von Kuenring
+officer.ottokar_i	Přemysl Otakar I.
+officer.vladislaus	Vladislav Jindřich
+officer.emeric	Imre
+officer.andrew_ii	II. András
+officer.job	Jób
+officer.leszek	Leszek Biały
+officer.konrad	Konrad I mazowiecki
+officer.henry_bearded	Henryk I Brodaty
+officer.kadlubek	Wincenty Kadłubek
+officer.innocent_iii	Innocenzo III
+officer.richard_segni	Riccardo dei Conti di Segni
+officer.capuano	Pietro Capuano
+officer.ugolino	Ugolino dei Conti di Segni
+officer.dandolo	Enrico Dandolo
+officer.ranieri	Ranieri Dandolo
+officer.ziani	Pietro Ziani
+officer.morosini	Tommaso Morosini
+officer.baldwin_ix	Baudouin IX de Flandre
+officer.henry_flanders	Henri de Flandre
+officer.bethune	Conon de Béthune
+officer.canute_vi	Knud 6.
+officer.valdemar_ii	Valdemar Sejr
+officer.absalon	Absalon
+officer.sunesen	Anders Sunesen
+officer.ibn_arabi	Muḥyī al-Dīn ibn ʿArabī
+officer.maimonides	Mosheh ben Maimon
+officer.kaykhusraw	Kaykhusraw-i Yakum
+officer.sgouros	Léōn Sgourós
+officer.vogelweide	Walther von der Vogelweide
+officer.villehardouin	Geoffroi de Villehardouin
+officer.montferrat	Bonifacio I del Monferrato
+officer.francis	Francesco d'Assisi
+officer.dominic	Domingo de Guzmán
+officer.fibonacci	Leonardo Fibonacci
+officer.brienne	Gautier III de Brienne

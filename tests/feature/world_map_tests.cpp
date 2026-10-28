@@ -158,6 +158,16 @@ feature_pack_scenario_tests(test_counts *counts)
                        feature_world_name_is(pass_name.name, sizeof(pass_name.name), roncevaux_name, sizeof(roncevaux_name)),
                "the bases.tsv of the pack names the passes and the ports");
 
+    /* docs/EUROPE.md, E2: the English keys of the pack files, by the id of each record. */
+    TEST_CHECK(counts, strcmp(philip.key, "philip_ii") == 0, "the key column of officers.tsv gives the English key of an officer");
+    engine_faction france = {};
+    for (u32 index = 0; index < api->faction_count(e); ++index)
+    {
+        if (api->faction_at(e, index).force_id == FEATURE_WORLD_FRANCE) france = api->faction_at(e, index);
+    }
+    TEST_CHECK(counts, strcmp(france.key, "france") == 0, "the key column of forces.tsv gives the English key of a faction");
+    TEST_CHECK(counts, strcmp(city_name.key, "paris") == 0, "the key column of cities.tsv of the pack gives the English key of a city");
+
     TEST_CHECK(counts, feature_play_as(api, FEATURE_WORLD_FRANCE), "the player chooses France; the first turn of 1200 starts");
     TEST_CHECK(counts, feature_next_own_turn(api, FEATURE_WORLD_FRANCE) && feature_next_own_turn(api, FEATURE_WORLD_FRANCE),
                "the AI plays the other 23 factions of the scenario");

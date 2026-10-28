@@ -26,9 +26,15 @@ font shows Latin only, and the log gives the name of the absent file.
 |---|---|---|---|---|
 | NotoSansCJKtc-Regular.otf | Latin, Vietnamese, CJK ideographs, kana, Hangul, CJK punctuation | https://github.com/notofonts/noto-cjk, Sans/OTF/TraditionalChinese | SIL Open Font License 1.1, OFL-NotoSansCJK.txt | 16.4 MB |
 | NotoSansThai-Regular.ttf | Thai | https://github.com/notofonts/notofonts.github.io, fonts/NotoSansThai/hinted/ttf | SIL Open Font License 1.1, OFL-NotoSansThai.txt | 37 KB |
+| NotoSans-Regular.ttf | Latin Extended-A and B, spacing modifier letters, combining marks, Latin Extended Additional (E3: "ł", "ř", "ṣ") | https://github.com/notofonts/notofonts.github.io, fonts/NotoSans/hinted/ttf | SIL Open Font License 1.1, OFL-NotoSans.txt | 622 KB |
+
+The CJK font lacks six letters of the native names of docs/EUROPE.md, E3. These
+letters are U+0142, U+0159, U+02BF, U+1E25, U+1E63 and U+1E93. The loader merges
+NotoSans-Regular.ttf for the Latin Extended ranges, so that each letter has a glyph.
 
 SHA-256 of the files in the repository:
 - NotoSansCJKtc-Regular.otf: dce08bd4fd91aa8aa76ed8fea4b694c2dfb8550f67871e326843212ddbeb88b4
+- NotoSans-Regular.ttf: 478c558ea716033cd60c03438f628dfa75694dcf6b5f6d505a2f05fd2b4f3823
 - NotoSansThai-Regular.ttf: 61cf814eec46b294d6ea4401ac295d0cecd5207bd2331dcc5a15e7301d30ee44
 
 ### Fonts that qualify
@@ -48,7 +54,7 @@ These fonts do not qualify:
 ### How the loader selects the glyphs
 ImGui 1.91 puts each glyph into one texture before the first frame. The
 loader does not add all of the 65,000 glyphs of the font. It adds:
-1. Latin, Latin-1 and Vietnamese.
+1. Latin, Latin-1, Vietnamese and Latin Extended.
 2. Thai, kana, CJK punctuation and the full-width forms.
 3. Each code point of the Big5 table. These are the characters of the
    zh-TW names.
@@ -64,6 +70,7 @@ If data/fonts does not have the font files, get them again:
 ```
 curl -L -o data\fonts\NotoSansCJKtc-Regular.otf https://github.com/notofonts/noto-cjk/raw/main/Sans/OTF/TraditionalChinese/NotoSansCJKtc-Regular.otf
 curl -L -o data\fonts\NotoSansThai-Regular.ttf https://github.com/notofonts/notofonts.github.io/raw/main/fonts/NotoSansThai/hinted/ttf/NotoSansThai-Regular.ttf
+curl -L -o data\fonts\NotoSans-Regular.ttf https://github.com/notofonts/notofonts.github.io/raw/main/fonts/NotoSans/hinted/ttf/NotoSans-Regular.ttf
 ```
 Then compare the SHA-256 values with the values above.
 
@@ -324,13 +331,31 @@ export a model with a lower count of triangles, for example city-30k.glb.
 The market of the first import had 354,934 triangles. market-lv1-30k.glb
 replaced it on the same day.
 
-The scene scales the model to the width of the card of its kind
-(render_base_model_instance in code/render/render.h). A city model is 5
-world units wide. The model stands at the centre of the base. The pixel
+The scene scales the model to the width of its kind
+(render_base_model_widths and render_base_model_instance in
+code/render/render.h). A city model is 5 world units wide. The model
+stands at the centre of the base. The pixel
 shader model_ps shades the texture with the light of the scene. A flat
 red pixel of the texture takes the colour of the owner, as the red mask
 of the card does. On the model of a facility, a flat red pixel takes the
 colour of the facility kind (ui_facility_look.cpp).
+
+The scene turns the models of the ports and the passes (ui_scene.cpp):
+- The pier and the boats of the port model are on its local +Z side.
+  ui_port_yaw turns that side to the neighbour hex of water with the most
+  water beside it. Water is a terrain that a ship can enter.
+- The passage of the gate model runs along its local Z axis. ui_gate_yaw
+  turns it along the road through the pass.
+
+The player asked on 2026-10-28 for a pass that spans three hexes. The
+model must be a long wall with a gate tower and a door on each face. It
+has no town inside. The wall stands across the road, on the hex of the pass and the cliff on
+each side. RENDER_GATE_WALL_WIDTH gives that width, 3 times the distance
+between two hex centres. The base_gate model of today is a square fort,
+so it keeps the width of its art (2.4 units). When the wall model comes,
+do these steps:
+1. Import it as base_gate with the wall along the local X axis.
+2. Set the gate row of render_base_model_widths to RENDER_GATE_WALL_WIDTH.
 
 To import the new models of the Drive folder, run misc/drive_models.py
 from the root of the repository. The script needs no sign-in, because the

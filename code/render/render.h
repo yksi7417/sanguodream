@@ -629,14 +629,37 @@ render_model_level_index(u32 level)
     return level > RENDER_MODEL_LEVELS ? RENDER_MODEL_LEVELS - 1 : level - 1;
 }
 
+/* The distance between the centres of two neighbour hexes, in world units:
+   the square root of 3 for a hex 2 wide from corner to corner. */
+#define RENDER_HEX_PITCH 1.7320508f
+
+/* The width of the wall of a pass: three hexes across the road, the hex
+   of the pass and the cliff on each side (the player, 2026-10-28). The
+   model of a pass gets this width when the pack has a model of a long
+   wall with a gate tower (docs/ASSETS.md, "Base models"). */
+#define RENDER_GATE_WALL_WIDTH (3.0f * RENDER_HEX_PITCH)
+
+/* The width of the model of each base kind, in world units at the scale 1.
+   The city models cover the flower, as the art does. The port covers its
+   hex. The model of a pass now is a square fort, so it keeps the width of
+   its art until the wall model replaces it. */
+global_variable const f32 render_base_model_widths[RENDER_SPRITE_COUNT - RENDER_SPRITE_FIRST_BASE] = {
+    5.0f,   /* RENDER_SPRITE_BASE_CITY */
+    5.0f,   /* RENDER_SPRITE_BASE_BIG_CITY */
+    2.4f,   /* RENDER_SPRITE_BASE_GATE: RENDER_GATE_WALL_WIDTH with the wall model. The passage follows the road (ui_gate_yaw) */
+    2.2f,   /* RENDER_SPRITE_BASE_PORT */
+};
+
 /* The instance of the model of a base. misc/glb_import.py makes the
    larger side of the footprint one unit, with the ground at y = 0. The
-   model gets the width of the art of its kind, at the centre of the base. */
+   model gets the width of its kind, at the centre of the base. */
 internal render_mesh_instance
 render_base_model_instance(const render_mesh_instance *mesh)
 {
     render_mesh_instance model = *mesh;
-    model.scale = render_base_art_size_of(mesh->art_sprite).width * mesh->scale;
+    f32 width = render_base_art_size_of(mesh->art_sprite).width;
+    if (mesh->art_sprite >= RENDER_SPRITE_FIRST_BASE && mesh->art_sprite < RENDER_SPRITE_COUNT) width = render_base_model_widths[mesh->art_sprite - RENDER_SPRITE_FIRST_BASE];
+    model.scale = width * mesh->scale;
     return model;
 }
 
