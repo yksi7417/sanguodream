@@ -362,6 +362,46 @@ wikipedia: 3, 4, 19, 22, 33, 35, 38, 57, 78 and 82.
 | E6 | The authorities of the church | Q-E1, Q-E2, Q-E7 | design |
 | E7 | The story mode | Q-E5 | design |
 
+## The stage runs
+misc/run_stages.py runs the stages as headless Claude Code sessions, in
+parallel. Each session works in its own worktree and bills the API key of
+the player. A stage is a brief in misc/stages/<stage>.md. The rules of all
+stages are in misc/stages/common.md.
+
+The stages that need no answer now:
+- e3_native_names: the Names setting of E3;
+- e4_officer_panel: the life and the Wikipedia button of E4;
+- bio_check: a second source for each life of E4.
+
+E5, E6 and E7 get a brief after the player answers their questions.
+
+To run the stages:
+1. Set the API key in your own terminal, not in a chat. The key goes into
+   the user environment and stays out of the repository. The tool reads
+   CLAUDE_API_KEY or ANTHROPIC_API_KEY:
+
+       [Environment]::SetEnvironmentVariable("CLAUDE_API_KEY", "<key>", "User")
+
+2. Start the stages from the root of the repository:
+
+       python -X utf8 misc\run_stages.py e3_native_names e4_officer_panel bio_check
+
+3. Look at the progress:
+
+       python -X utf8 misc\run_stages.py --status
+
+The tool makes the worktree ..\hexdom-<stage> on the branch
+stage/<stage>. The session writes its output to build\stage.jsonl of that
+worktree. The option --budget sets the largest cost of one session in
+US dollars. The default is 20. The option --model sets the model. The
+default is claude-sonnet-5-5. For bio_check, claude-haiku-5-5 costs less.
+
+The session can edit files and run commands in its worktree. It cannot
+force a push, reset a branch, delete a folder tree or use the stash. Each
+session pushes to origin master after its tests pass. Two sessions can
+edit the same file, for example the text module. Then the second session
+merges the work of the first in its rebase.
+
 ## The open questions
 - Q-E1. The five authorities. Dr. Casagranda names the Pentarchy: Rome,
   Alexandria, Antioch, Constantinople and Jerusalem. Is this the group of
