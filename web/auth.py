@@ -131,7 +131,8 @@ class Google:
         async with http.post("https://oauth2.googleapis.com/token", data=form) as response:
             tokens = await read_json(response)
         claims = await decode_id_token(self.jwks, tokens.get("id_token", ""), self.client_id, GOOGLE_ISSUERS, state["nonce"])
-        return claims["sub"], clean_name(claims.get("name"), claims.get("email", "Google user")), claims.get("email", "")
+        name = clean_name(claims.get("name"), claims.get("email", "Google user"))
+        return claims["sub"], name, claims.get("email", ""), email_verified(claims)
 
 
 PEM_LINE_LENGTH = 64
@@ -199,7 +200,7 @@ class Apple:
             name = f"{parts.get('firstName', '')} {parts.get('lastName', '')}"
         except (ValueError, AttributeError):
             pass
-        return claims["sub"], clean_name(name, ""), claims.get("email", "")
+        return claims["sub"], clean_name(name, ""), claims.get("email", ""), email_verified(claims)
 
 
 class Facebook:
@@ -237,7 +238,8 @@ class Facebook:
             me = await read_json(response)
         if not me.get("id"):
             raise AuthError("Facebook gave no user id")
-        return me["id"], clean_name(me.get("name"), "Facebook user"), me.get("email", "")
+        # The Graph API does not say if the email is verified, so it never makes an admin.
+        return me["id"], clean_name(me.get("name"), "Facebook user"), me.get("email", ""), False
 
 
 class Dev:
@@ -254,7 +256,9 @@ class Dev:
 
     async def identity(self, http, params, state, redirect_uri):
         name = clean_name(state.get("dev_name"), "Tester")
-        return name, name, ""
+        # The tests give a test user the admin role through ADMIN_EMAILS=<name>@dev.test.
+        email = re.sub(r"[^a-z0-9]", "", name.lower()) + "@dev.test"
+        return name, name, email, True
 
 
 async def decode_id_token(jwks, token, audience, issuers, nonce):
@@ -272,6 +276,22 @@ async def decode_id_token(jwks, token, audience, issuers, nonce):
     if not claims.get("sub"):
         raise AuthError("the ID token has no subject")
     return claims
+
+
+def email_verified(claims):
+    # Google sends a boolean. Apple can send the string "true".
+    return claims.get("email_verified") in (True, "true")
+
+
+def admin_emails():
+    """Give the set of the ADMIN_EMAILS setting: email addresses, with commas between them."""
+    return frozenset(email.strip().lower() for email in os.environ.get("ADMIN_EMAILS", "").split(",") if email.strip())
+
+
+def is_admin(user, admins):
+    """A user is an admin if the provider verified the email and the email is in ADMIN_EMAILS."""
+    email = str(user.get("email", "")).lower()
+    return bool(email) and user.get("email_verified") is True and email in admins
 
 
 def load_providers():

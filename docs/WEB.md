@@ -103,6 +103,7 @@ file of this repository.
 | APPLE_CLIENT_ID, APPLE_TEAM_ID, APPLE_KEY_ID, APPLE_PRIVATE_KEY | Sign in with Apple: the Services ID, the team, the key and the text of the .p8 file. |
 | BUCKET_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_ENDPOINT_URL_S3, AWS_REGION | The bucket of the saves. `flyctl storage create -a sanguodream` sets them. |
 | YOUTUBE_STREAM_KEY | The stream key of the YouTube channel. Without it, the page shows no Live button. |
+| ADMIN_EMAILS | The email addresses of the admins, with commas between them. An admin sees the members page. |
 
 The sign-in page shows only the providers that have their secrets. Each
 provider needs this return address:
@@ -125,6 +126,28 @@ The rules of the site:
   subset of approximately 25 minutes and the private spec submodule.
 
 To deploy, run `deploy_web.bat`, then open https://sanguodream.fly.dev.
+
+### The members page
+An admin opens https://sanguodream.fly.dev/admin. The page shows each user
+who signed in, with these columns:
+- the name, the provider and the email
+- the role: admin, member, or "no house password"
+- the number of saves on the server
+- the time of the first sign-in and the time of the last sign-in
+
+The server finds an admin through the email of the sign-in:
+- The email must be in ADMIN_EMAILS. The server ignores the case of the
+  letters.
+- The provider must say that it verified the email. Google and Apple say
+  it. Facebook does not say it, so a Facebook user is never an admin.
+- The server keeps the email and the verified flag at each sign-in. A
+  user who signed in before this page existed must sign in again one time.
+- A change to ADMIN_EMAILS starts a new release of the machine. The new
+  list applies at the next request.
+- A "Hide My Email" address of Apple is not the real address of the user.
+  To make that user an admin, put the relay address in ADMIN_EMAILS.
+
+Another member gets 403 from the page.
 
 To use the site without a public address, run
 `flyctl proxy 8080 -a sanguodream` and open http://localhost:8080.
@@ -174,6 +197,12 @@ tests/web has four Playwright smoke tests (smoke.spec.js):
 - the title menu loads a save from the server
 - the city list moves the camera between cities
 - a unit moves beside an enemy base and attacks it
+
+admin.spec.js has two tests of the members page. The "dev" provider gives
+the email `<name>@dev.test`, and the config sets ADMIN_EMAILS to
+tester@dev.test:
+- the admin "Tester" sees the table
+- the member "Guest" gets 403
 
 To run them:
 1. Run `build_web.bat test-game`. It writes build/webtest: the game with
