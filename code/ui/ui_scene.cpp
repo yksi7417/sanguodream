@@ -244,11 +244,11 @@ ui_scene_push_slots(render_commands *rc, engine_api *api, engine_terrain_view vi
         if (facility.state == SIM_SLOT_BUILDING)
         {
             render_push_mesh(rc, RENDER_MESH_SCAFFOLD, ground, 0.0f, UI_FACILITY_MODEL_SCALE, UI_SCAFFOLD_RGBA);
-            render_push_mesh(rc, look.mesh, ground, 0.0f, UI_FACILITY_BUILDING_SCALE, ui_rgba_dim(look.rgba, 0.55f));
+            render_push_facility(rc, look.mesh, facility.level, ground, 0.0f, UI_FACILITY_BUILDING_SCALE, ui_rgba_dim(look.rgba, 0.55f));
         }
         else
         {
-            render_push_mesh(rc, look.mesh, ground, 0.0f, UI_FACILITY_MODEL_SCALE, look.rgba);
+            render_push_facility(rc, look.mesh, facility.level, ground, 0.0f, UI_FACILITY_MODEL_SCALE, look.rgba);   /* the level picks the model */
         }
     }
 }

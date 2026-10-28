@@ -55,14 +55,16 @@ MODEL_SOURCE = "Meshy (free plan)"
 MODEL_LICENCE = 'CC BY 4.0, credit "Meshy"'
 
 # The start of the file name and the model name. The first match counts.
-# The markets of level 2 and 3 have no model name yet: the scene gives
-# the renderer no level (follow-up in docs/ASSETS.md).
+# The names agree with render_base_model_files and render_mesh_model_files
+# in code/render/render.h. A market of level 2 or 3 has its own model.
 MODEL_NAMES = [
     ("big-city", "base_big_city"),
     ("city", "base_city"),
     ("gate", "base_gate"),
     ("port", "base_port"),
     ("market-lv1", "facility_market"),
+    ("market-lv2", "facility_market_lv2"),
+    ("market-lv3", "facility_market_lv3"),
     ("farm-lv1", "facility_farm"),
 ]
 

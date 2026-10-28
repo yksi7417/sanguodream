@@ -152,10 +152,27 @@ unit_render_tests(test_counts *counts)
         TEST_CHECK(counts, shape_model.scale == market.scale && shape_model.position.x == 1.0f && shape_model.position.z == 2.0f &&
                            shape_model.yaw == 0.5f && shape_model.tint == market.tint && near_f32(render_model_instance(&big).scale, 5.0f * 1.5f, 1e-5f),
                    "the model of a shape keeps the instance of the shape, and the model of a base covers the base");
-        TEST_CHECK(counts, render_mesh_model_files[RENDER_MESH_STALL] && render_mesh_model_files[RENDER_MESH_FIELD] &&
-                           !render_mesh_model_files[RENDER_MESH_SETTLEMENT] && !render_mesh_model_files[RENDER_MESH_SCAFFOLD] &&
-                           !render_mesh_model_files[RENDER_MESH_GATE] && !render_mesh_model_files[RENDER_MESH_PORT],
+        TEST_CHECK(counts, render_mesh_model_files[RENDER_MESH_STALL][0] && render_mesh_model_files[RENDER_MESH_FIELD][0] &&
+                           !render_mesh_model_files[RENDER_MESH_SETTLEMENT][0] && !render_mesh_model_files[RENDER_MESH_SCAFFOLD][0] &&
+                           !render_mesh_model_files[RENDER_MESH_GATE][0] && !render_mesh_model_files[RENDER_MESH_PORT][0],
                    "the market and the farm shapes name a model, and the shapes of the bases and the scaffold name none");
+        TEST_CHECK(counts, render_mesh_model_files[RENDER_MESH_STALL][1] && render_mesh_model_files[RENDER_MESH_STALL][2] &&
+                           !render_mesh_model_files[RENDER_MESH_FIELD][1],
+                   "the market shape names a model for the levels 2 and 3, and the farm shape names only level 1");
+        TEST_CHECK(counts, render_model_level_index(0) == 0 && render_model_level_index(1) == 0 && render_model_level_index(2) == 1 &&
+                           render_model_level_index(3) == 2 && render_model_level_index(9) == RENDER_MODEL_LEVELS - 1,
+                   "level 0 and 1 use the first model column, and a level above the table uses the last");
+        {
+            memory_arena level_frame = test_arena_create(Megabytes(1));
+            render_commands *level_rc = render_commands_begin(&level_frame, vw, vh);
+            render_push_facility(level_rc, RENDER_MESH_STALL, 3, v3_make(1, 0, 1), 0.0f, 1.6f, 0xFFFFFFFFu);
+            render_push_mesh(level_rc, RENDER_MESH_HALL, v3_make(2, 0, 1), 0.0f, 1.0f, 0xFFFFFFFFu);
+            TEST_CHECK(counts, level_rc->mesh_instance_count == 2 && level_rc->mesh_instances[0].level == 3 &&
+                               level_rc->mesh_instances[0].mesh_id == RENDER_MESH_STALL && level_rc->mesh_instances[0].art_sprite == RENDER_NO_ART &&
+                               level_rc->mesh_instances[1].level == 0,
+                       "a facility keeps its level for its model, and a plain mesh has no level");
+            test_arena_destroy(&level_frame);
+        }
         camera near_cam = camera_default(10.0f, 10.0f);
         TEST_CHECK(counts, render_shape_models_on(&near_cam), "the camera at the default distance shows the models of the shapes");
         near_cam.distance = RENDER_SHAPE_MODEL_MAX_DISTANCE + 1.0f;

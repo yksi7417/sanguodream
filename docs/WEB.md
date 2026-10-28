@@ -55,15 +55,17 @@ The status on 2026-10-27:
   - a save, a reload of the page, and a load
   - the loss of the WebGL2 context
   - the parity test of the 3D scene against the Windows build
-- The download is approximately 40 MB (2026-10-27): index.data is 38.3 MB
-  and index.wasm is 1.7 MB. The six 3D models are 27.5 MB of it
+- The download is approximately 46 MB (2026-10-27): index.data is 44.5 MB
+  and index.wasm is 1.7 MB. The eight 3D models are 33.6 MB of it
   (docs/ASSETS.md, "Base models"):
   - the big city: 12.5 MB
   - the farm: 3.3 MB
   - the pass: 3.1 MB
   - the city: 3.0 MB
   - the port: 2.9 MB
-  - the market: 2.7 MB
+  - the market at level 3: 3.3 MB
+  - the market at level 2: 2.8 MB
+  - the market at level 1: 2.7 MB
 - The big city has approximately 355,000 triangles. Its 30k export in the
   Drive folder makes the download approximately 11 MB smaller.
 
