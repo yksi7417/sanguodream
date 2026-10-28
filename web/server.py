@@ -18,6 +18,9 @@ The environment variables:
   FLY_APP_NAME. Locally, the default is the address of the request.
 - The secrets of the providers (auth.py), of the bucket (storage.py) and
   of YouTube (broadcast.py).
+- ADMIN_EMAILS: the email addresses of the admins, with commas between
+  them. An admin sees the members page, /admin. The provider must verify
+  the email.
 - PORT: the port. The default is 8080.
 
 If the browser accepts gzip and the file FILE.gz exists, the server sends
@@ -25,6 +28,7 @@ FILE.gz. The Dockerfile makes these files.
 """
 import asyncio
 import hmac
+import json
 import mimetypes
 import os
 import sys
@@ -57,6 +61,7 @@ KEY_STORAGE = web.AppKey("storage", object)
 KEY_HTTP = web.AppKey("http", aiohttp.ClientSession)
 KEY_BROADCAST = web.AppKey("broadcast", broadcast.Broadcast)
 KEY_FAILURES = web.AppKey("failures", dict)
+KEY_ADMINS = web.AppKey("admins", frozenset)
 
 
 # ---- helpers ---------------------------------------------------------------
@@ -162,7 +167,7 @@ async def auth_callback(request):
         raise web.HTTPFound("/login?error=" + urllib.parse.quote("The sign-in was cancelled."))
     redirect_uri = f"{public_url(request)}/auth/{provider.name}/callback"
     try:
-        subject, name, email = await provider.identity(request.app[KEY_HTTP], params, state, redirect_uri)
+        subject, name, email, verified = await provider.identity(request.app[KEY_HTTP], params, state, redirect_uri)
     except (auth.AuthError, aiohttp.ClientError, asyncio.TimeoutError) as error:
         print(f"auth: {provider.name} sign-in failed: {error}", flush=True)
         raise web.HTTPFound("/login?error=" + urllib.parse.quote(f"The sign-in with {provider.label} failed."))
@@ -173,7 +178,9 @@ async def auth_callback(request):
                                                    "joined": int(time.time())}
     # Apple gives the name only at the first sign-in, so an empty name keeps the old one.
     user["name"] = name or user.get("name") or auth.clean_name(email, f"{provider.label} user")
-    user["email"] = email or user.get("email", "")
+    if email:
+        user["email"] = email
+        user["email_verified"] = verified
     user["last_login"] = int(time.time())
     await storage.write_user(store, user)
     print(f"auth: {user['name']} signed in with {provider.name}", flush=True)
@@ -229,6 +236,7 @@ async def logout(request):
 async def api_me(request):
     user = await require_member(request)
     return web.json_response({"uid": user["uid"], "name": user["name"], "provider": user["provider"],
+                              "admin": auth.is_admin(user, request.app[KEY_ADMINS]),
                               "can_broadcast": request.app[KEY_BROADCAST].enabled})
 
 
@@ -259,6 +267,44 @@ async def api_save_put(request):
     data = await request.read()
     await request.app[KEY_STORAGE].put(storage.save_key(user["uid"], name), data)
     return web.json_response({"name": name, "size": len(data), "modified": int(time.time())})
+
+
+async def admin_members(request):
+    user = await require_member(request)
+    if not auth.is_admin(user, request.app[KEY_ADMINS]):
+        raise web.HTTPForbidden(text=pages.forbidden_page(), content_type="text/html")
+    store = request.app[KEY_STORAGE]
+    members = []
+    for row in await store.list("users/"):
+        try:
+            record = json.loads(await store.get("users/" + row["name"]) or b"null")
+        except ValueError:
+            continue
+        if not isinstance(record, dict) or "uid" not in record:
+            continue
+        record["saves"] = len(await store.list(storage.save_prefix(record["uid"])))
+        record["admin"] = auth.is_admin(record, request.app[KEY_ADMINS])
+        members.append(record)
+    members.sort(key=lambda record: record.get("last_login", 0), reverse=True)
+    return web.Response(text=pages.members_page(members), content_type="text/html",
+                        headers={"Cache-Control": "no-store"})
+
+
+CLIENT_ERROR_MAX_CHARS = 300
+
+
+async def api_client_error(request):
+    """The page sends the reason when the game stops in the browser (web/shell.html)."""
+    user = await require_member(request)
+    try:
+        report = await request.json()
+    except ValueError:
+        raise web.HTTPBadRequest()
+    message = " ".join(str(report.get("message", "") if isinstance(report, dict) else "").split())
+    agent = " ".join(request.headers.get("User-Agent", "").split())
+    print(f"client: the game stopped for {user['name']}: {message[:CLIENT_ERROR_MAX_CHARS]} "
+          f"[{agent[:CLIENT_ERROR_MAX_CHARS]}]", flush=True)
+    return web.json_response({"logged": True})
 
 
 async def api_broadcast(request):
@@ -297,7 +343,7 @@ async def open_http(app):
 
 
 SETTING_NAMES = ("SESSION_SECRET", "HOUSE_PASSWORD", "SITE_PASSWORD", "PUBLIC_URL", "GOOGLE_CLIENT_ID",
-                 "FACEBOOK_APP_ID", "APPLE_CLIENT_ID", "BUCKET_NAME", "AWS_ENDPOINT_URL_S3", "YOUTUBE_STREAM_KEY")
+                 "FACEBOOK_APP_ID", "APPLE_CLIENT_ID", "ADMIN_EMAILS", "BUCKET_NAME", "AWS_ENDPOINT_URL_S3", "YOUTUBE_STREAM_KEY")
 
 
 def make_app(root):
@@ -316,6 +362,7 @@ def make_app(root):
     app[KEY_STORAGE] = storage.open_storage()
     app[KEY_BROADCAST] = broadcast.Broadcast()
     app[KEY_FAILURES] = {}
+    app[KEY_ADMINS] = auth.admin_emails()
     app.cleanup_ctx.append(open_http)
     app.add_routes([
         web.get("/healthz", health),
@@ -326,10 +373,12 @@ def make_app(root):
         web.get("/house", house_form),
         web.post("/house", house_submit),
         web.post("/logout", logout),
+        web.get("/admin", admin_members),
         web.get("/api/me", api_me),
         web.get("/api/saves", api_saves),
         web.get("/api/saves/{name}", api_save_get),
         web.put("/api/saves/{name}", api_save_put),
+        web.post("/api/client-error", api_client_error),
         web.get("/api/broadcast", api_broadcast),
         web.get("/", game_file),
         web.get("/{name}", game_file),
@@ -338,6 +387,7 @@ def make_app(root):
     print(f"server.py: providers {', '.join(app[KEY_PROVIDERS]) or 'none'}", flush=True)
     print(f"server.py: storage {app[KEY_STORAGE].description}", flush=True)
     print(f"server.py: broadcast {'on' if app[KEY_BROADCAST].enabled else 'off'}", flush=True)
+    print(f"server.py: {len(app[KEY_ADMINS])} admin emails", flush=True)
     return app
 
 

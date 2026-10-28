@@ -44,6 +44,8 @@ module.exports = defineConfig({
       SESSION_SECRET: "playwright-session-secret",
       HOUSE_PASSWORD: "house-test",
       AUTH_DEV_LOGIN: "1",
+      // The test login gives the email <name>@dev.test (web/auth.py). Tester is an admin.
+      ADMIN_EMAILS: "tester@dev.test",
       STORAGE_DIR: path.join(repo, "build", "webtest-storage"),
       FLY_APP_NAME: "",
       BUCKET_NAME: "",

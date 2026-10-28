@@ -97,7 +97,9 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     frame_info.portrait_texture = memory->platform.portrait_texture;
     frame_info.face_texture     = memory->platform.face_texture;
     ui_draw(&game->ui, &game->api, &frame_info);
+    /* The request lasts one frame. On the web the user can cancel it, and then ask again. */
     memory->quit_requested = game->ui.quit_requested;
+    game->ui.quit_requested = false;
     memory->font_pixels    = (u32)game->ui.font_size;
     memory->permanent_used = sizeof(game_state) + game->permanent.used;
     memory->transient_used = game->transient.used;

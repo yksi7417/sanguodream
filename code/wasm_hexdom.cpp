@@ -57,7 +57,6 @@ struct wasm_state
     u32             font_pixels;
     u32             frame_index;
     f64             last_time;
-    b32             quit_logged;
     b32             sync_pending;
     u64             peak_permanent, peak_transient, peak_frame;
 };
@@ -212,10 +211,12 @@ wasm_frame(void)
     render_commands *commands = render_commands_begin(&state->frame, display.x, display.y);
     input.render = commands;
     GameUpdateAndRender(&state->memory, &input, state->imgui, &state->frame);
-    if (state->memory.quit_requested && !state->quit_logged)
+    if (state->memory.quit_requested)   /* M9: 結束遊戲. The page asks the user, then signs out (web/shell.html). */
     {
-        wasm_log("platform: the game asks to close; a web page stays open");   /* M9: 結束遊戲 on the title menu */
-        state->quit_logged = true;
+        EM_ASM({
+            if (Module.hexdomQuit) Module.hexdomQuit();
+            else console.log("platform: the game asks to close; a web page stays open");
+        });
     }
 
     ImGui::Render();

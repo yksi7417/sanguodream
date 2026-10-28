@@ -105,6 +105,7 @@ file of this repository.
 | APPLE_CLIENT_ID, APPLE_TEAM_ID, APPLE_KEY_ID, APPLE_PRIVATE_KEY | Sign in with Apple: the Services ID, the team, the key and the text of the .p8 file. |
 | BUCKET_NAME, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_ENDPOINT_URL_S3, AWS_REGION | The bucket of the saves. `flyctl storage create -a sanguodream` sets them. |
 | YOUTUBE_STREAM_KEY | The stream key of the YouTube channel. Without it, the page shows no Live button. |
+| ADMIN_EMAILS | The email addresses of the admins, with commas between them. An admin sees the members page. |
 
 The sign-in page shows only the providers that have their secrets. Each
 provider needs this return address:
@@ -128,6 +129,28 @@ The rules of the site:
 
 To deploy, run `deploy_web.bat`, then open https://sanguodream.fly.dev.
 
+### The members page
+An admin opens https://sanguodream.fly.dev/admin. The page shows each user
+who signed in, with these columns:
+- the name, the provider and the email
+- the role: admin, member, or "no house password"
+- the number of saves on the server
+- the time of the first sign-in and the time of the last sign-in
+
+The server finds an admin through the email of the sign-in:
+- The email must be in ADMIN_EMAILS. The server ignores the case of the
+  letters.
+- The provider must say that it verified the email. Google and Apple say
+  it. Facebook does not say it, so a Facebook user is never an admin.
+- The server keeps the email and the verified flag at each sign-in. A
+  user who signed in before this page existed must sign in again one time.
+- A change to ADMIN_EMAILS starts a new release of the machine. The new
+  list applies at the next request.
+- A "Hide My Email" address of Apple is not the real address of the user.
+  To make that user an admin, put the relay address in ADMIN_EMAILS.
+
+Another member gets 403 from the page.
+
 To use the site without a public address, run
 `flyctl proxy 8080 -a sanguodream` and open http://localhost:8080.
 
@@ -139,7 +162,8 @@ the folder in STORAGE_DIR.
 
 | Request | Job |
 |---|---|
-| GET /api/me | The user: uid, name, provider, and can_broadcast. |
+| GET /api/me | The user: uid, name, provider, admin, and can_broadcast. |
+| POST /api/client-error | The page sends the reason when the game stops. The server writes it to the log with the browser name. |
 | GET /api/saves | The list of the saves: name, size, modified. |
 | GET /api/saves/<name> | The bytes of a save. |
 | PUT /api/saves/<name> | It writes a save. The limit is 16 MB. |
@@ -153,6 +177,39 @@ web/shell.html keeps IndexedDB as a copy in the browser:
   upload fails, the page tries again at the next start.
 - Without the save api, for example with `python -m http.server`, only
   IndexedDB keeps the saves.
+
+### The user badge and the sign-out
+The page shows a badge with the name of the user in the upper right
+corner. A click on the badge opens a menu:
+- the provider of the sign-in
+- "Members", for an admin only
+- "Sign out"
+
+A web page cannot close its window. Thus 結束遊戲 of the game signs the
+user out on the web:
+1. The game sets quit_requested of game_memory for one frame.
+2. wasm_hexdom.cpp calls Module.hexdomQuit of the page.
+3. The page asks the user. If the user agrees, the page signs out and
+   opens the sign-in page.
+
+The user loses the progress after the last save. 返回開頭畫面 in the 設定 menu
+of the HUD goes back to the title without a sign-out.
+
+### The requirements of the device
+The page checks the device before it downloads the game:
+- The browser must have WebAssembly and WebGL2.
+- The device must have a mouse. A phone with only a touch screen fails
+  this check.
+
+If a check fails, the page shows the requirements and does not load the
+game. The user can click "Try anyway". If the game stops later, for
+example when the memory is not sufficient, the page shows the same
+requirements with the reason. The page also sends the reason to
+/api/client-error. To read the reasons, run
+`flyctl logs -a sanguodream` and find the lines that start with "client:".
+
+The game script is in a template element, so it does not run by itself.
+After the checks, the page loads it.
 
 ### The YouTube broadcast
 The broadcast is an option. It is on only if the secret YOUTUBE_STREAM_KEY has a value.
@@ -171,11 +228,23 @@ relay without YouTube, set YOUTUBE_INGEST to a local path: ffmpeg then
 writes the stream to the file `<YOUTUBE_INGEST><YOUTUBE_STREAM_KEY>`.
 
 ### The browser tests
-tests/web has four Playwright smoke tests (smoke.spec.js):
+tests/web has seven Playwright smoke tests (smoke.spec.js):
 - a user signs in, joins the house and sees the title menu
 - the title menu loads a save from the server
 - the city list moves the camera between cities
 - a unit moves beside an enemy base and attacks it
+- the system menu goes back to the title
+- the user badge shows the name and signs the user out
+- the quit button of the title asks, then signs the user out
+
+device.spec.js emulates a phone. The phone sees the requirements page,
+and the page does not download the game.
+
+admin.spec.js has two tests of the members page. The "dev" provider gives
+the email `<name>@dev.test`, and the config sets ADMIN_EMAILS to
+tester@dev.test:
+- the admin "Tester" sees the table
+- the member "Guest" gets 403
 
 To run them:
 1. Run `build_web.bat test-game`. It writes build/webtest: the game with

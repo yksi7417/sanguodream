@@ -1,5 +1,5 @@
-// The smoke tests of the web game: sign in, load a save, move between cities, and
-// move and attack with a unit. Run: build_web.bat test-game, then npx playwright test
+// The smoke tests of the web game: sign in, load a save, move between cities, move
+// and attack with a unit, go back to the title, and sign out. Run: build_web.bat test-game, then npx playwright test
 // in tests/web (docs/WEB.md, "The browser tests").
 const { test, expect } = require("@playwright/test");
 const h = require("./hexdom");
@@ -63,4 +63,30 @@ test("a unit moves beside an enemy base and attacks it", async ({ page }) => {
   expect([after.unit_q, after.unit_r]).toEqual([setup.beside_q, setup.beside_r]);
   // The base had 1 durability, so the attack takes it.
   expect(after.base_force).toBe(setup.player);
+});
+
+test("the system menu goes back to the title", async ({ page }) => {
+  await h.signIn(page);
+  await h.loadFirstSave(page);
+  await h.clickItem(page, "hud_system");
+  await h.clickItem(page, "to_title");
+  await expect.poll(() => h.item(page, "title_load")).not.toBeNull();
+});
+
+test("the user badge shows the name and signs the user out", async ({ page }) => {
+  await h.signIn(page);
+  await expect(page.locator("#user-name")).toHaveText("Tester");
+  await page.click("#user-button");
+  // ADMIN_EMAILS of the config makes Tester an admin (playwright.config.js).
+  await expect(page.locator("#user-admin")).toBeVisible();
+  await page.click("#user-signout");
+  await page.waitForURL((url) => url.pathname === "/login");
+  expect((await page.request.get("/api/me")).status()).toBe(401);
+});
+
+test("the quit button of the title asks, then signs the user out", async ({ page }) => {
+  await h.signIn(page);
+  page.once("dialog", (dialog) => dialog.accept());
+  await h.clickItem(page, "title_quit");
+  await page.waitForURL((url) => url.pathname === "/login", { timeout: 30_000 });
 });
