@@ -350,26 +350,35 @@ Each fact of the game must have two sources or more, for example:
 - a published history, for example the works on Innocent III.
 
 ## The data to check
-The research of 2026-10-28 found these differences between officers.tsv
-and its sources. The game data does not change until a second source
-agrees.
-- 14 Longespee: born 1167 or before, not 1176.
-- 22 Montcada: Guillem Ramon II died in 1228. His birth of 1150 is not
-  probable, because his father was born near 1150.
-- 33 Sousa: Goncalo Mendes II lived from approximately 1170 to 1243.
-- 38 Yahya ibn Ghaniya: the English article of that name names another
-  man. The officer has no English article.
-- 39 Qaraqush: an ally of the Banu Ghaniya, not a member. Yahya killed him
-  later.
-- 53 Kaykaus: in 1200 his father was in exile after the coup of
-  Suleiman II. Service under Suleiman is doubtful.
-- 55 Kalden: born near 1175, not 1150.
-- 67 Hadmar II: born near 1140, not 1150.
-- 72 Job: born in the early 1150s, died on 1 February 1204.
-- 83 Ziani: died on 13 March 1230. He gave up his office in 1229.
-- 86 Henry of Flanders: born in 1178, not 1176.
-- Many birth years have no source: 18, 36, 45, 50 to 53, 57, 63 to 65, 79,
-  94 and 95.
+The check of 2026-10-28 compared each life and each year with a second source. The file docs/europe/SOURCES.md lists the sources of each officer. The game data changed where two sources agree. The differences below stay open. The game data does not change until two sources agree.
+
+Years that the sources give in different ways:
+- 6 Montfort: born near 1165 or near 1175. The data has 1175.
+- 14 Longespee: one source says born in 1167 or before. The English article says 1176. The data has 1176.
+- 34 Al-Nasir: born in 1181 or in 1182. The data has 1182.
+- 46 Laskaris: born in 1174 or in 1175. The data has 1174.
+- 52 Suleiman II: born in 1158, 1160 or 1166. The data has 1160.
+- 54 Philip of Swabia: born in 1177 or in 1178. The data has 1177.
+- 55 Kalden: born near 1175 or near 1145. The data has 1150.
+- 80 Ugolino: born near 1145 in the Catholic Encyclopedia, and near 1170 in Treccani. The data has 1145.
+- 82 Ranieri Dandolo: died in 1208 or in 1209. The data has 1209.
+- 83 Ziani: the English article says died on 13 March 1230. Treccani and one other source say 1229. The data has 1229.
+- 86 Henry of Flanders: born in 1174, 1176 or 1178. The data has 1176.
+- 91 Sunesen: born near 1165 in two Danish sources. The data has 1167.
+- 94 Kaykhusraw I: born in 1169, 1171 or 1177. The data has 1164.
+- 20 Peter II: some sources say that Innocent III crowned him in 1204, and others say 1205. The life says 1204.
+
+Years that have no source or only one source:
+- 18 Foix, 36 Abu Hafs, 50 Boril, 51 Strez and 95 Sgouros: no source gives a birth year. The sources for Sgouros say only "before 1170".
+- 22 Montcada: the sources say only "12th century". The year 1150 is improbable.
+- 57 Ludolf: Deutsche Biographie says born near 1125. The data has 1140.
+- 64 Pagliara, 79 Capuano and 87 Bethune: the sources give only a limit, for example "before 1160".
+
+Lives that have a weak second source:
+- 35 Ibn Jami: only the article of al-Nasir names him. He was vizier from approximately 1205, not in 1200.
+- 38 Yahya ibn Ghaniya: the English article of that name names another man. The officer has no English article.
+- 57 Ludolf, 60 Henry of the Palatinate, 61 Henry of Brabant and 64 Pagliara: one source only.
+- The "SOURCES.md" file marks the other weak sources.
 
 Ten officers have no English article and have "-" in the column
 wikipedia: 3, 4, 19, 22, 33, 35, 38, 57, 78 and 82.
