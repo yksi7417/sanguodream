@@ -290,6 +290,8 @@ struct engine_recorder
     engine_move_order last_move;      /* the last 移動 or 召喚 */
     u32           reach_costs[3];
     u8            fire[64];           /* the fire_view answer: one burning cell */
+    u8            fire_cell;          /* the burning cell; 0: cell 9 */
+    u8            unit0_state;        /* the sim_unit_state of unit 0 */
     b32           duel_active;        /* M7: the duel_view and debate_view answers */
     b32           debate_active;
     engine_court_order last_court;    /* the order of the last command_court */
@@ -1085,6 +1087,7 @@ internal engine_terrain_kind recorder_terrain_kind_at(void *o, u32 index)
     snprintf(kind.key, sizeof(kind.key), "%s", index == 0 ? "grass" : index == 1 ? "forest" : "river");
     if (index == 2) kind.cost[MOVEMENT_NAVY] = 5;   /* water: no foot cost, a navy cost */
     else            kind.cost[MOVEMENT_FOOT] = 4;
+    kind.burnable = index < 2;                      /* grass and forest burn; water and the unknown column 3 do not */
     return kind;
 }
 internal u32 recorder_unit_type_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_UNIT_TYPE_COUNT, 0); return ArrayCount(recorder_unit_type_keys); }
@@ -1124,6 +1127,7 @@ internal engine_unit recorder_unit_at(void *o, u32 unit_id)
     unit.grain_turns = 120;          /* M12: 3000 grain at 25 each turn */
     unit.ship_type   = ENGINE_NO_UNIT_TYPE;
     unit.effective_type = unit_id == 0 && r->unit0_effective_type ? r->unit0_effective_type : unit.unit_type;
+    unit.state       = unit_id == 0 ? r->unit0_state : 0;
     unit.acted       = r->units_acted;
     unit.order       = r->unit_order;
     unit.order_target = ENGINE_NO_UNIT;
@@ -1320,7 +1324,7 @@ internal engine_fire_view recorder_fire_view(void *o)
     engine_recorder *r = (engine_recorder *)o;
     recorder_record(r, RECORDER_FIRE_VIEW, 0);
     for (u32 i = 0; i < ArrayCount(r->fire); ++i) r->fire[i] = 0;
-    r->fire[9] = 2;
+    r->fire[r->fire_cell ? r->fire_cell : 9] = 2;
     engine_fire_view view = {};
     view.width = 8; view.height = 8; view.turns = r->fire;
     return view;

@@ -324,13 +324,31 @@ export a model with a lower count of triangles, for example city-30k.glb.
 The market of the first import had 354,934 triangles. market-lv1-30k.glb
 replaced it on the same day.
 
-The scene scales the model to the width of the card of its kind
-(render_base_model_instance in code/render/render.h). A city model is 5
-world units wide. The model stands at the centre of the base. The pixel
+The scene scales the model to the width of its kind
+(render_base_model_widths and render_base_model_instance in
+code/render/render.h). A city model is 5 world units wide. The model
+stands at the centre of the base. The pixel
 shader model_ps shades the texture with the light of the scene. A flat
 red pixel of the texture takes the colour of the owner, as the red mask
 of the card does. On the model of a facility, a flat red pixel takes the
 colour of the facility kind (ui_facility_look.cpp).
+
+The scene turns the models of the ports and the passes (ui_scene.cpp):
+- The pier and the boats of the port model are on its local +Z side.
+  ui_port_yaw turns that side to the neighbour hex of water with the most
+  water beside it. Water is a terrain that a ship can enter.
+- The passage of the gate model runs along its local Z axis. ui_gate_yaw
+  turns it along the road through the pass.
+
+The player asked on 2026-10-28 for a pass that spans three hexes. The
+model must be a long wall with a gate tower and a door on each face. It
+has no town inside. The wall stands across the road, on the hex of the pass and the cliff on
+each side. RENDER_GATE_WALL_WIDTH gives that width, 3 times the distance
+between two hex centres. The base_gate model of today is a square fort,
+so it keeps the width of its art (2.4 units). When the wall model comes,
+do these steps:
+1. Import it as base_gate with the wall along the local X axis.
+2. Set the gate row of render_base_model_widths to RENDER_GATE_WALL_WIDTH.
 
 To import the new models of the Drive folder, run misc/drive_models.py
 from the root of the repository. The script needs no sign-in, because the
