@@ -191,6 +191,26 @@ def running_session(stage):
     return session if session.pid and session.poll() is None else None
 
 
+def open_calls(path):
+    """The tool calls of a session output that have no result yet: (tool, detail)."""
+    calls, done = {}, set()
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            try: event = json.loads(line)
+            except ValueError: continue
+            content = (event.get("message") or {}).get("content")
+            if not isinstance(content, list): continue
+            for part in content:
+                if part.get("type") == "tool_use":
+                    tool_input = part.get("input") or {}
+                    detail = (tool_input.get("url") or tool_input.get("command") or tool_input.get("description")
+                              or tool_input.get("file_path") or tool_input.get("query") or "")
+                    calls[part["id"]] = (part.get("name"), str(detail)[:90])
+                elif part.get("type") == "tool_result":
+                    done.add(part.get("tool_use_id"))
+    return [call for key, call in calls.items() if key not in done]
+
+
 def status():
     for stage in stage_names():
         path = os.path.join(worktree_of(stage), "build", "stage.jsonl")
@@ -200,7 +220,11 @@ def status():
         result = result_of(stage)
         if not result:
             state = "running" if running_session(stage) else "stopped before its end"
-            print("%-20s %s (%d bytes of output)" % (stage, state, os.path.getsize(path)))
+            quiet = (time.time() - os.path.getmtime(path)) / 60.0
+            print("%-20s %s, last output %.0f min ago (%d bytes)" % (stage, state, quiet, os.path.getsize(path)))
+            # A tool call without a result is the work of this moment. If the output is
+            # quiet for a long time, one of these calls hangs.
+            for name, detail in open_calls(path): print("%-20s   waits for %s %s" % ("", name, detail))
             continue
         text = (result.get("result") or "").replace("\n", " ")
         print("%-20s %s, %s turns, %.2f USD: %s" % (stage, result.get("subtype"), result.get("num_turns"),
