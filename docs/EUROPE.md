@@ -394,7 +394,7 @@ The tool makes the worktree ..\hexdom-<stage> on the branch
 stage/<stage>. The session writes its output to build\stage.jsonl of that
 worktree. The option --budget sets the largest cost of one session in
 US dollars. The default is 20. The option --model sets the model. The
-default is opus.
+default is claude-sonnet-5-5. For bio_check, claude-haiku-5-5 costs less.
 
 The session can edit files and run commands in its worktree. It cannot
 force a push, reset a branch, delete a folder tree or use the stash. Each

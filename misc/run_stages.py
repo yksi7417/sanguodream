@@ -18,7 +18,7 @@ The output of a session goes to build/stage.jsonl of its worktree (stream-json).
 --status prints the end of each session: its result, its cost and its turns.
 
 Options:
-    --model NAME      the model of the sessions (default opus)
+    --model NAME      the model of the sessions (default claude-sonnet-5-5)
     --budget USD      the largest cost of one session (default 20)
     --prepare         make the worktrees, start no session
     --dry-run         print the commands, change nothing
@@ -148,7 +148,7 @@ def status():
 
 def main():
     args, stages = sys.argv[1:], []
-    model, budget, dry_run, only_prepare = "opus", 20.0, False, False
+    model, budget, dry_run, only_prepare = "claude-sonnet-5-5", 20.0, False, False
     while args:
         arg = args.pop(0)
         if arg in ("-h", "--help"): sys.exit(__doc__)
