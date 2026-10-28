@@ -1593,6 +1593,8 @@ credits.use.noto_thai	泰文文字
 credits.use.imgui	介面的視窗、選單與文字
 credits.use.stb	Dear ImGui 內的字型載入與文字輸入
 credits.use.unicode_big5	將 Big5 名稱轉為 Unicode 的對照表
+credits.use.natural_earth	真實地理地圖的海岸、湖泊、河流與沙漠
+credits.use.noaa_etopo	真實地理地圖的地勢高度
 credits.use.imgui_test_engine	面板的自動測試，不含於遊戲中。
 credits.original	hexdom 不含原作遊戲的任何文字、圖像、音效或字型。
 # The Replay panel: the replay of the game, step by step.

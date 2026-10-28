@@ -1595,6 +1595,8 @@ credits.use.noto_thai	Thai text	what the game uses the work for
 credits.use.imgui	The windows, the menus and the text of the interface	what the game uses the work for
 credits.use.stb	The font loader and the text boxes, inside Dear ImGui	what the game uses the work for
 credits.use.unicode_big5	The table that converts the Big5 names to Unicode	what the game uses the work for
+credits.use.natural_earth	The coasts, lakes, rivers and deserts of the maps from real geography	what the game uses the work for
+credits.use.noaa_etopo	The heights of the maps from real geography	what the game uses the work for
 credits.use.imgui_test_engine	The tests of the panels. The game does not include it.	what the game uses the work for
 credits.original	hexdom contains no text, picture, sound or font from the original game.	the last line of the Credits window
 # The Replay panel: the replay of the game, step by step.

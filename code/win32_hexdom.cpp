@@ -208,6 +208,27 @@ win32_parse_frames_arg(void)
     return (u32)strtoul(found + 8, 0, 10);
 }
 
+/* "--pack NAME" on the command line loads the rules and the map of
+   data\NAME (docs/MAPS.md). The fonts, the text and the art stay in
+   HEXDOM_CONTENT_PACK. Only letters, digits and "_" can make the name. */
+internal void
+win32_parse_pack_arg(char *pack, u32 size)
+{
+    pack[0] = 0;
+    const char *found = strstr(GetCommandLineA(), "--pack");
+    if (!found) return;
+    const char *at = found + 6;
+    while (*at == ' ') at++;
+    u32 length = 0;
+    while (length + 1 < size && ((at[length] >= 'a' && at[length] <= 'z') || (at[length] >= 'A' && at[length] <= 'Z') ||
+                                 (at[length] >= '0' && at[length] <= '9') || at[length] == '_'))
+    {
+        pack[length] = at[length];
+        length++;
+    }
+    pack[length] = 0;
+}
+
 /* ---- main --------------------------------------------------------------- */
 
 int WINAPI
@@ -262,6 +283,8 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
        and frame regions. A fixed base address in internal builds keeps
        pointers stable across runs for debugging. */
     game_memory memory = {};
+    win32_parse_pack_arg(memory.content_pack, sizeof(memory.content_pack));
+    if (memory.content_pack[0]) win32_log("platform: --pack");
     memory.permanent_size = Megabytes(256);
     memory.transient_size = Megabytes(256);
     u64 frame_size        = Megabytes(160);   /* M10: the mesh of the 200 x 200 map needs approximately 66 MB */

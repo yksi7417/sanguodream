@@ -1,0 +1,92 @@
+id	kind	key	name_zh	name_en	lat	lon	slots	specialty	owner
+# The sites of the map: 42 cities (id 0 to 41), 10 passes (42 to 51) and 35 ports (52 to 86), the same counts as the placeholder pack.
+# lat and lon: degrees, WGS84. The positions are the historic town centres. These facts are common knowledge. Wikidata (CC0) has the same values.
+# slots: the number of development slots that the tool tries to place. specialty: the specialty of cities.tsv. Passes and ports use -.
+# owner: the city id of a pass or a port. - = the nearest city.
+0	city	lisbon	里斯本	Lisbon	38.71	-9.14	12	navy	-
+1	city	leon	萊昂	Leon	42.60	-5.57	12	horse	-
+2	city	toledo	托萊多	Toledo	39.86	-4.02	15	halberd	-
+3	city	seville	塞維利亞	Seville	37.39	-5.98	18	big_city	-
+4	city	valencia	瓦倫西亞	Valencia	39.47	-0.38	12	crossbow	-
+5	city	barcelona	巴塞隆納	Barcelona	41.39	2.17	15	navy	-
+6	city	marrakesh	馬拉喀什	Marrakesh	31.63	-7.99	18	horse	-
+7	city	fez	非斯	Fez	34.03	-4.98	15	crossbow	-
+8	city	bejaia	貝賈亞	Bejaia	36.75	5.08	12	navy	-
+9	city	tunis	突尼斯	Tunis	36.81	10.18	15	pike	-
+10	city	tripoli	的黎波里	Tripoli	32.89	13.19	12	horse	-
+11	city	barqa	巴爾卡	Barqa	32.50	20.83	10	horse	-
+12	city	alexandria	亞歷山卓	Alexandria	31.20	29.92	18	navy	-
+13	city	cairo	開羅	Cairo	30.05	31.25	22	big_city	-
+14	city	jerusalem	耶路撒冷	Jerusalem	31.78	35.22	15	pike	-
+15	city	constantinople	君士坦丁堡	Constantinople	41.01	28.98	22	big_city	-
+16	city	konya	科尼亞	Konya	37.87	32.48	15	horse	-
+17	city	thessalonica	帖撒羅尼迦	Thessalonica	40.64	22.94	15	navy	-
+18	city	athens	雅典	Athens	37.98	23.73	12	pike	-
+19	city	tarnovo	特爾諾沃	Tarnovo	43.08	25.63	12	horse	-
+20	city	rome	羅馬	Rome	41.90	12.50	18	halberd	-
+21	city	naples	拿坡里	Naples	40.85	14.27	15	crossbow	-
+22	city	palermo	巴勒莫	Palermo	38.12	13.36	18	crossbow	-
+23	city	venice	威尼斯	Venice	45.44	12.33	18	navy	-
+24	city	milan	米蘭	Milan	45.46	9.19	18	pike	-
+25	city	paris	巴黎	Paris	48.86	2.35	20	big_city	-
+26	city	bordeaux	波爾多	Bordeaux	44.84	-0.58	12	crossbow	-
+27	city	toulouse	土魯斯	Toulouse	43.60	1.44	15	halberd	-
+28	city	marseille	馬賽	Marseille	43.30	5.37	12	navy	-
+29	city	lyon	里昂	Lyon	45.76	4.84	12	siege	-
+30	city	london	倫敦	London	51.51	-0.13	18	crossbow	-
+31	city	york	約克	York	53.96	-1.08	12	pike	-
+32	city	dublin	都柏林	Dublin	53.35	-6.26	10	navy	-
+33	city	bruges	布魯日	Bruges	51.21	3.22	15	pike	-
+34	city	cologne	科隆	Cologne	50.94	6.96	18	big_city	-
+35	city	nuremberg	紐倫堡	Nuremberg	49.45	11.08	15	siege	-
+36	city	vienna	維也納	Vienna	48.21	16.37	15	halberd	-
+37	city	prague	布拉格	Prague	50.09	14.42	15	siege	-
+38	city	magdeburg	馬德堡	Magdeburg	52.13	11.63	12	halberd	-
+39	city	lubeck	呂貝克	Lubeck	53.87	10.69	12	navy	-
+40	city	krakow	克拉科夫	Krakow	50.06	19.94	12	horse	-
+41	city	esztergom	埃斯泰爾戈姆	Esztergom	47.79	18.74	15	horse	-
+42	pass	roncevaux	隆塞斯瓦耶斯關	Roncevaux Pass	43.01	-1.32	-	-	-
+43	pass	perthus	佩爾蒂斯關	Col du Perthus	42.46	2.86	-	-	-
+44	pass	st_bernard	聖伯納德關	Great St Bernard Pass	45.87	7.17	-	-	-
+45	pass	despenaperros	德斯佩尼亞佩羅斯關	Despenaperros Pass	38.38	-3.52	-	-	-
+46	pass	brenner	布倫納關	Brenner Pass	47.00	11.50	-	-	-
+47	pass	trajan_gate	圖拉真門	Gate of Trajan	42.33	23.95	-	-	-
+48	pass	thermopylae	溫泉關	Thermopylae	38.80	22.53	-	-	-
+49	pass	cilician_gates	奇里乞亞門	Cilician Gates	37.28	34.79	-	-	-
+50	pass	tichka	提契卡關	Tizi n'Tichka	31.28	-7.38	-	-	-
+51	pass	jablunkov	亞布倫科夫關	Jablunkov Pass	49.52	18.76	-	-	-
+52	port	porto	波爾圖港	Porto	41.15	-8.61	-	-	-
+53	port	cadiz	加的斯港	Cadiz	36.53	-6.29	-	-	-
+54	port	cartagena	卡塔赫納港	Cartagena	37.60	-0.98	-	-	-
+55	port	palma	帕爾馬港	Palma	39.57	2.65	-	-	5
+56	port	tangier	丹吉爾港	Tangier	35.77	-5.80	-	-	-
+57	port	sale	薩累港	Sale	34.04	-6.80	-	-	-
+58	port	oran	奧蘭港	Oran	35.70	-0.63	-	-	-
+59	port	algiers	阿爾及爾港	Algiers	36.75	3.06	-	-	-
+60	port	mahdia	馬赫迪耶港	Mahdia	35.50	11.06	-	-	-
+61	port	cagliari	卡利亞里港	Cagliari	39.22	9.12	-	-	-
+62	port	bastia	巴斯蒂亞港	Bastia	42.70	9.45	-	-	-
+63	port	messina	墨西拿港	Messina	38.19	15.55	-	-	-
+64	port	syracuse	敘拉古港	Syracuse	37.07	15.29	-	-	-
+65	port	civitavecchia	契維塔韋基亞港	Civitavecchia	42.09	11.80	-	-	-
+66	port	genoa	熱那亞港	Genoa	44.41	8.93	-	-	-
+67	port	pisa	比薩港	Pisa	43.72	10.40	-	-	-
+68	port	ancona	安科納港	Ancona	43.62	13.51	-	-	-
+69	port	bari	巴里港	Bari	41.12	16.87	-	-	-
+70	port	ragusa	拉古薩港	Ragusa	42.65	18.09	-	-	-
+71	port	durazzo	都拉佐港	Durazzo	41.32	19.45	-	-	-
+72	port	corinth	科林斯港	Corinth	37.94	22.93	-	-	-
+73	port	candia	坎迪亞港	Candia	35.34	25.13	-	-	-
+74	port	rhodes	羅德港	Rhodes	36.44	28.22	-	-	-
+75	port	smyrna	士麥那港	Smyrna	38.42	27.14	-	-	-
+76	port	famagusta	法馬古斯塔港	Famagusta	35.12	33.94	-	-	-
+77	port	acre	阿卡港	Acre	32.93	35.08	-	-	-
+78	port	damietta	杜姆亞特港	Damietta	31.42	31.81	-	-	-
+79	port	antalya	安塔利亞港	Antalya	36.88	30.70	-	-	-
+80	port	varna	瓦爾納港	Varna	43.21	27.91	-	-	-
+81	port	montpellier	蒙彼利埃港	Montpellier	43.61	3.88	-	-	-
+82	port	la_rochelle	拉羅謝爾港	La Rochelle	46.16	-1.15	-	-	-
+83	port	rouen	盧昂港	Rouen	49.44	1.10	-	-	-
+84	port	southampton	南安普敦港	Southampton	50.90	-1.40	-	-	-
+85	port	bristol	布里斯托港	Bristol	51.45	-2.59	-	-	-
+86	port	hamburg	漢堡港	Hamburg	53.55	9.99	-	-	-

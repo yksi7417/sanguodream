@@ -1,0 +1,21 @@
+id	key	name_zh	weapon	aptitude	movement_class	move	attack	defence	destroy	range	can_attack	counterattack	transport	armament	ship	status
+# The unit classes of military-units-and-tactics.md (manual p.14). One row for each class of unit.
+# weapon: the weapon key of weapons.tsv that the unit carries (one for each soldier, or one item for a siege weapon or a ship), or - (sword, boat, transport).
+# aptitude: the officer aptitude that counts (spear, halberd, crossbow, cavalry, siege, navy, none).
+# move: the movement allowance (stat_c of fixtures/map/movement-costs.tsv): 20 劍, 22 槍 戟 弩, 28 軍馬, 18 siege, 16 走舸, 20 樓船 and 鬥艦 (code; the guide book p.36 to p.47 agrees). The transport value is assumed (Q-168).
+# armament: the row of movement_costs.tsv on land; ship: the row on 河 and 海 (terrain-and-map.md: a land unit on water is a 走舸; a transport uses the 劍 row and the 走舸 row). - = the unit cannot enter that ground (a siege weapon on water, assumed Q-176; a ship on land).
+# attack, defence, destroy: the grades S A B C D E of the manual, or - (documented). The percent of each grade is in rules.tsv (assumed, Q-168).
+# range: the hexes of a normal attack (1, or 2 for an arrow attack; documented). can_attack: siege weapons cannot attack (documented). counterattack: siege weapons do not counterattack (documented).
+0	sword	劍兵	-	none	foot	20	E	E	-	1	yes	yes	no	sword	boat	documented
+1	pike	槍兵	pike	spear	foot	22	A	A	-	1	yes	yes	no	pike	boat	documented
+2	halberd	戟兵	halberd	halberd	foot	22	B	S	-	1	yes	yes	no	halberd	boat	documented
+3	crossbow	弩兵	crossbow	crossbow	foot	22	C	C	-	2	yes	yes	no	crossbow	boat	documented
+4	cavalry	騎兵	horse	cavalry	cavalry	28	S	B	-	1	yes	yes	no	horse	boat	documented
+5	ram	衝車	ram	siege	siege	18	-	D	B	1	no	no	no	ram	-	documented
+6	wood_beast	木獸	wood_beast	siege	siege	18	-	D	A	1	no	no	no	wood_beast	-	documented
+7	tower	井闌	tower	siege	siege	18	-	D	D	2	no	no	no	tower	-	documented
+8	catapult	投石	catapult	siege	siege	18	-	D	C	3	no	no	no	catapult	-	documented
+9	boat	走舸	-	navy	navy	16	E	E	-	2	yes	yes	no	-	boat	documented
+10	tower_ship	樓船	tower_ship	navy	navy	20	B	B	-	2	yes	yes	no	-	tower_ship	documented
+11	battle_ship	鬥艦	battle_ship	navy	navy	20	A	A	-	2	yes	yes	no	-	battle_ship	documented
+12	transport	輸送隊	-	none	foot	22	E	E	-	1	yes	yes	yes	sword	boat	assumed

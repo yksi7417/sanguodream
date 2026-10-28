@@ -75,6 +75,20 @@ Then compare the SHA-256 values with the values above.
 misc/make_big5_table.py reads BIG5.TXT and writes code/text/big5_table.h.
 The game does not read BIG5.TXT at run time. See data/unicode/README.md.
 
+## Map data (data/medieval_europe/map)
+misc/make_world_map.py makes the map of a pack from these sources. It
+downloads them to build/geo_cache, out of git. The map files of the pack
+contain only values that the tool derived from them.
+
+| Source | Licence | What the tool uses |
+|---|---|---|
+| NOAA ETOPO 2022, 60 arc-second surface elevation, doi:10.25921/fd45-gt74 | U.S. Government work, public domain | The height of each hex |
+| Natural Earth 1:50m: land, lakes, rivers, geography regions | Public domain | The coasts, the lakes, the rivers, the deserts and the deltas |
+
+The positions of the cities in map/source/sites.tsv are facts. Wikidata
+(CC0) has the same values. docs/MAPS.md lists the other sources that a
+commercial game can use, and the sources that it must not use.
+
 ## Default portraits (data/civil_war/Portraits.zip)
 The game shows these pictures as the portraits of the officers in each
 content pack. The owner of this repository added the first 124 pictures

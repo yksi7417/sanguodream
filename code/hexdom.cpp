@@ -32,6 +32,7 @@ struct game_state
     engine_api   api;            /* function pointers into THIS DLL image: rebuilt on reload */
     u32          reload_count;
     text_catalog text;           /* the UI strings and the names of the active locale */
+    char         content_folder[260];   /* the folder of the rules and the map: game_memory.content_pack, or the default */
     ui_state     ui;
 };
 
@@ -58,6 +59,11 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         engine_config config = engine_default_config();
         config.read_entire_file  = memory->platform.read_entire_file;
         config.write_entire_file = memory->platform.write_entire_file;
+        if (memory->content_pack[0])
+        {
+            snprintf(game->content_folder, sizeof(game->content_folder), "%s/%s", HEXDOM_DATA_ROOT, memory->content_pack);
+            config.content_folder = game->content_folder;
+        }
         game->backend = engine_create(&game->permanent, &game->transient, config);
         game->api     = engine_make_api(game->backend);
         game->reload_count = 0;
