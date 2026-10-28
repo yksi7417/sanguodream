@@ -57,7 +57,11 @@ sim_debate_draw(sim_state *sim, sim_debate_side *side)
         for (u32 type = CARD_IGNORE; type < CARD_TYPE_COUNT; ++type) if (mask & (1u << type)) types[count++] = (u8)type;
         if (count) return sim_card_make(types[sim_random_below(sim, count)], 0, 0);
     }
-    return sim_card_make(CARD_TOPIC, (u8)sim_random_below(sim, TOPIC_COUNT), (u8)(1 + sim_random_below(sim, 3)));
+    /* Two draws in two statements: C++ does not fix the order of the
+       arguments of a call, and MSVC and clang take them in another order. */
+    u8 topic = (u8)sim_random_below(sim, TOPIC_COUNT);
+    u8 power = (u8)(1 + sim_random_below(sim, 3));
+    return sim_card_make(CARD_TOPIC, topic, power);
 }
 
 internal void

@@ -149,6 +149,15 @@ internal PLATFORM_WRITE_ENTIRE_FILE(wasm_write_entire_file)
     return ok;
 }
 
+/* Opens a link of the English Wikipedia in a new tab. The platform checks
+   the link again, so the page never opens another host. */
+internal PLATFORM_OPEN_URL(wasm_open_url)
+{
+    if (!text_link_is_allowed(url)) return false;
+    EM_ASM({ window.open(UTF8ToString($0), "_blank", "noopener"); }, url);
+    return true;
+}
+
 internal void *
 wasm_imgui_alloc(size_t size, void *user)
 {
@@ -161,6 +170,92 @@ wasm_imgui_free(void *ptr, void *user)
 {
     (void)user;
     free(ptr);
+}
+
+/* ---- a shared game (docs/MULTIPLAYER.md, MP3) ----------------------------- */
+
+/* The page owns the socket (web/shell.html). Module.hexdomNetPush copies an
+   event of the page into one block of the heap: the bytes, then the text.
+   The game takes the events with net_poll. An event stays valid until the
+   next poll, and then its block goes back to the heap. */
+#define WASM_NET_QUEUE 1024
+
+struct wasm_net_item
+{
+    platform_net_event event;
+    void              *block;
+};
+
+global_variable wasm_net_item g_net_queue[WASM_NET_QUEUE];
+global_variable u32           g_net_first, g_net_count;
+global_variable void         *g_net_current;
+
+extern "C" EMSCRIPTEN_KEEPALIVE void *
+wasm_net_alloc(int size)
+{
+    return malloc(size > 0 ? (size_t)size : 1);
+}
+
+extern "C" EMSCRIPTEN_KEEPALIVE void
+wasm_net_push(int kind, int step, int seat, int host, u8 *block, int size, char *text)
+{
+    if (g_net_count == WASM_NET_QUEUE || kind <= PLATFORM_NET_NONE || kind >= PLATFORM_NET_KIND_COUNT || size < 0)
+    {
+        wasm_log("platform: the queue of the network is full; an event of the page goes away");
+        free(block);
+        return;
+    }
+    wasm_net_item *item = g_net_queue + (g_net_first + g_net_count++) % WASM_NET_QUEUE;
+    *item = {};
+    item->event.kind = (u32)kind;
+    item->event.step = step;
+    item->event.seat = (u8)seat;
+    item->event.host = host != 0;
+    item->event.size = (u32)size;
+    item->event.data = block;
+    item->event.text = text;
+    item->block      = block;
+}
+
+internal PLATFORM_NET_POLL(wasm_net_poll)
+{
+    free(g_net_current);
+    g_net_current = 0;
+    if (!g_net_count) return false;
+    wasm_net_item *item = g_net_queue + g_net_first;
+    g_net_first = (g_net_first + 1) % WASM_NET_QUEUE;
+    g_net_count--;
+    *event        = item->event;
+    g_net_current = item->block;
+    return true;
+}
+
+internal PLATFORM_NET_SEND(wasm_net_send)
+{
+    EM_ASM({
+        if (Module.hexdomNetSend)
+            Module.hexdomNetSend($0, $1, $2 >>> 0, $3 >>> 0, $4, HEAPU8.slice($5, $5 + $6), $7 ? UTF8ToString($7) : "");
+    }, event->kind, event->step, (u32)(event->checksum & 0xFFFFFFFFull), (u32)(event->checksum >> 32), event->acting,
+       event->data, event->size, event->text);
+}
+
+/* The bridge of the page into the queue. The page calls
+   Module.hexdomNetPush(kind, step, seat, host, bytes, text). */
+internal void
+wasm_net_install(void)
+{
+    EM_ASM({
+        Module.hexdomNetPush = function(kind, step, seat, host, bytes, text) {
+            var data = bytes || new Uint8Array(0);
+            var words = new TextEncoder().encode(text || "");
+            var block = _wasm_net_alloc(data.length + words.length + 1);
+            HEAPU8.set(data, block);
+            HEAPU8.set(words, block + data.length);
+            HEAPU8[block + data.length + words.length] = 0;
+            _wasm_net_push(kind, step, seat, host ? 1 : 0, block, data.length, block + data.length);
+        };
+        if (Module.hexdomNetReady) Module.hexdomNetReady();
+    });
 }
 
 /* ---- frame -------------------------------------------------------------- */
@@ -321,6 +416,10 @@ wasm_start(void)
     }
     wasm_log(portrait_message);
     memory->platform.face_texture = wasm_face_texture;
+    memory->platform.net_send     = wasm_net_send;   /* MP3: the socket of a shared game is in the page */
+    memory->platform.net_poll     = wasm_net_poll;
+    wasm_net_install();
+    memory->platform.open_url     = wasm_open_url;
 
     state->last_time = emscripten_get_now();
     wasm_log("platform: the game starts");

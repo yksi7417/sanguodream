@@ -23,6 +23,7 @@
 #define DEMO_M20_NAME          "m20_ai_round"
 #define DEMO_M21_NAME          "m21_information"
 #define DEMO_M22_NAME          "m22_fit_and_finish"
+#define DEMO_MP3_NAME          "mp3_game_together"
 
 /* build\demos, with no last backslash. demo_player.cpp sets it. */
 global_variable char g_demo_output_dir[MAX_PATH];
@@ -66,7 +67,8 @@ demo_gui(ImGuiTestContext *ctx)
                                   strcmp(ctx->Test->Name, DEMO_M14_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M15_NAME) == 0 ||
                                   strcmp(ctx->Test->Name, DEMO_M17_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M18_NAME) == 0 ||
                                   strcmp(ctx->Test->Name, DEMO_M19_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M20_NAME) == 0 ||
-                                  strcmp(ctx->Test->Name, DEMO_M21_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M22_NAME) == 0;
+                                  strcmp(ctx->Test->Name, DEMO_M21_NAME) == 0 || strcmp(ctx->Test->Name, DEMO_M22_NAME) == 0 ||
+                                  strcmp(ctx->Test->Name, DEMO_MP3_NAME) == 0;
         v.backend = engine_create(&v.permanent, &v.transient, config);
         v.api     = engine_make_api(v.backend);
         text_catalog_init(&v.text, arena_sub(&v.permanent, Megabytes(4)), test_platform_read_entire_file,
@@ -478,6 +480,15 @@ demo_city_command(ImGuiTestContext *ctx, demo_vars &v, const char *open_button, 
         snprintf(item, sizeof(item), "###w%d", weapon_button);
         ctx->ItemClick(item);
     }
+    /* M19: the dialog proposes three officers. The city has too few free
+       officers for four commands of three, so each command keeps one. */
+    for (u32 place = 1; place < ui_command_infos[kind].max_officers; ++place)
+    {
+        char combo[32];
+        snprintf(combo, sizeof(combo), "###officer%u/###o_none", place + 1);
+        ctx->ComboClick(combo);
+    }
+    IM_CHECK(v.ui.commands[kind].officers[0] != ENGINE_NO_OFFICER);
     ctx->SleepStandard();
     ctx->ItemClick("###decide");
     ctx->Yield();
@@ -754,8 +765,7 @@ demo_m5_march(ImGuiTestContext *ctx)
     ctx->ItemClick("###open_sortie");
     ctx->Yield();
     ctx->SetRef("###Sortie");
-    ctx->ComboClick("###unit_type/###u1");                   /* 槍兵 */
-    ctx->ItemClick("###auto");                               /* 自動編制 */
+    ctx->ItemClick("###preset1");                            /* G2-044: the 槍兵 preset fills the officers */
     ctx->SleepStandard();
     ctx->ItemClick("###decide");
     ctx->Yield();
@@ -773,13 +783,13 @@ demo_m5_march(ImGuiTestContext *ctx)
     hex_coord target = demo_far_hex(api, unit_id);
     ctx->WindowFocus("//Hex map");
     demo_click_cell(ctx, v, target);
-    unit = api->unit_at(api->engine, unit_id);
-    IM_CHECK(unit.q == target.q && unit.r == target.r && unit.moved);
-    IM_CHECK(v.ui.show_unit_menu);
+    /* G2-045: the menu opens at the destination. The unit moves with the choice. */
+    IM_CHECK(v.ui.show_unit_menu && v.ui.units.has_pending_move);
     ctx->SetRef("###UnitMenu");
     ctx->SleepStandard();
     ctx->ItemClick("###wait");                               /* 待命 */
-    IM_CHECK(api->unit_at(api->engine, unit_id).acted);
+    unit = api->unit_at(api->engine, unit_id);
+    IM_CHECK(unit.q == target.q && unit.r == target.r && unit.moved && unit.acted);
 
     IM_CHECK(demo_open_panel(ctx, "###MiniMap", &v.ui.show_minimap));
     ctx->SleepStandard();
@@ -796,9 +806,9 @@ demo_m5_march(ImGuiTestContext *ctx)
     target = demo_far_hex(api, unit_id);
     ctx->WindowFocus("//Hex map");
     demo_click_cell(ctx, v, target);
-    IM_CHECK(api->unit_at(api->engine, unit_id).q == target.q);
     ctx->SetRef("###UnitMenu");
     ctx->ItemClick("###wait");
+    IM_CHECK(api->unit_at(api->engine, unit_id).q == target.q);
     b32 sortied = false, moved = false, eaten = false;
     for (u32 index = 0; index < api->ledger_count(api->engine); ++index)
     {
@@ -921,8 +931,7 @@ demo_m6_battle(ImGuiTestContext *ctx)
     ctx->ItemClick("###open_sortie");
     ctx->Yield();
     ctx->SetRef("###Sortie");
-    ctx->ComboClick("###unit_type/###u1");                   /* 槍兵 */
-    ctx->ItemClick("###auto");
+    ctx->ItemClick("###preset1");                            /* G2-044: the 槍兵 preset fills the officers */
     ctx->ItemClick("###decide");
     ctx->Yield();
     u32 unit_id = demo_unit_of(api, player);
@@ -1153,6 +1162,14 @@ demo_m7_court(ImGuiTestContext *ctx)
         ctx->WindowFocus("//Hex map");
         demo_click_cell(ctx, v, foe_hex);
         ctx->Yield(2);
+        if (v.ui.combat.duel_pick)
+        {
+            /* G3-008: the target opens the list of the officers. The commander challenges. */
+            ctx->SetRef("###DuelPick");
+            ctx->SleepStandard();
+            ctx->ItemClick("###duel_officer_0");
+            ctx->Yield(2);
+        }
     }
     IM_CHECK(api->duel_view(e).active && v.ui.show_duel);
     ctx->SetRef("###Duel");
@@ -2991,6 +3008,200 @@ demo_m22_fit_and_finish(ImGuiTestContext *ctx)
     v.ui.round.confirm = false;
 }
 
+/* ---- MP3: a game together ------------------------------------------------
+   The window is one seat of a shared game. A second engine in this test is
+   the host with the other seat. A fake net takes the place of the page and
+   the server: the steps of the host go into the queue of the window, and the
+   send of the window gives each of its steps to the host. */
+
+#define DEMO_MP3_QUEUE_CAPACITY 64
+#define DEMO_MP3_TURN_LIMIT     64   /* the faction turns until the seat of the window acts again */
+
+struct demo_mp3_net
+{
+    platform_net_event queued[DEMO_MP3_QUEUE_CAPACITY];
+    u8                 bytes[DEMO_MP3_QUEUE_CAPACITY][ENGINE_STEP_WIRE_CAPACITY];
+    u32                queued_count;
+    u32                queued_next;
+    engine_api        *host;            /* the engine of the other seat */
+    u32                sent_steps;      /* the steps of the window that the host applied */
+    b32                applied;         /* the host applied each step of the window */
+    b32                agreed;          /* each checksum of the window is the checksum of the host */
+};
+
+global_variable demo_mp3_net g_demo_mp3_net;
+
+internal PLATFORM_NET_POLL(demo_mp3_net_poll)
+{
+    demo_mp3_net *net = &g_demo_mp3_net;
+    if (net->queued_next == net->queued_count) return false;
+    *event = net->queued[net->queued_next++ % DEMO_MP3_QUEUE_CAPACITY];
+    return true;
+}
+
+/* The page sends the steps of the window to the server. Here the host applies them at once. */
+internal PLATFORM_NET_SEND(demo_mp3_net_send)
+{
+    demo_mp3_net *net = &g_demo_mp3_net;
+    engine_api *host = net->host;
+    if (event->kind == PLATFORM_NET_STEP)
+    {
+        engine_step_apply_result applied = host->step_apply(host->engine, event->data, event->size);
+        if (applied.status != ENGINE_STEP_APPLIED) net->applied = false;
+        net->sent_steps++;
+    }
+    if (event->kind == PLATFORM_NET_CHECKSUM && event->checksum != host->state_checksum(host->engine)) net->agreed = false;
+}
+
+/* The server relays each new step of the host to the window. */
+internal void
+demo_mp3_relay_host(demo_mp3_net *net)
+{
+    engine_api *host = net->host;
+    for (;;)
+    {
+        u32 slot = net->queued_count % DEMO_MP3_QUEUE_CAPACITY;
+        engine_outgoing_step out = host->steps_outgoing(host->engine, net->bytes[slot], ENGINE_STEP_WIRE_CAPACITY);
+        if (!out.size) break;
+        IM_CHECK(net->queued_count - net->queued_next < DEMO_MP3_QUEUE_CAPACITY);
+        platform_net_event step = {};
+        step.kind = PLATFORM_NET_STEP;
+        step.step = (s32)out.step;
+        step.data = net->bytes[slot];
+        step.size = out.size;
+        net->queued[slot] = step;
+        net->queued_count++;
+    }
+}
+
+/* The host ends one faction turn, and the server relays the steps. */
+internal bool
+demo_mp3_host_turn(ImGuiTestContext *ctx, demo_mp3_net *net)
+{
+    engine_api *host = net->host;
+    IM_CHECK_RETV(host->multiplayer_info(host->engine).local_acts, false);
+    IM_CHECK_RETV(host->end_turn(host->engine), false);
+    demo_mp3_relay_host(net);
+    ctx->Yield(2);
+    return true;
+}
+
+/* The window applies each step in its queue. */
+internal bool
+demo_mp3_window_caught_up(ImGuiTestContext *ctx, demo_mp3_net *net)
+{
+    for (u32 frame = 0; frame < 600 && net->queued_next != net->queued_count; ++frame) ctx->Yield();
+    ctx->Yield(2);
+    IM_CHECK_RETV(net->queued_next == net->queued_count, false);
+    return true;
+}
+
+internal void
+demo_mp3_game_together(ImGuiTestContext *ctx)
+{
+    const char *milestone = DEMO_MP3_NAME;
+    demo_vars &v = ctx->GetVars<demo_vars>();
+    engine_api *api = &v.api;
+    void *e = api->engine;
+
+    /* The engine of the host: the sample save, and two human factions. */
+    memory_arena host_permanent = test_arena_create(DEMO_ENGINE_ARENA_SIZE);
+    memory_arena host_transient = test_arena_create(DEMO_ENGINE_ARENA_SIZE);
+    engine_config config = engine_default_config();
+    config.read_entire_file  = test_platform_read_entire_file;
+    config.write_entire_file = test_platform_write_entire_file;
+    config.save_folder       = "demo_saves";
+    config.use_pack_map      = true;
+    engine_api host = engine_make_api(engine_create(&host_permanent, &host_transient, config));
+    void *h = host.engine;
+    IM_CHECK(host.load_save(h, UI_SAMPLE_SAVE_PATH).status == ENGINE_LOAD_OK);
+    u8 window_force = host.whose_turn(h);
+    u8 host_force   = ENGINE_NO_FACTION;
+    for (u32 index = 0; index < host.faction_count(h) && host_force == ENGINE_NO_FACTION; ++index)
+    {
+        engine_faction faction = host.faction_at(h, index);
+        if (faction.force_id != window_force && faction.city_count > 0) host_force = faction.force_id;
+    }
+    IM_CHECK(window_force != ENGINE_NO_FACTION && host_force != ENGINE_NO_FACTION);
+    for (u32 index = 0; index < host.faction_count(h); ++index)
+    {
+        u8 force = host.faction_at(h, index).force_id;
+        host.set_faction_human(h, force, force == window_force || force == host_force);
+    }
+    u32 image_capacity = host.start_image_size(h);
+    u8 *image = (u8 *)malloc(image_capacity);
+    u32 image_size = host.start_image(h, image, image_capacity);
+    IM_CHECK(image_size > 0);
+    host.multiplayer_begin(h, host_force, true);
+
+    demo_mp3_net *net = &g_demo_mp3_net;
+    *net = {};
+    net->host = &host;
+    net->applied = net->agreed = true;
+    v.frame.net_send = demo_mp3_net_send;
+    v.frame.net_poll = demo_mp3_net_poll;
+    IM_CHECK(demo_begin_video(ctx, milestone));
+
+    /* The page gives the window the start image and the seats of the room. */
+    char seats[128];
+    snprintf(seats, sizeof(seats), "%u\tTester\t1\n%u\tPartner\t1\n", window_force, host_force);
+    platform_net_event join = {};
+    join.kind = PLATFORM_NET_JOIN;
+    join.seat = window_force;
+    join.data = image;
+    join.size = image_size;
+    join.text = seats;
+    net->queued[net->queued_count++ % DEMO_MP3_QUEUE_CAPACITY] = join;
+    ctx->Yield(3);
+    engine_multiplayer_info info = api->multiplayer_info(e);
+    IM_CHECK(info.shared && info.local_force == window_force && info.local_acts);
+    IM_CHECK(api->state_checksum(e) == host.state_checksum(h) && net->agreed);
+    ctx->SleepStandard();
+
+    /* 進行: the step of the window goes to the host. Then the host ends the
+       turns of the AI factions and of its own faction, and the banner of the
+       window names the partner. */
+    ui_context_open(&v.ui, api, UI_CONTEXT_MAP_MENU, ImGui::GetIO().DisplaySize.x * 0.6f, ImGui::GetIO().DisplaySize.y * 0.4f);
+    ctx->Yield();
+    demo_proceed(ctx);
+    ctx->Yield(2);
+    IM_CHECK(net->sent_steps > 0 && net->applied && net->agreed);
+    b32 partner_shown = false;
+    for (u32 count = 0; count < DEMO_MP3_TURN_LIMIT && host.whose_turn(h) != window_force; ++count)
+    {
+        if (api->whose_turn(e) == host_force) { ctx->SleepStandard(); partner_shown = true; }
+        IM_CHECK(demo_mp3_host_turn(ctx, net));
+    }
+    IM_CHECK(demo_mp3_window_caught_up(ctx, net));
+    IM_CHECK(partner_shown);
+    IM_CHECK(api->whose_turn(e) == window_force && api->multiplayer_info(e).local_acts);
+    IM_CHECK(api->multiplayer_info(e).step_count == host.multiplayer_info(h).step_count);
+    IM_CHECK(api->state_checksum(e) == host.state_checksum(h) && net->agreed && v.ui.net.error[0] == 0);
+    ctx->SleepStandard();
+    IM_CHECK(demo_end_video(ctx));
+
+    /* The PNG of each banner: "your turn" now, and "Partner acts" in the next round. */
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###NetBanner", "your_turn"));
+    ui_context_open(&v.ui, api, UI_CONTEXT_MAP_MENU, ImGui::GetIO().DisplaySize.x * 0.6f, ImGui::GetIO().DisplaySize.y * 0.4f);
+    ctx->Yield();
+    demo_proceed(ctx);
+    ctx->Yield(2);
+    for (u32 count = 0; count < DEMO_MP3_TURN_LIMIT && host.whose_turn(h) != host_force; ++count)
+    {
+        IM_CHECK(demo_mp3_host_turn(ctx, net));
+    }
+    IM_CHECK(demo_mp3_window_caught_up(ctx, net));
+    IM_CHECK(api->whose_turn(e) == host_force && !api->multiplayer_info(e).local_acts);
+    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###NetBanner", "partner_acts"));
+    IM_CHECK(api->state_checksum(e) == host.state_checksum(h) && net->applied && net->agreed);
+
+    v.frame.net_send = 0;
+    v.frame.net_poll = 0;
+    free(image);
+    test_arena_destroy(&host_permanent);
+    test_arena_destroy(&host_transient);
+}
+
 internal void
 register_demo_tests(ImGuiTestEngine *e)
 {
@@ -3110,4 +3321,9 @@ register_demo_tests(ImGuiTestEngine *e)
     t->SetVarsDataType<demo_vars>();
     t->GuiFunc  = demo_gui;
     t->TestFunc = demo_m22_fit_and_finish;
+
+    t = IM_REGISTER_TEST(e, "demo", DEMO_MP3_NAME);
+    t->SetVarsDataType<demo_vars>();
+    t->GuiFunc  = demo_gui;
+    t->TestFunc = demo_mp3_game_together;
 }

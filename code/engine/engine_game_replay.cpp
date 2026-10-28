@@ -288,6 +288,7 @@ engine_game_replay_begin_step(engine *e, b32 command)
     engine_game_replay_state *replay = &e->game_replay;
     engine_game_replay_pending pending = {};
     if (replay->applying) return pending;
+    pending.network = engine_multiplayer_authors(e);   /* before the early returns: the network needs each step */
     engine_game_replay_return_live(e);
     if (replay->status == ENGINE_GAME_REPLAY_EMPTY && !command) return pending;
     if (replay->status != ENGINE_GAME_REPLAY_EMPTY && replay->status != ENGINE_GAME_REPLAY_RECORDING) return pending;
@@ -320,6 +321,7 @@ internal void
 engine_game_replay_end_step(engine *e, const engine_game_replay_pending *pending, u8 kind, const sim_command *command,
                             const engine_settings *settings, u8 force, u32 value)
 {
+    if (pending->network) engine_multiplayer_queue(e, kind, command, settings, force, value, pending->force);
     if (!pending->record) return;
     engine_game_replay_state *replay = &e->game_replay;
     engine_game_replay_step_record *step = replay->steps + replay->step_count;

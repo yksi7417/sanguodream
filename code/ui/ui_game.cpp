@@ -306,6 +306,22 @@ ui_draw_start_settings(ui_state *ui, engine_api *api)
         }
         ui_enter_game(ui);
     }
+    if (ui->net.available)   /* MP3: the page makes a room with these rulers as the seats (ui_multiplayer.cpp) */
+    {
+        ImGui::SameLine();
+        if (ImGui::Button(ui_label(label, sizeof(label), ui, "net.play_online", "start_online")))
+        {
+            api->set_settings(e, settings);
+            /* The turn passes until a chosen ruler acts, as after "OK": the start image holds it. */
+            for (u32 step = 0; step < 300; ++step)
+            {
+                u8 acting = api->whose_turn(e);
+                if (acting != ENGINE_NO_FACTION && ((ui->game.rulers >> acting) & 1)) break;
+                api->end_turn(e);
+            }
+            ui->net.host_request = true;
+        }
+    }
     ImGui::End();
 }
 

@@ -1049,6 +1049,7 @@ ending.2	B：外征繁榮
 ending.3	C：內政繁榮
 refusal.no_chart_row	沒有這個能力
 refusal.no_uses	這個能力沒有次數了
+refusal.not_your_seat	另一位玩家指揮這個勢力
 difficulty.0	初級
 difficulty.1	中級
 difficulty.2	上級
@@ -1056,6 +1057,17 @@ difficulty.3	超級
 cities.all	全部都市
 table.filter	篩選
 city.not_yours	這不是你的都市，不能對它下令。
+city.not_your_seat	現在是其他玩家行動，請等待你的回合。
+net.title	線上對戰
+net.play_online	線上對戰
+net.waiting	等待其他玩家。頁面上有邀請連結。
+net.your_turn	輪到你了
+net.acts	正在行動
+net.computer_acts	電腦行動中
+net.desync	遊戲副本不一致，步驟
+net.bad_image	無法載入房間的開局資料。
+net.missing_step	缺少一個步驟，請重新開啟頁面。
+net.bad_step	其他玩家的步驟無法套用。
 settings.font_size	字型大小
 event.transport_arrived	輸送隊到達
 event_role.transport_arrived.a	主將

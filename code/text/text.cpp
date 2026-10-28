@@ -380,8 +380,9 @@ text_append(char *out, u32 out_size, u32 *used, const char *text)
 }
 
 /* Reads <data root>\<pack>\<folder>\<stem>.tsv into the arena of the catalog. */
+/* <data root>/<pack>/<folder>/<stem>.tsv as a table; folder "" for a file at the root of the pack. */
 internal text_table
-text_catalog_load_table(text_catalog *catalog, const char *folder, const char *stem, const char *key_column)
+text_catalog_load_pack_table(text_catalog *catalog, const char *pack, const char *folder, const char *stem, const char *key_column)
 {
     text_table empty = {};
     if (!catalog->read_entire_file) return empty;
@@ -390,15 +391,24 @@ text_catalog_load_table(text_catalog *catalog, const char *folder, const char *s
     path[0] = 0;
     text_append(path, sizeof(path), &used, catalog->data_root);
     text_append(path, sizeof(path), &used, "/");
-    text_append(path, sizeof(path), &used, catalog->pack);
+    text_append(path, sizeof(path), &used, pack);
     text_append(path, sizeof(path), &used, "/");
-    text_append(path, sizeof(path), &used, folder);
-    text_append(path, sizeof(path), &used, "/");
+    if (folder[0])
+    {
+        text_append(path, sizeof(path), &used, folder);
+        text_append(path, sizeof(path), &used, "/");
+    }
     text_append(path, sizeof(path), &used, stem);
     text_append(path, sizeof(path), &used, ".tsv");
     read_file_result file = catalog->read_entire_file(path, &catalog->arena);
     if (!file.contents) return empty;
     return text_table_parse((const char *)file.contents, file.size, key_column, &catalog->arena);
+}
+
+internal text_table
+text_catalog_load_table(text_catalog *catalog, const char *folder, const char *stem, const char *key_column)
+{
+    return text_catalog_load_pack_table(catalog, catalog->pack, folder, stem, key_column);
 }
 
 internal void
@@ -440,6 +450,11 @@ text_catalog_set_locale(text_catalog *catalog, const char *locale)
     catalog->strings          = empty;
     catalog->fallback_strings = empty;
     catalog->names            = empty;
+    catalog->pack_names       = empty;
+    catalog->native_pack_names = empty;
+    catalog->pack_lore         = empty;
+    catalog->fallback_pack_lore = empty;
+    catalog->pack_links        = empty;
     text_copy_utf8(code, catalog->locale, sizeof(catalog->locale));
 
     text_catalog_load_locales(catalog);
@@ -447,8 +462,108 @@ text_catalog_set_locale(text_catalog *catalog, const char *locale)
     if (strcmp(code, catalog->fallback_locale) == 0) catalog->strings = catalog->fallback_strings;
     else catalog->strings = text_catalog_load_table(catalog, "text", code, "id");
     catalog->names = text_catalog_load_table(catalog, "names", code, "key");
+    if (catalog->game_pack[0] && strcmp(catalog->game_pack, catalog->pack) != 0)
+    {
+        catalog->pack_names        = text_catalog_load_pack_table(catalog, catalog->game_pack, "names", code, "key");
+        catalog->native_pack_names = text_catalog_load_pack_table(catalog, catalog->game_pack, "names", "native", "key");
+        /* docs/EUROPE.md, E4: the lives and the links of the game pack. */
+        catalog->pack_lore = text_catalog_load_pack_table(catalog, catalog->game_pack, "lore", code, "key");
+        if (strcmp(code, catalog->fallback_locale) == 0) catalog->fallback_pack_lore = catalog->pack_lore;
+        else catalog->fallback_pack_lore = text_catalog_load_pack_table(catalog, catalog->game_pack, "lore", catalog->fallback_locale, "key");
+        catalog->pack_links = text_catalog_load_pack_table(catalog, catalog->game_pack, "lore", "links", "key");
+    }
     catalog->load_count++;
     return true;
+}
+
+internal b32
+text_pack_default_locale(text_catalog *catalog, const char *pack, char *out, u32 out_size)
+{
+    if (!out_size) return false;
+    out[0] = 0;
+    if (!catalog || !pack || !pack[0]) return false;
+    /* The table lives in the arena of the catalog until the next locale change. */
+    text_table settings = text_catalog_load_pack_table(catalog, pack, "", "pack", "key");
+    const char *locale = text_table_find(&settings, "default_locale");
+    if (!locale || !text_is_locale_code(locale)) return false;
+    text_copy_utf8(locale, out, out_size);
+    return true;
+}
+
+internal void
+text_catalog_set_game_pack(text_catalog *catalog, const char *pack)
+{
+    text_copy_utf8(pack ? pack : "", catalog->game_pack, sizeof(catalog->game_pack));
+}
+
+internal void
+text_catalog_use_game_pack(text_catalog *catalog, const char *pack)
+{
+    text_catalog_set_game_pack(catalog, pack);
+    char locale[TEXT_LOCALE_SIZE];
+    if (!text_pack_default_locale(catalog, pack, locale, sizeof(locale))) text_copy_utf8(catalog->locale, locale, sizeof(locale));
+    text_catalog_set_locale(catalog, locale);
+}
+
+/* The row id of a record of the game pack: "<kind>.<key>". False if the key is empty. */
+internal b32
+text_record_id(text_catalog *catalog, const char *kind, const char *key, char *id, u32 id_size)
+{
+    if (!catalog || !key || !key[0]) return false;
+    u32 used = 0;
+    id[0] = 0;
+    text_append(id, id_size, &used, kind);
+    text_append(id, id_size, &used, ".");
+    text_append(id, id_size, &used, key);
+    return true;
+}
+
+internal const char *
+text_key_lore(text_catalog *catalog, const char *kind, const char *key)
+{
+    char id[TEXT_PACK_SIZE + 64];
+    if (!text_record_id(catalog, kind, key, id, sizeof(id))) return 0;
+    const char *life = text_table_find(&catalog->pack_lore, id);
+    return life ? life : text_table_find(&catalog->fallback_pack_lore, id);
+}
+
+internal b32
+text_link_is_allowed(const char *url)
+{
+    static const char prefix[] = "https://en.wikipedia.org/wiki/";
+    if (!url || strncmp(url, prefix, sizeof(prefix) - 1) != 0) return false;
+    const u8 *name = (const u8 *)url + sizeof(prefix) - 1;
+    if (!*name) return false;
+    for (; *name; ++name)
+    {
+        u8 letter = *name;
+        if (letter <= 0x20 || letter == 0x7F) return false;   /* a space or a control character */
+        if (letter == '"' || letter == '<' || letter == '>' || letter == '\\' || letter == '^' ||
+            letter == '`' || letter == '{' || letter == '|' || letter == '}') return false;
+    }
+    return true;
+}
+
+internal const char *
+text_key_link(text_catalog *catalog, const char *kind, const char *key)
+{
+    char id[TEXT_PACK_SIZE + 64];
+    if (!text_record_id(catalog, kind, key, id, sizeof(id))) return 0;
+    const char *url = text_table_find(&catalog->pack_links, id);
+    return text_link_is_allowed(url) ? url : 0;
+}
+
+internal const char *
+text_key_name(text_catalog *catalog, const char *kind, const char *key)
+{
+    char id[TEXT_PACK_SIZE + 64];
+    if (!text_record_id(catalog, kind, key, id, sizeof(id))) return 0;
+    if (catalog->native_names)
+    {
+        const char *native = text_table_find(&catalog->native_pack_names, id);
+        if (native) return native;
+    }
+    return text_table_find(&catalog->pack_names, id);
 }
 
 internal b32

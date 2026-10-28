@@ -51,6 +51,47 @@ struct ui_test_vars
     engine         *backend;
 };
 
+/* MP3: a fake network of the platform. The test queues the events of the
+   page, and the fake keeps the events that the game sends. */
+struct ui_test_net_state
+{
+    platform_net_event queued[8];
+    u32                queued_count, queued_next;
+    platform_net_event sent[16];
+    u32                sent_count;
+    char               text[256];      /* the text of the first event with a text */
+    memory_arena       arena;          /* the frame arena of "Play online": the render commands and the start image */
+};
+#define UI_TEST_NET_ARENA_SIZE Megabytes(4)
+global_variable ui_test_net_state g_ui_test_net;
+global_variable u8                g_ui_test_net_memory[UI_TEST_NET_ARENA_SIZE];
+
+internal void
+ui_test_net_reset(void)
+{
+    memset(&g_ui_test_net, 0, sizeof(g_ui_test_net));
+    arena_init(&g_ui_test_net.arena, g_ui_test_net_memory, UI_TEST_NET_ARENA_SIZE);
+}
+
+internal void
+ui_test_net_queue(platform_net_event event)
+{
+    if (g_ui_test_net.queued_count < ArrayCount(g_ui_test_net.queued)) g_ui_test_net.queued[g_ui_test_net.queued_count++] = event;
+}
+
+internal PLATFORM_NET_POLL(ui_test_net_poll)
+{
+    if (g_ui_test_net.queued_next == g_ui_test_net.queued_count) return false;
+    *event = g_ui_test_net.queued[g_ui_test_net.queued_next++];
+    return true;
+}
+
+internal PLATFORM_NET_SEND(ui_test_net_send)
+{
+    if (event->text && !g_ui_test_net.text[0]) snprintf(g_ui_test_net.text, sizeof(g_ui_test_net.text), "%s", event->text);
+    if (g_ui_test_net.sent_count < ArrayCount(g_ui_test_net.sent)) g_ui_test_net.sent[g_ui_test_net.sent_count++] = *event;
+}
+
 internal void
 ui_test_gui(ImGuiTestContext *ctx)
 {
@@ -260,6 +301,18 @@ ui_test_click_header(ImGuiTestContext *ctx, const char *table_ref, int column_n,
     ctx->ItemClick(ImHashStr(label, 0, column_id));                            /* TableHeader: GetID(label) */
 }
 
+/* A double of the link opener of the platform: it records the URL that the
+   UI asks for. */
+global_variable u32  g_ui_test_open_url_calls;
+global_variable char g_ui_test_open_url_last[256];
+
+internal PLATFORM_OPEN_URL(ui_test_open_url)
+{
+    g_ui_test_open_url_calls += 1;
+    snprintf(g_ui_test_open_url_last, sizeof(g_ui_test_open_url_last), "%s", url);
+    return true;
+}
+
 /* Moves the mouse to the center of a hex of the Hex map panel and clicks it. */
 internal void
 ui_test_click_cell(ImGuiTestContext *ctx, ui_test_vars &v, hex_coord cell)
@@ -281,6 +334,18 @@ ui_test_click_cell(ImGuiTestContext *ctx, ui_test_vars &v, hex_coord cell)
     ctx->Yield();
 }
 
+/* Clicks the row of an officer in the table of 武將情報 near its left edge. The center of a row can lie on the
+   resize grip between two columns, and the grip takes the click. */
+internal void
+ui_test_click_info_row(ImGuiTestContext *ctx, const char *row)
+{
+    ImGuiTestItemInfo info = ctx->ItemInfo(row);
+    IM_CHECK(info.ID != 0);
+    ctx->MouseMoveToPos(ImVec2(info.RectFull.Min.x + 20.0f, (info.RectFull.Min.y + info.RectFull.Max.y) * 0.5f));
+    ctx->MouseClick(0);
+    ctx->Yield();
+}
+
 /* True if the window was drawn in the last frame. A window that never
    showed, or that hides now, gives false. */
 internal bool
@@ -288,6 +353,20 @@ ui_test_window_active(ImGuiTestContext *ctx, const char *ref)
 {
     ImGuiWindow *window = ctx->WindowInfo(ref, ImGuiTestOpFlags_NoError).Window;
     return window != 0 && window->Active;
+}
+
+/* True if a child window with this name was drawn in the last frame. The name of a child
+   is the name of its parent, a slash, its own name and its id, so the test looks inside. */
+internal bool
+ui_test_child_active(const char *child_name)
+{
+    ImGuiContext *context = ImGui::GetCurrentContext();
+    for (int index = 0; index < context->Windows.Size; ++index)
+    {
+        ImGuiWindow *window = context->Windows[index];
+        if (window->Active && window->ParentWindow && strstr(window->Name, child_name)) return true;
+    }
+    return false;
 }
 
 /* 進行 of the map menu. M22: if units of the player have not acted, the
@@ -504,6 +583,130 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(v.text.stats.name_lookups - before.name_lookups, 16ull);           /* family and given name of each row and of its ruler */
         IM_CHECK_EQ(v.text.stats.decoded_names - before.decoded_names, 8ull);          /* zh-TW has no names file: Big5 decode; the given names are empty */
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* docs/EUROPE.md, E2: an officer of a pack has a name by English key. */
+    t = IM_REGISTER_TEST(e, "ui", "officers_panel_names_an_officer_of_a_pack_by_its_english_key_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 2;
+        v.recorder.officer_key   = "philip_ii";
+        text_catalog_use_game_pack(&v.text, "medieval_europe");
+        IM_CHECK_STR_EQ(v.text.locale, "en");   /* pack.tsv of the pack */
+        ctx->SetRef("###Officers");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        engine_officer philip = v.api.officer_at(v.api.engine, 0), other = v.api.officer_at(v.api.engine, 1);
+        char name[UI_NAME_SIZE * 2];
+        ui_officer_name(&v.ui, &philip, name, sizeof(name));
+        IM_CHECK_STR_EQ(name, "Philip II Augustus");
+        ui_officer_name(&v.ui, &other, name, sizeof(name));
+        IM_CHECK(strcmp(name, "Philip II Augustus") != 0 && name[0]);   /* no key: the Big5 bytes */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        text_catalog_use_game_pack(&v.text, HEXDOM_CONTENT_PACK);
+        IM_CHECK_STR_EQ(v.text.locale, "zh-TW");   /* pack.tsv of the placeholder pack */
+    };
+
+    /* docs/EUROPE.md, E3: the Names choice of the Settings panel. */
+    t = IM_REGISTER_TEST(e, "ui", "names_choice_of_the_settings_panel_shows_the_native_name_of_an_officer_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 1;
+        v.recorder.officer_key   = "philip_ii";
+        v.ui.show_settings       = true;
+        text_catalog_use_game_pack(&v.text, "medieval_europe");
+        IM_CHECK(!v.text.native_names);   /* the default is English */
+        ctx->SetRef("###Settings");
+        ctx->Yield(2);
+        engine_officer philip = v.api.officer_at(v.api.engine, 0);
+        char name[UI_NAME_SIZE * 2];
+        ui_officer_name(&v.ui, &philip, name, sizeof(name));
+        IM_CHECK_STR_EQ(name, "Philip II Augustus");
+
+        recorder_reset(&v.recorder);
+        u32 loads = v.text.load_count;
+        ctx->ComboClick("###Names/###names_native");
+        ctx->Yield(2);
+        IM_CHECK(v.text.native_names);
+        ui_officer_name(&v.ui, &philip, name, sizeof(name));
+        IM_CHECK_STR_EQ(name, "Philippe II Auguste");
+        IM_CHECK_EQ(v.text.load_count, loads);   /* no file loads for the choice */
+
+        ctx->ComboClick("###Names/###names_english");
+        ctx->Yield(2);
+        IM_CHECK(!v.text.native_names);
+        ui_officer_name(&v.ui, &philip, name, sizeof(name));
+        IM_CHECK_STR_EQ(name, "Philip II Augustus");
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);   /* the Names choice is a front end setting */
+        text_catalog_use_game_pack(&v.text, HEXDOM_CONTENT_PACK);
+    };
+
+    /* docs/EUROPE.md, E4: the life of an officer and the Wikipedia button in 武將情報. */
+    t = IM_REGISTER_TEST(e, "ui", "officer_panel_shows_the_life_and_the_wikipedia_button_opens_the_link_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 1;
+        v.recorder.officer_key   = "philip_ii";
+        v.frame.open_url         = ui_test_open_url;
+        v.ui.hud_mode            = true;
+        text_catalog_use_game_pack(&v.text, "medieval_europe");
+        g_ui_test_open_url_calls = 0;
+        ctx->Yield();
+        ui_info_open(&v.ui, &v.api, UI_INFO_OFFICERS, false);
+        ctx->Yield(2);
+        ui_test_click_info_row(ctx, "//###InfoTable/**/###info_row100");
+        ctx->Yield(2);
+        IM_CHECK(v.ui.info.detail && v.ui.info.detail_id == 100);
+        IM_CHECK(ui_test_child_active("###officer_life"));   /* the life shows under the abilities */
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("//###InfoDetail/**/###officer_wikipedia");
+        ctx->Yield();
+        IM_CHECK_EQ(g_ui_test_open_url_calls, 1u);
+        IM_CHECK_STR_EQ(g_ui_test_open_url_last, "https://en.wikipedia.org/wiki/Philip_II_of_France");
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);   /* the button is a front end action */
+        text_catalog_use_game_pack(&v.text, HEXDOM_CONTENT_PACK);
+    };
+
+    /* An officer without a key shows no life and no button. An officer with a life and without an article shows the life only. */
+    t = IM_REGISTER_TEST(e, "ui", "officer_panel_shows_no_button_without_a_link_and_no_text_without_a_life");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 1;
+        v.recorder.officer_key   = "guerin";   /* a life, and the article column is "-" */
+        v.frame.open_url         = ui_test_open_url;
+        v.ui.hud_mode            = true;
+        text_catalog_use_game_pack(&v.text, "medieval_europe");
+        ctx->Yield();
+        ui_info_open(&v.ui, &v.api, UI_INFO_OFFICERS, false);
+        ctx->Yield(2);
+        ui_test_click_info_row(ctx, "//###InfoTable/**/###info_row100");
+        ctx->Yield(2);
+        IM_CHECK(ui_test_child_active("###officer_life"));
+        IM_CHECK(!ctx->ItemExists("//###InfoDetail/**/###officer_wikipedia"));
+
+        v.recorder.officer_key = 0;   /* a save officer: no key, so no life and no link */
+        ctx->Yield(2);
+        IM_CHECK(!ui_test_child_active("###officer_life"));
+        IM_CHECK(!ctx->ItemExists("//###InfoDetail/**/###officer_wikipedia"));
+
+        text_catalog_use_game_pack(&v.text, HEXDOM_CONTENT_PACK);
+        v.recorder.officer_key = "philip_ii";
+        ctx->Yield(2);
+        IM_CHECK(!ui_test_child_active("###officer_life"));   /* the Three Kingdoms pack has no lives */
+        IM_CHECK(!ctx->ItemExists("//###InfoDetail/**/###officer_wikipedia"));
     };
 
     t = IM_REGISTER_TEST(e, "ui", "cities_panel_shows_names_through_the_text_module_and_commands_nothing");
@@ -4081,6 +4284,122 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(v.ui.city.selected, 0u);
         IM_CHECK(ctx->ItemExists("###open_develop"));
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* A shared game (docs/MULTIPLAYER.md, MP1): the faction of the city acts,
+       but the seat of another player commands it. */
+    t = IM_REGISTER_TEST(e, "ui", "city_panel_gives_no_command_when_the_seat_of_another_player_acts");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count            = 3;
+        v.recorder.city_count               = 2;
+        v.recorder.multiplayer.shared       = true;
+        v.recorder.multiplayer.local_force  = 2;
+        v.recorder.multiplayer.acting_force = 1;
+        v.recorder.multiplayer.local_acts   = false;
+        v.ui.show_city                      = true;
+        ctx->SetRef("###City");
+        ctx->Yield(2);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_MULTIPLAYER_INFO), 1u);
+        IM_CHECK(!ctx->ItemExists("###open_develop"));                                     /* city 0 belongs to the faction that acts */
+        IM_CHECK(!ctx->ItemExists("###open_patrol"));
+        IM_CHECK(!ctx->ItemExists("###open_sortie"));
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        v.recorder.multiplayer.local_acts = true;                                          /* the turn of the local seat */
+        ctx->Yield(2);
+        IM_CHECK(ctx->ItemExists("###open_develop"));
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* MP3: the banner of a shared game names the player whose faction acts. */
+    t = IM_REGISTER_TEST(e, "ui", "net_banner_names_the_player_whose_faction_acts");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.multiplayer.shared       = true;
+        v.recorder.multiplayer.local_force  = 2;
+        v.recorder.multiplayer.acting_force = 1;
+        v.ui.net.seat_count     = 2;
+        v.ui.net.seat_force[0]  = 1;
+        v.ui.net.seat_force[1]  = 2;
+        snprintf(v.ui.net.seat_player[0], UI_NET_NAME_SIZE, "Liu");
+        snprintf(v.ui.net.seat_player[1], UI_NET_NAME_SIZE, "Tester");
+        ctx->Yield(2);
+        ImGuiTestItemInfo turn = ctx->ItemInfo("//###NetBanner/###net_turn");
+        IM_CHECK(turn.ID != 0 && strstr(turn.DebugLabel, "Liu") != 0);
+        v.recorder.multiplayer.acting_force = 2;                     /* the faction of the local seat */
+        ctx->Yield(2);
+        IM_CHECK(strstr(ctx->ItemInfo("//###NetBanner/###net_turn").DebugLabel, "Liu") == 0);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* MP3: the join of the page loads the start image and begins the shared game;
+       a step of the page applies, and the UI reports its checksum. */
+    t = IM_REGISTER_TEST(e, "ui", "net_join_loads_the_start_image_and_a_step_reports_its_checksum");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_test_net_reset();
+        v.frame.net_send = ui_test_net_send;
+        v.frame.net_poll = ui_test_net_poll;
+        static const u8 image[16] = { 1, 2, 3 };
+        platform_net_event join = {};
+        join.kind = PLATFORM_NET_JOIN;
+        join.seat = 1;
+        join.host = true;
+        join.data = image;
+        join.size = sizeof(image);
+        join.text = "1\tTester\n2\t\n";
+        ui_test_net_queue(join);
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOAD_START_IMAGE), 1u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_MULTIPLAYER_BEGIN), 1u | 1u << 8);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_SET_FACTION_HUMAN), 1u);   /* the faction of the recorder has a player */
+        IM_CHECK(v.ui.net.joined && v.ui.hud_mode && !v.ui.show_title);
+        IM_CHECK(g_ui_test_net.sent_count == 1 && g_ui_test_net.sent[0].kind == PLATFORM_NET_CHECKSUM && g_ui_test_net.sent[0].step == -1);
+
+        static const u8 bytes[24] = { 1 };
+        platform_net_event step = {};
+        step.kind = PLATFORM_NET_STEP;
+        step.step = 0;
+        step.data = bytes;
+        step.size = sizeof(bytes);
+        ui_test_net_queue(step);
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_STEP_APPLY), (u32)sizeof(bytes));
+        IM_CHECK(g_ui_test_net.sent_count == 2 && g_ui_test_net.sent[1].kind == PLATFORM_NET_CHECKSUM && g_ui_test_net.sent[1].step == 0);
+    };
+
+    /* MP3: "Play online" gives the start image and the chosen rulers to the page. */
+    t = IM_REGISTER_TEST(e, "ui", "play_online_sends_the_start_image_and_the_seats_to_the_page");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_test_net_reset();
+        v.frame.net_send = ui_test_net_send;
+        v.frame.net_poll = ui_test_net_poll;
+        v.frame.frame_arena = &g_ui_test_net.arena;
+        v.ui.show_start_settings = true;
+        v.ui.game.rulers         = 1ull << 1;
+        ctx->SetRef("###StartSettings");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###start_online");
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_SET_SETTINGS), 1u);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_START_IMAGE), 1u);
+        IM_CHECK(g_ui_test_net.sent_count == 1 && g_ui_test_net.sent[0].kind == PLATFORM_NET_HOST && g_ui_test_net.sent[0].size == 16);
+        IM_CHECK(strncmp(g_ui_test_net.text, "1\t", 2) == 0);         /* one line for the chosen ruler, force 1 */
+        IM_CHECK(v.ui.net.waiting);
     };
 
     t = IM_REGISTER_TEST(e, "ui", "city_panel_greys_a_button_that_the_action_points_refuse");

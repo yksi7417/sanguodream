@@ -201,11 +201,25 @@ wasm_test_state(void)
     game_state *game = wasm_test_game();
     engine_api *api  = &game->api;
     engine_map_info map = api->map_info(api->engine);
+    engine_multiplayer_info shared = api->multiplayer_info(api->engine);   /* MP3: the tests of a shared game */
     snprintf(g_test_reply, sizeof(g_test_reply),
-             "{\"camera_x\":%.2f,\"camera_z\":%.2f,\"city\":%u,\"unit\":%u,\"turn\":%u,\"whose_turn\":%u,\"map_width\":%u,\"map_height\":%u}",
+             "{\"camera_x\":%.2f,\"camera_z\":%.2f,\"city\":%u,\"unit\":%u,\"turn\":%u,\"whose_turn\":%u,\"map_width\":%u,\"map_height\":%u,"
+             "\"shared\":%d,\"local_force\":%u,\"local_acts\":%d,\"steps\":%u,\"checksum\":\"%016llx\",\"net_error\":\"%s\"}",
              game->ui.scene.cam.target.x, game->ui.scene.cam.target.z, (u32)game->ui.city.selected,
-             game->ui.units.selected, api->turn(api->engine), (u32)api->whose_turn(api->engine), map.width, map.height);
+             game->ui.units.selected, api->turn(api->engine), (u32)api->whose_turn(api->engine), map.width, map.height,
+             shared.shared ? 1 : 0, (u32)shared.local_force, shared.local_acts ? 1 : 0, shared.step_count,
+             (unsigned long long)api->state_checksum(api->engine), game->ui.net.error);
     return g_test_reply;
+}
+
+/* MP3: the faction of the local seat ends its turn, as 進行 of the map menu
+   does. The step goes to the room in the same frame (ui_multiplayer.cpp).
+   The reply is the command id; 0 when the engine refused it. */
+extern "C" EMSCRIPTEN_KEEPALIVE int
+wasm_test_end_turn(void)
+{
+    game_state *game = wasm_test_game();
+    return (int)game->api.end_turn(game->api.engine);
 }
 
 /* A unit of the player two hexes from an enemy base: the test moves it

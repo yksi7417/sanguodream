@@ -56,6 +56,8 @@ game_create_engine(game_state *game, game_memory *memory, const char *pack)
     }
     game->backend = engine_create(&game->engine_arena, &game->transient, config);
     game->api     = engine_make_api(game->backend);
+    /* docs/EUROPE.md, E1 and E2: the names of the pack by English key, and its default locale. */
+    text_catalog_use_game_pack(&game->text, pack && pack[0] ? pack : HEXDOM_CONTENT_PACK);
 }
 
 /* The UI at the title menu. A new engine starts a new UI too, because the
@@ -100,10 +102,13 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                           memory->platform.read_entire_file, HEXDOM_DATA_ROOT, HEXDOM_CONTENT_PACK,
                           HEXDOM_FALLBACK_LOCALE);
         text_catalog_set_locale(&game->text, HEXDOM_DEFAULT_LOCALE);
-        memory->platform.log(text_catalog_has_strings(&game->text) ? "hexdom: locale zh-TW loaded"
-                                                                   : "hexdom: no strings file for zh-TW; the UI shows ids");
         game->engine_arena = arena_sub(&game->permanent, game->permanent.size - game->permanent.used);
-        game_create_engine(game, memory, memory->content_pack);
+        game_create_engine(game, memory, memory->content_pack);   /* pack.tsv of the pack can change the locale (docs/EUROPE.md, E1) */
+        char locale_line[96];
+        snprintf(locale_line, sizeof(locale_line), text_catalog_has_strings(&game->text) ? "hexdom: locale %s loaded"
+                                                                                         : "hexdom: no strings file for %s; the UI shows ids",
+                 game->text.locale);
+        memory->platform.log(locale_line);
         game_start_ui(game);   /* the platform gives a zeroed block: font_size is 0, so the UI takes its default */
 
         memory->platform.log("hexdom: game state initialized");
@@ -128,6 +133,9 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     frame_info.portraits        = memory->platform.portraits;
     frame_info.portrait_texture = memory->platform.portrait_texture;
     frame_info.face_texture     = memory->platform.face_texture;
+    frame_info.net_send         = memory->platform.net_send;
+    frame_info.net_poll         = memory->platform.net_poll;
+    frame_info.open_url         = memory->platform.open_url;
     ui_draw(&game->ui, &game->api, &frame_info);
     if (game->ui.game.pack_request[0])
     {

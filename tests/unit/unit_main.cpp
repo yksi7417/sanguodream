@@ -52,6 +52,7 @@
 #include "playable_tests.cpp"
 #include "map_tests.cpp"
 #include "faction_colour_tests.cpp"
+#include "wire_tests.cpp"     /* the step codec of a shared game */
 
 int
 main(void)
@@ -182,6 +183,10 @@ main(void)
     unit_faction_colour_tests(&colours, &arena);
     failed |= test_report("unit/faction_colours", &colours);
     test_arena_destroy(&arena);
+
+    test_counts wire = {};
+    unit_wire_tests(&wire);
+    failed |= test_report("unit/wire", &wire);
 
     printf(failed ? "RESULT FAIL\n" : "RESULT PASS\n");
     return failed;

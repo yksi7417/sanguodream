@@ -134,6 +134,7 @@ engine_api_command_research(void *opaque, u8 city_id, u8 technique, const u16 of
     engine_command_result result = {};
     sim_research_order order = engine_research_order(city_id, technique, officers);
     result.refusal = sim_check_research(e->sim, &order).refusal;
+    if (result.refusal == SIM_REFUSAL_NONE) result.refusal = engine_seat_refusal(e, SIM_COMMAND_RESEARCH);
     if (result.refusal != SIM_REFUSAL_NONE) return result;
     sim_command command = sim_make_command(e->sim, SIM_COMMAND_RESEARCH);
     command.research = order;
@@ -149,6 +150,7 @@ engine_api_command_merge(void *opaque, u8 city_id, u8 absorber, u8 absorbed, u16
     engine_command_result result = {};
     sim_merge_order order = engine_merge_order(city_id, absorber, absorbed, officer);
     result.refusal = sim_check_merge(e->sim, &order).refusal;
+    if (result.refusal == SIM_REFUSAL_NONE) result.refusal = engine_seat_refusal(e, SIM_COMMAND_MERGE);
     if (result.refusal != SIM_REFUSAL_NONE) return result;
     sim_command command = sim_make_command(e->sim, SIM_COMMAND_MERGE);
     command.merge = order;
@@ -166,6 +168,7 @@ engine_api_start_disaster(void *opaque, u8 city_id, u8 disaster)
     order.city_id  = city_id;
     order.disaster = disaster;
     result.refusal = sim_check_start_disaster(e->sim, &order);
+    if (result.refusal == SIM_REFUSAL_NONE) result.refusal = engine_seat_refusal(e, SIM_COMMAND_START_DISASTER);
     if (result.refusal != SIM_REFUSAL_NONE) return result;
     sim_command command = sim_make_command(e->sim, SIM_COMMAND_START_DISASTER);
     command.disaster = order;
@@ -178,6 +181,8 @@ engine_api_start_disaster(void *opaque, u8 city_id, u8 disaster)
 internal void
 engine_api_set_settings(void *opaque, engine_settings settings)
 {
+    engine *e = (engine *)opaque;
+    if (engine_setter_locked(e) && !e->multiplayer.host) return;   /* a shared game: only the host, and the change is a step */
     engine_game_replay_pending pending = engine_game_replay_begin_step((engine *)opaque, false);
     ((engine *)opaque)->sim->settings.disasters      = settings.disasters;
     ((engine *)opaque)->sim->settings.ability_change = settings.ability_change;
@@ -205,6 +210,7 @@ engine_api_grant_technique(void *opaque, u8 force_id, u8 technique)
 internal void
 engine_api_set_technique_points(void *opaque, u8 force_id, u32 points)
 {
+    if (engine_setter_locked((engine *)opaque)) return;   /* a shared game: no setter */
     if (force_id != SIM_NO_FORCE) ((engine *)opaque)->sim->technique_points[force_id] = points;
 }
 
@@ -213,6 +219,7 @@ engine_api_set_technique_points(void *opaque, u8 force_id, u32 points)
 internal void
 engine_api_set_date(void *opaque, u16 year, u8 month, u8 day)
 {
+    if (engine_setter_locked((engine *)opaque)) return;   /* a shared game: no setter */
     if (month < 1 || month > 12 || (day != 1 && day != 11 && day != 21)) return;
     ((engine *)opaque)->sim->turns.date = calendar_make(year, month, day);
 }

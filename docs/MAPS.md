@@ -247,9 +247,9 @@ starts the engine of that pack first.
 | W5 | Better data: Itiner-e roads, city sizes from Bosker-Buringh, the Koppen climate for the terrain | Roads and forests closer to history |
 | W6 | One pack for each planned game | The games of the table above |
 
-W3 and W4 are necessary for the large regions. A pack scenario has no
-English names yet. The English UI shows the Chinese names, because the
-names/en.tsv of the placeholder pack has only the Three Kingdoms names.
+W3 and W4 are necessary for the large regions. A pack scenario has its
+English names in names/en.tsv of the pack, by English key. The pack names
+its default locale in pack.tsv (docs/EUROPE.md, E1 and E2).
 
 ## The regions of the planned games
 The table gives the hexes at the scale of the placeholder map, 11 km
@@ -259,6 +259,8 @@ larger hexes. A region with many more than 42 important cities needs W3.
 | Game | Area | Hexes at 11 km | Advice |
 |---|---|---|---|
 | medieval_europe | 4500 km x 3000 km | approximately 125000 | Done with 13.6 km hexes and 42 cities |
+| medieval_west | 2100 km x 2800 km | approximately 56000 | The west half of 1200 (docs/EUROPE.md, E8) |
+| medieval_east | 3300 km x 2300 km | approximately 72000 | The east half of 1200 (docs/EUROPE.md, E8) |
 | Thirty Years War | 4700 km x 2800 km | approximately 125000 | Needs W3: the Empire alone has more than 42 important towns |
 | American Revolution | Two theatres | 31000 for the Thirteen Colonies | Make two maps. The Atlantic is 5000 km and has no hexes of interest. A sea voyage between the maps is an event, not a march. |
 | East Asia | 6000 km x 5000 km | approximately 300000 | Needs W3 and W4, or one map for each subregion |

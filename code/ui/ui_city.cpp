@@ -27,6 +27,7 @@ ui_text_with_key(ui_state *ui, const char *prefix, const char *key)
 internal const char *
 ui_base_name(ui_state *ui, engine_api *api, const engine_base *base, char *out, u32 out_size)
 {
+    if (ui_key_name(ui, "base", base->key, out, out_size)) return out;   /* the names of the game pack (docs/EUROPE.md, E2) */
     char id[64];
     snprintf(id, sizeof(id), "base.%s", base->key);
     const char *text = text_get(ui->text, id);
@@ -75,7 +76,10 @@ ui_city_label(ui_state *ui, engine_api *api, u8 city_id, char *out, u32 out_size
     }
     engine_city_name name = api->city_name_at(api->engine, city_id);
     char decoded[UI_NAME_SIZE] = "";
-    if (name.city_id != ENGINE_NO_CITY) text_name(ui->text, name.name, sizeof(name.name), decoded, sizeof(decoded));
+    if (name.city_id != ENGINE_NO_CITY && !ui_key_name(ui, "city", name.key, decoded, sizeof(decoded)))
+    {
+        text_name(ui->text, name.name, sizeof(name.name), decoded, sizeof(decoded));
+    }
     if (!decoded[0])       snprintf(out, out_size, "%u", city_id);
     else if (ui->show_raw) snprintf(out, out_size, "%u %s", city_id, decoded);
     else                   snprintf(out, out_size, "%s", decoded);
@@ -190,6 +194,16 @@ ui_city_button(ui_state *ui, const char *text_id, const char *stable_id, sim_ref
    command the action points or the gold do not allow is grey. */
 internal void ui_draw_base_menu(ui_state *ui, engine_api *api, u16 first_officer);   /* ui_base_menu.cpp */
 
+/* A shared game (docs/MULTIPLAYER.md): the faction that acts can belong to
+   the seat of another player. Then the panels give no command. Outside a
+   shared game the local player commands each human faction. */
+internal b32
+ui_local_seat_acts(engine_api *api)
+{
+    engine_multiplayer_info info = api->multiplayer_info(api->engine);
+    return !info.shared || info.local_acts;
+}
+
 internal void
 ui_draw_city_buttons(ui_state *ui, engine_api *api, engine_city *city)
 {
@@ -197,6 +211,11 @@ ui_draw_city_buttons(ui_state *ui, engine_api *api, engine_city *city)
     if (city->owner_force_id == ENGINE_NO_FACTION || city->owner_force_id != acting)
     {
         ImGui::TextDisabled("%s", text_get(ui->text, "city.not_yours"));
+        return;
+    }
+    if (!ui_local_seat_acts(api))
+    {
+        ImGui::TextDisabled("%s", text_get(ui->text, "city.not_your_seat"));
         return;
     }
     u16 first_officer = ENGINE_NO_OFFICER;

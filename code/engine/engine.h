@@ -61,6 +61,7 @@ struct engine_officer
     b32 acted;                      /* the officer gave a command in this turn */
     u8  travel_city;                /* on the road after 移動 or 召喚: the city; ENGINE_NO_CITY if not */
     u32 travel_days;                /* the days until the arrival; 0 if not on the road */
+    char key[CONTENT_KEY_SIZE];     /* the English key of the pack, for example "philip_ii"; "" for a record of a save (docs/EUROPE.md, E2) */
 };
 
 /* A city of the loaded game, as a front end sees it. */
@@ -86,6 +87,7 @@ struct engine_city_name
 {
     u8 city_id;                           /* ENGINE_NO_CITY if no name index is loaded or the id is out of range */
     u8 name[NAME_INDEX_CITY_NAME_SIZE];
+    char key[CONTENT_KEY_SIZE];           /* the English key of the pack, for example "paris"; "" if the pack has none (docs/EUROPE.md, E2) */
 };
 
 /* What the subject of a ledger event is: the city or the officer behind
@@ -210,6 +212,7 @@ struct engine_faction
     u32 action_points;
     b32 human;              /* a player gives its commands; else the AI placeholder passes */
     b32 acted;              /* it pressed "proceed" (or passed) in this turn */
+    char key[CONTENT_KEY_SIZE];   /* the English key of the pack, for example "france"; "" for a faction of a save (docs/EUROPE.md, E2) */
 };
 
 /* The order of 出征 and 輸送 (city-commands.md). */
@@ -750,6 +753,15 @@ struct engine_save_slot
     u8   month, day;
     u8   player;                  /* the faction that acted when the game was saved */
     u32  turn;
+};
+
+/* The pack of a save slot (docs/MAPS.md). The save file holds engine_save_slot
+   in its header, so the pack stays out of it: it comes from slot_NN.meta. */
+struct engine_slot_pack
+{
+    char pack[CONTENT_KEY_SIZE];  /* "" for a save of this pack. Else the pack of slot_NN.meta: load_game refuses
+                                     the slot, and the front end starts the engine of that pack first.
+                                     A save without the .meta file is a save of HEXDOM_CONTENT_PACK */
 };
 
 /* ---- M9: new officers and the PK ability chart ---------------------------- */
@@ -1389,6 +1401,7 @@ typedef engine_save_status engine_save_game_fn(void *engine, u32 slot, const cha
 typedef engine_save_status engine_load_game_fn(void *engine, u32 slot);
 typedef engine_save_slot   engine_save_slot_fn(void *engine, u32 slot);
 typedef void               engine_refresh_save_slots_fn(void *engine);
+typedef engine_slot_pack   engine_slot_pack_fn(void *engine, u32 slot);   /* from the list of refresh_save_slots */
 /* M9 new officers and the PK chart. create_officer is a start-menu and
    editor command; it ledgers OFFICER_CREATED. */
 typedef u32                  engine_chart_count_fn(void *engine);
@@ -1699,6 +1712,84 @@ typedef void                    engine_game_replay_close_fn(void *engine);   /* 
 /* The first step in this turn or later: the view of it shows the start of the turn. */
 typedef u32                     engine_game_replay_turn_step_fn(void *engine, u32 turn);
 
+/* A shared game (docs/MULTIPLAYER.md; engine_multiplayer.cpp). Each
+   browser runs its own engine. The engine of the player who acts is the
+   author of each step of that player. It runs the step at once and puts
+   the bytes of the step in a queue for the network. The other engines
+   apply the bytes with step_apply. Each engine compares its checksum
+   after the step with the checksums of the other engines.
+
+   In a shared game, the engine refuses a command with
+   ENGINE_REFUSAL_NOT_YOUR_SEAT when another seat acts. When no faction
+   acts, or a faction without a player acts, only the host can end the
+   turn. The setters and the editor commands change nothing, because they
+   are not steps. Only a step that step_apply gets can change the human
+   factions. Only the host can change the settings, and each change is a
+   step. The engine does not lock a load yet: in MP5 the front end turns
+   off the load menu of a shared game. */
+#define ENGINE_REFUSAL_NOT_YOUR_SEAT SIM_REFUSAL_NOT_YOUR_SEAT
+#define ENGINE_STEP_WIRE_CAPACITY    1024   /* the bytes of one step on the wire, at most */
+#define ENGINE_STEP_QUEUE_CAPACITY   64     /* the steps that wait for the network */
+
+struct engine_multiplayer_info
+{
+    b32 shared;         /* multiplayer_begin ran, and multiplayer_end did not */
+    b32 host;
+    u8  local_force;    /* the faction of the local seat; ENGINE_NO_FACTION for a spectator */
+    u8  acting_force;   /* whose_turn */
+    b32 local_acts;     /* the local seat can command now. Outside a shared game it is always true. */
+    u32 step_count;     /* the steps of the shared game that this engine made or applied */
+    u32 outgoing;       /* the steps that wait in the queue */
+    b32 overflow;       /* the queue was full: a step did not go to the network. The game must load again. */
+};
+
+/* One step from the queue: its bytes are in the buffer of the caller. */
+struct engine_outgoing_step
+{
+    u32 size;           /* 0: no step waits, or the buffer is too short and the step stays in the queue */
+    u32 step;           /* the number of the step in the shared game of this engine, from 0 */
+    u64 checksum;       /* the state after the step */
+    u8  acting;         /* the faction that acts after the step; ENGINE_NO_FACTION if none. The checksum message names it. */
+};
+
+enum engine_step_apply_status
+{
+    ENGINE_STEP_APPLIED,
+    ENGINE_STEP_NOT_SHARED,     /* no shared game runs */
+    ENGINE_STEP_BAD_BYTES,      /* the bytes are short, of another version, or of an unknown kind */
+    ENGINE_STEP_KIND_REFUSED,   /* a load, an editor command or a test command: no step of a shared game */
+    ENGINE_STEP_APPLY_STATUS_COUNT
+};
+
+struct engine_step_apply_result
+{
+    u8  status;         /* engine_step_apply_status */
+    u8  kind;           /* engine_step_kind */
+    u64 checksum;       /* the state after the step; the state before it if the status is not APPLIED */
+};
+
+/* local_force is the faction of the local seat, or ENGINE_NO_FACTION for a
+   spectator. The human factions come from set_faction_human before the
+   start. begin also empties the queue. */
+typedef void                     engine_multiplayer_begin_fn(void *engine, u8 local_force, b32 host);
+typedef void                     engine_multiplayer_end_fn(void *engine);
+typedef engine_multiplayer_info  engine_multiplayer_info_fn(void *engine);
+/* Takes the oldest step of the queue into buffer. */
+typedef engine_outgoing_step     engine_steps_outgoing_fn(void *engine, u8 *buffer, u32 capacity);
+typedef engine_step_apply_result engine_step_apply_fn(void *engine, const u8 *bytes, u32 size);
+typedef u64                      engine_state_checksum_fn(void *engine);   /* the checksum of the replay record (docs/REPLAY.md) */
+/* The PRNG state of the sim. A host sets the seed of the server before the
+   start. In a shared game it changes nothing. */
+typedef void                     engine_set_seed_fn(void *engine, u64 seed);
+/* The start image of a shared game (MP3): the host writes the state with its
+   ledger, and each guest loads it before multiplayer_begin. The two engines
+   then have the same checksum. start_image gives 0 if the buffer is too
+   short. load_start_image starts a new replay record, and it changes
+   nothing in a shared game. */
+typedef u32                      engine_start_image_size_fn(void *engine);
+typedef u32                      engine_start_image_fn(void *engine, u8 *buffer, u32 capacity);
+typedef b32                      engine_load_start_image_fn(void *engine, const u8 *bytes, u32 size);
+
 struct engine_api
 {
     void *engine;
@@ -1888,6 +1979,7 @@ struct engine_api
     engine_load_game_fn             *load_game;
     engine_save_slot_fn             *save_slot;
     engine_refresh_save_slots_fn    *refresh_save_slots;
+    engine_slot_pack_fn             *slot_pack;
     /* M9 new officers and the PK chart */
     engine_chart_count_fn           *chart_count;
     engine_chart_row_at_fn          *chart_row_at;
@@ -1937,6 +2029,17 @@ struct engine_api
     engine_game_replay_view_fn       *game_replay_view;
     engine_game_replay_close_fn      *game_replay_close;
     engine_game_replay_turn_step_fn  *game_replay_turn_step;
+    /* A shared game */
+    engine_multiplayer_begin_fn      *multiplayer_begin;
+    engine_multiplayer_end_fn        *multiplayer_end;
+    engine_multiplayer_info_fn       *multiplayer_info;
+    engine_steps_outgoing_fn         *steps_outgoing;
+    engine_step_apply_fn             *step_apply;
+    engine_state_checksum_fn         *state_checksum;
+    engine_set_seed_fn               *set_seed;
+    engine_start_image_size_fn       *start_image_size;
+    engine_start_image_fn            *start_image;
+    engine_load_start_image_fn       *load_start_image;
 };
 
 #define ENGINE_NO_BASE 0xFFFFFFFFu

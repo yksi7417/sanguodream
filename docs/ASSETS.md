@@ -26,9 +26,15 @@ font shows Latin only, and the log gives the name of the absent file.
 |---|---|---|---|---|
 | NotoSansCJKtc-Regular.otf | Latin, Vietnamese, CJK ideographs, kana, Hangul, CJK punctuation | https://github.com/notofonts/noto-cjk, Sans/OTF/TraditionalChinese | SIL Open Font License 1.1, OFL-NotoSansCJK.txt | 16.4 MB |
 | NotoSansThai-Regular.ttf | Thai | https://github.com/notofonts/notofonts.github.io, fonts/NotoSansThai/hinted/ttf | SIL Open Font License 1.1, OFL-NotoSansThai.txt | 37 KB |
+| NotoSans-Regular.ttf | Latin Extended-A and B, spacing modifier letters, combining marks, Latin Extended Additional (E3: "ł", "ř", "ṣ") | https://github.com/notofonts/notofonts.github.io, fonts/NotoSans/hinted/ttf | SIL Open Font License 1.1, OFL-NotoSans.txt | 622 KB |
+
+The CJK font lacks six letters of the native names of docs/EUROPE.md, E3. These
+letters are U+0142, U+0159, U+02BF, U+1E25, U+1E63 and U+1E93. The loader merges
+NotoSans-Regular.ttf for the Latin Extended ranges, so that each letter has a glyph.
 
 SHA-256 of the files in the repository:
 - NotoSansCJKtc-Regular.otf: dce08bd4fd91aa8aa76ed8fea4b694c2dfb8550f67871e326843212ddbeb88b4
+- NotoSans-Regular.ttf: 478c558ea716033cd60c03438f628dfa75694dcf6b5f6d505a2f05fd2b4f3823
 - NotoSansThai-Regular.ttf: 61cf814eec46b294d6ea4401ac295d0cecd5207bd2331dcc5a15e7301d30ee44
 
 ### Fonts that qualify
@@ -48,7 +54,7 @@ These fonts do not qualify:
 ### How the loader selects the glyphs
 ImGui 1.91 puts each glyph into one texture before the first frame. The
 loader does not add all of the 65,000 glyphs of the font. It adds:
-1. Latin, Latin-1 and Vietnamese.
+1. Latin, Latin-1, Vietnamese and Latin Extended.
 2. Thai, kana, CJK punctuation and the full-width forms.
 3. Each code point of the Big5 table. These are the characters of the
    zh-TW names.
@@ -64,6 +70,7 @@ If data/fonts does not have the font files, get them again:
 ```
 curl -L -o data\fonts\NotoSansCJKtc-Regular.otf https://github.com/notofonts/noto-cjk/raw/main/Sans/OTF/TraditionalChinese/NotoSansCJKtc-Regular.otf
 curl -L -o data\fonts\NotoSansThai-Regular.ttf https://github.com/notofonts/notofonts.github.io/raw/main/fonts/NotoSansThai/hinted/ttf/NotoSansThai-Regular.ttf
+curl -L -o data\fonts\NotoSans-Regular.ttf https://github.com/notofonts/notofonts.github.io/raw/main/fonts/NotoSans/hinted/ttf/NotoSans-Regular.ttf
 ```
 Then compare the SHA-256 values with the values above.
 

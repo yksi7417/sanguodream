@@ -341,6 +341,7 @@ engine_run_m8(engine *e, sim_command_kind kind, sim_m8_order order)
         case SIM_COMMAND_TRIGGER_EVENT: result.refusal = sim_check_trigger_event(e->sim, &order).refusal; break;
         default:                        result.refusal = SIM_REFUSAL_NO_EVENT;                            break;
     }
+    if (result.refusal == SIM_REFUSAL_NONE) result.refusal = engine_seat_refusal(e, kind);
     if (result.refusal != SIM_REFUSAL_NONE) return result;
     sim_command command = sim_make_command(e->sim, kind);
     command.m8 = order;
@@ -357,6 +358,7 @@ engine_api_command_corps(void *opaque, const sim_corps_order *order)
     if (!order) { result.refusal = SIM_REFUSAL_NO_CORPS; return result; }
     sim_corps_order copy = *order;
     result.refusal = sim_check_corps(e->sim, &copy).refusal;
+    if (result.refusal == SIM_REFUSAL_NONE) result.refusal = engine_seat_refusal(e, SIM_COMMAND_CORPS);
     if (result.refusal != SIM_REFUSAL_NONE) return result;
     sim_command command = sim_make_command(e->sim, SIM_COMMAND_CORPS);
     command.corps = copy;
@@ -398,6 +400,7 @@ engine_api_trigger_event(void *opaque, u8 event, u8 force_id, u8 city_id, u16 of
 internal void
 engine_api_set_emperor(void *opaque, u8 who, u8 city_id)
 {
+    if (engine_setter_locked((engine *)opaque)) return;   /* a shared game: no setter */
     sim_state *sim = ((engine *)opaque)->sim;
     sim->emperor.who  = who < EMPEROR_KIND_COUNT ? who : (u8)EMPEROR_NONE;
     sim->emperor.city = sim_find_city(sim, city_id) ? city_id : (u8)SIM_NO_CITY;
@@ -406,6 +409,7 @@ engine_api_set_emperor(void *opaque, u8 who, u8 city_id)
 internal void
 engine_api_set_base(void *opaque, u32 index, u8 force_id, u32 troops, u32 durability)
 {
+    if (engine_setter_locked((engine *)opaque)) return;   /* a shared game: no setter */
     sim_state *sim = ((engine *)opaque)->sim;
     sim_base_state *base = sim_find_base(sim, index);
     if (!base) return;

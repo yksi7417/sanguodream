@@ -100,6 +100,7 @@ A member is a user who did these two steps:
 | web/storage.py | The records of the users and the saves, in an S3 bucket or in a local folder. |
 | web/broadcast.py | The YouTube broadcast, an option. |
 | web/game_files.py | index.wasm and index.data in the bucket, and their presigned addresses for the members |
+| web/rooms.py | The rooms of the shared games: the seats, the order of the steps, the checksums and the log in the bucket (docs/MULTIPLAYER.md) |
 | web/requirements.txt | The Python packages of the server, with exact versions. |
 | Dockerfile | The image: Python 3.12, ffmpeg, the server and the four files of build/web. It does not compile the game. |
 | .dockerignore | It lets only the server files and the web build into the context of the builder. |
@@ -349,6 +350,19 @@ game_files.spec.js has three tests of the game files:
 - a member gets the build id and the addresses of the server
 - a second load of the page takes the files from the Cache Storage and
   downloads nothing
+
+rooms.spec.js has three tests of the rooms of the shared games
+(docs/MULTIPLAYER.md, MP2):
+- the socket of a room refuses a request without a member session (401)
+- the socket refuses a page of another origin (403)
+- a member makes a room, takes a seat, starts the game and gets the
+  welcome on the socket
+
+multiplayer.spec.js has one test of a game together (docs/MULTIPLAYER.md,
+MP3). Two browser contexts sign in as "Tester" and "Guest". The host
+clicks "Play online", and the guest opens the invite link. Each takes a
+seat, and the host starts the game. Each player ends a turn of a faction.
+After each step, the two pages have the same steps and the same checksum.
 
 To run them:
 1. Run `build_web.bat test-game`. It writes build/webtest: the game with

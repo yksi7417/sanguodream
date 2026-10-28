@@ -146,6 +146,10 @@ enum recorder_call_kind
     RECORDER_GAME_REPLAY_VIEW,     /* arg = the step */
     RECORDER_GAME_REPLAY_CLOSE,
     RECORDER_GAME_REPLAY_TURN_STEP, /* arg = the turn */
+    RECORDER_MULTIPLAYER_INFO,     /* a shared game */
+    RECORDER_STEPS_OUTGOING,       /* a take from the queue sends a step that already ran */
+    RECORDER_STATE_CHECKSUM,
+    RECORDER_START_IMAGE,          /* the image of the start of a shared game: a read */
     RECORDER_END_TURN,        /* commands start here */
     RECORDER_ADVANCE_TURNS,
     RECORDER_LEDGER_CLEAR,
@@ -227,6 +231,11 @@ enum recorder_call_kind
     RECORDER_REPLAY_PAIR,          /* M13: arg = the command kind */
     RECORDER_SET_UNIT_GRAIN,       /* M15: arg = the unit */
     RECORDER_SET_INSTALL_FOLDER,   /* M16: it loads the names of the install as a command */
+    RECORDER_MULTIPLAYER_BEGIN,    /* a shared game: arg = the local force | host << 8 */
+    RECORDER_MULTIPLAYER_END,
+    RECORDER_STEP_APPLY,           /* arg = the bytes */
+    RECORDER_SET_SEED,
+    RECORDER_LOAD_START_IMAGE,     /* arg = the bytes */
     RECORDER_CALL_KIND_COUNT
 };
 
@@ -264,6 +273,7 @@ struct engine_recorder
     u8            last_captive_choice;   /* the choice of the last command_captive */
     b32           units_acted;        /* M22: both units acted in this turn */
     u32           officer_count;      /* scripted rows for the Officers and Cities panels */
+    const char   *officer_key;        /* the English key of the scripted officer 100, or 0 (docs/EUROPE.md, E2) */
     u32           city_count;
     b32           has_water;          /* hex_at reports the river kind (2) at water_q, water_r */
     s32           water_q, water_r;
@@ -309,6 +319,7 @@ struct engine_recorder
     b32           building_complete;  /* U-001: the camp at (2, 3) is complete; false = a build in progress */
     b32           replay_viewing;     /* the replay of a game: a view is open */
     u32           replay_view_step;
+    engine_multiplayer_info multiplayer;   /* script the answer of multiplayer_info; local_acts is true by default */
 };
 
 internal void
@@ -472,6 +483,7 @@ internal engine_officer recorder_scripted_officer(engine_recorder *r, u32 i)
     officer.current_position = 0;        /* every scripted officer stands in city 0 */
     officer.politics       = 60;
     officer.job_city       = ENGINE_NO_CITY;
+    if (i == 0 && r->officer_key) snprintf(officer.key, sizeof(officer.key), "%s", r->officer_key);
     return officer;
 }
 
@@ -2069,6 +2081,63 @@ internal u32 recorder_game_replay_turn_step(void *o, u32 turn)
     }
     return RECORDER_REPLAY_STEPS;
 }
+/* A shared game: the answers come from the script. */
+internal engine_multiplayer_info recorder_multiplayer_info(void *o)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_MULTIPLAYER_INFO, 0);
+    return r->multiplayer;
+}
+internal void recorder_multiplayer_begin(void *o, u8 local_force, b32 host)
+{
+    recorder_record((engine_recorder *)o, RECORDER_MULTIPLAYER_BEGIN, (u32)local_force | (host ? 1u : 0u) << 8);
+}
+internal void recorder_multiplayer_end(void *o)
+{
+    recorder_record((engine_recorder *)o, RECORDER_MULTIPLAYER_END, 0);
+}
+internal engine_outgoing_step recorder_steps_outgoing(void *o, u8 *buffer, u32 capacity)
+{
+    (void)buffer;
+    recorder_record((engine_recorder *)o, RECORDER_STEPS_OUTGOING, capacity);
+    engine_outgoing_step out = {};
+    return out;
+}
+internal engine_step_apply_result recorder_step_apply(void *o, const u8 *bytes, u32 size)
+{
+    (void)bytes;
+    recorder_record((engine_recorder *)o, RECORDER_STEP_APPLY, size);
+    engine_step_apply_result result = {};
+    return result;
+}
+internal u64 recorder_state_checksum(void *o)
+{
+    recorder_record((engine_recorder *)o, RECORDER_STATE_CHECKSUM, 0);
+    return 1;
+}
+internal void recorder_set_seed(void *o, u64 seed)
+{
+    recorder_record((engine_recorder *)o, RECORDER_SET_SEED, (u32)seed);
+}
+internal u32 recorder_start_image_size(void *o)
+{
+    recorder_record((engine_recorder *)o, RECORDER_START_IMAGE, 0);
+    return 16;
+}
+internal u32 recorder_start_image(void *o, u8 *buffer, u32 capacity)
+{
+    recorder_record((engine_recorder *)o, RECORDER_START_IMAGE, capacity);
+    if (!buffer || capacity < 16) return 0;
+    memset(buffer, 0x5A, 16);
+    return 16;
+}
+internal b32 recorder_load_start_image(void *o, const u8 *bytes, u32 size)
+{
+    (void)bytes;
+    recorder_record((engine_recorder *)o, RECORDER_LOAD_START_IMAGE, size);
+    return true;
+}
+
 internal void recorder_set_unit_grain(void *o, u32 unit_id, u32 grain)
 {
     (void)grain;
@@ -2373,6 +2442,16 @@ recorder_make_api(engine_recorder *r)
     api.game_replay_view       = recorder_game_replay_view;
     api.game_replay_close      = recorder_game_replay_close;
     api.game_replay_turn_step  = recorder_game_replay_turn_step;
+    api.multiplayer_begin      = recorder_multiplayer_begin;   /* a shared game */
+    api.multiplayer_end        = recorder_multiplayer_end;
+    api.multiplayer_info       = recorder_multiplayer_info;
+    api.steps_outgoing         = recorder_steps_outgoing;
+    api.step_apply             = recorder_step_apply;
+    api.state_checksum         = recorder_state_checksum;
+    api.set_seed               = recorder_set_seed;
+    api.start_image_size       = recorder_start_image_size;
+    api.start_image            = recorder_start_image;
+    api.load_start_image       = recorder_load_start_image;
     return api;
 }
 

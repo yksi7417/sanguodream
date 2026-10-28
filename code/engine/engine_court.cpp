@@ -339,6 +339,7 @@ engine_run_move_officers(engine *e, sim_command_kind kind, const engine_move_ord
     engine_command_result result = {};
     sim_move_order move = *order;
     result.refusal = sim_check_move_officers(e->sim, kind, &move).refusal;
+    if (result.refusal == SIM_REFUSAL_NONE) result.refusal = engine_seat_refusal(e, kind);
     if (result.refusal != SIM_REFUSAL_NONE) return result;
     sim_command command = sim_make_command(e->sim, kind);
     command.move = move;
@@ -374,6 +375,7 @@ engine_api_command_court(void *opaque, engine_command_kind kind, const engine_co
     sim_command_kind sim_kind = engine_court_kind(kind);
     if (sim_kind == SIM_COMMAND_NONE) { result.refusal = SIM_REFUSAL_NO_CITY; return result; }
     result.refusal = engine_check_court(e, sim_kind, order).refusal;
+    if (result.refusal == SIM_REFUSAL_NONE) result.refusal = engine_seat_refusal(e, sim_kind);
     if (result.refusal != SIM_REFUSAL_NONE) return result;
     sim_command command = sim_make_command(e->sim, sim_kind);
     command.court = *order;
@@ -392,6 +394,7 @@ engine_api_command_captive(void *opaque, u16 officer_id, u8 choice)
     order.target = officer_id;
     order.kind   = choice;
     result.refusal = sim_check_captive(e->sim, &order).refusal;
+    if (result.refusal == SIM_REFUSAL_NONE) result.refusal = engine_seat_refusal(e, SIM_COMMAND_CAPTIVE);
     if (result.refusal != SIM_REFUSAL_NONE) return result;
     sim_command command = sim_make_command(e->sim, SIM_COMMAND_CAPTIVE);
     command.court = order;
@@ -417,6 +420,7 @@ engine_api_command_duel_officer(void *opaque, u32 unit_id, s32 q, s32 r, u8 slot
     sim_unit_order order = engine_unit_order(unit_id, q, r, ENGINE_NO_UNIT, 0, 0, 0);
     order.kind = slot;
     result.refusal = sim_check_duel(e->sim, &order).refusal;
+    if (result.refusal == SIM_REFUSAL_NONE) result.refusal = engine_seat_refusal(e, SIM_COMMAND_DUEL);
     if (result.refusal != SIM_REFUSAL_NONE) return result;
     sim_command command = sim_make_command(e->sim, SIM_COMMAND_DUEL);
     command.unit = order;
@@ -431,6 +435,7 @@ engine_run_mini(engine *e, sim_command_kind kind, u8 action, u8 value)
     engine_command_result result = {};
     sim_mini_order order = engine_mini_order(action, value);
     result.refusal = kind == SIM_COMMAND_DUEL_ACTION ? sim_check_duel_action(e->sim, &order).refusal : sim_check_debate_action(e->sim, &order).refusal;
+    if (result.refusal == SIM_REFUSAL_NONE) result.refusal = engine_seat_refusal(e, kind);
     if (result.refusal != SIM_REFUSAL_NONE) return result;
     sim_command command = sim_make_command(e->sim, kind);
     command.mini = order;
@@ -462,6 +467,7 @@ engine_api_start_debate(void *opaque, u16 officer_a, u16 officer_b)
     order.officer_a = officer_a;
     order.officer_b = officer_b;
     result.refusal = sim_check_start_debate(e->sim, &order).refusal;
+    if (result.refusal == SIM_REFUSAL_NONE) result.refusal = engine_seat_refusal(e, SIM_COMMAND_DEBATE);
     if (result.refusal != SIM_REFUSAL_NONE) return result;
     sim_command command = sim_make_command(e->sim, SIM_COMMAND_DEBATE);
     command.mini = order;
@@ -473,6 +479,7 @@ engine_api_start_debate(void *opaque, u16 officer_a, u16 officer_b)
 internal void
 engine_api_set_officer(void *opaque, u16 officer_id, const engine_officer_edit *edit)
 {
+    if (engine_setter_locked((engine *)opaque)) return;   /* a shared game: no setter */
     officer_component *officer = sim_find_officer(((engine *)opaque)->sim, officer_id);
     if (!officer || !edit) return;
     officer->loyalty     = (u8)Minimum((u32)edit->loyalty, 100u);
@@ -526,6 +533,7 @@ engine_officer_edit_of(engine_officer_detail *detail, engine_officer *officer)
 internal void
 engine_api_set_item_owner(void *opaque, u8 item, u16 officer_id)
 {
+    if (engine_setter_locked((engine *)opaque)) return;   /* a shared game: no setter */
     sim_state *sim = ((engine *)opaque)->sim;
     if (item >= SAVE_ITEM_COUNT || !sim->items[item].exists) return;
     sim->items[item].owner = sim_find_officer(sim, officer_id) ? officer_id : (u16)SIM_NO_OFFICER;
@@ -535,6 +543,7 @@ engine_api_set_item_owner(void *opaque, u8 item, u16 officer_id)
 internal void
 engine_api_set_diplomacy(void *opaque, u8 force_a, u8 force_b, u32 friendliness, u8 relation, u32 months)
 {
+    if (engine_setter_locked((engine *)opaque)) return;   /* a shared game: no setter */
     sim_state *sim = ((engine *)opaque)->sim;
     if (force_a >= SIM_DIPLOMACY_FORCES || force_b >= SIM_DIPLOMACY_FORCES || force_a == force_b || relation >= RELATION_COUNT) return;
     u8 value = (u8)Minimum(friendliness, 100u);
@@ -546,6 +555,7 @@ engine_api_set_diplomacy(void *opaque, u8 force_a, u8 force_b, u32 friendliness,
 internal void
 engine_api_set_stamina(void *opaque, u16 officer_id, u8 stamina)
 {
+    if (engine_setter_locked((engine *)opaque)) return;   /* a shared game: no setter */
     officer_component *officer = sim_find_officer(((engine *)opaque)->sim, officer_id);
     if (officer) officer->stamina = (u8)Minimum((u32)stamina, 100u);
 }

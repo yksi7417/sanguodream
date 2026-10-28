@@ -2,7 +2,9 @@
 
 This document gives the plan for games that more than one player plays
 together on the fly.io site. It also records the facts of the current
-site that the plan starts from. Nothing in this plan exists in code yet.
+site that the plan starts from. MP1, MP2 and MP3 exist in code (see
+"The status of MP1", "The status of MP2" and "The status of MP3"). The
+milestones after MP3 do not exist yet.
 
 ## The current site: one copy of the game for each browser
 Each browser runs its own copy of the game. Two browsers never share a
@@ -514,6 +516,39 @@ The tests:
 - UI (tests/ui/ui_tests.cpp): when the local seat does not act, the city
   panel issues no command (recorder_count_commands is 0).
 
+### The status of MP1
+MP1 is complete. These parts exist:
+- code/sim/sim_wire.cpp writes and reads a sim_command. A static_assert
+  on the size of sim_command stops the build when a field has no line in
+  the codec.
+- code/engine/engine_multiplayer.cpp has the seats, the queue of 64
+  steps, step_apply and the bytes of a step. The end of each step of the
+  replay record puts the step into the queue (engine_game_replay.cpp).
+- The api has multiplayer_begin, multiplayer_end, multiplayer_info,
+  steps_outgoing, step_apply, state_checksum and set_seed.
+- Each command of the api asks engine_seat_refusal. The setters,
+  set_faction_human, ledger_clear and set_seed change nothing in a
+  shared game. Only the host can change the settings.
+- The City panel shows "Another player acts now" in place of its buttons
+  (city.not_your_seat).
+
+These facts came from the tests of MP1:
+- After a load, a faction without a player can act. Only the host ends
+  the turn of that faction. The start of a shared game must make each
+  faction without a seat a faction of the AI. The sample save has a human
+  faction of its own.
+- The record of 30 turns gave one checksum on Windows and another under
+  node. The cause was sim_debate_draw in code/sim/debate.cpp. It took two
+  draws of the PRNG as two arguments of one call. C++ does not fix the
+  order of the arguments, and MSVC and clang use different orders. The
+  function now takes each draw in its own statement. After the fix, both
+  builds give the checksum 0xdcba2ee7b448432a.
+- Two draws of the PRNG in one expression are a bug of the determinism.
+  Before you add a draw, put it in its own statement.
+
+The engine does not lock a load yet. MP5 turns off the load menu of a
+shared game.
+
 ### MP2 The room server and the transport
 The server keeps rooms, seats and the log, and it relays steps. A
 scripted client takes the place of the game.
@@ -534,6 +569,58 @@ The tests:
 - Browser (tests/web/rooms.spec.js): a socket without a member session
   gets 401. A socket from another origin gets 403.
 
+### The status of MP2
+MP2 is complete. These parts exist:
+- web/rooms.py has the rooms, the seats, the log, the checksums and the
+  socket messages hello, welcome, step, checksum, presence, chat, desync
+  and error.
+- web/server.py has these routes. Each route needs a member.
+
+| Route | Job |
+|---|---|
+| `GET /api/games` | The games of the member |
+| `POST /api/games` | A new room. The body has the name, the scenario, the pack, the mode, the time of a turn and the factions. The server adds the build id. |
+| `GET /api/games/<gid>` | The room |
+| `POST /api/games/<gid>/seat` | The member takes the seat of a faction. `{"force": null}` leaves the seats. |
+| `POST /api/games/<gid>/start` | The host starts the game |
+| `GET /api/games/<gid>/socket` | The WebSocket. Only the host and the players of the room can open it. |
+
+The server has no sim. Thus these rules came from MP2:
+- Byte 3 of the bytes of a step is the faction that acted before the
+  step. The engine writes it (engine_multiplayer.cpp). The server takes
+  the step only from the seat of that faction. When no seat holds that
+  faction, the host is the author.
+- A checksum message has the faction that acts after the step. The first
+  report of the last step tells the server the faction that acts next.
+  A report with another checksum or another faction is a desync.
+- The checksum message of step -1 is the start state. Each player sends
+  it after the load of the start image. The server compares the reports.
+  Only the report of the host gives the first faction that acts.
+- An end_turn step writes the log to the bucket without a wait. The loop of the
+  server writes the other steps each 30 seconds.
+- The room keeps the uid of each player on the server. The pages get the
+  names of the players and the factions of the seats.
+
+A security review of MP2 added these limits:
+- Only the author of the last step and the host can change the faction
+  that acts. The server takes a report of step -1 only while the game runs
+  and before the first step.
+- A socket that fails, or does not take a message in 5 seconds, leaves
+  the room. The relay goes on for the other players.
+- Each member has one socket in a room. A new socket closes the old one.
+  Each socket has one hello.
+- A socket can send 40 messages and 20 steps each second. A room holds at
+  most 200,000 steps and 64 MB.
+- A JSON body of the routes of the rooms is at most 8 KB.
+- A member who leaves the seats loses the game from the list of the
+  member.
+
+One limit stays: each player can send a false checksum and stop the
+game with a desync. The server then knows the player who sent the
+different report. MP6 decides the correct state.
+
+`run_tests.bat --server` runs the tests of tests/server.
+
 ### MP3 Start a new game together
 Two members start one game from an invite link and play it.
 - The lobby page, the invite link, the room code, the choice of
@@ -553,6 +640,58 @@ The tests:
 - Demo: "demo/mp3_game_together". The window plays a recorded stream of
   steps from a second seat. It shows the banner and the moves of the
   other player.
+
+### The status of MP3
+MP3 is complete. These parts exist:
+- The start settings window has the button "Play online"
+  (`###start_online`). The game ends the faction turns of the AI until a
+  chosen ruler acts. Then the UI sends the start image and one line for
+  each chosen ruler to the page (ui_net_host in code/ui/ui_multiplayer.cpp).
+- engine_api has start_image_size, start_image and load_start_image. The
+  start image is the image of the replay record. It holds the state, the
+  ledger and the PRNG, so each engine starts from the same bytes.
+- The net bridge: platform_api has net_send and net_poll
+  (code/hexdom.h). wasm_hexdom.cpp keeps a queue of the events of the page
+  and calls Module.hexdomNetSend. The page calls Module.hexdomNetPush.
+- web/shell.html makes the room, puts the start image on the server and
+  shows the lobby. The lobby has the invite link, the room code, a button
+  for each seat and the Start button of the host.
+- web/server.py has `PUT` and `GET /api/games/<gid>/start-image` and the
+  invite route `/r/<code>`. A person without a session signs in first, and
+  the cookie `hexdom_next` brings the person back to the invite.
+- The banner `###NetBanner` shows "Your turn", "<name> acts now" or "The
+  computer acts". It also shows a desync and the last error.
+
+The start of a shared game on each page:
+1. The page sends the JOIN event with the start image and the seats.
+2. The UI loads the names of the cities, then the start image. The load of
+   the names adds events to the ledger, and the start image replaces the
+   ledger. Thus the order keeps the checksums equal.
+3. The UI makes the factions of the seats with a player human. The other
+   factions go to the AI.
+4. multiplayer_begin starts the shared game, and each page reports the
+   checksum of step -1.
+
+The tests:
+- UI: the banner names the player whose faction acts. The JOIN event loads
+  the start image, and a step reports its checksum. "Play online" sends
+  the start image and the seats.
+- Browser (tests/web/multiplayer.spec.js): the host makes a room, and the
+  guest opens the invite link and takes a seat. The host starts the game.
+  Each player ends a turn of a faction, and after each step the two pages
+  have the same steps and the same checksum.
+- Demo: "demo/mp3_game_together". The window is one seat. A second engine
+  in the test is the host with the other seat, and a fake net relays the
+  steps. The walkthrough records a PNG of each banner.
+
+These parts of the plan of MP3 changed or wait for a later milestone:
+- The lobby has no Ready button. The host starts the game when the seats
+  are full.
+- The seats have no colours yet.
+- The browser test ends turns. It does not move a unit. The feature tests
+  of MP1 cover the commands of a unit through the relay.
+- set_seed is not necessary for a new game, because the start image holds
+  the PRNG.
 
 ### MP4 Timers, absence and the AI takeover
 - The deadlines of the faction turns, the two modes, the pause option.

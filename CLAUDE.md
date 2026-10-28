@@ -20,6 +20,10 @@ decompilation of it.
 - The sim core (code/sim/) is headless and deterministic: no Windows
   headers, no I/O, no ImGui, and a seeded PRNG in the state. Commands go in,
   events come out.
+- Take each draw of the PRNG in its own statement. C++ does not fix the
+  order of the arguments of a call. MSVC and clang then give two
+  different games, and a shared game of Windows and the web goes out of
+  step (docs/MULTIPLAYER.md, "The status of MP1").
 - The UI drives the backend only through engine_api (code/engine/engine.h).
   See .claude/rules/testing-pyramid.md for the test layers and for the
   place where a new test goes.
@@ -53,8 +57,12 @@ decompilation of it.
 - docs/REPLAY.md             the replay of a game, step by step: the record,
                              the checkpoints and the format in the save file
 - docs/art/GEMINI-PROMPTS.md the prompts that make the art with Gemini
+- docs/MULTIPLAYER.md        the plan of the shared games: the relay of the
+                             steps, the rooms and the milestones MP1-MP8
 - docs/MAPS.md               maps from real geography: the scale, the
                              licences of the data, the tool and the plan
+- docs/EUROPE.md             the game of 1200: English names by key, the
+                             lives, the arms, the church and the story
 
 ## Build and run
 - build.bat         builds build\hexdom.dll, build\win32_hexdom.exe, the
@@ -68,7 +76,8 @@ decompilation of it.
                     window smoke run. With --demo, it runs only the
                     demo walkthroughs and records them to build\demos.
                     With --web, it runs only the tests of build_web.bat
-                    under node
+                    under node. With --server, it runs only the tests of
+                    the room server in tests\server, with Python
 - build_web.bat     builds the web game into build\web (index.html, .js,
                     .wasm, .data) with the Emscripten SDK in C:\tools\emsdk.
                     "build_web.bat tests" builds the unit tests and the
@@ -122,6 +131,8 @@ decompilation of it.
                          web/storage.py keeps the saves in S3.
                          web/game_files.py serves index.wasm and
                          index.data from the bucket to members.
+                         web/rooms.py keeps the rooms of the shared games
+                         and relays their steps (docs/MULTIPLAYER.md).
                          web/broadcast.py relays the optional YouTube
                          broadcast
 - code/wasm_test_hooks.h the test hooks of "build_web.bat test-game" for
@@ -134,7 +145,8 @@ decompilation of it.
 - code/engine/           the backend: owns the sim and the event ledger,
                          exposes engine_api
 - code/text/             front end text: Big5 to UTF-8 (a script writes
-                         big5_table.h), UI strings and names for each locale
+                         big5_table.h), UI strings, names and lives for each
+                         locale
 - code/ui/               ImGui panels; call engine_api only; ui_fonts.h
                          loads the fonts for the executables
 - tests/test_framework.h one check macro, counters, heap arenas
@@ -149,8 +161,10 @@ decompilation of it.
 - misc/make_world_map.py  makes the map, cities.tsv and bases.tsv of a pack
                          from real geography: NOAA ETOPO heights and
                          Natural Earth vectors (docs/MAPS.md)
-- misc/make_scenario.py  checks a scenario of a pack (TSV files) and writes
-                         the Big5 names of its officers (docs/MAPS.md)
+- misc/make_scenario.py  checks a scenario of a pack (TSV files). It writes
+                         the Big5 names of its officers (docs/MAPS.md).
+                         It also writes names/en.tsv and lore/links.tsv of
+                         the pack (docs/EUROPE.md)
 - misc/make_pair_index.py  writes data/placeholder/pairs.tsv from the save
                          pairs of the spec (run it after a spec update;
                          tutorial 26)
@@ -180,6 +194,8 @@ decompilation of it.
 - tests/feature/         engine_api behaviour tests and the fixture runner
 - tests/ui/              imgui_test_engine tests, engine_recorder.h double,
                          hexdom_te_imconfig.h (test-only ImGui config)
+- tests/server/          the tests of the Python server of the site
+                         (run_tests.bat --server)
 - tests/demo/            demo_player.cpp and demo_tests.cpp: one recorded
                          walkthrough for each milestone
 - third_party/imgui      Dear ImGui (submodule, pinned)

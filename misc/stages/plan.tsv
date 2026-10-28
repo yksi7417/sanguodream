@@ -1,0 +1,7 @@
+stage	after	note
+# The order of the stage runs (docs/EUROPE.md, "The stage runs"). misc/run_stages.py --plan starts a stage after each stage of its after column ends with success.
+# after: a comma list of stages, or -. A stage waits only for a real need: a result that it uses, or a file that both stages edit.
+bio_check	-	data and documents only: lore/en.tsv, officers.tsv, docs/
+e3_native_names	-	the text module, make_scenario.py, ui_fonts.h, the Settings panel
+e4_officer_panel	e3_native_names	edits the text module and make_scenario.py too, so it starts from the push of e3
+e8_maps	-	two new packs, data/placeholder/scenarios.tsv, build_web.bat, world_map_tests.cpp. The work of bio_check and e4 is on master

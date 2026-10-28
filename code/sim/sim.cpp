@@ -914,6 +914,7 @@ sim_refusal_name(sim_refusal refusal)
         case SIM_REFUSAL_NO_EVENT:              return "no_event";
         case SIM_REFUSAL_NO_CHART_ROW:          return "no_chart_row";
         case SIM_REFUSAL_NO_USES:               return "no_uses";
+        case SIM_REFUSAL_NOT_YOUR_SEAT:         return "not_your_seat";
         default:                                return "?";
     }
 }
@@ -942,3 +943,4 @@ sim_refusal_name(sim_refusal refusal)
 #include "sim/pk.cpp"
 #include "sim/history.cpp"
 #include "sim/save_map.cpp"
+#include "sim/sim_wire.cpp"   /* the step codec of a shared game (docs/MULTIPLAYER.md) */
