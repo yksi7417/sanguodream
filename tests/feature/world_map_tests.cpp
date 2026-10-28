@@ -102,8 +102,11 @@ feature_pack_scenario_tests(test_counts *counts)
     engine_api *api = &f.api;
     void *e = api->engine;
     engine_scenario scenario = api->scenario_at(e, 0);
-    TEST_CHECK(counts, api->scenario_count(e) == 1 && scenario.kind == ENGINE_SCENARIO_PACK && scenario.available && scenario.year == 1200,
-               "the pack lists one scenario of its own: the kind pack, the year 1200, available");
+    TEST_CHECK(counts, api->scenario_count(e) == 3 && scenario.kind == ENGINE_SCENARIO_PACK && scenario.available && scenario.year == 1200 && !scenario.pack[0],
+               "the pack lists one scenario of its own first: the kind pack, the year 1200, available");
+    engine_scenario back = api->scenario_at(e, 1);
+    TEST_CHECK(counts, strcmp(back.pack, "placeholder") == 0 && back.kind == ENGINE_SCENARIO_BASE && back.available,
+               "the next rows lead back to the scenarios of the placeholder pack");
     engine_load_result missing = api->load_scenario(e, FEATURE_WORLD_PACK "/scenarios/no_such/scenario.tsv");
     TEST_CHECK(counts, missing.status != ENGINE_LOAD_OK && api->city_count(e) == 0, "a pack scenario that is not there does not load and changes nothing");
 

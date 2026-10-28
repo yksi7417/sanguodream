@@ -136,6 +136,47 @@ ui_draw_title(ui_state *ui, engine_api *api)
 
 /* ---- 劇本 and 君主 (F-133, F-145) --------------------------------------------------------- */
 
+/* Loads a scenario of the scenario list and opens the ruler list. A
+   scenario of another pack does not load here: the UI asks the game to start
+   the engine again with that pack (game.pack_request), and the new engine
+   loads the scenario of the key (ui_start_pack_scenario). */
+internal void
+ui_choose_scenario(ui_state *ui, engine_api *api, const engine_scenario *scenario)
+{
+    void *e = api->engine;
+    if (scenario->pack[0])
+    {
+        snprintf(ui->game.pack_request, sizeof(ui->game.pack_request), "%s", scenario->pack);
+        snprintf(ui->game.pack_scenario, sizeof(ui->game.pack_scenario), "%s", scenario->key);
+        ui->show_scenarios = false;
+        return;
+    }
+    engine_load_result loaded = scenario->kind == ENGINE_SCENARIO_SAVE ? api->load_save(e, scenario->file) : api->load_scenario(e, scenario->file);
+    if (loaded.status != ENGINE_LOAD_OK) return;
+    ui_ensure_city_names(ui, api);
+    ui->game.rulers    = 0;
+    ui->show_scenarios = false;
+    ui->show_rulers    = true;
+}
+
+/* After the engine started again with another pack: load the scenario of
+   that pack that the player chose, then show the ruler list. */
+internal void
+ui_start_pack_scenario(ui_state *ui, engine_api *api)
+{
+    if (!ui->game.pack_scenario[0] || ui->game.pack_request[0]) return;
+    void *e = api->engine;
+    for (u32 index = 0; index < api->scenario_count(e); ++index)
+    {
+        engine_scenario scenario = api->scenario_at(e, index);
+        if (scenario.pack[0] || strcmp(scenario.key, ui->game.pack_scenario) != 0) continue;
+        ui_choose_scenario(ui, api, &scenario);
+        break;
+    }
+    ui->game.pack_scenario[0] = 0;
+    if (!ui->show_rulers) ui->show_scenarios = true;   /* the scenario did not load: the list stays */
+}
+
 internal void
 ui_draw_scenarios(ui_state *ui, engine_api *api)
 {
@@ -152,17 +193,7 @@ ui_draw_scenarios(ui_state *ui, engine_api *api)
         if (scenario.year) snprintf(row, sizeof(row), "%u  %s  [%s]###sc%u", scenario.year, ui_text_with_key(ui, "scenario", scenario.key), kind, index);
         else               snprintf(row, sizeof(row), "-  %s  [%s]###sc%u", ui_text_with_key(ui, "scenario", scenario.key), kind, index);
         ImGui::BeginDisabled(!scenario.available);
-        if (ImGui::Selectable(row))
-        {
-            engine_load_result loaded = scenario.kind == ENGINE_SCENARIO_SAVE ? api->load_save(e, scenario.file) : api->load_scenario(e, scenario.file);
-            if (loaded.status == ENGINE_LOAD_OK)
-            {
-                ui_ensure_city_names(ui, api);
-                ui->game.rulers   = 0;
-                ui->show_scenarios = false;
-                ui->show_rulers    = true;
-            }
-        }
+        if (ImGui::Selectable(row)) ui_choose_scenario(ui, api, &scenario);
         ImGui::EndDisabled();
         if (!scenario.available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("%s", text_get(ui->text, "scenarios.unavailable"));
     }
@@ -696,6 +727,7 @@ internal void
 ui_draw_game_screens(ui_state *ui, engine_api *api)
 {
     if (ui->show_title)          ui_draw_title(ui, api);
+    ui_start_pack_scenario(ui, api);   /* the first frame after the engine started again with another pack */
     if (ui->show_scenarios)      ui_draw_scenarios(ui, api);
     if (ui->show_rulers)         ui_draw_rulers(ui, api);
     if (ui->show_start_settings) ui_draw_start_settings(ui, api);

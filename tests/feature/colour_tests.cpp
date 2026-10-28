@@ -80,7 +80,7 @@ feature_pack_colour_tests(test_counts *counts, const char *pack)
     for (u32 index = 0; index < api->scenario_count(e); ++index)
     {
         engine_scenario scenario = api->scenario_at(e, index);
-        if (!scenario.available) continue;
+        if (!scenario.available || scenario.pack[0]) continue;   /* a scenario of another pack needs an engine with that pack */
         engine_load_result loaded = scenario.kind == ENGINE_SCENARIO_SAVE ? api->load_save(e, scenario.file) : api->load_scenario(e, scenario.file);
         char what[160];
         snprintf(what, sizeof(what), "%s: the scenario %s loads", pack, scenario.key);

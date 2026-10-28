@@ -194,16 +194,17 @@ wasm_test_hex_screen(int q, int r)
     return g_test_reply;
 }
 
-/* The camera target, the selected city and the selected unit, as JSON. */
+/* The camera target, the selected city, the selected unit and the size of the map, as JSON. */
 extern "C" EMSCRIPTEN_KEEPALIVE const char *
 wasm_test_state(void)
 {
     game_state *game = wasm_test_game();
     engine_api *api  = &game->api;
+    engine_map_info map = api->map_info(api->engine);
     snprintf(g_test_reply, sizeof(g_test_reply),
-             "{\"camera_x\":%.2f,\"camera_z\":%.2f,\"city\":%u,\"unit\":%u,\"turn\":%u,\"whose_turn\":%u}",
+             "{\"camera_x\":%.2f,\"camera_z\":%.2f,\"city\":%u,\"unit\":%u,\"turn\":%u,\"whose_turn\":%u,\"map_width\":%u,\"map_height\":%u}",
              game->ui.scene.cam.target.x, game->ui.scene.cam.target.z, (u32)game->ui.city.selected,
-             game->ui.units.selected, api->turn(api->engine), (u32)api->whose_turn(api->engine));
+             game->ui.units.selected, api->turn(api->engine), (u32)api->whose_turn(api->engine), map.width, map.height);
     return g_test_reply;
 }
 

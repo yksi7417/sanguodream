@@ -468,9 +468,13 @@ feature_scenario_tests(test_counts *counts)
         pk_available += scenario.kind == ENGINE_SCENARIO_PK && scenario.available;
     }
     engine_scenario warlords = api->scenario_at(e, 1);
-    TEST_CHECK(counts, api->scenario_count(e) == 8 && pk == 6 && pk_available == 0 && api->scenario_at(e, 0).available &&
-                       warlords.kind == ENGINE_SCENARIO_BASE && warlords.available && warlords.year == 194,
+    TEST_CHECK(counts, api->scenario_count(e) == 9 && pk == 6 && pk_available == 0 && api->scenario_at(e, 0).available &&
+                       warlords.kind == ENGINE_SCENARIO_BASE && warlords.available && warlords.year == 194 && !warlords.pack[0],
                "scenarios.tsv lists the save, 群雄割據 and the six PK scenarios; the clean room has the files of the first two only");
+    engine_scenario europe = api->scenario_at(e, 8);
+    TEST_CHECK(counts, europe.kind == ENGINE_SCENARIO_PACK && strcmp(europe.pack, "medieval_europe") == 0 && europe.available && europe.year == 1200 &&
+                       strcmp(europe.file, HEXDOM_DATA_ROOT "/medieval_europe/scenarios/y1200/scenario.tsv") == 0,
+               "the last row is the 1200 scenario of the pack medieval_europe: its file is in the folder of that pack (docs/MAPS.md)");
 
     engine_load_result loaded = api->load_scenario(e, warlords.file);
     u32 rulers = 0, owned = 0;

@@ -273,6 +273,7 @@ struct engine_recorder
     u8            foreign_city;       /* this scripted city belongs to force 2, not to force 1; 0 = none (city 0 is always force 1) */
     b32           own_base_hex;       /* hex_at reports location 42 and base_at_hex reports index 0 (recorder_base_at: force 1) at the axial hex (3, 2) */
     b32           pack_base_keys;     /* recorder_base_at gives keys without a UI string: the label takes the name index (docs/MAPS.md, W2) */
+    u8            pack_rows;          /* recorder_scenario_at row 1: 0 a PK scenario; 1 y1200 of the pack medieval_europe; 2 y1200 of this pack */
     char          last_name_index_path[RECORDER_MAX_PATH];
     sim_refusal   can_issue_refusal;  /* script the answer of can_issue and command_develop */
     engine_command last_develop;      /* the arguments of the last command_develop */
@@ -1800,6 +1801,16 @@ internal engine_scenario recorder_scenario_at(void *o, u32 index)
     scenario.year      = (u16)(index ? 0 : 194);
     scenario.available = index == 0;
     if (index == 0) snprintf(scenario.file, sizeof(scenario.file), "sample.s11");
+    u8 pack_rows = ((engine_recorder *)o)->pack_rows;
+    if (index == 1 && pack_rows)
+    {
+        snprintf(scenario.key, sizeof(scenario.key), "y1200");
+        snprintf(scenario.file, sizeof(scenario.file), "y1200/scenario.tsv");
+        scenario.kind      = ENGINE_SCENARIO_PACK;
+        scenario.year      = 1200;
+        scenario.available = true;
+        if (pack_rows == 1) snprintf(scenario.pack, sizeof(scenario.pack), "medieval_europe");
+    }
     return scenario;
 }
 internal u32 recorder_battle_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_BATTLE_COUNT, 0); return 2; }

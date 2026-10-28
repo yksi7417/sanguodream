@@ -186,6 +186,20 @@ engine_api_trigger_history(void *opaque, u32 row, u8 force_id)
 
 /* ---- the scenarios --------------------------------------------------------------------- */
 
+/* The folder of a pack: this folder if pack is "", else the folder "pack"
+   next to this folder ("../data/placeholder" and "medieval_europe" give
+   "../data/medieval_europe"). */
+internal void
+engine_scenario_pack_folder(const char *folder, const char *pack, char *out, u32 out_size)
+{
+    if (!pack[0]) { snprintf(out, out_size, "%s", folder); return; }
+    const char *slash = strrchr(folder, '/');
+    const char *backslash = strrchr(folder, '\\');
+    if (backslash > slash) slash = backslash;
+    if (!slash) { snprintf(out, out_size, "%s", pack); return; }
+    snprintf(out, out_size, "%.*s/%s", (int)(slash - folder), folder, pack);
+}
+
 /* Reads scenarios.tsv of the pack. A row whose file the engine cannot read
    stays in the list as not available (the six PK scenarios: the clean room
    has only the files of spec/fixtures). A pack without the table has no
@@ -215,8 +229,17 @@ engine_load_scenarios(engine *e, const char *folder)
         scenario->kind = (u8)kind;
         scenario->year = (u16)year;
         memcpy(scenario->key, key, strlen(key) + 1);
-        /* W2: the file of a pack scenario is relative to the pack folder. */
-        if (kind == ENGINE_SCENARIO_PACK && (u32)snprintf(scenario->file, sizeof(scenario->file), "%s/%s", folder, file) >= sizeof(scenario->file))
+        /* The column pack names another pack under the data root, or "-" (or no column) for this pack. */
+        const char *pack = tsv_cell(&table, row, "pack");
+        if (pack[0] && strcmp(pack, "-") != 0)
+        {
+            if (strlen(pack) >= sizeof(scenario->pack)) { e->scenario_count = 0; break; }
+            memcpy(scenario->pack, pack, strlen(pack) + 1);
+        }
+        /* W2: the file of a pack scenario is relative to its pack folder: this folder, or a folder next to it. */
+        char pack_folder[ENGINE_PATH_SIZE];
+        engine_scenario_pack_folder(folder, scenario->pack, pack_folder, sizeof(pack_folder));
+        if (kind == ENGINE_SCENARIO_PACK && (u32)snprintf(scenario->file, sizeof(scenario->file), "%s/%s", pack_folder, file) >= sizeof(scenario->file))
         {
             e->scenario_count = 0;
             break;
