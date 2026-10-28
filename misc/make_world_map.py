@@ -688,12 +688,13 @@ class WorldMap:
         write_lines(os.path.join(pack, "map", "bases.tsv"), bases)
 
         port_owners = {s["owner_city"] for s in self.sites if s["kind"] == "port"}
-        cities = ["id\tspecialty\tslots\tport\tname_zh\tprice\tname_big5",
+        cities = ["id\tkey\tspecialty\tslots\tport\tname_zh\tprice\tname_big5",
                   "# Written by misc/make_world_map.py from map/source/sites.tsv. slots: the slots that the tool placed on the map.",
                   "# price: 5 for each city, the middle of the range 3 to 7 (the placeholder pack, Q-155).",
-                  "# name_big5: the Big5 bytes of name_zh in hex. The scenario of the pack names the cities with it (docs/MAPS.md, W2)."]
+                  "# name_big5: the Big5 bytes of name_zh in hex. The scenario of the pack names the cities with it (docs/MAPS.md, W2).",
+                  "# key: the English key of the city. The names of the front end use it (docs/EUROPE.md, E2)."]
         for city in self.cities:
-            cities.append("%d\t%s\t%d\t%s\t%s\t5\t%s" % (city["id"], city["specialty"], self.slot_count[city["id"]],
+            cities.append("%d\t%s\t%s\t%d\t%s\t%s\t5\t%s" % (city["id"], city["key"], city["specialty"], self.slot_count[city["id"]],
                                                         "yes" if city["id"] in port_owners else "no", city["name_zh"], big5_hex(city["name_zh"], 16)))
         write_lines(os.path.join(pack, "cities.tsv"), cities)
 

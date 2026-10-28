@@ -1,0 +1,4 @@
+key	value
+# The settings of the pack for the front end (docs/EUROPE.md, E1).
+# default_locale: the locale of the UI when the game starts the engine of this pack. The player can change it in the Settings panel.
+default_locale	zh-TW

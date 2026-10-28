@@ -61,6 +61,7 @@ struct engine_officer
     b32 acted;                      /* the officer gave a command in this turn */
     u8  travel_city;                /* on the road after 移動 or 召喚: the city; ENGINE_NO_CITY if not */
     u32 travel_days;                /* the days until the arrival; 0 if not on the road */
+    char key[CONTENT_KEY_SIZE];     /* the English key of the pack, for example "philip_ii"; "" for a record of a save (docs/EUROPE.md, E2) */
 };
 
 /* A city of the loaded game, as a front end sees it. */
@@ -86,6 +87,7 @@ struct engine_city_name
 {
     u8 city_id;                           /* ENGINE_NO_CITY if no name index is loaded or the id is out of range */
     u8 name[NAME_INDEX_CITY_NAME_SIZE];
+    char key[CONTENT_KEY_SIZE];           /* the English key of the pack, for example "paris"; "" if the pack has none (docs/EUROPE.md, E2) */
 };
 
 /* What the subject of a ledger event is: the city or the officer behind
@@ -210,6 +212,7 @@ struct engine_faction
     u32 action_points;
     b32 human;              /* a player gives its commands; else the AI placeholder passes */
     b32 acted;              /* it pressed "proceed" (or passed) in this turn */
+    char key[CONTENT_KEY_SIZE];   /* the English key of the pack, for example "france"; "" for a faction of a save (docs/EUROPE.md, E2) */
 };
 
 /* The order of 出征 and 輸送 (city-commands.md). */

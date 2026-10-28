@@ -506,6 +506,32 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
+    /* docs/EUROPE.md, E2: an officer of a pack has a name by English key. */
+    t = IM_REGISTER_TEST(e, "ui", "officers_panel_names_an_officer_of_a_pack_by_its_english_key_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 2;
+        v.recorder.officer_key   = "philip_ii";
+        text_catalog_use_game_pack(&v.text, "medieval_europe");
+        IM_CHECK_STR_EQ(v.text.locale, "en");   /* pack.tsv of the pack */
+        ctx->SetRef("###Officers");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        engine_officer philip = v.api.officer_at(v.api.engine, 0), other = v.api.officer_at(v.api.engine, 1);
+        char name[UI_NAME_SIZE * 2];
+        ui_officer_name(&v.ui, &philip, name, sizeof(name));
+        IM_CHECK_STR_EQ(name, "Philip II Augustus");
+        ui_officer_name(&v.ui, &other, name, sizeof(name));
+        IM_CHECK(strcmp(name, "Philip II Augustus") != 0 && name[0]);   /* no key: the Big5 bytes */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        text_catalog_use_game_pack(&v.text, HEXDOM_CONTENT_PACK);
+        IM_CHECK_STR_EQ(v.text.locale, "zh-TW");   /* pack.tsv of the placeholder pack */
+    };
+
     t = IM_REGISTER_TEST(e, "ui", "cities_panel_shows_names_through_the_text_module_and_commands_nothing");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;

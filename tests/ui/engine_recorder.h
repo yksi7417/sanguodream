@@ -264,6 +264,7 @@ struct engine_recorder
     u8            last_captive_choice;   /* the choice of the last command_captive */
     b32           units_acted;        /* M22: both units acted in this turn */
     u32           officer_count;      /* scripted rows for the Officers and Cities panels */
+    const char   *officer_key;        /* the English key of the scripted officer 100, or 0 (docs/EUROPE.md, E2) */
     u32           city_count;
     b32           has_water;          /* hex_at reports the river kind (2) at water_q, water_r */
     s32           water_q, water_r;
@@ -472,6 +473,7 @@ internal engine_officer recorder_scripted_officer(engine_recorder *r, u32 i)
     officer.current_position = 0;        /* every scripted officer stands in city 0 */
     officer.politics       = 60;
     officer.job_city       = ENGINE_NO_CITY;
+    if (i == 0 && r->officer_key) snprintf(officer.key, sizeof(officer.key), "%s", r->officer_key);
     return officer;
 }
 

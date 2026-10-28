@@ -1,46 +1,47 @@
-id	specialty	slots	port	name_zh	price	name_big5
+id	key	specialty	slots	port	name_zh	price	name_big5
 # Written by misc/make_world_map.py from map/source/sites.tsv. slots: the slots that the tool placed on the map.
 # price: 5 for each city, the middle of the range 3 to 7 (the placeholder pack, Q-155).
 # name_big5: the Big5 bytes of name_zh in hex. The scenario of the pack names the cities with it (docs/MAPS.md, W2).
-0	navy	12	yes	里斯本	5	A8BDB4B5A5BB
-1	horse	12	no	萊昂	5	B5DCA9F9
-2	halberd	15	no	托萊多	5	A6ABB5DCA668
-3	big_city	18	yes	塞維利亞	5	B6EBBAFBA751A8C8
-4	crossbow	12	yes	瓦倫西亞	5	A5CBADDBA6E8A8C8
-5	navy	12	yes	巴塞隆納	5	A4DAB6EBB6A9AFC7
-6	horse	18	no	馬拉喀什	5	B0A8A9D4B3D8A4B0
-7	crossbow	15	yes	非斯	5	AB44B4B5
-8	navy	12	yes	貝賈亞	5	A8A9B8EBA8C8
-9	pike	15	yes	突尼斯	5	ACF0A5A7B4B5
-10	horse	11	no	的黎波里	5	AABABEA4AA69A8BD
-11	horse	10	no	巴爾卡	5	A4DABAB8A564
-12	navy	12	yes	亞歷山卓	5	A8C8BEFAA473A8F4
-13	big_city	22	no	開羅	5	B67DC3B9
-14	pike	15	yes	耶路撒冷	5	AD43B8F4BCBBA74E
-15	big_city	22	no	君士坦丁堡	5	A767A468A95AA442B3F9
-16	horse	15	yes	科尼亞	5	ACECA5A7A8C8
-17	navy	15	yes	帖撒羅尼迦	5	A9ABBCBBC3B9A5A7AD7B
-18	pike	12	yes	雅典	5	B6AEA8E5
-19	horse	12	yes	特爾諾沃	5	AF53BAB8BFD5A855
-20	halberd	15	yes	羅馬	5	C3B9B0A8
-21	crossbow	10	yes	拿坡里	5	AEB3A959A8BD
-22	crossbow	12	yes	巴勒莫	5	A4DAB0C7B2F6
-23	navy	18	no	威尼斯	5	ABC2A5A7B4B5
-24	pike	18	yes	米蘭	5	A6CCC4F5
-25	big_city	20	yes	巴黎	5	A4DABEA4
-26	crossbow	12	yes	波爾多	5	AA69BAB8A668
-27	halberd	15	no	土魯斯	5	A467BE7CB4B5
-28	navy	10	yes	馬賽	5	B0A8C1C9
-29	siege	12	no	里昂	5	A8BDA9F9
-30	crossbow	18	yes	倫敦	5	ADDBB4B0
-31	pike	12	no	約克	5	ACF9A74A
-32	navy	10	no	都柏林	5	B3A3AC66AA4C
-33	pike	11	no	布魯日	5	A5ACBE7CA4E9
-34	big_city	18	no	科隆	5	ACECB6A9
-35	siege	15	no	紐倫堡	5	AFC3ADDBB3F9
-36	halberd	15	no	維也納	5	BAFBA45DAFC7
-37	siege	15	no	布拉格	5	A5ACA9D4AEE6
-38	halberd	12	no	馬德堡	5	B0A8BC77B3F9
-39	navy	12	yes	呂貝克	5	A766A8A9A74A
-40	horse	12	no	克拉科夫	5	A74AA9D4ACECA4D2
-41	horse	15	no	埃斯泰爾戈姆	5	AE4AB4B5AEF5BAB8A4E0A969
+# key: the English key of the city. The names of the front end use it (docs/EUROPE.md, E2).
+0	lisbon	navy	12	yes	里斯本	5	A8BDB4B5A5BB
+1	leon	horse	12	no	萊昂	5	B5DCA9F9
+2	toledo	halberd	15	no	托萊多	5	A6ABB5DCA668
+3	seville	big_city	18	yes	塞維利亞	5	B6EBBAFBA751A8C8
+4	valencia	crossbow	12	yes	瓦倫西亞	5	A5CBADDBA6E8A8C8
+5	barcelona	navy	12	yes	巴塞隆納	5	A4DAB6EBB6A9AFC7
+6	marrakesh	horse	18	no	馬拉喀什	5	B0A8A9D4B3D8A4B0
+7	fez	crossbow	15	yes	非斯	5	AB44B4B5
+8	bejaia	navy	12	yes	貝賈亞	5	A8A9B8EBA8C8
+9	tunis	pike	15	yes	突尼斯	5	ACF0A5A7B4B5
+10	tripoli	horse	11	no	的黎波里	5	AABABEA4AA69A8BD
+11	barqa	horse	10	no	巴爾卡	5	A4DABAB8A564
+12	alexandria	navy	12	yes	亞歷山卓	5	A8C8BEFAA473A8F4
+13	cairo	big_city	22	no	開羅	5	B67DC3B9
+14	jerusalem	pike	15	yes	耶路撒冷	5	AD43B8F4BCBBA74E
+15	constantinople	big_city	22	no	君士坦丁堡	5	A767A468A95AA442B3F9
+16	konya	horse	15	yes	科尼亞	5	ACECA5A7A8C8
+17	thessalonica	navy	15	yes	帖撒羅尼迦	5	A9ABBCBBC3B9A5A7AD7B
+18	athens	pike	12	yes	雅典	5	B6AEA8E5
+19	tarnovo	horse	12	yes	特爾諾沃	5	AF53BAB8BFD5A855
+20	rome	halberd	15	yes	羅馬	5	C3B9B0A8
+21	naples	crossbow	10	yes	拿坡里	5	AEB3A959A8BD
+22	palermo	crossbow	12	yes	巴勒莫	5	A4DAB0C7B2F6
+23	venice	navy	18	no	威尼斯	5	ABC2A5A7B4B5
+24	milan	pike	18	yes	米蘭	5	A6CCC4F5
+25	paris	big_city	20	yes	巴黎	5	A4DABEA4
+26	bordeaux	crossbow	12	yes	波爾多	5	AA69BAB8A668
+27	toulouse	halberd	15	no	土魯斯	5	A467BE7CB4B5
+28	marseille	navy	10	yes	馬賽	5	B0A8C1C9
+29	lyon	siege	12	no	里昂	5	A8BDA9F9
+30	london	crossbow	18	yes	倫敦	5	ADDBB4B0
+31	york	pike	12	no	約克	5	ACF9A74A
+32	dublin	navy	10	no	都柏林	5	B3A3AC66AA4C
+33	bruges	pike	11	no	布魯日	5	A5ACBE7CA4E9
+34	cologne	big_city	18	no	科隆	5	ACECB6A9
+35	nuremberg	siege	15	no	紐倫堡	5	AFC3ADDBB3F9
+36	vienna	halberd	15	no	維也納	5	BAFBA45DAFC7
+37	prague	siege	15	no	布拉格	5	A5ACA9D4AEE6
+38	magdeburg	halberd	12	no	馬德堡	5	B0A8BC77B3F9
+39	lubeck	navy	12	yes	呂貝克	5	A766A8A9A74A
+40	krakow	horse	12	no	克拉科夫	5	A74AA9D4ACECA4D2
+41	esztergom	horse	15	no	埃斯泰爾戈姆	5	AE4AB4B5AEF5BAB8A4E0A969

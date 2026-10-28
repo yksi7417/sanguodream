@@ -333,6 +333,7 @@ engine_load_pack_scenario(engine *e, const char *path)
     sim_load_name_index(e->sim, load->names, sim_make_command(e->sim, SIM_COMMAND_LOAD_NAME_INDEX), &name_sink);
     engine_ledger_append(e, &name_sink);
     e->names_source = ENGINE_SOURCE_PACK;
+    engine_load_scenario_keys(e, folder);   /* the scratch arena has done its work */
     result.status     = ENGINE_LOAD_OK;
     result.command_id = command.id;
     return result;

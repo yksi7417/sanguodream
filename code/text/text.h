@@ -123,6 +123,8 @@ struct text_catalog
     text_table   strings;                     /* text/<locale>.tsv */
     text_table   fallback_strings;            /* text/<fallback locale>.tsv */
     text_table   names;                       /* names/<locale>.tsv; may be empty */
+    char         game_pack[TEXT_PACK_SIZE];   /* the pack of the engine; "" or pack for the base pack (docs/EUROPE.md, E2) */
+    text_table   pack_names;                  /* names/<locale>.tsv of the game pack, keyed by "<kind>.<English key>" */
     u32          locale_count;
     text_locale_info locales[TEXT_MAX_LOCALES];   /* from text/locales.tsv, in file order */
     u32          load_count;                  /* increments with each text_catalog_set_locale */
@@ -151,6 +153,27 @@ internal const char *text_get(text_catalog *catalog, const char *id);
    names/<locale>.tsv with the key of the bytes, else the decoded bytes
    (zh-TW). Returns out. An empty name gives "". */
 internal const char *text_name(text_catalog *catalog, const u8 *bytes, u32 size, char *out, u32 out_size);
+
+/* docs/EUROPE.md, E1: the default locale of a pack, from the row
+   default_locale of data/<pack>/pack.tsv. False, and out "", if the pack
+   has no such row or the row is not a valid locale code. */
+internal b32 text_pack_default_locale(text_catalog *catalog, const char *pack, char *out, u32 out_size);
+
+/* docs/EUROPE.md, E2: the pack of the engine. The next
+   text_catalog_set_locale loads names/<locale>.tsv of that pack too. The
+   base pack of the catalog has no keyed names. */
+internal void text_catalog_set_game_pack(text_catalog *catalog, const char *pack);
+
+/* A new engine of a pack: the game pack, then the default locale of that
+   pack, or the active locale if the pack names none. The names of the
+   game pack load with the locale. */
+internal void text_catalog_use_game_pack(text_catalog *catalog, const char *pack);
+
+/* The name of a record of the game pack by its English key: the row
+   "<kind>.<key>" of the names of the game pack in the active locale, for
+   example "officer.philip_ii". 0 if the key is empty or has no row. The
+   fallback locale does not apply, so zh-TW keeps the Big5 names. */
+internal const char *text_key_name(text_catalog *catalog, const char *kind, const char *key);
 
 /* The label of an enum code, in out: the text of "<prefix>.<code>" in the
    active locale, else in the fallback locale. A code that no locale has
