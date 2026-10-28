@@ -73,6 +73,11 @@ class FolderStorage:
             target.write(data)
         os.replace(temporary, path)
 
+    async def delete(self, key):
+        path = self._path(key)
+        if os.path.isfile(path):
+            os.remove(path)
+
     async def list(self, prefix):
         folder = self._path(prefix.rstrip("/"))
         if not os.path.isdir(folder):

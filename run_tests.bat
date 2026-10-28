@@ -5,8 +5,10 @@ REM   run_tests.bat --e2e    also runs the window for 120 frames and checks its 
 REM   run_tests.bat --demo   only the demo walkthroughs: records build\demos\<test>.mp4 (or .gif)
 REM                          and a PNG of each panel; builds nothing
 REM   run_tests.bat --web    only the unit and feature tests of build_web.bat, under node
+REM   run_tests.bat --server only the tests of the room server (tests\server), with Python
 setlocal
 set ROOT=%~dp0
+if /i "%~1"=="--server" goto :server
 if not exist "%ROOT%build\unit_tests.exe" (
   echo run_tests.bat: build first ^(build.bat^)
   exit /b 1
@@ -37,6 +39,18 @@ if /i "%~1"=="--e2e" (
 )
 
 popd
+echo ALL PASS
+exit /b 0
+
+REM The tests of the Python server of the site (tests\server). They need no build.
+:server
+if "%HEXDOM_PYTHON%"=="" set HEXDOM_PYTHON=C:\tools\hexdom-venv\Scripts\python.exe
+echo === server ===
+"%HEXDOM_PYTHON%" -I "%ROOT%tests\server\rooms_tests.py"
+if errorlevel 1 (
+  echo TESTS FAILED
+  exit /b 1
+)
 echo ALL PASS
 exit /b 0
 
