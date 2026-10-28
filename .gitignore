@@ -4,6 +4,7 @@ build/
 *.obj
 *.exp
 *.lib
+*.p8
 
 *.stackdump
 
