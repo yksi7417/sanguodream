@@ -75,6 +75,8 @@ decompilation of it.
                     stops at the first layer that fails; --e2e adds the
                     window smoke run. With --demo, it runs only the
                     demo walkthroughs and records them to build\demos.
+                    With --demo-fast, it runs the same walkthroughs and
+                    checks in the fast mode. It records no video.
                     With --web, it runs only the tests of build_web.bat
                     under node. With --server, it runs only the tests of
                     the room server in tests\server, with Python
@@ -91,9 +93,13 @@ decompilation of it.
 - build\feature_tests.exe [fixtures-dir]   default spec-src\spec\fixtures
 - build\ui_tests.exe [filter]              for example "ui", "e2e",
                                            "ui/advance"
-- build\demo_player.exe [test-name] [--list] [--no-ffmpeg]   plays the
-                    "demo" tests at cinematic speed and records an MP4
-                    (ffmpeg) or a GIF and a PNG of each panel
+- build\demo_player.exe [test-name] [--list] [--fast] [--no-ffmpeg]
+                    plays the "demo" tests at cinematic speed. It
+                    records an MP4 (ffmpeg) or a GIF, and a PNG of each
+                    panel.
+                    With --fast, it plays them at ImGuiTestRunSpeed_Fast
+                    with no vsync, and it records nothing. The checks
+                    are the same in the two modes
 - build\save_dump.exe <file.s11> [--all-slots] [--utf8-names]
                     [--name-index <Scenario.s11>]   prints a save as JSON
                     with the clean-room loader; with --name-index, each

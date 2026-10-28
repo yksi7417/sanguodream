@@ -4,6 +4,8 @@ REM   run_tests.bat          unit -> feature -> ui (headless)
 REM   run_tests.bat --e2e    also runs the window for 120 frames and checks its log
 REM   run_tests.bat --demo   only the demo walkthroughs: records build\demos\<test>.mp4 (or .gif)
 REM                          and a PNG of each panel; builds nothing
+REM   run_tests.bat --demo-fast  the same walkthroughs and checks in the fast mode of demo_player.exe:
+REM                          no video, no PNG, no vsync; builds nothing
 REM   run_tests.bat --web    only the unit and feature tests of build_web.bat, under node
 REM   run_tests.bat --server only the tests of the room server (tests\server), with Python
 setlocal
@@ -15,6 +17,7 @@ if not exist "%ROOT%build\unit_tests.exe" (
 )
 pushd "%ROOT%build"
 if /i "%~1"=="--demo" goto :demo
+if /i "%~1"=="--demo-fast" goto :demo_fast
 if /i "%~1"=="--web" goto :web
 
 echo === unit ===
@@ -102,6 +105,20 @@ if %DEMO_COUNT%==0 (
   echo FAIL no demo tests
   goto :fail
 )
+popd
+echo ALL PASS
+exit /b 0
+
+REM The fast mode: one demo_player.exe run for all demo tests, with the same checks.
+REM It records nothing, so it does not look in build\demos.
+:demo_fast
+if not exist demo_player.exe (
+  echo run_tests.bat: build first ^(build.bat^)
+  goto :fail
+)
+echo === demo (fast) ===
+.\demo_player.exe --fast
+if errorlevel 1 goto :fail
 popd
 echo ALL PASS
 exit /b 0

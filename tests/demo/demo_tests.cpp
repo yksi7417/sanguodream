@@ -10,6 +10,7 @@
    Included by demo_player.cpp (unity build). */
 
 #define DEMO_ENGINE_ARENA_SIZE Megabytes(48)
+#define DEMO_FAST_UI_TIME_SCALE 4.0f   /* the fast mode: one frame is 4/60 s for the timers of the UI */
 #define DEMO_M10_NAME          "m10_map"
 #define DEMO_M11_NAME          "m11_save_map"
 #define DEMO_M12_NAME          "m12_main_map"
@@ -27,6 +28,9 @@
 
 /* build\demos, with no last backslash. demo_player.cpp sets it. */
 global_variable char g_demo_output_dir[MAX_PATH];
+/* The fast mode of demo_player.cpp (--fast): the steps and the checks are the
+   same, but the walkthrough records no video and no PNG. */
+global_variable b32  g_demo_fast;
 /* This frame's render commands and arena; demo_player.cpp sets them each frame. */
 global_variable render_commands *g_demo_render;
 global_variable memory_arena    *g_demo_frame_arena;
@@ -88,7 +92,10 @@ demo_gui(ImGuiTestContext *ctx)
         v.ui.show_economy  = false;
         v.ui.show_techniques = false;
     }
-    v.frame.dt_seconds  = ImGui::GetIO().DeltaTime;
+    /* The fast mode runs the timers of the UI faster: the walk, the turn
+       start and the show of the AI round. ImGui keeps its frame time, so
+       that a click and a double click stay the same. */
+    v.frame.dt_seconds  = ImGui::GetIO().DeltaTime * (g_demo_fast ? DEMO_FAST_UI_TIME_SCALE : 1.0f);
     v.frame.render      = g_demo_render;
     v.frame.frame_arena = g_demo_frame_arena;
     v.frame.portraits        = g_demo_portraits;
@@ -122,10 +129,12 @@ demo_proceed(ImGuiTestContext *ctx)
 
 /* Starts the video of the whole walkthrough: build\demos\<milestone>.mp4,
    or .gif if demo_player.cpp found no ffmpeg. It deletes the file of an
-   earlier run, so that demo_end_video sees only a new file. */
+   earlier run, so that demo_end_video sees only a new file. The fast mode
+   records nothing. */
 internal bool
 demo_begin_video(ImGuiTestContext *ctx, const char *milestone)
 {
+    if (g_demo_fast) return true;
     ctx->CaptureReset();
     snprintf(ctx->CaptureArgs->InOutputFile, sizeof(ctx->CaptureArgs->InOutputFile), "%s\\%s%s",
              g_demo_output_dir, milestone, ctx->EngineIO->VideoCaptureExtension);
@@ -137,17 +146,25 @@ demo_begin_video(ImGuiTestContext *ctx, const char *milestone)
 internal bool
 demo_end_video(ImGuiTestContext *ctx)
 {
+    if (g_demo_fast) return true;
     IM_CHECK_RETV(ctx->CaptureEndVideo(), false);
     IM_CHECK_RETV(demo_file_written(ctx->CaptureArgs->InOutputFile), false);
     return true;
 }
 
-/* Writes build\demos\<milestone>_<file_name>.png with only this panel in it. */
+/* Writes build\demos\<milestone>_<file_name>.png with only this panel in it.
+   The fast mode writes no file. It finds the window as CaptureAddWindow
+   does, so that a missing panel fails in the two modes. */
 internal bool
 demo_screenshot_panel(ImGuiTestContext *ctx, const char *milestone, const char *window, const char *file_name)
 {
     char window_ref[64];
     snprintf(window_ref, sizeof(window_ref), "//%s", window);
+    if (g_demo_fast)
+    {
+        IM_CHECK_RETV(ctx->GetWindowByRef(window_ref) != 0, false);
+        return true;
+    }
     ctx->CaptureReset();
     snprintf(ctx->CaptureArgs->InOutputFile, sizeof(ctx->CaptureArgs->InOutputFile), "%s\\%s_%s.png",
              g_demo_output_dir, milestone, file_name);

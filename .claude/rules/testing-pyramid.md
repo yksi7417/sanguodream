@@ -53,6 +53,16 @@ the layers from the bottom to the top and stops at the first failure.
      the UI or the engine breaks.
    - `run_tests.bat --demo` builds nothing. It fails if a demo test fails,
      or if build\demos does not have the video and the PNG files of a test.
+   - `run_tests.bat --demo-fast` runs `demo_player.exe --fast`. The fast
+     mode runs the same steps and checks at ImGuiTestRunSpeed_Fast. It
+     uses no vsync and a fixed frame time of 1/60 s. It records no video
+     and no PNG, and the helpers that record return success.
+   - A walkthrough gives the same result in the two modes. Fast mode
+     skips SleepStandard, and the mouse jumps to its target. The timers
+     of the UI run four times as fast.
+   - If a step waits for the UI, it waits for a condition with a frame
+     limit. Examples are an animation, a timer and the AI round. It does
+     not wait for a time.
 
 6. tests/server/ (Python unittest, `run_tests.bat --server`): the server
    of the site in web/, with FolderStorage in a temporary folder and a

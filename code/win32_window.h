@@ -39,6 +39,7 @@ struct win32_window
     ID3D11Texture2D        *staging;          /* CPU copy of the back buffer, made on the first read */
     u32                     staging_width;
     u32                     staging_height;
+    b32                     no_vsync;         /* the present does not wait for the vertical blank */
 };
 
 /* The window procedure has no user pointer, so it finds the window here. */
@@ -250,7 +251,7 @@ win32_render_frame(win32_window *window, d3d11_renderer *renderer, render_comman
 internal void
 win32_present_frame(win32_window *window)
 {
-    window->swap_chain->Present(1, 0);
+    window->swap_chain->Present(window->no_vsync ? 0 : 1, 0);
 }
 
 /* ---- back buffer read --------------------------------------------------- */
