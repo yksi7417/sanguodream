@@ -38,6 +38,7 @@ ui_label(char *out, u32 out_size, ui_state *ui, const char *text_id, const char 
 #include "ui/ui_base_menu.cpp" /* M14: the base command menu of the game mode */
 #include "ui/ui_feel.cpp"      /* M17: before ui_game.cpp, for the title and the load */
 #include "ui/ui_game.cpp"
+#include "ui/ui_multiplayer.cpp"   /* MP3: a shared game; needs ui_game.cpp */
 
 /* Writes an overlay colour for one cell of the terrain view, if it is on the map. */
 internal void
@@ -79,6 +80,8 @@ ui_init(ui_state *ui, text_catalog *text)
     ui->show_raw      = false;
     ui->show_all_cities = false;
     ui->font_size     = HEXDOM_FONT_DEFAULT_PIXELS;
+    ui->net             = {};   /* MP3: no shared game */
+    ui->net.desync_step = -1;
     ui->officers_view = {};
     ui->cities_view   = {};
     ui->ledger_view   = {};
@@ -622,6 +625,7 @@ internal void
 ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
 {
     ui_apply_pending_locale(ui);
+    ui_net_begin_frame(ui, api, frame);   /* MP3: the events of the page of a shared game */
     ui->portraits        = frame->portraits;
     ui->portrait_texture = frame->portrait_texture;
     ui->face_texture     = frame->face_texture;
@@ -721,5 +725,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (hud_ready) ui_draw_feedback(ui, api);   /* M18: the speech bubble and the values over the base of a command */
     if (in_game)   ui_draw_war(ui, api);        /* the strikes and the values over the units */
     ui_draw_status_bar(ui, api);        /* M11: the terrain, the coordinates and what can stand on the hex under the mouse */
+    ui_draw_net_banner(ui, api);        /* MP3: whose turn it is in a shared game */
     ui_scene_push(ui, api, frame);
+    ui_net_end_frame(ui, api, frame);   /* MP3: the steps of the local seat go to the page */
 }

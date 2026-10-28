@@ -32,6 +32,7 @@ import hmac
 import json
 import mimetypes
 import os
+import re
 import sys
 import time
 import urllib.parse
@@ -323,6 +324,9 @@ async def api_broadcast(request):
 
 async def game_file(request):
     await require_member(request)
+    following = request.cookies.get(NEXT_COOKIE, "")
+    if request.path == "/" and INVITE_PATH.fullmatch(following):
+        return redirect(following)   # an invite link from before the sign-in
     name = request.match_info.get("name") or "index.html"
     if name not in GAME_FILES:
         raise web.HTTPNotFound()
@@ -427,6 +431,52 @@ async def api_game_start(request):
     return web.json_response(room.public())
 
 
+async def api_game_start_image_put(request):
+    user = await require_member(request)
+    room = await find_room(request)
+    if request.content_length is not None and request.content_length > rooms.MAX_START_IMAGE_BYTES:
+        raise web.HTTPRequestEntityTooLarge(max_size=rooms.MAX_START_IMAGE_BYTES, actual_size=request.content_length)
+    data = await request.read()
+    async with room.lock:
+        try:
+            await request.app[KEY_ROOMS].put_start_image(room, user, data)
+        except rooms.RoomError as error:
+            return refused(error)
+    return web.json_response(room.public())
+
+
+async def api_game_start_image_get(request):
+    user = await require_member(request)
+    room = await find_room(request)
+    try:
+        data = await request.app[KEY_ROOMS].start_image(room, user)
+    except rooms.RoomError as error:
+        return refused(error)
+    if data is None:
+        raise web.HTTPNotFound()
+    return web.Response(body=data, content_type="application/octet-stream", headers={"Cache-Control": "no-store"})
+
+
+NEXT_COOKIE = "hexdom_next"
+NEXT_SECONDS = 3600
+INVITE_PATH = re.compile(r"/r/[A-Z]{6}")
+
+
+async def invite(request):
+    """The invite link of a room: a member goes to the game page of the room.
+    A visitor signs in first, and the page "/" then sends the visitor back here."""
+    user = await current_user(request)
+    if not user or not user.get("member"):
+        response = redirect("/house" if user else "/login")
+        if INVITE_PATH.fullmatch(request.path):
+            set_cookie(response, request, NEXT_COOKIE, request.path, NEXT_SECONDS)
+        return response
+    room = await request.app[KEY_ROOMS].find_code(request.match_info["code"].upper())
+    response = redirect(f"/?game={room.gid}") if room else web.Response(status=404, text="no game has this invite code")
+    response.del_cookie(NEXT_COOKIE, path="/")
+    return response
+
+
 async def api_game_socket(request):
     """The WebSocket of a room: the steps, the checksums and the chat (rooms.py)."""
     user = await require_member(request)
@@ -526,6 +576,9 @@ def make_app(root):
         web.post("/api/games/{gid}/seat", api_game_seat),
         web.post("/api/games/{gid}/start", api_game_start),
         web.get("/api/games/{gid}/socket", api_game_socket),
+        web.put("/api/games/{gid}/start-image", api_game_start_image_put),
+        web.get("/api/games/{gid}/start-image", api_game_start_image_get),
+        web.get("/r/{code}", invite),
         web.get("/", game_file),
         web.get("/{name}", game_file),
     ])

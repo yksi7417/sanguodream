@@ -51,6 +51,47 @@ struct ui_test_vars
     engine         *backend;
 };
 
+/* MP3: a fake network of the platform. The test queues the events of the
+   page, and the fake keeps the events that the game sends. */
+struct ui_test_net_state
+{
+    platform_net_event queued[8];
+    u32                queued_count, queued_next;
+    platform_net_event sent[16];
+    u32                sent_count;
+    char               text[256];      /* the text of the first event with a text */
+    memory_arena       arena;          /* the frame arena of "Play online": the render commands and the start image */
+};
+#define UI_TEST_NET_ARENA_SIZE Megabytes(4)
+global_variable ui_test_net_state g_ui_test_net;
+global_variable u8                g_ui_test_net_memory[UI_TEST_NET_ARENA_SIZE];
+
+internal void
+ui_test_net_reset(void)
+{
+    memset(&g_ui_test_net, 0, sizeof(g_ui_test_net));
+    arena_init(&g_ui_test_net.arena, g_ui_test_net_memory, UI_TEST_NET_ARENA_SIZE);
+}
+
+internal void
+ui_test_net_queue(platform_net_event event)
+{
+    if (g_ui_test_net.queued_count < ArrayCount(g_ui_test_net.queued)) g_ui_test_net.queued[g_ui_test_net.queued_count++] = event;
+}
+
+internal PLATFORM_NET_POLL(ui_test_net_poll)
+{
+    if (g_ui_test_net.queued_next == g_ui_test_net.queued_count) return false;
+    *event = g_ui_test_net.queued[g_ui_test_net.queued_next++];
+    return true;
+}
+
+internal PLATFORM_NET_SEND(ui_test_net_send)
+{
+    if (event->text && !g_ui_test_net.text[0]) snprintf(g_ui_test_net.text, sizeof(g_ui_test_net.text), "%s", event->text);
+    if (g_ui_test_net.sent_count < ArrayCount(g_ui_test_net.sent)) g_ui_test_net.sent[g_ui_test_net.sent_count++] = *event;
+}
+
 internal void
 ui_test_gui(ImGuiTestContext *ctx)
 {
@@ -4172,6 +4213,94 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->Yield(2);
         IM_CHECK(ctx->ItemExists("###open_develop"));
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* MP3: the banner of a shared game names the player whose faction acts. */
+    t = IM_REGISTER_TEST(e, "ui", "net_banner_names_the_player_whose_faction_acts");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.multiplayer.shared       = true;
+        v.recorder.multiplayer.local_force  = 2;
+        v.recorder.multiplayer.acting_force = 1;
+        v.ui.net.seat_count     = 2;
+        v.ui.net.seat_force[0]  = 1;
+        v.ui.net.seat_force[1]  = 2;
+        snprintf(v.ui.net.seat_player[0], UI_NET_NAME_SIZE, "Liu");
+        snprintf(v.ui.net.seat_player[1], UI_NET_NAME_SIZE, "Tester");
+        ctx->Yield(2);
+        ImGuiTestItemInfo turn = ctx->ItemInfo("//###NetBanner/###net_turn");
+        IM_CHECK(turn.ID != 0 && strstr(turn.DebugLabel, "Liu") != 0);
+        v.recorder.multiplayer.acting_force = 2;                     /* the faction of the local seat */
+        ctx->Yield(2);
+        IM_CHECK(strstr(ctx->ItemInfo("//###NetBanner/###net_turn").DebugLabel, "Liu") == 0);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* MP3: the join of the page loads the start image and begins the shared game;
+       a step of the page applies, and the UI reports its checksum. */
+    t = IM_REGISTER_TEST(e, "ui", "net_join_loads_the_start_image_and_a_step_reports_its_checksum");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_test_net_reset();
+        v.frame.net_send = ui_test_net_send;
+        v.frame.net_poll = ui_test_net_poll;
+        static const u8 image[16] = { 1, 2, 3 };
+        platform_net_event join = {};
+        join.kind = PLATFORM_NET_JOIN;
+        join.seat = 1;
+        join.host = true;
+        join.data = image;
+        join.size = sizeof(image);
+        join.text = "1\tTester\n2\t\n";
+        ui_test_net_queue(join);
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOAD_START_IMAGE), 1u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_MULTIPLAYER_BEGIN), 1u | 1u << 8);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_SET_FACTION_HUMAN), 1u);   /* the faction of the recorder has a player */
+        IM_CHECK(v.ui.net.joined && v.ui.hud_mode && !v.ui.show_title);
+        IM_CHECK(g_ui_test_net.sent_count == 1 && g_ui_test_net.sent[0].kind == PLATFORM_NET_CHECKSUM && g_ui_test_net.sent[0].step == -1);
+
+        static const u8 bytes[24] = { 1 };
+        platform_net_event step = {};
+        step.kind = PLATFORM_NET_STEP;
+        step.step = 0;
+        step.data = bytes;
+        step.size = sizeof(bytes);
+        ui_test_net_queue(step);
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_STEP_APPLY), (u32)sizeof(bytes));
+        IM_CHECK(g_ui_test_net.sent_count == 2 && g_ui_test_net.sent[1].kind == PLATFORM_NET_CHECKSUM && g_ui_test_net.sent[1].step == 0);
+    };
+
+    /* MP3: "Play online" gives the start image and the chosen rulers to the page. */
+    t = IM_REGISTER_TEST(e, "ui", "play_online_sends_the_start_image_and_the_seats_to_the_page");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_test_net_reset();
+        v.frame.net_send = ui_test_net_send;
+        v.frame.net_poll = ui_test_net_poll;
+        v.frame.frame_arena = &g_ui_test_net.arena;
+        v.ui.show_start_settings = true;
+        v.ui.game.rulers         = 1ull << 1;
+        ctx->SetRef("###StartSettings");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###start_online");
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_SET_SETTINGS), 1u);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_START_IMAGE), 1u);
+        IM_CHECK(g_ui_test_net.sent_count == 1 && g_ui_test_net.sent[0].kind == PLATFORM_NET_HOST && g_ui_test_net.sent[0].size == 16);
+        IM_CHECK(strncmp(g_ui_test_net.text, "1\t", 2) == 0);         /* one line for the chosen ruler, force 1 */
+        IM_CHECK(v.ui.net.waiting);
     };
 
     t = IM_REGISTER_TEST(e, "ui", "city_panel_greys_a_button_that_the_action_points_refuse");

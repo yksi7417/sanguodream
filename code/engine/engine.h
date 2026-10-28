@@ -1739,6 +1739,7 @@ struct engine_outgoing_step
     u32 size;           /* 0: no step waits, or the buffer is too short and the step stays in the queue */
     u32 step;           /* the number of the step in the shared game of this engine, from 0 */
     u64 checksum;       /* the state after the step */
+    u8  acting;         /* the faction that acts after the step; ENGINE_NO_FACTION if none. The checksum message names it. */
 };
 
 enum engine_step_apply_status
@@ -1770,6 +1771,14 @@ typedef u64                      engine_state_checksum_fn(void *engine);   /* th
 /* The PRNG state of the sim. A host sets the seed of the server before the
    start. In a shared game it changes nothing. */
 typedef void                     engine_set_seed_fn(void *engine, u64 seed);
+/* The start image of a shared game (MP3): the host writes the state with its
+   ledger, and each guest loads it before multiplayer_begin. The two engines
+   then have the same checksum. start_image gives 0 if the buffer is too
+   short. load_start_image starts a new replay record, and it changes
+   nothing in a shared game. */
+typedef u32                      engine_start_image_size_fn(void *engine);
+typedef u32                      engine_start_image_fn(void *engine, u8 *buffer, u32 capacity);
+typedef b32                      engine_load_start_image_fn(void *engine, const u8 *bytes, u32 size);
 
 struct engine_api
 {
@@ -2017,6 +2026,9 @@ struct engine_api
     engine_step_apply_fn             *step_apply;
     engine_state_checksum_fn         *state_checksum;
     engine_set_seed_fn               *set_seed;
+    engine_start_image_size_fn       *start_image_size;
+    engine_start_image_fn            *start_image;
+    engine_load_start_image_fn       *load_start_image;
 };
 
 #define ENGINE_NO_BASE 0xFFFFFFFFu

@@ -64,11 +64,13 @@ class RoomsTests(unittest.IsolatedAsyncioTestCase):
     async def asyncTearDown(self):
         self.folder.cleanup()
 
-    async def make_room(self):
+    async def make_room(self, image=True):
         factions = [{"force": FORCE_HOST, "name": "Cao"}, {"force": FORCE_GUEST, "name": "Liu"}, {"force": FORCE_AI, "name": "Sun"}]
         room = await self.rooms.create(HOST, "Test game", "SCEN002", "placeholder", BUILD, "live", 300, factions)
         await self.rooms.take_seat(room, HOST, FORCE_HOST)
         await self.rooms.take_seat(room, GUEST, FORCE_GUEST)
+        if image:
+            await self.rooms.put_start_image(room, HOST, b"start image")
         return room
 
     async def connect(self, room, user, build=BUILD, last_step=-1, socket=None):
@@ -263,17 +265,20 @@ class RoomsTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(room.record["acting"], FORCE_GUEST)
         self.assertIsNone(await self.send(room, guest, socket_step(1, FORCE_GUEST)))
 
-    async def test_only_the_host_reports_the_start_and_only_in_a_running_game(self):
+    async def test_only_the_report_of_the_host_names_the_first_faction(self):
         room = await self.make_room()
         host = await self.connect(room, HOST)
         guest = await self.connect(room, GUEST)
         report = {"type": "checksum", "step": -1, "checksum": "0" * 16, "acting": FORCE_GUEST}
         self.assertEqual(await self.send(room, host, report), "the game does not run")
         await self.rooms.start(room, HOST)
-        self.assertEqual(await self.send(room, guest, report), "no such step")
+        self.assertIsNone(await self.send(room, guest, report))           # a guest reports the start too
         self.assertEqual(room.record["acting"], rooms.NO_FACTION)
         self.assertIsNone(await self.send(room, host, report))
         self.assertEqual(room.record["acting"], FORCE_GUEST)
+        other = dict(report, checksum="1" * 16)
+        self.assertIsNone(await self.send(room, guest, other))            # another start state of the guest
+        self.assertEqual(room.record["state"], "desync")                  # two start states differ
 
     async def test_a_dead_socket_does_not_stop_the_relay(self):
         room, host, guest = await self.started_room()
@@ -330,6 +335,32 @@ class RoomsTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self.rooms.games_of(GUEST["uid"]), [])
         await self.rooms.take_seat(room, HOST, None)
         self.assertEqual([r.gid for r in await self.rooms.games_of(HOST["uid"])], [room.gid])
+
+    async def test_the_start_needs_the_start_image_of_the_host(self):
+        room = await self.make_room(image=False)
+        with self.assertRaises(rooms.RoomError):
+            await self.rooms.start(room, HOST)
+        with self.assertRaises(rooms.RoomError):
+            await self.rooms.put_start_image(room, GUEST, b"image")
+        with self.assertRaises(rooms.RoomError):
+            await self.rooms.put_start_image(room, HOST, b"")
+        await self.rooms.put_start_image(room, HOST, b"image")
+        with self.assertRaises(rooms.RoomError):
+            await self.rooms.start_image(room, GUEST)   # before the start
+        await self.rooms.start(room, HOST)
+        self.assertEqual(await self.rooms.start_image(room, GUEST), b"image")
+        with self.assertRaises(rooms.RoomError):
+            await self.rooms.start_image(room, OTHER)    # no seat
+        with self.assertRaises(rooms.RoomError):
+            await self.rooms.put_start_image(room, HOST, b"other")
+
+    async def test_the_invite_code_finds_the_room(self):
+        room = await self.make_room()
+        again = rooms.Rooms(self.store)
+        self.assertEqual((await again.find_code(room.record["code"])).gid, room.gid)
+        self.assertIsNone(await again.find_code("AAAAAA" if room.record["code"] != "AAAAAA" else "BBBBBB"))
+        self.assertIsNone(await again.find_code("../x/y"))
+        self.assertIsNone(await again.find_code("abcdef"))
 
     async def test_a_bad_game_id_finds_no_room(self):
         self.assertIsNone(await self.rooms.get("0123456789abcdef\n"))

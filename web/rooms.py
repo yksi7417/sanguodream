@@ -27,7 +27,10 @@ The keys in the storage (storage.py):
 - games/<gid>/room.json: the room.
 - games/<gid>/log/<first>-<last>.bin: a part of the log of steps. Each step
   is a u32 size, little-endian, then the bytes of the engine.
+- games/<gid>/start.hxs: the start image of the host (MP3), in the format of a
+  save slot. The start of the game needs it.
 - members/<uid>/games/<gid>: an empty file for each game of a member.
+- codes/<code>: the gid of the room of the invite code, as text.
 """
 import asyncio
 import json
@@ -85,6 +88,18 @@ def log_prefix(gid):
 
 def member_prefix(uid):
     return f"members/{uid}/games/"
+
+
+def start_key(gid):
+    return f"games/{gid}/start.hxs"
+
+
+def code_key(code):
+    return f"codes/{code}"
+
+
+CODE = re.compile(f"[{CODE_LETTERS}]{{{CODE_LENGTH}}}")
+MAX_START_IMAGE_BYTES = 16 * 1024 * 1024   # the limit of a save (storage.MAX_SAVE_BYTES)
 
 
 def clean_text(text, limit):
@@ -192,12 +207,13 @@ class Room:
 
         Each player can report, and two different reports give a desync. Only
         the author of the last step and the host can change the faction that
-        acts. Only the host reports the start state (step -1)."""
+        acts. Each player reports the start state (step -1), and only the
+        report of the host names the first faction that acts."""
         if self.record["state"] != "running":
             raise RoomError("the game does not run")
         if not is_int(step) or not START_STEP <= step < len(self.steps):
             raise RoomError("no such step")
-        if step == START_STEP and (self.steps or uid != self.record["host"]):
+        if step == START_STEP and self.steps:
             raise RoomError("no such step")
         if not isinstance(checksum, str) or not CHECKSUM.fullmatch(checksum):
             raise RoomError("bad checksum")
@@ -209,7 +225,8 @@ class Room:
             self.record["desync_step"] = step
             return "desync"
         last = step == len(self.steps) - 1
-        if last and acting != self.record["acting"] and uid in (self.last_author, self.record["host"]):
+        authors = (self.record["host"],) if step == START_STEP else (self.last_author, self.record["host"])
+        if last and acting != self.record["acting"] and uid in authors:
             self.record["acting"] = acting
             return "acting"
         return None
@@ -243,7 +260,7 @@ class Rooms:
         gid = secrets.token_hex(8)
         record = {
             "gid": gid,
-            "code": "".join(secrets.choice(CODE_LETTERS) for _ in range(CODE_LENGTH)),
+            "code": await self.free_code(),
             "name": clean_text(name, MAX_NAME_CHARS) or "Game",
             "host": host["uid"],
             "host_name": clean_text(host["name"], MAX_NAME_CHARS),
@@ -263,7 +280,42 @@ class Rooms:
         self.rooms[gid] = room
         await self.save(room)
         await self.store.put(member_prefix(host["uid"]) + gid, b"")
+        await self.store.put(code_key(record["code"]), gid.encode("ascii"))
         return room
+
+    async def free_code(self):
+        for _ in range(16):
+            code = "".join(secrets.choice(CODE_LETTERS) for _ in range(CODE_LENGTH))
+            if await self.store.get(code_key(code)) is None:
+                return code
+        raise RoomError("no free invite code")
+
+    async def find_code(self, code):
+        """The room of an invite code, or None."""
+        if not isinstance(code, str) or not CODE.fullmatch(code):
+            return None
+        gid = await self.store.get(code_key(code))
+        return await self.get(gid.decode("ascii", "replace")) if gid else None
+
+    async def put_start_image(self, room, user, data):
+        """The host sends the start image before the start."""
+        if user["uid"] != room.record["host"]:
+            raise RoomError("only the host sends the start image")
+        if room.record["state"] != "open":
+            raise RoomError("the game started")
+        if not data or len(data) > MAX_START_IMAGE_BYTES:
+            raise RoomError("bad start image")
+        await self.store.put(start_key(room.gid), data)
+        room.record["start_image"] = len(data)
+        await self.save(room)
+
+    async def start_image(self, room, user):
+        """The start image for the host and the players of a running game."""
+        if not room.is_member(user["uid"]):
+            raise RoomError("no seat in this game")
+        if room.record["state"] == "open" or not room.record.get("start_image"):
+            raise RoomError("the game did not start")
+        return await self.store.get(start_key(room.gid))
 
     async def get(self, gid):
         if not isinstance(gid, str) or not GID.fullmatch(gid):
@@ -345,6 +397,8 @@ class Rooms:
             raise RoomError("only the host starts the game")
         if room.record["state"] != "open":
             raise RoomError("the game started")
+        if not room.record.get("start_image"):
+            raise RoomError("no start image")
         if not any(seat.get("uid") for seat in room.record["seats"]):
             raise RoomError("no player has a seat")
         room.record["state"] = "running"
