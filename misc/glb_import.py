@@ -29,8 +29,9 @@ Run it from the root of the repository:
 
 The name of a base kind is base_city, base_big_city, base_gate or
 base_port. The name of a facility shape is facility_market,
-facility_market_lv2, facility_market_lv3 or facility_farm
-(render_mesh_model_files in code/render/render.h). The
+facility_market_lv2, facility_market_lv3, facility_farm,
+facility_farm_lv2, facility_farm_lv3, facility_barracks or
+facility_barracks_lv2 (render_mesh_model_files in code/render/render.h). The
 script needs Pillow (pip install pillow). Keep the GLB
 source in art-src/models, out of git. Add a row for each model to
 data/<pack>/models/provenance.tsv.

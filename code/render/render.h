@@ -615,7 +615,8 @@ global_variable const char *render_mesh_model_files[RENDER_MESH_COUNT][RENDER_MO
     { 0 },   /* RENDER_MESH_SETTLEMENT: a base has the models above */
     { 0 },   /* RENDER_MESH_SCAFFOLD */
     { "models/facility_market", "models/facility_market_lv2", "models/facility_market_lv3" },   /* RENDER_MESH_STALL: the markets */
-    { "models/facility_farm" },                                                                 /* RENDER_MESH_FIELD: the farms */
+    { "models/facility_farm", "models/facility_farm_lv2", "models/facility_farm_lv3" },         /* RENDER_MESH_FIELD: the farms */
+    { "models/facility_barracks", "models/facility_barracks_lv2" },                             /* RENDER_MESH_HALL: the barracks, the drill ground */
 };
 
 /* The column of render_mesh_model_files for the level of an instance. An
