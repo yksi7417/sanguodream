@@ -260,7 +260,7 @@ placeholder mesh.
 
 | Model | Kind | Source GLB | Triangles | Mesh file | Licence |
 |---|---|---|---|---|---|
-| base_big_city | the big city | Meshy_AI_Walled_Imperial_City_1026143943_texture.glb | 354,640 | 10.9 MB | CC BY 4.0, credit "Meshy" |
+| base_big_city | the big city | big-city-v2-rectangular-30k.glb | 30,140 | 1.2 MB | CC BY 4.0, credit "Meshy" |
 | base_city | the city | city-30k.glb | 30,100 | 1.2 MB | CC BY 4.0, credit "Meshy" |
 | facility_farm | the farm shape: the farm, the military farm | farm-lv1-game-ready.glb | 39,730 | 1.8 MB | CC BY 4.0, credit "Meshy" |
 | base_gate | the pass | gate-30k.glb | 32,164 | 1.4 MB | CC BY 4.0, credit "Meshy" |
@@ -269,10 +269,12 @@ placeholder mesh.
 | facility_market_lv2 | the market shape at level 2 | market-lv2-30k.glb | 29,488 | 1.2 MB | CC BY 4.0, credit "Meshy" |
 | facility_market_lv3 | the market shape at level 3 | market-lv3-game-ready.glb | 38,060 | 1.6 MB | CC BY 4.0, credit "Meshy" |
 
-The owner of the repository made the city, the pass, the port, the farm
-and the three markets on 2026-10-27. The GLB files came from the shared Google Drive folder "Three
-Kingdoms Animations — Map Art", subfolder 07-3D-Models. Each texture is
-1024 x 1024 pixels.
+The owner of the repository made the eight models on 2026-10-27. The GLB
+files came from the shared Google Drive folder "Three Kingdoms Animations
+— Map Art", subfolder 07-3D-Models. Each texture is 1024 x 1024 pixels.
+The first model of the big city had 354,640 triangles.
+big-city-v2-rectangular-30k.glb replaced it on 2026-10-27, and the
+download became 11 MB smaller.
 
 The model of a facility replaces the placeholder shape of its kind
 (render_mesh_model_files in code/render/render.h). Each facility kind with
@@ -329,10 +331,9 @@ owner shares the folder by link. It does these steps:
 import, add the model to the table above, run build.bat and
 run_tests.bat, and look at the model in the game.
 
-This file of the folder is not in the game yet (2026-10-27):
-- big-city-v2-rectangular-30k.glb: base_big_city already has a model.
-  Give --replace base_big_city to use it. It has 30,140 triangles in
-  place of 354,640, and it makes the download 11 MB smaller.
+On 2026-10-27 the game has a model from each name of the folder. The
+other GLBs of the folder are larger exports of the same models. Each of
+them has more than 40,000 triangles.
 
 To import one GLB by hand, put it in art-src/models, out of git. Then run
 this command from the root of the repository. The name is one of the

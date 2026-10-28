@@ -55,19 +55,19 @@ The status on 2026-10-27:
   - a save, a reload of the page, and a load
   - the loss of the WebGL2 context
   - the parity test of the 3D scene against the Windows build
-- The download is approximately 46 MB (2026-10-27): index.data is 44.5 MB
-  and index.wasm is 1.7 MB. The eight 3D models are 33.6 MB of it
+- The download is approximately 36 MB (2026-10-27): index.data is 34.8 MB
+  and index.wasm is 1.7 MB. The eight 3D models are 23.9 MB of it
   (docs/ASSETS.md, "Base models"):
-  - the big city: 12.5 MB
   - the farm: 3.3 MB
+  - the market at level 3: 3.3 MB
   - the pass: 3.1 MB
   - the city: 3.0 MB
   - the port: 2.9 MB
-  - the market at level 3: 3.3 MB
+  - the big city: 2.8 MB
   - the market at level 2: 2.8 MB
   - the market at level 1: 2.7 MB
-- The big city has approximately 355,000 triangles. Its 30k export in the
-  Drive folder makes the download approximately 11 MB smaller.
+- The 30k model of the big city made the download approximately 10 MB
+  smaller.
 
 ## The fly.io site
 The fly.io app sanguodream serves the web game at https://sanguodream.fly.dev.
@@ -249,9 +249,11 @@ the real map (`win32_hexdom.exe --frames 120`, 2026-10-27).
 | Permanent | 256 | 16.4 |
 | Transient | 256 | 4.0 |
 | Frame | 160 | 67.0 |
-| Renderer scratch | 64 | 35.5 |
+| Renderer scratch | 64 | 15.0 |
 
 The frame block holds the terrain mesh of the 200 x 200 map. The renderer
-scratch holds the model of the big city. Measure the peak again after a
+scratch holds the file of one model while the renderer loads it. The peak
+of the renderer scratch is from a game on 2026-10-27, after the 30k model
+of the big city. Measure the peak again after a
 long game before you set the sizes of the web build. The target for the
 web build is less than 512 MB.
