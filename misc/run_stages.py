@@ -45,6 +45,7 @@ ALLOWED = "Bash,Read,Edit,Write,Glob,Grep,WebFetch,WebSearch"
 DENIED = "Bash(git push --force:*),Bash(git push -f:*),Bash(git reset --hard:*),Bash(rm -rf:*),Bash(git stash:*)"
 LIBRARIES = ("third_party/imgui", "third_party/imgui_test_engine")
 PLAN_POLL_SECONDS = 20
+PLAN_START_ATTEMPTS = 5
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 STILL_ACTIVE = 259
 FAKE_SESSION = ("import json, sys, time; time.sleep(float(sys.argv[1])); "
@@ -249,7 +250,7 @@ def run_plan(model, budget, dry_run, key, fake):
         log.flush()
 
     state = {stage: "waiting" for stage in plan}   # waiting, running, success, failed, skipped
-    running = {}
+    running, attempts = {}, {}
     # A second run of the plan keeps the work of the first: a stage that ended with
     # success stays done, and a session that still runs is watched, not started again.
     for stage in plan:
@@ -274,9 +275,17 @@ def run_plan(model, budget, dry_run, key, fake):
                 state[stage] = "skipped"
                 note("%s: skipped, because a stage before it did not succeed" % stage)
             elif all(state[name] == "success" for name in after):
-                git("fetch", "-q", "origin")
-                tree, branch = prepare(stage, False)
-                running[stage] = start(stage, tree, branch, model, budget, False, key, fake)
+                # A git command can fail for a moment, for example when a session
+                # pushes during the fetch. The plan then tries again at the next poll.
+                try:
+                    git("fetch", "-q", "origin")
+                    tree, branch = prepare(stage, False)
+                    running[stage] = start(stage, tree, branch, model, budget, False, key, fake)
+                except (SystemExit, OSError, subprocess.SubprocessError) as error:
+                    attempts[stage] = attempts.get(stage, 0) + 1
+                    if attempts[stage] >= PLAN_START_ATTEMPTS: state[stage] = "failed"
+                    note("%s: no start (%s), attempt %d of %d" % (stage, error, attempts[stage], PLAN_START_ATTEMPTS))
+                    continue
                 state[stage] = "running"
                 note("%s: started after %s" % (stage, ", ".join(after) if after else "nothing"))
         if not running and all(value != "waiting" for value in state.values()): break
@@ -309,6 +318,10 @@ def main():
         run_plan(model, budget, dry_run, key, fake)
         return
     for stage in stages:
+        session = running_session(stage)
+        if session and not only_prepare:
+            print("%s: the session of pid %d still runs; no second session starts" % (stage, session.pid))
+            continue
         tree, branch = prepare(stage, dry_run)
         if not only_prepare: start(stage, tree, branch, model, budget, dry_run, key)
 
