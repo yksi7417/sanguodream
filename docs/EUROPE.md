@@ -2,7 +2,7 @@
 
 This document is the plan for the game of the year 1200 in the pack
 data/medieval_europe. It covers the requests of the player of 2026-10-28.
-It gives the design, the milestones E1 to E7 and the open questions.
+It gives the design, the milestones E1 to E8 and the open questions.
 
 The requests:
 1. The game starts in English, not in Chinese.
@@ -17,6 +17,7 @@ The requests:
    lectures of Dr. Roy Casagranda.
 7. English keys identify the people, the factions and the cities. Big5
    bytes are only for the display of Chinese text.
+8. The game of 1200 has two maps: the west and the east (E8).
 
 ## The rule of compatibility
 Each change of this plan is a change of the pack, or a change that a pack
@@ -272,7 +273,8 @@ of the period, or a later attribution with a note.
 ## E6. The authorities of the church
 This section is a design. On 2026-10-28 the player chose the Pentarchy
 as the five authorities (Q-E1). The player also chose a new city for
-Antioch (Q-E7). The work starts after the answers to Q-E2 and Q-E8.
+Antioch (Q-E7). The work starts after the answer to Q-E2 and after the
+two maps of E8.
 
 In the Three Kingdoms game, the Han emperor gives legitimacy. The faction
 that holds his city gains technique points each month. Officers who
@@ -362,31 +364,20 @@ The facts of this section come from sources that the research checked.
 The list of sources is in the section "The sources".
 
 ### The city of Antioch
-The player chose to add Antioch as a city of the map (Q-E7). Antioch is
-at 36.20 N, 36.16 E.
-- The east edge of the map is 36.2 E in map/source/region.tsv. The value
-  lon_max must change to 37.0, so that the map has land east of the city.
-- The map has 79239 hexes. The limit is 80000. With the larger box,
-  misc/make_world_map.py makes each hex a little larger.
-- A new map changes the hex of each city. Saves of the pack from an
-  earlier map do not agree with the new map.
+The player chose to add Antioch as a city (Q-E7). Antioch is at
+36.20 N, 36.16 E. The east map of E8 holds it as one of its 42 cities.
+The map of the prototype does not change, and no city leaves a map.
 
-The format of a save holds 42 cities (SAVE_CITY_COUNT). The rule of
-compatibility keeps this format. Thus a 43rd city is not possible
-without W3 of docs/MAPS.md. There are two choices:
-1. Antioch takes the place of Barqa, city 11. Barqa has no owner and no
-   soldiers in 1200. The coast between Tripoli and Alexandria then has no
-   base.
-2. W3: the pack gives the number of its cities. The sim, the engine and
-   the save of a pack then hold 43 cities. This is a large change in
-   code/sim. The save of the Three Kingdoms game does not change.
+The five sees on the two maps:
+- The east map holds all five sees: Rome, Constantinople, Alexandria,
+  Antioch and Jerusalem.
+- The west map holds only Rome. The other four sees act there without a
+  city.
 
-The plan recommends choice 1. See question Q-E8.
-
-In 1200, Antioch has no owner, as Barqa today. Bohemond III held the
-principality of Antioch from 1163 to 1201. The principality is not a
-faction of the game. The see of Antioch has a Latin patriarch in the city
-and a Greek patriarch in exile.
+In 1200, Bohemond III held the principality of Antioch, from 1163 to
+1201. The east map can make the principality a faction. The see of
+Antioch has a Latin patriarch in the city and a Greek patriarch in
+exile.
 
 ## E7. The story mode
 The story mode tells the background of the war before the first turn. It
@@ -482,6 +473,97 @@ Each new condition and each new effect gets a unit test first in
 tests/unit/playable_tests.cpp, beside the tests of the M9 events. The Three Kingdoms events do not use
 them, so the fixtures stay green.
 
+## E8. The west map and the east map
+On 2026-10-28 the player chose two maps for the game of 1200. The west
+map has the war of England and France at its centre. The east map has the
+crusades at its centre. Each map is a pack of its own, with its own 42
+cities. Thus each map has approximately two times the cities of the
+prototype in each region.
+
+| Map | Pack | Box | Hexes at 11 km | The wars |
+|---|---|---|---|---|
+| West | medieval_west | 10.5 W to 15 E, 30.5 N to 56 N | approximately 56000 | England and France, the two kings of Germany, the Reconquista, the Albigensian Crusade |
+| East | medieval_east | 8 E to 46 E, 28.5 N to 49 N | approximately 72000 | the crusades in Syria and Egypt, the Fourth Crusade, Byzantium and Bulgaria, the Ayyubids and the Mamluks |
+
+misc/make_world_map.py sets the size of a hex from the distance between
+the cities. The column "Hexes at 11 km" gives the size of the box only.
+
+### The reasons for the line
+The east edge of the west map is 15 E, not the Rhine:
+- At Bouvines in July 1214, Philip II beat a coalition. John of England,
+  the emperor Otto IV, Ferrand of Flanders and Renaud of Boulogne were in
+  this coalition.
+- Otto IV had his base in Cologne and in Brunswick. Philip of Swabia, his
+  rival of the Staufer party, was the ally of Philip II.
+- The pope judged the kings of the west. Innocent III put France under
+  interdict in 1200 and England in 1208. Rome is at 12.5 E.
+
+Spain and Morocco are on the west map:
+- Peter II of Aragon died at Muret in September 1213. He fought for
+  Toulouse against the crusaders of Simon de Montfort.
+- Alfonso VIII of Castile went into Gascony in 1205. He claimed it as the
+  dowry of his wife Eleanor, the sister of John.
+- The Almohads did not accept the caliph of Baghdad. Saladin asked them
+  for a fleet, and no fleet came. Their war with the kings of Iberia was a
+  war of the west.
+
+Thus the west map also has a war of Christians and Muslims. Las Navas de
+Tolosa in 1212 is an event of the west map.
+
+The east map goes from Italy to Baghdad:
+- It holds the five sees of E6.
+- Baghdad is a city of the map. The caliph can then be an authority with
+  a city (Q-E2).
+- The Fourth Crusade sails from Venice to Constantinople inside the map.
+- The story of the Mamluks goes from Cairo to Antioch.
+- Later events can come in from the east edge, for example the Mongols
+  after 1240.
+
+### The parts in the two maps
+The boxes overlap from 8 E to 15 E. Italy, Sicily, Corsica, Sardinia,
+Tunis and Tripoli are on both maps. The papacy, Venice and Sicily are
+factions of both maps. Each map is a game of its own, so the overlap is
+not a problem.
+
+Poland is on neither map. Krakow is at 50.06 N, north of the east map.
+
+The factions of the prototype on each map:
+
+| Map | Factions |
+|---|---|
+| West | france, angevin, toulouse, aragon, castile, leon, portugal, almohad, ghaniya, staufer, welf, sicily, bohemia, papacy, venice, flanders, denmark |
+| East | byzantium, bulgaria, rum, ayyubid, hungary, austria, papacy, venice, sicily, almohad, ghaniya |
+| Neither | poland |
+
+New factions can join the east map. These are the first choices:
+- the kingdom of Jerusalem, with Acre;
+- the principality of Antioch;
+- the Armenian kingdom of Cilicia;
+- the kingdom of Cyprus;
+- the kingdom of Georgia;
+- the Abbasid caliphate, with Baghdad.
+
+The west map can add the kingdom of Navarre.
+
+### The work of E8
+1. Make data/medieval_west and data/medieval_east from a copy of
+   data/medieval_europe. Each pack gets its own map/source/region.tsv
+   and map/source/sites.tsv.
+2. Choose the 42 cities of each map. Use the seats of the factions, the
+   fronts of the wars, and the populations of Bosker, Buringh and van
+   Zanden (docs/MAPS.md).
+3. Copy the officers of the factions of each map. The English keys stay
+   the same in both packs. Thus the lives, the native names and the
+   Wikipedia URLs stay the same.
+4. Research the officers of the new factions, with two sources for each
+   life (docs/europe/SOURCES.md).
+5. Add one row for each pack to scenarios.tsv of the placeholder pack.
+   The new game screen then lists the two games of 1200.
+6. Add a feature test for each pack, as the test of the prototype.
+
+data/medieval_europe stays as the prototype. Its feature test and its
+saves do not change.
+
 ## The sources
 The player likes the lectures of Dr. Roy Casagranda. The plan uses them as
 a source of ideas and of the frame of the story. The plan does not copy
@@ -534,8 +616,9 @@ wikipedia: 3, 4, 19, 22, 33, 35, 38, 57, 78 and 82.
 | E3 | Native names in officers.tsv and the Names setting | Q-E4 for Arabic | done, Latin script only |
 | E4 | Lives and Wikipedia URLs, the officer panel | no | done |
 | E5 | Coats of arms on the flags | Q-E3 | list done in docs/europe/ARMS.md, external art |
-| E6 | The authorities of the church and the city of Antioch | Q-E2, Q-E8 | design |
+| E6 | The authorities of the church | Q-E2 | design |
 | E7 | The story mode and the events during the game | no | design |
+| E8 | The west map and the east map, with Antioch on the east map | no | design |
 
 ## The stage runs
 misc/run_stages.py runs the stages as headless Claude Code sessions, in
@@ -565,8 +648,10 @@ flowchart LR
     end
     subgraph wait["Waits for answers"]
         q3{{Q-E3 licence}} --> art[e5 art<br/>external, Drive folder] --> e5[e5_arms<br/>flags, textures]
-        q1{{Q-E2, Q-E8}} --> e6[e6_church<br/>sim rules, Antioch, engine_api]
+        q1{{Q-E2}} --> e6[e6_church<br/>sim rules, engine_api]
+        e8[e8_maps<br/>west and east packs] --> e6
         e7[e7_story<br/>story pages, events]
+        e8 --> e7
     end
     e4 --> e5
     e6 --> e7
@@ -584,6 +669,8 @@ The reasons for each arrow:
   contract in code/hexdom.h.
 - e6_church before e7_story: the story tells the rules of the
   authorities.
+- e8_maps before e6_church and e7_story: the sees and the events need
+  the cities of the two maps.
 - bio_check before e7_story: the pages of the rulers use the checked
   facts.
 - e6_church edits code/sim/ and engine_api. It can run in parallel with
@@ -649,4 +736,5 @@ merges the work of the first in its rebase.
   the Mamluk siege of 1268.
 - Q-E8. The place of Antioch. A save holds 42 cities. Can Antioch take
   the place of Barqa? The other choice is W3 of docs/MAPS.md, a pack with
-  43 cities. See "The city of Antioch" in E6.
+  43 cities. Closed on 2026-10-28: the player chose two maps (E8). The
+  east map holds Antioch, and Barqa stays.
