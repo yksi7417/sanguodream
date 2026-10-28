@@ -41,6 +41,17 @@ global_variable const test_text_file test_text_files[] =
     { "root/pack/names/en.tsv",
       "key\ttext\n"
       "B1E4\tCao\n" },
+    { "root/europe/pack.tsv",
+      "key\tvalue\n"
+      "# the settings of the pack\n"
+      "default_locale\ten\n" },
+    { "root/europe/names/en.tsv",
+      "key\ttext\n"
+      "officer.philip_ii\tPhilip II Augustus\n"
+      "city.paris\tParis\n" },
+    { "root/odd/pack.tsv",
+      "key\tvalue\n"
+      "default_locale\t../en\n" },
 };
 
 internal PLATFORM_READ_ENTIRE_FILE(test_text_read_file)
@@ -303,6 +314,52 @@ unit_text_catalog_tests(test_counts *counts, memory_arena *arena)
     TEST_CHECK(counts, catalog.load_count == 3, "each valid locale change loads the files again");
 }
 
+/* docs/EUROPE.md, E1 and E2: the default locale of a pack and the names of
+   the game pack by English key. */
+internal void
+unit_text_pack_tests(test_counts *counts, memory_arena *arena)
+{
+    text_catalog catalog;
+    text_catalog_init(&catalog, arena_sub(arena, Kilobytes(64)), test_text_read_file, "root", "pack", "en");
+    char locale[TEXT_LOCALE_SIZE] = "x";
+    TEST_CHECK(counts, text_pack_default_locale(&catalog, "europe", locale, sizeof(locale)) && strcmp(locale, "en") == 0,
+               "pack.tsv of a pack gives its default locale");
+    TEST_CHECK(counts, !text_pack_default_locale(&catalog, "pack", locale, sizeof(locale)) && locale[0] == 0,
+               "a pack without pack.tsv has no default locale");
+    TEST_CHECK(counts, !text_pack_default_locale(&catalog, "odd", locale, sizeof(locale)), "a default locale with a path is refused");
+
+    text_catalog_set_locale(&catalog, "en");
+    TEST_CHECK(counts, text_key_name(&catalog, "officer", "philip_ii") == 0, "without a game pack, a key has no name");
+    text_catalog_set_game_pack(&catalog, "europe");
+    TEST_CHECK(counts, text_key_name(&catalog, "officer", "philip_ii") == 0, "the names of the game pack load at the next locale change");
+    text_catalog_set_locale(&catalog, "en");
+    const char *philip = text_key_name(&catalog, "officer", "philip_ii");
+    TEST_CHECK(counts, philip && strcmp(philip, "Philip II Augustus") == 0, "en: the key of an officer gives the row of the game pack");
+    const char *paris = text_key_name(&catalog, "city", "paris");
+    TEST_CHECK(counts, paris && strcmp(paris, "Paris") == 0, "the prefix chooses the kind of record");
+    TEST_CHECK(counts, text_key_name(&catalog, "city", "philip_ii") == 0, "a key of another kind has no name");
+    TEST_CHECK(counts, text_key_name(&catalog, "officer", "") == 0, "an empty key has no name");
+    char out[64];
+    const u8 family[4] = { 0xB1, 0xE4, 0x00, 0x00 };
+    TEST_CHECK(counts, strcmp(text_name(&catalog, family, sizeof(family), out, sizeof(out)), "Cao") == 0,
+               "the names of the base pack by Big5 key stay");
+
+    text_catalog_set_locale(&catalog, "zh-TW");
+    TEST_CHECK(counts, text_key_name(&catalog, "officer", "philip_ii") == 0,
+               "zh-TW: the game pack has no names file, so the key has no name and the Big5 bytes show");
+    text_catalog_set_game_pack(&catalog, "pack");
+    text_catalog_set_locale(&catalog, "en");
+    TEST_CHECK(counts, text_key_name(&catalog, "officer", "philip_ii") == 0, "the base pack as the game pack has no keyed names");
+
+    text_catalog_set_locale(&catalog, "zh-TW");
+    text_catalog_use_game_pack(&catalog, "europe");
+    TEST_CHECK(counts, strcmp(catalog.locale, "en") == 0 && text_key_name(&catalog, "officer", "philip_ii") != 0,
+               "a new engine of a pack with a default locale switches to that locale and loads the names");
+    text_catalog_set_locale(&catalog, "ko");
+    text_catalog_use_game_pack(&catalog, "pack");
+    TEST_CHECK(counts, strcmp(catalog.locale, "ko") == 0, "a pack without pack.tsv keeps the active locale");
+}
+
 internal void
 unit_text_name_tests(test_counts *counts, memory_arena *arena)
 {
@@ -485,6 +542,7 @@ unit_text_tests(test_counts *counts)
     unit_text_table_tests(counts, &arena);
     unit_text_catalog_tests(counts, &arena);
     unit_text_name_tests(counts, &arena);
+    unit_text_pack_tests(counts, &arena);
     unit_text_label_tests(counts, &arena);
     unit_text_provider_tests(counts, &arena);   /* M18 */
     test_arena_destroy(&arena);

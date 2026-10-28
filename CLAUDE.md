@@ -59,6 +59,8 @@ decompilation of it.
 - docs/art/GEMINI-PROMPTS.md the prompts that make the art with Gemini
 - docs/MAPS.md               maps from real geography: the scale, the
                              licences of the data, the tool and the plan
+- docs/EUROPE.md             the game of 1200: English names by key, the
+                             lives, the arms, the church and the story
 
 ## Build and run
 - build.bat         builds build\hexdom.dll, build\win32_hexdom.exe, the
@@ -154,7 +156,8 @@ decompilation of it.
                          from real geography: NOAA ETOPO heights and
                          Natural Earth vectors (docs/MAPS.md)
 - misc/make_scenario.py  checks a scenario of a pack (TSV files) and writes
-                         the Big5 names of its officers (docs/MAPS.md)
+                         the Big5 names of its officers (docs/MAPS.md) and
+                         names/en.tsv of the pack (docs/EUROPE.md)
 - misc/make_pair_index.py  writes data/placeholder/pairs.tsv from the save
                          pairs of the spec (run it after a spec update;
                          tutorial 26)

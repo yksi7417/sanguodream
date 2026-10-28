@@ -15,6 +15,13 @@ historical officers in 1200. scenarios.tsv lists it. misc/make_scenario.py
 checks the files of the scenario and writes the Big5 names of the
 officers (docs/MAPS.md, "The scenario of a pack").
 
+The pack starts in English: pack.tsv sets default_locale to en. The
+English keys of officers.tsv, forces.tsv and map/source/sites.tsv
+identify the records. misc/make_scenario.py writes names/en.tsv from
+them. lore/en.tsv holds the life of each officer. officers.tsv also has
+the name of each officer in their own language and the URL of the
+English Wikipedia article (docs/EUROPE.md).
+
 The other tables are copies. These come from data/placeholder: the rules,
 the terrain, the units, the weapons and the movement costs. rules.tsv
 changes one value: game.end_year is 1360, not 351. These come from

@@ -247,9 +247,9 @@ starts the engine of that pack first.
 | W5 | Better data: Itiner-e roads, city sizes from Bosker-Buringh, the Koppen climate for the terrain | Roads and forests closer to history |
 | W6 | One pack for each planned game | The games of the table above |
 
-W3 and W4 are necessary for the large regions. A pack scenario has no
-English names yet. The English UI shows the Chinese names, because the
-names/en.tsv of the placeholder pack has only the Three Kingdoms names.
+W3 and W4 are necessary for the large regions. A pack scenario has its
+English names in names/en.tsv of the pack, by English key. The pack names
+its default locale in pack.tsv (docs/EUROPE.md, E1 and E2).
 
 ## The regions of the planned games
 The table gives the hexes at the scale of the placeholder map, 11 km

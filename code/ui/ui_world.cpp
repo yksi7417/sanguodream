@@ -45,12 +45,27 @@ ui_text_id(u32 value, u32 none)
 #define UI_PORTRAIT_SQUARE_HEIGHT  0.80f
 #define UI_PORTRAIT_LINES          6.0f
 
-/* One name cell: the display name, and its bytes as hex in a tooltip. */
+/* docs/EUROPE.md, E2: the name of a record of the game pack by its English
+   key, for example kind "officer" and key "philip_ii", in out. False, and
+   out unchanged, if the record has no key or the locale has no row. Then
+   the caller uses the Big5 bytes. */
+internal b32
+ui_key_name(ui_state *ui, const char *kind, const char *key, char *out, u32 out_size)
+{
+    const char *found = text_key_name(ui->text, kind, key);
+    if (!found) return false;
+    text_copy_utf8(found, out, out_size);
+    return true;
+}
+
+/* One name cell: the display name, and its bytes as hex in a tooltip.
+   keyed is the name by English key, or 0 for the name of the bytes. */
 internal void
-ui_name_cell(ui_state *ui, const u8 *bytes, u32 size)
+ui_name_cell(ui_state *ui, const u8 *bytes, u32 size, const char *keyed = 0)
 {
     char name[UI_NAME_SIZE];
-    text_name(ui->text, bytes, size, name, sizeof(name));
+    if (keyed) text_copy_utf8(keyed, name, sizeof(name));
+    else       text_name(ui->text, bytes, size, name, sizeof(name));
     ImGui::TextUnformatted(name);
     if (ImGui::IsItemHovered())
     {
@@ -75,10 +90,12 @@ ui_raw_tooltip(ui_state *ui, u32 value)
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s: %u", text_get(ui->text, "label.raw"), value);
 }
 
-/* The family name and the given name of an officer, in out. */
+/* The family name and the given name of an officer, in out. An officer of
+   a pack with a name by English key shows that name (docs/EUROPE.md, E2). */
 internal void
 ui_officer_name(ui_state *ui, engine_officer *officer, char *out, u32 out_size)
 {
+    if (ui_key_name(ui, "officer", officer->key, out, out_size)) return;
     char family[UI_NAME_SIZE], given[UI_NAME_SIZE];
     text_name(ui->text, officer->family_name, sizeof(officer->family_name), family, sizeof(family));
     text_name(ui->text, officer->given_name, sizeof(officer->given_name), given, sizeof(given));
@@ -200,8 +217,9 @@ ui_location_text(ui_state *ui, engine_api *api, u16 location, char *out, u32 out
 {
     if (location == ENGINE_NO_LOCATION) { snprintf(out, out_size, "-"); return; }
     engine_location_name name = api->location_name_at(api->engine, location);
-    if (name.location == ENGINE_NO_LOCATION) snprintf(out, out_size, "%u", location);
-    else                                     text_name(ui->text, name.name, sizeof(name.name), out, out_size);
+    if (name.location == ENGINE_NO_LOCATION) { snprintf(out, out_size, "%u", location); return; }
+    if (location < SAVE_CITY_COUNT && ui_key_name(ui, "city", api->city_name_at(api->engine, location).key, out, out_size)) return;
+    text_name(ui->text, name.name, sizeof(name.name), out, out_size);
 }
 
 enum ui_code_kind
@@ -264,8 +282,11 @@ ui_draw_officer_row(ui_state *ui, engine_api *api, engine_officer *officer)
 {
     ImGui::TableNextRow();
     ImGui::TableNextColumn(); ImGui::Text("%u", officer->officer_id);
-    ImGui::TableNextColumn(); ui_name_cell(ui, officer->family_name, sizeof(officer->family_name));
-    ImGui::TableNextColumn(); ui_name_cell(ui, officer->given_name, sizeof(officer->given_name));
+    /* A name by English key is one whole name: it fills the family column. */
+    char keyed[UI_NAME_SIZE * 2];
+    b32 has_key = ui_key_name(ui, "officer", officer->key, keyed, sizeof(keyed));
+    ImGui::TableNextColumn(); ui_name_cell(ui, officer->family_name, sizeof(officer->family_name), has_key ? keyed : 0);
+    ImGui::TableNextColumn(); ui_name_cell(ui, officer->given_name, sizeof(officer->given_name), has_key ? "" : 0);
     ImGui::TableNextColumn(); ui_code_cell(ui, api, UI_CODE_FORCE, officer->force_id, UI_NO_ID_8);
     ImGui::TableNextColumn(); ui_code_cell(ui, api, UI_CODE_STATUS, officer->status, U32_MAX);
     ImGui::TableNextColumn(); ui_code_cell(ui, api, UI_CODE_LOCATION, officer->base_location, UI_NO_ID_16);
@@ -284,12 +305,20 @@ ui_officer_row_cells(ui_state *ui, engine_api *api, void *user, u32 source, ui_s
 {
     (void)user;
     engine_officer officer = api->officer_at(api->engine, source);
-    char name[UI_NAME_SIZE], text[48];
+    char name[UI_NAME_SIZE * 2], text[48];
     ui_key_number(cells + 0, officer.officer_id);
-    text_name(ui->text, officer.family_name, sizeof(officer.family_name), name, sizeof(name));
-    ui_key_text(cells + 1, name);
-    text_name(ui->text, officer.given_name, sizeof(officer.given_name), name, sizeof(name));
-    ui_key_text(cells + 2, name);
+    if (ui_key_name(ui, "officer", officer.key, name, sizeof(name)))
+    {
+        ui_key_text(cells + 1, name);
+        ui_key_text(cells + 2, "");
+    }
+    else
+    {
+        text_name(ui->text, officer.family_name, sizeof(officer.family_name), name, sizeof(name));
+        ui_key_text(cells + 1, name);
+        text_name(ui->text, officer.given_name, sizeof(officer.given_name), name, sizeof(name));
+        ui_key_text(cells + 2, name);
+    }
     ui_key_code(ui, api, cells + 3, UI_CODE_FORCE, officer.force_id, UI_NO_ID_8);
     ui_key_code(ui, api, cells + 4, UI_CODE_STATUS, officer.status, U32_MAX);
     ui_key_code(ui, api, cells + 5, UI_CODE_LOCATION, officer.base_location, UI_NO_ID_16);
@@ -367,7 +396,12 @@ ui_draw_city_row(ui_state *ui, engine_api *api, engine_city *city, engine_city_n
     if (ImGui::Selectable(id_label, city->city_id == ui->city.selected, ImGuiSelectableFlags_SpanAllColumns)) ui_frame_city(ui, city->city_id);
     ImGui::TableNextColumn();
     if (name->city_id == ENGINE_NO_CITY) ImGui::TextUnformatted("-");
-    else                                 ui_name_cell(ui, name->name, sizeof(name->name));
+    else
+    {
+        char keyed[UI_NAME_SIZE];
+        b32 has_key = ui_key_name(ui, "city", name->key, keyed, sizeof(keyed));
+        ui_name_cell(ui, name->name, sizeof(name->name), has_key ? keyed : 0);
+    }
     ImGui::TableNextColumn(); ui_code_cell(ui, api, UI_CODE_FORCE, city->owner_force_id, UI_NO_ID_8);
     ImGui::TableNextColumn(); ui_code_cell(ui, api, UI_CODE_OFFICER, city->commanding_officer_id, UI_NO_ID_16);
     ImGui::TableNextColumn(); ImGui::Text("%u", city->gold);
@@ -389,7 +423,7 @@ ui_city_row_cells(ui_state *ui, engine_api *api, void *user, u32 source, ui_sort
     if (name.city_id == ENGINE_NO_CITY) ui_key_text(cells + 1, "-");
     else
     {
-        text_name(ui->text, name.name, sizeof(name.name), decoded, sizeof(decoded));
+        if (!ui_key_name(ui, "city", name.key, decoded, sizeof(decoded))) text_name(ui->text, name.name, sizeof(name.name), decoded, sizeof(decoded));
         ui_key_text(cells + 1, decoded);
     }
     ui_key_code(ui, api, cells + 2, UI_CODE_FORCE, city.owner_force_id, UI_NO_ID_8);

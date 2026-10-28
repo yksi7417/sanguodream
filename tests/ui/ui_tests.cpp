@@ -506,6 +506,32 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
+    /* docs/EUROPE.md, E2: an officer of a pack has a name by English key. */
+    t = IM_REGISTER_TEST(e, "ui", "officers_panel_names_an_officer_of_a_pack_by_its_english_key_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 2;
+        v.recorder.officer_key   = "philip_ii";
+        text_catalog_use_game_pack(&v.text, "medieval_europe");
+        IM_CHECK_STR_EQ(v.text.locale, "en");   /* pack.tsv of the pack */
+        ctx->SetRef("###Officers");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->Yield();
+        engine_officer philip = v.api.officer_at(v.api.engine, 0), other = v.api.officer_at(v.api.engine, 1);
+        char name[UI_NAME_SIZE * 2];
+        ui_officer_name(&v.ui, &philip, name, sizeof(name));
+        IM_CHECK_STR_EQ(name, "Philip II Augustus");
+        ui_officer_name(&v.ui, &other, name, sizeof(name));
+        IM_CHECK(strcmp(name, "Philip II Augustus") != 0 && name[0]);   /* no key: the Big5 bytes */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        text_catalog_use_game_pack(&v.text, HEXDOM_CONTENT_PACK);
+        IM_CHECK_STR_EQ(v.text.locale, "zh-TW");   /* pack.tsv of the placeholder pack */
+    };
+
     t = IM_REGISTER_TEST(e, "ui", "cities_panel_shows_names_through_the_text_module_and_commands_nothing");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;
@@ -4444,6 +4470,38 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
+    /* The header of the list is a row too (the player, 2026-10-28): a click
+       on the city of the header frames that city. On the officers tab the
+       header is the ruler of the force. */
+    t = IM_REGISTER_TEST(e, "ui", "hud_header_frames_its_city_and_names_the_ruler");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.hud_mode            = true;
+        v.ui.scene.headless      = true;
+        v.ui.show_city           = false;
+        v.ui.city.selected       = ENGINE_NO_CITY;   /* the header shows the first own city: city 0 */
+        ctx->Yield(2);
+        v.ui.scene.cam.target = v3_make(500.0f, v.ui.scene.cam.target.y, 500.0f);
+        recorder_reset(&v.recorder);
+        ctx->SetRef("//###HUD");
+        ImGuiTestItemInfo head = ctx->ItemInfo("**/###hud_head0");
+        IM_CHECK(head.ID != 0);
+        ctx->ItemClick(head.ID);
+        ctx->Yield(2);
+        v3 expected = hex_world_center(hex_make(1, 1), v.ui.scene.cam.target.y);   /* the scripted centre of city 0 */
+        IM_CHECK(fabsf(v.ui.scene.cam.target.x - expected.x) < 1e-3f && fabsf(v.ui.scene.cam.target.z - expected.z) < 1e-3f);
+        IM_CHECK(!v.ui.show_city);                                                  /* a left click only frames */
+        ui_hud_row ruler = ui_hud_header_row(&v.api, 1, UI_HUD_TAB_OFFICERS, 0);
+        IM_CHECK(ruler.kind == 2 && ruler.id != U32_MAX);
+        IM_CHECK_EQ(v.api.officer_at(v.api.engine, ruler.id).officer_id, 100);    /* the scripted ruler of force 1 */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
     /* The game mode: 進行 of the map menu ends the turn with one command and closes the menu. */
     t = IM_REGISTER_TEST(e, "ui", "map_menu_proceed_issues_one_end_turn");
     t->SetVarsDataType<ui_test_vars>();
@@ -4663,6 +4721,70 @@ register_ui_tests(ImGuiTestEngine *e)
         passable[1] = passable[4] = false;                                               /* two open axes, cliffs on axis 1: the gap is axis 0 or 2 */
         passable[2] = false;                                                             /* axis 2 loses one side */
         IM_CHECK_EQ(ui_gate_axis(passable, road), 0u);
+    };
+
+    /* The effects of the map (the player, 2026-10-28): the flames of a land
+       fire stay on the hex and the dizzy spiral goes with the unit. A cell
+       that does not burn without a unit (water; column 3 of the recorder)
+       gives its flames to the unit on it. A confused unit gets the spiral
+       and no flames. */
+    t = IM_REGISTER_TEST(e, "ui", "map_effects_put_the_fire_on_the_hex_and_the_dizziness_on_the_unit");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_effect effects[32];
+        u32 count = 0;
+        auto has = [&](u8 kind, hex_coord hex, u32 unit) -> bool
+        {
+            for (u32 index = 0; index < count; ++index)
+            {
+                ui_effect *effect = effects + index;
+                if (effect->kind != kind) continue;
+                if (kind == UI_EFFECT_FIRE_HEX ? (effect->hex.q == hex.q && effect->hex.r == hex.r) : effect->unit == unit) return true;
+            }
+            return false;
+        };
+        recorder_reset(&v.recorder);
+        hex_coord land = hex_make(1, 3);   /* unit 1, on forest */
+        hex_offset land_cell = hex_to_offset(land);
+        v.recorder.fire_cell = (u8)(land_cell.row * 8 + land_cell.col);
+        count = ui_scene_effects(&v.api, effects, ArrayCount(effects));
+        IM_CHECK(has(UI_EFFECT_FIRE_HEX, land, 0) && has(UI_EFFECT_DIZZY, land, 1) && !has(UI_EFFECT_FIRE_UNIT, land, 1));
+
+        v.recorder.unit_shift = 2;          /* unit 0 at (3, 2): column 3 does not burn without a unit */
+        hex_coord water = hex_make(3, 2);
+        hex_offset water_cell = hex_to_offset(water);
+        IM_CHECK_EQ(water_cell.col, 3);
+        v.recorder.fire_cell = (u8)(water_cell.row * 8 + water_cell.col);
+        count = ui_scene_effects(&v.api, effects, ArrayCount(effects));
+        IM_CHECK(has(UI_EFFECT_FIRE_UNIT, water, 0) && has(UI_EFFECT_DIZZY, water, 0) && !has(UI_EFFECT_FIRE_HEX, water, 0));
+
+        v.recorder.unit_shift  = 0;
+        v.recorder.fire_cell   = 0;         /* cell 9: no unit stands there */
+        v.recorder.unit0_state = UNIT_STATE_CONFUSED;
+        count = ui_scene_effects(&v.api, effects, ArrayCount(effects));
+        IM_CHECK(has(UI_EFFECT_DIZZY, hex_make(1, 2), 0) && !has(UI_EFFECT_FIRE_UNIT, hex_make(1, 2), 0) && !has(UI_EFFECT_DIZZY, land, 1));
+        v.recorder.unit0_state = 0;
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* The pier side of a port faces the water: the neighbour of water with
+       the most water beside it. A port without water keeps the default. */
+    t = IM_REGISTER_TEST(e, "ui", "port_direction_faces_the_water");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        (void)ctx;
+        b32 water[HEX_DIRECTION_COUNT] = {};
+        IM_CHECK_EQ(ui_port_direction(water), (u32)HEX_DIRECTION_COUNT);   /* no water */
+        water[2] = true;
+        IM_CHECK_EQ(ui_port_direction(water), 2u);
+        water[2] = false;
+        water[5] = water[0] = water[1] = true;                              /* a bay: the middle of the water faces out */
+        IM_CHECK_EQ(ui_port_direction(water), 0u);
     };
 
     /* The scene draws a gate on each pass and a pier on each port, in the

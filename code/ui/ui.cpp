@@ -50,6 +50,7 @@ ui_scene_mark(u32 *overlay, engine_terrain_view view, hex_coord h, u32 rgba)
 
 #include "ui/ui_scene.cpp"
 #include "ui/ui_locate.cpp"   /* M11 */
+#include "ui/ui_effects.cpp"  /* the fire and the dizzy units on the map; needs ui_locate.cpp */
 #include "ui/ui_report.cpp"   /* M18: the log, the speech bubble and the values; needs ui_locate.cpp */
 #include "ui/ui_round.cpp"    /* M20: the show of the AI round; needs ui_report.cpp */
 #include "ui/ui_war.cpp"      /* the walk, the strikes and the hits; needs ui_round.cpp */

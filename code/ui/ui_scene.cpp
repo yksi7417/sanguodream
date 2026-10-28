@@ -206,6 +206,43 @@ ui_gate_yaw(engine_api *api, engine_terrain_view view, hex_coord h)
     return atan2f(along.x, along.z);
 }
 
+/* The side of a port that faces the water: the neighbour of water with the
+   most water on its two sides. HEX_DIRECTION_COUNT if no neighbour is water. */
+internal u32
+ui_port_direction(const b32 water[HEX_DIRECTION_COUNT])
+{
+    u32 best = HEX_DIRECTION_COUNT;
+    s32 best_score = 0;
+    for (u32 d = 0; d < HEX_DIRECTION_COUNT; ++d)
+    {
+        if (!water[d]) continue;
+        u32 left = (d + HEX_DIRECTION_COUNT - 1) % HEX_DIRECTION_COUNT, right = (d + 1) % HEX_DIRECTION_COUNT;
+        s32 score = 4 + (water[left] ? 1 : 0) + (water[right] ? 1 : 0);
+        if (score > best_score) { best_score = score; best = d; }
+    }
+    return best;
+}
+
+/* The yaw of a port: the pier and the boats of the model are on its local
+   +Z side (misc/glb_import.py keeps the axes of the GLB). The yaw turns
+   that side to the water: a hex that a ship can enter. */
+internal f32
+ui_port_yaw(engine_api *api, engine_terrain_view view, hex_coord h)
+{
+    b32 water[HEX_DIRECTION_COUNT] = {};
+    for (u32 d = 0; d < HEX_DIRECTION_COUNT; ++d)
+    {
+        hex_offset o = hex_to_offset(hex_neighbor(h, d));
+        if (o.col < 0 || o.row < 0 || (u32)o.col >= view.width || (u32)o.row >= view.height) continue;
+        engine_terrain_kind terrain = api->terrain_kind_at(api->engine, view.kind[(u32)o.row * view.width + (u32)o.col]);
+        water[d] = terrain.id != ENGINE_NO_TERRAIN && terrain.cost[MOVEMENT_NAVY] != 0;
+    }
+    u32 direction = ui_port_direction(water);
+    if (direction == HEX_DIRECTION_COUNT) return 0.0f;
+    v3 toward = v3_sub(hex_world_center(hex_neighbor(h, direction), 0.0f), hex_world_center(h, 0.0f));
+    return atan2f(toward.x, toward.z);
+}
+
 /* The art of a city (docs/ASSETS.md, "Base art"): a big city has its own
    picture (cities-and-facilities.md, Specialty). */
 internal u32
@@ -381,7 +418,7 @@ ui_scene_push(ui_state *ui, engine_api *api, ui_frame_info *frame)
         if (o.col < 0 || o.row < 0 || (u32)o.col >= view.width || (u32)o.row >= view.height) continue;
         u32 cell = (u32)o.row * view.width + (u32)o.col;
         u32 mesh = base.type == BASE_PORT ? RENDER_MESH_PORT : RENDER_MESH_GATE;
-        f32 yaw = base.type == BASE_PORT ? 0.0f : ui_gate_yaw(api, view, h);
+        f32 yaw = base.type == BASE_PORT ? ui_port_yaw(api, view, h) : ui_gate_yaw(api, view, h);
         render_push_base(rc, mesh, ui_base_art(base.type), hex_world_center(h, terrain_level_y(view.level[cell])), yaw, 1.0f, ui_faction_rgba(api, base.force));
     }
     ui_scene_push_buildings(rc, api, view);

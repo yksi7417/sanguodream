@@ -168,22 +168,33 @@ ui_draw_hex_info_box(ui_state *ui, engine_api *api)
 /* ---- the plates over the bases and the units (ui/main-map.md) -------------------------- */
 
 #define UI_PLATE_SLOT_DISTANCE 60.0f   /* the slots draw when the camera is nearer than this */
+#define UI_BASE_PLATE_FONT_SCALE 1.4f  /* the name of a base, in font sizes (the player, 2026-10-28) */
 
-/* A plate: the name, a number (the soldiers) and a thin bar (a fraction,
-   the durability of a base). It sits on the background, under the panels. */
+internal void ui_draw_unit_flag(engine_api *api, ImDrawList *draw, f32 right, f32 bottom, u8 force_id);   /* below */
+internal void ui_draw_scene_effects(ui_state *ui, engine_api *api, m4 view_projection, ImDrawList *draw);   /* ui_effects.cpp */
+
+/* The plate of a base: the name, a number (the soldiers) and a thin bar
+   (a fraction, the durability). The name is larger than the text of the
+   panels. The flag of the owner stands at the left of the plate, as on a
+   unit. A base without an owner has no flag. The plate sits on the
+   background, under the panels. */
 internal void
-ui_draw_plate(ImDrawList *draw, f32 x, f32 y, const char *name, u32 number, f32 fraction, ImU32 colour, bool selected)
+ui_draw_plate(engine_api *api, ImDrawList *draw, f32 x, f32 y, const char *name, u32 number, f32 fraction, u8 force_id, bool selected)
 {
     char line[UI_NAME_SIZE * 2 + 16];
     snprintf(line, sizeof(line), "%s %u", name, number);
-    ImVec2 size = ImGui::CalcTextSize(line);
-    ImVec2 top(x - size.x * 0.5f - 4.0f, y - size.y - 10.0f);
-    ImVec2 bottom(x + size.x * 0.5f + 4.0f, y - 4.0f);
+    ImFont *font = ImGui::GetFont();
+    f32 font_size = ImGui::GetFontSize() * UI_BASE_PLATE_FONT_SCALE;
+    ImVec2 size = font->CalcTextSizeA(font_size, FLT_MAX, 0.0f, line);
+    ImVec2 top(x - size.x * 0.5f - 5.0f, y - size.y - 12.0f);
+    ImVec2 bottom(x + size.x * 0.5f + 5.0f, y - 4.0f);
+    ImU32 colour = ui_faction_color(api, force_id);
     draw->AddRectFilled(top, bottom, IM_COL32(0, 0, 0, 170), 3.0f);
     draw->AddRect(top, bottom, selected ? IM_COL32(255, 230, 60, 255) : colour, 3.0f, 0, selected ? 2.0f : 1.0f);
-    draw->AddText(ImVec2(top.x + 4.0f, top.y + 1.0f), IM_COL32(255, 255, 255, 255), line);
+    draw->AddText(font, font_size, ImVec2(top.x + 5.0f, top.y + 2.0f), IM_COL32(255, 255, 255, 255), line);
     f32 clamped = fraction < 0.0f ? 0.0f : (fraction > 1.0f ? 1.0f : fraction);
     draw->AddRectFilled(ImVec2(top.x + 2.0f, bottom.y - 4.0f), ImVec2(top.x + 2.0f + (bottom.x - top.x - 4.0f) * clamped, bottom.y - 2.0f), colour);
+    if (force_id != ENGINE_NO_FACTION) ui_draw_unit_flag(api, draw, top.x - 2.0f, bottom.y, force_id);
 }
 
 /* The screen point over a hex, or false when it is off the screen. */
@@ -458,6 +469,7 @@ ui_draw_scene_labels(ui_state *ui, engine_api *api)
     ImDrawList *draw = ImGui::GetBackgroundDrawList();
     bool close_up = ui->scene.cam.distance < UI_PLATE_SLOT_DISTANCE;
     ui->units.plate_count = 0;
+    ui_draw_scene_effects(ui, api, view_projection, draw);   /* ui_effects.cpp: under the plates */
     for (u32 index = 0; index < api->city_count(api->engine); ++index)
     {
         engine_city city = api->city_at(api->engine, index);
@@ -470,7 +482,7 @@ ui_draw_scene_labels(ui_state *ui, engine_api *api)
         ui_city_label(ui, api, city.city_id, name, sizeof(name));
         engine_city_siege siege = api->city_siege(api->engine, city.city_id);
         f32 fraction = siege.durability_max ? (f32)siege.durability / (f32)siege.durability_max : 1.0f;
-        ui_draw_plate(draw, x, y, name, city.troops, fraction, ui_faction_color(api, city.owner_force_id), city.city_id == ui->city.selected);
+        ui_draw_plate(api, draw, x, y, name, city.troops, fraction, city.owner_force_id, city.city_id == ui->city.selected);
     }
     for (u32 index = 0; index < api->base_count(api->engine); ++index)
     {
@@ -479,7 +491,7 @@ ui_draw_scene_labels(ui_state *ui, engine_api *api)
         if (base.id == ENGINE_NO_ROW || !ui_scene_screen(api, view_projection, hex_make(base.q, base.r), UI_LABEL_LIFT, &x, &y)) continue;
         f32 fraction = base.durability_max ? (f32)base.durability / (f32)base.durability_max : 1.0f;
         char name[UI_NAME_SIZE * 2];
-        ui_draw_plate(draw, x, y, ui_base_name(ui, api, &base, name, sizeof(name)), base.troops, fraction, ui_faction_color(api, base.force), false);
+        ui_draw_plate(api, draw, x, y, ui_base_name(ui, api, &base, name, sizeof(name)), base.troops, fraction, base.force, false);
     }
     for (u32 id = 0; id < api->unit_count(api->engine); ++id)
     {

@@ -380,8 +380,9 @@ text_append(char *out, u32 out_size, u32 *used, const char *text)
 }
 
 /* Reads <data root>\<pack>\<folder>\<stem>.tsv into the arena of the catalog. */
+/* <data root>/<pack>/<folder>/<stem>.tsv as a table; folder "" for a file at the root of the pack. */
 internal text_table
-text_catalog_load_table(text_catalog *catalog, const char *folder, const char *stem, const char *key_column)
+text_catalog_load_pack_table(text_catalog *catalog, const char *pack, const char *folder, const char *stem, const char *key_column)
 {
     text_table empty = {};
     if (!catalog->read_entire_file) return empty;
@@ -390,15 +391,24 @@ text_catalog_load_table(text_catalog *catalog, const char *folder, const char *s
     path[0] = 0;
     text_append(path, sizeof(path), &used, catalog->data_root);
     text_append(path, sizeof(path), &used, "/");
-    text_append(path, sizeof(path), &used, catalog->pack);
+    text_append(path, sizeof(path), &used, pack);
     text_append(path, sizeof(path), &used, "/");
-    text_append(path, sizeof(path), &used, folder);
-    text_append(path, sizeof(path), &used, "/");
+    if (folder[0])
+    {
+        text_append(path, sizeof(path), &used, folder);
+        text_append(path, sizeof(path), &used, "/");
+    }
     text_append(path, sizeof(path), &used, stem);
     text_append(path, sizeof(path), &used, ".tsv");
     read_file_result file = catalog->read_entire_file(path, &catalog->arena);
     if (!file.contents) return empty;
     return text_table_parse((const char *)file.contents, file.size, key_column, &catalog->arena);
+}
+
+internal text_table
+text_catalog_load_table(text_catalog *catalog, const char *folder, const char *stem, const char *key_column)
+{
+    return text_catalog_load_pack_table(catalog, catalog->pack, folder, stem, key_column);
 }
 
 internal void
@@ -440,6 +450,7 @@ text_catalog_set_locale(text_catalog *catalog, const char *locale)
     catalog->strings          = empty;
     catalog->fallback_strings = empty;
     catalog->names            = empty;
+    catalog->pack_names       = empty;
     text_copy_utf8(code, catalog->locale, sizeof(catalog->locale));
 
     text_catalog_load_locales(catalog);
@@ -447,8 +458,54 @@ text_catalog_set_locale(text_catalog *catalog, const char *locale)
     if (strcmp(code, catalog->fallback_locale) == 0) catalog->strings = catalog->fallback_strings;
     else catalog->strings = text_catalog_load_table(catalog, "text", code, "id");
     catalog->names = text_catalog_load_table(catalog, "names", code, "key");
+    if (catalog->game_pack[0] && strcmp(catalog->game_pack, catalog->pack) != 0)
+    {
+        catalog->pack_names = text_catalog_load_pack_table(catalog, catalog->game_pack, "names", code, "key");
+    }
     catalog->load_count++;
     return true;
+}
+
+internal b32
+text_pack_default_locale(text_catalog *catalog, const char *pack, char *out, u32 out_size)
+{
+    if (!out_size) return false;
+    out[0] = 0;
+    if (!catalog || !pack || !pack[0]) return false;
+    /* The table lives in the arena of the catalog until the next locale change. */
+    text_table settings = text_catalog_load_pack_table(catalog, pack, "", "pack", "key");
+    const char *locale = text_table_find(&settings, "default_locale");
+    if (!locale || !text_is_locale_code(locale)) return false;
+    text_copy_utf8(locale, out, out_size);
+    return true;
+}
+
+internal void
+text_catalog_set_game_pack(text_catalog *catalog, const char *pack)
+{
+    text_copy_utf8(pack ? pack : "", catalog->game_pack, sizeof(catalog->game_pack));
+}
+
+internal void
+text_catalog_use_game_pack(text_catalog *catalog, const char *pack)
+{
+    text_catalog_set_game_pack(catalog, pack);
+    char locale[TEXT_LOCALE_SIZE];
+    if (!text_pack_default_locale(catalog, pack, locale, sizeof(locale))) text_copy_utf8(catalog->locale, locale, sizeof(locale));
+    text_catalog_set_locale(catalog, locale);
+}
+
+internal const char *
+text_key_name(text_catalog *catalog, const char *kind, const char *key)
+{
+    if (!catalog || !key || !key[0]) return 0;
+    char id[TEXT_PACK_SIZE + 64];
+    u32 used = 0;
+    id[0] = 0;
+    text_append(id, sizeof(id), &used, kind);
+    text_append(id, sizeof(id), &used, ".");
+    text_append(id, sizeof(id), &used, key);
+    return text_table_find(&catalog->pack_names, id);
 }
 
 internal b32

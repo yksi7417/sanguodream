@@ -27,6 +27,7 @@ ui_text_with_key(ui_state *ui, const char *prefix, const char *key)
 internal const char *
 ui_base_name(ui_state *ui, engine_api *api, const engine_base *base, char *out, u32 out_size)
 {
+    if (ui_key_name(ui, "base", base->key, out, out_size)) return out;   /* the names of the game pack (docs/EUROPE.md, E2) */
     char id[64];
     snprintf(id, sizeof(id), "base.%s", base->key);
     const char *text = text_get(ui->text, id);
@@ -75,7 +76,10 @@ ui_city_label(ui_state *ui, engine_api *api, u8 city_id, char *out, u32 out_size
     }
     engine_city_name name = api->city_name_at(api->engine, city_id);
     char decoded[UI_NAME_SIZE] = "";
-    if (name.city_id != ENGINE_NO_CITY) text_name(ui->text, name.name, sizeof(name.name), decoded, sizeof(decoded));
+    if (name.city_id != ENGINE_NO_CITY && !ui_key_name(ui, "city", name.key, decoded, sizeof(decoded)))
+    {
+        text_name(ui->text, name.name, sizeof(name.name), decoded, sizeof(decoded));
+    }
     if (!decoded[0])       snprintf(out, out_size, "%u", city_id);
     else if (ui->show_raw) snprintf(out, out_size, "%u %s", city_id, decoded);
     else                   snprintf(out, out_size, "%s", decoded);

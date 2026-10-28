@@ -77,6 +77,7 @@ struct engine_game_replay_pending
     u32         first_event;
 };
 
+struct engine_record_keys;   /* engine_keys.cpp */
 /* A shared game (engine_multiplayer.cpp): the local seat and the queue of
    the steps for the network. */
 struct engine_multiplayer_state
@@ -142,6 +143,7 @@ struct engine
     u8                faction_colour_rows[SIM_FORCE_CAPACITY];  /* the palette row of each force */
     engine_game_replay_state game_replay;                       /* the replay of a game, step by step */
     engine_multiplayer_state multiplayer;                       /* a shared game (docs/MULTIPLAYER.md) */
+    engine_record_keys *keys;                                   /* the English keys of the pack (engine_keys.cpp) */
 };
 
 internal engine_config
@@ -202,6 +204,8 @@ engine_read_table(engine *e, const char *folder, const char *file_name, tsv_tabl
     text[file.size] = 0;
     return tsv_parse(text, &e->scratch, table);
 }
+
+#include "engine/engine_keys.cpp"   /* docs/EUROPE.md, E2: the English keys of the pack; it reads tables */
 
 /* Loads facilities.tsv, cities.tsv, rules.tsv, techniques.tsv,
    weapons.tsv and disasters.tsv. The weapons name the techniques, so the
@@ -385,6 +389,8 @@ engine_create(memory_arena *permanent, memory_arena *transient, engine_config co
     engine_load_replay_pairs(e, config.content_folder);
     engine_load_event_tones(e, config.content_folder);   /* M18 */
     engine_load_faction_colours(e, config.content_folder);
+    e->keys = PushStruct(permanent, engine_record_keys);
+    engine_load_record_keys(e, config.content_folder);
     return e;
 }
 
@@ -574,6 +580,7 @@ engine_officer_view(engine *e, officer_component *officer)
     result.acted                    = officer->acted_turn == e->sim->turn + 1;
     result.travel_city              = officer->travel_turns ? officer->travel_city : (u8)ENGINE_NO_CITY;
     result.travel_days              = (u32)officer->travel_turns * CALENDAR_DAYS_PER_TURN;
+    snprintf(result.key, sizeof(result.key), "%s", engine_officer_key(e, officer->officer_id));
     return result;
 }
 
@@ -637,6 +644,7 @@ engine_api_city_name_at(void *opaque, u32 index)
     name_index_city *city = e->sim->names.cities + index;
     result.city_id = city->id;
     memcpy(result.name, city->name, sizeof(result.name));
+    snprintf(result.key, sizeof(result.key), "%s", engine_city_key(e, city->id));
     return result;
 }
 
@@ -844,6 +852,7 @@ engine_api_faction_at(void *opaque, u32 index)
     result.action_points     = turns->action_points[faction->force_id];
     result.human             = turns->human[faction->force_id];
     result.acted             = index < turns->acting;
+    snprintf(result.key, sizeof(result.key), "%s", engine_force_key((engine *)opaque, faction->force_id));
     return result;
 }
 

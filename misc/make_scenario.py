@@ -8,6 +8,11 @@ given_big5, the Big5 bytes in hex that the engine reads. A name part holds at mo
 4 Big5 bytes (two characters), because the record holds 5 bytes with the NUL.
 The tool also checks the rows that the engine checks, so that an error shows here
 with its row and not only as "a bad row" in the game.
+
+The tool also writes names/en.tsv of the pack: the English names by English key
+(docs/EUROPE.md, E2). The rows come from name_en of officers.tsv and forces.tsv of
+the scenario, and from name_en of map/source/sites.tsv of the pack. It checks
+that each officer has a wikipedia cell and a life in lore/en.tsv of the pack.
 """
 import os
 import sys
@@ -34,6 +39,32 @@ def big5(text, where):
 
 def fail(message):
     sys.exit("make_scenario: " + message)
+
+
+def write_names(folder, officers, forces):
+    pack = os.path.dirname(os.path.dirname(os.path.abspath(folder)))
+    _, _, _, sites = read(os.path.join(pack, "map", "source", "sites.tsv"))
+    lines = ["key\ttext\tnote",
+             "# Written by misc/make_scenario.py. The English names of the pack by English key (docs/EUROPE.md, E2).",
+             "# officer.<key> and force.<key> come from the scenario %s. city.<key> and base.<key> come from map/source/sites.tsv." % os.path.basename(folder)]
+    for row in officers: lines.append("officer.%s\t%s" % (row["key"], row["name_en"]))
+    for row in forces:   lines.append("force.%s\t%s" % (row["key"], row["name_en"]))
+    for row in sites:    lines.append("%s.%s\t%s" % ("city" if row["kind"] == "city" else "base", row["key"], row["name_en"]))
+    os.makedirs(os.path.join(pack, "names"), exist_ok=True)
+    with open(os.path.join(pack, "names", "en.tsv"), "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(lines) + "\n")
+
+    lore_path = os.path.join(pack, "lore", "en.tsv")
+    lives = {}
+    if os.path.exists(lore_path):
+        _, _, _, lore = read(lore_path)
+        lives = {row["key"]: row["text"] for row in lore}
+    for row in officers:
+        where = "officers.tsv id %s" % row["id"]
+        if not row.get("wikipedia") or not (row["wikipedia"] == "-" or row["wikipedia"].startswith("https://en.wikipedia.org/wiki/")):
+            fail(where + ": wikipedia must be - or a URL of the English Wikipedia")
+        if not lives.get("officer." + row["key"]): fail(where + ": lore/en.tsv of the pack has no life for officer." + row["key"])
+    return len(lines) - 3
 
 
 def main():
@@ -88,8 +119,9 @@ def main():
         out.append("\t".join(row[c] for c in columns))
     with open(os.path.join(folder, "officers.tsv"), "w", encoding="utf-8", newline="\n") as f:
         f.write("\n".join(out) + "\n")
-    print("%d forces, %d officers (%d free), %d cities (%d without an owner)" % (
-        len(forces), len(officers), sum(r["force"] == "-" for r in officers), len(cities), sum(c["owner"] == "-" for c in cities)))
+    names = write_names(folder, officers, forces)
+    print("%d forces, %d officers (%d free), %d cities (%d without an owner), %d English names" % (
+        len(forces), len(officers), sum(r["force"] == "-" for r in officers), len(cities), sum(c["owner"] == "-" for c in cities), names))
 
 
 main()

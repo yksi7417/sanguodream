@@ -143,8 +143,15 @@ unit_render_tests(test_counts *counts)
                    "the model of a big city covers the flower at the centre of the city and keeps its yaw");
         render_mesh_instance gate = big;
         gate.art_sprite = RENDER_SPRITE_BASE_GATE; gate.scale = 1.0f;
-        TEST_CHECK(counts, near_f32(render_base_model_instance(&gate).scale, render_base_art_size_of(RENDER_SPRITE_BASE_GATE).width, 1e-5f),
-                   "the model of a pass covers the width of the art of a pass");
+        f32 hex_pitch = v3_length(v3_sub(hex_world_center(hex_make(1, 0), 0.0f), hex_world_center(hex_make(0, 0), 0.0f)));
+        TEST_CHECK(counts, near_f32(RENDER_HEX_PITCH, hex_pitch, 1e-4f) && near_f32(RENDER_GATE_WALL_WIDTH, 3.0f * hex_pitch, 1e-4f),
+                   "the wall of a pass spans three hexes: the hex of the pass and one hex on each side");
+        TEST_CHECK(counts, near_f32(render_base_model_instance(&gate).scale, render_base_model_widths[RENDER_SPRITE_BASE_GATE - RENDER_SPRITE_FIRST_BASE], 1e-5f),
+                   "the model of a pass gets the width of its kind in the table");
+        render_mesh_instance port = big;
+        port.art_sprite = RENDER_SPRITE_BASE_PORT; port.scale = 1.0f;
+        TEST_CHECK(counts, near_f32(render_base_model_instance(&port).scale, render_base_art_size_of(RENDER_SPRITE_BASE_PORT).width, 1e-5f),
+                   "the model of a port covers the width of the art of a port");
         render_mesh_instance market = {};
         market.mesh_id = RENDER_MESH_STALL; market.art_sprite = RENDER_NO_ART;
         market.position = v3_make(1.0f, 0.2f, 2.0f); market.yaw = 0.5f; market.scale = 1.6f; market.tint = 0xFF3CB4F0u;
