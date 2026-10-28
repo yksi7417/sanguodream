@@ -59,7 +59,7 @@ research.teaching_percent	50	documented	research-techniques.md, 指導 halves th
 tally.action_points	10	assumed	Q-164: the action points that each tally office adds at the start of a turn
 military_office.ap_percent	50	documented	cities-and-facilities.md, military office: military commands cost half the action points
 drill.ship_period_percent	75	assumed	Q-164: the ship period in a city with a drill ground (manual p.29: less time)
-game.end_year	351	documented	calendar-and-turn.md, defeat when the year becomes 351
+game.end_year	1360	assumed	the medieval_europe pack: 160 years after the start in 1200, as 351 is 161 years after 190 in the placeholder pack (docs/MAPS.md, W2)
 # M5: units, movement and the map.
 ap.sortie	10	documented	city-commands.md, 出征
 ap.transport	10	documented	city-commands.md, 輸送

@@ -224,7 +224,8 @@ ui_draw_bases(ui_state *ui, engine_api *api)
             ui_city_label(ui, api, base.owner_city, city, sizeof(city));
             if (base.force != ENGINE_NO_FACTION) ui_force_text(ui, api, base.force, force, sizeof(force));
             ImGui::TableNextRow();
-            ImGui::TableNextColumn(); ImGui::Text("%u %s", base.id, ui_text_with_key(ui, "base", base.key));
+            char base_name[UI_NAME_SIZE * 2];
+            ImGui::TableNextColumn(); ImGui::Text("%u %s", base.id, ui_base_name(ui, api, &base, base_name, sizeof(base_name)));
             ImGui::TableNextColumn(); ImGui::TextUnformatted(kind);
             ImGui::TableNextColumn(); ImGui::TextUnformatted(city);
             ImGui::TableNextColumn(); ImGui::TextUnformatted(force);

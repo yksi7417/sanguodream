@@ -48,9 +48,12 @@ These limits come from the engine as it is now. The tool checks them.
   hex. The frame block is 160 MB on Windows and on the web. Thus a map
   has 80000 hexes or less. The setting max_hexes holds this limit. If a
   map needs more hexes, the tool makes the hexes larger.
-- The names of the cities come from the loaded save, not from the pack.
-  The prototype loads the sample save. Thus the cities of Europe show the
-  names and the officers of the sample save.
+- An officer name has two parts of two Chinese characters each. The record
+  holds 5 Big5 bytes for each part, with the NUL. A city name holds 8
+  characters, and the name of a pass or a port holds 12.
+- The rules of a pack must end after its start year. rules.tsv of the
+  prototype sets game.end_year to 1360. A pack that keeps 351 loses by
+  time at the first turn.
 
 ## The sources of the data
 Each source in this table lets you sell a game that contains its data.
@@ -151,22 +154,69 @@ The fonts, the UI text and the art stay in data/placeholder. The rules,
 the map and the scenario list come from the pack.
 
 The feature test tests/feature/world_map_tests.cpp loads the prototype
-through engine_api. It checks the counts of the map and plays two turns of
-the AI.
+through engine_api. It checks the counts of the map, loads the scenario of
+the pack and plays two turns of the AI.
+
+## The scenario of a pack
+A pack can have scenarios of its own in TSV files. Then the pack needs no
+save and no scenario file of the original game. The prototype has one
+scenario: 1200, with 24 factions and 103 historical officers.
+
+scenarios.tsv lists the scenario with the kind pack. Its file is the
+scenario.tsv of a scenario folder, relative to the pack folder:
+
+    0	y1200	一二〇〇年 群王爭霸	1200	pack	scenarios/y1200/scenario.tsv	assumed
+
+The scenario folder holds four files.
+
+| File | Rows | The engine reads |
+|---|---|---|
+| scenario.tsv | key and value | year, month, ten_day, number |
+| forces.tsv | one row for each faction | id (the force id, 0 up), ruler (an officer id) |
+| officers.tsv | one row for each officer | the Big5 name, the years, force, city, status, the five abilities, aptitudes, skill, loyalty, merit, compatibility |
+| cities.tsv | 42 rows | owner, governor, troops, gold, food, spears, halberds, crossbows, horses, durability |
+
+The rules of the files:
+- status is ruler, officer or free. A free officer has the force -.
+- Each faction has one ruler, and forces.tsv names it. The ruler is an
+  officer of the faction.
+- An officer stands in a city of its own faction. A free officer can
+  stand in any city.
+- governor is an officer of the owner in that city, or -. The engine
+  makes that officer a governor.
+- A city with the owner - has no soldiers.
+- aptitudes are six letters for pike, halberd, crossbow, cavalry, siege
+  and navy: C, B, A or S.
+- skill is a key of skills.tsv, or -.
+
+The names of the cities, the passes and the ports are the name_big5
+column of cities.tsv and bases.tsv of the pack. misc/make_world_map.py
+writes that column from name_zh. After the load of a pack scenario, the
+engine gives the sim the new game and then the names.
+
+You write family_zh and given_zh of officers.tsv in Chinese. Then run this
+command. It writes the Big5 columns and checks the rules above with the
+row of each error:
+
+    python -X utf8 misc\make_scenario.py data\<name>\scenarios\<key>
+
+The UI names a pass or a port with the UI string "base.<key>". If the
+string does not exist, it uses the name of the name index. The passes and
+the ports of a pack thus show the names of its bases.tsv.
 
 ## The plan
 | Step | Work | Result |
 |---|---|---|
 | W1 (done) | The tool, the prototype pack, --pack, a feature test | The engine plays on Europe and North Africa |
-| W2 | A scenario of the pack: forces, officers and city names in TSV files, not a save | Each game has its own people and names |
+| W2 (done) | A scenario of the pack: forces, officers and city names in TSV files, not a save | Each game has its own people and names |
 | W3 | Counts from the pack: the number of cities, passes and ports | A map with 60 or 120 cities |
 | W4 | A terrain mesh in chunks, built for the view only | Maps of 300000 hexes and more |
 | W5 | Better data: Itiner-e roads, city sizes from Bosker-Buringh, the Koppen climate for the terrain | Roads and forests closer to history |
 | W6 | One pack for each planned game | The games of the table above |
 
-W2 is the most important step. Without it, each map shows the officers
-and the names of the sample save. W3 and W4 are necessary for the large
-regions.
+W3 and W4 are necessary for the large regions. A pack scenario has no
+English names yet. The English UI shows the Chinese names, because the
+names/en.tsv of the placeholder pack has only the Three Kingdoms names.
 
 ## The regions of the planned games
 The table gives the hexes at the scale of the placeholder map, 11 km

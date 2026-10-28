@@ -143,6 +143,8 @@ decompilation of it.
 - misc/make_world_map.py  makes the map, cities.tsv and bases.tsv of a pack
                          from real geography: NOAA ETOPO heights and
                          Natural Earth vectors (docs/MAPS.md)
+- misc/make_scenario.py  checks a scenario of a pack (TSV files) and writes
+                         the Big5 names of its officers (docs/MAPS.md)
 - misc/make_pair_index.py  writes data/placeholder/pairs.tsv from the save
                          pairs of the spec (run it after a spec update;
                          tutorial 26)
@@ -165,7 +167,8 @@ decompilation of it.
 - data/civil_war/        the second content pack (M9): the same engine code
                          with other data; see its README.md
 - data/medieval_europe/  the prototype map from real geography: Europe and
-                         North Africa in 1200; see its README.md
+                         North Africa in 1200, with its own scenario in
+                         scenarios/y1200; see its README.md
 - data/fonts/, data/unicode/   open-licence assets; see docs/ASSETS.md
 - tests/unit/            per-module unit tests
 - tests/feature/         engine_api behaviour tests and the fixture runner

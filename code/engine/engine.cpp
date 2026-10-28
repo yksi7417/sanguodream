@@ -1433,6 +1433,7 @@ engine_api_set_city_resource(void *opaque, u8 city_id, u8 resource, u32 index, u
 #include "engine/engine_court.cpp"
 #include "engine/engine_rivals.cpp"
 #include "engine/engine_saves.cpp"
+#include "engine/engine_pack_scenario.cpp"   /* W2: before engine_playable.cpp, which loads it (docs/MAPS.md) */
 #include "engine/engine_playable.cpp"
 #include "engine/engine_replay.cpp"     /* M13 */
 #include "engine/engine_content.cpp"    /* M16 */

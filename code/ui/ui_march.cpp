@@ -959,7 +959,8 @@ ui_draw_path_panel(ui_state *ui, engine_api *api, engine_path_view *path)
         engine_base base = api->base_at(api->engine, path->bases[index]);
         if (base.id == ENGINE_NO_ROW) continue;
         ImGui::SameLine();
-        ImGui::TextUnformatted(ui_text_with_key(ui, "base", base.key));
+        char name[UI_NAME_SIZE * 2];
+        ImGui::TextUnformatted(ui_base_name(ui, api, &base, name, sizeof(name)));
     }
 }
 

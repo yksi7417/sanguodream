@@ -688,20 +688,22 @@ class WorldMap:
         write_lines(os.path.join(pack, "map", "bases.tsv"), bases)
 
         port_owners = {s["owner_city"] for s in self.sites if s["kind"] == "port"}
-        cities = ["id\tspecialty\tslots\tport\tname_zh\tprice",
+        cities = ["id\tspecialty\tslots\tport\tname_zh\tprice\tname_big5",
                   "# Written by misc/make_world_map.py from map/source/sites.tsv. slots: the slots that the tool placed on the map.",
-                  "# price: 5 for each city, the middle of the range 3 to 7 (the placeholder pack, Q-155)."]
+                  "# price: 5 for each city, the middle of the range 3 to 7 (the placeholder pack, Q-155).",
+                  "# name_big5: the Big5 bytes of name_zh in hex. The scenario of the pack names the cities with it (docs/MAPS.md, W2)."]
         for city in self.cities:
-            cities.append("%d\t%s\t%d\t%s\t%s\t5" % (city["id"], city["specialty"], self.slot_count[city["id"]],
-                                                    "yes" if city["id"] in port_owners else "no", city["name_zh"]))
+            cities.append("%d\t%s\t%d\t%s\t%s\t5\t%s" % (city["id"], city["specialty"], self.slot_count[city["id"]],
+                                                        "yes" if city["id"] in port_owners else "no", city["name_zh"], big5_hex(city["name_zh"], 16)))
         write_lines(os.path.join(pack, "cities.tsv"), cities)
 
-        content_bases = ["id\tkey\tname_zh\tkind\towner_city\tdurability\tstatus",
-                         "# Written by misc/make_world_map.py from map/source/sites.tsv. durability: 4000 for a pass and 2000 for a port (assumed)."]
+        content_bases = ["id\tkey\tname_zh\tkind\towner_city\tdurability\tstatus\tname_big5",
+                         "# Written by misc/make_world_map.py from map/source/sites.tsv. durability: 4000 for a pass and 2000 for a port (assumed).",
+                         "# name_big5: the Big5 bytes of name_zh in hex, for the names of the scenario (docs/MAPS.md, W2)."]
         for site in self.sites:
             if site["kind"] == "city": continue
-            content_bases.append("%d\t%s\t%s\t%s\t%d\t%d\tassumed" % (site["id"], site["key"], site["name_zh"], site["kind"], site["owner_city"],
-                                                                    4000 if site["kind"] == "pass" else 2000))
+            content_bases.append("%d\t%s\t%s\t%s\t%d\t%d\tassumed\t%s" % (site["id"], site["key"], site["name_zh"], site["kind"], site["owner_city"],
+                                                                        4000 if site["kind"] == "pass" else 2000, big5_hex(site["name_zh"], 25)))
         write_lines(os.path.join(pack, "bases.tsv"), content_bases)
 
     def summary(self):
@@ -740,6 +742,13 @@ class WorldMap:
             draw.text((x + 6, y - 8), city["name_zh"], fill=(255, 255, 255), font=font, stroke_width=2, stroke_fill=(0, 0, 0))
         os.makedirs(os.path.dirname(path), exist_ok=True)
         image.save(path, optimize=True)
+
+
+def big5_hex(text, limit):
+    """The Big5 bytes of a name in hex, as the engine reads them. limit: the bytes before the NUL of the record."""
+    data = text.encode("big5")
+    if len(data) > limit: sys.exit("the name %s has %d Big5 bytes; the record holds %d" % (text, len(data), limit))
+    return data.hex().upper()
 
 
 def write_lines(path, lines):

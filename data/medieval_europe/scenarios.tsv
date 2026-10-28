@@ -1,2 +1,3 @@
 id	key	name_zh	year	kind	file	status
-0	sample_save	Sample game	194	save	../spec-src/spec/fixtures/saves/sample.s11	documented
+# The scenarios of the pack (docs/MAPS.md, W2). kind pack: the file is the scenario.tsv of a scenario folder, relative to the pack folder.
+0	y1200	一二〇〇年 群王爭霸	1200	pack	scenarios/y1200/scenario.tsv	assumed
