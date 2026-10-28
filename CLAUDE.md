@@ -77,6 +77,9 @@ decompilation of it.
                     demo walkthroughs and records them to build\demos.
                     With --demo-fast, it runs the same walkthroughs and
                     checks in the fast mode. It records no video.
+                    Use --demo-fast in each quality gate before a
+                    commit. Use --demo only to make the video of a
+                    milestone (.claude/rules/testing-pyramid.md).
                     With --web, it runs only the tests of build_web.bat
                     under node. With --server, it runs only the tests of
                     the room server in tests\server, with Python

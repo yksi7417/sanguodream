@@ -37,7 +37,8 @@ the layers from the bottom to the top and stops at the first failure.
    the real panels, with a handful of tests at most. `run_tests.bat --e2e`
    runs the window for 120 frames and checks its log.
 5. Demo walkthroughs: the "demo" category in tests/demo/demo_tests.cpp,
-   run by demo_player.exe and `run_tests.bat --demo`. Each milestone has
+   run by demo_player.exe, `run_tests.bat --demo-fast` and
+   `run_tests.bat --demo`. Each milestone has
    one cinematic walkthrough, "demo/<milestone>", for example
    "demo/m1_loader". It is the recorded demo of the milestone and also an
    end-to-end smoke test.
@@ -63,6 +64,13 @@ the layers from the bottom to the top and stops at the first failure.
    - If a step waits for the UI, it waits for a condition with a frame
      limit. Examples are an animation, a timer and the AI round. It does
      not wait for a time.
+   - Use the fast mode in each quality gate. Before a commit, run
+     `run_tests.bat`, then `run_tests.bat --demo-fast`. The full fast
+     run takes approximately 90 s.
+   - Use the demo mode only to make the video and the PNG files of a
+     milestone. Run `run_tests.bat --demo` when you complete a milestone,
+     or when the user asks for a new video. The full demo run takes
+     approximately 20 minutes.
 
 6. tests/server/ (Python unittest, `run_tests.bat --server`): the server
    of the site in web/, with FolderStorage in a temporary folder and a
