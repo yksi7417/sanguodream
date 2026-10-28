@@ -20,6 +20,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import secrets
 import time
 import urllib.parse
@@ -133,6 +134,23 @@ class Google:
         return claims["sub"], clean_name(claims.get("name"), claims.get("email", "Google user")), claims.get("email", "")
 
 
+PEM_LINE_LENGTH = 64
+
+
+def apple_pem(text):
+    """Give the .p8 key of Apple as PEM text.
+
+    A secret often loses the line breaks of the .p8 file, or the BEGIN and
+    END lines. This function accepts the full file, the file with "\\n" in
+    place of the line breaks, or only the base64 body."""
+    text = text.replace("\\n", "\n").strip()
+    if not text or "-----BEGIN" in text and "\n" in text:
+        return text
+    body = re.sub(r"-----[^-]+-----|\s", "", text)
+    lines = [body[start:start + PEM_LINE_LENGTH] for start in range(0, len(body), PEM_LINE_LENGTH)]
+    return "-----BEGIN PRIVATE KEY-----\n" + "\n".join(lines) + "\n-----END PRIVATE KEY-----\n"
+
+
 class Apple:
     name = "apple"
     label = "Apple"
@@ -142,7 +160,7 @@ class Apple:
         self.client_id = os.environ.get("APPLE_CLIENT_ID", "")      # the Services ID
         self.team_id = os.environ.get("APPLE_TEAM_ID", "")
         self.key_id = os.environ.get("APPLE_KEY_ID", "")
-        self.private_key = os.environ.get("APPLE_PRIVATE_KEY", "").replace("\\n", "\n")
+        self.private_key = apple_pem(os.environ.get("APPLE_PRIVATE_KEY", ""))
         self.enabled = bool(self.client_id and self.team_id and self.key_id and self.private_key)
 
     def authorize_url(self, redirect_uri, state):
