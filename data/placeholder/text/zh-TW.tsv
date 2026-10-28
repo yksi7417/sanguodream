@@ -1063,6 +1063,7 @@ ending.2	B：外征繁榮
 ending.3	C：內政繁榮
 refusal.no_chart_row	沒有這個能力
 refusal.no_uses	這個能力沒有次數了
+refusal.not_your_seat	另一位玩家指揮這個勢力
 difficulty.0	初級
 difficulty.1	中級
 difficulty.2	上級
@@ -1070,6 +1071,7 @@ difficulty.3	超級
 cities.all	全部都市
 table.filter	篩選
 city.not_yours	這不是你的都市，不能對它下令。
+city.not_your_seat	現在是其他玩家行動，請等待你的回合。
 settings.font_size	字型大小
 menu.units	部隊一覽
 units.title	部隊一覽

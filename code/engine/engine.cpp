@@ -69,11 +69,30 @@ struct engine_game_replay_state
 struct engine_game_replay_pending
 {
     b32         record;
+    b32         network;       /* a step of the local seat in a shared game: it goes into the queue of the network */
     b32         edited;
     u8          force;
     u32         turn;
     engine_date date;
     u32         first_event;
+};
+
+/* A shared game (engine_multiplayer.cpp): the local seat and the queue of
+   the steps for the network. */
+struct engine_multiplayer_state
+{
+    b32 shared;
+    b32 host;
+    b32 applying;           /* step_apply runs a step of another engine */
+    b32 overflow;
+    u8  local_force;        /* ENGINE_NO_FACTION for a spectator */
+    u32 step_count;
+    u32 queue_first;        /* the ring of the outgoing steps */
+    u32 queue_count;
+    u32 queue_sizes[ENGINE_STEP_QUEUE_CAPACITY];
+    u32 queue_steps[ENGINE_STEP_QUEUE_CAPACITY];
+    u64 queue_checksums[ENGINE_STEP_QUEUE_CAPACITY];
+    u8  queue_bytes[ENGINE_STEP_QUEUE_CAPACITY][ENGINE_STEP_WIRE_CAPACITY];
 };
 
 struct engine
@@ -122,6 +141,7 @@ struct engine
     u32               faction_colour_stamp;                     /* the turn order of the last assignment; 0 = none */
     u8                faction_colour_rows[SIM_FORCE_CAPACITY];  /* the palette row of each force */
     engine_game_replay_state game_replay;                       /* the replay of a game, step by step */
+    engine_multiplayer_state multiplayer;                       /* a shared game (docs/MULTIPLAYER.md) */
 };
 
 internal engine_config
@@ -301,6 +321,13 @@ internal engine_game_replay_pending engine_game_replay_begin_step(engine *e, b32
 internal void engine_game_replay_end_step(engine *e, const engine_game_replay_pending *pending, u8 kind, const sim_command *command,
                                           const engine_settings *settings, u8 force, u32 value);
 internal void engine_game_replay_reset(engine *e);
+
+/* engine_multiplayer.cpp: the seats of a shared game */
+internal sim_refusal engine_seat_refusal(engine *e, sim_command_kind kind);
+internal b32         engine_setter_locked(engine *e);
+internal b32         engine_multiplayer_authors(engine *e);
+internal void        engine_multiplayer_queue(engine *e, u8 kind, const sim_command *command, const engine_settings *settings,
+                                              u8 force, u32 value);
 
 internal engine *
 engine_create(memory_arena *permanent, memory_arena *transient, engine_config config)
@@ -503,6 +530,7 @@ engine_api_terrain_view(void *opaque)
 internal void
 engine_api_set_cell_terrain(void *opaque, s32 q, s32 r, u8 kind, u8 level)
 {
+    if (engine_setter_locked((engine *)opaque)) return;   /* a shared game: no setter */
     sim_state *sim = ((engine *)opaque)->sim;
     hex_map_set_terrain(&sim->map, hex_make(q, r), kind, level);
     if (kind < sim->content.terrain_count) hex_map_set_cost(&sim->map, hex_make(q, r), sim->content.terrains[kind].cost[MOVEMENT_FOOT]);
@@ -725,20 +753,26 @@ engine_api_load_name_index(void *opaque, const char *path)
     return result;
 }
 
+/* In a shared game, another seat cannot end the turn: the answer is 0. */
 internal u32
 engine_api_end_turn(void *opaque)
 {
-    sim_command command = engine_run_command((engine *)opaque, SIM_COMMAND_END_TURN, 0);
+    engine *e = (engine *)opaque;
+    if (engine_seat_refusal(e, SIM_COMMAND_END_TURN) != SIM_REFUSAL_NONE) return 0;
+    sim_command command = engine_run_command(e, SIM_COMMAND_END_TURN, 0);
     return command.id;
 }
 
+/* In a shared game, the turns stop at the first faction of another seat. */
 internal u32
 engine_api_advance_turns(void *opaque, u32 count)
 {
+    engine *e = (engine *)opaque;
     u32 emitted = 0;
     for (u32 i = 0; i < count; ++i)
     {
-        engine_run_command((engine *)opaque, SIM_COMMAND_END_TURN, &emitted);
+        if (engine_seat_refusal(e, SIM_COMMAND_END_TURN) != SIM_REFUSAL_NONE) break;
+        engine_run_command(e, SIM_COMMAND_END_TURN, &emitted);
     }
     return emitted;
 }
@@ -748,6 +782,7 @@ internal void
 engine_api_ledger_clear(void *opaque)
 {
     engine *e = (engine *)opaque;
+    if (engine_setter_locked(e)) return;   /* a shared game: the ledger is a part of the checksum */
     engine_game_replay_pending pending = engine_game_replay_begin_step(e, false);
     e->ledger_count = 0;
     engine_game_replay_end_step(e, &pending, ENGINE_STEP_LEDGER_CLEAR, 0, 0, pending.force, 0);
@@ -756,6 +791,7 @@ engine_api_ledger_clear(void *opaque)
 internal void
 engine_api_set_cell_cost(void *opaque, s32 q, s32 r, u8 cost)
 {
+    if (engine_setter_locked((engine *)opaque)) return;   /* a shared game: no setter */
     hex_map_set_cost(&((engine *)opaque)->sim->map, hex_make(q, r), cost);
 }
 
@@ -1137,6 +1173,7 @@ engine_api_command_develop(void *opaque, u8 city_id, u8 facility, const u16 offi
     engine_command_result result = {};
     sim_develop_order order = engine_develop_order(city_id, facility, officers, slot);
     result.refusal = sim_check_develop(e->sim, &order).refusal;
+    if (result.refusal == SIM_REFUSAL_NONE) result.refusal = engine_seat_refusal(e, SIM_COMMAND_DEVELOP);
     if (result.refusal != SIM_REFUSAL_NONE) return result;
     sim_command command = sim_make_command(e->sim, SIM_COMMAND_DEVELOP);
     command.develop = order;
@@ -1150,6 +1187,7 @@ internal void
 engine_api_set_faction_human(void *opaque, u8 force_id, b32 human)
 {
     engine *e = (engine *)opaque;
+    if (engine_setter_locked(e)) return;   /* a shared game: only a step of step_apply */
     engine_game_replay_pending pending = engine_game_replay_begin_step(e, false);
     e->sim->turns.human[force_id] = human;
     engine_game_replay_end_step(e, &pending, ENGINE_STEP_HUMAN, 0, 0, force_id, human ? 1 : 0);
@@ -1158,6 +1196,7 @@ engine_api_set_faction_human(void *opaque, u8 force_id, b32 human)
 internal void
 engine_api_set_city_owner(void *opaque, u8 city_id, u8 force_id)
 {
+    if (engine_setter_locked((engine *)opaque)) return;   /* a shared game: no setter */
     city_component *city = sim_find_city(((engine *)opaque)->sim, city_id);
     if (city) city->owner_force_id = force_id;
 }
@@ -1165,6 +1204,7 @@ engine_api_set_city_owner(void *opaque, u8 city_id, u8 force_id)
 internal void
 engine_api_set_city_gold(void *opaque, u8 city_id, u32 gold)
 {
+    if (engine_setter_locked((engine *)opaque)) return;   /* a shared game: no setter */
     city_component *city = sim_find_city(((engine *)opaque)->sim, city_id);
     if (city) city->gold = gold;
 }
@@ -1172,6 +1212,7 @@ engine_api_set_city_gold(void *opaque, u8 city_id, u32 gold)
 internal void
 engine_api_set_actions(void *opaque, u8 force_id, u32 action_points)
 {
+    if (engine_setter_locked((engine *)opaque)) return;   /* a shared game: no setter */
     sim_state *sim = ((engine *)opaque)->sim;
     u32 cap = sim->content.rules.ap_cap;
     sim->turns.action_points[force_id] = action_points < cap ? action_points : cap;
@@ -1337,6 +1378,7 @@ engine_run_city_command(engine *e, sim_command_kind kind, sim_city_order order)
 {
     engine_command_result result = {};
     result.refusal = sim_check_city_command(e->sim, kind, &order).refusal;
+    if (result.refusal == SIM_REFUSAL_NONE) result.refusal = engine_seat_refusal(e, kind);
     if (result.refusal != SIM_REFUSAL_NONE) return result;
     sim_command command = sim_make_command(e->sim, kind);
     command.city = order;
@@ -1386,6 +1428,7 @@ engine_api_damage_facility(void *opaque, u8 city_id, u8 slot, u32 amount)
     order.slot    = slot;
     order.amount  = amount;
     result.refusal = sim_check_damage(e->sim, &order);
+    if (result.refusal == SIM_REFUSAL_NONE) result.refusal = engine_seat_refusal(e, SIM_COMMAND_DAMAGE_FACILITY);
     if (result.refusal != SIM_REFUSAL_NONE) return result;
     sim_command command = sim_make_command(e->sim, SIM_COMMAND_DAMAGE_FACILITY);
     command.damage = order;
@@ -1398,6 +1441,7 @@ engine_api_damage_facility(void *opaque, u8 city_id, u8 slot, u32 amount)
 internal b32
 engine_api_set_facility_level(void *opaque, u8 city_id, u8 slot_index, u8 level)
 {
+    if (engine_setter_locked((engine *)opaque)) return false;   /* a shared game: no setter */
     sim_state *sim = ((engine *)opaque)->sim;
     if (!sim_find_city(sim, city_id) || slot_index >= sim->sites[city_id].slot_count || level < 1 || level > 3) return false;
     sim_slot *slot = sim->sites[city_id].slots + slot_index;
@@ -1410,6 +1454,7 @@ engine_api_set_facility_level(void *opaque, u8 city_id, u8 slot_index, u8 level)
 internal void
 engine_api_set_city_resource(void *opaque, u8 city_id, u8 resource, u32 index, u32 value)
 {
+    if (engine_setter_locked((engine *)opaque)) return;   /* a shared game: no setter */
     city_component *city = sim_find_city(((engine *)opaque)->sim, city_id);
     if (!city) return;
     u8 byte_value = (u8)Minimum(value, 255u);
@@ -1440,6 +1485,7 @@ engine_api_set_city_resource(void *opaque, u8 city_id, u8 resource, u32 index, u
 #include "engine/engine_report.cpp"     /* M18 */
 #include "engine/engine_colours.cpp"    /* the flag colours of the factions */
 #include "engine/engine_game_replay.cpp" /* the replay of a game, step by step */
+#include "engine/engine_multiplayer.cpp" /* a shared game: the seats and the steps for the network */
 
 internal engine_api
 engine_make_api(engine *e)
@@ -1517,5 +1563,6 @@ engine_make_api(engine *e)
     engine_bind_content_api(&api);
     engine_bind_colours_api(&api);
     engine_bind_game_replay_api(&api);
+    engine_bind_multiplayer_api(&api);
     return api;
 }

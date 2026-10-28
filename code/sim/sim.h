@@ -625,6 +625,8 @@ enum sim_refusal
     /* M9 */
     SIM_REFUSAL_NO_CHART_ROW,          /* no such row of the ability chart */
     SIM_REFUSAL_NO_USES,               /* the faction has no use of the row left */
+    /* A shared game (docs/MULTIPLAYER.md). Only the engine gives it: the sim has no seats. */
+    SIM_REFUSAL_NOT_YOUR_SEAT,         /* another player commands the faction that acts, or the command is off in a shared game */
     SIM_REFUSAL_COUNT
 };
 

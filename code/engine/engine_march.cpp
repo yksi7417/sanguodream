@@ -308,6 +308,7 @@ engine_run_sortie(engine *e, const engine_sortie_order *in, b32 transport)
     engine_command_result result = {};
     sim_sortie_order order = engine_sim_sortie_order(e, in, transport);
     result.refusal = sim_check_sortie(e->sim, &order, transport).refusal;
+    if (result.refusal == SIM_REFUSAL_NONE) result.refusal = engine_seat_refusal(e, transport ? SIM_COMMAND_TRANSPORT : SIM_COMMAND_SORTIE);
     if (result.refusal != SIM_REFUSAL_NONE) return result;
     sim_command command = sim_make_command(e->sim, transport ? SIM_COMMAND_TRANSPORT : SIM_COMMAND_SORTIE);
     command.sortie = order;
@@ -334,6 +335,7 @@ engine_run_unit_order(engine *e, sim_command_kind kind, sim_unit_order order)
     engine_command_result result = {};
     arena_reset(&e->sim->scratch);
     result.refusal = sim_check_unit_order(e->sim, kind, &order, &e->sim->scratch).refusal;
+    if (result.refusal == SIM_REFUSAL_NONE) result.refusal = engine_seat_refusal(e, kind);
     if (result.refusal != SIM_REFUSAL_NONE) return result;
     sim_command command = sim_make_command(e->sim, kind);
     command.unit = order;

@@ -190,6 +190,16 @@ ui_city_button(ui_state *ui, const char *text_id, const char *stable_id, sim_ref
    command the action points or the gold do not allow is grey. */
 internal void ui_draw_base_menu(ui_state *ui, engine_api *api, u16 first_officer);   /* ui_base_menu.cpp */
 
+/* A shared game (docs/MULTIPLAYER.md): the faction that acts can belong to
+   the seat of another player. Then the panels give no command. Outside a
+   shared game the local player commands each human faction. */
+internal b32
+ui_local_seat_acts(engine_api *api)
+{
+    engine_multiplayer_info info = api->multiplayer_info(api->engine);
+    return !info.shared || info.local_acts;
+}
+
 internal void
 ui_draw_city_buttons(ui_state *ui, engine_api *api, engine_city *city)
 {
@@ -197,6 +207,11 @@ ui_draw_city_buttons(ui_state *ui, engine_api *api, engine_city *city)
     if (city->owner_force_id == ENGINE_NO_FACTION || city->owner_force_id != acting)
     {
         ImGui::TextDisabled("%s", text_get(ui->text, "city.not_yours"));
+        return;
+    }
+    if (!ui_local_seat_acts(api))
+    {
+        ImGui::TextDisabled("%s", text_get(ui->text, "city.not_your_seat"));
         return;
     }
     u16 first_officer = ENGINE_NO_OFFICER;

@@ -1051,6 +1051,7 @@ ending.2	B: prosperity by conquest	外征繁榮
 ending.3	C: prosperity at home	內政繁榮
 refusal.no_chart_row	no such ability of the chart	沒有能力
 refusal.no_uses	the ability has no use left	沒有次數
+refusal.not_your_seat	another player commands the faction that acts	the refusal of a command in a shared game when another seat acts
 difficulty.0	beginner	初級
 difficulty.1	normal	中級
 difficulty.2	hard	上級
@@ -1058,6 +1059,7 @@ difficulty.3	super	超級
 cities.all	All cities	check box: list every city, not only the cities of the player
 table.filter	filter	hint in the filter box of a table
 city.not_yours	This city is not yours. It takes no command from you.	the City panel for a city of another force
+city.not_your_seat	Another player acts now. Wait for your turn.	the City panel in a shared game when the faction of another player acts
 settings.font_size	Font size	slider, pixels
 event.transport_arrived	Transport arrived	輸送隊到達
 event_role.transport_arrived.a	Leader	主將

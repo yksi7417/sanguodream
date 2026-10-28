@@ -92,6 +92,7 @@ engine_api_create_officer(void *opaque, const sim_new_officer_order *order)
     sim_new_officer_order copy = *order;
     if (copy.city_id == ENGINE_NO_CITY) copy.city_id = SIM_NO_CITY;
     result.refusal = sim_check_create_officer(e->sim, &copy).refusal;
+    if (result.refusal == SIM_REFUSAL_NONE) result.refusal = engine_seat_refusal(e, SIM_COMMAND_CREATE_OFFICER);
     if (result.refusal != SIM_REFUSAL_NONE) return result;
     sim_command command = sim_make_command(e->sim, SIM_COMMAND_CREATE_OFFICER);
     command.newcomer = copy;
@@ -105,6 +106,7 @@ engine_run_pk(engine *e, sim_command_kind kind, sim_pk_order order)
 {
     engine_command_result result = {};
     result.refusal = kind == SIM_COMMAND_RESEARCH_ABILITY ? sim_check_research_ability(e->sim, &order).refusal : sim_check_train_officer(e->sim, &order).refusal;
+    if (result.refusal == SIM_REFUSAL_NONE) result.refusal = engine_seat_refusal(e, kind);
     if (result.refusal != SIM_REFUSAL_NONE) return result;
     sim_command command = sim_make_command(e->sim, kind);
     command.pk = order;
@@ -176,6 +178,7 @@ engine_api_trigger_history(void *opaque, u32 row, u8 force_id)
     order.city_id = SIM_NO_CITY;
     order.officer = SIM_NO_OFFICER;
     result.refusal = row > 255 ? SIM_REFUSAL_NO_EVENT : sim_check_trigger_history(e->sim, &order).refusal;
+    if (result.refusal == SIM_REFUSAL_NONE) result.refusal = engine_seat_refusal(e, SIM_COMMAND_TRIGGER_HISTORY);
     if (result.refusal != SIM_REFUSAL_NONE) return result;
     sim_command command = sim_make_command(e->sim, SIM_COMMAND_TRIGGER_HISTORY);
     command.m8 = order;

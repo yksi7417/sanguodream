@@ -4083,6 +4083,34 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
+    /* A shared game (docs/MULTIPLAYER.md, MP1): the faction of the city acts,
+       but the seat of another player commands it. */
+    t = IM_REGISTER_TEST(e, "ui", "city_panel_gives_no_command_when_the_seat_of_another_player_acts");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count            = 3;
+        v.recorder.city_count               = 2;
+        v.recorder.multiplayer.shared       = true;
+        v.recorder.multiplayer.local_force  = 2;
+        v.recorder.multiplayer.acting_force = 1;
+        v.recorder.multiplayer.local_acts   = false;
+        v.ui.show_city                      = true;
+        ctx->SetRef("###City");
+        ctx->Yield(2);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_MULTIPLAYER_INFO), 1u);
+        IM_CHECK(!ctx->ItemExists("###open_develop"));                                     /* city 0 belongs to the faction that acts */
+        IM_CHECK(!ctx->ItemExists("###open_patrol"));
+        IM_CHECK(!ctx->ItemExists("###open_sortie"));
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        v.recorder.multiplayer.local_acts = true;                                          /* the turn of the local seat */
+        ctx->Yield(2);
+        IM_CHECK(ctx->ItemExists("###open_develop"));
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
     t = IM_REGISTER_TEST(e, "ui", "city_panel_greys_a_button_that_the_action_points_refuse");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;

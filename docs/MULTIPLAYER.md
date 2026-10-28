@@ -2,7 +2,8 @@
 
 This document gives the plan for games that more than one player plays
 together on the fly.io site. It also records the facts of the current
-site that the plan starts from. Nothing in this plan exists in code yet.
+site that the plan starts from. MP1 exists in code (see "The status of
+MP1"). The milestones after MP1 do not exist yet.
 
 ## The current site: one copy of the game for each browser
 Each browser runs its own copy of the game. Two browsers never share a
@@ -513,6 +514,39 @@ The tests:
   test runs native and under node. Thus Windows and the browser agree.
 - UI (tests/ui/ui_tests.cpp): when the local seat does not act, the city
   panel issues no command (recorder_count_commands is 0).
+
+### The status of MP1
+MP1 is complete. These parts exist:
+- code/sim/sim_wire.cpp writes and reads a sim_command. A static_assert
+  on the size of sim_command stops the build when a field has no line in
+  the codec.
+- code/engine/engine_multiplayer.cpp has the seats, the queue of 64
+  steps, step_apply and the bytes of a step. The end of each step of the
+  replay record puts the step into the queue (engine_game_replay.cpp).
+- The api has multiplayer_begin, multiplayer_end, multiplayer_info,
+  steps_outgoing, step_apply, state_checksum and set_seed.
+- Each command of the api asks engine_seat_refusal. The setters,
+  set_faction_human, ledger_clear and set_seed change nothing in a
+  shared game. Only the host can change the settings.
+- The City panel shows "Another player acts now" in place of its buttons
+  (city.not_your_seat).
+
+These facts came from the tests of MP1:
+- After a load, a faction without a player can act. Only the host ends
+  the turn of that faction. The start of a shared game must make each
+  faction without a seat a faction of the AI. The sample save has a human
+  faction of its own.
+- The record of 30 turns gave one checksum on Windows and another under
+  node. The cause was sim_debate_draw in code/sim/debate.cpp. It took two
+  draws of the PRNG as two arguments of one call. C++ does not fix the
+  order of the arguments, and MSVC and clang use different orders. The
+  function now takes each draw in its own statement. After the fix, both
+  builds give the checksum 0xdcba2ee7b448432a.
+- Two draws of the PRNG in one expression are a bug of the determinism.
+  Before you add a draw, put it in its own statement.
+
+The engine does not lock a load yet. MP5 turns off the load menu of a
+shared game.
 
 ### MP2 The room server and the transport
 The server keeps rooms, seats and the log, and it relays steps. A

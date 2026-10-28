@@ -285,6 +285,7 @@ engine_api_place_building(void *opaque, u8 kind, u8 force_id, s32 q, s32 r)
 internal void
 engine_api_set_unit(void *opaque, u32 unit_id, u32 soldiers, u32 morale)
 {
+    if (engine_setter_locked((engine *)opaque)) return;   /* a shared game: no setter */
     sim_unit *unit = sim_find_unit(((engine *)opaque)->sim, unit_id);
     if (!unit) return;
     unit->soldiers = soldiers;
@@ -295,6 +296,7 @@ engine_api_set_unit(void *opaque, u32 unit_id, u32 soldiers, u32 morale)
 internal void
 engine_api_set_unit_grain(void *opaque, u32 unit_id, u32 grain)
 {
+    if (engine_setter_locked((engine *)opaque)) return;   /* a shared game: no setter */
     sim_unit *unit = sim_find_unit(((engine *)opaque)->sim, unit_id);
     if (!unit) return;
     unit->grain         = grain;
@@ -305,6 +307,7 @@ engine_api_set_unit_grain(void *opaque, u32 unit_id, u32 grain)
 internal b32
 engine_api_set_unit_place(void *opaque, u32 unit_id, u8 force_id, s32 q, s32 r)
 {
+    if (engine_setter_locked((engine *)opaque)) return false;   /* a shared game: no setter */
     sim_state *sim = ((engine *)opaque)->sim;
     sim_unit *unit = sim_find_unit(sim, unit_id);
     hex_coord hex = hex_make(q, r);
@@ -319,6 +322,7 @@ engine_api_set_unit_place(void *opaque, u32 unit_id, u8 force_id, s32 q, s32 r)
 internal void
 engine_api_set_city_durability(void *opaque, u8 city_id, u32 durability)
 {
+    if (engine_setter_locked((engine *)opaque)) return;   /* a shared game: no setter */
     sim_state *sim = ((engine *)opaque)->sim;
     city_component *city = sim_find_city(sim, city_id);
     if (!city) return;

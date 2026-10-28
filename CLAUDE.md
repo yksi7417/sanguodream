@@ -20,6 +20,10 @@ decompilation of it.
 - The sim core (code/sim/) is headless and deterministic: no Windows
   headers, no I/O, no ImGui, and a seeded PRNG in the state. Commands go in,
   events come out.
+- Take each draw of the PRNG in its own statement. C++ does not fix the
+  order of the arguments of a call. MSVC and clang then give two
+  different games, and a shared game of Windows and the web goes out of
+  step (docs/MULTIPLAYER.md, "The status of MP1").
 - The UI drives the backend only through engine_api (code/engine/engine.h).
   See .claude/rules/testing-pyramid.md for the test layers and for the
   place where a new test goes.
