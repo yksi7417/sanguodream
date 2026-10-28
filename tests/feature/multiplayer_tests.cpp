@@ -269,10 +269,13 @@ feature_mp_bytes_tests(test_counts *counts)
 
     a->multiplayer_begin(ea, pair.force, true);
     b->multiplayer_begin(eb, ENGINE_NO_FACTION, false);
+    u8 acting = a->whose_turn(ea);
     a->end_turn(ea);
     engine_outgoing_step out = a->steps_outgoing(ea, bytes, 4);
     TEST_CHECK(counts, out.size == 0 && a->multiplayer_info(ea).outgoing == 1, "a short buffer takes no step, and the step stays in the queue");
     out = a->steps_outgoing(ea, bytes, sizeof(bytes));
+    TEST_CHECK(counts, bytes[0] == ENGINE_STEP_WIRE_VERSION && bytes[1] == ENGINE_STEP_COMMAND && bytes[3] == acting,
+               "the bytes of a step name the version, the kind and the faction that acted, for the room server");
     u64 before = b->state_checksum(eb);
     engine_step_apply_result result = b->step_apply(eb, bytes, out.size - 1);
     TEST_CHECK(counts, result.status == ENGINE_STEP_BAD_BYTES && result.checksum == before && b->state_checksum(eb) == before,

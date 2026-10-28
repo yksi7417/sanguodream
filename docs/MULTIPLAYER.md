@@ -2,8 +2,9 @@
 
 This document gives the plan for games that more than one player plays
 together on the fly.io site. It also records the facts of the current
-site that the plan starts from. MP1 exists in code (see "The status of
-MP1"). The milestones after MP1 do not exist yet.
+site that the plan starts from. MP1 and MP2 exist in code (see "The
+status of MP1" and "The status of MP2"). The milestones after MP2 do not
+exist yet.
 
 ## The current site: one copy of the game for each browser
 Each browser runs its own copy of the game. Two browsers never share a
@@ -567,6 +568,56 @@ The tests:
 - Server: a stop and a start of the server keeps the room and the log.
 - Browser (tests/web/rooms.spec.js): a socket without a member session
   gets 401. A socket from another origin gets 403.
+
+### The status of MP2
+MP2 is complete. These parts exist:
+- web/rooms.py has the rooms, the seats, the log, the checksums and the
+  socket messages hello, welcome, step, checksum, presence, chat, desync
+  and error.
+- web/server.py has these routes. Each route needs a member.
+
+| Route | Job |
+|---|---|
+| `GET /api/games` | The games of the member |
+| `POST /api/games` | A new room. The body has the name, the scenario, the pack, the mode, the time of a turn and the factions. The server adds the build id. |
+| `GET /api/games/<gid>` | The room |
+| `POST /api/games/<gid>/seat` | The member takes the seat of a faction. `{"force": null}` leaves the seats. |
+| `POST /api/games/<gid>/start` | The host starts the game |
+| `GET /api/games/<gid>/socket` | The WebSocket. Only the host and the players of the room can open it. |
+
+The server has no sim. Thus these rules came from MP2:
+- Byte 3 of the bytes of a step is the faction that acted before the
+  step. The engine writes it (engine_multiplayer.cpp). The server takes
+  the step only from the seat of that faction. When no seat holds that
+  faction, the host is the author.
+- A checksum message has the faction that acts after the step. The first
+  report of the last step tells the server the faction that acts next.
+  A report with another checksum or another faction is a desync.
+- The checksum message of step -1 is the start state. It gives the first
+  faction that acts.
+- An end_turn step writes the log to the bucket without a wait. The loop of the
+  server writes the other steps each 30 seconds.
+- The room keeps the uid of each player on the server. The pages get the
+  names of the players and the factions of the seats.
+
+A security review of MP2 added these limits:
+- Only the author of the last step and the host can change the faction
+  that acts. Only the host reports step -1, and only while the game runs.
+- A socket that fails, or does not take a message in 5 seconds, leaves
+  the room. The relay goes on for the other players.
+- Each member has one socket in a room. A new socket closes the old one.
+  Each socket has one hello.
+- A socket can send 40 messages and 20 steps each second. A room holds at
+  most 200,000 steps and 64 MB.
+- A JSON body of the routes of the rooms is at most 8 KB.
+- A member who leaves the seats loses the game from the list of the
+  member.
+
+One limit stays: each player can send a false checksum and stop the
+game with a desync. The server then knows the player who sent the
+different report. MP6 decides the correct state.
+
+`run_tests.bat --server` runs the tests of tests/server.
 
 ### MP3 Start a new game together
 Two members start one game from an invite link and play it.

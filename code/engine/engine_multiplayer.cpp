@@ -9,7 +9,8 @@
      0  u8   the version of the wire (ENGINE_STEP_WIRE_VERSION)
      1  u8   engine_step_kind
      2  u8   the force of ENGINE_STEP_HUMAN
-     3  u8   0
+     3  u8   the faction that acted before the step; ENGINE_NO_FACTION if none.
+             The room server reads it to check the seat of the author.
      4  u32  the value of ENGINE_STEP_HUMAN, little-endian
      8  ...  ENGINE_STEP_COMMAND: the command (sim_wire.cpp)
               ENGINE_STEP_SETTINGS: the fields of ENGINE_STEP_SETTINGS_FIELDS
@@ -92,13 +93,13 @@ engine_seat_refusal(engine *e, sim_command_kind kind)
 
 internal u32
 engine_step_write(u8 kind, const sim_command *command, const engine_settings *settings, u8 force, u32 value,
-                  u8 *buffer, u32 capacity)
+                  u8 acting, u8 *buffer, u32 capacity)
 {
     sim_wire_cursor cursor = { buffer, 0, buffer + capacity, true };
     sim_wire_put(&cursor, ENGINE_STEP_WIRE_VERSION, 1);
     sim_wire_put(&cursor, kind, 1);
     sim_wire_put(&cursor, force, 1);
-    sim_wire_put(&cursor, 0, 1);
+    sim_wire_put(&cursor, acting, 1);
     sim_wire_put(&cursor, value, 4);
     if (!cursor.ok) return 0;
     if (kind == ENGINE_STEP_COMMAND)
@@ -122,7 +123,8 @@ engine_step_write(u8 kind, const sim_command *command, const engine_settings *se
    the number and the checksum go into the queue. A full queue loses the
    step and sets overflow. */
 internal void
-engine_multiplayer_queue(engine *e, u8 kind, const sim_command *command, const engine_settings *settings, u8 force, u32 value)
+engine_multiplayer_queue(engine *e, u8 kind, const sim_command *command, const engine_settings *settings, u8 force, u32 value,
+                         u8 acting)
 {
     engine_multiplayer_state *mp = &e->multiplayer;
     u32 step = mp->step_count++;
@@ -132,7 +134,7 @@ engine_multiplayer_queue(engine *e, u8 kind, const sim_command *command, const e
         return;
     }
     u32 slot = (mp->queue_first + mp->queue_count) % ENGINE_STEP_QUEUE_CAPACITY;
-    u32 size = engine_step_write(kind, command, settings, force, value, mp->queue_bytes[slot], ENGINE_STEP_WIRE_CAPACITY);
+    u32 size = engine_step_write(kind, command, settings, force, value, acting, mp->queue_bytes[slot], ENGINE_STEP_WIRE_CAPACITY);
     if (!size)
     {
         mp->overflow = true;

@@ -54,6 +54,13 @@ the layers from the bottom to the top and stops at the first failure.
    - `run_tests.bat --demo` builds nothing. It fails if a demo test fails,
      or if build\demos does not have the video and the PNG files of a test.
 
+6. tests/server/ (Python unittest, `run_tests.bat --server`): the server
+   of the site in web/, with FolderStorage in a temporary folder and a
+   fake socket. rooms_tests.py checks the rooms of the shared games
+   (docs/MULTIPLAYER.md). It checks the seats, the order of the steps,
+   the checksums and the log after a stop of the server. A test of the real
+   site in a browser goes to tests/web (Playwright, `npm test`).
+
 ## Rules of thumb
 - A bug found in the UI gets a ui test (expected API call). If the engine
   was also wrong, it also gets a feature test. Never a new e2e test, and

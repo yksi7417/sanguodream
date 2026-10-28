@@ -321,7 +321,7 @@ internal void
 engine_game_replay_end_step(engine *e, const engine_game_replay_pending *pending, u8 kind, const sim_command *command,
                             const engine_settings *settings, u8 force, u32 value)
 {
-    if (pending->network) engine_multiplayer_queue(e, kind, command, settings, force, value);
+    if (pending->network) engine_multiplayer_queue(e, kind, command, settings, force, value, pending->force);
     if (!pending->record) return;
     engine_game_replay_state *replay = &e->game_replay;
     engine_game_replay_step_record *step = replay->steps + replay->step_count;

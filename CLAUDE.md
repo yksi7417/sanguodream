@@ -57,6 +57,8 @@ decompilation of it.
 - docs/REPLAY.md             the replay of a game, step by step: the record,
                              the checkpoints and the format in the save file
 - docs/art/GEMINI-PROMPTS.md the prompts that make the art with Gemini
+- docs/MULTIPLAYER.md        the plan of the shared games: the relay of the
+                             steps, the rooms and the milestones MP1-MP8
 - docs/MAPS.md               maps from real geography: the scale, the
                              licences of the data, the tool and the plan
 
@@ -72,7 +74,8 @@ decompilation of it.
                     window smoke run. With --demo, it runs only the
                     demo walkthroughs and records them to build\demos.
                     With --web, it runs only the tests of build_web.bat
-                    under node
+                    under node. With --server, it runs only the tests of
+                    the room server in tests\server, with Python
 - build_web.bat     builds the web game into build\web (index.html, .js,
                     .wasm, .data) with the Emscripten SDK in C:\tools\emsdk.
                     "build_web.bat tests" builds the unit tests and the
@@ -126,6 +129,8 @@ decompilation of it.
                          web/storage.py keeps the saves in S3.
                          web/game_files.py serves index.wasm and
                          index.data from the bucket to members.
+                         web/rooms.py keeps the rooms of the shared games
+                         and relays their steps (docs/MULTIPLAYER.md).
                          web/broadcast.py relays the optional YouTube
                          broadcast
 - code/wasm_test_hooks.h the test hooks of "build_web.bat test-game" for
@@ -184,6 +189,8 @@ decompilation of it.
 - tests/feature/         engine_api behaviour tests and the fixture runner
 - tests/ui/              imgui_test_engine tests, engine_recorder.h double,
                          hexdom_te_imconfig.h (test-only ImGui config)
+- tests/server/          the tests of the Python server of the site
+                         (run_tests.bat --server)
 - tests/demo/            demo_player.cpp and demo_tests.cpp: one recorded
                          walkthrough for each milestone
 - third_party/imgui      Dear ImGui (submodule, pinned)
