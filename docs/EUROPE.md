@@ -556,7 +556,8 @@ The west map can add the kingdom of Navarre.
    the same in both packs. Thus the lives, the native names and the
    Wikipedia URLs stay the same.
 4. Research the officers of the new factions, with two sources for each
-   life (docs/europe/SOURCES.md).
+   life (docs/europe/SOURCES.md). A later stage does this step. The stage
+   e8_maps (misc/stages/e8_maps.md) does the other steps.
 5. Add one row for each pack to scenarios.tsv of the placeholder pack.
    The new game screen then lists the two games of 1200.
 6. Add a feature test for each pack, as the test of the prototype.
