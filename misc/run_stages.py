@@ -45,6 +45,8 @@ ALLOWED = "Bash,Read,Edit,Write,Glob,Grep,WebFetch,WebSearch"
 DENIED = "Bash(git push --force:*),Bash(git push -f:*),Bash(git reset --hard:*),Bash(rm -rf:*),Bash(git stash:*)"
 LIBRARIES = ("third_party/imgui", "third_party/imgui_test_engine")
 PLAN_POLL_SECONDS = 20
+PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+STILL_ACTIVE = 259
 FAKE_SESSION = ("import json, sys, time; time.sleep(float(sys.argv[1])); "
                 "print(json.dumps({'type': 'result', 'subtype': 'success', 'is_error': False, "
                 "'num_turns': 0, 'total_cost_usd': 0.0, 'result': 'fake session'}))")
@@ -133,8 +135,11 @@ def start(stage, tree, branch, model, budget, dry_run, key, fake=None):
     os.makedirs(build, exist_ok=True)
     out = open(os.path.join(build, "stage.jsonl"), "w", encoding="utf-8")
     err = open(os.path.join(build, "stage.err"), "w", encoding="utf-8")
+    # A hidden console for the session. The commands of the session (bash, cmd, git, the
+    # build) use that console. DETACHED_PROCESS gave no console, so Windows opened a new
+    # window for each command.
     flags = 0
-    if os.name == "nt": flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+    if os.name == "nt": flags = subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP
     environment = dict(os.environ, ANTHROPIC_API_KEY=key)
     process = subprocess.Popen(command, cwd=tree, stdin=subprocess.PIPE, stdout=out, stderr=err, env=environment,
                                text=True, encoding="utf-8", creationflags=flags)
@@ -156,6 +161,33 @@ def result_of(stage):
             except ValueError: continue
             if event.get("type") == "result": result = event
     return result
+
+
+class RunningSession:
+    """A session that an earlier run of the tool started, found by its pid.
+    poll() is None while the process runs, as with subprocess.Popen."""
+
+    def __init__(self, pid):
+        self.pid = pid
+
+    def poll(self):
+        if os.name != "nt": return None if os.path.exists("/proc/%d" % self.pid) else 0
+        import ctypes
+        kernel = ctypes.windll.kernel32
+        handle = kernel.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, self.pid)
+        if not handle: return 0
+        code = ctypes.c_ulong()
+        alive = kernel.GetExitCodeProcess(handle, ctypes.byref(code)) and code.value == STILL_ACTIVE
+        kernel.CloseHandle(handle)
+        return None if alive else 0
+
+
+def running_session(stage):
+    """The session of a stage that still runs, or None."""
+    path = os.path.join(worktree_of(stage), "build", "stage.pid")
+    if not os.path.exists(path): return None
+    with open(path) as f: session = RunningSession(int(f.read().strip() or 0))
+    return session if session.pid and session.poll() is None else None
 
 
 def status():
@@ -217,6 +249,16 @@ def run_plan(model, budget, dry_run, key, fake):
 
     state = {stage: "waiting" for stage in plan}   # waiting, running, success, failed, skipped
     running = {}
+    # A second run of the plan keeps the work of the first: a stage that ended with
+    # success stays done, and a session that still runs is watched, not started again.
+    for stage in plan:
+        session, result = running_session(stage), result_of(stage)
+        if session:
+            running[stage], state[stage] = session, "running"
+            note("%s: watched, the session of pid %d still runs" % (stage, session.pid))
+        elif result and result.get("subtype") == "success" and not result.get("is_error"):
+            state[stage] = "success"
+            note("%s: done before, with success" % stage)
     while True:
         for stage, process in list(running.items()):
             if process.poll() is None: continue
