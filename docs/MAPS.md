@@ -204,6 +204,39 @@ The UI names a pass or a port with the UI string "base.<key>". If the
 string does not exist, it uses the name of the name index. The passes and
 the ports of a pack thus show the names of its bases.tsv.
 
+## A new game of another pack
+The scenario list of the title shows the scenarios of other packs too. The
+game starts with data/placeholder, and its scenarios.tsv has the 1200
+scenario of medieval_europe as row 8. The column pack names the pack of a
+row, or "-" for the pack of the engine:
+
+    8	y1200	一二〇〇年 群王爭霸	1200	pack	scenarios/y1200/scenario.tsv	assumed	medieval_europe
+
+The file of such a row is relative to the folder of that pack. The rows 1
+and 2 of medieval_europe/scenarios.tsv lead back to the Three Kingdoms.
+
+When the player chooses a row of another pack, these steps occur:
+1. ui_choose_scenario puts the pack and the key of the scenario in
+   ui.game.pack_request and ui.game.pack_scenario. It loads nothing.
+2. After the frame, the game (code/hexdom.cpp) empties the arena of the
+   engine. It creates a new engine with the rules and the map of that
+   pack, and a new UI at the title.
+3. In the next frame, ui_start_pack_scenario loads the scenario of the key
+   from the list of the new engine. Then the ruler list opens.
+
+The fonts, the UI text and the art stay the same for all packs.
+
+The web build has the pack in index.data: build_web.bat preloads
+data/medieval_europe. The Playwright test "a new game of 1200 starts the
+engine again with the map of Europe" chooses the row in the browser and
+checks the size of the new map.
+
+Caution: a save holds the size of its map, and an engine refuses a save of
+another size (ENGINE_SAVE_OTHER_VERSION). The title starts the engine of
+the placeholder pack. Thus a save of a 1200 game does not load from the
+title yet. The next step puts the pack in the save, so that the load
+starts the engine of that pack first.
+
 ## The plan
 | Step | Work | Result |
 |---|---|---|

@@ -786,6 +786,8 @@ struct engine_scenario
     u8   kind;                      /* engine_scenario_kind */
     char file[160];                 /* relative to the executable; "" if the clean room does not have the file */
     b32  available;                 /* the file was found when the engine started */
+    char pack[CONTENT_KEY_SIZE];    /* "" for a scenario of this pack; else the folder of another pack under the data root.
+                                       The front end then starts the engine again with that pack, then loads the file (docs/MAPS.md) */
 };
 
 /* M9: one row of battles.tsv, the 決戰稱霸 mode (game-setup-and-modes.md,

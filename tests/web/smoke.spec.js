@@ -84,6 +84,22 @@ test("the user badge shows the name and signs the user out", async ({ page }) =>
   expect((await page.request.get("/api/me")).status()).toBe(401);
 });
 
+// docs/MAPS.md: the scenario list of the title has the 1200 scenario of the pack medieval_europe.
+// The game starts the engine again with that pack and its map, then shows the rulers.
+test("a new game of 1200 starts the engine again with the map of Europe", async ({ page }) => {
+  await h.signIn(page);
+  expect((await h.gameState(page)).map_width).toBe(200);
+  await h.clickItem(page, "title_new");
+  await expect.poll(() => h.windowShown(page, "Scenarios")).toBe(true);
+  await h.clickItem(page, "sc8");
+  await expect.poll(() => h.windowShown(page, "Rulers"), { timeout: 30_000 }).toBe(true);
+  const state = await h.gameState(page);
+  expect(state.map_width).toBe(372);
+  expect(state.map_height).toBe(213);
+  const rulers = JSON.parse(await h.call(page, "wasm_test_item_ids", "string", ["string"], ["ruler"]));
+  expect(rulers.length).toBeGreaterThanOrEqual(10);   // the visible rows of the list of 24 rulers
+});
+
 test("the quit button of the title asks, then signs the user out", async ({ page }) => {
   await h.signIn(page);
   page.once("dialog", (dialog) => dialog.accept());

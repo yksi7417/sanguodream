@@ -69,6 +69,7 @@ REM is /build, so "../data/placeholder" is the same path as on Windows. The thre
 REM spec fixtures are the scenarios of the title menu (data/placeholder/scenarios.tsv).
 set PACK=--preload-file ../data/placeholder@/data/placeholder ^
   --preload-file ../data/civil_war@/data/civil_war ^
+  --preload-file ../data/medieval_europe@/data/medieval_europe ^
   --preload-file web/fonts/NotoSansCJKtc-Regular.otf@/data/fonts/NotoSansCJKtc-Regular.otf ^
   --preload-file ../data/fonts/NotoSansThai-Regular.ttf@/data/fonts/NotoSansThai-Regular.ttf ^
   --preload-file ../spec-src/spec/fixtures/saves/sample.s11@/spec-src/spec/fixtures/saves/sample.s11 ^

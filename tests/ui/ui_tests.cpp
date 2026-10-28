@@ -3630,6 +3630,39 @@ register_ui_tests(ImGuiTestEngine *e)
         };
     }
 
+    /* docs/MAPS.md: a scenario of another pack asks the game for a new engine
+       with that pack, and loads nothing in the old engine. The new engine
+       lists the scenario as its own; the UI then loads it and shows the rulers. */
+    t = IM_REGISTER_TEST(e, "ui", "a_scenario_of_another_pack_asks_for_that_pack_then_loads_in_the_new_engine");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.pack_rows = 1;
+        v.ui.show_title      = true;
+        v.ui.show_scenarios  = true;
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->SetRef("###Scenarios");
+        ctx->ItemClick("###sc1");
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOAD_SCENARIO), 0u);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOAD_SAVE), 0u);
+        IM_CHECK_STR_EQ(v.ui.game.pack_request, "medieval_europe");
+        IM_CHECK_STR_EQ(v.ui.game.pack_scenario, "y1200");
+        IM_CHECK(!v.ui.show_scenarios && !v.ui.show_rulers);
+        /* The game starts the engine again: the request is done, and row 1 is a scenario of the new pack. */
+        v.ui.game.pack_request[0] = 0;
+        v.recorder.pack_rows      = 2;
+        v.recorder.has_names      = true;   /* a pack scenario loads its own names: the UI does not load the name index */
+        recorder_reset(&v.recorder);
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOAD_SCENARIO), 1u);
+        IM_CHECK(v.ui.show_rulers && !v.ui.show_scenarios && v.ui.game.pack_scenario[0] == 0);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);   /* the load only */
+    };
+
     t = IM_REGISTER_TEST(e, "ui", "title_new_game_flow_loads_chooses_rulers_and_sets_settings");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;
