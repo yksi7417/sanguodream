@@ -480,6 +480,15 @@ demo_city_command(ImGuiTestContext *ctx, demo_vars &v, const char *open_button, 
         snprintf(item, sizeof(item), "###w%d", weapon_button);
         ctx->ItemClick(item);
     }
+    /* M19: the dialog proposes three officers. The city has too few free
+       officers for four commands of three, so each command keeps one. */
+    for (u32 place = 1; place < ui_command_infos[kind].max_officers; ++place)
+    {
+        char combo[32];
+        snprintf(combo, sizeof(combo), "###officer%u/###o_none", place + 1);
+        ctx->ComboClick(combo);
+    }
+    IM_CHECK(v.ui.commands[kind].officers[0] != ENGINE_NO_OFFICER);
     ctx->SleepStandard();
     ctx->ItemClick("###decide");
     ctx->Yield();
@@ -756,8 +765,7 @@ demo_m5_march(ImGuiTestContext *ctx)
     ctx->ItemClick("###open_sortie");
     ctx->Yield();
     ctx->SetRef("###Sortie");
-    ctx->ComboClick("###unit_type/###u1");                   /* 槍兵 */
-    ctx->ItemClick("###auto");                               /* 自動編制 */
+    ctx->ItemClick("###preset1");                            /* G2-044: the 槍兵 preset fills the officers */
     ctx->SleepStandard();
     ctx->ItemClick("###decide");
     ctx->Yield();
@@ -775,13 +783,13 @@ demo_m5_march(ImGuiTestContext *ctx)
     hex_coord target = demo_far_hex(api, unit_id);
     ctx->WindowFocus("//Hex map");
     demo_click_cell(ctx, v, target);
-    unit = api->unit_at(api->engine, unit_id);
-    IM_CHECK(unit.q == target.q && unit.r == target.r && unit.moved);
-    IM_CHECK(v.ui.show_unit_menu);
+    /* G2-045: the menu opens at the destination. The unit moves with the choice. */
+    IM_CHECK(v.ui.show_unit_menu && v.ui.units.has_pending_move);
     ctx->SetRef("###UnitMenu");
     ctx->SleepStandard();
     ctx->ItemClick("###wait");                               /* 待命 */
-    IM_CHECK(api->unit_at(api->engine, unit_id).acted);
+    unit = api->unit_at(api->engine, unit_id);
+    IM_CHECK(unit.q == target.q && unit.r == target.r && unit.moved && unit.acted);
 
     IM_CHECK(demo_open_panel(ctx, "###MiniMap", &v.ui.show_minimap));
     ctx->SleepStandard();
@@ -798,9 +806,9 @@ demo_m5_march(ImGuiTestContext *ctx)
     target = demo_far_hex(api, unit_id);
     ctx->WindowFocus("//Hex map");
     demo_click_cell(ctx, v, target);
-    IM_CHECK(api->unit_at(api->engine, unit_id).q == target.q);
     ctx->SetRef("###UnitMenu");
     ctx->ItemClick("###wait");
+    IM_CHECK(api->unit_at(api->engine, unit_id).q == target.q);
     b32 sortied = false, moved = false, eaten = false;
     for (u32 index = 0; index < api->ledger_count(api->engine); ++index)
     {
@@ -923,8 +931,7 @@ demo_m6_battle(ImGuiTestContext *ctx)
     ctx->ItemClick("###open_sortie");
     ctx->Yield();
     ctx->SetRef("###Sortie");
-    ctx->ComboClick("###unit_type/###u1");                   /* 槍兵 */
-    ctx->ItemClick("###auto");
+    ctx->ItemClick("###preset1");                            /* G2-044: the 槍兵 preset fills the officers */
     ctx->ItemClick("###decide");
     ctx->Yield();
     u32 unit_id = demo_unit_of(api, player);
@@ -1155,6 +1162,14 @@ demo_m7_court(ImGuiTestContext *ctx)
         ctx->WindowFocus("//Hex map");
         demo_click_cell(ctx, v, foe_hex);
         ctx->Yield(2);
+        if (v.ui.combat.duel_pick)
+        {
+            /* G3-008: the target opens the list of the officers. The commander challenges. */
+            ctx->SetRef("###DuelPick");
+            ctx->SleepStandard();
+            ctx->ItemClick("###duel_officer_0");
+            ctx->Yield(2);
+        }
     }
     IM_CHECK(api->duel_view(e).active && v.ui.show_duel);
     ctx->SetRef("###Duel");
