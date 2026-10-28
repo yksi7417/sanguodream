@@ -182,6 +182,68 @@ engine_save_path(engine *e, u32 slot, char *out, u32 out_size)
     snprintf(out, out_size, "%s/slot_%02u.hxs", e->save_folder, slot + 1);
 }
 
+/* ---- the .meta file of a slot (docs/MAPS.md) ---------------------------------
+   slot_NN.meta stands next to slot_NN.hxs. It holds the facts that the save
+   file does not hold, as key and value lines. The save file keeps its format.
+   A save without the .meta file is a save of HEXDOM_CONTENT_PACK. */
+
+#define ENGINE_META_PACK_KEY "pack\t"
+
+internal void
+engine_meta_path(engine *e, u32 slot, char *out, u32 out_size)
+{
+    snprintf(out, out_size, "%s/slot_%02u.meta", e->save_folder, slot + 1);
+}
+
+/* The name of the pack: the last folder of the content folder ("../data/medieval_europe" gives "medieval_europe"). */
+internal const char *
+engine_pack_name(const char *folder)
+{
+    const char *slash = strrchr(folder, '/');
+    const char *backslash = strrchr(folder, '\\');
+    if (backslash > slash) slash = backslash;
+    return slash ? slash + 1 : folder;
+}
+
+/* Writes slot_NN.meta for a save of this engine. It always writes the file,
+   so that a new save in the slot replaces the facts of an old save. */
+internal b32
+engine_write_slot_meta(engine *e, u32 slot)
+{
+    char path[256], text[256];
+    engine_meta_path(e, slot, path, sizeof(path));
+    s32 size = snprintf(text, sizeof(text), "key\tvalue\n# The facts of slot_%02u.hxs that the save file does not hold (docs/MAPS.md).\n"
+                        ENGINE_META_PACK_KEY "%s\n", slot + 1, engine_pack_name(e->content_folder));
+    return size > 0 && (u32)size < sizeof(text) && e->write_entire_file(path, text, (u64)size);
+}
+
+/* The pack of a slot: the pack line of slot_NN.meta, or HEXDOM_CONTENT_PACK without the file. */
+internal void
+engine_read_slot_pack(engine *e, u32 slot, char *out, u32 out_size)
+{
+    snprintf(out, out_size, "%s", HEXDOM_CONTENT_PACK);
+    char path[256];
+    engine_meta_path(e, slot, path, sizeof(path));
+    u64 mark = e->transient->used;
+    read_file_result file = e->read_entire_file ? e->read_entire_file(path, e->transient) : read_file_result{};
+    const char *text = (const char *)file.contents;
+    for (u64 at = 0; text && at < file.size; )
+    {
+        u64 end = at;
+        while (end < file.size && text[end] != '\n') end++;
+        u64 key = sizeof(ENGINE_META_PACK_KEY) - 1;
+        if (end - at > key && memcmp(text + at, ENGINE_META_PACK_KEY, key) == 0)
+        {
+            u64 stop = end;
+            while (stop > at + key && (text[stop - 1] == '\r' || text[stop - 1] == ' ')) stop--;
+            snprintf(out, out_size, "%.*s", (int)(stop - at - key), text + at + key);
+            break;
+        }
+        at = end + 1;
+    }
+    e->transient->used = mark;
+}
+
 internal engine_save_header
 engine_save_header_of(engine *e)
 {
@@ -350,8 +412,9 @@ engine_api_save_game(void *opaque, u32 slot, const char *comment)
     engine_save_path(e, slot, path, sizeof(path));
     b32 written = cursor.ok && e->write_entire_file(path, buffer, (u64)(cursor.at - buffer));
     arena->used = mark;
-    if (!written) return ENGINE_SAVE_WRITE_FAILED;
+    if (!written || !engine_write_slot_meta(e, slot)) return ENGINE_SAVE_WRITE_FAILED;
     e->slots[slot] = info;
+    e->slot_packs[slot] = {};
     return ENGINE_SAVE_OK;
 }
 
@@ -568,18 +631,34 @@ engine_api_refresh_save_slots(void *opaque)
         engine_save_cursor cursor;
         e->slots[slot] = {};
         e->slots[slot].player = ENGINE_NO_FACTION;
-        if (engine_read_slot(e, slot, &header, &cursor) == ENGINE_SAVE_OK && header.slot.used)
+        engine_save_status status = engine_read_slot(e, slot, &header, &cursor);
+        char pack[CONTENT_KEY_SIZE] = "";
+        /* A save of another pack shows with its pack, if its .meta file names a pack that is not this one. */
+        if (status == ENGINE_SAVE_OTHER_PACK) engine_read_slot_pack(e, slot, pack, sizeof(pack));
+        b32 other_pack = status == ENGINE_SAVE_OTHER_PACK && strcmp(pack, engine_pack_name(e->content_folder)) != 0;
+        e->slot_packs[slot] = {};
+        if ((status == ENGINE_SAVE_OK || other_pack) && header.slot.used)
         {
             e->slots[slot] = header.slot;
             e->slots[slot].comment[ENGINE_SAVE_COMMENT_SIZE - 1] = 0;
+            if (other_pack) snprintf(e->slot_packs[slot].pack, sizeof(e->slot_packs[slot].pack), "%s", pack);
         }
         e->transient->used = mark;
     }
 }
 
+internal engine_slot_pack
+engine_api_slot_pack(void *opaque, u32 slot)
+{
+    engine *e = (engine *)opaque;
+    engine_slot_pack none = {};
+    return slot < ENGINE_SAVE_SLOTS ? e->slot_packs[slot] : none;
+}
+
 internal void
 engine_bind_saves_api(engine_api *api)
 {
+    api->slot_pack          = engine_api_slot_pack;
     api->save_game          = engine_api_save_game;
     api->load_game          = engine_api_load_game;
     api->save_slot          = engine_api_save_slot;

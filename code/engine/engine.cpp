@@ -117,6 +117,7 @@ struct engine
     char             save_folder[128];
     char             content_folder[128];          /* a save remembers its pack */
     engine_save_slot slots[ENGINE_SAVE_SLOTS];     /* the list of the save dialog */
+    engine_slot_pack slot_packs[ENGINE_SAVE_SLOTS]; /* the pack of each slot of another pack, from its .meta file (docs/MAPS.md) */
     engine_scenario  scenarios[ENGINE_SCENARIO_CAPACITY];   /* M9: scenarios.tsv */
     u32              scenario_count;
     engine_battle    battles[ENGINE_BATTLE_CAPACITY];       /* M9: battles.tsv */

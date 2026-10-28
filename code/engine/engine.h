@@ -752,6 +752,15 @@ struct engine_save_slot
     u32  turn;
 };
 
+/* The pack of a save slot (docs/MAPS.md). The save file holds engine_save_slot
+   in its header, so the pack stays out of it: it comes from slot_NN.meta. */
+struct engine_slot_pack
+{
+    char pack[CONTENT_KEY_SIZE];  /* "" for a save of this pack. Else the pack of slot_NN.meta: load_game refuses
+                                     the slot, and the front end starts the engine of that pack first.
+                                     A save without the .meta file is a save of HEXDOM_CONTENT_PACK */
+};
+
 /* ---- M9: new officers and the PK ability chart ---------------------------- */
 
 struct engine_chart_row
@@ -1389,6 +1398,7 @@ typedef engine_save_status engine_save_game_fn(void *engine, u32 slot, const cha
 typedef engine_save_status engine_load_game_fn(void *engine, u32 slot);
 typedef engine_save_slot   engine_save_slot_fn(void *engine, u32 slot);
 typedef void               engine_refresh_save_slots_fn(void *engine);
+typedef engine_slot_pack   engine_slot_pack_fn(void *engine, u32 slot);   /* from the list of refresh_save_slots */
 /* M9 new officers and the PK chart. create_officer is a start-menu and
    editor command; it ledgers OFFICER_CREATED. */
 typedef u32                  engine_chart_count_fn(void *engine);
@@ -1966,6 +1976,7 @@ struct engine_api
     engine_load_game_fn             *load_game;
     engine_save_slot_fn             *save_slot;
     engine_refresh_save_slots_fn    *refresh_save_slots;
+    engine_slot_pack_fn             *slot_pack;
     /* M9 new officers and the PK chart */
     engine_chart_count_fn           *chart_count;
     engine_chart_row_at_fn          *chart_row_at;
