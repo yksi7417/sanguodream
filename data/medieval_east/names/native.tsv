@@ -1,0 +1,46 @@
+key	text	note
+# Written by misc/make_scenario.py. The names in their own language, in the Latin script, by English key (docs/EUROPE.md, E3).
+# officer.<key> comes from name_latin of officers.tsv in the scenario y1200. The Names setting of the Settings panel shows these rows.
+officer.alexios_iii	Alexios III Angelos
+officer.mourtzouphlos	Alexios V Doukas
+officer.laskaris	Theodōros I Laskarēs
+officer.niketas	Nikētas Chōniatēs
+officer.michael_choniates	Michaēl Chōniatēs
+officer.kaloyan	Kaloyan
+officer.boril	Boril
+officer.strez	Strez
+officer.suleiman_ii	Soleymān-e Dovvom
+officer.kaykaus	Keykāvus-e Yekom
+officer.al_adil	al-ʿĀdil Sayf al-Dīn Aḥmad
+officer.al_kamil	al-Kāmil Nāṣir al-Dīn Muḥammad
+officer.al_muazzam	al-Muʿaẓẓam ʿĪsā ibn al-ʿĀdil
+officer.al_ashraf	al-Ashraf Mūsā
+officer.emeric	Imre
+officer.andrew_ii	II. András
+officer.job	Jób
+officer.leopold_vi	Leopold VI.
+officer.kuenring	Hadmar II. von Kuenring
+officer.innocent_iii	Innocenzo III
+officer.richard_segni	Riccardo dei Conti di Segni
+officer.capuano	Pietro Capuano
+officer.ugolino	Ugolino dei Conti di Segni
+officer.dandolo	Enrico Dandolo
+officer.ranieri	Ranieri Dandolo
+officer.ziani	Pietro Ziani
+officer.morosini	Tommaso Morosini
+officer.frederick_ii	Federico II di Svevia
+officer.markward	Markward von Annweiler
+officer.pagliara	Gualtiero di Palearia
+officer.diepold	Diepold von Schweinspeunt
+officer.al_nasir	Muḥammad al-Nāṣir
+officer.ibn_jami	Abū Saʿīd ʿUthmān ibn Jāmiʿ
+officer.abu_hafs	Abū Muḥammad ʿAbd al-Wāḥid
+officer.marrakushi	ʿAbd al-Wāḥid al-Marrākushī
+officer.yahya	Yaḥyā ibn Isḥāq ibn Ghāniya
+officer.qaraqush	Sharaf al-Dīn Qarāqūsh
+officer.maimonides	Mosheh ben Maimon
+officer.kaykhusraw	Kaykhusraw-i Yakum
+officer.sgouros	Léōn Sgourós
+officer.francis	Francesco d'Assisi
+officer.montferrat	Bonifacio I del Monferrato
+officer.brienne	Gautier III de Brienne

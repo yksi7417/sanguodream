@@ -227,7 +227,8 @@ When the player chooses a row of another pack, these steps occur:
 The fonts, the UI text and the art stay the same for all packs.
 
 The web build has the pack in index.data: build_web.bat preloads
-data/medieval_europe. The Playwright test "a new game of 1200 starts the
+data/medieval_europe, data/medieval_west and data/medieval_east. The
+Playwright test "a new game of 1200 starts the
 engine again with the map of Europe" chooses the row in the browser and
 checks the size of the new map.
 
@@ -253,14 +254,14 @@ its default locale in pack.tsv (docs/EUROPE.md, E1 and E2).
 
 ## The regions of the planned games
 The table gives the hexes at the scale of the placeholder map, 11 km
-between hex centres. A region with more than 80000 hexes needs W4, or
+between hex centres. The rows of finished packs give the real grid of the pack. A region with more than 80000 hexes needs W4, or
 larger hexes. A region with many more than 42 important cities needs W3.
 
 | Game | Area | Hexes at 11 km | Advice |
 |---|---|---|---|
 | medieval_europe | 4500 km x 3000 km | approximately 125000 | Done with 13.6 km hexes and 42 cities |
-| medieval_west | 2100 km x 2800 km | approximately 56000 | The west half of 1200 (docs/EUROPE.md, E8) |
-| medieval_east | 3300 km x 2300 km | approximately 72000 | The east half of 1200 (docs/EUROPE.md, E8) |
+| medieval_west | 2100 km x 2800 km | 76648 (268 x 286) | Done with 10.1 km hexes and 42 cities. The west half of 1200 (docs/EUROPE.md, E8) |
+| medieval_east | 3300 km x 2300 km | 79422 (366 x 217) | Done with 10.7 km hexes and 42 cities. The east half of 1200 (docs/EUROPE.md, E8) |
 | Thirty Years War | 4700 km x 2800 km | approximately 125000 | Needs W3: the Empire alone has more than 42 important towns |
 | American Revolution | Two theatres | 31000 for the Thirteen Colonies | Make two maps. The Atlantic is 5000 km and has no hexes of interest. A sea voyage between the maps is an event, not a march. |
 | East Asia | 6000 km x 5000 km | approximately 300000 | Needs W3 and W4, or one map for each subregion |
@@ -269,3 +270,11 @@ larger hexes. A region with many more than 42 important cities needs W3.
 Large maps are slow to play if the hexes stay small. Keep the distance
 between cities near 22 hexes. Choose the cities first, then let the tool
 choose the size of a hex.
+
+The median distance from a city to the nearest city is 24.5 hexes on the
+west map and 17.0 hexes on the east map. The east map has many cities in
+the Levant and in Italy. The limit of 80000 hexes stops a finer scale.
+
+![The west map](maps/medieval_west.png)
+
+![The east map](maps/medieval_east.png)

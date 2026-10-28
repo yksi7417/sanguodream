@@ -1,0 +1,12 @@
+id	key	name_zh	months	chance_percent	turns	start_order_loss	turn_order_loss	grain_percent	soldier_percent	facility_damage	facility_target	low_order_only	ends_at_order	skill_block	skill_chance	skill_chance_percent	status
+# The disasters of calendar-and-turn.md, "Disasters" (manual p.9). One row for each disaster that the calendar can start in a city.
+# months: the months when the disaster can start on day 1 (documented). The other numbers are assumed (Q-162): the spec gives the effects but no amounts.
+# chance_percent: the chance for each city at each month in the list. turns: the length; 0 = no length: the disaster acts at once (harvest) or ends by a rule (bandits).
+# start_order_loss: public order at the start. turn_order_loss: public order each turn. grain_percent: locusts take this percent of each grain payment; the harvest adds it to the grain of the season.
+# soldier_percent: soldiers lost each turn. facility_damage: durability that one built facility of facility_target (an effect name, any, or none) loses each turn.
+# low_order_only: yes if the disaster starts only below order.bandit_threshold. ends_at_order: yes if it stops when public order reaches order.bandit_threshold.
+# skill_block: the skill that stops the disaster in the city (skills.md: 風水 #98). skill_chance: the skill that changes the chance (祈願 #99 more often, 威壓 #96 less often); skill_chance_percent: the chance with that skill. 0 = no skill. A skill is its number in skills.md.
+0	locusts	蝗災	1|4|7	5	9	10	0	50	0	200	grain	no	no	98	0	100	assumed
+1	plague	瘟疫	1|4|7|10	5	6	10	0	0	5	0	none	no	no	98	0	100	assumed
+2	bandits	盜賊	1|2|3|4|5|6|7|8|9|10|11|12	10	0	0	2	0	0	300	any	yes	yes	0	96	50	assumed
+3	good_harvest	豐收	7	10	0	0	0	50	0	0	none	no	no	0	99	200	assumed

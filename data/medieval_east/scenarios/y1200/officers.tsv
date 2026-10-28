@@ -1,0 +1,50 @@
+id	key	family_zh	given_zh	name_en	native_lang	name_native	name_latin	wikipedia	family_big5	given_big5	female	birth	death	appear	force	city	status	leadership	war	intelligence	politics	charm	aptitudes	skill	loyalty	merit	compatibility
+# native_lang: the ISO 639-1 code of the language of the officer. name_native: the name in that language and script (the title of the Wikipedia article in that language).
+# name_latin: name_native in the Latin script with diacritics. wikipedia: the English article, or -. The life of each officer is in lore/en.tsv of the pack (docs/EUROPE.md, E3 and E4).
+# The officers of 1200: historical people. The names, the years, the factions and the cities follow the history. The abilities are a design of the pack.
+# family_zh and given_zh: at most two Chinese characters each (5 bytes in the record). misc/make_scenario.py writes family_big5 and given_big5.
+# force: the id of forces.tsv, or - for a free officer. city: the city id of the map (0 to 41). status: ruler, officer or free. cities.tsv makes the governors.
+# aptitudes: pike, halberd, crossbow, cavalry, siege, navy; C, B, A or S. skill: a key of skills.tsv, or -. compatibility: 0 to 149.
+0	alexios_iii	安格	阿歷	Alexios III Angelos	el	Αλέξιος Γ΄ Άγγελος	Alexios III Angelos	https://en.wikipedia.org/wiki/Alexios_III_Angelos	A677AEE6	AAFCBEFA	no	1153	1211	1169	0	6	ruler	40	35	50	45	50	CCCCCB	-	100	15000	135
+1	mourtzouphlos	杜卡	阿歷	Alexios Doukas	el	Αλέξιος Ε΄ Δούκας	Alexios V Doukas	https://en.wikipedia.org/wiki/Alexios_V_Doukas	A7F9A564	AAFCBEFA	no	1140	1204	1156	0	6	officer	70	72	60	50	55	BBBBCB	-	75	5000	136
+2	laskaris	拉斯	狄奧	Theodore Laskaris	el	Θεόδωρος Α΄ Λάσκαρης	Theodōros I Laskarēs	https://en.wikipedia.org/wiki/Theodore_I_Laskaris	A9D4B4B5	A866B6F8	no	1174	1221	1190	0	6	officer	78	75	72	70	72	BBBABB	-	90	6000	134
+3	niketas	科尼	尼基	Niketas Choniates	el	Νικήτας Χωνιάτης	Nikētas Chōniatēs	https://en.wikipedia.org/wiki/Niketas_Choniates	ACECA5A7	A5A7B0F2	no	1155	1217	1171	0	8	officer	20	15	85	85	60	CCCCCC	debater	90	4000	137
+4	michael_choniates	科尼	米海	Michael Choniates	el	Μιχαήλ Χωνιάτης	Michaēl Chōniatēs	https://en.wikipedia.org/wiki/Michael_Choniates	ACECA5A7	A6CCAEFC	no	1140	1220	1156	0	9	officer	20	15	80	78	75	CCCCCC	teaching	95	4000	138
+5	kaloyan	阿森	卡洛	Kaloyan	bg	Калоян	Kaloyan	https://en.wikipedia.org/wiki/Kaloyan_of_Bulgaria	AAFCB4CB	A564ACA5	no	1170	1207	1186	1	10	ruler	85	85	70	65	65	BBBSCC	cavalry_general	100	15000	5
+6	boril	阿森	鮑里	Boril	bg	Борил	Boril	https://en.wikipedia.org/wiki/Boril_of_Bulgaria	AAFCB4CB	C06AA8BD	no	1180	1218	1196	1	10	officer	65	65	55	55	50	BBBBCC	-	90	3000	6
+7	strez	斯特	雷茲	Strez	bg	Стрез	Strez	https://en.wikipedia.org/wiki/Strez	B4B5AF53	B970AFF7	no	1175	1214	1191	1	10	officer	70	75	45	40	40	BBBACC	-	80	3000	4
+8	suleiman_ii	塞爾	蘇萊	Suleiman II of Rum	fa	سلیمان دوم	Soleymān-e Dovvom	https://en.wikipedia.org/wiki/Suleiman_II_of_Rum	B6EBBAB8	C4ACB5DC	no	1160	1204	1176	2	7	ruler	70	70	60	60	60	BBBSCC	-	100	15000	30
+9	kaykaus	塞爾	凱考	Kaykaus I	fa	کیکاووس یکم	Keykāvus-e Yekom	https://en.wikipedia.org/wiki/Kaykaus_I	B6EBBAB8	B3CDA6D2	no	1187	1220	1196	2	7	officer	65	62	60	62	65	BBBACC	-	95	3000	31
+10	al_adil	阿尤	阿迪	al-Adil	ar	العادل سيف الدين أحمد	al-ʿĀdil Sayf al-Dīn Aḥmad	https://en.wikipedia.org/wiki/Al-Adil_I	AAFCA4D7	AAFCAD7D	no	1145	1218	1161	3	4	ruler	85	75	88	85	80	BBASBC	see_through	100	20000	120
+11	al_kamil	阿尤	卡米	al-Kamil	ar	الكامل ناصر الدين محمد	al-Kāmil Nāṣir al-Dīn Muḥammad	https://en.wikipedia.org/wiki/Al-Kamil	AAFCA4D7	A564A6CC	no	1180	1238	1193	3	4	officer	78	70	82	85	75	BBBABC	capable	100	8000	121
+12	al_muazzam	阿尤	穆阿	al-Muazzam Isa	ar	المعظم عيسى بن العادل	al-Muʿaẓẓam ʿĪsā ibn al-ʿĀdil	https://en.wikipedia.org/wiki/Al-Mu%27azzam_Isa	AAFCA4D7	BF70AAFC	no	1176	1227	1192	3	39	officer	80	78	70	65	70	BBBSBC	cavalry_general	100	8000	119
+13	al_ashraf	阿尤	阿什	al-Ashraf Musa	ar	الأشرف موسى	al-Ashraf Mūsā	https://en.wikipedia.org/wiki/Al-Ashraf_Musa_ibn_Adil	AAFCA4D7	AAFCA4B0	no	1182	1237	1194	3	3	officer	78	76	65	60	75	BBBABC	-	100	7000	122
+14	emeric	阿爾	伊姆	Emeric of Hungary	hu	Imre	Imre	https://en.wikipedia.org/wiki/Emeric,_King_of_Hungary	AAFCBAB8	A5ECA969	no	1174	1204	1190	4	17	ruler	65	65	60	62	60	BBBACC	-	100	12000	90
+15	andrew_ii	阿爾	安德	Andrew II of Hungary	hu	II. András	II. András	https://en.wikipedia.org/wiki/Andrew_II_of_Hungary	AAFCBAB8	A677BC77	no	1177	1235	1193	4	17	officer	68	70	55	50	70	BBBACC	-	70	5000	91
+16	job	埃斯	約布	Job of Esztergom	hu	Jób	Jób	https://en.wikipedia.org/wiki/Job_(archbishop_of_Esztergom)	AE4AB4B5	ACF9A5AC	no	1152	1204	1156	4	17	officer	25	20	75	78	60	CCCCCC	-	95	4000	89
+17	leopold_vi	巴本	利奧	Leopold VI of Austria	de	Leopold VI.	Leopold VI.	https://en.wikipedia.org/wiki/Leopold_VI_of_Austria	A4DAA5BB	A751B6F8	no	1176	1230	1192	5	16	ruler	72	70	68	75	75	BBBABC	rich	100	12000	60
+18	kuenring	屈恩	哈德	Hadmar II of Kuenring	de	Hadmar II. von Kuenring	Hadmar II. von Kuenring	https://en.wikipedia.org/wiki/Hadmar_II_of_Kuenring	A97DAEA6	ABA2BC77	no	1140	1217	1166	5	16	officer	70	72	50	55	50	BABBCC	-	90	4000	61
+19	innocent_iii	塞尼	英諾	Innocent III	it	Innocenzo III	Innocenzo III	https://en.wikipedia.org/wiki/Pope_Innocent_III	B6EBA5A7	AD5EBFD5	no	1161	1216	1177	6	11	ruler	60	30	95	92	85	CCCCCC	debater	100	20000	15
+20	richard_segni	塞尼	理查	Richard of Segni	it	Riccardo dei Conti di Segni	Riccardo dei Conti di Segni	-	B6EBA5A7	B27AAC64	no	1160	1224	1176	6	11	officer	55	55	60	60	55	BBBBCC	-	95	4000	16
+21	capuano	卡普	彼得	Peter Capuano	it	Pietro Capuano	Pietro Capuano	https://en.wikipedia.org/wiki/Peter_of_Capua_the_Elder	A564B4B6	A9BCB16F	no	1150	1214	1166	6	11	officer	30	20	80	75	65	CCCCCC	-	95	4000	14
+22	ugolino	塞尼	烏戈	Ugolino of Segni	it	Ugolino dei Conti di Segni	Ugolino dei Conti di Segni	https://en.wikipedia.org/wiki/Pope_Gregory_IX	B6EBA5A7	AF51A4E0	no	1145	1241	1161	6	11	officer	35	25	85	80	70	CCCCCC	see_through	95	5000	17
+23	dandolo	丹多	恩里	Enrico Dandolo	it	Enrico Dandolo	Enrico Dandolo	https://en.wikipedia.org/wiki/Enrico_Dandolo	A4A6A668	AEA6A8BD	no	1107	1205	1123	7	14	ruler	80	50	95	90	85	BCBCAS	navy_general	100	20000	140
+24	ranieri	丹多	拉尼	Ranieri Dandolo	it	Ranieri Dandolo	Ranieri Dandolo	-	A4A6A668	A9D4A5A7	no	1150	1209	1166	7	14	officer	65	62	70	72	65	BBBCBA	-	98	5000	141
+25	ziani	齊亞	彼得	Pietro Ziani	it	Pietro Ziani	Pietro Ziani	https://en.wikipedia.org/wiki/Pietro_Ziani	BBF4A8C8	A9BCB16F	no	1154	1229	1170	7	14	officer	60	55	80	85	70	CCCCBA	rich	95	6000	139
+26	morosini	莫羅	托馬	Tommaso Morosini	it	Tommaso Morosini	Tommaso Morosini	https://en.wikipedia.org/wiki/Thomas_Morosini	B2F6C3B9	A6ABB0A8	no	1170	1211	1186	7	14	officer	30	25	70	70	60	CCCCCB	-	95	3000	142
+27	frederick_ii	霍亨	腓特	Frederick II	it	Federico II di Svevia	Federico II di Svevia	https://en.wikipedia.org/wiki/Frederick_II,_Holy_Roman_Emperor	C04EA6EB	B5CCAF53	no	1194	1250	1198	8	13	ruler	50	40	85	80	70	CCBCCB	-	100	10000	44
+28	markward	安維	馬克	Markward of Annweiler	de	Markward von Annweiler	Markward von Annweiler	https://en.wikipedia.org/wiki/Markward_von_Annweiler	A677BAFB	B0A8A74A	no	1140	1202	1166	8	13	officer	82	80	60	55	45	BBBACB	-	75	8000	45
+29	pagliara	帕里	瓦爾	Walter of Pagliara	it	Gualtiero di Palearia	Gualtiero di Palearia	https://en.wikipedia.org/wiki/Walter_of_Palearia	A9ACA8BD	A5CBBAB8	no	1150	1229	1166	8	13	officer	30	25	78	80	55	CCCCCC	-	80	5000	43
+30	diepold	施文	迪波	Diepold of Schweinspeunt	de	Diepold von Schweinspeunt	Diepold von Schweinspeunt	https://en.wikipedia.org/wiki/Dipold_of_Acerra	AC49A4E5	AD7DAA69	no	1160	1221	1176	8	12	officer	78	80	50	40	40	BBBACC	fierce	75	5000	46
+31	al_nasir	穆瓦	納西	Muhammad al-Nasir	ar	محمد الناصر	Muḥammad al-Nāṣir	https://en.wikipedia.org/wiki/Muhammad_al-Nasir	BF70A5CB	AFC7A6E8	no	1182	1213	1198	9	0	ruler	70	62	60	68	65	BBACCC	-	100	18000	100
+32	ibn_jami	賈米	烏斯	Uthman ibn Jami	ar	أبو سعيد عثمان بن جامع	Abū Saʿīd ʿUthmān ibn Jāmiʿ	-	B8EBA6CC	AF51B4B5	no	1150	1220	1166	9	0	officer	40	30	80	82	55	CCCCCC	capable	95	6000	101
+33	abu_hafs	哈夫	阿布	Abu Muhammad ibn Abi Hafs	ar	أبو محمد عبد الواحد	Abū Muḥammad ʿAbd al-Wāḥid	https://en.wikipedia.org/wiki/Abu_Muhammad_Abd_al-Wahid_ibn_Abi_Hafs	ABA2A4D2	AAFCA5AC	no	1155	1221	1171	9	0	officer	80	75	75	78	70	BBBACC	iron_wall	95	8000	102
+34	marrakushi	馬拉	阿卜	Abd al-Wahid al-Marrakushi	ar	عبد الواحد المراكشي	ʿAbd al-Wāḥid al-Marrākushī	https://en.wikipedia.org/wiki/Abd_al-Wahid_al-Marrakushi	B0A8A9D4	AAFCA452	no	1185	1262	1200	9	0	officer	20	15	75	70	55	CCCCCC	teaching	90	1000	99
+35	yahya	加尼	葉海	Yahya ibn Ghaniya	ar	يحيى بن إسحاق بن غانية	Yaḥyā ibn Isḥāq ibn Ghāniya	-	A55BA5A7	B8ADAEFC	no	1160	1237	1176	10	1	ruler	85	85	65	55	70	BBBSCC	cavalry_general	100	12000	110
+36	qaraqush	卡拉	庫什	Sharaf al-Din Qaraqush	ar	شرف الدين قراقوش	Sharaf al-Dīn Qarāqūsh	https://en.wikipedia.org/wiki/Sharaf_al-Din_Qaraqush	A564A9D4	AE77A4B0	no	1150	1212	1166	10	1	officer	80	82	50	40	50	BBBACC	fierce	80	5000	111
+37	maimonides	邁蒙	摩西	Maimonides	he	משה בן מימון	Mosheh ben Maimon	https://en.wikipedia.org/wiki/Maimonides	C1DABB58	BCAFA6E8	no	1138	1204	1154	-	4	free	10	5	95	80	75	CCCCCC	-	0	0	123
+38	kaykhusraw	塞爾	凱霍	Kaykhusraw I	fa	کیخسرو یکم	Kaykhusraw-i Yakum	https://en.wikipedia.org/wiki/Kaykhusraw_I	B6EBBAB8	B3CDC04E	no	1164	1211	1180	-	6	free	72	70	60	60	65	BBBACC	-	0	0	29
+39	sgouros	斯古	列昂	Leo Sgouros	el	Λέων Σγουρός	Léōn Sgourós	https://en.wikipedia.org/wiki/Leo_Sgouros	B4B5A56A	A643A9F9	no	1160	1208	1176	-	9	free	70	72	55	40	40	BBBBCB	-	0	0	133
+40	francis	阿西	方濟	Francis of Assisi	it	Francesco d'Assisi	Francesco d'Assisi	https://en.wikipedia.org/wiki/Francis_of_Assisi	AAFCA6E8	A4E8C0D9	no	1181	1226	1197	-	11	free	10	5	80	40	99	CCCCCC	prayer	0	0	13
+41	montferrat	蒙費	博尼	Boniface of Montferrat	it	Bonifacio I del Monferrato	Bonifacio I del Monferrato	https://en.wikipedia.org/wiki/Boniface_I_of_Montferrat	BB58B64F	B3D5A5A7	no	1150	1207	1166	-	15	free	82	80	70	70	78	BBBSBC	cavalry_general	0	0	28
+42	brienne	布里	瓦爾	Walter III of Brienne	fr	Gautier III de Brienne	Gautier III de Brienne	https://en.wikipedia.org/wiki/Walter_III_of_Brienne	A5ACA8BD	A5CBBAB8	no	1166	1205	1201	-	12	free	78	80	55	50	65	BBBACC	-	0	0	26

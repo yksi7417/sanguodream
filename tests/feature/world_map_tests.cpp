@@ -7,7 +7,7 @@
 #define FEATURE_WORLD_MAX_HEXES 80000    /* max_hexes of map/source/region.tsv */
 
 internal void
-feature_world_map_init(engine_fixture *f)
+feature_world_map_init(engine_fixture *f, const char *content_folder = FEATURE_WORLD_PACK)
 {
     f->permanent = test_arena_create(Megabytes(96));
     f->transient = test_arena_create(Megabytes(32));
@@ -17,7 +17,7 @@ feature_world_map_init(engine_fixture *f)
     config.read_entire_file  = test_platform_read_entire_file;
     config.write_entire_file = test_platform_write_entire_file;
     config.save_folder       = feature_save_folder;
-    config.content_folder    = FEATURE_WORLD_PACK;
+    config.content_folder    = content_folder;
     f->backend = engine_create(&f->permanent, &f->transient, config);
     f->api     = engine_make_api(f->backend);
     engine_settings settings = f->api.settings(f->api.engine);
@@ -72,6 +72,86 @@ feature_world_map_tests(test_counts *counts)
     TEST_CHECK(counts, feature_next_own_turn(api, force) && feature_next_own_turn(api, force),
                "the turns of the AI run on the new map");
     engine_fixture_destroy(&f);
+}
+
+/* ---- the west map and the east map (docs/EUROPE.md, E8) ------------------------------------------ */
+
+struct feature_pack_city
+{
+    u8          city_id;
+    const char *key;
+    u8          owner;       /* the force id, or CITY_OWNER_NONE */
+};
+
+struct feature_pack_spec
+{
+    const char              *folder;
+    u32                      factions;
+    u32                      width;
+    u32                      height;
+    feature_pack_city        cities[3];
+};
+
+/* One test for a pack of E8: the counts of the map, the keys of three cities, the scenario and two turns. */
+internal void
+feature_pack_map_tests(test_counts *counts, const feature_pack_spec *spec)
+{
+    engine_fixture f;
+    feature_world_map_init(&f, spec->folder);
+    engine_api *api = &f.api;
+    void *e = api->engine;
+    engine_map_info info = api->map_info(e);
+    TEST_CHECK(counts, api->content_status(e).loaded && info.real_map && strcmp(info.detail, "ok") == 0,
+               "the engine loads the content and the map of the pack");
+    TEST_CHECK(counts, info.width == spec->width && info.height == spec->height && info.width * info.height <= FEATURE_WORLD_MAX_HEXES,
+               "the map has the size that make_world_map.py wrote and fits the budget of the terrain mesh");
+    TEST_CHECK(counts, info.cities == 42 && info.gates == 10 && info.ports == 35 && info.city_hexes == 294 && info.port_hexes == 35,
+               "the map has 42 cities of 7 hexes, 10 gates and 35 ports");
+    TEST_CHECK(counts, info.slots >= 42 * 10 && info.bandit_sites > 0, "each city has development slots, and the map has bandit sites");
+
+    engine_scenario scenario = api->scenario_at(e, 0);
+    TEST_CHECK(counts, scenario.kind == ENGINE_SCENARIO_PACK && scenario.available && scenario.year == 1200 && !scenario.pack[0],
+               "the pack lists its scenario of 1200 first");
+    TEST_CHECK(counts, api->load_scenario(e, scenario.file).status == ENGINE_LOAD_OK, "the scenario of the pack loads");
+    TEST_CHECK(counts, feature_world_flowers(api), "each city stands on its flower and has slots");
+    TEST_CHECK(counts, api->faction_count(e) == spec->factions, "each row of forces.tsv is a faction");
+
+    for (u32 index = 0; index < ArrayCount(spec->cities); ++index)
+    {
+        const feature_pack_city *want = &spec->cities[index];
+        engine_city_name city_name = api->city_name_at(e, want->city_id);
+        u8 owner = ENGINE_NO_FACTION;
+        for (u32 city_index = 0; city_index < api->city_count(e); ++city_index)
+        {
+            engine_city city = api->city_at(e, city_index);
+            if (city.city_id == want->city_id) owner = city.owner_force_id;
+        }
+        TEST_CHECK(counts, strcmp(city_name.key, want->key) == 0 && owner == want->owner,
+                   "the key of a city and its owner in 1200 are the ones of docs/EUROPE.md");
+    }
+
+    u8 force = api->city_at(e, feature_busiest_city(api)).owner_force_id;
+    TEST_CHECK(counts, feature_play_as(api, force), "the player chooses a faction; the first turn of 1200 starts");
+    TEST_CHECK(counts, feature_next_own_turn(api, force) && feature_next_own_turn(api, force),
+               "the AI plays the other factions of the scenario for two turns");
+    engine_fixture_destroy(&f);
+}
+
+internal void
+feature_pack_map_tests_all(test_counts *counts)
+{
+    static const feature_pack_spec west =
+    {
+        HEXDOM_DATA_ROOT "/medieval_west", 17, 268, 286,
+        { { 16, "paris", 0 }, { 30, "rouen", 1 }, { 32, "lille", 15 } }
+    };
+    static const feature_pack_spec east =
+    {
+        HEXDOM_DATA_ROOT "/medieval_east", 11, 366, 217,
+        { { 34, "antioch", CITY_OWNER_NONE }, { 35, "aleppo", 3 }, { 39, "damascus", 3 } }
+    };
+    feature_pack_map_tests(counts, &west);
+    feature_pack_map_tests(counts, &east);
 }
 
 /* ---- the scenario of the pack (docs/MAPS.md, step W2) ------------------------------------------ */

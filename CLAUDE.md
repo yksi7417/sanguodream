@@ -189,6 +189,10 @@ decompilation of it.
 - data/medieval_europe/  the prototype map from real geography: Europe and
                          North Africa in 1200, with its own scenario in
                          scenarios/y1200; see its README.md
+- data/medieval_west/    the west map of the game of 1200 (E8): 42 cities
+                         and its own scenario; see its README.md
+- data/medieval_east/    the east map of the game of 1200 (E8): 42 cities,
+                         with Antioch, and its own scenario; see its README.md
 - data/fonts/, data/unicode/   open-licence assets; see docs/ASSETS.md
 - tests/unit/            per-module unit tests
 - tests/feature/         engine_api behaviour tests and the fixture runner

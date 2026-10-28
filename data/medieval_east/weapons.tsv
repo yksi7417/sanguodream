@@ -1,0 +1,19 @@
+id	key	name_zh	cost	facility	specialty	stock	min_days	max_days	technique	replaces
+# The weapons of weapons-and-production.md (manual p.12; guide book p.9). One row for each weapon that 生產兵裝 produces.
+# cost: documented. The gold of one production command; a specialty city pays produce.specialty_percent of it (assumed, Q-022).
+# facility: the effect of the facility that produces it: weapons (smithy), horses (stable), siege (workshop), ships (shipyard).
+# specialty: the city specialty that makes it cheaper (documented, guide book p.9).
+# stock: the index into the weapon stocks of a city (save-file.md, city +32). The third ship field (9) holds the tower ships: 江陵 4 and 江夏 1 in sample.s11 (observed, G2-012). The order of the siege stocks and the field of the battle ships are assumed (Q-006, Q-156).
+# min_days, max_days: 0 for weapons that arrive at once; 30 to 90 days for siege weapons and ships (documented).
+# technique: the key of the technique in techniques.tsv that the faction needs, or - (documented, manual p.12).
+# replaces: the key of the weak weapon that a faction with this weapon cannot produce any more, or - (documented, manual p.12).
+0	pike	槍	700	weapons	pike	0	0	0	-	-
+1	halberd	戟	700	weapons	halberd	1	0	0	-	-
+2	crossbow	弩	700	weapons	crossbow	2	0	0	-	-
+3	horse	軍馬	700	horses	horse	3	0	0	-	-
+4	ram	衝車	1500	siege	siege	4	30	90	-	-
+5	wood_beast	木獸	1700	siege	siege	4	30	90	wood_beasts	ram
+6	tower	井闌	1600	siege	siege	5	30	90	-	-
+7	catapult	投石	1800	siege	siege	6	30	90	catapults	tower
+8	tower_ship	樓船	1800	ships	navy	9	30	90	-	-
+9	battle_ship	鬥艦	2000	ships	navy	8	30	90	catapults	tower_ship

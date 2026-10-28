@@ -1,0 +1,10 @@
+id	key	name_zh	chance	conditions	effects	names_zh	names	status
+# The historical events of events.md (guide book p.56 to p.83) as data: the engine has one interpreter, not one handler for each event.
+# conditions: clauses separated by ";"; an event fires when all hold for one faction. effects: the changes, in order. @i is the officer i of names.
+# Clauses: scenario:S (the S of events.md: the file number + 1, Q-189), opening (the first month), start_before/start_by/start_from:YYYY/MM (the start date), date_from:YYYY/MM, days:N,
+#   ruler:@i, faction_of:@i, ruler_family:@i, rules:C|C, rules_any:C|C, not_rules:C|C, cities:N, cities_at_most:N, rank:N, rank_below:N, free:@i|@j, free_any:@i|@j, serves:@i:L, has:@i,
+#   unmarried:@i|@j, captive:@i, in_other:@i, loyalty_below:@i:L, merit_at_least:@i:N, order_ruler:N, order_ruler_below:N, order_of:@i:N, emperor_held, emperor_is:E, no_emperor,
+#   dead:@i, death_year:@i, adviser:@i, officers:N, age:@i:N, faction_cities:@i:N.
+# Effects: join:@i:LOYALTY:MERIT, defect:@i:LOYALTY:MERIT, merit:@i:N, merit_like:@i:@j, loyalty:@i:N, loyalty_all:N, order_all:N, morale_all:N, marry:@i:@j, sworn:@i|@j, dies:@i,
+#   rank:N, emperor:E, friendliness_all:N, friendliness_with:@i:N, raise:@i:ABILITY:VALUE, adviser:@i; "-" is a dialogue only.
+# The book gives the triggers; the clean room leaves out the choices, the pictures, the absences of chained events and the faction split of 連環計 (Q-189).
