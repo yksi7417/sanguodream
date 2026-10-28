@@ -152,6 +152,46 @@ The licences:
 - The plan uses only public-domain images until the player agrees to CC
   BY-SA. See question Q-E3.
 
+The research of 2026-10-28 chose one SVG file on Wikimedia Commons for
+each faction. It read the licence of each file through the Commons API.
+It downloaded no image.
+
+| Force | Key | File on Commons | Licence | Public-domain choice |
+|---|---|---|---|---|
+| 0 | france | Blason pays fr France ancien.svg | Public domain | - |
+| 1 | angevin | Coa England Country History Anjou-Plantagenêt (1198-1340).svg | CC0 | - |
+| 2 | toulouse | Blason département fr Hérault.svg (the cross of Toulouse) | Public domain | - |
+| 3 | aragon | Coa Spain Family Royal arms of Aragon.svg | CC0 | - |
+| 4 | castile | Escudo de armas de Castilla.svg | CC0 | - |
+| 5 | leon | Shield of Alfonso IX of Leon.svg | CC BY-SA 3.0 | Kingdom of Leon Medieval Heraldic Lion.svg |
+| 6 | portugal | CoA of Portugal (1139-1247).svg | CC BY-SA 3.0 | Banner of Portugal 1248.svg |
+| 7 | almohad | Almohad flag.svg | CC0 | - |
+| 8 | ghaniya | Banner of the Almoravids.svg | Public domain | - |
+| 9 | ayyubid | Flag of Ayyubid Dynasty.svg (Commons marks it for deletion) | Public domain | - |
+| 10 | byzantium | Byzantine imperial flag, 14th century, square.svg | Public domain | - |
+| 11 | bulgaria | Coat of arms of the Second Bulgarian Empire.svg | CC BY-SA 3.0 | none found |
+| 12 | rum | Double-headed eagle of the Sultanate of Rum.svg | CC0 | - |
+| 13 | staufer | Armoiries empereurs Hohenstaufen (DL).svg | Attribution | none found |
+| 14 | welf | Emperor Otto IV Arms (DL).svg | Attribution | none found |
+| 15 | sicily | Coat of Arms of the Kingdom of Sicily (House of Hohenstaufen).svg | CC BY-SA 4.0 | none found |
+| 16 | austria | CoA Babenberg (old).svg | CC0 | - |
+| 17 | bohemia | Přemyslovci erb.svg | Public domain | - |
+| 18 | hungary | Coa Hungary Country History Imre (1196-1204).svg | Public domain | - |
+| 19 | poland | POL Przemysł II 1295 COA.svg | Public domain | - |
+| 20 | papacy | Emblem of the Papacy SE.svg | Public domain | - |
+| 21 | venice | Flag of Most Serene Republic of Venice.svg | Public domain | - |
+| 22 | flanders | Arms of Flanders.svg | CC0 | - |
+| 23 | denmark | Royal Banner of Denmark (14th Century).svg | Public domain | - |
+
+The result:
+- 18 factions have a public-domain or CC0 image.
+- Leon and Portugal have a CC BY-SA image and a public-domain choice.
+- Staufer and Welf need the credit "David Liuzzo" under an attribution
+  licence.
+- Bulgaria and Sicily have only CC BY-SA images.
+- The arms of Byzantium, Bulgaria, Rum, Sicily, Poland, the papacy and
+  Venice are later attributions, not arms of 1200.
+
 Some factions of 1200 had no coat of arms. Heraldry started in western
 Europe in the 12th century. The Almohads, the Ayyubids, Byzantium and the
 Seljuks used banners and seals. For these factions, the plan uses a banner
