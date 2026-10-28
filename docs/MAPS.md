@@ -259,6 +259,8 @@ larger hexes. A region with many more than 42 important cities needs W3.
 | Game | Area | Hexes at 11 km | Advice |
 |---|---|---|---|
 | medieval_europe | 4500 km x 3000 km | approximately 125000 | Done with 13.6 km hexes and 42 cities |
+| medieval_west | 2100 km x 2800 km | approximately 56000 | The west half of 1200 (docs/EUROPE.md, E8) |
+| medieval_east | 3300 km x 2300 km | approximately 72000 | The east half of 1200 (docs/EUROPE.md, E8) |
 | Thirty Years War | 4700 km x 2800 km | approximately 125000 | Needs W3: the Empire alone has more than 42 important towns |
 | American Revolution | Two theatres | 31000 for the Thirteen Colonies | Make two maps. The Atlantic is 5000 km and has no hexes of interest. A sea voyage between the maps is an event, not a march. |
 | East Asia | 6000 km x 5000 km | approximately 300000 | Needs W3 and W4, or one map for each subregion |
