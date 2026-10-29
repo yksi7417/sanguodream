@@ -490,6 +490,11 @@ global_variable content_rule_field content_rule_fields[] = {
     CONTENT_RULE("base.start_troops", base_start_troops), CONTENT_RULE("corps.commands", corps_commands), CONTENT_RULE("council.officers", council_officers),
     CONTENT_RULE("adviser.intellect", adviser_intellect), CONTENT_RULE("advice.per_intellect", advice_per_intellect),
     CONTENT_RULE("emperor.technique", emperor_technique), CONTENT_RULE("emperor.loyalty", emperor_loyalty), CONTENT_RULE("emperor.city", emperor_city),
+    /* E6 */
+    CONTENT_RULE("legitimacy.model", legitimacy_model), CONTENT_RULE("authority.technique", authority_technique),
+    CONTENT_RULE("authority.loyalty", authority_loyalty), CONTENT_RULE("crown.friendliness", crown_friendliness),
+    CONTENT_RULE("interdict.months", interdict_months), CONTENT_RULE("interdict.loyalty", interdict_loyalty),
+    CONTENT_RULE("interdict.stop", interdict_stop),
     CONTENT_RULE("event.experience", event_experience), CONTENT_RULE("event.merit", event_merit),
     CONTENT_RULE("ai.urgency", ai_urgency), CONTENT_RULE("ai.sortie_soldiers", ai_sortie_soldiers), CONTENT_RULE("ai.sortie_reserve", ai_sortie_reserve),
     CONTENT_RULE("ai.goodwill_gold", ai_goodwill_gold), CONTENT_RULE("ai.commands", ai_commands), CONTENT_RULE("corps.ap_divisor", corps_ap_divisor),
@@ -529,7 +534,15 @@ content_load_rules(sim_content *content, tsv_table *table, u32 *bad_row)
         u32 value = 0;
         u32 field = 0;
         while (field < ArrayCount(content_rule_fields) && strcmp(content_rule_fields[field].key, key) != 0) field++;
-        if (field == ArrayCount(content_rule_fields) || !tsv_cell_u32(table, row, "value", &value))
+        b32 is_model = strcmp(key, "legitimacy.model") == 0;
+        if (is_model)
+        {
+            /* E6: the model has words in place of a number. */
+            const char *word = tsv_cell(table, row, "value");
+            value = strcmp(word, "authorities") == 0 ? LEGITIMACY_AUTHORITIES : LEGITIMACY_EMPEROR;
+            if (strcmp(word, "authorities") != 0 && strcmp(word, "emperor") != 0) field = ArrayCount(content_rule_fields);
+        }
+        if (field == ArrayCount(content_rule_fields) || (!is_model && !tsv_cell_u32(table, row, "value", &value)))
         {
             *bad_row = row;
             content->rules = {};
@@ -1711,7 +1724,7 @@ global_variable const char *content_history_effects[] =
 {
     "join", "defect", "merit", "merit_like", "loyalty", "loyalty_all", "order_all", "morale_all", "marry", "sworn", "dies",
     "rank", "emperor", "friendliness_all", "friendliness_with", "raise", "adviser",
-    "seize", "rename", "target", "city_loss",
+    "seize", "rename", "target", "city_loss", "see_holder", "authority_seat", "interdict",
 };
 
 /* E7: the names of the churches, in the order of content_church. */
@@ -1723,6 +1736,59 @@ content_find_church(const char *name)
 {
     u32 index = content_find_name(content_church_names, CONTENT_CHURCH_COUNT, name);
     return index == CONTENT_CHURCH_NONE ? (u32)CONTENT_CHURCH_COUNT : index;
+}
+
+/* E6: the authority with this key, or CONTENT_AUTHORITY_CAPACITY. */
+internal u32
+content_find_authority(sim_content *content, const char *key)
+{
+    for (u32 index = 0; index < content->authority_count; ++index)
+    {
+        if (strcmp(content->authorities[index].key, key) == 0) return index;
+    }
+    return CONTENT_AUTHORITY_CAPACITY;
+}
+
+/* authorities.tsv: key, seat, church, holder. seat is the key of a city of
+   cities.tsv, or a dash for a seat that is not on the map (E6). */
+internal b32
+content_load_authorities(sim_content *content, tsv_table *table, tsv_table *cities, u32 *bad_row)
+{
+    content->authority_count = 0;
+    if (table->row_count > CONTENT_AUTHORITY_CAPACITY) { *bad_row = CONTENT_AUTHORITY_CAPACITY; return false; }
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        authority_kind kind = {};
+        const char *key = tsv_cell(table, row, "key"), *seat = tsv_cell(table, row, "seat");
+        const char *holder = tsv_cell(table, row, "holder");
+        u32 church = content_find_church(tsv_cell(table, row, "church"));
+        kind.seat_city = CONTENT_NO_SEAT;
+        b32 bad = !key[0] || strlen(key) >= CONTENT_KEY_SIZE || strlen(holder) >= CONTENT_HOLDER_SIZE || content_find_authority(content, key) != CONTENT_AUTHORITY_CAPACITY;
+        if (!bad && church == CONTENT_CHURCH_COUNT && strcmp(tsv_cell(table, row, "church"), "-") != 0) bad = true;
+        if (!bad && strcmp(seat, "-") != 0)
+        {
+            bad = true;
+            for (u32 city = 0; city < cities->row_count; ++city)
+            {
+                u32 id = 0;
+                if (strcmp(tsv_cell(cities, city, "key"), seat) != 0 || !tsv_cell_u32(cities, city, "id", &id) || id >= SAVE_CITY_COUNT) continue;
+                kind.seat_city = (u8)id;
+                bad = false;
+            }
+        }
+        if (bad)
+        {
+            *bad_row = row;
+            content->authority_count = 0;
+            return false;
+        }
+        memcpy(kind.key, key, strlen(key) + 1);
+        memcpy(kind.holder, holder, strlen(holder) + 1);
+        kind.church = (u8)(church < CONTENT_CHURCH_COUNT ? church : CONTENT_CHURCH_NONE);
+        content->authorities[row] = kind;
+        content->authority_count = row + 1;
+    }
+    return true;
 }
 
 /* The extra checks of the clauses that have a closed list or a limit. args is the text after the
@@ -1747,6 +1813,22 @@ content_history_args_valid(const char *name, const char *args)
             if (size >= sizeof(item) - 1) return false;
             item[size++] = *at;
         }
+    }
+    if (strcmp(name, "see_holder") == 0 || strcmp(name, "authority_seat") == 0)
+    {
+        /* E6: the key of an authority, then a church or a dash, or a city. */
+        const char *colon = strchr(args, ':');
+        if (!colon || colon == args || colon - args >= CONTENT_KEY_SIZE || !colon[1]) return false;
+        if (name[0] == 's') return strcmp(colon + 1, "-") == 0 || content_find_church(colon + 1) != CONTENT_CHURCH_COUNT;
+        u32 city = 0, digits = 0;
+        for (const char *at = colon + 1; *at >= '0' && *at <= '9'; ++at, ++digits) city = city * 10 + (u32)(*at - '0');
+        return digits > 0 && digits < 4 && colon[1 + digits] == 0 && city < SAVE_CITY_COUNT;
+    }
+    if (strcmp(name, "interdict") == 0)
+    {
+        u32 months = 0, digits = 0;
+        for (const char *at = args; *at >= '0' && *at <= '9'; ++at, ++digits) months = months * 10 + (u32)(*at - '0');
+        return digits > 0 && digits < 4 && args[digits] == 0 && months > 0;
     }
     if (strcmp(name, "city_loss") == 0)
     {

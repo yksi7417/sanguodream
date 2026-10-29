@@ -698,6 +698,26 @@ struct engine_emperor
     u8 protector;                   /* ENGINE_NO_FACTION */
 };
 
+/* E6: an authority of the church or a caliph. The panel shows the rows and the recognition of each faction. */
+struct engine_authority
+{
+    b32  known;                     /* false for an index at or after authority_count */
+    char key[CONTENT_KEY_SIZE];     /* the text id is "authority.<key>" */
+    char holder[CONTENT_HOLDER_SIZE];   /* the name of the holder, from authorities.tsv */
+    u8   church;                    /* content_church of the holder; CONTENT_CHURCH_NONE if the see is vacant */
+    u8   seat_city;                 /* ENGINE_NO_CITY if the seat is not on the map */
+    u8   keeper;                    /* the faction that acts for the holder; ENGINE_NO_FACTION */
+};
+
+/* E6: the standing of one faction with its authority. */
+struct engine_recognition
+{
+    u8   authority;                 /* the index in authority_at; ENGINE_NO_ROW if the faction has none */
+    b32  recognized;                /* the faction has recognition now */
+    b32  crown;                     /* the authority gave a crown */
+    u8   interdict_months;          /* the months that remain of an interdict; 0 if none */
+};
+
 struct engine_relic
 {
     b32 alive;
@@ -1379,6 +1399,9 @@ typedef engine_plan_view     engine_council_fn(void *engine, u8 force_id, u8 cit
 typedef engine_plan_view     engine_ai_plan_fn(void *engine, u8 force_id);           /* what the AI would do now */
 typedef engine_unit_goal     engine_unit_goal_fn(void *engine, u32 unit_id);         /* G3-009: the goal of a computer unit */
 typedef engine_emperor       engine_emperor_fn(void *engine);
+typedef u32                  engine_authority_count_fn(void *engine);               /* E6: 0 in a pack of the Han emperor */
+typedef engine_authority     engine_authority_at_fn(void *engine, u32 index);
+typedef engine_recognition   engine_recognition_fn(void *engine, u8 force_id);
 typedef u32                  engine_relic_count_fn(void *engine);
 typedef engine_relic         engine_relic_at_fn(void *engine, u32 index);
 typedef u32                  engine_event_kind_count_fn(void *engine);
@@ -1392,6 +1415,9 @@ typedef engine_command_result engine_command_event_choice_fn(void *engine, u8 ch
 /* Test and editor commands. trigger_event fires an event now (unit: the
    unit of a wait event); the others ledger nothing. */
 typedef engine_command_result engine_trigger_event_fn(void *engine, u8 event, u8 force_id, u8 city_id, u16 officer_or_unit);
+/* E6: ask_crown is the command of the ruler to his authority. interdict is the command of the owner of Rome. */
+typedef engine_command_result engine_command_ask_crown_fn(void *engine, u8 force_id);
+typedef engine_command_result engine_command_interdict_fn(void *engine, u8 force_id, u8 target_force_id);
 typedef void                  engine_set_emperor_fn(void *engine, u8 who, u8 city_id);
 typedef void                  engine_set_base_fn(void *engine, u32 index, u8 force_id, u32 troops, u32 durability);
 /* M9 save and load. save_game writes the slot file and its comment; the
@@ -1975,6 +2001,9 @@ struct engine_api
     engine_ai_plan_fn               *ai_plan;
     engine_unit_goal_fn             *unit_goal;               /* G3-009 */
     engine_emperor_fn               *emperor;
+    engine_authority_count_fn       *authority_count;         /* E6 */
+    engine_authority_at_fn          *authority_at;
+    engine_recognition_fn           *recognition;
     engine_relic_count_fn           *relic_count;
     engine_relic_at_fn              *relic_at;
     engine_event_kind_count_fn      *event_kind_count;
@@ -1984,6 +2013,8 @@ struct engine_api
     engine_command_adviser_fn       *command_adviser;
     engine_command_council_fn       *command_council;
     engine_command_event_choice_fn  *command_event_choice;
+    engine_command_ask_crown_fn     *command_ask_crown;       /* E6 */
+    engine_command_interdict_fn     *command_interdict;
     engine_trigger_event_fn         *trigger_event;
     engine_set_emperor_fn           *set_emperor;
     engine_set_base_fn              *set_base;

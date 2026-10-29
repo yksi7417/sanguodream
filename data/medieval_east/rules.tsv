@@ -360,3 +360,10 @@ experience.tactic_war	3	observed	fixtures/battle-merit.tsv
 experience.destroy_leadership	3	observed	gap2-answers-2026-10-22.md section 7: a destroy gives 3 leadership experience
 experience.hit_leadership	1	observed	gap2-answers-2026-10-22.md section 7: the officers of the target gain 1 leadership experience
 technique.drill_ground_turn	15	observed	calendar-and-turn.md: 15 technique points for each drill ground at each turn start (hypothesis of the run 2026-10-22)
+legitimacy.model	authorities	assumed	the legitimacy of a ruler comes from the authorities of authorities.tsv, not from the Han emperor (docs/EUROPE.md, E6)
+authority.technique	50	assumed	the technique points of the owner of the seat of an authority each month (E6, the same amount as emperor.technique)
+authority.loyalty	1	assumed	the loyalty that devout officers of the owner of a seat gain each month (E6)
+crown.friendliness	60	assumed	the friendliness of the owner of the seat that a ruler needs to get a crown with ask_crown (E6)
+interdict.months	12	assumed	the months of an interdict that the owner of Rome puts with the command interdict (E6)
+interdict.loyalty	2	assumed	the loyalty that the officers of a faction under interdict lose each month (E6)
+interdict.stop	80	assumed	an interdict ends at once when the owner of Rome has more friendliness than this with the faction (E6)

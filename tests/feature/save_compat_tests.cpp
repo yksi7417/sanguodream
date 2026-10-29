@@ -36,6 +36,8 @@ feature_save_compat_tests(test_counts *counts)
     TEST_CHECK(counts, status == ENGINE_SAVE_OK && date.year == 197 && date.month == 10 && date.day == 1 && api->whose_turn(e) == 6, name);
     TEST_CHECK(counts, after.rule_count == before.rule_count && after.tactic_count == before.tactic_count,
                "the tables and the rules come from the pack of this build, not from the file");
+    TEST_CHECK(counts, api->authority_count(e) == 0 && api->recognition(e, 6).authority == ENGINE_NO_ROW,
+               "E6: a save of the Han emperor loads with no authority and no recognition");
     u16 ruler = api->force_ruler(e, 6);
     TEST_CHECK(counts, ruler != ENGINE_NO_OFFICER && api->officer_by_id(e, ruler).force_id == 6 && api->city_count(e) == 42,
                "the player has its ruler, and the 42 cities are there");

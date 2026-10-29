@@ -153,3 +153,19 @@ engine_fill_church(engine *e, tsv_table *forces)
         e->sim->content.force_church[id] = (u8)(church < CONTENT_CHURCH_COUNT ? church : CONTENT_CHURCH_NONE);
     }
 }
+
+/* The authority of each faction from the column authority of forces.tsv (E6). The value is the
+   place in authorities.tsv plus one. A faction without an authority, or a pack without the column, has 0. */
+internal void
+engine_fill_authority(engine *e, tsv_table *forces)
+{
+    if (!e->content.loaded) return;
+    memset(e->sim->content.force_authority, 0, sizeof(e->sim->content.force_authority));
+    for (u32 row = 0; row < forces->row_count; ++row)
+    {
+        u32 id = 0;
+        if (!tsv_cell_u32(forces, row, "id", &id) || id >= CONTENT_FORCE_CAPACITY) continue;
+        u32 authority = content_find_authority(&e->sim->content, tsv_cell(forces, row, "authority"));
+        if (authority < e->sim->content.authority_count) e->sim->content.force_authority[id] = (u8)(authority + 1);
+    }
+}

@@ -597,7 +597,7 @@ sim_resolve_event(sim_state *sim, u8 choice, u32 cause, sim_event_sink *events)
         b->force_id = fresh;
         b->status   = OFFICER_STATUS_RULER;
         b->loyalty  = 100;
-        sim->rank[fresh] = sim_rank_for(sim, fresh);
+        sim->rank[fresh] = sim_rank_for(sim, fresh, false);
         sim_event founded = sim_event_make(sim, SIM_EVENT_FACTION_FOUNDED, cause);
         founded.faction = fresh;
         founded.detail  = force;

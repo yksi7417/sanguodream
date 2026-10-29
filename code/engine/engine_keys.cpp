@@ -58,6 +58,7 @@ engine_load_scenario_keys(engine *e, const char *folder)
     {
         engine_keys_from_table(&forces, e->keys->forces, SIM_FORCE_CAPACITY);
         engine_fill_church(e, &forces);   /* docs/EUROPE.md, E7: the condition church of history.tsv */
+        engine_fill_authority(e, &forces);   /* docs/EUROPE.md, E6: the authority of each faction */
     }
 }
 

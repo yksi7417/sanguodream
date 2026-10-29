@@ -35,6 +35,7 @@
 #include "playable_tests.cpp"
 #include "map_tests.cpp"
 #include "world_map_tests.cpp"   /* a map from real geography (docs/MAPS.md) */
+#include "authority_tests.cpp"   /* the authorities of the church (E6) */
 #include "save_map_tests.cpp"
 #include "replay_tests.cpp"
 #include "ai_tests.cpp"
@@ -121,6 +122,9 @@ main(int argc, char **argv)
     feature_pack_map_tests_all(&world_map_counts);
     feature_pack_story_tests(&world_map_counts);
     failed |= test_report("feature/world_map", &world_map_counts);
+    test_counts authority_counts = {};
+    feature_authority_tests(&authority_counts);
+    failed |= test_report("feature/authority", &authority_counts);
     test_counts save_map_counts = {};
     feature_save_map_tests(&save_map_counts);
     failed |= test_report("feature/save_map", &save_map_counts);

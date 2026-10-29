@@ -33,3 +33,5 @@ abilities are a design of the pack.
 To start the game with this pack:
 
     build\win32_hexdom.exe --pack medieval_west
+
+authorities.tsv lists the seven authorities of the game of 1200 (docs/EUROPE.md, E6). The seats of this map are Rome and Marrakesh. The other five authorities have no seat here.

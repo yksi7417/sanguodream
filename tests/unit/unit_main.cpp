@@ -50,6 +50,7 @@
 #include "court_tests.cpp"
 #include "rivals_tests.cpp"
 #include "playable_tests.cpp"
+#include "authority_tests.cpp" /* the authorities of the church (E6) */
 #include "story_tests.cpp"    /* the event rows of the Europe packs (E7) */
 #include "map_tests.cpp"
 #include "faction_colour_tests.cpp"
@@ -174,6 +175,9 @@ main(void)
     test_counts playable = {};
     unit_playable_tests(&playable, &arena);
     failed |= test_report("unit/playable", &playable);
+    test_counts authority = {};
+    unit_authority_tests(&authority, &arena);
+    failed |= test_report("unit/authority", &authority);
     test_counts story = {};
     unit_story_tests(&story, &arena);
     failed |= test_report("unit/story", &story);

@@ -470,6 +470,21 @@ sim_history_effect(sim_state *sim, history_kind *kind, sim_history_clause *claus
         city->durability = (u32)((u64)city->durability * kept / 100);
         return;
     }
+    if (strcmp(name, "see_holder") == 0)
+    {
+        sim_authority_see_holder(sim, clause->part[1], clause->part[2]);
+        return;
+    }
+    if (strcmp(name, "authority_seat") == 0)
+    {
+        sim_authority_move_seat(sim, clause->part[1], (u32)second);
+        return;
+    }
+    if (strcmp(name, "interdict") == 0)
+    {
+        sim_start_interdict(sim, force, sim_rome_keeper(sim), (u32)value, cause, events);
+        return;
+    }
     /* rename and target have no effect at the time of the row. The queries below read the rows that started. */
 }
 

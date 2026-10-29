@@ -3515,6 +3515,45 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
     };
 
+    t = IM_REGISTER_TEST(e, "ui", "authority_panel_reads_authorities_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count   = 3;
+        v.recorder.city_count      = 2;
+        v.recorder.authority_count = 2;
+        v.ui.show_ruler            = true;
+        recorder_reset(&v.recorder);
+        ctx->SetRef("###Ruler");
+        ctx->Yield(2);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_AUTHORITY_COUNT), 1u);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_AUTHORITY_AT), 2u);
+        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_RECOGNITION), 1u);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_EMPEROR), 0u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    t = IM_REGISTER_TEST(e, "ui", "ask_crown_button_issues_one_command_ask_crown");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count   = 3;
+        v.recorder.city_count      = 2;
+        v.recorder.authority_count = 2;
+        v.ui.show_ruler            = true;
+        ctx->SetRef("###Ruler");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###ask_crown");
+        ctx->Yield();
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_ASK_CROWN), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+    };
+
     t = IM_REGISTER_TEST(e, "ui", "event_dialog_choice_issues_one_command_event_choice");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;

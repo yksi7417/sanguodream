@@ -169,3 +169,14 @@ The stage e7_story wrote the story pages of both packs (story/en.tsv). This tabl
 | The truce of Jerusalem with al-Adil | https://en.wikipedia.org/wiki/Aimery_of_Cyprus | https://www.britannica.com/event/Crusades |
 
 The facts of the pages of the factions of the west map come from the lives of the rulers in the first table. The two sources of each ruler apply to the page of his faction.
+
+## The facts of the authorities (E6)
+
+This table gives the check of the Cilicia fact for the crown of the authority. The first check read the English Wikipedia article of Leo I. The second check read the Armenian Cilicia history of Der Nersessian.
+
+| Fact | First source | Second source |
+|---|---|---|
+| Leo I took a crown in January 1198 at Tarsus, with the consent of Pope Celestine III | https://en.wikipedia.org/wiki/Leo_I,_King_of_Armenia | https://www.attalus.org/armenian/KCA2.htm |
+| Conrad of Mainz came as the envoy of the western emperor and the pope, and he gave the royal insignia | https://en.wikipedia.org/wiki/Armenian_Kingdom_of_Cilicia | https://www.attalus.org/armenian/KCA2.htm |
+
+The sources also say that Alexios III sent Leo a Byzantine crown. The game keeps one crown, from Rome. A second crown from Constantinople is not in E6.

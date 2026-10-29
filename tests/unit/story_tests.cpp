@@ -142,6 +142,25 @@ unit_story_load(sim_state *sim, memory_arena *arena, const char *pack, unit_stor
     return loaded;
 }
 
+/* Loads authorities.tsv of the pack, with the cities that its seats name. The rows of E6 need it. */
+internal void
+unit_story_load_authorities(sim_state *sim, memory_arena *arena, const char *pack)
+{
+    char exe_dir[MAX_PATH], path[MAX_PATH];
+    test_exe_dir(exe_dir, MAX_PATH);
+    u64 mark = arena->used;
+    snprintf(path, MAX_PATH, "%s/../data/%s/authorities.tsv", exe_dir, pack);
+    char *authorities_text = (char *)test_read_file(path, arena).contents;
+    snprintf(path, MAX_PATH, "%s/../data/%s/cities.tsv", exe_dir, pack);
+    char *cities_text = (char *)test_read_file(path, arena).contents;
+    tsv_table authorities = {}, cities = {};
+    u32 bad_row = 0;
+    b32 loaded = authorities_text && cities_text && tsv_parse(authorities_text, arena, &authorities) && tsv_parse(cities_text, arena, &cities) &&
+                 content_load_authorities(&sim->content, &authorities, &cities, &bad_row);
+    arena->used = mark;
+    if (!loaded) sim->content.authority_count = 0;
+}
+
 /* ---- the world of a row ------------------------------------------------------------------------ */
 
 /* The home city of each faction. The ids stay away from the cities that the rows name. */
@@ -166,6 +185,7 @@ unit_story_world(memory_arena *arena, unit_story_keys *keys, const char *pack, u
         sim_add_city(sim, each);
     }
     if (!unit_story_load(sim, arena, pack, keys)) sim->content.history_count = 0;
+    unit_story_load_authorities(sim, arena, pack);
     return sim;
 }
 
@@ -446,6 +466,86 @@ unit_east_fall_effects(test_counts *counts, sim_state *sim, unit_story_keys *key
     TEST_CHECK(counts, city->troops == 3000 && city->durability == 400, "medieval_east: the fall of Antioch takes half of its troops and of its walls");
 }
 
+/* The sees of E6. Authority keys: constantinople, antioch, abbasid. City 38 is Baghdad. */
+
+internal sim_state *
+unit_east_latin_patriarch(memory_arena *arena, unit_story_keys *keys, u32 variant)
+{
+    u32 year = 1210, month = 1;
+    if (variant == 1) { year = 1261; month = 1; }
+    if (variant == 2) { year = 1203; month = 12; }
+    sim_state *sim = unit_story_world(arena, keys, "medieval_east", year, month);
+    unit_story_faction(sim, keys, 7, 0);
+    unit_story_faction(sim, keys, 0, 0);
+    unit_story_give(sim, 6, variant == 4 ? 0 : 7);
+    sim->content.force_church[7] = (u8)(variant == 5 ? CONTENT_CHURCH_GREEK : CONTENT_CHURCH_LATIN);
+    if (variant != 3) unit_story_started(sim, "fourth_crusade");
+    return sim;
+}
+
+internal void
+unit_east_latin_patriarch_effects(test_counts *counts, sim_state *sim, unit_story_keys *keys)
+{
+    (void)keys;
+    u32 see = content_find_authority(&sim->content, "constantinople");
+    TEST_CHECK(counts, sim_authority_church(sim, see) == CONTENT_CHURCH_LATIN && sim_authority_keeper(sim, see) == 7,
+               "medieval_east: the see of Constantinople gets a Latin holder, and the owner of the city is the keeper");
+}
+
+internal sim_state *
+unit_east_antioch_patriarch(memory_arena *arena, unit_story_keys *keys, u32 variant)
+{
+    u32 year = 1270, month = 1;
+    if (variant == 1) { year = 1301; month = 1; }
+    sim_state *sim = unit_story_world(arena, keys, "medieval_east", year, month);
+    if (variant == 3)
+    {
+        unit_story_faction(sim, keys, 3, 0);
+        unit_story_officer(sim, keys, "baybars", 3, OFFICER_STATUS_REGULAR_OFFICER, unit_story_homes[3], 1240, 3000);
+    }
+    else unit_story_faction(sim, keys, 3, "baybars");
+    unit_story_give(sim, 34, variant == 4 ? 12 : 3);
+    if (variant != 2) unit_story_started(sim, "fall_of_antioch");
+    return sim;
+}
+
+internal void
+unit_east_antioch_patriarch_effects(test_counts *counts, sim_state *sim, unit_story_keys *keys)
+{
+    (void)keys;
+    u32 see = content_find_authority(&sim->content, "antioch");
+    TEST_CHECK(counts, sim_authority_church(sim, see) == CONTENT_CHURCH_NONE && sim_authority_keeper(sim, see) == SIM_NO_FORCE,
+               "medieval_east: the fall of Antioch leaves the see with no holder and no keeper");
+}
+
+internal sim_state *
+unit_east_caliph(memory_arena *arena, unit_story_keys *keys, u32 variant)
+{
+    u32 year = 1265, month = 1;
+    if (variant == 1) { year = 1260; month = 12; }
+    if (variant == 2) { year = 1276; month = 1; }
+    sim_state *sim = unit_story_world(arena, keys, "medieval_east", year, month);
+    if (variant == 3)
+    {
+        unit_story_faction(sim, keys, 3, 0);
+        unit_story_officer(sim, keys, "baybars", 3, OFFICER_STATUS_REGULAR_OFFICER, unit_story_homes[3], 1240, 3000);
+    }
+    else unit_story_faction(sim, keys, 3, "baybars");
+    unit_story_faction(sim, keys, 16, 0);
+    unit_story_give(sim, 4, variant == 4 ? 12 : 3);
+    unit_story_give(sim, 38, variant == 5 ? 16 : 5);
+    return sim;
+}
+
+internal void
+unit_east_caliph_effects(test_counts *counts, sim_state *sim, unit_story_keys *keys)
+{
+    (void)keys;
+    u32 see = content_find_authority(&sim->content, "abbasid");
+    TEST_CHECK(counts, sim_authority_seat(sim, see) == 4 && sim_authority_keeper(sim, see) == 3,
+               "medieval_east: the caliph moves to Cairo, and its owner becomes the keeper");
+}
+
 internal void
 unit_story_east_tests(test_counts *counts, memory_arena *arena)
 {
@@ -457,6 +557,9 @@ unit_story_east_tests(test_counts *counts, memory_arena *arena)
         { "baybars_sultan",       3, 5, unit_east_sultan,         unit_east_sultan_effects },
         { "siege_of_antioch",     3, 4, unit_east_siege,          unit_east_siege_effects },
         { "fall_of_antioch",      3, 4, unit_east_fall,           unit_east_fall_effects },
+        { "latin_patriarch", 7, 5, unit_east_latin_patriarch, unit_east_latin_patriarch_effects },
+        { "antioch_patriarch_lost", 3, 4, unit_east_antioch_patriarch, unit_east_antioch_patriarch_effects },
+        { "caliph_to_cairo",      3, 5, unit_east_caliph,         unit_east_caliph_effects },
     };
     unit_story_run(counts, arena, "medieval_east", cases, ArrayCount(cases));
 }
@@ -568,6 +671,27 @@ unit_west_bouvines_effects(test_counts *counts, sim_state *sim, unit_story_keys 
                "medieval_west: Philip gains 600 merit and the cities of France gain 10 morale");
 }
 
+internal sim_state *
+unit_west_interdict(memory_arena *arena, unit_story_keys *keys, u32 variant)
+{
+    sim_state *sim = unit_story_world(arena, keys, "medieval_west", variant == 1 ? 1201 : 1200, 1);
+    if (variant == 2)
+    {
+        unit_story_faction(sim, keys, 0, 0);
+        unit_story_officer(sim, keys, "philip_ii", 0, OFFICER_STATUS_REGULAR_OFFICER, unit_story_homes[0], 1165, 500);
+    }
+    else unit_story_faction(sim, keys, 0, "philip_ii");
+    return sim;
+}
+
+internal void
+unit_west_interdict_effects(test_counts *counts, sim_state *sim, unit_story_keys *keys)
+{
+    (void)keys;
+    TEST_CHECK(counts, sim->authorities.interdict[0] == 8 && sim->authorities.interdict[1] == 0,
+               "medieval_west: France starts in 1200 under an interdict of 8 months, and no other faction does");
+}
+
 internal void
 unit_story_west_tests(test_counts *counts, memory_arena *arena)
 {
@@ -577,6 +701,7 @@ unit_story_west_tests(test_counts *counts, memory_arena *arena)
         { "albigensian_france",  0, 3, unit_west_france,      unit_west_france_effects },
         { "las_navas_de_tolosa", 7, 6, unit_west_navas,       unit_west_navas_effects },
         { "bouvines",            0, 5, unit_west_bouvines,    unit_west_bouvines_effects },
+        { "interdict_on_france", 0, 2, unit_west_interdict,   unit_west_interdict_effects },
     };
     unit_story_run(counts, arena, "medieval_west", cases, ArrayCount(cases));
 }

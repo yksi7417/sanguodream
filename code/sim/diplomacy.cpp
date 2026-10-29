@@ -573,7 +573,7 @@ sim_found_faction(sim_state *sim, city_component *city, officer_component *gover
         sim->diplomacy.friendliness[fresh][other] = sim->diplomacy.friendliness[other][fresh] = start;
         sim->diplomacy.relation[fresh][other] = sim->diplomacy.relation[other][fresh] = RELATION_NONE;
     }
-    sim->rank[fresh] = sim_rank_for(sim, fresh);
+    sim->rank[fresh] = sim_rank_for(sim, fresh, false);
     sim_event event = sim_event_make(sim, SIM_EVENT_FACTION_FOUNDED, cause);
     event.subject = sim_city_entity(sim, city->city_id);
     event.faction = fresh;

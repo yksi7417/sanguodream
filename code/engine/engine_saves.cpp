@@ -35,7 +35,7 @@
     X(technique_points) X(techniques) X(research) X(settings) X(outcome) X(officer_index) X(city_index) X(items) X(diplomacy) \
     X(rank) X(duel) X(debate) X(bases) X(corps) X(corps_ap) X(adviser) X(missions) X(region_links) X(region_links_built) \
     X(region_links_version) X(emperor) X(relics) X(pending) X(event_turn) X(new_officer_count) X(ability_uses) X(ability_known) \
-    X(ability_job) X(scenario_number) X(history_turn) X(ai_records) X(base_stocks)
+    X(ability_job) X(scenario_number) X(history_turn) X(ai_records) X(base_stocks) X(authorities)
 
 /* One entry of the member table of a version 3 file. */
 struct engine_save_member

@@ -251,6 +251,66 @@ engine_api_emperor(void *opaque)
     return result;
 }
 
+/* ---- E6: the authorities ---------------------------------------------------------------- */
+
+internal sim_m8_order engine_m8_order(u8 force_id, u8 city_id, u16 officer, u8 value);
+internal engine_command_result engine_run_m8(engine *e, sim_command_kind kind, sim_m8_order order);
+
+internal u32
+engine_api_authority_count(void *opaque)
+{
+    sim_state *sim = ((engine *)opaque)->sim;
+    return sim_uses_authorities(sim) ? sim->content.authority_count : 0u;
+}
+
+internal engine_authority
+engine_api_authority_at(void *opaque, u32 index)
+{
+    sim_state *sim = ((engine *)opaque)->sim;
+    engine_authority result = {};
+    result.seat_city = ENGINE_NO_CITY;
+    result.keeper    = ENGINE_NO_FACTION;
+    result.church    = CONTENT_CHURCH_NONE;
+    if (index >= engine_api_authority_count(opaque)) return result;
+    authority_kind *kind = sim->content.authorities + index;
+    result.known = true;
+    snprintf(result.key, sizeof(result.key), "%s", kind->key);
+    snprintf(result.holder, sizeof(result.holder), "%s", kind->holder);
+    result.church    = sim_authority_church(sim, index);
+    result.seat_city = sim_authority_seat(sim, index) == SIM_NO_CITY ? (u8)ENGINE_NO_CITY : sim_authority_seat(sim, index);
+    u8 keeper        = sim_authority_keeper(sim, index);
+    result.keeper    = keeper == SIM_NO_FORCE ? (u8)ENGINE_NO_FACTION : keeper;
+    return result;
+}
+
+internal engine_recognition
+engine_api_recognition(void *opaque, u8 force_id)
+{
+    sim_state *sim = ((engine *)opaque)->sim;
+    engine_recognition result = {};
+    result.authority = ENGINE_NO_ROW;
+    if (!sim_uses_authorities(sim) || force_id >= CONTENT_FORCE_CAPACITY) return result;
+    u32 authority = sim_authority_of(sim, force_id);
+    if (authority == CONTENT_AUTHORITY_CAPACITY) return result;
+    result.authority        = (u8)authority;
+    result.recognized       = sim_has_recognition(sim, force_id);
+    result.crown            = sim->authorities.crown[force_id] != 0;
+    result.interdict_months = sim->authorities.interdict[force_id];
+    return result;
+}
+
+internal engine_command_result
+engine_api_command_ask_crown(void *opaque, u8 force_id)
+{
+    return engine_run_m8((engine *)opaque, SIM_COMMAND_ASK_CROWN, engine_m8_order(force_id, SIM_NO_CITY, SIM_NO_OFFICER, 0));
+}
+
+internal engine_command_result
+engine_api_command_interdict(void *opaque, u8 force_id, u8 target_force_id)
+{
+    return engine_run_m8((engine *)opaque, SIM_COMMAND_INTERDICT, engine_m8_order(force_id, SIM_NO_CITY, SIM_NO_OFFICER, target_force_id));
+}
+
 internal u32
 engine_api_relic_count(void *opaque)
 {
@@ -339,6 +399,8 @@ engine_run_m8(engine *e, sim_command_kind kind, sim_m8_order order)
         case SIM_COMMAND_COUNCIL:       result.refusal = sim_check_council(e->sim, &order).refusal;       break;
         case SIM_COMMAND_EVENT_CHOICE:  result.refusal = sim_check_event_choice(e->sim, &order).refusal;  break;
         case SIM_COMMAND_TRIGGER_EVENT: result.refusal = sim_check_trigger_event(e->sim, &order).refusal; break;
+        case SIM_COMMAND_ASK_CROWN:     result.refusal = sim_check_ask_crown(e->sim, &order).refusal;     break;
+        case SIM_COMMAND_INTERDICT:     result.refusal = sim_check_interdict(e->sim, &order).refusal;     break;
         default:                        result.refusal = SIM_REFUSAL_NO_EVENT;                            break;
     }
     if (result.refusal == SIM_REFUSAL_NONE) result.refusal = engine_seat_refusal(e, kind);
@@ -434,6 +496,9 @@ engine_bind_rivals_api(engine_api *api)
     api->unit_goal            = engine_api_unit_goal;
     api->ai_explain           = engine_api_ai_explain;
     api->emperor              = engine_api_emperor;
+    api->authority_count      = engine_api_authority_count;
+    api->authority_at         = engine_api_authority_at;
+    api->recognition          = engine_api_recognition;
     api->relic_count          = engine_api_relic_count;
     api->relic_at             = engine_api_relic_at;
     api->event_kind_count     = engine_api_event_kind_count;
@@ -443,6 +508,8 @@ engine_bind_rivals_api(engine_api *api)
     api->command_adviser      = engine_api_command_adviser;
     api->command_council      = engine_api_command_council;
     api->command_event_choice = engine_api_command_event_choice;
+    api->command_ask_crown    = engine_api_command_ask_crown;
+    api->command_interdict    = engine_api_command_interdict;
     api->trigger_event        = engine_api_trigger_event;
     api->set_emperor          = engine_api_set_emperor;
     api->set_base             = engine_api_set_base;

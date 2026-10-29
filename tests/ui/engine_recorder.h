@@ -104,6 +104,9 @@ enum recorder_call_kind
     RECORDER_COUNCIL,          /* arg = force | city << 8 */
     RECORDER_AI_PLAN,
     RECORDER_EMPEROR,
+    RECORDER_AUTHORITY_COUNT,    /* E6 */
+    RECORDER_AUTHORITY_AT,
+    RECORDER_RECOGNITION,
     RECORDER_RELIC_COUNT,
     RECORDER_RELIC_AT,
     RECORDER_EVENT_KIND_COUNT,
@@ -237,6 +240,8 @@ enum recorder_call_kind
     RECORDER_SET_SEED,
     RECORDER_LOAD_START_IMAGE,     /* arg = the bytes */
     RECORDER_MULTIPLAYER_FIRST_STEP,   /* MP5: arg = the first step after a snapshot */
+    RECORDER_COMMAND_ASK_CROWN,    /* E6: arg = the force */
+    RECORDER_COMMAND_INTERDICT,    /* E6: arg = the force | the target << 8 */
     RECORDER_CALL_KIND_COUNT
 };
 
@@ -310,6 +315,9 @@ struct engine_recorder
     b32           debate_active;
     engine_court_order last_court;    /* the order of the last command_court */
     b32           pending_active;     /* M8: the pending_event answer */
+    u32           authority_count;    /* E6: the authority_count answer; 0 is a pack of the Han emperor */
+    b32           recognized;         /* E6: the recognition answer */
+    u8            interdict_months;
     sim_corps_order last_corps;       /* the order of the last command_corps */
     char          last_save_comment[ENGINE_SAVE_COMMENT_SIZE];   /* M9: the comment of the last save_game */
     sim_new_officer_order last_newcomer;   /* the order of the last create_officer */
@@ -1682,6 +1690,51 @@ internal engine_emperor recorder_emperor(void *o)
     view.protector = 1;
     return view;
 }
+internal u32 recorder_authority_count(void *o)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_AUTHORITY_COUNT, 0);
+    return r->authority_count;
+}
+internal engine_authority recorder_authority_at(void *o, u32 index)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_AUTHORITY_AT, index);
+    engine_authority authority = {};
+    authority.seat_city = ENGINE_NO_CITY;
+    authority.keeper    = ENGINE_NO_FACTION;
+    authority.church    = CONTENT_CHURCH_NONE;
+    if (index >= r->authority_count) return authority;
+    authority.known = true;
+    snprintf(authority.key, sizeof(authority.key), index == 0 ? "rome" : "abbasid");
+    snprintf(authority.holder, sizeof(authority.holder), "Holder %u", index);
+    authority.church    = (u8)(index == 0 ? CONTENT_CHURCH_LATIN : CONTENT_CHURCH_MUSLIM);
+    authority.seat_city = index == 0 ? 0 : ENGINE_NO_CITY;
+    authority.keeper    = (u8)index;
+    return authority;
+}
+internal engine_recognition recorder_recognition(void *o, u8 force_id)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_RECOGNITION, force_id);
+    engine_recognition standing = {};
+    standing.authority        = r->authority_count ? 0 : ENGINE_NO_ROW;
+    standing.recognized       = r->recognized;
+    standing.interdict_months = r->interdict_months;
+    return standing;
+}
+internal engine_command_result recorder_command_ask_crown(void *o, u8 force_id)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_COMMAND_ASK_CROWN, force_id);
+    return recorder_unit_result(r);
+}
+internal engine_command_result recorder_command_interdict(void *o, u8 force_id, u8 target)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_COMMAND_INTERDICT, (u32)force_id | ((u32)target << 8));
+    return recorder_unit_result(r);
+}
 internal u32 recorder_relic_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_RELIC_COUNT, 0); return 0; }
 internal engine_relic recorder_relic_at(void *o, u32 index) { recorder_record((engine_recorder *)o, RECORDER_RELIC_AT, index); engine_relic relic = {}; return relic; }
 internal u32 recorder_event_kind_count(void *o) { recorder_record((engine_recorder *)o, RECORDER_EVENT_KIND_COUNT, 0); return 1; }
@@ -2426,6 +2479,11 @@ recorder_make_api(engine_recorder *r)
     api.ai_plan               = recorder_ai_plan;
     api.unit_goal             = recorder_unit_goal;
     api.emperor               = recorder_emperor;
+    api.authority_count       = recorder_authority_count;
+    api.authority_at          = recorder_authority_at;
+    api.recognition           = recorder_recognition;
+    api.command_ask_crown     = recorder_command_ask_crown;
+    api.command_interdict     = recorder_command_interdict;
     api.relic_count           = recorder_relic_count;
     api.relic_at              = recorder_relic_at;
     api.event_kind_count      = recorder_event_kind_count;

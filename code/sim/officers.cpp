@@ -276,14 +276,21 @@ sim_faction_city_count(sim_state *sim, u8 force)
    comes in M8: until then no emperor exists, and the emperor rank needs
    only its cities (factions-corps-and-posts.md). */
 internal u8
-sim_rank_for(sim_state *sim, u8 force)
+sim_rank_for(sim_state *sim, u8 force, b32 at_start)
 {
     u32 cities = sim_faction_city_count(sim, force);
     u8 rank = 0;
+    b32 authorities = sim_uses_authorities(sim);
     for (u32 index = 0; index < sim->content.rank_count; ++index)
     {
+        if (sim->content.ranks[index].needs_emperor && authorities)
+        {
+            /* E6: the rank needs the recognition of an authority. A ruler keeps a rank that he holds, and a start gives each ruler his rank. */
+            b32 keeps = at_start || index <= sim->rank[force];
+            if (!keeps && !sim_has_recognition(sim, force)) continue;
+        }
         /* M8: 皇帝 needs the protection of the Han emperor, or no emperor. */
-        if (sim->content.ranks[index].needs_emperor && sim->emperor.who != EMPEROR_NONE && sim_emperor_protector(sim) != force) continue;
+        else if (sim->content.ranks[index].needs_emperor && sim->emperor.who != EMPEROR_NONE && sim_emperor_protector(sim) != force) continue;
         if (cities >= sim->content.ranks[index].cities) rank = (u8)index;
     }
     return rank;
@@ -294,7 +301,7 @@ sim_update_ranks(sim_state *sim, b32 silent, u32 cause, sim_event_sink *events)
 {
     for (u32 force = 0; force < SIM_FORCE_CAPACITY; ++force)
     {
-        u8 rank = sim_rank_for(sim, (u8)force);
+        u8 rank = sim_rank_for(sim, (u8)force, silent);
         if (rank == sim->rank[force]) continue;
         sim->rank[force] = rank;
         if (silent || sim_force_ruler(sim, (u8)force) == SIM_NO_OFFICER) continue;

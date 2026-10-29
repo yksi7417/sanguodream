@@ -625,6 +625,26 @@ enum content_church
     CONTENT_CHURCH_COUNT
 };
 
+/* E6: one row of authorities.tsv (docs/EUROPE.md). An authority gives the
+   recognition for the rank of king or emperor. A pack with no
+   authorities.tsv has authority_count 0 and keeps the Han emperor. */
+#define CONTENT_AUTHORITY_CAPACITY 8
+#define CONTENT_NO_SEAT            0xFF
+#define CONTENT_HOLDER_SIZE        48
+enum legitimacy_model
+{
+    LEGITIMACY_EMPEROR,       /* the Han emperor: the rule of the Three Kingdoms */
+    LEGITIMACY_AUTHORITIES    /* the sees of the church and the caliphs */
+};
+
+struct authority_kind
+{
+    char key[CONTENT_KEY_SIZE];            /* the text id is "authority.<key>" */
+    u8   seat_city;                        /* the city of the seat, or CONTENT_NO_SEAT */
+    u8   church;                           /* content_church of the holder in 1200 */
+    char holder[CONTENT_HOLDER_SIZE];      /* the name of the holder, for the UI */
+};
+
 /* M9: one row of portraits.tsv: the age of the second portrait. */
 #define CONTENT_PORTRAIT_CAPACITY 32
 struct portrait_kind
@@ -799,6 +819,9 @@ struct sim_rules
     u32 base_gold, base_troop_cap, base_caps_percent, base_start_troops;
     u32 corps_commands, council_officers, adviser_intellect, advice_per_intellect;
     u32 emperor_technique, emperor_loyalty, emperor_city;
+    /* E6: the authorities of the church and the caliphs */
+    u32 legitimacy_model, authority_technique, authority_loyalty, crown_friendliness;
+    u32 interdict_months, interdict_loyalty, interdict_stop;
     u32 event_experience, event_merit;
     u32 ai_urgency, ai_sortie_soldiers, ai_sortie_reserve, ai_goodwill_gold, ai_commands, corps_ap_divisor;
     u32 ai_target_hexes, ai_free_city_bonus, ai_defend_bonus, ai_defend_hexes, ai_march_hexes, ai_grain_margin_turns, ai_resupply_score, ai_attack_after_months;   /* M15 */
@@ -861,6 +884,9 @@ struct sim_content
     u32            portrait_count;
     sim_rules      rules;
     u8             force_church[CONTENT_FORCE_CAPACITY];   /* E7: content_church of each faction; 0 = none */
+    authority_kind authorities[CONTENT_AUTHORITY_CAPACITY];   /* E6 */
+    u32            authority_count;
+    u8             force_authority[CONTENT_FORCE_CAPACITY];   /* E6: the index of the authority of each faction, plus 1; 0 = none */
 };
 
 /* Each parser returns false and leaves its part of the content empty if a
@@ -897,6 +923,9 @@ internal b32 content_load_history(sim_content *content, tsv_table *table, u32 *b
 internal b32 content_load_portraits(sim_content *content, tsv_table *table, u32 *bad_row);
 internal b32 content_history_clauses_valid(const char *text, b32 effects, u32 name_count);
 internal u32 content_find_church(const char *name);
+/* E6: cities is the table of cities.tsv, for the keys of the seats. */
+internal b32 content_load_authorities(sim_content *content, tsv_table *table, tsv_table *cities, u32 *bad_row);
+internal u32 content_find_authority(sim_content *content, const char *key);   /* CONTENT_AUTHORITY_CAPACITY if none */
 
 internal facility_effect    content_effect_from_name(const char *name);
 internal facility_limit     content_limit_from_name(const char *name);

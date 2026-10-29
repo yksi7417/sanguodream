@@ -1,0 +1,10 @@
+key	seat	church	holder
+# The seven authorities of the game of 1200 (docs/EUROPE.md, E6). seat: the key of a city of cities.tsv, or a dash if the seat is not on this map.
+# church: the church of the holder in 1200. The row see_holder of history.tsv changes it. holder: the name for the panel of the UI.
+rome	rome	latin	Innocent III
+constantinople	constantinople	greek	John X Kamateros
+alexandria	alexandria	greek	Mark III
+antioch	antioch	latin	Peter of Angouleme
+jerusalem	acre	latin	Aymar the Monk
+abbasid	baghdad	muslim	al-Nasir li-Din Allah
+almohad	-	muslim	Muhammad al-Nasir

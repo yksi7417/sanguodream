@@ -1718,3 +1718,35 @@ story.button	Story	故事
 story.previous	Previous	上一頁
 story.next	Next	下一頁
 story.skip	Skip	略過
+ruler.authority	Authority
+authority.name	Authority
+authority.holder	Holder
+authority.church	Church
+authority.seat	Seat
+authority.keeper	Keeper
+authority.no_seat	not on this map
+authority.none	This faction has no authority.
+authority.yours	Your authority
+authority.recognized	Recognized: a king or an emperor can rise.
+authority.not_recognized	Not recognized: no rank of king or emperor.
+authority.crown	The authority gave a crown.
+authority.interdict	Months of interdict
+authority.ask_crown	Ask for a crown
+authority.rome	Rome
+authority.constantinople	Constantinople
+authority.alexandria	Alexandria
+authority.antioch	Antioch
+authority.jerusalem	Jerusalem
+authority.abbasid	Abbasid caliph
+authority.almohad	Almohad caliph
+church.0	vacant
+church.1	Latin
+church.2	Greek
+church.3	Armenian
+church.4	Muslim
+refusal.no_authority	the faction has no authority, or no one keeps the seat
+refusal.has_recognition	the faction has recognition already
+refusal.not_friendly	the keeper of the seat is not friendly enough
+log.crown_given	{faction}: the authority gave a crown
+log.interdict_started	{faction}: under interdict, {detail} months
+log.interdict_lifted	{faction}: the interdict ends

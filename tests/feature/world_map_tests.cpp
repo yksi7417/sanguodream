@@ -202,18 +202,18 @@ feature_pack_story_tests(test_counts *counts)
 
     engine_fixture west;
     feature_world_map_init(&west, HEXDOM_DATA_ROOT "/medieval_west");
-    TEST_CHECK(counts, west.api.history_count(west.api.engine) == 4, "the west pack has the 4 events of E7");
+    TEST_CHECK(counts, west.api.history_count(west.api.engine) == 5, "the west pack has the 4 events of E7 and the interdict of E6");
     west.api.load_scenario(west.api.engine, west.api.scenario_at(west.api.engine, 0).file);
-    TEST_CHECK(counts, feature_story_rows_found(&west.api, 4), "each officer that an event of the west pack names exists in the scenario");
+    TEST_CHECK(counts, feature_story_rows_found(&west.api, 5), "each officer that an event of the west pack names exists in the scenario");
     engine_fixture_destroy(&west);
 
     engine_fixture f;
     feature_world_map_init(&f, HEXDOM_DATA_ROOT "/medieval_east");
     engine_api *api = &f.api;
     void *e = api->engine;
-    TEST_CHECK(counts, api->history_count(e) == 6, "the east pack has the 6 events of E7");
+    TEST_CHECK(counts, api->history_count(e) == 9, "the east pack has the 6 events of E7 and the 3 sees of E6");
     TEST_CHECK(counts, api->load_scenario(e, api->scenario_at(e, 0).file).status == ENGINE_LOAD_OK, "the scenario of the east pack loads");
-    TEST_CHECK(counts, feature_story_rows_found(api, 6), "each officer that an event of the east pack names exists in the scenario");
+    TEST_CHECK(counts, feature_story_rows_found(api, 9), "each officer that an event of the east pack names exists in the scenario");
 
     engine_faction faction = {};
     feature_story_name_key(api, FEATURE_STORY_AYYUBID, &faction);

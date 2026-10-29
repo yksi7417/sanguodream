@@ -6,10 +6,15 @@ id	key	name_zh	chance	conditions	effects	names_zh	names	status
 #   F and G are the ids of forces.tsv, and CITY is the id of cities.tsv. The other clauses are the clauses of the M9 events: rules:C|C, free:@i|@j, has:@i, ruler:@i, merit_at_least:@i:N, order_ruler_below:N.
 # Effects of E7: seize:@i (the officer takes the rule of his faction), rename:@i:KEY (the new English name of his faction, from renames.tsv), target:@i:CITY:MONTHS, city_loss:CITY:PERCENT.
 #   The other effects are the effects of the M9 events: join:@i:LOYALTY:MERIT, merit:@i:N, loyalty_all:N, order_all:N, morale_all:N, friendliness_with:@i:N.
-# The rows leave out the sees of the church. E6 adds them. Venice gains public order in place of gold, because the M9 effects have no gold.
+# Venice gains public order in place of gold, because the M9 effects have no gold.
+# E6 adds the sees. The effect see_holder:AUTHORITY:CHURCH gives the see a holder of another church, and a dash leaves it empty. The effect authority_seat:AUTHORITY:CITY moves the seat.
+# The row caliph_to_cairo lists 15 owners of Baghdad, because a list holds 16 items. It leaves out Byzantium and the Abbasid faction.
 0	fourth_crusade	第四次十字軍東征	25	date_from:1202/1;date_until:1210/12;rules:14;owner:11:6;church:latin	join:@baldwin_ix:100:1500;join:@henry_flanders:100:1200;join:@montferrat:100:1500;order_all:10	-	-	story
 1	sack_of_constantinople	君士坦丁堡陷落	25	after:fourth_crusade;date_from:1203/1;date_until:1212/12;rules:6;church:greek	order_all:-20;loyalty_all:-10;morale_all:-10	-	-	story
 2	mamluks_take_cairo	馬木路克奪取開羅	10	date_from:1240/1;date_until:1270/12;rules:4;free:@aybak|@shajar_al_durr|@qutuz|@baybars	join:@aybak:100:2000;join:@shajar_al_durr:100:1200;join:@qutuz:100:1500;join:@baybars:100:2500;seize:@aybak;rename:@aybak:mamluk	-	-	story
 3	baybars_sultan	拜巴爾稱蘇丹	25	after:mamluks_take_cairo;date_from:1257/1;date_until:1275/12;has:@baybars;merit_at_least:@baybars:3000	seize:@baybars	-	-	story
 4	siege_of_antioch	圍攻安條克	30	date_from:1260/1;date_until:1290/12;ruler:@baybars;owner:34:4|5|6|7|8|11|12|14|-	target:@baybars:34:36	-	-	story
 5	fall_of_antioch	安條克陷落	100	after:siege_of_antioch;date_until:1295/12;ruler:@baybars;rules:34	city_loss:34:50	-	-	story
+6	latin_patriarch	拉丁君士坦丁堡牧首	100	after:fourth_crusade;date_from:1204/1;date_until:1260/12;rules:6;church:latin	see_holder:constantinople:latin	-	-	story
+7	antioch_patriarch_lost	安條克拉丁牧首失位	100	after:fall_of_antioch;date_until:1300/12;ruler:@baybars;rules:34	see_holder:antioch:-	-	-	story
+8	caliph_to_cairo	哈里發遷往開羅	100	date_from:1261/1;date_until:1275/12;ruler:@baybars;rules:4;owner:38:1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|-	authority_seat:abbasid:4	-	-	story

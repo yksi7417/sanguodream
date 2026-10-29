@@ -25,6 +25,51 @@ ui_draw_emperor_line(ui_state *ui, engine_api *api)
     ImGui::Text("%s: %s   %s   %s: %s", text_get(ui->text, "ruler.emperor"), who, city, text_get(ui->text, "ruler.protector"), protector);
 }
 
+/* E6: the authorities of the church and the caliphs, the standing of the faction, and the button of ask_crown. */
+internal void
+ui_draw_authority_section(ui_state *ui, engine_api *api, u8 force)
+{
+    void *e = api->engine;
+    char label[96];
+    if (ImGui::BeginTable("authority_table", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+    {
+        ImGui::TableSetupColumn(text_get(ui->text, "authority.name"));
+        ImGui::TableSetupColumn(text_get(ui->text, "authority.holder"));
+        ImGui::TableSetupColumn(text_get(ui->text, "authority.church"));
+        ImGui::TableSetupColumn(text_get(ui->text, "authority.seat"));
+        ImGui::TableSetupColumn(text_get(ui->text, "authority.keeper"));
+        ImGui::TableHeadersRow();
+        for (u32 index = 0; index < api->authority_count(e); ++index)
+        {
+            engine_authority authority = api->authority_at(e, index);
+            if (!authority.known) continue;
+            char church[48], seat[UI_NAME_SIZE * 2], keeper[UI_NAME_SIZE * 2];
+            text_label(ui->text, "church", authority.church, church, sizeof(church));
+            if (authority.seat_city != ENGINE_NO_CITY) ui_city_label(ui, api, authority.seat_city, seat, sizeof(seat));
+            else snprintf(seat, sizeof(seat), "%s", text_get(ui->text, "authority.no_seat"));
+            ui_force_text(ui, api, authority.keeper, keeper, sizeof(keeper));
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn(); ImGui::TextUnformatted(ui_text_with_key(ui, "authority", authority.key));
+            ImGui::TableNextColumn(); ImGui::TextUnformatted(authority.holder);
+            ImGui::TableNextColumn(); ImGui::TextUnformatted(church);
+            ImGui::TableNextColumn(); ImGui::TextUnformatted(seat);
+            ImGui::TableNextColumn(); ImGui::TextUnformatted(keeper);
+        }
+        ImGui::EndTable();
+    }
+    engine_recognition standing = api->recognition(e, force);
+    if (standing.authority == ENGINE_NO_ROW) { ImGui::TextDisabled("%s", text_get(ui->text, "authority.none")); return; }
+    engine_authority own = api->authority_at(e, standing.authority);
+    ImGui::Text("%s: %s", text_get(ui->text, "authority.yours"), ui_text_with_key(ui, "authority", own.key));
+    ImGui::TextUnformatted(text_get(ui->text, standing.recognized ? "authority.recognized" : "authority.not_recognized"));
+    if (standing.crown) ImGui::TextUnformatted(text_get(ui->text, "authority.crown"));
+    if (standing.interdict_months) ImGui::Text("%s: %u", text_get(ui->text, "authority.interdict"), standing.interdict_months);
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "authority.ask_crown", "ask_crown")))
+    {
+        ui_growth_result(ui, "authority.ask_crown", api->command_ask_crown(e, force));
+    }
+}
+
 internal void
 ui_corps_result(ui_state *ui, engine_command_result result)
 {
@@ -188,7 +233,11 @@ ui_draw_ruler(ui_state *ui, engine_api *api)
         ImGui::End();
         return;
     }
-    ui_draw_emperor_line(ui, api);
+    if (api->authority_count(api->engine) > 0)
+    {
+        if (ImGui::CollapsingHeader(ui_label(label, sizeof(label), ui, "ruler.authority", "authority_header"), ImGuiTreeNodeFlags_DefaultOpen)) ui_draw_authority_section(ui, api, force);
+    }
+    else ui_draw_emperor_line(ui, api);
     if (ImGui::CollapsingHeader(ui_label(label, sizeof(label), ui, "ruler.corps", "corps_header"), ImGuiTreeNodeFlags_DefaultOpen)) ui_draw_corps_section(ui, api, force);
     if (ImGui::CollapsingHeader(ui_label(label, sizeof(label), ui, "ruler.adviser", "adviser_header"), ImGuiTreeNodeFlags_DefaultOpen)) ui_draw_adviser_section(ui, api, force);
     if (ImGui::CollapsingHeader(ui_label(label, sizeof(label), ui, "ruler.council", "council_header"), ImGuiTreeNodeFlags_DefaultOpen)) ui_draw_council_section(ui, api, force);

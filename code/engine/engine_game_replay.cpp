@@ -113,6 +113,8 @@ engine_game_replay_checksum(engine *e)
     hash = engine_game_replay_hash(hash, sim->cities.data, sizeof(city_component) * sim->cities.count);
     hash = engine_game_replay_hash(hash, sim->map.cost, cells);
     hash = engine_game_replay_hash(hash, sim->map.kind, cells);
+    /* E6: a pack of the authorities also hashes their state. Other packs keep the checksum of before E6. */
+    if (sim_uses_authorities(sim)) hash = engine_game_replay_hash(hash, &sim->authorities, sizeof(sim->authorities));
     hash = engine_game_replay_hash(hash, sim->map.level, cells);
     if (sim->fire) hash = engine_game_replay_hash(hash, sim->fire, cells);
     return engine_game_replay_hash_u32(hash, e->ledger_count);

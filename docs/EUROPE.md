@@ -271,7 +271,7 @@ Seljuks used banners and seals. For these factions, the plan uses a banner
 of the period, or a later attribution with a note.
 
 ## E6. The authorities of the church
-This section is a design. On 2026-10-28 the player chose the Pentarchy
+This section is a design, and its last part records the build. On 2026-10-28 the player chose the Pentarchy
 as the five authorities (Q-E1). The player also chose a new city for
 Antioch (Q-E7). On 2026-10-29 the player chose two caliphs as the
 authorities of the Muslim factions (Q-E2). The stage e6_church
@@ -405,6 +405,124 @@ In 1200, Bohemond III held the principality of Antioch, from 1163 to
 Antioch has a Latin patriarch in the city and a Greek patriarch in
 exile.
 
+### The rules as built
+The stage e6_church built the design above. The packs medieval_west and
+medieval_east use it. The placeholder pack, the Three Kingdoms game and
+medieval_europe keep the Han emperor.
+
+The files of a pack:
+- authorities.tsv has the columns key, seat, church and holder. The seat
+  is the key of a city, or a dash if the seat is not on the map.
+- forces.tsv has the new column authority. It holds the key of the
+  authority of the faction, or a dash.
+- rules.tsv has the rules that the table below lists.
+- ranks.tsv has "yes assumed" in the column needs_emperor of the king row.
+  The rank of emperor already had "yes". The status "assumed" marks the
+  changed row.
+
+| Rule | Value | Meaning |
+|---|---|---|
+| legitimacy.model | authorities | the pack has authorities, not the Han emperor |
+| authority.technique | 50 | the technique points of the owner of a seat each month |
+| authority.loyalty | 1 | the loyalty that devout officers gain each month |
+| crown.friendliness | 60 | the friendliness that ask_crown needs |
+| interdict.months | 12 | the months of an interdict from the command |
+| interdict.loyalty | 2 | the loyalty that officers lose each month |
+| interdict.stop | 80 | an interdict ends when the friendliness is higher |
+
+Each value has the status "assumed". The amount of technique equals emperor.technique.
+
+The seats of the two maps, with the old city numbers of the maps:
+
+| Authority | West map | East map |
+|---|---|---|
+| rome | rome, 11 | rome, 11 |
+| constantinople | none | constantinople, 6 |
+| alexandria | none | alexandria, 3 |
+| antioch | none | antioch, 34 |
+| jerusalem | none | acre, 40 |
+| abbasid | none | baghdad, 38 |
+| almohad | marrakesh, 6 | none |
+
+The seat of Jerusalem is Acre on the east map, because the Latin patriarch
+of Jerusalem sat in Acre in 1200. The city numbers of the earlier table of
+this section belong to the prototype map. The churches of the holders in
+1200 are Latin for Rome, Antioch and Jerusalem, Greek for Constantinople
+and Alexandria, and Muslim for the two caliphs.
+
+The rules:
+1. The keeper of an authority is the owner of its seat. A see with no
+   holder has no keeper.
+2. Each month, the keeper gains the technique points of authority.technique.
+   Its officers with han_respect 2 gain authority.loyalty. These officers
+   are the devout officers.
+3. A faction has recognition if it is the keeper of its authority, if the
+   keeper is its ally, or if it has a crown. An interdict removes the
+   recognition until it ends.
+4. The ranks that have needs_emperor need recognition. This holds for the
+   rank of king and the rank of emperor. A ruler that starts with a rank
+   keeps it. Recognition applies only when a rank rises.
+5. The command ask_crown gives a crown if the faction has no recognition,
+   is not under interdict, and the keeper has at least crown.friendliness
+   with it. The crown stays for the game. The command takes no random
+   number. The refusals are no_authority, has_recognition and not_friendly.
+6. The command interdict is for the keeper of Rome. The target must have a
+   ruler, must not be under interdict, and must not have more friendliness
+   than interdict.stop. The refusal is no_target, or no_authority for
+   another keeper.
+7. Each month, the officers of a faction under interdict lose
+   interdict.loyalty. The interdict ends when its months end, or when the
+   friendliness of the keeper of Rome is higher than interdict.stop.
+8. The AI asks for a crown when it has the cities of a rank that needs
+   recognition, and it has no recognition. The AI keeper of Rome puts under
+   interdict the first faction that is at war with an ally of Rome. Both
+   rules take no random number.
+
+The effects of history.tsv:
+- see_holder:AUTHORITY:CHURCH changes the church of the holder. A dash
+  leaves the see with no holder.
+- authority_seat:AUTHORITY:CITY moves the seat to a city of the pack.
+- interdict:MONTHS puts the faction of the row under interdict.
+
+The rows of the sees:
+- West: interdict_on_france puts France under interdict for 8 months. The
+  clause "opening" makes it start in January 1200. The interdict ends in
+  September.
+- East: latin_patriarch gives Constantinople a Latin holder after the
+  Fourth Crusade. It holds from 1204 to 1260 for the Latin church.
+- East: antioch_patriarch_lost removes the Latin patriarch of Antioch after
+  the fall of the city, when the faction of Baybars owns it.
+- East: caliph_to_cairo moves the seat of the Abbasid caliph to Cairo in
+  1261. It needs that the faction of Baybars owns Cairo, and that the
+  Abbasid faction has lost Baghdad.
+
+The authority panel is a section of the ruler window. It shows each
+authority with its holder, its church, its seat and its keeper. It shows
+the recognition of the faction of the player, the crown and the months of
+an interdict. The button "Ask for a crown" sends one ask_crown command. The
+strings are in the text files of the placeholder pack.
+
+The save holds the state of the authorities in the new X list
+authorities: the moved seats, the changed holders, the crowns and the
+interdicts. An old save has no such list, so the state loads at zero. The
+test save_compat_tests.cpp loads a Three Kingdoms save and checks that the
+state stays empty. The feature test authority_tests.cpp saves and loads a
+game with an interdict and a moved seat.
+
+Decisions that the stage made, and their limits:
+- The replay checksum hashes the state of the authorities only in a pack
+  that has them. Thus the Three Kingdoms games keep their old checksum.
+- The key of a history row has fewer than 32 characters. The first key of
+  the Latin patriarch had 33, so it got a shorter name.
+- A list of owners in a history clause has 16 items at most. The row
+  caliph_to_cairo lists 15 owners of Baghdad. It leaves out Byzantium and the
+  Abbasid faction.
+- No officer of the packs has han_respect 2. The unit tests check the
+  loyalty rule, and the packs gain only the technique points. See Q-E10.
+- The AI had no rule for a crown or for an interdict. E6 adds the two simple
+  rules above, and the AI of the Three Kingdoms does not use them.
+- The tutorial is docs/tutorials/37-authorities.md.
+
 ## E7. The story mode
 The story mode tells the background of the war before the first turn. It
 is a series of pages with text and a map.
@@ -519,7 +637,7 @@ them, so the fixtures stay green.
 ### The rows of the stage
 The M9 effects have no gold. Thus the row of the Fourth Crusade gives
 public order to the crusaders in place of gold to Venice. The rows leave
-out the sees. The Latin patriarch of Constantinople waits for E6.
+out the sees. E6 adds the rows of the sees (E6, "The rules as built").
 
 The east map has six rows: fourth_crusade, sack_of_constantinople,
 mamluks_take_cairo, baybars_sultan, siege_of_antioch and fall_of_antioch.
@@ -736,8 +854,8 @@ wikipedia: 3, 4, 19, 22, 33, 35, 38, 57, 78 and 82.
 | E3 | Native names in officers.tsv and the Names setting | Q-E4 for Arabic | done, Latin script only |
 | E4 | Lives and Wikipedia URLs, the officer panel | no | done |
 | E5 | Coats of arms on the flags | Q-E3 | list done in docs/europe/ARMS.md, external art |
-| E6 | The authorities of the church and the two caliphs | Q-E2, answered | brief in misc/stages/e6_church.md |
-| E7 | The story mode and the events during the game | no | done, except the sees (E6) |
+| E6 | The authorities of the church and the two caliphs | Q-E2, answered | done. See Q-E9 and Q-E10 |
+| E7 | The story mode and the events during the game | no | done, with the rows of the sees from E6 |
 | E8 | The west map and the east map, with Antioch on the east map | no | done. The east map has 17 factions |
 
 ## The stage runs
@@ -864,3 +982,12 @@ merges the work of the first in its rebase.
   the place of Barqa? The other choice is W3 of docs/MAPS.md, a pack with
   43 cities. Closed on 2026-10-28: the player chose two maps (E8). The
   east map holds Antioch, and Barqa stays.
+- Q-E9. The keeper of a seat that is not on the map. The stage e6_church
+  gives the authority to the faction of the authority with the most cities.
+  This holds for each authority with a dash for its seat on a map. Is this
+  the rule of the player? Another choice is a keeper with no faction, and no technique
+  points.
+- Q-E10. The devout officers. No officer of the two packs has han_respect 2,
+  so the loyalty rule of an authority never acts in a game. Can the packs get
+  a column devout in officers.tsv? The data of the lives can set it for
+  bishops and abbots.

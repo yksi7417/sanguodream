@@ -205,6 +205,9 @@ enum sim_event_kind
     SIM_EVENT_SEARCH_FAILED,        /* subject = city; faction; the speaker is the searcher of the command (G2-039) */
     SIM_EVENT_FACTION_FELL,         /* faction = the force that lost its last city; detail = the force that took it (G2-059) */
     SIM_EVENT_UNIT_ENTERED_BASE,    /* subject = the commander; faction; detail = the location id of the port or the pass; delta = soldiers in */
+    SIM_EVENT_CROWN_GIVEN,          /* faction = the force of the ruler; detail = the index of the authority (E6) */
+    SIM_EVENT_INTERDICT_STARTED,    /* faction = the force under interdict; detail = the months; delta = the force that put it (E6) */
+    SIM_EVENT_INTERDICT_LIFTED,     /* faction = the force that was under interdict (E6) */
     SIM_EVENT_COUNT
 };
 
@@ -317,6 +320,8 @@ enum sim_command_kind
     SIM_COMMAND_ATTACK_FACILITY, /* G3-020: unit = the unit, to = the hex of an enemy facility; a long order */
     SIM_COMMAND_MOVE_OFFICERS,   /* 移動: officers of the city go to another own city (travel.cpp) */
     SIM_COMMAND_SUMMON,          /* 召喚: officers of other own cities come to the city */
+    SIM_COMMAND_ASK_CROWN,       /* E6: m8.force asks its authority for a crown */
+    SIM_COMMAND_INTERDICT,       /* E6: m8.force, the owner of Rome, puts the force m8.value under interdict */
     SIM_COMMAND_COUNT
 };
 
@@ -627,6 +632,10 @@ enum sim_refusal
     SIM_REFUSAL_NO_USES,               /* the faction has no use of the row left */
     /* A shared game (docs/MULTIPLAYER.md). Only the engine gives it: the sim has no seats. */
     SIM_REFUSAL_NOT_YOUR_SEAT,         /* another player commands the faction that acts, or the command is off in a shared game */
+    /* E6 */
+    SIM_REFUSAL_NO_AUTHORITY,          /* the pack has the Han emperor, or the faction has no authority, or no one keeps the seat */
+    SIM_REFUSAL_HAS_RECOGNITION,       /* the faction already has the recognition of its authority */
+    SIM_REFUSAL_NOT_FRIENDLY,          /* the keeper of the seat is not friendly enough to give a crown */
     SIM_REFUSAL_COUNT
 };
 
@@ -1201,7 +1210,18 @@ struct sim_emperor
     u8 city;                             /* the city of the emperor; its owner protects him */
 };
 
-#define SIM_RELIC_COUNT 12               /* the real map: 6 + 6 event sites (terrain-and-map.md, Q-193) */
+/* E6: the part of the authorities that a game changes. The tables of the
+   pack give the seats and the holders of 1200. Each member 0 means that the
+   pack decides, so a save from before E6 loads with the seats of the pack. */
+struct sim_authorities
+{
+    u8 seat_moved[CONTENT_AUTHORITY_CAPACITY];       /* the city of the seat plus 1, after the story moved it; 0 = the seat of the pack */
+    u8 holder[CONTENT_AUTHORITY_CAPACITY];           /* 0 = the church of the pack, 1 = no holder, 2 + content_church otherwise */
+    u8 crown[CONTENT_FORCE_CAPACITY];                /* 1 if the authority of the force gave it a crown */
+    u8 interdict[CONTENT_FORCE_CAPACITY];            /* the months that the force stays under interdict */
+};
+
+#define SIM_RELIC_COUNT 12              /* the real map: 6 + 6 event sites (terrain-and-map.md, Q-193) */
 #define SIM_RELIC_PLACEHOLDER_COUNT 7    /* the placeholder map: one ruin and six temples (events.md) */
 #define SIM_RELIC_SITES_OF_A_KIND   6
 enum sim_relic_kind { RELIC_RUIN, RELIC_TEMPLE };
@@ -1351,6 +1371,8 @@ struct sim_state
        new member goes after this one: engine_saves.cpp loads a save
        member by member. */
     sim_base_stock base_stocks[CONTENT_BASE_COUNT];
+    /* E6: the seats, the crowns and the interdicts. A new member goes after this one. */
+    sim_authorities authorities;
 };
 
 #define SIM_ENTITY_CAPACITY  4096
@@ -1639,9 +1661,25 @@ internal b32       sim_faction_has_item(sim_state *sim, u8 force, u8 type);
 internal void      sim_gain_experience(sim_state *sim, officer_component *officer, u32 ability, u32 amount, u32 cause, sim_event_sink *events);
 internal void      sim_change_loyalty(sim_state *sim, officer_component *officer, s32 change, u32 cause, sim_event_sink *events);
 internal u32       sim_officer_soldier_cap(sim_state *sim, officer_component *officer);
-internal u8        sim_rank_for(sim_state *sim, u8 force);
+internal u8        sim_rank_for(sim_state *sim, u8 force, b32 at_start);
 internal void      sim_update_ranks(sim_state *sim, b32 silent, u32 cause, sim_event_sink *events);
 internal u32       sim_faction_city_count(sim_state *sim, u8 force);
+/* E6, authority.cpp */
+internal b32       sim_uses_authorities(sim_state *sim);
+internal b32       sim_has_recognition(sim_state *sim, u8 force);
+internal u8        sim_authority_keeper(sim_state *sim, u32 authority);
+internal u8        sim_authority_seat(sim_state *sim, u32 authority);
+internal u8        sim_authority_church(sim_state *sim, u32 authority);
+internal u32       sim_authority_of(sim_state *sim, u8 force);
+internal sim_check sim_check_ask_crown(sim_state *sim, sim_m8_order *order);
+internal sim_check sim_check_interdict(sim_state *sim, sim_m8_order *order);
+internal void      sim_ask_crown_command(sim_state *sim, sim_command command, sim_event_sink *events);
+internal void      sim_interdict_command(sim_state *sim, sim_command command, sim_event_sink *events);
+internal void      sim_run_authority_month(sim_state *sim, u32 cause, sim_event_sink *events);
+internal void      sim_start_interdict(sim_state *sim, u8 force, u8 by, u32 months, u32 cause, sim_event_sink *events);
+internal void      sim_authority_see_holder(sim_state *sim, const char *authority_key, const char *church);
+internal void      sim_authority_move_seat(sim_state *sim, const char *authority_key, u32 city);
+internal void      sim_ai_authority(sim_state *sim, u8 force, sim_event_sink *events);
 internal sim_check sim_check_court(sim_state *sim, sim_command_kind kind, sim_court_order *order);
 internal void      sim_court_command(sim_state *sim, sim_command command, sim_event_sink *events);
 internal void      sim_run_officers_turn(sim_state *sim, u32 cause, sim_event_sink *events);

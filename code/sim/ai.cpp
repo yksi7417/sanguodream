@@ -678,6 +678,7 @@ sim_run_ai_faction(sim_state *sim, u8 force, u32 cause, sim_event_sink *events)
     sim_plan first;
     u32 issued = sim_ai_run_plan(sim, force, 0xFF, CORPS_FLAG_ALL, budget, record, &first, events);
     issued += sim_ai_units(sim, force, record, events);
+    sim_ai_authority(sim, force, events);   /* E6: the crown and the interdict */
     sim_ai_record_unchosen(record, &first);
     if (sim->pending.active && sim->pending.force == force) sim->pending.active = false;   /* the AI takes the first choice */
     sim_event planned = sim_event_make(sim, SIM_EVENT_AI_PLANNED, cause);

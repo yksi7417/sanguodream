@@ -50,6 +50,7 @@ sim_init(sim_state *sim, memory_arena *arena, u64 seed)
     sim->scenario_number = SIM_NO_SCENARIO;
     for (u32 row = 0; row < CONTENT_HISTORY_CAPACITY; ++row) sim->history_turn[row] = 0;
     sim->emperor = {};
+    sim->authorities = {};   /* E6 */
     sim->ruleset.combat_damage = sim_rule_combat_damage;   /* the generic rule; a pack can set its own */
     sim->ruleset.loyalty_drift = sim_monthly_loyalty_loss;
     sim->building_count = 0;
@@ -271,6 +272,8 @@ sim_apply(sim_state *sim, sim_command command, sim_event_sink *events)
         case SIM_COMMAND_RESEARCH_ABILITY: sim_research_ability_command(sim, command, events); break;
         case SIM_COMMAND_TRAIN_OFFICER:    sim_train_officer_command(sim, command, events); break;
         case SIM_COMMAND_TRIGGER_HISTORY:  sim_trigger_history_command(sim, command, events); break;
+        case SIM_COMMAND_ASK_CROWN:        sim_ask_crown_command(sim, command, events);   break;
+        case SIM_COMMAND_INTERDICT:        sim_interdict_command(sim, command, events);   break;
         case SIM_COMMAND_DEVELOP:
             sim_develop(sim, command, events);
             break;
@@ -378,6 +381,7 @@ sim_unload_world(sim_state *sim)
     sim_reset_pk(sim);   /* M9 */
     sim->scenario_number = SIM_NO_SCENARIO;
     for (u32 row = 0; row < CONTENT_HISTORY_CAPACITY; ++row) sim->history_turn[row] = 0;
+    sim->authorities = {};   /* E6 */
     for (u32 index = 0; index < CONTENT_EVENT_CAPACITY; ++index) sim->event_turn[index] = 0;
     for (u32 index = 0; index < CONTENT_BASE_COUNT; ++index) sim->bases[index] = {};
     for (u32 index = 0; index < SIM_RELIC_COUNT; ++index) sim->relics[index] = {};
@@ -678,6 +682,9 @@ sim_event_name(sim_event_kind kind)
         case SIM_EVENT_UNIT_WAITED:             return "unit_waited";
         case SIM_EVENT_UNIT_ENTERED_CITY:       return "unit_entered_city";
         case SIM_EVENT_UNIT_ENTERED_BASE:       return "unit_entered_base";
+        case SIM_EVENT_CROWN_GIVEN:             return "crown_given";
+        case SIM_EVENT_INTERDICT_STARTED:       return "interdict_started";
+        case SIM_EVENT_INTERDICT_LIFTED:        return "interdict_lifted";
         case SIM_EVENT_UNIT_GOLD_RETURNED:      return "unit_gold_returned";
         case SIM_EVENT_UNIT_GRAIN_RETURNED:     return "unit_grain_returned";
         case SIM_EVENT_UNIT_RETREATED:          return "unit_retreated";
@@ -845,6 +852,8 @@ sim_command_name(sim_command_kind kind)
         case SIM_COMMAND_RESEARCH_ABILITY: return "research_ability";
         case SIM_COMMAND_TRAIN_OFFICER:   return "train_officer";
         case SIM_COMMAND_TRIGGER_HISTORY: return "trigger_history";
+        case SIM_COMMAND_ASK_CROWN:       return "ask_crown";
+        case SIM_COMMAND_INTERDICT:       return "interdict";
         default:                          return "?";
     }
 }
@@ -915,6 +924,9 @@ sim_refusal_name(sim_refusal refusal)
         case SIM_REFUSAL_NO_CHART_ROW:          return "no_chart_row";
         case SIM_REFUSAL_NO_USES:               return "no_uses";
         case SIM_REFUSAL_NOT_YOUR_SEAT:         return "not_your_seat";
+        case SIM_REFUSAL_NO_AUTHORITY:          return "no_authority";
+        case SIM_REFUSAL_HAS_RECOGNITION:       return "has_recognition";
+        case SIM_REFUSAL_NOT_FRIENDLY:          return "not_friendly";
         default:                                return "?";
     }
 }
@@ -935,6 +947,7 @@ sim_refusal_name(sim_refusal refusal)
 #include "sim/duel.cpp"
 #include "sim/debate.cpp"
 #include "sim/rivals.cpp"
+#include "sim/authority.cpp"   /* E6: the authorities of the church and the caliphs */
 #include "sim/bases.cpp"
 #include "sim/events.cpp"
 #include "sim/ai.cpp"

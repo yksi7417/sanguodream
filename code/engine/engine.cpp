@@ -233,6 +233,8 @@ engine_load_content(engine *e, const char *folder)
     b32 has_armaments = engine_read_table(e, folder, "movement_costs.tsv", &armaments);
     tsv_table save_types = {};  /* M11: save_types.tsv is optional; without it a save puts nothing on the map */
     b32 has_save_types = engine_read_table(e, folder, "save_types.tsv", &save_types);
+    tsv_table authorities = {};  /* E6: authorities.tsv is optional; without it the pack has no authority */
+    b32 has_authorities = engine_read_table(e, folder, "authorities.tsv", &authorities);
     if (!engine_read_table(e, folder, "facilities.tsv", &facilities))      status->detail = "facilities.tsv not found";
     else if (!engine_read_table(e, folder, "cities.tsv", &cities))         status->detail = "cities.tsv not found";
     else if (!engine_read_table(e, folder, "rules.tsv", &rules))           status->detail = "rules.tsv not found";
@@ -282,6 +284,7 @@ engine_load_content(engine *e, const char *folder)
     else if (!engine_rewrite_history_keys(e, folder, &history))           status->detail = "history.tsv names an officer that the pack does not have";
     else if (!content_load_history(content, &history, &bad_row))          status->detail = "history.tsv has a bad row";
     else if (!content_load_portraits(content, &portraits, &bad_row))      status->detail = "portraits.tsv has a bad row";
+    else if (has_authorities && !content_load_authorities(content, &authorities, &cities, &bad_row)) status->detail = "authorities.tsv has a bad row";
     else
     {
         status->loaded          = true;
