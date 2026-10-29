@@ -63,6 +63,8 @@ decompilation of it.
                              licences of the data, the tool and the plan
 - docs/EUROPE.md             the game of 1200: English names by key, the
                              lives, the arms, the church and the story
+- docs/NEW-PC.md             what to install, clone and copy to continue
+                             the work on a second Windows PC
 
 ## Build and run
 - build.bat         builds build\hexdom.dll, build\win32_hexdom.exe, the
