@@ -213,6 +213,7 @@ struct engine_faction
     b32 human;              /* a player gives its commands; else the AI placeholder passes */
     b32 acted;              /* it pressed "proceed" (or passed) in this turn */
     char key[CONTENT_KEY_SIZE];   /* the English key of the pack, for example "france"; "" for a faction of a save (docs/EUROPE.md, E2) */
+    char name_key[CONTENT_KEY_SIZE];   /* the key of the new name that a row of history.tsv gave, for example "mamluk"; "" if none (E7) */
 };
 
 /* The order of 出征 and 輸送 (city-commands.md). */

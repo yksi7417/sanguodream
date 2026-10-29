@@ -14,6 +14,8 @@
 
 #define SIM_HISTORY_PARTS 6
 
+static_assert(CONTENT_FORCE_CAPACITY == SIM_FORCE_CAPACITY, "the church table has one entry for each faction");
+
 /* One clause, split at ':' into its parts. */
 struct sim_history_clause
 {
@@ -150,6 +152,55 @@ sim_officer_city(sim_state *sim, officer_component *officer)
 
 /* ---- the conditions ---------------------------------------------------------------------- */
 
+/* owner: true if the owner of the city is in the list of force ids. A dash stands for no owner. */
+internal b32
+sim_history_owner_in(sim_state *sim, u8 city_id, const char *text)
+{
+    city_component *city = sim_find_city(sim, city_id);
+    if (!city) return false;
+    sim_history_list list;
+    sim_history_split_list(text, &list);
+    for (u32 index = 0; index < list.count; ++index)
+    {
+        u8 listed = strcmp(list.item[index], "-") == 0 ? (u8)SIM_NO_FORCE : (u8)sim_history_number(list.item[index]);
+        if (city->owner_force_id == listed) return true;
+    }
+    return false;
+}
+
+/* church: true if the church of the faction is in the list of names. The engine fills the churches. */
+internal b32
+sim_history_church_in(sim_state *sim, u8 force, const char *text)
+{
+    if (force >= CONTENT_FORCE_CAPACITY || sim->content.force_church[force] == CONTENT_CHURCH_NONE) return false;
+    sim_history_list list;
+    sim_history_split_list(text, &list);
+    for (u32 index = 0; index < list.count; ++index)
+    {
+        if (content_find_church(list.item[index]) == sim->content.force_church[force]) return true;
+    }
+    return false;
+}
+
+/* The row of the table with this key, or the row count. */
+internal u32
+sim_history_row_of(sim_state *sim, const char *key)
+{
+    for (u32 row = 0; row < sim->content.history_count; ++row)
+    {
+        if (strcmp(sim->content.history[row].key, key) == 0) return row;
+    }
+    return sim->content.history_count;
+}
+
+/* after: true if the row with this key has started. */
+internal b32
+sim_history_started(sim_state *sim, const char *key)
+{
+    u32 row = sim_history_row_of(sim, key);
+    return row < sim->content.history_count && sim->history_turn[row] != 0;
+}
+
 internal b32
 sim_history_condition(sim_state *sim, history_kind *kind, sim_history_clause *clause, u8 force)
 {
@@ -167,6 +218,12 @@ sim_history_condition(sim_state *sim, history_kind *kind, sim_history_clause *cl
     if (strcmp(name, "start_by") == 0)     return start <= sim_history_stamp(clause->part[1]);
     if (strcmp(name, "start_from") == 0)   return start >= sim_history_stamp(clause->part[1]);
     if (strcmp(name, "date_from") == 0)    return date  >= sim_history_stamp(clause->part[1]);
+    if (strcmp(name, "date_until") == 0)   return date  <= sim_history_stamp(clause->part[1]);
+    if (strcmp(name, "at_war") == 0)       return sim_at_war(sim, (u8)value, (u8)second);
+    if (strcmp(name, "allied") == 0)       return value != second && sim_relation(sim, (u8)value, (u8)second) == RELATION_ALLIANCE;
+    if (strcmp(name, "owner") == 0)        return sim_history_owner_in(sim, (u8)value, clause->part[2]);
+    if (strcmp(name, "church") == 0)       return sim_history_church_in(sim, force, clause->part[1]);
+    if (strcmp(name, "after") == 0)        return sim_history_started(sim, clause->part[1]);
     if (strcmp(name, "days") == 0)         return days >= value;
     if (strcmp(name, "ruler") == 0)        return officer && officer == ruler;
     if (strcmp(name, "faction_of") == 0)   return officer && sim_officer_is_active(officer) && officer->force_id == force;
@@ -319,8 +376,10 @@ sim_history_effect(sim_state *sim, history_kind *kind, sim_history_clause *claus
         {
             city_component *city = sim->cities.data + index;
             if (city->owner_force_id != force) continue;
-            if (order) city->public_order = (u8)Minimum((u32)city->public_order + (u32)value, 100u);
-            else       city->morale       = (u8)Minimum((u32)city->morale + (u32)value, sim->content.rules.morale_max ? sim->content.rules.morale_max : 100u);
+            /* A negative value lowers the number, and the number stays between 0 and its limit (E7). */
+            s32 limit = (s32)(sim->content.rules.morale_max ? sim->content.rules.morale_max : 100u);
+            if (order) city->public_order = (u8)Minimum(Maximum((s32)city->public_order + value, 0), 100);
+            else       city->morale       = (u8)Minimum(Maximum((s32)city->morale + value, 0), limit);
         }
         return;
     }
@@ -388,6 +447,88 @@ sim_history_effect(sim_state *sim, history_kind *kind, sim_history_clause *claus
         sim->adviser[force] = officer->officer_id;
         return;
     }
+    if (strcmp(name, "seize") == 0)
+    {
+        officer_component *old_ruler = sim_find_officer(sim, sim_force_ruler(sim, force));
+        b32 seizes = officer && old_ruler && officer != old_ruler && sim_officer_is_active(officer) && officer->force_id == force &&
+                     officer->status != OFFICER_STATUS_RULER;
+        if (!seizes) return;
+        sim_clear_post(sim, old_ruler);
+        old_ruler->status = OFFICER_STATUS_REGULAR_OFFICER;
+        sim_clear_post(sim, officer);
+        officer->status  = OFFICER_STATUS_RULER;
+        officer->loyalty = 100;
+        sim_emit_officer(sim, SIM_EVENT_RULER_SUCCEEDED, officer, 0, 0, false, cause, events);
+        return;
+    }
+    if (strcmp(name, "city_loss") == 0)
+    {
+        city_component *city = sim_find_city(sim, (u8)value);
+        if (!city) return;
+        u64 kept = 100u - Minimum((u32)second, 100u);
+        city->troops     = (u32)((u64)city->troops * kept / 100);
+        city->durability = (u32)((u64)city->durability * kept / 100);
+        return;
+    }
+    /* rename and target have no effect at the time of the row. The queries below read the rows that started. */
+}
+
+/* ---- the effects that last: a new name and a target ------------------------------------------- */
+
+/* The faction of the officer of a clause, or SIM_NO_FORCE. The faction stays after the officer dies. */
+internal u8
+sim_history_clause_force(sim_state *sim, history_kind *kind, sim_history_clause *clause)
+{
+    officer_component *officer = sim_history_officer(sim, kind, clause->part[1]);
+    return officer ? officer->force_id : (u8)SIM_NO_FORCE;
+}
+
+/* Gives the key of the new name that a row of history.tsv has set for the faction. The latest row
+   wins. The sim has no state for the name: the rows that started and the officers give it. */
+internal b32
+sim_force_rename_key(sim_state *sim, u8 force, char *key, u32 size)
+{
+    b32 found = false;
+    for (u32 row = 0; row < sim->content.history_count; ++row)
+    {
+        if (!sim->history_turn[row]) continue;
+        history_kind *kind = sim->content.history + row;
+        const char *text = kind->effects;
+        sim_history_clause clause;
+        while (sim_history_next(&text, &clause))
+        {
+            if (strcmp(clause.part[0], "rename") != 0 || sim_history_clause_force(sim, kind, &clause) != force) continue;
+            u32 length = (u32)strlen(clause.part[2]);
+            if (length == 0 || length + 1 > size) return false;
+            memcpy(key, clause.part[2], length + 1);
+            found = true;
+        }
+    }
+    return found;
+}
+
+/* The city that a row has set as the target of the faction, or SIM_NO_CITY. The target ends after
+   its months or when its officer dies. The AI of the faction attacks this city first. */
+internal u8
+sim_history_target(sim_state *sim, u8 force)
+{
+    u8 target = SIM_NO_CITY;
+    for (u32 row = 0; row < sim->content.history_count; ++row)
+    {
+        if (!sim->history_turn[row]) continue;
+        history_kind *kind = sim->content.history + row;
+        const char *text = kind->effects;
+        sim_history_clause clause;
+        while (sim_history_next(&text, &clause))
+        {
+            if (strcmp(clause.part[0], "target") != 0 || sim_history_clause_force(sim, kind, &clause) != force) continue;
+            if (sim_officer_dead(sim_history_officer(sim, kind, clause.part[1]))) continue;
+            u32 started = sim->history_turn[row] - 1;
+            u32 limit   = sim_history_number(clause.part[3]) * CALENDAR_TURNS_PER_MONTH;
+            if (sim->turn >= started && sim->turn - started < limit) target = (u8)sim_history_number(clause.part[2]);
+        }
+    }
+    return target;
 }
 
 internal void

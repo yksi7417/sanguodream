@@ -455,6 +455,8 @@ text_catalog_set_locale(text_catalog *catalog, const char *locale)
     catalog->pack_lore         = empty;
     catalog->fallback_pack_lore = empty;
     catalog->pack_links        = empty;
+    catalog->pack_story        = empty;
+    catalog->fallback_pack_story = empty;
     text_copy_utf8(code, catalog->locale, sizeof(catalog->locale));
 
     text_catalog_load_locales(catalog);
@@ -471,6 +473,10 @@ text_catalog_set_locale(text_catalog *catalog, const char *locale)
         if (strcmp(code, catalog->fallback_locale) == 0) catalog->fallback_pack_lore = catalog->pack_lore;
         else catalog->fallback_pack_lore = text_catalog_load_pack_table(catalog, catalog->game_pack, "lore", catalog->fallback_locale, "key");
         catalog->pack_links = text_catalog_load_pack_table(catalog, catalog->game_pack, "lore", "links", "key");
+        /* docs/EUROPE.md, E7: the pages of the story mode. */
+        catalog->pack_story = text_catalog_load_pack_table(catalog, catalog->game_pack, "story", code, "key");
+        if (strcmp(code, catalog->fallback_locale) == 0) catalog->fallback_pack_story = catalog->pack_story;
+        else catalog->fallback_pack_story = text_catalog_load_pack_table(catalog, catalog->game_pack, "story", catalog->fallback_locale, "key");
     }
     catalog->load_count++;
     return true;
@@ -525,6 +531,15 @@ text_key_lore(text_catalog *catalog, const char *kind, const char *key)
     if (!text_record_id(catalog, kind, key, id, sizeof(id))) return 0;
     const char *life = text_table_find(&catalog->pack_lore, id);
     return life ? life : text_table_find(&catalog->fallback_pack_lore, id);
+}
+
+internal const char *
+text_key_story(text_catalog *catalog, const char *kind, const char *key)
+{
+    char id[TEXT_PACK_SIZE + 64];
+    if (!text_record_id(catalog, kind, key, id, sizeof(id))) return 0;
+    const char *page = text_table_find(&catalog->pack_story, id);
+    return page ? page : text_table_find(&catalog->fallback_pack_story, id);
 }
 
 internal b32

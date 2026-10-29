@@ -399,6 +399,18 @@ The pages:
 The story mode is a front-end feature. It reads story/<locale>.tsv of the
 pack and draws the pages. It sends no command to the engine.
 
+The stage e7_story built the story mode:
+- Each pack has story/en.tsv. The rows are title.<page> and page.<page>
+  for the three pages of the world, and force.<key> for each faction.
+- The text is in the Latin script (Q-E4). A locale without its own file
+  uses the English file, as the lore does. Thus there is no zh-TW file.
+- The text module has text_key_story. The panel is code/ui/ui_story.cpp.
+  It has the buttons Previous, Next and Skip.
+- The new-game screen shows the Story button only if the pack has story
+  pages. The panel asks the engine only for the keys of the factions.
+- The pages are in the words of the research. Each fact has two sources in
+  docs/europe/SOURCES.md.
+
 ### The events during the game
 The player chose events during the game (Q-E5). An event does not start
 on a fixed date. Each event has a window of years and preconditions on
@@ -477,6 +489,26 @@ touch a see.
 Each new condition and each new effect gets a unit test first in
 tests/unit/playable_tests.cpp, beside the tests of the M9 events. The Three Kingdoms events do not use
 them, so the fixtures stay green.
+
+### The rows of the stage
+The M9 effects have no gold. Thus the row of the Fourth Crusade gives
+public order to the crusaders in place of gold to Venice. The rows leave
+out the sees. The Latin patriarch of Constantinople waits for E6.
+
+The east map has six rows: fourth_crusade, sack_of_constantinople,
+mamluks_take_cairo, baybars_sultan, siege_of_antioch and fall_of_antioch.
+The west map has four rows: albigensian_crusade, albigensian_france,
+las_navas_de_tolosa and bouvines. The tests of both lists are in
+tests/unit/story_tests.cpp.
+
+The engine changes each @key of a row into an officer before the sim reads
+the row. The file engine_history_keys.cpp does this. The rename effect keeps
+a key, and the sim derives the name of the faction from the rows that
+started. Thus the save format does not change, and a saved game keeps the
+name of the faction after a load. The engine fills the church of each
+faction from forces.tsv, because the save does not hold it. The unit tests
+check each row and each clause. The feature test of the pack checks the
+rename after a save and a load.
 
 ## E8. The west map and the east map
 On 2026-10-28 the player chose two maps for the game of 1200. The west
@@ -679,7 +711,7 @@ wikipedia: 3, 4, 19, 22, 33, 35, 38, 57, 78 and 82.
 | E4 | Lives and Wikipedia URLs, the officer panel | no | done |
 | E5 | Coats of arms on the flags | Q-E3 | list done in docs/europe/ARMS.md, external art |
 | E6 | The authorities of the church | Q-E2 | design |
-| E7 | The story mode and the events during the game | no | brief in misc/stages/e7_story.md, after e8_factions |
+| E7 | The story mode and the events during the game | no | done, except the sees (E6) |
 | E8 | The west map and the east map, with Antioch on the east map | no | done. The east map has 17 factions |
 
 ## The stage runs

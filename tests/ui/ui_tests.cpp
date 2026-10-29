@@ -3901,6 +3901,50 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK(v.ui.game.pack_slot == 0 && !v.ui.show_saveload);
     };
 
+    /* docs/EUROPE.md, E7: the Story button of the rulers screen opens the pages of the pack. The panel commands nothing. */
+    t = IM_REGISTER_TEST(e, "ui", "story_panel_walks_the_pages_of_a_pack_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.faction_key = "byzantium";
+        v.ui.show_rulers       = true;
+        ctx->SetRef("###Rulers");
+        ctx->Yield(2);
+        IM_CHECK(ctx->ItemInfo("###story_open", ImGuiTestOpFlags_NoError).ID == 0);   /* the pack of the test has no story */
+        text_catalog_use_game_pack(&v.text, "medieval_east");
+        ctx->Yield(2);
+        IM_CHECK(ctx->ItemInfo("###story_open", ImGuiTestOpFlags_NoError).ID != 0);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###story_open");
+        ctx->Yield(2);
+        IM_CHECK(v.ui.show_story && v.ui.story.page == 0);
+        char title[UI_NAME_SIZE * 2];
+        const char *body = 0;
+        IM_CHECK(ui_story_page(&v.ui, &v.api, 0, title, sizeof(title), &body) && body && body[0]);
+        IM_CHECK_STR_EQ(title, "Europe in 1200");
+        IM_CHECK_EQ(ui_story_page_count(&v.ui, &v.api), 4u);   /* three pages of the world, one faction with a key */
+        ctx->SetRef("###Story");
+        ctx->ItemClick("###story_previous");   /* disabled on the first page */
+        IM_CHECK_EQ(v.ui.story.page, 0u);
+        ctx->ItemClick("###story_next");
+        ctx->ItemClick("###story_next");
+        ctx->ItemClick("###story_next");
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.story.page, 3u);
+        IM_CHECK(ui_story_page(&v.ui, &v.api, 3, title, sizeof(title), &body) && body && body[0] && title[0]);
+        ctx->ItemClick("###story_next");        /* disabled on the last page */
+        IM_CHECK_EQ(v.ui.story.page, 3u);
+        ctx->ItemClick("###story_previous");
+        IM_CHECK_EQ(v.ui.story.page, 2u);
+        ctx->ItemClick("###story_skip");
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.show_story && v.ui.show_rulers);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        text_catalog_use_game_pack(&v.text, HEXDOM_CONTENT_PACK);
+    };
+
     t = IM_REGISTER_TEST(e, "ui", "title_new_game_flow_loads_chooses_rulers_and_sets_settings");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;

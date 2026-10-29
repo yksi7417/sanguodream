@@ -41,6 +41,7 @@ internal void
 ui_enter_game(ui_state *ui)
 {
     ui->show_title = ui->show_scenarios = ui->show_rulers = ui->show_start_settings = false;
+    ui->show_story   = false;
     ui->hud_mode     = true;
     ui->show_topbar  = false;   /* the HUD takes its place */
     ui->show_history = false;
@@ -267,6 +268,11 @@ ui_draw_rulers(ui_state *ui, engine_api *api)
         ImGui::BeginDisabled(!on && chosen >= 8);
         if (ImGui::Checkbox(row, &on)) ui->game.rulers ^= 1ull << faction.force_id;
         ImGui::EndDisabled();
+    }
+    if (ui_story_available(ui))
+    {
+        if (ImGui::Button(ui_label(label, sizeof(label), ui, "story.button", "story_open"))) { ui->show_story = true; ui->story.page = 0; }
+        ImGui::SameLine();
     }
     ImGui::BeginDisabled(chosen == 0);
     if (ImGui::Button(ui_label(label, sizeof(label), ui, "rulers.ok", "rulers_ok")))
@@ -782,6 +788,7 @@ ui_draw_game_screens(ui_state *ui, engine_api *api)
     ui_start_pack_scenario(ui, api);   /* the first frame after the engine started again with another pack */
     if (ui->show_scenarios)      ui_draw_scenarios(ui, api);
     if (ui->show_rulers)         ui_draw_rulers(ui, api);
+    if (ui->show_story)          ui_draw_story(ui, api);
     if (ui->show_start_settings) ui_draw_start_settings(ui, api);
     if (ui->show_topbar)         ui_draw_topbar(ui, api);
     if (ui->show_history)        ui_draw_history(ui, api);

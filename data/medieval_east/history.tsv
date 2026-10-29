@@ -1,10 +1,15 @@
 id	key	name_zh	chance	conditions	effects	names_zh	names	status
-# The historical events of events.md (guide book p.56 to p.83) as data: the engine has one interpreter, not one handler for each event.
-# conditions: clauses separated by ";"; an event fires when all hold for one faction. effects: the changes, in order. @i is the officer i of names.
-# Clauses: scenario:S (the S of events.md: the file number + 1, Q-189), opening (the first month), start_before/start_by/start_from:YYYY/MM (the start date), date_from:YYYY/MM, days:N,
-#   ruler:@i, faction_of:@i, ruler_family:@i, rules:C|C, rules_any:C|C, not_rules:C|C, cities:N, cities_at_most:N, rank:N, rank_below:N, free:@i|@j, free_any:@i|@j, serves:@i:L, has:@i,
-#   unmarried:@i|@j, captive:@i, in_other:@i, loyalty_below:@i:L, merit_at_least:@i:N, order_ruler:N, order_ruler_below:N, order_of:@i:N, emperor_held, emperor_is:E, no_emperor,
-#   dead:@i, death_year:@i, adviser:@i, officers:N, age:@i:N, faction_cities:@i:N.
-# Effects: join:@i:LOYALTY:MERIT, defect:@i:LOYALTY:MERIT, merit:@i:N, merit_like:@i:@j, loyalty:@i:N, loyalty_all:N, order_all:N, morale_all:N, marry:@i:@j, sworn:@i|@j, dies:@i,
-#   rank:N, emperor:E, friendliness_all:N, friendliness_with:@i:N, raise:@i:ABILITY:VALUE, adviser:@i; "-" is a dialogue only.
-# The book gives the triggers; the clean room leaves out the choices, the pictures, the absences of chained events and the faction split of 連環計 (Q-189).
+# The events during the game of the east map (docs/EUROPE.md, E7). The engine has one interpreter. Each row has a window and preconditions. No row has a fixed date.
+# conditions: clauses separated by ";". A row starts when all clauses hold for one faction. effects: the changes, in order. chance: the percent for each month.
+# The row names an officer by the English key, for example @baybars. The engine changes each key to the officer before the sim reads the row (E7).
+# Clauses of E7: date_from:YYYY/MM, date_until:YYYY/MM, at_war:F:G, allied:F:G, owner:CITY:F|G|- (a dash is a city without an owner), church:latin|greek|armenian|muslim, after:KEY.
+#   F and G are the ids of forces.tsv, and CITY is the id of cities.tsv. The other clauses are the clauses of the M9 events: rules:C|C, free:@i|@j, has:@i, ruler:@i, merit_at_least:@i:N, order_ruler_below:N.
+# Effects of E7: seize:@i (the officer takes the rule of his faction), rename:@i:KEY (the new English name of his faction, from renames.tsv), target:@i:CITY:MONTHS, city_loss:CITY:PERCENT.
+#   The other effects are the effects of the M9 events: join:@i:LOYALTY:MERIT, merit:@i:N, loyalty_all:N, order_all:N, morale_all:N, friendliness_with:@i:N.
+# The rows leave out the sees of the church. E6 adds them. Venice gains public order in place of gold, because the M9 effects have no gold.
+0	fourth_crusade	第四次十字軍東征	25	date_from:1202/1;date_until:1210/12;rules:14;owner:11:6;church:latin	join:@baldwin_ix:100:1500;join:@henry_flanders:100:1200;join:@montferrat:100:1500;order_all:10	-	-	story
+1	sack_of_constantinople	君士坦丁堡陷落	25	after:fourth_crusade;date_from:1203/1;date_until:1212/12;rules:6;church:greek	order_all:-20;loyalty_all:-10;morale_all:-10	-	-	story
+2	mamluks_take_cairo	馬木路克奪取開羅	10	date_from:1240/1;date_until:1270/12;rules:4;free:@aybak|@shajar_al_durr|@qutuz|@baybars	join:@aybak:100:2000;join:@shajar_al_durr:100:1200;join:@qutuz:100:1500;join:@baybars:100:2500;seize:@aybak;rename:@aybak:mamluk	-	-	story
+3	baybars_sultan	拜巴爾稱蘇丹	25	after:mamluks_take_cairo;date_from:1257/1;date_until:1275/12;has:@baybars;merit_at_least:@baybars:3000	seize:@baybars	-	-	story
+4	siege_of_antioch	圍攻安條克	30	date_from:1260/1;date_until:1290/12;ruler:@baybars;owner:34:4|5|6|7|8|11|12|14|-	target:@baybars:34:36	-	-	story
+5	fall_of_antioch	安條克陷落	100	after:siege_of_antioch;date_until:1295/12;ruler:@baybars;rules:34	city_loss:34:50	-	-	story

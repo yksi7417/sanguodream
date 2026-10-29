@@ -64,6 +64,15 @@ global_variable const test_text_file test_text_files[] =
     { "root/europe/lore/ko.tsv",
       "key\ttext\n"
       "officer.philip_ii\t\xED\x94\x84\xEB\x9E\x91\xEC\x8A\xA4 \xEC\x99\x95.\n" },
+    { "root/europe/story/en.tsv",
+      "key\ttext\tnote\n"
+      "# the pages of the story\n"
+      "title.europe\tEurope in 1200\n"
+      "page.europe\tThe popes and the kings.\\nThe war starts.\n"
+      "force.france\tPhilip wants Normandy.\n" },
+    { "root/europe/story/ko.tsv",
+      "key\ttext\n"
+      "page.europe\t\xEC\x9C\xA0\xEB\x9F\xBD\n" },
     { "root/europe/lore/links.tsv",
       "key\turl\n"
       "officer.philip_ii\thttps://en.wikipedia.org/wiki/Philip_II_of_France\n"
@@ -457,6 +466,37 @@ unit_text_lore_tests(test_counts *counts, memory_arena *arena)
                "a pack without lore files has no life and no link");
 }
 
+/* docs/EUROPE.md, E7: story/<locale>.tsv of the game pack, the pages of the story mode. */
+internal void
+unit_text_story_tests(test_counts *counts, memory_arena *arena)
+{
+    text_catalog catalog;
+    text_catalog_init(&catalog, arena_sub(arena, Kilobytes(64)), test_text_read_file, "root", "pack", "en");
+    text_catalog_set_game_pack(&catalog, "europe");
+    text_catalog_set_locale(&catalog, "en");
+
+    const char *page = text_key_story(&catalog, "page", "europe");
+    TEST_CHECK(counts, page && strcmp(page, "The popes and the kings.\nThe war starts.") == 0, "the key gives the page, with the new line unescaped");
+    const char *title = text_key_story(&catalog, "title", "europe");
+    TEST_CHECK(counts, title && strcmp(title, "Europe in 1200") == 0, "the kind title gives the title of a page");
+    TEST_CHECK(counts, text_key_story(&catalog, "force", "france") != 0, "a faction has its page");
+    TEST_CHECK(counts, text_key_story(&catalog, "force", "papacy") == 0, "a faction without a row has no page");
+    TEST_CHECK(counts, text_key_story(&catalog, "force", "") == 0, "an empty key has no page");
+    TEST_CHECK(counts, text_key_story(&catalog, "force", "europe") == 0, "the kind is part of the key");
+
+    text_catalog_set_locale(&catalog, "ko");
+    const char *korean = text_key_story(&catalog, "page", "europe");
+    TEST_CHECK(counts, korean && strcmp(korean, "\xEC\x9C\xA0\xEB\x9F\xBD") == 0, "a locale with its own page gives that page");
+    TEST_CHECK(counts, text_key_story(&catalog, "force", "france") != 0, "a page that the locale lacks comes from the fallback locale");
+
+    text_catalog_set_locale(&catalog, "zh-TW");
+    TEST_CHECK(counts, text_key_story(&catalog, "page", "europe") != 0, "a locale without a story file shows the fallback locale");
+
+    text_catalog_set_game_pack(&catalog, "pack");
+    text_catalog_set_locale(&catalog, "en");
+    TEST_CHECK(counts, text_key_story(&catalog, "page", "europe") == 0, "a pack without story files has no page");
+}
+
 internal void
 unit_text_link_tests(test_counts *counts)
 {
@@ -659,6 +699,7 @@ unit_text_tests(test_counts *counts)
     unit_text_pack_tests(counts, &arena);
     unit_text_native_name_tests(counts, &arena);   /* E3 */
     unit_text_lore_tests(counts, &arena);          /* E4 */
+    unit_text_story_tests(counts, &arena);         /* E7 */
     unit_text_link_tests(counts);                  /* E4 */
     unit_text_label_tests(counts, &arena);
     unit_text_provider_tests(counts, &arena);   /* M18 */

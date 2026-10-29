@@ -162,6 +162,12 @@ internal void
 ui_force_text(ui_state *ui, engine_api *api, u8 force_id, char *out, u32 out_size)
 {
     if (force_id == ENGINE_NO_FACTION) { snprintf(out, out_size, "-"); return; }
+    /* E7: a row of history.tsv can give a faction a new name, for example the Mamluks. */
+    for (u32 index = 0; index < api->faction_count(api->engine); ++index)
+    {
+        engine_faction faction = api->faction_at(api->engine, index);
+        if (faction.force_id == force_id && faction.name_key[0] && ui_key_name(ui, "force", faction.name_key, out, out_size)) return;
+    }
     u16 ruler = api->force_ruler(api->engine, force_id);
     if (ruler == ENGINE_NO_OFFICER)
     {

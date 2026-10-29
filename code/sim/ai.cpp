@@ -262,7 +262,8 @@ sim_ai_command_for(sim_state *sim, city_component *city, ai_priority *row)
         {
             sim_rules *rules = &sim->content.rules;
             /* The row "defend" sends the unit against the enemy near the city; the other rows need a target city. */
-            if (row->condition != AI_ENEMY_NEAR &&
+            /* E7: a target of a historical event is a target at any distance. */
+            if (row->condition != AI_ENEMY_NEAR && sim_history_target(sim, city->owner_force_id) == SIM_NO_CITY &&
                 sim_ai_target_city(sim, city->owner_force_id, sim->sites[city->city_id].hex, rules->ai_target_hexes) == SIM_NO_CITY) return command;
             /* M15: no march on a city in the first months of the game (knowledge/ai.md: the AI armies
                arrive 5 to 6 months after the start; assumed, Q-185). Only the defence does not wait. */
@@ -500,6 +501,7 @@ sim_ai_unit_goals(sim_state *sim, u32 unit_id, sim_ai_choice *choices)
     sim_rules *rules = &sim->content.rules;
     sim_unit *unit = sim->units + unit_id;
     for (u32 goal = 0; goal < AI_GOAL_COUNT; ++goal) choices[goal] = {};
+    u8 history_target = sim_history_target(sim, unit->force_id);
     for (u32 index = 0; index < sim->cities.count; ++index)
     {
         city_component *city = sim->cities.data + index;
@@ -521,7 +523,9 @@ sim_ai_unit_goals(sim_state *sim, u32 unit_id, sim_ai_choice *choices)
         }
         else if (sim_at_war(sim, unit->force_id, city->owner_force_id))
         {
-            sim_ai_keep(choices + AI_GOAL_ATTACK_CITY, city->city_id, hex, sim_ai_distance_score(0, distance));
+            /* E7: the target of a historical event comes before each other city at war. */
+            u32 bonus = city->city_id == history_target ? (u32)SIM_AI_DISTANCE_SCALE + 1 : 0;
+            sim_ai_keep(choices + AI_GOAL_ATTACK_CITY, city->city_id, hex, sim_ai_distance_score(bonus, distance));
         }
     }
     sim_ai_choice *home = choices + AI_GOAL_RESUPPLY;

@@ -427,6 +427,11 @@ struct ui_state
     bool show_scenarios;
     bool show_rulers;
     bool show_start_settings;
+    bool show_story;             /* E7: the pages of the story mode, from the list of the rulers */
+    struct
+    {
+        u32 page;                /* the page that the panel shows; 0 is Europe in 1200 */
+    } story;
     bool show_topbar;            /* the game mode: the top bar and the history window */
     bool show_history;
     bool show_saveload;

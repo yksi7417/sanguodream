@@ -275,6 +275,7 @@ struct engine_recorder
     b32           units_acted;        /* M22: both units acted in this turn */
     u32           officer_count;      /* scripted rows for the Officers and Cities panels */
     const char   *officer_key;        /* the English key of the scripted officer 100, or 0 (docs/EUROPE.md, E2) */
+    const char   *faction_key;        /* the English key of the faction at index 0, or 0 (docs/EUROPE.md, E7) */
     u32           city_count;
     b32           has_water;          /* hex_at reports the river kind (2) at water_q, water_r */
     s32           water_q, water_r;
@@ -658,6 +659,8 @@ internal engine_faction recorder_faction_at(void *o, u32 index)
     engine_faction faction = {};
     faction.force_id = index == 0 ? 1 : ENGINE_NO_FACTION;
     faction.city_count = 2; faction.action_points = 100; faction.human = true;
+    engine_recorder *self = (engine_recorder *)o;
+    if (index == 0 && self->faction_key) snprintf(faction.key, sizeof(faction.key), "%s", self->faction_key);
     return faction;
 }
 internal engine_check recorder_can_issue(void *o, const engine_command *command)

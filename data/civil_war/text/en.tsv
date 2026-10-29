@@ -1081,3 +1081,8 @@ event.city	Base	據點
 event_question.transport_arrived	The transport unit has arrived. Where do its officers go?	輸送隊到達了。要如何安置部隊？
 event_choice.transport_arrived.0	Keep them in this base	將其留在該據點
 event_choice.transport_arrived.1	Send them back home	令其返回原據點
+story.title	Story	故事
+story.button	Story	故事
+story.previous	Previous	上一頁
+story.next	Next	下一頁
+story.skip	Skip	略過
