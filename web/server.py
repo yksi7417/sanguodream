@@ -58,6 +58,10 @@ FAILED_PASSWORD_DELAY_SECONDS = 1.0
 MAX_FAILED_PASSWORDS = 10
 FAILED_PASSWORD_WINDOW_SECONDS = 3600
 GAME_FILES = ("index.html", "index.js", "index.wasm", "index.data", "shared_game.js")
+# Only the site and Discord can put a page of the site in a frame. The Discord
+# Activity is a frame on discord.com, and its proxy is <client id>.discordsays.com.
+# X-Frame-Options has no list of sites, so the site does not send it.
+FRAME_ANCESTORS = "frame-ancestors 'self' https://discord.com https://*.discord.com https://*.discordsays.com"
 
 mimetypes.add_type("application/wasm", ".wasm")
 mimetypes.add_type("text/javascript", ".js")
@@ -71,7 +75,7 @@ async def security_headers(request, handler):
         raise web.HTTPForbidden(text="cross-origin request")
     response = await handler(request)
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
-    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Content-Security-Policy", FRAME_ANCESTORS)
     response.headers.setdefault("Referrer-Policy", "same-origin")
     return response
 

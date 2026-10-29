@@ -949,6 +949,10 @@ and the check in a Discord server wait for the user. These parts exist:
   `frame_id` (Discord adds it) or `activity=1`. They hold no data of the
   game. index.wasm and index.data still need a member.
 - The origin `<client id>.discordsays.com` passes the check of the origin.
+- Each page of the site sends `Content-Security-Policy: frame-ancestors`
+  with the site, discord.com and discordsays.com. Discord can then show
+  the page in the frame of the Activity. The site sends no
+  X-Frame-Options, because that header has no list of sites.
 - One room for each voice channel: the room of "Play online" in an
   Activity records the channel. `GET /api/discord/channel/<id>` gives the
   room, and a second room for a channel gets an error.
