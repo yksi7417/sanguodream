@@ -56,6 +56,12 @@ if errorlevel 1 (
   echo TESTS FAILED
   exit /b 1
 )
+echo === discord ===
+"%HEXDOM_PYTHON%" -I "%ROOT%tests\server\discord_tests.py"
+if errorlevel 1 (
+  echo TESTS FAILED
+  exit /b 1
+)
 echo === referee ===
 "%HEXDOM_PYTHON%" -I "%ROOT%tests\server\referee_tests.py"
 if errorlevel 1 (

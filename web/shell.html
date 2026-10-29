@@ -97,6 +97,31 @@
   </main>
 </div>
 <script>
+  /* ---- A page without the cookie (docs/MULTIPLAYER.md, MP8) ---------------------------
+     A Discord Activity runs the page in a frame of discordsays.com, and the frame has no
+     cookie of the site. The page then signs in with a session token: each request of the
+     page to the site carries it in the header Authorization, and the hello of a room
+     carries it too. The tests give the token in the address: "#token=...". */
+  var siteAuth = { token: null, discord: new URLSearchParams(location.search).has("frame_id"), channel: null };
+  (function () {
+    var match = /(?:^|&)token=([^&]+)/.exec(location.hash.slice(1));
+    try {
+      if (match) sessionStorage.setItem("hexdom.token", decodeURIComponent(match[1]));
+      siteAuth.token = sessionStorage.getItem("hexdom.token");
+    } catch (error) { siteAuth.token = match ? decodeURIComponent(match[1]) : null; }
+    if (match) history.replaceState(null, "", location.pathname + location.search);
+  })();
+  var pageFetch = window.fetch.bind(window);
+  window.fetch = function (input, init) {
+    var url = new URL(typeof input === "string" ? input : input.url, location.href);
+    if (!siteAuth.token || url.origin !== location.origin) return pageFetch(input, init);
+    var options = Object.assign({}, init || {});
+    var headers = new Headers(options.headers || (typeof input === "string" ? undefined : input.headers));
+    headers.set("Authorization", "Bearer " + siteAuth.token);
+    options.headers = headers;
+    return pageFetch(input, options);
+  };
+
   var statusElement = document.getElementById("status");
   var Module = {
     canvas: document.getElementById("canvas"),
@@ -357,7 +382,7 @@
     console.log("platform: " + list.saves.length + " saves from the server");
     setupLive(me);
     setupUser(me);
-    var game = new URLSearchParams(location.search).get("game");
+    var game = new URLSearchParams(location.search).get("game") || siteAuth.channelGame;
     if (game && /^[0-9a-f]{16}$/.test(game)) openRoom(game);
     else showMyGames();
   }
@@ -508,7 +533,9 @@
     });
     var name = (hexdomServer.me ? hexdomServer.me.name + "'s game" : "Online game");
     // The room records the pack: each player starts the engine of that pack (MP4).
-    var room = await postJson("api/games", { name: name, scenario: "", pack: pack, mode: "live", turn_seconds: 300, factions: factions });
+    var body = { name: name, scenario: "", pack: pack, mode: "live", turn_seconds: 300, factions: factions };
+    if (siteAuth.channel) body.channel = siteAuth.channel;   // MP8: the room of the voice channel of the Activity
+    var room = await postJson("api/games", body);
     var put = await fetch("api/games/" + room.gid + "/start-image", { method: "PUT", body: image });
     if (!put.ok) throw new Error("the start image did not upload (" + put.status + ")");
     history.replaceState(null, "", location.pathname + "?game=" + room.gid);
@@ -687,11 +714,14 @@
   // then each 15 seconds.
   function connectRoom() {
     var scheme = location.protocol === "https:" ? "wss://" : "ws://";
-    var socket = new WebSocket(scheme + location.host + location.pathname.replace(/[^/]*$/, "") + "api/games/" + net.gid + "/socket");
+    var address = scheme + location.host + location.pathname.replace(/[^/]*$/, "") + "api/games/" + net.gid + "/socket";
+    var socket = new WebSocket(address + (siteAuth.token ? "?token=1" : ""));   // MP8: the hello carries the token
     socket.binaryType = "arraybuffer";
     net.socket = socket;
     socket.onopen = function () {
-      socket.send(JSON.stringify({ type: "hello", gid: net.gid, build: net.build || net.room.build, last_step: net.lastStep }));
+      var hello = { type: "hello", gid: net.gid, build: net.build || net.room.build, last_step: net.lastStep };
+      if (siteAuth.token) hello.token = siteAuth.token;
+      socket.send(JSON.stringify(hello));
     };
     socket.onmessage = function (event) {
       if (typeof event.data !== "string") {
@@ -836,10 +866,61 @@
 <!-- A script in a template does not run. loadGame() loads the game after the checks. -->
 <template id="game-script">{{{ SCRIPT }}}</template>
 <script>
-  (function () {
+  /* ---- The Discord Activity (docs/MULTIPLAYER.md, MP8) --------------------------------
+     The Embedded App SDK gives a code. The server changes it for the Discord access token
+     and a session token of the site. A Discord user who is not a member types the house
+     password one time. The voice channel has one room: the page opens it, or "Play
+     online" makes it. The address of the SDK comes from the server: the URL mappings of
+     the Discord app must map it (docs/MULTIPLAYER.md, "The status of MP8"). */
+  async function discordSignIn() {
+    var config = await pageFetch("api/discord/config").then(function (r) { return r.ok ? r.json() : null; });
+    if (!config) throw new Error("the site has no Discord app");
+    var module = await import(config.sdk);
+    var sdk = new module.DiscordSDK(config.client_id);
+    await sdk.ready();
+    var answer = await sdk.commands.authorize({ client_id: config.client_id, response_type: "code", state: "",
+                                                prompt: "none", scope: ["identify", "email"] });
+    var session = await postJson("api/discord/token", { code: answer.code });
+    siteAuth.token = session.token;
+    try { sessionStorage.setItem("hexdom.token", session.token); } catch (error) { /* the token stays in memory */ }
+    await sdk.commands.authenticate({ access_token: session.access_token });
+    siteAuth.channel = sdk.channelId || null;
+    if (!session.member) await housePassword();
+    if (siteAuth.channel) {
+      var room = await fetch("api/discord/channel/" + siteAuth.channel).then(function (r) { return r.ok ? r.json() : null; });
+      if (room) siteAuth.channelGame = room.gid;
+    }
+  }
+
+  function housePassword() {
+    return new Promise(function (resolve) {
+      var box = element("div", undefined, "house");
+      box.style.cssText = "position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#17191f";
+      var input = element("input", undefined, "house-password");
+      input.type = "password";
+      var button = element("button", "Join the house", "house-submit");
+      var note = element("p", "Type the house password one time.");
+      var form = element("form");
+      form.append(note, input, button);
+      box.appendChild(form);
+      document.body.appendChild(box);
+      form.addEventListener("submit", function (event) {
+        event.preventDefault();
+        postJson("api/house", { password: input.value })
+          .then(function () { box.remove(); resolve(); })
+          .catch(function (error) { note.textContent = String(error.message || error); });
+      });
+    });
+  }
+
+  (async function () {
     var problems = deviceProblems();
-    if (problems.length) showRequirements(problems, "");
-    else loadGame();
+    if (problems.length) { showRequirements(problems, ""); return; }
+    if (siteAuth.discord) {
+      try { await discordSignIn(); }
+      catch (error) { showRequirements(["The sign-in with Discord failed."], String(error)); return; }
+    }
+    loadGame();
   })();
 </script>
 </body>

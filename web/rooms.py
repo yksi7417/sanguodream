@@ -131,6 +131,13 @@ def desync_key(gid, step, uid):
     return f"games/{gid}/desync/{step:08d}-{uid}.hxs"
 
 
+CHANNEL = re.compile(r"[0-9]{1,20}")   # MP8: the id of a voice channel of Discord (a snowflake)
+
+
+def channel_key(channel):
+    return f"discord/channels/{channel}"
+
+
 def code_key(code):
     return f"codes/{code}"
 
@@ -381,6 +388,21 @@ class Rooms:
             if await self.store.get(code_key(code)) is None:
                 return code
         raise RoomError("no free invite code")
+
+    async def room_of_channel(self, channel):
+        """MP8: the room of a voice channel of Discord, or None. A bad id gives a RoomError."""
+        if not isinstance(channel, str) or not CHANNEL.fullmatch(channel):
+            raise RoomError("bad voice channel")
+        gid = await self.store.get(channel_key(channel))
+        return await self.get(gid.decode("ascii", "replace")) if gid else None
+
+    async def link_channel(self, room, channel):
+        """MP8: the Activity of the voice channel opens this room."""
+        if not isinstance(channel, str) or not CHANNEL.fullmatch(channel):
+            raise RoomError("bad voice channel")
+        room.record["channel"] = channel
+        await self.store.put(channel_key(channel), room.gid.encode("ascii"))
+        await self.save(room)
 
     async def find_code(self, code):
         """The room of an invite code, or None."""

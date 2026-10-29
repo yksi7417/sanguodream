@@ -2,9 +2,9 @@
 
 This document gives the plan for games that more than one player plays
 together on the fly.io site. It also records the facts of the current
-site that the plan starts from. MP1 to MP6 exist in code (see the
-sections "The status of MP1" to "The status of MP6"). The milestones
-after MP6 do not exist yet.
+site that the plan starts from. MP1 to MP8 exist in code (see the
+sections "The status of MP1" to "The status of MP8"). The Discord app of
+MP8 and the new rules of a room (Q-16) wait for the user.
 
 ## The current site: one copy of the game for each browser
 Each browser runs its own copy of the game. Two browsers never share a
@@ -930,6 +930,61 @@ The tests:
 - A browser test cannot run inside Discord. Thus a member checks the
   Activity in a test server of Discord and writes the result in the play
   reports.
+
+### The status of MP8
+The code of MP8 exists and has its tests. The Discord app, its secrets
+and the check in a Discord server wait for the user. These parts exist:
+- web/auth.py has the provider "discord". It is on only if
+  DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET have a value. The sign-in page
+  of the site can use it as the other providers.
+- `POST /api/discord/token` changes the code of the Embedded App SDK for
+  the Discord access token and a session token of the site. The session
+  token has the format of the session cookie and the key SESSION_SECRET.
+- A request with `Authorization: Bearer <session token>` is a request of
+  that user. `POST /api/house` takes the house password as JSON.
+- A socket without the cookie asks for `?token=1`. Its first message is
+  the hello with the token. A bad token gets the error "401" and the close
+  code 4401.
+- The page and index.js load without a session when the address has
+  `frame_id` (Discord adds it) or `activity=1`. They hold no data of the
+  game. index.wasm and index.data still need a member.
+- The origin `<client id>.discordsays.com` passes the check of the origin.
+- One room for each voice channel: the room of "Play online" in an
+  Activity records the channel. `GET /api/discord/channel/<id>` gives the
+  room, and a second room for a channel gets an error.
+- In an Activity, the page loads the SDK and signs in. A new user types
+  the house password. Then the page opens the room of the voice channel.
+  `GET /api/discord/config` gives the client id and the address of the
+  SDK.
+
+The tests:
+- Server (tests/server/discord_tests.py): a fake Discord api gives the
+  record of the user. A hello with a bad token gets 401. The origin of
+  the Activity passes. One room for each voice channel.
+- Browser (tests/web/token.spec.js): a context without cookies opens the
+  game with the token of the guest. It joins the room and gets the steps.
+- `GET /api/session-token` gives the token of a member to a page of the
+  site. The browser test uses it.
+
+These steps wait for the user:
+1. Make the Discord app in the developer portal of Discord. Turn on the
+   Activity. Do not list the app in the App Directory (Q-13, Q-14).
+2. In the URL mappings, map `/` to `sanguodream.fly.dev` and `/jsdelivr`
+   to `cdn.jsdelivr.net`. The page loads the SDK from
+   `/.proxy/jsdelivr/npm/@discord/embedded-app-sdk@2/+esm`.
+   DISCORD_SDK_URL changes this address.
+3. Set the secrets: `flyctl secrets set DISCORD_CLIENT_ID=... 
+   DISCORD_CLIENT_SECRET=... -a sanguodream`. For the sign-in page, also
+   add the redirect `https://sanguodream.fly.dev/auth/discord/callback`.
+4. Install the app in the Discord server of the house. Start the
+   Activity in a voice channel with two members, play a turn, and write
+   the result in the play reports.
+
+These parts of the plan wait or changed:
+- Inside Discord, the chat of MP7 stays. Discord has its own chat and
+  voice.
+- No test checks the Embedded App SDK. The check in a Discord server
+  (step 4) covers it.
 
 ## The open questions for the user
 | Id | Question | The default of the plan |
