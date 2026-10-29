@@ -1710,3 +1710,8 @@ settings.names	Names	E3: the combo that chooses the language of the names of the
 settings.names_english	English	E3: the value of the Names combo
 settings.names_native	Own language	E3: the value of the Names combo; the name in the Latin script of its own language
 officer.wikipedia	Wikipedia	E4: the button of the officer panel that opens the English article of the officer
+story.title	Story	故事
+story.button	Story	故事
+story.previous	Previous	上一頁
+story.next	Next	下一頁
+story.skip	Skip	略過

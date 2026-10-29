@@ -141,3 +141,31 @@ The stage e8_factions added these officers to data/medieval_east. The Id is the 
 | 62 | Shihab al-Din al-Suhrawardi | https://en.wikipedia.org/wiki/Shihab_al-Din_%27Umar_al-Suhrawardi | https://anqa.co.uk/about-ibn-arabi/contemporaries/shihabuddin-abu-hafs-%E2%80%98umar-al-suhrawardi | second source is weak |
 | 63 | Ibn al-Jawzi | https://en.wikipedia.org/wiki/Ibn_al-Jawzi | https://www.britannica.com/biography/Ibn-al-Jawzi | two sources |
 | 64 | Al-Zahir bi-Amr Allah | https://en.wikipedia.org/wiki/Al-Zahir_bi-Amr_Allah | https://historica.fandom.com/wiki/Az-Zahir | second source is weak |
+| 65 | Qutuz | https://en.wikipedia.org/wiki/Qutuz | https://www.britannica.com/event/Battle-of-Ayn-Jalut | two sources |
+| 66 | Aybak | https://en.wikipedia.org/wiki/Aybak | https://www.britannica.com/biography/Aybak | two sources |
+| 67 | Shajar al-Durr | https://en.wikipedia.org/wiki/Shajar_al-Durr | https://www.britannica.com/biography/Shajar-ad-Durr | two sources |
+| 68 | Baybars | https://en.wikipedia.org/wiki/Baibars | https://www.britannica.com/summary/Baybars-I | two sources |
+| 69 | Baldwin IX of Flanders | https://en.wikipedia.org/wiki/Baldwin_I,_Latin_Emperor | https://www.britannica.com/biography/Baldwin-I-Byzantine-emperor | two sources |
+| 70 | Henry of Flanders | https://en.wikipedia.org/wiki/Henry_of_Flanders | https://www.britannica.com/biography/Henry-of-Hainault | two sources |
+
+## The facts of the story pages
+
+The stage e7_story wrote the story pages of both packs (story/en.tsv). This table lists the main facts of the pages of the world and of the east map. Each fact has two sources. The words of the pages are our own.
+
+| Fact | First source | Second source |
+|---|---|---|
+| Innocent III became pope in January 1198 and claimed to be above the kings | https://en.wikipedia.org/wiki/Pope_Innocent_III | https://www.britannica.com/biography/Innocent-III |
+| The split of 1054 between Rome and Constantinople | https://en.wikipedia.org/wiki/East%E2%80%93West_Schism | https://www.britannica.com/event/Schism-of-1054 |
+| Richard I died in April 1199 and Arthur of Brittany claimed his lands | https://en.wikipedia.org/wiki/Richard_I_of_England | https://www.britannica.com/biography/Arthur-duke-of-Brittany |
+| The two kings of Germany in 1198, Philip of Swabia and Otto of Brunswick | https://en.wikipedia.org/wiki/German_throne_dispute_(1198%E2%80%931215) | https://www.britannica.com/biography/Philip-of-Swabia |
+| The interdict on France in January 1200 | https://en.wikipedia.org/wiki/Ingeborg_of_Denmark | https://www.britannica.com/biography/Philip-II-king-of-France |
+| Innocent III called the Fourth Crusade in 1198 | https://en.wikipedia.org/wiki/Fourth_Crusade | https://www.britannica.com/event/Crusades/The-Fourth-Crusade |
+| Alexios III took the throne in 1195 from Isaac II | https://en.wikipedia.org/wiki/Alexios_III_Angelos | https://www.britannica.com/biography/Alexius-III-Angelus |
+| Kaloyan ruled Bulgaria and wrote to the pope | https://en.wikipedia.org/wiki/Kaloyan_of_Bulgaria | https://www.britannica.com/biography/Kaloyan |
+| Al-Adil took Damascus in 1196 and Egypt in 1200 | https://en.wikipedia.org/wiki/Al-Adil_I | https://www.britannica.com/biography/al-Adil-Ayyubid-sultan |
+| Leo I took the title of king in 1198 | https://en.wikipedia.org/wiki/Leo_I,_King_of_Armenia | https://www.britannica.com/place/Cilicia |
+| Cyprus became a kingdom in 1197 | https://en.wikipedia.org/wiki/Kingdom_of_Cyprus | https://www.britannica.com/place/Cyprus/History |
+| Queen Tamar and the golden age of Georgia | https://en.wikipedia.org/wiki/Tamar_of_Georgia | https://www.britannica.com/biography/Tamara-queen-of-Georgia |
+| The truce of Jerusalem with al-Adil | https://en.wikipedia.org/wiki/Aimery_of_Cyprus | https://www.britannica.com/event/Crusades |
+
+The facts of the pages of the factions of the west map come from the lives of the rulers in the first table. The two sources of each ruler apply to the page of his faction.

@@ -21,6 +21,10 @@ and no row for an officer with - (docs/EUROPE.md, E4).
 It also writes names/native.tsv of the pack: name_latin of each officer by the same
 keys (docs/EUROPE.md, E3). It fails if name_latin is empty or has a letter that is not
 Latin.
+
+If the scenario folder has renames.tsv (columns key and name_en), the tool also writes
+a force.<key> row for each line. The effect rename of history.tsv uses these names
+(docs/EUROPE.md, E7).
 """
 import os
 import sys
@@ -57,7 +61,10 @@ def write_names(folder, officers, forces):
              "# officer.<key> and force.<key> come from the scenario %s. city.<key> and base.<key> come from map/source/sites.tsv." % os.path.basename(folder)]
     for row in officers: lines.append("officer.%s\t%s" % (row["key"], row["name_en"]))
     for row in forces:   lines.append("force.%s\t%s" % (row["key"], row["name_en"]))
-    for row in sites:    lines.append("%s.%s\t%s" % ("city" if row["kind"] == "city" else "base", row["key"], row["name_en"]))
+    renames_path = os.path.join(folder, "renames.tsv")
+    if os.path.exists(renames_path):
+        for row in read(renames_path)[3]: lines.append("force.%s\t%s" % (row["key"], row["name_en"]))
+    for row in sites:   lines.append("%s.%s\t%s" % ("city" if row["kind"] == "city" else "base", row["key"], row["name_en"]))
     os.makedirs(os.path.join(pack, "names"), exist_ok=True)
     with open(os.path.join(pack, "names", "en.tsv"), "w", encoding="utf-8", newline="\n") as f:
         f.write("\n".join(lines) + "\n")

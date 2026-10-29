@@ -208,6 +208,7 @@ engine_read_table(engine *e, const char *folder, const char *file_name, tsv_tabl
     return tsv_parse(text, &e->scratch, table);
 }
 
+#include "engine/engine_history_keys.cpp"   /* docs/EUROPE.md, E7: the keys of history.tsv and the church of a faction */
 #include "engine/engine_keys.cpp"   /* docs/EUROPE.md, E2: the English keys of the pack; it reads tables */
 
 /* Loads facilities.tsv, cities.tsv, rules.tsv, techniques.tsv,
@@ -278,6 +279,7 @@ engine_load_content(engine *e, const char *folder)
     else if (!content_load_priorities(content, &priorities, &bad_row))    status->detail = "ai_priorities.tsv has a bad row";
     else if (!content_load_chart(content, &chart, &bad_row))              status->detail = "ability_chart.tsv has a bad row";
     else if (!content_load_ancients(content, &ancients, &bad_row))        status->detail = "ancient_officers.tsv has a bad row";
+    else if (!engine_rewrite_history_keys(e, folder, &history))           status->detail = "history.tsv names an officer that the pack does not have";
     else if (!content_load_history(content, &history, &bad_row))          status->detail = "history.tsv has a bad row";
     else if (!content_load_portraits(content, &portraits, &bad_row))      status->detail = "portraits.tsv has a bad row";
     else
@@ -857,6 +859,7 @@ engine_api_faction_at(void *opaque, u32 index)
     result.human             = turns->human[faction->force_id];
     result.acted             = index < turns->acting;
     snprintf(result.key, sizeof(result.key), "%s", engine_force_key((engine *)opaque, faction->force_id));
+    sim_force_rename_key(((engine *)opaque)->sim, faction->force_id, result.name_key, sizeof(result.name_key));
     return result;
 }
 

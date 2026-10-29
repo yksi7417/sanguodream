@@ -37,6 +37,7 @@ ui_label(char *out, u32 out_size, ui_state *ui, const char *text_id, const char 
 #include "ui/ui_fidelity.cpp"  /* M13 */
 #include "ui/ui_base_menu.cpp" /* M14: the base command menu of the game mode */
 #include "ui/ui_feel.cpp"      /* M17: before ui_game.cpp, for the title and the load */
+#include "ui/ui_story.cpp"     /* E7: before ui_game.cpp, for the button of the rulers */
 #include "ui/ui_game.cpp"
 #include "ui/ui_multiplayer.cpp"   /* MP3: a shared game; needs ui_game.cpp */
 
@@ -184,6 +185,8 @@ ui_init(ui_state *ui, text_catalog *text)
     ui->game.personality      = PERSONALITY_CALM;
     ui->game.editor_loyalty   = 80;
     ui->show_title = ui->show_scenarios = ui->show_rulers = ui->show_start_settings = false;
+    ui->show_story = false;
+    ui->story.page = 0;
     ui->show_topbar = ui->show_history = ui->show_saveload = ui->show_options = false;
     ui->show_new_officer = ui->show_editor = ui->show_battles = ui->show_abilities = ui->show_info = false;
     ui->quit_requested = false;

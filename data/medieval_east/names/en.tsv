@@ -66,6 +66,12 @@ officer.al_nasir_abbasid	Al-Nasir li-Din Allah
 officer.al_suhrawardi	Shihab al-Din al-Suhrawardi
 officer.ibn_al_jawzi	Ibn al-Jawzi
 officer.al_zahir	Al-Zahir bi-Amr Allah
+officer.qutuz	Qutuz
+officer.aybak	Aybak
+officer.shajar_al_durr	Shajar al-Durr
+officer.baybars	Baybars
+officer.baldwin_ix	Baldwin IX of Flanders
+officer.henry_flanders	Henry of Flanders
 force.byzantium	Byzantine Empire
 force.bulgaria	Second Bulgarian Empire
 force.rum	Sultanate of Rum
@@ -83,6 +89,7 @@ force.cilicia	Armenian Kingdom of Cilicia
 force.cyprus	Kingdom of Cyprus
 force.georgia	Kingdom of Georgia
 force.abbasid	Abbasid Caliphate
+force.mamluk	Mamluk Sultanate
 city.tunis	Tunis
 city.tripoli	Tripoli
 city.barqa	Barqa

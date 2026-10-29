@@ -129,6 +129,8 @@ struct text_catalog
     text_table   pack_lore;                   /* lore/<locale>.tsv of the game pack, keyed by "<kind>.<English key>" (E4) */
     text_table   fallback_pack_lore;          /* lore/<fallback locale>.tsv of the game pack */
     text_table   pack_links;                  /* lore/links.tsv of the game pack: the URL of the article of each record */
+    text_table   pack_story;                  /* story/<locale>.tsv of the game pack, keyed by "<kind>.<key>" (E7) */
+    text_table   fallback_pack_story;         /* story/<fallback locale>.tsv of the game pack */
     b32          native_names;                /* the Names setting: text_key_name gives the native name first */
     u32          locale_count;
     text_locale_info locales[TEXT_MAX_LOCALES];   /* from text/locales.tsv, in file order */
@@ -189,6 +191,13 @@ internal const char *text_key_name(text_catalog *catalog, const char *kind, cons
    locale has no row, the row of the fallback locale comes next. 0 if the key
    is empty or no table has a row. */
 internal const char *text_key_lore(text_catalog *catalog, const char *kind, const char *key);
+
+/* docs/EUROPE.md, E7: a page of the story mode: the row "<kind>.<key>" of
+   story/<locale>.tsv of the game pack. The kinds are "page" and "title"
+   for the pages of the world, and "force" for the page of a faction. If the
+   locale has no row, the row of the fallback locale comes next. 0 if the
+   key is empty or no table has a row. */
+internal const char *text_key_story(text_catalog *catalog, const char *kind, const char *key);
 
 /* The link to the article of a record: the row "<kind>.<key>" of
    lore/links.tsv of the game pack. The table does not depend on the locale.

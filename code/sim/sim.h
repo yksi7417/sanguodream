@@ -1744,6 +1744,8 @@ internal void      sim_reset_pk(sim_state *sim);
 #define SIM_NO_SCENARIO 0xFF
 enum sim_ending_kind { ENDING_NONE, ENDING_HAN, ENDING_CONQUEST, ENDING_PROSPERITY, ENDING_KIND_COUNT };   /* A 漢朝再興, B 外征繁榮, C 內政繁榮 */
 internal b32       sim_history_ready(sim_state *sim, u32 row, u8 force);
+internal b32       sim_force_rename_key(sim_state *sim, u8 force, char *key, u32 size);
+internal u8        sim_history_target(sim_state *sim, u8 force);
 internal void      sim_run_history_month(sim_state *sim, u32 cause, sim_event_sink *events);
 internal sim_check sim_check_trigger_history(sim_state *sim, sim_m8_order *order);
 internal void      sim_trigger_history_command(sim_state *sim, sim_command command, sim_event_sink *events);

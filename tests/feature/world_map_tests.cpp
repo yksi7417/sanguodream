@@ -159,6 +159,92 @@ feature_pack_map_tests_all(test_counts *counts)
     feature_pack_map_tests(counts, &east);
 }
 
+/* ---- the events of the packs (docs/EUROPE.md, E7) ---------------------------------------------- */
+
+#define FEATURE_STORY_SLOT      29
+#define FEATURE_STORY_CAIRO     4
+#define FEATURE_STORY_AYYUBID   3
+#define FEATURE_STORY_ROW_CAIRO 2
+
+/* The key of the new name of a faction, or "" if the faction has none. */
+internal const char *
+feature_story_name_key(engine_api *api, u8 force_id, engine_faction *out)
+{
+    for (u32 index = 0; index < api->faction_count(api->engine); ++index)
+    {
+        engine_faction faction = api->faction_at(api->engine, index);
+        if (faction.force_id == force_id) { *out = faction; return out->name_key; }
+    }
+    out->name_key[0] = 0;
+    return out->name_key;
+}
+
+/* True if the engine reads each row of history.tsv and each officer that a row names has been found. */
+internal b32
+feature_story_rows_found(engine_api *api, u32 rows)
+{
+    void *e = api->engine;
+    b32 found = api->history_count(e) == rows && api->content_status(e).history_count == rows;
+    for (u32 row = 0; row < api->history_count(e); ++row)
+    {
+        engine_history_kind kind = api->history_at(e, row);
+        found &= kind.names_found == kind.name_count;
+    }
+    return found;
+}
+
+internal void
+feature_pack_story_tests(test_counts *counts)
+{
+    char path[512];
+    snprintf(path, sizeof(path), "%s/slot_%02u.hxs", feature_save_folder, FEATURE_STORY_SLOT + 1);
+    remove(path);
+
+    engine_fixture west;
+    feature_world_map_init(&west, HEXDOM_DATA_ROOT "/medieval_west");
+    TEST_CHECK(counts, west.api.history_count(west.api.engine) == 4, "the west pack has the 4 events of E7");
+    west.api.load_scenario(west.api.engine, west.api.scenario_at(west.api.engine, 0).file);
+    TEST_CHECK(counts, feature_story_rows_found(&west.api, 4), "each officer that an event of the west pack names exists in the scenario");
+    engine_fixture_destroy(&west);
+
+    engine_fixture f;
+    feature_world_map_init(&f, HEXDOM_DATA_ROOT "/medieval_east");
+    engine_api *api = &f.api;
+    void *e = api->engine;
+    TEST_CHECK(counts, api->history_count(e) == 6, "the east pack has the 6 events of E7");
+    TEST_CHECK(counts, api->load_scenario(e, api->scenario_at(e, 0).file).status == ENGINE_LOAD_OK, "the scenario of the east pack loads");
+    TEST_CHECK(counts, feature_story_rows_found(api, 6), "each officer that an event of the east pack names exists in the scenario");
+
+    engine_faction faction = {};
+    feature_story_name_key(api, FEATURE_STORY_AYYUBID, &faction);
+    TEST_CHECK(counts, faction.force_id == FEATURE_STORY_AYYUBID && strcmp(faction.key, "ayyubid") == 0 && faction.name_key[0] == 0,
+               "the Ayyubids of 1200 have their own name and no new name");
+    TEST_CHECK(counts, !api->history_ready(e, FEATURE_STORY_ROW_CAIRO, FEATURE_STORY_AYYUBID),
+               "the Mamluks do not take Cairo in 1200: the window of the row has not opened");
+
+    api->set_date(e, 1250, 1, 1);
+    TEST_CHECK(counts, api->history_ready(e, FEATURE_STORY_ROW_CAIRO, FEATURE_STORY_AYYUBID),
+               "in 1250 the Ayyubids rule Cairo and the four Mamluk officers are free, so the row is ready");
+    engine_command_result fired = api->trigger_history(e, FEATURE_STORY_ROW_CAIRO, FEATURE_STORY_AYYUBID);
+    feature_story_name_key(api, FEATURE_STORY_AYYUBID, &faction);
+    TEST_CHECK(counts, fired.refusal == SIM_REFUSAL_NONE && strcmp(faction.name_key, "mamluk") == 0 &&
+                           api->history_at(e, FEATURE_STORY_ROW_CAIRO).fired_turn != 0,
+               "the row fires: the faction has the new name key mamluk");
+
+    TEST_CHECK(counts, api->save_game(e, FEATURE_STORY_SLOT, "mamluk") == ENGINE_SAVE_OK, "the game with the new name saves");
+    api->load_scenario(e, api->scenario_at(e, 0).file);
+    feature_story_name_key(api, FEATURE_STORY_AYYUBID, &faction);
+    TEST_CHECK(counts, faction.name_key[0] == 0, "a new scenario clears the new name");
+    TEST_CHECK(counts, api->load_game(e, FEATURE_STORY_SLOT) == ENGINE_SAVE_OK, "the save loads");
+    feature_story_name_key(api, FEATURE_STORY_AYYUBID, &faction);
+    TEST_CHECK(counts, strcmp(faction.name_key, "mamluk") == 0 && strcmp(faction.key, "ayyubid") == 0 &&
+                           api->history_at(e, FEATURE_STORY_ROW_CAIRO).fired_turn != 0,
+               "after the load the faction still has the name key mamluk, and the row stays fired");
+    TEST_CHECK(counts, !api->history_ready(e, FEATURE_STORY_ROW_CAIRO, FEATURE_STORY_AYYUBID), "a row that fired does not fire again");
+    engine_fixture_destroy(&f);
+    remove(path);
+}
+
 /* ---- the scenario of the pack (docs/MAPS.md, step W2) ------------------------------------------ */
 
 #define FEATURE_WORLD_FORCES     24     /* rows of scenarios/y1200/forces.tsv */

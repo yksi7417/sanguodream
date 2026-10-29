@@ -70,3 +70,9 @@ id	key	family_zh	given_zh	name_en	native_lang	name_native	name_latin	wikipedia	f
 62	al_suhrawardi	蘇赫	烏瑪	Shihab al-Din al-Suhrawardi	ar	شهاب الدين عمر السهروردي	Shihāb al-Dīn ʿUmar al-Suhrawardī	https://en.wikipedia.org/wiki/Shihab_al-Din_%27Umar_al-Suhrawardi	C4ACBBAE	AF51BABF	no	1145	1234	1170	16	38	officer	10	5	82	78	85	CCCCCC	teaching	85	4000	99
 63	ibn_al_jawzi	焦茲	伊本	Ibn al-Jawzi	ar	ابن الجوزي	Ibn al-Jawzī	https://en.wikipedia.org/wiki/Ibn_al-Jawzi	B54AAFF7	A5ECA5BB	no	1116	1201	1150	16	38	officer	10	5	90	75	88	CCCCCC	debater	85	4000	103
 64	al_zahir	阿拔	查希	Al-Zahir bi-Amr Allah	ar	الظاهر بأمر الله	al-Ẓāhir bi-Amr Allāh	https://en.wikipedia.org/wiki/Al-Zahir_bi-Amr_Allah	AAFCA9DE	AC64A7C6	no	1175	1226	1195	16	38	officer	55	58	60	65	60	CBCBCC	-	90	5000	97
+65	qutuz	馬木	古圖	Qutuz	ar	قطز	Quṭuz	https://en.wikipedia.org/wiki/Qutuz	B0A8A4EC	A56AB9CF	no	1220	1260	1240	-	4	free	78	85	62	55	72	BBBABC	cavalry_general	0	0	40
+66	aybak	馬木	艾貝	Aybak	ar	عز الدين أيبك	ʿIzz ad-Dīn Aybak	https://en.wikipedia.org/wiki/Aybak	B0A8A4EC	A6E3A8A9	no	1210	1257	1228	-	4	free	68	72	60	62	66	BBBACC	-	0	0	55
+67	shajar_al_durr	馬木	沙賈	Shajar al-Durr	ar	شجر الدر	Shajar al-Durr	https://en.wikipedia.org/wiki/Shajar_al-Durr	B0A8A4EC	A846B8EB	yes	1210	1257	1229	-	4	free	50	28	88	85	90	CCCCCC	debater	0	0	72
+68	baybars	馬木	拜巴	Baybars	ar	الظاهر بيبرس	al-Ẓāhir Baybars	https://en.wikipedia.org/wiki/Baibars	B0A8A4EC	ABF4A4DA	no	1223	1277	1240	-	4	free	85	92	78	70	80	BBBSBC	cavalry_general	0	0	63
+69	baldwin_ix	佛蘭	鮑德	Baldwin IX of Flanders	fr	Baudouin IX de Flandre	Baudouin IX de Flandre	https://en.wikipedia.org/wiki/Baldwin_I,_Latin_Emperor	A6F2C4F5	C06ABC77	no	1172	1205	1202	-	14	free	78	78	65	65	80	BBBABC	fame	0	0	25
+70	henry_flanders	佛蘭	亨利	Henry of Flanders	fr	Henri de Flandre	Henri de Flandre	https://en.wikipedia.org/wiki/Henry_of_Flanders	A6F2C4F5	A6EBA751	no	1176	1216	1202	-	14	free	82	82	68	70	82	BBBSBC	cavalry_general	0	0	26

@@ -1079,3 +1079,8 @@ event.city	據點
 event_question.transport_arrived	輸送隊到達了。要如何安置部隊？
 event_choice.transport_arrived.0	將其留在該據點
 event_choice.transport_arrived.1	令其返回原據點
+story.title	故事
+story.button	故事
+story.previous	上一頁
+story.next	下一頁
+story.skip	略過

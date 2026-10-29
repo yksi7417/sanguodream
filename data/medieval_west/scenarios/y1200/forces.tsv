@@ -1,20 +1,21 @@
-id	key	name_zh	name_en	ruler
+id	key	name_zh	name_en	ruler	church
 # The 17 factions of 1200 on this map, in the order of docs/EUROPE.md, E8. id: the force id (faction_colours.tsv gives the colour). ruler: the officer id of officers.tsv.
-# The engine reads id and ruler. The names are for the reader: the game names a faction after its ruler.
-0	france	法蘭西王國	Kingdom of France	0
-1	angevin	安茹帝國	Angevin Empire	7
-2	toulouse	土魯斯伯國	County of Toulouse	16
-3	aragon	亞拉岡王國	Crown of Aragon	20
-4	castile	卡斯提爾王國	Kingdom of Castile	24
-5	leon	萊昂王國	Kingdom of Leon	28
-6	portugal	葡萄牙王國	Kingdom of Portugal	31
-7	almohad	穆瓦希德王朝	Almohad Caliphate	34
-8	ghaniya	加尼亞家族	Banu Ghaniya	38
-9	staufer	霍亨斯陶芬派	Hohenstaufen party	40
-10	welf	韋爾夫派	Welf party	44
-11	sicily	西西里王國	Kingdom of Sicily	48
-12	bohemia	波希米亞公國	Duchy of Bohemia	52
-13	papacy	教宗國	Papal States	54
-14	venice	威尼斯共和國	Republic of Venice	58
-15	flanders	法蘭德斯伯國	County of Flanders	62
-16	denmark	丹麥王國	Kingdom of Denmark	65
+# The engine reads id, ruler and church. The names are for the reader: the game names a faction after its ruler.
+# church: latin, greek, armenian or muslim. The conditions church of history.tsv read it (docs/EUROPE.md, E7).
+0	france	法蘭西王國	Kingdom of France	0	latin
+1	angevin	安茹帝國	Angevin Empire	7	latin
+2	toulouse	土魯斯伯國	County of Toulouse	16	latin
+3	aragon	亞拉岡王國	Crown of Aragon	20	latin
+4	castile	卡斯提爾王國	Kingdom of Castile	24	latin
+5	leon	萊昂王國	Kingdom of Leon	28	latin
+6	portugal	葡萄牙王國	Kingdom of Portugal	31	latin
+7	almohad	穆瓦希德王朝	Almohad Caliphate	34	muslim
+8	ghaniya	加尼亞家族	Banu Ghaniya	38	muslim
+9	staufer	霍亨斯陶芬派	Hohenstaufen party	40	latin
+10	welf	韋爾夫派	Welf party	44	latin
+11	sicily	西西里王國	Kingdom of Sicily	48	latin
+12	bohemia	波希米亞公國	Duchy of Bohemia	52	latin
+13	papacy	教宗國	Papal States	54	latin
+14	venice	威尼斯共和國	Republic of Venice	58	latin
+15	flanders	法蘭德斯伯國	County of Flanders	62	latin
+16	denmark	丹麥王國	Kingdom of Denmark	65	latin
