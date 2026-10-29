@@ -22,7 +22,7 @@ id	kind	key	name_zh	name_en	lat	lon	slots	specialty	owner
 16	city	vienna	維也納	Vienna	48.21	16.37	15	halberd	-
 17	city	esztergom	埃斯泰爾戈姆	Esztergom	47.79	18.74	15	horse	-
 18	city	genoa	熱那亞	Genoa	44.41	8.93	15	navy	-
-19	city	bologna	博洛尼亞	Bologna	44.49	11.34	12	pike	-
+19	city	tbilisi	第比利斯	Tbilisi	41.69	44.80	12	horse	-
 20	city	florence	佛羅倫斯	Florence	43.77	11.26	12	crossbow	-
 21	city	bari	巴里	Bari	41.12	16.87	12	navy	-
 22	city	kairouan	凱魯萬	Kairouan	35.68	10.10	10	horse	-

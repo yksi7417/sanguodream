@@ -44,6 +44,28 @@ officer.sgouros	Leo Sgouros
 officer.francis	Francis of Assisi
 officer.montferrat	Boniface of Montferrat
 officer.brienne	Walter III of Brienne
+officer.aimery_lusignan	Aimery of Lusignan
+officer.isabella_jerusalem	Isabella I of Jerusalem
+officer.john_ibelin	John of Ibelin
+officer.geoffroy_donjon	Geoffroy de Donjon
+officer.bohemond_iii	Bohemond III of Antioch
+officer.bohemond_iv	Bohemond IV of Antioch
+officer.peter_angouleme	Peter of Angoulême
+officer.leo_i	Leo I of Cilicia
+officer.gregory_vi	Gregory VI Apirat
+officer.raymond_roupen	Raymond-Roupen
+officer.hugh_cyprus	Hugh I of Cyprus
+officer.philip_ibelin	Philip of Ibelin
+officer.walter_montbeliard	Walter of Montbéliard
+officer.queen_tamar	Tamar of Georgia
+officer.david_soslan	David Soslan
+officer.zakare_ii	Zakare II Zakarian
+officer.ivane_i	Ivane I Zakarian
+officer.shota_rustaveli	Shota Rustaveli
+officer.al_nasir_abbasid	Al-Nasir li-Din Allah
+officer.al_suhrawardi	Shihab al-Din al-Suhrawardi
+officer.ibn_al_jawzi	Ibn al-Jawzi
+officer.al_zahir	Al-Zahir bi-Amr Allah
 force.byzantium	Byzantine Empire
 force.bulgaria	Second Bulgarian Empire
 force.rum	Sultanate of Rum
@@ -55,6 +77,12 @@ force.venice	Republic of Venice
 force.sicily	Kingdom of Sicily
 force.almohad	Almohad Caliphate
 force.ghaniya	Banu Ghaniya
+force.jerusalem	Kingdom of Jerusalem
+force.antioch	Principality of Antioch
+force.cilicia	Armenian Kingdom of Cilicia
+force.cyprus	Kingdom of Cyprus
+force.georgia	Kingdom of Georgia
+force.abbasid	Abbasid Caliphate
 city.tunis	Tunis
 city.tripoli	Tripoli
 city.barqa	Barqa
@@ -74,7 +102,7 @@ city.milan	Milan
 city.vienna	Vienna
 city.esztergom	Esztergom
 city.genoa	Genoa
-city.bologna	Bologna
+city.tbilisi	Tbilisi
 city.florence	Florence
 city.bari	Bari
 city.kairouan	Kairouan

@@ -8,9 +8,10 @@ The box goes from 8 E to 46 E and from 28.5 N to 49 N. The map has 366 x 217
 hexes of 10.7 km. The 42 cities, the 10 passes and the 35 ports are in
 map/source/sites.tsv.
 
-Antioch, Acre, Baghdad, Mosul, Sis and Nicosia have no owner. A later stage
-adds the factions of the east: Jerusalem, Antioch, Cilicia, Cyprus, Georgia
-and the caliphate. Aleppo and Damascus belong to the Ayyubids.
+Six factions of the east have their own cities: Jerusalem (Acre), Antioch,
+Cilicia (Sis), Cyprus (Nicosia), Georgia (Tbilisi) and the Abbasid caliphate
+(Baghdad). Aleppo and Damascus belong to the Ayyubids. Six cities have no
+owner: Barqa, Milan, Genoa, Florence, Belgrade and Mosul.
 
 misc/make_world_map.py writes these files from map/source/region.tsv and
 map/source/sites.tsv:
@@ -18,7 +19,7 @@ map/source/sites.tsv:
 - cities.tsv: the 42 cities, with their specialty, slots and Big5 names;
 - bases.tsv: the 10 passes and the 35 ports, with their Big5 names.
 
-The pack has its own scenario in scenarios/y1200: 11 factions and 43
+The pack has its own scenario in scenarios/y1200: 17 factions and 65
 historical officers in 1200. scenarios.tsv lists it. misc/make_scenario.py
 checks the files of the scenario and writes the Big5 names of the
 officers (docs/MAPS.md, "The scenario of a pack").
