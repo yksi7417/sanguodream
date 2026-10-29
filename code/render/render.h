@@ -619,9 +619,9 @@ global_variable const char *render_mesh_model_files[RENDER_MESH_COUNT][RENDER_MO
     { "models/facility_barracks", "models/facility_barracks_lv2", "models/facility_barracks_lv3" },   /* RENDER_MESH_HALL: the barracks, the drill ground */
     { "models/facility_smithy", "models/facility_smithy_lv2", "models/facility_smithy_lv3" },   /* RENDER_MESH_FORGE: the smithy, the workshop */
     { "models/facility_shipyard" },                                                              /* RENDER_MESH_DOCK: the shipyard */
-    { 0 },   /* RENDER_MESH_SILO */
+    { "models/facility_granary" },                                                               /* RENDER_MESH_SILO: the granary, the mint */
     { "models/facility_bronze_sparrow_tower" },                                                  /* RENDER_MESH_TOWER: the bronze sparrow tower */
-    { 0 },   /* RENDER_MESH_OFFICE */
+    { "models/facility_tally_office" },                                                          /* RENDER_MESH_OFFICE: the offices */
     { "models/facility_stable", "models/facility_stable_lv2", "models/facility_stable_lv3" },   /* RENDER_MESH_SHED: the stable */
 };
 

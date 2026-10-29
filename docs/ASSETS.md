@@ -272,12 +272,12 @@ placeholder mesh.
 
 | Item | Value |
 |---|---|
-| Files | base_city, base_big_city, base_gate and base_port for the bases. facility_market, facility_market_lv2, facility_market_lv3, facility_farm, facility_farm_lv2, facility_farm_lv3, facility_barracks, facility_barracks_lv2, facility_barracks_lv3, facility_smithy, facility_smithy_lv2, facility_smithy_lv3, facility_stable, facility_stable_lv2, facility_stable_lv3, facility_shipyard and facility_bronze_sparrow_tower for the shapes of the facilities. Each model has two files: <name>.hxm and <name>.png. |
+| Files | base_city, base_big_city, base_gate and base_port for the bases. facility_market, facility_market_lv2, facility_market_lv3, facility_farm, facility_farm_lv2, facility_farm_lv3, facility_barracks, facility_barracks_lv2, facility_barracks_lv3, facility_smithy, facility_smithy_lv2, facility_smithy_lv3, facility_stable, facility_stable_lv2, facility_stable_lv3, facility_shipyard, facility_bronze_sparrow_tower, facility_granary and facility_tally_office for the shapes of the facilities. Each model has two files: <name>.hxm and <name>.png. |
 | Mesh | the HXM1 format of the engine: positions, normals and uv. The larger side of the footprint is one unit. The ground is at y = 0. |
 | Texture | the base colour of the model, RGB, 1024 pixels at most. The renderer makes the mip levels at the start. |
 | Source | a binary glTF file (GLB). misc/glb_import.py converts it. provenance.tsv in the folder has one row for each model. |
 | Licence | the licence of the source of each model, in provenance.tsv. CC-BY-4.0.txt gives the credit and the licence of the Meshy models. |
-| Models now | 21 models from Meshy, CC BY 4.0. The table below gives each model. |
+| Models now | 23 models from Meshy, CC BY 4.0. The table below gives each model. |
 
 | Model | Kind | Source GLB | Triangles | Mesh file | Licence |
 |---|---|---|---|---|---|
@@ -290,6 +290,7 @@ placeholder mesh.
 | facility_farm | the farm shape at level 1: the farm, the military farm | farm-lv1-game-ready.glb | 39,730 | 1.8 MB | CC BY 4.0, credit "Meshy" |
 | facility_farm_lv2 | the farm shape at level 2 | farm-lv2-30k.glb | 33,288 | 1.5 MB | CC BY 4.0, credit "Meshy" |
 | facility_farm_lv3 | the farm shape at level 3 | farm-lv3-30k.glb | 28,238 | 1.2 MB | CC BY 4.0, credit "Meshy" |
+| facility_granary | the silo shape at level 1: the granary, the mint | granary-30k.glb | 30,858 | 2.2 MB | CC BY 4.0, credit "Meshy" |
 | base_gate | the pass | gate-30k.glb | 32,164 | 1.4 MB | CC BY 4.0, credit "Meshy" |
 | base_port | the port | port-30k.glb | 29,712 | 1.2 MB | CC BY 4.0, credit "Meshy" |
 | facility_market | the market shape at level 1: the market, the great market, the black market, the fish market | market-lv1-30k.glb | 30,168 | 1.1 MB | CC BY 4.0, credit "Meshy" |
@@ -302,12 +303,14 @@ placeholder mesh.
 | facility_stable | the shed shape at level 1: the stable | stable-lv1-30k.glb | 30,085 | 2.0 MB | CC BY 4.0, credit "Meshy" |
 | facility_stable_lv2 | the shed shape at level 2 | stable-lv2-30k.glb | 30,186 | 2.1 MB | CC BY 4.0, credit "Meshy" |
 | facility_stable_lv3 | the shed shape at level 3 | stable-lv3-30k.glb | 30,311 | 2.2 MB | CC BY 4.0, credit "Meshy" |
+| facility_tally_office | the office shape at level 1: the tally office, the personnel office, the plot office, the diplomacy office | tally-office-30k.glb | 29,763 | 2.3 MB | CC BY 4.0, credit "Meshy" |
 
 The owner of the repository made the first eight models on 2026-10-27.
 The models of the barracks and of the farm at levels 2 and 3 came on
 2026-10-28. The models of the smithy, the stable, the shipyard and the
 barracks at level 3 came later on 2026-10-28. The model of the bronze
-sparrow tower came in the evening of 2026-10-28. The GLB
+sparrow tower came in the evening of 2026-10-28. The models of the
+granary and of the tally office came on 2026-10-29. The GLB
 files came from the shared Google Drive folder "Three Kingdoms Animations
 — Map Art", subfolder 07-3D-Models. Each texture is 1024 x 1024 pixels.
 The first model of the big city had 354,640 triangles.
@@ -324,8 +327,8 @@ A facility has a level from 1 to 3. The scene gives the level to the
 renderer (render_push_facility). render_mesh_model_files has a column for
 each level. A level without a model uses the model of the next lower
 level. The market, the farm, the hall, the forge and the shed shapes have
-a model for each level. The dock and the tower shapes have a model for
-level 1 only, so the levels 2 and 3 use it.
+a model for each level. The dock, the tower, the silo and the office
+shapes have a model for level 1 only, so the levels 2 and 3 use it.
 
 A model with many triangles costs time on each frame. The map has many
 facilities, so the renderer uses two rules:

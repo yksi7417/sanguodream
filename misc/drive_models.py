@@ -79,6 +79,8 @@ MODEL_NAMES = [
     ("stable-lv3", "facility_stable_lv3"),
     ("shipyard", "facility_shipyard"),
     ("bronze-sparrow-terrace", "facility_bronze_sparrow_tower"),
+    ("granary", "facility_granary"),
+    ("tally-office", "facility_tally_office"),
 ]
 
 ENTRY = re.compile(r'<div class="flip-entry" id="entry-([^"]+)".*?<div class="flip-entry-title">([^<]*)</div>', re.S)

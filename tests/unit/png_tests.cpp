@@ -139,8 +139,8 @@ unit_model_file_tests(test_counts *counts)
         models_read &= parsed && texture.contents != 0 && image.error == 0 && image.width > 0 && image.width <= 1024 && image.height <= 1024;
         model_count++;
     }
-    TEST_CHECK(counts, models_read && model_count == 21,
-               "the pack has the models of the four base kinds, the market, the farm, the barracks, the smithy and the stable at levels 1 to 3, the shipyard and the bronze sparrow tower, and each mesh and texture reads");
+    TEST_CHECK(counts, models_read && model_count == 23,
+               "the pack has the models of the four base kinds, the market, the farm, the barracks, the smithy and the stable at levels 1 to 3, the shipyard, the bronze sparrow tower, the granary and the tally office, and each mesh and texture reads");
     test_arena_destroy(&arena);
 }
 
