@@ -41,6 +41,7 @@ internal void
 ui_enter_game(ui_state *ui)
 {
     ui->show_title = ui->show_scenarios = ui->show_rulers = ui->show_start_settings = false;
+    ui->show_splash  = false;   /* a shared game can start before the splash closes */
     ui->show_story   = false;
     ui->hud_mode     = true;
     ui->show_topbar  = false;   /* the HUD takes its place */

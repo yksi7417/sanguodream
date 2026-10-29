@@ -11,6 +11,20 @@ test("a user signs in, joins the house and sees the title menu", async ({ page }
   expect(await h.windowShown(page, "Title")).toBe(true);
 });
 
+test("the splash art shows before the title menu, and a click closes it", async ({ page }) => {
+  const lines = [];
+  page.on("console", (message) => lines.push(message.text()));
+  await h.enterSite(page);
+  await h.waitForGame(page);
+  expect(await h.item(page, "splash")).not.toBeNull();
+  expect(await h.windowShown(page, "Splash")).toBe(true);
+  expect(lines).toContain("platform: splash art loaded");
+  expect(await h.item(page, "title_load")).toBeNull();
+  await h.clickItem(page, "splash");
+  await expect.poll(() => h.item(page, "title_load")).not.toBeNull();
+  expect(await h.windowShown(page, "Splash")).toBe(false);
+});
+
 test("the title menu loads a save from the server", async ({ page }) => {
   await h.signIn(page);
   await h.loadFirstSave(page);

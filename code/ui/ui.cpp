@@ -37,6 +37,7 @@ ui_label(char *out, u32 out_size, ui_state *ui, const char *text_id, const char 
 #include "ui/ui_fidelity.cpp"  /* M13 */
 #include "ui/ui_base_menu.cpp" /* M14: the base command menu of the game mode */
 #include "ui/ui_feel.cpp"      /* M17: before ui_game.cpp, for the title and the load */
+#include "ui/ui_splash.cpp"    /* the splash art before the title menu */
 #include "ui/ui_story.cpp"     /* E7: before ui_game.cpp, for the button of the rulers */
 #include "ui/ui_game.cpp"
 #include "ui/ui_multiplayer.cpp"   /* MP3: a shared game; needs ui_game.cpp */
@@ -632,12 +633,13 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     ui->portraits        = frame->portraits;
     ui->portrait_texture = frame->portrait_texture;
     ui->face_texture     = frame->face_texture;
+    ui->splash_picture   = frame->splash_picture;
     ui->open_url         = frame->open_url;
     if (!ui->show_map) ui->map.focused = false;   /* a closed panel takes no keys */
     /* The game mode hides the debug menu bar and the debug tools; F12 shows them. */
     if (ui->hud_mode && ImGui::IsKeyPressed(ImGuiKey_F12, false)) ui->show_debug_panels = !ui->show_debug_panels;
     bool tools = !ui->hud_mode || ui->show_debug_panels;
-    bool in_game = !ui->show_title && !ui->show_scenarios && !ui->show_rulers && !ui->show_start_settings;
+    bool in_game = !ui->show_splash && !ui->show_title && !ui->show_scenarios && !ui->show_rulers && !ui->show_start_settings;
     ui_feel_update(ui, api, frame->dt_seconds, in_game && !ui->replay.viewing);   /* M17: the rider, the load transition and the turn start */
     bool hud_ready = ui->hud_mode && in_game && !ui_feel_in_transition(ui);
     /* A replay view shows a past step: the feedback of the turn waits, so
@@ -731,6 +733,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     ui_draw_status_bar(ui, api);        /* M11: the terrain, the coordinates and what can stand on the hex under the mouse */
     ui_draw_net_banner(ui, api);        /* MP3: whose turn it is in a shared game */
     ui_draw_net_chat(ui);               /* MP7: the chat of a shared game */
+    ui_draw_splash(ui, frame->dt_seconds);   /* the splash art: on top of everything before the title menu */
     ui_scene_push(ui, api, frame);
     ui_net_end_frame(ui, api, frame);   /* MP3: the steps of the local seat go to the page */
 }

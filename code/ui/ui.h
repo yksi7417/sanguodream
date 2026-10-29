@@ -54,6 +54,8 @@ enum ui_hud_tab { UI_HUD_TAB_BASES, UI_HUD_TAB_OFFICERS, UI_HUD_TAB_UNITS, UI_HU
    gives "approximately" for both. */
 #define UI_TITLE_SELECT_SECONDS    1.0f   /* the rider after a click on a title button */
 #define UI_LOAD_TRANSITION_SECONDS 4.0f   /* the dark landscape while a save loads */
+#define UI_SPLASH_SECONDS          3.0f   /* the splash art before the title menu; a click or a key closes it before */
+#define UI_SPLASH_LONGEST_STEP     0.1f   /* one frame adds at most this time to the splash, also the long frame after the start */
 #define UI_MESSAGE_CAPACITY        32     /* the messages of one turn start; the log keeps the rest */
 #define UI_CAPTIVE_QUEUE           16            /* the captives of one battle that wait for the dialog 俘虜處置 */
 #define UI_MESSAGE_HEADING         0xFFFFFFFFu   /* a message slot that holds the period heading */
@@ -424,6 +426,9 @@ struct ui_state
         u32 flags;               /* sim_corps_flag */
         u16 adviser;             /* 軍師: the officer to appoint */
     } ruler;
+    /* The splash art before the title menu (ui_splash.cpp). */
+    bool show_splash;
+    f32  splash_seconds;         /* the time since the splash opened */
     /* M9: the game screens (ui/title-and-load.md, ui/screen-flow.md) */
     bool show_title;
     bool show_scenarios;
@@ -634,6 +639,7 @@ struct ui_state
     const portrait_list       *portraits;
     platform_portrait_texture *portrait_texture;
     platform_face_texture     *face_texture;
+    platform_splash_picture   *splash_picture;   /* the splash art; zero in the headless tests */
     platform_open_url         *open_url;   /* E4: the Wikipedia button of the officer panel; zero in the headless tests */
     /* The game mode (main-map.md): the HUD at the top left with the list of
        the bases, officers and units, the mini map at the bottom right, and
@@ -744,7 +750,8 @@ struct ui_frame_info
     const portrait_list       *portraits;          /* the default portraits; zero without the archive */
     platform_portrait_texture *portrait_texture;   /* zero in the headless tests: no texture */
     platform_face_texture     *face_texture;       /* the generated faces (render/faces.h); zero in the headless tests */
-    platform_net_send         *net_send;           /* MP3: the socket of a shared game; zero without a network */
+    platform_splash_picture   *splash_picture;     /* the splash art; zero in the headless tests */
+    platform_net_send        *net_send;           /* MP3: the socket of a shared game; zero without a network */
     platform_net_poll         *net_poll;
     platform_open_url         *open_url;           /* opens a link of the English Wikipedia; zero in the headless tests */
 };

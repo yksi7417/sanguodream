@@ -39,7 +39,7 @@ test("the AI commands the faction of an absent guest, and the guest gets it back
   // The guest comes back. The host waits: the server ends the turns of the host meanwhile.
   const back = await guestContext.newPage();
   await back.goto(`/?game=${gid}`);
-  await h.waitForTitle(back);
+  await h.waitForGame(back);   // The page joins the room immediately. The join closes the splash, and no title shows.
   await expect.poll(async () => (await h.gameState(back)).shared, { timeout: 120_000 }).toBe(1);
   await expect.poll(async () => (await room(host, gid)).seats.find((item) => item.force === guestForce).ai,
                     { message: "the hello of the guest gives the faction back" }).toBe(false);

@@ -906,6 +906,7 @@ refusal.no_event	沒有等待的事件
 menu.title	標題
 menu.abilities	能力表
 title.title	hexdom
+splash.hint	點擊或按任意鍵
 title.load	載入進度
 title.new	重新開始新遊戲
 title.tutorial	遊戲教學
@@ -1604,10 +1605,10 @@ credits.section.code	程式碼
 credits.section.data	資料
 credits.section.tests	測試工具（不含於遊戲中）
 credits.use.meshy_city	大都市的 3D 模型
-credits.work.own_art	部隊與據點美術
+credits.work.own_art	部隊、據點與開場美術
 credits.author.own_art	hexdom 專案，使用 Google Gemini 製作
 credits.licence.own_art	hexdom 專案原創作品
-credits.use.own_art	部隊圖像與據點圖卡
+credits.use.own_art	開場畫面、部隊圖像與據點圖卡
 credits.work.portraits	武將頭像
 credits.author.portraits	hexdom 專案，使用圖像模型製作
 credits.licence.portraits	尚未記錄

@@ -60,6 +60,20 @@ typedef PLATFORM_PORTRAIT_TEXTURE(platform_portrait_texture);
 #define PLATFORM_FACE_TEXTURE(name) u64 name(u32 officer_id, u32 key)
 typedef PLATFORM_FACE_TEXTURE(platform_face_texture);
 
+/* The splash art of the start (docs/ASSETS.md, "The splash art"). The
+   file is HEXDOM_SPLASH_FILE in the folder of the default pack. The
+   platform loads it one time, at the start. */
+#define HEXDOM_SPLASH_FILE "sprites/art/splash.png"
+
+struct platform_picture
+{
+    u64 texture;   /* an ImTextureID; zero if the file is absent or does not decode */
+    f32 aspect;    /* the height of the picture divided by its width */
+};
+
+#define PLATFORM_SPLASH_PICTURE(name) platform_picture name(void)
+typedef PLATFORM_SPLASH_PICTURE(platform_splash_picture);
+
 /* docs/EUROPE.md, E4: opens a link of the English Wikipedia. The platform
    opens it in the default browser, or in a new tab on the web. The platform
    refuses a URL for which text_link_is_allowed (text/text.h) gives false.
@@ -128,7 +142,8 @@ struct platform_api
     const portrait_list       *portraits;        /* the default portraits; zero without the archive */
     platform_portrait_texture *portrait_texture;
     platform_face_texture     *face_texture;     /* the generated faces; zero without a device */
-    platform_net_send         *net_send;         /* MP3: zero without a network (the Windows build) */
+    platform_splash_picture   *splash_picture;   /* the splash art; zero without a device */
+    platform_net_send        *net_send;         /* MP3: zero without a network (the Windows build) */
     platform_net_poll         *net_poll;
     platform_open_url         *open_url;         /* E4: the Wikipedia button of the officer panel */
 };
