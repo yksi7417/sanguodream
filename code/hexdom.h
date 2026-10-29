@@ -82,12 +82,15 @@ enum platform_net_kind
     PLATFORM_NET_STEP,      /* step: the number. data: the bytes of the engine */
     PLATFORM_NET_CHECKSUM,  /* step, checksum and acting: the state after the step; step -1 is the start */
     /* from the page to the game */
-    PLATFORM_NET_JOIN,      /* data: the start image. seat, host. text: one line "force<TAB>player" for each seat */
+    PLATFORM_NET_JOIN,      /* data: the start image. seat, host. text: one line "force<TAB>player" for each seat.
+                               step: 0, or the first step after a snapshot (MP5): data is then that snapshot */
     PLATFORM_NET_SEATS,     /* text: one line "force<TAB>player<TAB>online" for each seat with a player */
     PLATFORM_NET_DESYNC,    /* step */
     PLATFORM_NET_ERROR,     /* text: the reason */
     PLATFORM_NET_TIMER,     /* MP4. acting: the faction that acts. step: the seconds left; -1 if the timer stops */
     PLATFORM_NET_PACK,      /* MP4. text: the content pack of the room. It comes before the join */
+    PLATFORM_NET_SNAPSHOT,  /* MP5, to the page. data: the image of the state after step. checksum: the state */
+    PLATFORM_NET_OPEN_ROOM, /* MP5, to the page. text: the room code of the title menu */
     PLATFORM_NET_KIND_COUNT
 };
 

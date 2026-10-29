@@ -75,6 +75,7 @@ ABSENT_SECONDS = 60       # a player who lost the connection has this time to co
 TIMER_SECONDS = 2         # the loop of the deadlines
 SERVER = "~server"        # the author of a step of the server; no uid has a "~"
 PACK = re.compile(r"[a-z0-9_]{1,63}")   # the folder of a content pack under data/
+KEEP_SNAPSHOTS = 5        # MP5: the server keeps the last five snapshots of a game
 
 # The kinds of the steps of the engine (engine_step_kind in code/engine/engine.h).
 STEP_COMMAND, STEP_SETTINGS, STEP_HUMAN, STEP_LEDGER_CLEAR, STEP_END_TURN, STEP_AI_TURN = range(6)
@@ -114,6 +115,14 @@ def member_prefix(uid):
 
 def start_key(gid):
     return f"games/{gid}/start.hxs"
+
+
+def snapshot_prefix(gid):
+    return f"games/{gid}/snap/"
+
+
+def snapshot_key(gid, step):
+    return f"{snapshot_prefix(gid)}{step:08d}.hxs"
 
 
 def code_key(code):
@@ -214,6 +223,14 @@ class Room:
         record["step_count"] = len(self.steps)
         return record
 
+    def summary(self, uid):
+        """The room for the list "My games" of the member (MP5): the room and "Your turn"."""
+        record = self.public()
+        seat = self.seat_of(uid)
+        record["your_turn"] = bool(self.record["state"] == "running" and seat and not seat.get("ai")
+                                   and seat["force"] == self.record["acting"])
+        return record
+
     # ---- the steps ----
 
     def check_step(self, uid, message):
@@ -280,9 +297,10 @@ class Room:
 class Rooms:
     """The rooms of the server. A room loads from the storage at its first use."""
 
-    def __init__(self, store, clock=time.time):
+    def __init__(self, store, clock=time.time, build=""):
         self.store = store
         self.clock = clock
+        self.build = build   # the build of the game files of this server; "" when the server has none
         self.rooms = {}
         self.loading = {}   # gid -> the lock of its first load: two requests make one Room
 
@@ -385,9 +403,56 @@ class Rooms:
             room.flushed = len(room.steps)
             room.record["step_count"] = len(room.steps)
             self.rooms[gid] = room
+            await self.move_to_build(room)
         async with room.lock:
             await self.expire(room)   # a deadline that ended while the machine stopped
         return room
+
+    async def move_to_build(self, room):
+        """A deploy gave the server a new build (MP5). A running game goes on in the new build:
+        each page loads the latest snapshot and applies the log after it. The log before the
+        snapshot does not run again. A page of the old build gets "old build"."""
+        record = room.record
+        if not self.build or record["state"] != "running" or record["build"] == self.build:
+            return
+        record.setdefault("old_builds", []).append(record["build"])
+        record["build"] = self.build
+        await self.save(room)
+
+    async def put_snapshot(self, room, user, step, checksum, data):
+        """A snapshot: the image of the state after the step. Its checksum must be the checksum
+        of the reports of that step."""
+        if not room.is_member(user["uid"]):
+            raise RoomError("no seat in this game")
+        if room.record["state"] != "running":
+            raise RoomError("the game does not run")
+        if not is_int(step) or not 0 <= step < len(room.steps):
+            raise RoomError("no such step")
+        if not isinstance(checksum, str) or not CHECKSUM.fullmatch(checksum):
+            raise RoomError("bad checksum")
+        if not data or len(data) > MAX_START_IMAGE_BYTES:
+            raise RoomError("bad snapshot")
+        report = room.reports.get(step)
+        if report is None:
+            raise RoomError("no report of the step")
+        if report[0] != checksum:
+            raise RoomError("the checksum of the snapshot differs")
+        await self.store.put(snapshot_key(room.gid, step), data)
+        room.record["snapshot"] = max(step, room.record.get("snapshot", -1))
+        names = sorted(item["name"] for item in await self.store.list(snapshot_prefix(room.gid)))
+        for name in names[:-KEEP_SNAPSHOTS]:
+            await self.store.delete(snapshot_prefix(room.gid) + name)
+        await self.save(room)
+
+    async def latest_snapshot(self, room, user):
+        """The step and the bytes of the latest snapshot, or None."""
+        if not room.is_member(user["uid"]):
+            raise RoomError("no seat in this game")
+        step = room.record.get("snapshot")
+        if step is None:
+            return None
+        data = await self.store.get(snapshot_key(room.gid, step))
+        return (step, data) if data else None
 
     async def save(self, room):
         await self.store.put(room_key(room.gid), json.dumps(room.record, ensure_ascii=False).encode("utf-8"))

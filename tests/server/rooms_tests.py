@@ -538,6 +538,71 @@ class RoomsTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(room.record["paused"])
         self.assertEqual(room.record["deadline"], self.clock.now + 300 - 61)
 
+    # ---- MP5: the snapshots, the list of games and a new build ----
+
+    async def steps_with_reports(self, room, host, count, checksum="1" * 16):
+        for number in range(len(room.steps), len(room.steps) + count):
+            await self.send(room, host, socket_step(number, FORCE_HOST))
+            await self.report(room, host, number, FORCE_HOST, checksum)
+
+    async def test_a_snapshot_with_a_wrong_checksum_gets_an_error(self):
+        room, host, guest = await self.started_room()
+        await self.steps_with_reports(room, host, 1)
+        with self.assertRaises(rooms.RoomError):
+            await self.rooms.put_snapshot(room, HOST, 0, "2" * 16, b"image")
+        with self.assertRaises(rooms.RoomError):
+            await self.rooms.put_snapshot(room, OTHER, 0, "1" * 16, b"image")   # no seat
+        with self.assertRaises(rooms.RoomError):
+            await self.rooms.put_snapshot(room, HOST, 1, "1" * 16, b"image")    # no such step
+        with self.assertRaises(rooms.RoomError):
+            await self.rooms.put_snapshot(room, HOST, 0, "1" * 16, b"")
+        self.assertIsNone(await self.rooms.latest_snapshot(room, GUEST))
+        await self.rooms.put_snapshot(room, GUEST, 0, "1" * 16, b"image")
+        self.assertEqual(await self.rooms.latest_snapshot(room, GUEST), (0, b"image"))
+        with self.assertRaises(rooms.RoomError):
+            await self.rooms.latest_snapshot(room, OTHER)
+
+    async def test_a_snapshot_of_a_step_without_a_report_waits_for_the_report(self):
+        room, host, guest = await self.started_room()
+        await self.send(room, host, socket_step(0, FORCE_HOST))
+        with self.assertRaises(rooms.RoomError) as caught:
+            await self.rooms.put_snapshot(room, HOST, 0, "1" * 16, b"image")
+        self.assertEqual(str(caught.exception), "no report of the step")      # the page tries again
+
+    async def test_the_server_keeps_five_snapshots(self):
+        room, host, guest = await self.started_room()
+        await self.steps_with_reports(room, host, 7)
+        for step in range(7):
+            await self.rooms.put_snapshot(room, HOST, step, "1" * 16, bytes([step]))
+        names = [item["name"] for item in await self.store.list(rooms.snapshot_prefix(room.gid))]
+        self.assertEqual(names, [f"{step:08d}.hxs" for step in range(2, 7)])
+        self.assertEqual(await self.rooms.latest_snapshot(room, HOST), (6, bytes([6])))
+        again = rooms.Rooms(self.store, clock=self.clock)
+        self.assertEqual(await again.latest_snapshot(await again.get(room.gid), GUEST), (6, bytes([6])))
+
+    async def test_the_list_of_a_member_shows_your_turn(self):
+        room, host, guest = await self.started_room(acting=FORCE_GUEST)
+        self.assertTrue(room.summary(GUEST["uid"])["your_turn"])
+        self.assertFalse(room.summary(HOST["uid"])["your_turn"])
+        self.assertNotIn("host", room.summary(HOST["uid"]))
+
+    async def test_a_new_build_moves_a_running_room_to_the_new_build(self):
+        room, host, guest = await self.started_room()
+        await self.steps_with_reports(room, host, 2)
+        await self.rooms.put_snapshot(room, HOST, 1, "1" * 16, b"image")
+        await self.rooms.flush_all()
+        new_build = "fedcba9876543210"
+        again = rooms.Rooms(self.store, clock=self.clock, build=new_build)
+        loaded = await again.get(room.gid)
+        self.assertEqual(loaded.record["build"], new_build)
+        self.assertEqual(loaded.record["old_builds"], [BUILD])
+        peer = rooms.Peer(FakeSocket(), HOST)
+        rooms.join(loaded, peer)
+        await rooms.handle_text(again, loaded, peer, json.dumps({"type": "hello", "build": new_build, "last_step": 1}))
+        self.assertNotIn("old build", peer.socket.errors())
+        open_room = await again.get((await again.create(HOST, "G", "S", "placeholder", BUILD, "live", 300, [{"force": 1}])).gid)
+        self.assertEqual(open_room.record["build"], BUILD)                  # the server gives the build at the creation
+
     def test_the_log_packs_and_unpacks(self):
         steps = [b"abc", b"", bytes(range(200))]
         self.assertEqual(rooms.unpack_log(rooms.pack_log(steps)), steps)

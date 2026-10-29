@@ -2,9 +2,9 @@
 
 This document gives the plan for games that more than one player plays
 together on the fly.io site. It also records the facts of the current
-site that the plan starts from. MP1 to MP4 exist in code (see the
-sections "The status of MP1" to "The status of MP4"). The milestones
-after MP4 do not exist yet.
+site that the plan starts from. MP1 to MP5 exist in code (see the
+sections "The status of MP1" to "The status of MP5"). The milestones
+after MP5 do not exist yet.
 
 ## The current site: one copy of the game for each browser
 Each browser runs its own copy of the game. Two browsers never share a
@@ -546,8 +546,8 @@ These facts came from the tests of MP1:
 - Two draws of the PRNG in one expression are a bug of the determinism.
   Before you add a draw, put it in its own statement.
 
-The engine does not lock a load yet. MP5 turns off the load menu of a
-shared game.
+The engine does not lock a load. Since MP5, the front end turns off the
+load menu of a shared game.
 
 ### MP2 The room server and the transport
 The server keeps rooms, seats and the log, and it relays steps. A
@@ -776,6 +776,50 @@ The tests:
   keeps five snapshots.
 - Browser: two players stop a game. On the next day of the test clock,
   both players open "My games" and continue the game from the same step.
+
+### The status of MP5
+MP5 is complete. These parts exist:
+- A snapshot is an image of the live game in the format of the start
+  image. The checksum of the state does not include the replay record.
+  Thus a snapshot gives the checksum of the live game.
+- The author of the step that ends a game turn sends a snapshot. After a
+  step of the server, the host sends it. The page puts it on the server:
+  `PUT /api/games/<gid>/snap/<step>?checksum=<checksum>`.
+- The server takes a snapshot only if a report of that step exists and
+  has the same checksum. A snapshot can arrive before the report on the
+  socket. The server then answers "no report of the step", and the page
+  tries again three times.
+- The server keeps the last five snapshots at
+  `games/<gid>/snap/<step>.hxs`. room.json names the latest snapshot.
+- A page that joins a game that runs reads
+  `GET /api/games/<gid>/snap/latest` first. The header X-Snapshot-Step
+  gives the step. The hello then asks only for the steps after it.
+  Without a snapshot, the page reads the start image.
+- engine_api has multiplayer_first_step. After a snapshot, the engine
+  counts the steps from the step after the snapshot. The join of a
+  snapshot uses no setters of the seats, because the snapshot holds the
+  human factions. The page reports the checksum of the step of the
+  snapshot.
+- In a shared game, 儲存 sends a snapshot of the state, and 載入 does not
+  open. A shared game never writes a local slot.
+- The page shows the list "My games" when it has no game in the address.
+  "Your turn" marks each game where the faction of the member acts
+  (`GET /api/games` gives "your_turn").
+- The title menu has a field for a room code and the button "Join". The
+  page then opens the invite route `/r/<code>`.
+- At the load of a room that runs, the server moves the room to the build
+  of its game files. room.json keeps the old builds in "old_builds". The
+  pages then load the latest snapshot and apply the log after it with the
+  new build. A page of an old build gets "old build" and must load again.
+
+These decisions came from MP5:
+- A snapshot holds no replay record. The replay panel of a page that
+  joins late starts at the snapshot.
+- If the format of the save changed, the new build cannot load the
+  snapshot. The banner then shows "The start image of the room does not
+  load". The tests of the save format guard against this change.
+- The list of the open rooms of the house (Q-10) does not exist yet. A
+  member joins a room through the invite link or the room code.
 
 ### MP6 The recovery from a desync and the referee
 - The stop, the state images, the majority, the load of the good state.

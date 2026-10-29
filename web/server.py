@@ -383,7 +383,7 @@ async def api_games(request):
     """The games of the member: the games of the host and of the seats."""
     user = await require_member(request)
     games = await request.app[KEY_ROOMS].games_of(user["uid"])
-    return web.json_response({"games": [room.public() for room in games]}, headers={"Cache-Control": "no-store"})
+    return web.json_response({"games": [room.summary(user["uid"]) for room in games]}, headers={"Cache-Control": "no-store"})
 
 
 async def api_games_create(request):
@@ -470,6 +470,41 @@ async def api_game_start_image_get(request):
     if data is None:
         raise web.HTTPNotFound()
     return web.Response(body=data, content_type="application/octet-stream", headers={"Cache-Control": "no-store"})
+
+
+async def api_game_snapshot_put(request):
+    """MP5: the author of the step that ends a game turn puts the image of the state.
+    The query gives the checksum of the state."""
+    user = await require_member(request)
+    room = await find_room(request)
+    if request.content_length is not None and request.content_length > rooms.MAX_START_IMAGE_BYTES:
+        raise web.HTTPRequestEntityTooLarge(max_size=rooms.MAX_START_IMAGE_BYTES, actual_size=request.content_length)
+    try:
+        step = int(request.match_info["step"])
+    except ValueError:
+        raise web.HTTPBadRequest(text="bad step")
+    data = await request.read()
+    async with room.lock:
+        try:
+            await request.app[KEY_ROOMS].put_snapshot(room, user, step, request.query.get("checksum"), data)
+        except rooms.RoomError as error:
+            return refused(error)
+    return web.json_response({"snapshot": step})
+
+
+async def api_game_snapshot_latest(request):
+    """MP5: the latest snapshot. The header X-Snapshot-Step gives its step."""
+    user = await require_member(request)
+    room = await find_room(request)
+    try:
+        latest = await request.app[KEY_ROOMS].latest_snapshot(room, user)
+    except rooms.RoomError as error:
+        return refused(error)
+    if latest is None:
+        raise web.HTTPNotFound(text="no snapshot")
+    step, data = latest
+    return web.Response(body=data, content_type="application/octet-stream",
+                        headers={"Cache-Control": "no-store", "X-Snapshot-Step": str(step)})
 
 
 NEXT_COOKIE = "hexdom_next"
@@ -563,7 +598,7 @@ def make_app(root):
     app[KEY_FAILURES] = {}
     app[KEY_ADMINS] = auth.admin_emails()
     app[KEY_GAME_FILES] = game_files.GameFiles(app[KEY_ROOT])
-    app[KEY_ROOMS] = rooms.Rooms(app[KEY_STORAGE])
+    app[KEY_ROOMS] = rooms.Rooms(app[KEY_STORAGE], build=app[KEY_GAME_FILES].build or "")
     app.cleanup_ctx.append(open_http)
     app.cleanup_ctx.append(game_files.publish_context(app[KEY_GAME_FILES], app[KEY_STORAGE]))
     app.cleanup_ctx.append(rooms.flush_context(app[KEY_ROOMS]))
@@ -593,6 +628,8 @@ def make_app(root):
         web.get("/api/games/{gid}/socket", api_game_socket),
         web.put("/api/games/{gid}/start-image", api_game_start_image_put),
         web.get("/api/games/{gid}/start-image", api_game_start_image_get),
+        web.put("/api/games/{gid}/snap/{step:[0-9]{1,9}}", api_game_snapshot_put),
+        web.get("/api/games/{gid}/snap/latest", api_game_snapshot_latest),
         web.get("/r/{code}", invite),
         web.get("/", game_file),
         web.get("/{name}", game_file),

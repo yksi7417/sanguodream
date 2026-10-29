@@ -57,6 +57,13 @@ ui_enter_game(ui_state *ui)
 internal void
 ui_open_saveload(ui_state *ui, engine_api *api, bool saving)
 {
+    if (api->multiplayer_info(api->engine).shared)
+    {
+        /* MP5: a shared game never writes a local slot, and no player loads a save into it.
+           儲存 sends a snapshot of the state to the room (ui_multiplayer.cpp). */
+        ui->net.snapshot_request = saving;
+        return;
+    }
     ui->show_saveload  = true;
     ui->game.saving    = saving;
     ui->game.chosen    = ENGINE_SAVE_SLOTS;
@@ -108,6 +115,8 @@ ui_draw_version(ui_state *ui, const char *stable_id)
     ImGui::EndDisabled();
 }
 
+internal void ui_draw_title_room_code(ui_state *ui);   /* ui_multiplayer.cpp */
+
 internal void
 ui_draw_title(ui_state *ui, engine_api *api)
 {
@@ -127,6 +136,7 @@ ui_draw_title(ui_state *ui, engine_api *api)
     ui_title_button(ui, api, "title.battle", "title_battle", UI_TITLE_BATTLE);
     ui_title_button(ui, api, "title.options", "title_options", UI_TITLE_OPTIONS);
     ui_title_button(ui, api, "title.quit", "title_quit", UI_TITLE_QUIT);
+    if (!riding) ui_draw_title_room_code(ui);   /* MP5: join a shared game with its room code (ui_multiplayer.cpp) */
     if (riding)   /* placeholder art for the rider: the bar fills in UI_TITLE_SELECT_SECONDS */
         ImGui::ProgressBar(ui->feel.title_seconds / UI_TITLE_SELECT_SECONDS, ImVec2(320, 0), "");
     ImGui::Separator();

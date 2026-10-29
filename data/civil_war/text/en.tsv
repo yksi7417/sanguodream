@@ -1072,6 +1072,8 @@ net.missing_step	A step of the game is missing. Open the page again.	the error o
 net.bad_step	A step of another player does not apply.	the error of a bad step
 net.paused	The timer stops: a player is absent.	MP4: the banner when the timer of the faction turn stops
 net.bad_pack	The room names no content pack of this game.	MP4: the error of a bad pack name from the room
+net.room_code	Room code	MP5: the field of the title menu for the code of a shared game
+net.join_room	Join	MP5: the button that opens the room of the code
 settings.font_size	Font size	slider, pixels
 event.transport_arrived	Transport arrived	輸送隊到達
 event_role.transport_arrived.a	Leader	主將

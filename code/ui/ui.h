@@ -708,6 +708,11 @@ struct ui_state
         bool timer_on;           /* MP4: the room gave a timer of the faction turn */
         bool timer_paused;       /* the timer stops while a player is absent */
         f32  timer_seconds;      /* the seconds left; the banner counts down */
+        u32  snapshot_turn;      /* MP5: the game turn of the last snapshot */
+        bool snapshot_author;    /* the local engine was the author of a step in this frame */
+        bool snapshot_request;   /* 儲存 in a shared game: the next frame sends a snapshot */
+        char room_code[8];       /* the room code of the title menu */
+        bool open_room;          /* the next frame sends the room code to the page */
     } net;
 };
 

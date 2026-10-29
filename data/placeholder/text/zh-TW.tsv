@@ -1086,6 +1086,8 @@ net.missing_step	缺少一個步驟，請重新開啟頁面。
 net.bad_step	其他玩家的步驟無法套用。
 net.paused	計時暫停：有玩家不在線上。
 net.bad_pack	房間指定的資料包不存在。
+net.room_code	房間代碼
+net.join_room	加入
 settings.font_size	字型大小
 menu.units	部隊一覽
 units.title	部隊一覽

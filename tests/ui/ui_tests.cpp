@@ -4485,6 +4485,108 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
+    /* MP5: a join with a snapshot resumes the game: no setters of the seats,
+       the steps go on after the snapshot, and the report names the step of the snapshot. */
+    t = IM_REGISTER_TEST(e, "ui", "net_join_of_a_snapshot_resumes_the_game_after_the_snapshot");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_test_net_reset();
+        v.frame.net_send = ui_test_net_send;
+        v.frame.net_poll = ui_test_net_poll;
+        static const u8 image[16] = { 1 };
+        platform_net_event join = {};
+        join.kind = PLATFORM_NET_JOIN;
+        join.step = 7;                                                   /* the snapshot of step 6: the next step is 7 */
+        join.seat = 1;
+        join.data = image;
+        join.size = sizeof(image);
+        join.text = "1\tTester\n2\t\n";
+        ui_test_net_queue(join);
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOAD_START_IMAGE), 1u);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_SET_FACTION_HUMAN), 0u);   /* the snapshot holds the human factions */
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_MULTIPLAYER_FIRST_STEP), 7u);
+        IM_CHECK(g_ui_test_net.sent_count == 1 && g_ui_test_net.sent[0].kind == PLATFORM_NET_CHECKSUM && g_ui_test_net.sent[0].step == 6);
+    };
+
+    /* MP5: the author of the step that ends a game turn sends a snapshot of the state to the page. */
+    t = IM_REGISTER_TEST(e, "ui", "net_end_of_a_game_turn_sends_a_snapshot");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_test_net_reset();
+        v.frame.net_send    = ui_test_net_send;
+        v.frame.net_poll    = ui_test_net_poll;
+        v.frame.frame_arena = &g_ui_test_net.arena;
+        v.recorder.multiplayer.shared = true;
+        v.recorder.turn         = 3;
+        v.ui.net.joined         = true;
+        v.ui.net.snapshot_turn  = 3;
+        v.recorder.outgoing_script = 1;                                  /* a step of the local seat, in the same game turn */
+        ctx->Yield(2);
+        IM_CHECK(g_ui_test_net.sent_count == 2 && g_ui_test_net.sent[0].kind == PLATFORM_NET_STEP);
+        v.recorder.turn            = 4;                                  /* the next step ends the game turn */
+        v.recorder.outgoing_script = 1;
+        ctx->Yield(2);
+        IM_CHECK_EQ(g_ui_test_net.sent_count, 5u);
+        IM_CHECK(g_ui_test_net.sent[4].kind == PLATFORM_NET_SNAPSHOT && g_ui_test_net.sent[4].step == 1 && g_ui_test_net.sent[4].size == 16);
+        IM_CHECK_EQ(v.ui.net.snapshot_turn, 4u);
+        ctx->Yield(2);
+        IM_CHECK_EQ(g_ui_test_net.sent_count, 5u);                       /* one snapshot for each game turn */
+    };
+
+    /* MP5: in a shared game, the save menu writes a snapshot for the room, and the load menu is off. */
+    t = IM_REGISTER_TEST(e, "ui", "net_save_writes_a_snapshot_and_the_load_menu_is_off_in_a_shared_game");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_test_net_reset();
+        v.frame.net_send    = ui_test_net_send;
+        v.frame.net_poll    = ui_test_net_poll;
+        v.frame.frame_arena = &g_ui_test_net.arena;
+        v.recorder.multiplayer.shared     = true;
+        v.recorder.multiplayer.step_count = 5;
+        v.ui.net.joined = true;
+        ctx->Yield(1);
+        ui_open_saveload(&v.ui, &v.api, false);                          /* 載入 */
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.show_saveload);
+        ui_open_saveload(&v.ui, &v.api, true);                           /* 儲存 */
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.show_saveload);                                   /* a shared game writes no local slot */
+        IM_CHECK_EQ(g_ui_test_net.sent_count, 1u);
+        IM_CHECK(g_ui_test_net.sent[0].kind == PLATFORM_NET_SNAPSHOT && g_ui_test_net.sent[0].step == 4);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_SAVE_GAME), 0u);
+    };
+
+    /* MP5: a room code on the title menu opens the room. It is no game command. */
+    t = IM_REGISTER_TEST(e, "ui", "title_menu_room_code_opens_the_room");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_test_net_reset();
+        v.frame.net_send = ui_test_net_send;
+        v.frame.net_poll = ui_test_net_poll;
+        v.ui.show_title  = true;
+        ctx->Yield(2);
+        ctx->ItemInputValue("//###Title/###title_code", "abcdef");
+        ctx->ItemClick("//###Title/###title_join");
+        ctx->Yield(2);
+        IM_CHECK_EQ(g_ui_test_net.sent_count, 1u);
+        IM_CHECK(g_ui_test_net.sent[0].kind == PLATFORM_NET_OPEN_ROOM);
+        IM_CHECK_STR_EQ(g_ui_test_net.text, "ABCDEF");                   /* the codes have capital letters */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
     /* MP4: the timer of the faction turn counts down in the banner. */
     t = IM_REGISTER_TEST(e, "ui", "net_timer_counts_down_in_the_banner");
     t->SetVarsDataType<ui_test_vars>();

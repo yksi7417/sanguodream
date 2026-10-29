@@ -88,6 +88,7 @@ struct engine_multiplayer_state
     b32 overflow;
     u8  local_force;        /* ENGINE_NO_FACTION for a spectator */
     u32 step_count;
+    b32 first_step_set;     /* MP5: multiplayer_first_step ran after a snapshot */
     u32 queue_first;        /* the ring of the outgoing steps */
     u32 queue_count;
     u32 queue_sizes[ENGINE_STEP_QUEUE_CAPACITY];

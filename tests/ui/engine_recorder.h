@@ -236,6 +236,7 @@ enum recorder_call_kind
     RECORDER_STEP_APPLY,           /* arg = the bytes */
     RECORDER_SET_SEED,
     RECORDER_LOAD_START_IMAGE,     /* arg = the bytes */
+    RECORDER_MULTIPLAYER_FIRST_STEP,   /* MP5: arg = the first step after a snapshot */
     RECORDER_CALL_KIND_COUNT
 };
 
@@ -322,6 +323,7 @@ struct engine_recorder
     u32           replay_view_step;
     engine_multiplayer_info multiplayer;   /* script the answer of multiplayer_info; local_acts is true by default */
     char          content_pack[CONTENT_KEY_SIZE];   /* MP4: the answer of content_pack; "" gives "placeholder" */
+    u32           outgoing_script;    /* MP5: steps_outgoing gives this number of steps of 16 bytes */
 };
 
 internal void
@@ -2107,10 +2109,21 @@ internal void recorder_multiplayer_end(void *o)
 }
 internal engine_outgoing_step recorder_steps_outgoing(void *o, u8 *buffer, u32 capacity)
 {
-    (void)buffer;
-    recorder_record((engine_recorder *)o, RECORDER_STEPS_OUTGOING, capacity);
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_STEPS_OUTGOING, capacity);
     engine_outgoing_step out = {};
+    if (!r->outgoing_script || !buffer || capacity < 16) return out;
+    r->outgoing_script--;
+    memset(buffer, 0x11, 16);
+    out.size     = 16;
+    out.step     = r->multiplayer.step_count++;
+    out.checksum = 1;
+    out.acting   = r->multiplayer.acting_force;
     return out;
+}
+internal void recorder_multiplayer_first_step(void *o, u32 step)
+{
+    recorder_record((engine_recorder *)o, RECORDER_MULTIPLAYER_FIRST_STEP, step);
 }
 internal engine_step_apply_result recorder_step_apply(void *o, const u8 *bytes, u32 size)
 {
@@ -2471,6 +2484,7 @@ recorder_make_api(engine_recorder *r)
     api.start_image            = recorder_start_image;
     api.load_start_image       = recorder_load_start_image;
     api.content_pack           = recorder_content_pack;   /* a query: no record */
+    api.multiplayer_first_step = recorder_multiplayer_first_step;
     return api;
 }
 

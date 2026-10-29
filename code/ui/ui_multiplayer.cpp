@@ -78,20 +78,23 @@ ui_net_join(ui_state *ui, engine_api *api, ui_frame_info *frame, const platform_
         return;
     }
     ui_net_read_seats(ui, event->text);
-    /* The same setters on each engine: the seats without a player go to the AI. */
-    for (u32 index = 0; index < api->faction_count(e); ++index)
+    b32 snapshot = event->step > 0;   /* MP5: a snapshot holds the human factions of the game */
+    for (u32 index = 0; index < api->faction_count(e) && !snapshot; ++index)
     {
+        /* The same setters on each engine: the seats without a player go to the AI. */
         u8 force = api->faction_at(e, index).force_id;
         api->set_faction_human(e, force, ui_net_player_of(ui, force) != 0);
     }
     api->multiplayer_begin(e, event->seat == PLATFORM_NET_NO_SEAT ? (u8)ENGINE_NO_FACTION : event->seat, event->host);
-    ui->net.joined      = true;
-    ui->net.waiting     = false;
-    ui->net.desync_step = -1;
-    ui->net.error[0]    = 0;
+    if (snapshot) api->multiplayer_first_step(e, (u32)event->step);
+    ui->net.joined        = true;
+    ui->net.waiting       = false;
+    ui->net.desync_step   = -1;
+    ui->net.error[0]      = 0;
+    ui->net.snapshot_turn = api->turn(e);
     ui_enter_game(ui);
-    /* Each player reports the start state: the server compares the reports. */
-    ui_net_send_checksum(frame, -1, api->state_checksum(e), api->whose_turn(e));
+    /* Each player reports the start state, or the state of the snapshot: the server compares the reports. */
+    ui_net_send_checksum(frame, snapshot ? event->step - 1 : -1, api->state_checksum(e), api->whose_turn(e));
 }
 
 internal void
@@ -110,6 +113,9 @@ ui_net_apply_step(ui_state *ui, engine_api *api, ui_frame_info *frame, const pla
         snprintf(ui->net.error, sizeof(ui->net.error), "%s", text_get(ui->text, "net.bad_step"));
         return;
     }
+    /* MP5: the host takes the snapshot after a step of the server. */
+    if (api->multiplayer_info(e).host && (applied.kind == ENGINE_STEP_END_TURN || applied.kind == ENGINE_STEP_AI_TURN))
+        ui->net.snapshot_author = true;
     ui_net_send_checksum(frame, event->step, applied.checksum, api->whose_turn(e));
 }
 
@@ -209,6 +215,36 @@ ui_net_host(ui_state *ui, engine_api *api, ui_frame_info *frame)
     ui->net.waiting = size != 0;
 }
 
+/* MP5: after the step that ends a game turn, its author sends the image of
+   the state to the page. The page puts it on the server as the snapshot of
+   that step. A page that joins later loads it and applies only the steps
+   after it. */
+internal void
+ui_net_send_snapshot(ui_state *ui, engine_api *api, ui_frame_info *frame)
+{
+    void *e = api->engine;
+    engine_multiplayer_info info = api->multiplayer_info(e);
+    b32 author  = ui->net.snapshot_author;
+    b32 request = ui->net.snapshot_request;   /* 儲存 of the player: a snapshot in any turn */
+    ui->net.snapshot_author  = false;
+    ui->net.snapshot_request = false;
+    if (info.outgoing || !info.step_count) return;
+    if (!request && (!author || api->turn(e) == ui->net.snapshot_turn)) return;
+    memory_arena *arena = frame->frame_arena;
+    u32 capacity = api->start_image_size(e);
+    if (!arena || capacity > arena->size - arena->used) return;
+    u8 *image = (u8 *)arena_push_size(arena, capacity);
+    platform_net_event snapshot = {};
+    snapshot.kind     = PLATFORM_NET_SNAPSHOT;
+    snapshot.step     = (s32)info.step_count - 1;
+    snapshot.checksum = api->state_checksum(e);
+    snapshot.data     = image;
+    snapshot.size     = api->start_image(e, image, capacity);
+    if (!snapshot.size) return;
+    ui_net_send(frame, &snapshot);
+    ui->net.snapshot_turn = api->turn(e);
+}
+
 internal void
 ui_net_end_frame(ui_state *ui, engine_api *api, ui_frame_info *frame)
 {
@@ -217,6 +253,14 @@ ui_net_end_frame(ui_state *ui, engine_api *api, ui_frame_info *frame)
     {
         ui->net.host_request = false;
         ui_net_host(ui, api, frame);
+    }
+    if (ui->net.open_room)
+    {
+        ui->net.open_room = false;
+        platform_net_event open = {};
+        open.kind = PLATFORM_NET_OPEN_ROOM;
+        open.text = ui->net.room_code;
+        ui_net_send(frame, &open);
     }
     if (!ui->net.joined) return;
     u8 bytes[ENGINE_STEP_WIRE_CAPACITY];
@@ -231,7 +275,25 @@ ui_net_end_frame(ui_state *ui, engine_api *api, ui_frame_info *frame)
         step.size = out.size;
         ui_net_send(frame, &step);
         ui_net_send_checksum(frame, (s32)out.step, out.checksum, out.acting);
+        ui->net.snapshot_author = true;
     }
+    ui_net_send_snapshot(ui, api, frame);
+}
+
+/* MP5: the room code of the title menu. The page opens the invite route of the code. */
+internal void
+ui_draw_title_room_code(ui_state *ui)
+{
+    if (!ui->net.available) return;
+    char label[96];
+    ImGui::Separator();
+    ImGui::SetNextItemWidth(160);
+    ImGui::InputText(ui_label(label, sizeof(label), ui, "net.room_code", "title_code"), ui->net.room_code, sizeof(ui->net.room_code),
+                     ImGuiInputTextFlags_CharsUppercase | ImGuiInputTextFlags_CharsNoBlank);
+    ImGui::SameLine();
+    ImGui::BeginDisabled(strlen(ui->net.room_code) != sizeof(ui->net.room_code) - 2);
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "net.join_room", "title_join"))) ui->net.open_room = true;
+    ImGui::EndDisabled();
 }
 
 /* The banner of a shared game: whose turn it is, the wait of the host, a

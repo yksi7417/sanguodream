@@ -53,6 +53,15 @@
   #room button { margin: 2px 0 2px 8px; padding: 3px 10px; border: 1px solid #3a3f4b; border-radius: 4px;
                  background: #2c313d; color: #e8e8e8; font: inherit; cursor: pointer; }
   #room-status { color: #f0c27e; }
+  /* The list "My games" (MP5). */
+  #games { position: fixed; top: 8px; left: 8px; max-width: 320px; max-height: 40vh; overflow-y: auto; padding: 6px 14px;
+           border: 1px solid #3a3f4b; border-radius: 6px; background: rgba(35, 39, 49, 0.95); color: #e8e8e8; }
+  #games h2 { font-size: 15px; margin: 4px 0 6px; }
+  #games ul { padding-left: 18px; margin: 4px 0; }
+  #games a { color: #9ec5ff; }
+  #games strong { color: #f0c27e; }
+  #games button { padding: 2px 10px; border: 1px solid #3a3f4b; border-radius: 4px; background: #2c313d; color: #e8e8e8;
+                  font: inherit; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -350,6 +359,33 @@
     setupUser(me);
     var game = new URLSearchParams(location.search).get("game");
     if (game && /^[0-9a-f]{16}$/.test(game)) openRoom(game);
+    else showMyGames();
+  }
+
+  // MP5: the list "My games". "Your turn" marks each game where the faction of the member acts.
+  async function showMyGames() {
+    var list = await fetch("api/games").then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+    if (!list || !list.games.length) return;
+    var panel = element("div", undefined, "games");
+    panel.appendChild(element("h2", "My games"));
+    var items = element("ul");
+    list.games.forEach(function (game) {
+      var item = element("li");
+      var link = element("a", game.name + " (" + game.state + ")", "game-" + game.gid);
+      link.href = "?game=" + game.gid;
+      item.appendChild(link);
+      if (game.your_turn) item.appendChild(element("strong", " Your turn", "turn-" + game.gid));
+      items.appendChild(item);
+    });
+    panel.appendChild(items);
+    var close = element("button", "Close", "games-close");
+    close.type = "button";
+    panel.appendChild(close);
+    document.body.appendChild(panel);
+    // The list lies over the game. It goes away at the first click on the game.
+    function hide() { panel.remove(); Module.canvas.removeEventListener("pointerdown", hide); }
+    close.addEventListener("click", hide);
+    Module.canvas.addEventListener("pointerdown", hide);
   }
 
   /* ---- The user badge and the sign-out ------------------------------------------------ */
@@ -403,7 +439,8 @@
      - The start: the page opens the socket. After the welcome, it gives the start
        image and the seats to the game (join), then each step of the socket.
      The page shows names with textContent, never as HTML. */
-  var NET = { HOST: 1, STEP: 2, CHECKSUM: 3, JOIN: 4, SEATS: 5, DESYNC: 6, ERROR: 7, TIMER: 8, PACK: 9 };
+  var NET = { HOST: 1, STEP: 2, CHECKSUM: 3, JOIN: 4, SEATS: 5, DESYNC: 6, ERROR: 7, TIMER: 8, PACK: 9, SNAPSHOT: 10,
+              OPEN_ROOM: 11 };
   var NET_POLL_MS = 2000;
   var RECONNECT_SECONDS = [1, 2, 4, 8, 15];   // after a lost connection; then each 15 seconds (MP4)
   var TURN_CHOICES = { live: [120, 180, 300, 600], correspondence: [12 * 3600, 24 * 3600, 48 * 3600, 72 * 3600] };
@@ -429,11 +466,27 @@
   Module.hexdomNetSend = function (kind, step, low, high, acting, bytes, text, pack) {
     if (kind === NET.HOST) hostRoom(bytes, text, pack).catch(function (error) { roomStatus("The room was not made: " + error); });
     else if (kind === NET.STEP) sendStep(step, bytes);
-    else if (kind === NET.CHECKSUM) {
-      var checksum = ("00000000" + high.toString(16)).slice(-8) + ("00000000" + low.toString(16)).slice(-8);
-      sendJson({ type: "checksum", step: step, checksum: checksum, acting: acting });
-    }
+    else if (kind === NET.SNAPSHOT) putSnapshot(step, hexChecksum(low, high), bytes, 0);
+    else if (kind === NET.OPEN_ROOM && /^[A-Z]{6}$/.test(text)) location.href = "/r/" + text;
+    else if (kind === NET.CHECKSUM) sendJson({ type: "checksum", step: step, checksum: hexChecksum(low, high), acting: acting });
   };
+
+  function hexChecksum(low, high) {
+    return ("00000000" + high.toString(16)).slice(-8) + ("00000000" + low.toString(16)).slice(-8);
+  }
+
+  // MP5: the snapshot of the end of a game turn. The report of the step goes through the
+  // socket, and the server can get the snapshot first: then the page tries again.
+  var SNAPSHOT_TRIES = 4;
+  function putSnapshot(step, checksum, bytes, tries) {
+    fetch("api/games/" + net.gid + "/snap/" + step + "?checksum=" + checksum, { method: "PUT", body: bytes })
+      .then(function (response) {
+        if (response.ok) { console.log("platform: room: the snapshot of step " + step + " is on the server"); return; }
+        if (tries + 1 < SNAPSHOT_TRIES) setTimeout(function () { putSnapshot(step, checksum, bytes, tries + 1); }, 1000 * (tries + 1));
+        else console.log("platform: room: the server refused the snapshot of step " + step + " (" + response.status + ")");
+      })
+      .catch(function (error) { console.log("platform: room: the snapshot did not upload: " + error); });
+  }
 
   async function postJson(url, body) {
     var response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -488,11 +541,31 @@
     if (!response || !response.ok) { roomStatus("The room does not load."); return; }
     net.room = await response.json();
     drawRoom();
-    if (net.room.state !== "open" && !net.socket) {
+    if (net.room.state !== "open" && !net.socket && !net.preparing) {
       clearInterval(net.poll);
       net.poll = null;
+      net.preparing = true;
+      await loadJoinImage();
       connectRoom();
     }
+  }
+
+  // MP5: the latest snapshot and the log after it, or the start image and the whole log.
+  // The hello then asks only for the steps after the snapshot.
+  async function loadJoinImage() {
+    var response = await fetch("api/games/" + net.gid + "/snap/latest").catch(function () { return null; });
+    var step = response && response.ok ? parseInt(response.headers.get("X-Snapshot-Step"), 10) : NaN;
+    if (!isNaN(step)) {
+      net.image = new Uint8Array(await response.arrayBuffer());
+      net.joinStep = step + 1;
+      net.lastStep = step;
+      console.log("platform: room: the game goes on from the snapshot of step " + step);
+      return;
+    }
+    response = await fetch("api/games/" + net.gid + "/start-image");
+    if (!response.ok) { roomStatus("The start image does not load."); return; }
+    net.image = new Uint8Array(await response.arrayBuffer());
+    net.joinStep = 0;
   }
 
   function drawRoom() {
@@ -635,14 +708,14 @@
     joinRoom(welcome);
   }
 
-  async function joinRoom(welcome) {
-    var response = await fetch("api/games/" + net.gid + "/start-image");
-    if (!response.ok) { roomStatus("The start image does not load."); return; }
-    var image = new Uint8Array(await response.arrayBuffer());
+  function joinRoom(welcome) {
+    if (!net.image) { roomStatus("The start image does not load."); return; }
     var seat = welcome.seat === null ? 0xFF : welcome.seat;
-    // The pack, then the join, go before the steps that came during the load of the start
-    // image. The pack can start the engine of another pack first (MP4).
-    net.early.unshift([NET.JOIN, 0, seat, welcome.host, image, seatsText(false)]);
+    // The pack, then the join, go before the steps of the socket. The pack can start the
+    // engine of another pack first (MP4). The step of the join is the first step after a
+    // snapshot, or 0 for the start image (MP5).
+    net.early.unshift([NET.JOIN, net.joinStep, seat, welcome.host, net.image, seatsText(false)]);
+    net.image = null;
     if (net.room.pack) net.early.unshift([NET.PACK, 0, 0, false, null, net.room.pack]);
     net.joined = true;
     if (net.ready) flushEarly();

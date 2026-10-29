@@ -183,6 +183,15 @@ engine_api_multiplayer_end(void *opaque)
     mp->local_force = ENGINE_NO_FACTION;
 }
 
+internal void
+engine_api_multiplayer_first_step(void *opaque, u32 step)
+{
+    engine_multiplayer_state *mp = &((engine *)opaque)->multiplayer;
+    if (!mp->shared || mp->step_count || mp->first_step_set) return;
+    mp->step_count     = step;
+    mp->first_step_set = true;
+}
+
 internal engine_multiplayer_info
 engine_api_multiplayer_info(void *opaque)
 {
@@ -356,6 +365,7 @@ internal void
 engine_bind_multiplayer_api(engine_api *api)
 {
     api->content_pack      = engine_api_content_pack;
+    api->multiplayer_first_step = engine_api_multiplayer_first_step;
     api->start_image_size  = engine_api_start_image_size;
     api->start_image       = engine_api_start_image;
     api->load_start_image  = engine_api_load_start_image;

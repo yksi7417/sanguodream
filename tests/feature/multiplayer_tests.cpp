@@ -444,6 +444,71 @@ feature_mp_server_steps_tests(test_counts *counts)
     engine_fixture_destroy(&pair.b);
 }
 
+/* MP5: a snapshot of the live game, then the log after it. Engine C joins
+   late: it loads the snapshot of A and applies only the steps after it. */
+internal void
+feature_mp_snapshot_tests(test_counts *counts)
+{
+    feature_mp_pair pair;
+    feature_mp_pair_init(&pair);
+    engine_api *a = &pair.a.api;
+    void *ea = a->engine;
+    a->multiplayer_begin(ea, pair.force, true);
+    pair.b.api.multiplayer_begin(pair.b.api.engine, ENGINE_NO_FACTION, false);
+    u32 start_turn = a->turn(ea);
+    feature_mp_until_turn_of(&pair, pair.force);
+    a->end_turn(ea);
+    feature_mp_relay(&pair);
+    feature_mp_until_turn_of(&pair, pair.force);
+    TEST_CHECK(counts, a->turn(ea) > start_turn && pair.steps > 0, "a game turn passes in the shared game");
+
+    /* The snapshot: the image of the live game after the last step. */
+    u32 snapshot_step = a->multiplayer_info(ea).step_count - 1;
+    u64 snapshot_checksum = a->state_checksum(ea);
+    u32 size = a->start_image_size(ea);
+    u8 *image = (u8 *)malloc(size);
+    u32 written = a->start_image(ea, image, size);
+    TEST_CHECK(counts, written > 0, "the host takes a snapshot of the live game");
+
+    engine_fixture c;
+    feature_replay_fixture_init(&c);
+    engine_api *capi = &c.api;
+    void *ec = capi->engine;
+    TEST_CHECK(counts, capi->load_start_image(ec, image, written) && capi->state_checksum(ec) == snapshot_checksum,
+               "the snapshot loads and gives the checksum of the step of the snapshot");
+    free(image);
+    capi->multiplayer_begin(ec, ENGINE_NO_FACTION, false);
+    capi->multiplayer_first_step(ec, snapshot_step + 1);
+    TEST_CHECK(counts, capi->multiplayer_info(ec).step_count == snapshot_step + 1,
+               "after the snapshot, the engine counts the steps from the step after the snapshot");
+    capi->multiplayer_first_step(ec, 0);
+    TEST_CHECK(counts, capi->multiplayer_info(ec).step_count == snapshot_step + 1, "the first step is set one time, before a step");
+
+    /* The game goes on. Each step of A goes to B and to C. */
+    b32 c_agreed = true, c_numbered = true;
+    u8 bytes[ENGINE_STEP_WIRE_CAPACITY];
+    for (u32 round = 0; round < 2; ++round)
+    {
+        if (!a->end_turn(ea)) break;
+        for (;;)
+        {
+            engine_outgoing_step out = a->steps_outgoing(ea, bytes, sizeof(bytes));
+            if (!out.size) break;
+            if (out.step != capi->multiplayer_info(ec).step_count) c_numbered = false;
+            pair.b.api.step_apply(pair.b.api.engine, bytes, out.size);
+            engine_step_apply_result applied = capi->step_apply(ec, bytes, out.size);
+            if (applied.status != ENGINE_STEP_APPLIED || applied.checksum != out.checksum) c_agreed = false;
+        }
+        feature_mp_until_turn_of(&pair, pair.force);
+    }
+    TEST_CHECK(counts, c_numbered, "the steps after the snapshot have the numbers that C expects");
+    TEST_CHECK(counts, c_agreed && capi->state_checksum(ec) == a->state_checksum(ea),
+               "the snapshot plus the log after it gives the checksum of the live game");
+    engine_fixture_destroy(&c);
+    engine_fixture_destroy(&pair.a);
+    engine_fixture_destroy(&pair.b);
+}
+
 /* A record of FEATURE_MP_TURNS turns with the AI gives one fixed checksum. */
 internal void
 feature_mp_record_checksum_tests(test_counts *counts)
@@ -476,5 +541,6 @@ feature_multiplayer_tests(test_counts *counts)
     feature_mp_lock_tests(counts);
     feature_mp_bytes_tests(counts);
     feature_mp_server_steps_tests(counts);
+    feature_mp_snapshot_tests(counts);
     feature_mp_record_checksum_tests(counts);
 }
