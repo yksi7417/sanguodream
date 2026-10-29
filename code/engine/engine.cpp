@@ -334,6 +334,7 @@ internal b32         engine_setter_locked(engine *e);
 internal b32         engine_multiplayer_authors(engine *e);
 internal void        engine_multiplayer_queue(engine *e, u8 kind, const sim_command *command, const engine_settings *settings,
                                               u8 force, u32 value, u8 acting);
+internal void        engine_ai_finish_turn(engine *e, u8 force);   /* MP4: a step of the replay record too */
 
 internal engine *
 engine_create(memory_arena *permanent, memory_arena *transient, engine_config config)

@@ -1652,6 +1652,9 @@ enum engine_step_kind
     ENGINE_STEP_SETTINGS,       /* set_settings */
     ENGINE_STEP_HUMAN,          /* set_faction_human: force is the faction, value is 1 for a player */
     ENGINE_STEP_LEDGER_CLEAR,   /* ledger_clear */
+    /* MP4: the room server is the author of the next two kinds (docs/MULTIPLAYER.md). */
+    ENGINE_STEP_END_TURN,       /* the timer of the faction turn of force ended. Only on the wire: the record keeps an end_turn command */
+    ENGINE_STEP_AI_TURN,        /* the AI takes force and finishes its faction turn. The record keeps a human step, then this step */
     ENGINE_STEP_KIND_COUNT
 };
 
@@ -1789,6 +1792,10 @@ typedef void                     engine_set_seed_fn(void *engine, u64 seed);
 typedef u32                      engine_start_image_size_fn(void *engine);
 typedef u32                      engine_start_image_fn(void *engine, u8 *buffer, u32 capacity);
 typedef b32                      engine_load_start_image_fn(void *engine, const u8 *bytes, u32 size);
+/* The content pack of the engine, for example "placeholder" or
+   "medieval_west". A shared game records it, and each player starts the
+   engine of that pack before the start image (docs/MULTIPLAYER.md). */
+typedef engine_slot_pack         engine_content_pack_fn(void *engine);
 
 struct engine_api
 {
@@ -2040,6 +2047,7 @@ struct engine_api
     engine_start_image_size_fn       *start_image_size;
     engine_start_image_fn            *start_image;
     engine_load_start_image_fn       *load_start_image;
+    engine_content_pack_fn           *content_pack;       /* MP4: the pack of a shared game */
 };
 
 #define ENGINE_NO_BASE 0xFFFFFFFFu

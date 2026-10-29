@@ -705,6 +705,9 @@ struct ui_state
         bool seat_online[UI_NET_SEATS];
         s32  desync_step;        /* -1: none */
         char error[96];
+        bool timer_on;           /* MP4: the room gave a timer of the faction turn */
+        bool timer_paused;       /* the timer stops while a player is absent */
+        f32  timer_seconds;      /* the seconds left; the banner counts down */
     } net;
 };
 

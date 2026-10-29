@@ -403,10 +403,12 @@
      - The start: the page opens the socket. After the welcome, it gives the start
        image and the seats to the game (join), then each step of the socket.
      The page shows names with textContent, never as HTML. */
-  var NET = { HOST: 1, STEP: 2, CHECKSUM: 3, JOIN: 4, SEATS: 5, DESYNC: 6, ERROR: 7 };
+  var NET = { HOST: 1, STEP: 2, CHECKSUM: 3, JOIN: 4, SEATS: 5, DESYNC: 6, ERROR: 7, TIMER: 8, PACK: 9 };
   var NET_POLL_MS = 2000;
+  var RECONNECT_SECONDS = [1, 2, 4, 8, 15];   // after a lost connection; then each 15 seconds (MP4)
+  var TURN_CHOICES = { live: [120, 180, 300, 600], correspondence: [12 * 3600, 24 * 3600, 48 * 3600, 72 * 3600] };
   var net = { build: null, ready: false, early: [], gid: null, room: null, socket: null, joined: false,
-              online: [], poll: null };
+              online: [], poll: null, lastStep: -1, outbox: [], retries: 0 };
 
   // The events wait until the game runs and the join went first, in their order.
   function flushEarly() {
@@ -424,8 +426,8 @@
     else net.early.push(event);
   }
 
-  Module.hexdomNetSend = function (kind, step, low, high, acting, bytes, text) {
-    if (kind === NET.HOST) hostRoom(bytes, text).catch(function (error) { roomStatus("The room was not made: " + error); });
+  Module.hexdomNetSend = function (kind, step, low, high, acting, bytes, text, pack) {
+    if (kind === NET.HOST) hostRoom(bytes, text, pack).catch(function (error) { roomStatus("The room was not made: " + error); });
     else if (kind === NET.STEP) sendStep(step, bytes);
     else if (kind === NET.CHECKSUM) {
       var checksum = ("00000000" + high.toString(16)).slice(-8) + ("00000000" + low.toString(16)).slice(-8);
@@ -440,13 +442,14 @@
     return data;
   }
 
-  async function hostRoom(image, text) {
+  async function hostRoom(image, text, pack) {
     var factions = text.split("\n").filter(Boolean).map(function (line) {
       var parts = line.split("\t");
       return { force: parseInt(parts[0], 10), name: parts[1] || "" };
     });
     var name = (hexdomServer.me ? hexdomServer.me.name + "'s game" : "Online game");
-    var room = await postJson("api/games", { name: name, scenario: "", pack: "", mode: "live", turn_seconds: 300, factions: factions });
+    // The room records the pack: each player starts the engine of that pack (MP4).
+    var room = await postJson("api/games", { name: name, scenario: "", pack: pack, mode: "live", turn_seconds: 300, factions: factions });
     var put = await fetch("api/games/" + room.gid + "/start-image", { method: "PUT", body: image });
     if (!put.ok) throw new Error("the start image did not upload (" + put.status + ")");
     history.replaceState(null, "", location.pathname + "?game=" + room.gid);
@@ -501,9 +504,11 @@
       panel.appendChild(element("p", "Invite link: " + link, "room-link"));
       panel.appendChild(element("p", "Room code: " + room.code, "room-code"));
     }
+    if (room.state === "open" && room.you_host) panel.appendChild(roomOptions(room));
     var list = element("ul");
     room.seats.forEach(function (seat) {
-      var item = element("li", seat.name + ": " + (seat.user || "the computer"));
+      var who = seat.user ? (seat.ai ? "the computer, while " + seat.user + " is away" : seat.user) : "the computer";
+      var item = element("li", seat.name + ": " + who);
       item.className = "seat";
       if (room.state === "open") {
         var take = element("button", seat.user ? "Leave" : "Take", "seat-" + seat.force);
@@ -529,6 +534,48 @@
     panel.style.display = net.joined ? "none" : "block";
   }
 
+  // The options of the room before the start (MP4). Only the host can change them:
+  // the server refuses the request of a guest.
+  function roomOptions(room) {
+    var box = element("p", undefined, "room-options");
+    var mode = element("select", undefined, "room-mode");
+    ["live", "correspondence"].forEach(function (value) {
+      var option = element("option", value === "live" ? "Live" : "Correspondence");
+      option.value = value;
+      mode.appendChild(option);
+    });
+    mode.value = room.mode;
+    var turn = element("select", undefined, "room-turn");
+    var choices = TURN_CHOICES[room.mode].slice();
+    if (choices.indexOf(room.turn_seconds) < 0) choices.unshift(room.turn_seconds);
+    choices.forEach(function (seconds) {
+      var option = element("option", seconds >= 3600 ? seconds / 3600 + " h" : seconds >= 120 ? seconds / 60 + " min" : seconds + " s");
+      option.value = String(seconds);
+      turn.appendChild(option);
+    });
+    turn.value = String(room.turn_seconds);
+    var pause = element("input", undefined, "room-pause");
+    pause.type = "checkbox";
+    pause.checked = !!room.pause_absent;
+    var label = element("label", " Pause when a player is absent");
+    label.prepend(pause);
+    function send(changed) {
+      var body = { mode: mode.value, turn_seconds: parseInt(turn.value, 10), pause_absent: pause.checked };
+      if (changed === "mode") body.turn_seconds = TURN_CHOICES[mode.value][2];
+      setRoomOptions(body);
+    }
+    mode.addEventListener("change", function () { send("mode"); });
+    turn.addEventListener("change", function () { send("turn"); });
+    pause.addEventListener("change", function () { send("pause"); });
+    box.append("A faction turn: ", mode, " ", turn, " ", label);
+    return box;
+  }
+
+  function setRoomOptions(body) {
+    return postJson("api/games/" + net.gid + "/options", body).then(refreshRoom)
+      .catch(function (error) { roomStatus(String(error.message || error)); });
+  }
+
   function seatsText(withOnline) {
     return net.room.seats.map(function (seat) {
       var line = seat.force + "\t" + (seat.user || "");
@@ -537,51 +584,85 @@
     }).join("\n");
   }
 
+  // The hello gives the last step of the page: after a lost connection, the server sends
+  // only the steps after it (MP4). The page tries again after 1, 2, 4 and 8 seconds,
+  // then each 15 seconds.
   function connectRoom() {
     var scheme = location.protocol === "https:" ? "wss://" : "ws://";
     var socket = new WebSocket(scheme + location.host + location.pathname.replace(/[^/]*$/, "") + "api/games/" + net.gid + "/socket");
     socket.binaryType = "arraybuffer";
     net.socket = socket;
     socket.onopen = function () {
-      socket.send(JSON.stringify({ type: "hello", gid: net.gid, build: net.build || net.room.build, last_step: -1 }));
+      socket.send(JSON.stringify({ type: "hello", gid: net.gid, build: net.build || net.room.build, last_step: net.lastStep }));
     };
     socket.onmessage = function (event) {
       if (typeof event.data !== "string") {
         var view = new DataView(event.data);
-        netPush(NET.STEP, view.getUint32(0, true), 0, false, new Uint8Array(event.data, 8), "");
+        var number = view.getUint32(0, true);
+        if (number <= net.lastStep) return;   // the page has this step
+        net.lastStep = number;
+        netPush(NET.STEP, number, 0, false, new Uint8Array(event.data, 8), "");
         return;
       }
       var message = JSON.parse(event.data);
-      if (message.type === "welcome") joinRoom(message);
+      if (message.type === "welcome") welcomeRoom(message);
       else if (message.type === "presence") { net.online = message.seats; netPush(NET.SEATS, 0, 0, false, null, seatsText(true)); }
+      else if (message.type === "timer") netPush(NET.TIMER, message.seconds === null ? -1 : message.seconds, 0, false, null, "");
       else if (message.type === "desync") netPush(NET.DESYNC, message.step, 0, false, null, "");
       else if (message.type === "error") { roomStatus(message.reason); netPush(NET.ERROR, 0, 0, false, null, message.reason); }
     };
-    socket.onclose = function () { roomStatus("The connection to the room closed. Open the page again."); };
+    socket.onclose = function () {
+      if (net.socket !== socket) return;
+      net.socket = null;
+      var wait = RECONNECT_SECONDS[Math.min(net.retries, RECONNECT_SECONDS.length - 1)];
+      net.retries++;
+      roomStatus("The connection to the room closed. The page tries again in " + wait + " s.");
+      setTimeout(connectRoom, wait * 1000);
+    };
+  }
+
+  function welcomeRoom(welcome) {
+    net.retries = 0;
+    net.room = welcome.room;
+    if (net.joined) {
+      // A new connection: the messages that waited go to the room now.
+      var outbox = net.outbox;
+      net.outbox = [];
+      outbox.forEach(function (message) { net.socket.send(message); });
+      roomStatus("");
+      return;
+    }
+    joinRoom(welcome);
   }
 
   async function joinRoom(welcome) {
-    net.room = welcome.room;
     var response = await fetch("api/games/" + net.gid + "/start-image");
     if (!response.ok) { roomStatus("The start image does not load."); return; }
     var image = new Uint8Array(await response.arrayBuffer());
     var seat = welcome.seat === null ? 0xFF : welcome.seat;
-    // The join goes before the steps that came during the load of the start image.
+    // The pack, then the join, go before the steps that came during the load of the start
+    // image. The pack can start the engine of another pack first (MP4).
     net.early.unshift([NET.JOIN, 0, seat, welcome.host, image, seatsText(false)]);
+    if (net.room.pack) net.early.unshift([NET.PACK, 0, 0, false, null, net.room.pack]);
     net.joined = true;
     if (net.ready) flushEarly();
     drawRoom();
   }
 
+  // A message for the room. Without a connection, it waits in the outbox.
+  function sendToRoom(message) {
+    if (net.socket && net.socket.readyState === WebSocket.OPEN) net.socket.send(message);
+    else net.outbox.push(message);
+  }
   function sendJson(message) {
-    if (net.socket && net.socket.readyState === WebSocket.OPEN) net.socket.send(JSON.stringify(message));
+    sendToRoom(JSON.stringify(message));
   }
   function sendStep(step, bytes) {
-    if (!net.socket || net.socket.readyState !== WebSocket.OPEN) { roomStatus("A step did not go to the room."); return; }
     var message = new Uint8Array(8 + bytes.length);
     new DataView(message.buffer).setUint32(0, step, true);
     message.set(bytes, 8);
-    net.socket.send(message);
+    net.lastStep = Math.max(net.lastStep, step);
+    sendToRoom(message);
   }
 
   /* ---- The YouTube broadcast, an option (web/broadcast.py) ----------------------------

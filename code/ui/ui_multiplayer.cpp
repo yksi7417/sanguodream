@@ -113,11 +113,49 @@ ui_net_apply_step(ui_state *ui, engine_api *api, ui_frame_info *frame, const pla
     ui_net_send_checksum(frame, event->step, applied.checksum, api->whose_turn(e));
 }
 
+/* A pack is the name of a folder under data/: lower-case letters, digits and "_". */
+internal b32
+ui_net_is_pack_name(const char *pack)
+{
+    if (!pack || !pack[0] || strlen(pack) >= CONTENT_KEY_SIZE) return false;
+    for (const char *at = pack; *at; ++at)
+    {
+        if (!((*at >= 'a' && *at <= 'z') || (*at >= '0' && *at <= '9') || *at == '_')) return false;
+    }
+    return true;
+}
+
+/* MP4: the pack of the room comes before the join. If the engine has
+   another pack, the game starts the engine of that pack (game.pack_request).
+   Gives true when the UI must stop the events of this frame: the join then
+   waits in the queue of the platform for the new engine and the new UI. */
+internal b32
+ui_net_use_pack(ui_state *ui, engine_api *api, const platform_net_event *event)
+{
+    if (!ui_net_is_pack_name(event->text))
+    {
+        snprintf(ui->net.error, sizeof(ui->net.error), "%s", text_get(ui->text, "net.bad_pack"));
+        return false;
+    }
+    if (strcmp(api->content_pack(api->engine).pack, event->text) == 0) return false;
+    snprintf(ui->game.pack_request, sizeof(ui->game.pack_request), "%s", event->text);
+    return true;
+}
+
+internal void
+ui_net_timer(ui_state *ui, const platform_net_event *event)
+{
+    ui->net.timer_on      = true;
+    ui->net.timer_paused  = event->step < 0;
+    ui->net.timer_seconds = event->step < 0 ? 0.0f : (f32)event->step;
+}
+
 internal void
 ui_net_begin_frame(ui_state *ui, engine_api *api, ui_frame_info *frame)
 {
     ui->net.available = frame->net_send && frame->net_poll;
     if (!ui->net.available) return;
+    if (ui->net.timer_on && !ui->net.timer_paused) ui->net.timer_seconds = Maximum(0.0f, ui->net.timer_seconds - frame->dt_seconds);
     platform_net_event event;
     for (u32 count = 0; count < UI_NET_MAX_EVENTS_PER_FRAME && frame->net_poll(&event); ++count)
     {
@@ -128,6 +166,10 @@ ui_net_begin_frame(ui_state *ui, engine_api *api, ui_frame_info *frame)
             case PLATFORM_NET_SEATS:  ui_net_read_seats(ui, event.text);         break;
             case PLATFORM_NET_DESYNC: ui->net.desync_step = event.step;          break;
             case PLATFORM_NET_ERROR:  snprintf(ui->net.error, sizeof(ui->net.error), "%s", event.text ? event.text : ""); break;
+            case PLATFORM_NET_TIMER:  ui_net_timer(ui, &event);                  break;
+            case PLATFORM_NET_PACK:
+                if (ui_net_use_pack(ui, api, &event)) return;
+                break;
             default: break;
         }
     }
@@ -156,11 +198,13 @@ ui_net_host(ui_state *ui, engine_api *api, ui_frame_info *frame)
         used += (u32)snprintf(seats + used, UI_NET_SEATS_TEXT_SIZE - used, "%u\t%s\n", force, name);
         if (used >= UI_NET_SEATS_TEXT_SIZE - UI_NET_NAME_SIZE - 8) break;
     }
+    engine_slot_pack pack = api->content_pack(e);   /* MP4: the room records the pack, and each player starts its engine */
     platform_net_event event = {};
     event.kind = PLATFORM_NET_HOST;
     event.data = image;
     event.size = size;
     event.text = seats;
+    event.pack = pack.pack;
     if (size) ui_net_send(frame, &event);
     ui->net.waiting = size != 0;
 }
@@ -212,6 +256,14 @@ ui_draw_net_banner(ui_state *ui, engine_api *api)
     snprintf(line, sizeof(line), "%s###net_turn", who);
     ImGui::BeginDisabled();
     ImGui::Selectable(line, false);
+    if (info.shared && ui->net.timer_on)
+    {
+        /* MP4: the time left in the faction turn, or the stop of the timer. */
+        u32 seconds = (u32)ui->net.timer_seconds;
+        if (ui->net.timer_paused) snprintf(line, sizeof(line), "%s###net_timer", text_get(ui->text, "net.paused"));
+        else                      snprintf(line, sizeof(line), "%u:%02u###net_timer", seconds / 60, seconds % 60);
+        ImGui::Selectable(line, false);
+    }
     ImGui::EndDisabled();
     if (ui->net.error[0]) ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.4f, 1.0f), "%s", ui->net.error);
     ImGui::End();

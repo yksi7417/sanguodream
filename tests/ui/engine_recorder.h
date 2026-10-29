@@ -321,6 +321,7 @@ struct engine_recorder
     b32           replay_viewing;     /* the replay of a game: a view is open */
     u32           replay_view_step;
     engine_multiplayer_info multiplayer;   /* script the answer of multiplayer_info; local_acts is true by default */
+    char          content_pack[CONTENT_KEY_SIZE];   /* MP4: the answer of content_pack; "" gives "placeholder" */
 };
 
 internal void
@@ -2146,6 +2147,14 @@ internal b32 recorder_load_start_image(void *o, const u8 *bytes, u32 size)
     return true;
 }
 
+internal engine_slot_pack recorder_content_pack(void *o)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    engine_slot_pack pack = {};
+    snprintf(pack.pack, sizeof(pack.pack), "%s", r->content_pack[0] ? r->content_pack : "placeholder");
+    return pack;
+}
+
 internal void recorder_set_unit_grain(void *o, u32 unit_id, u32 grain)
 {
     (void)grain;
@@ -2461,6 +2470,7 @@ recorder_make_api(engine_recorder *r)
     api.start_image_size       = recorder_start_image_size;
     api.start_image            = recorder_start_image;
     api.load_start_image       = recorder_load_start_image;
+    api.content_pack           = recorder_content_pack;   /* a query: no record */
     return api;
 }
 

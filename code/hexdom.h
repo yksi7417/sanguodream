@@ -78,7 +78,7 @@ enum platform_net_kind
 {
     PLATFORM_NET_NONE,
     /* from the game to the page */
-    PLATFORM_NET_HOST,      /* data: the start image. text: one line "force<TAB>name" for each seat */
+    PLATFORM_NET_HOST,      /* data: the start image. text: one line "force<TAB>name" for each seat. pack: the content pack */
     PLATFORM_NET_STEP,      /* step: the number. data: the bytes of the engine */
     PLATFORM_NET_CHECKSUM,  /* step, checksum and acting: the state after the step; step -1 is the start */
     /* from the page to the game */
@@ -86,6 +86,8 @@ enum platform_net_kind
     PLATFORM_NET_SEATS,     /* text: one line "force<TAB>player<TAB>online" for each seat with a player */
     PLATFORM_NET_DESYNC,    /* step */
     PLATFORM_NET_ERROR,     /* text: the reason */
+    PLATFORM_NET_TIMER,     /* MP4. acting: the faction that acts. step: the seconds left; -1 if the timer stops */
+    PLATFORM_NET_PACK,      /* MP4. text: the content pack of the room. It comes before the join */
     PLATFORM_NET_KIND_COUNT
 };
 
@@ -102,6 +104,7 @@ struct platform_net_event
     u32         size;       /* the bytes of data */
     const u8   *data;       /* an event of the page: valid until the next net_poll */
     const char *text;
+    const char *pack;       /* PLATFORM_NET_HOST: the content pack of the game */
 };
 
 #define PLATFORM_NET_SEND(name) void name(const platform_net_event *event)

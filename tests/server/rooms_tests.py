@@ -55,11 +55,27 @@ def socket_step(number, acting, kind=rooms.STEP_COMMAND, command=SIM_COMMAND_PAT
     return struct.pack("<II", number, 0) + engine_step(acting, kind, command)
 
 
+def server_step(number, kind, force, acting, value=0):
+    """A step of the server on the socket (MP4): the header of the engine only."""
+    return struct.pack("<II", number, 0) + bytes([1, kind, force, acting]) + struct.pack("<I", value)
+
+
+class Clock:
+    """The clock of the rooms. A test moves it forward."""
+
+    def __init__(self):
+        self.now = 1_000_000.0
+
+    def __call__(self):
+        return self.now
+
+
 class RoomsTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.folder = tempfile.TemporaryDirectory()
         self.store = storage.FolderStorage(self.folder.name)
-        self.rooms = rooms.Rooms(self.store)
+        self.clock = Clock()
+        self.rooms = rooms.Rooms(self.store, clock=self.clock)
 
     async def asyncTearDown(self):
         self.folder.cleanup()
@@ -242,7 +258,7 @@ class RoomsTests(unittest.IsolatedAsyncioTestCase):
         await self.send(room, guest, socket_step(2, FORCE_GUEST))
         await self.rooms.flush_all()
 
-        again = rooms.Rooms(self.store)
+        again = rooms.Rooms(self.store, clock=self.clock)
         loaded = await again.get(room.gid)
         self.assertIsNot(loaded, room)
         self.assertEqual(loaded.steps, room.steps)
@@ -280,6 +296,17 @@ class RoomsTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(await self.send(room, guest, other))            # another start state of the guest
         self.assertEqual(room.record["state"], "desync")                  # two start states differ
 
+    async def test_a_player_who_joins_again_reports_the_start_state_without_an_error(self):
+        room, host, guest = await self.started_room()
+        await self.send(room, host, socket_step(0, FORCE_HOST))
+        late = await self.connect(room, GUEST)
+        await self.report(room, host, 0, FORCE_GUEST)                         # the faction of the guest acts now
+        self.assertIsNone(await self.report(room, late, -1, FORCE_HOST, "0" * 16))
+        self.assertEqual(room.record["acting"], FORCE_GUEST)                 # a late start report changes no faction
+        self.assertEqual(room.record["state"], "running")
+        self.assertIsNone(await self.report(room, late, -1, FORCE_HOST, "f" * 16))
+        self.assertEqual(room.record["state"], "desync")                     # another start state is a desync
+
     async def test_a_dead_socket_does_not_stop_the_relay(self):
         room, host, guest = await self.started_room()
 
@@ -315,7 +342,7 @@ class RoomsTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_two_loads_of_one_game_give_one_room(self):
         room = await self.make_room()
-        again = rooms.Rooms(self.store)
+        again = rooms.Rooms(self.store, clock=self.clock)
         first, second = await asyncio.gather(again.get(room.gid), again.get(room.gid))
         self.assertIs(first, second)
 
@@ -356,7 +383,7 @@ class RoomsTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_the_invite_code_finds_the_room(self):
         room = await self.make_room()
-        again = rooms.Rooms(self.store)
+        again = rooms.Rooms(self.store, clock=self.clock)
         self.assertEqual((await again.find_code(room.record["code"])).gid, room.gid)
         self.assertIsNone(await again.find_code("AAAAAA" if room.record["code"] != "AAAAAA" else "BBBBBB"))
         self.assertIsNone(await again.find_code("../x/y"))
@@ -366,6 +393,150 @@ class RoomsTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(await self.rooms.get("0123456789abcdef\n"))
         self.assertIsNone(await self.rooms.get("../users/x"))
         self.assertIsNone(await self.rooms.get("0123456789abcdef"))
+
+    # ---- MP4: the timers, the absence and the AI takeover ----
+
+    async def report(self, room, peer, step, acting, checksum="1" * 16):
+        return await self.send(room, peer, {"type": "checksum", "step": step, "checksum": checksum, "acting": acting})
+
+    def timers(self, peer):
+        return [message for message in peer.socket.texts if message["type"] == "timer"]
+
+    async def test_a_room_records_the_pack_as_a_folder_name(self):
+        room = await self.rooms.create(HOST, "Game", "S", "medieval_west", BUILD, "live", 300, [{"force": 1}])
+        self.assertEqual(room.record["pack"], "medieval_west")
+        for pack in ("../saves", "", "a/b", None, "Medieval"):
+            with self.assertRaises(rooms.RoomError):
+                await self.rooms.create(HOST, "Game", "S", pack, BUILD, "live", 300, [{"force": 1}])
+
+    async def test_the_host_sets_the_options_before_the_start(self):
+        room = await self.make_room()
+        await self.rooms.set_options(room, HOST, {"mode": "correspondence", "turn_seconds": 24 * 3600, "pause_absent": True})
+        self.assertEqual((room.record["mode"], room.record["turn_seconds"], room.record["pause_absent"]),
+                         ("correspondence", 24 * 3600, True))
+        with self.assertRaises(rooms.RoomError):
+            await self.rooms.set_options(room, GUEST, {"mode": "live", "turn_seconds": 300, "pause_absent": False})
+        with self.assertRaises(rooms.RoomError):
+            await self.rooms.set_options(room, HOST, {"mode": "live", "turn_seconds": 24 * 3600, "pause_absent": False})
+        with self.assertRaises(rooms.RoomError):
+            await self.rooms.set_options(room, HOST, {"mode": "live", "turn_seconds": 300, "pause_absent": "yes"})
+        await self.rooms.start(room, HOST)
+        with self.assertRaises(rooms.RoomError):
+            await self.rooms.set_options(room, HOST, {"mode": "live", "turn_seconds": 300, "pause_absent": False})
+
+    async def test_the_faction_that_acts_gets_a_deadline_and_each_page_gets_the_timer(self):
+        room, host, guest = await self.started_room()
+        self.assertEqual(room.record["deadline"], self.clock.now + 300)
+        for peer in (host, guest):
+            self.assertEqual(self.timers(peer)[-1], {"type": "timer", "acting": FORCE_HOST, "seconds": 300, "paused": False})
+
+    async def test_a_deadline_ends_the_faction_turn_with_a_step_of_the_server(self):
+        room, host, guest = await self.started_room()
+        await self.rooms.expire(room)
+        self.assertEqual(room.steps, [])                                    # the time is not over
+        self.clock.now += 301
+        await self.rooms.expire(room)
+        end_turn = server_step(0, rooms.STEP_END_TURN, FORCE_HOST, FORCE_HOST)
+        self.assertEqual(host.socket.binaries, [end_turn])
+        self.assertEqual(guest.socket.binaries, [end_turn])
+        self.assertEqual(room.record["acting"], rooms.NO_FACTION)            # no seat acts until a report
+        self.assertIsNone(room.record["deadline"])
+        self.assertEqual(room.record["missed"], {str(FORCE_HOST): 1})
+        await self.rooms.expire(room)
+        self.assertEqual(len(room.steps), 1)
+        self.assertEqual([item["name"] for item in await self.store.list(rooms.log_prefix(room.gid))], ["00000000-00000000.bin"])
+        self.assertIsNone(await self.report(room, guest, 0, FORCE_GUEST))   # after a step of the server, each member can report
+        self.assertEqual(room.record["acting"], FORCE_GUEST)
+        self.assertEqual(room.record["deadline"], self.clock.now + 300)
+        self.assertIsNone(await self.send(room, guest, socket_step(1, FORCE_GUEST)))
+
+    async def test_a_deadline_in_the_past_at_the_start_of_the_server_gives_one_end_turn_step_not_two(self):
+        room, host, guest = await self.started_room()
+        await self.rooms.flush_all()
+        self.clock.now += 3600
+        again = rooms.Rooms(self.store, clock=self.clock)
+        loaded = await again.get(room.gid)
+        self.assertEqual(len(loaded.steps), 1)
+        await again.get(room.gid)
+        await again.expire_all()
+        self.assertEqual(len(loaded.steps), 1)
+        third = rooms.Rooms(self.store, clock=self.clock)
+        self.assertEqual(len((await third.get(room.gid)).steps), 1)
+
+    async def end_guest_turn_by_time(self, room, host, guest):
+        """The faction of the guest acts. Its time goes by, then the host acts and ends its turn."""
+        self.clock.now += 301
+        await self.rooms.expire(room)
+        last = len(room.steps) - 1
+        await self.report(room, host, last, FORCE_HOST)
+        self.assertIsNone(await self.send(room, host, socket_step(last + 1, FORCE_HOST, command=SIM_COMMAND_END_TURN)))
+        await self.report(room, host, last + 1, FORCE_GUEST)
+
+    async def test_two_missed_turns_give_the_faction_to_the_ai_and_a_hello_gives_it_back(self):
+        room, host, guest = await self.started_room(acting=FORCE_GUEST)
+        room.peers.discard(guest)
+        await self.end_guest_turn_by_time(room, host, guest)
+        seat = room.seat_of(GUEST["uid"])
+        self.assertFalse(seat["ai"])
+        self.clock.now += 301
+        await self.rooms.expire(room)
+        # One step: the faction goes to the AI, and the AI finishes the faction turn.
+        self.assertEqual(host.socket.binaries[-1], server_step(2, rooms.STEP_AI_TURN, FORCE_GUEST, FORCE_GUEST))
+        self.assertEqual(len(room.steps), 3)
+        self.assertTrue(seat["ai"])
+        self.assertEqual(seat["uid"], GUEST["uid"])                          # the seat stays for the player
+        self.assertTrue(room.public()["seats"][1]["ai"])
+
+        back = await self.connect(room, GUEST, last_step=1)
+        give_back = server_step(3, rooms.STEP_HUMAN, FORCE_GUEST, rooms.NO_FACTION, 1)
+        self.assertEqual(back.socket.binaries[-1], give_back)
+        self.assertEqual(host.socket.binaries[-1], give_back)
+        self.assertFalse(seat["ai"])
+        self.assertEqual(room.record["missed"][str(FORCE_GUEST)], 0)
+        again = await self.connect(room, GUEST, last_step=3)
+        self.assertEqual(len(room.steps), 4)                                 # one give-back, not two
+        self.assertEqual(again.socket.binaries, [])
+
+    async def test_the_ai_does_not_take_the_faction_of_a_player_with_a_connection(self):
+        room, host, guest = await self.started_room(acting=FORCE_GUEST)
+        await self.end_guest_turn_by_time(room, host, guest)
+        self.clock.now += 301
+        await self.rooms.expire(room)
+        self.assertEqual(room.steps[-1][1], rooms.STEP_END_TURN)             # the guest is online: only an end_turn
+        self.assertFalse(room.seat_of(GUEST["uid"])["ai"])
+        self.assertEqual(room.record["missed"][str(FORCE_GUEST)], 2)
+
+    async def test_a_step_of_the_player_resets_the_missed_turns(self):
+        room, host, guest = await self.started_room(acting=FORCE_GUEST)
+        await self.end_guest_turn_by_time(room, host, guest)
+        self.assertIsNone(await self.send(room, guest, socket_step(2, FORCE_GUEST)))
+        self.assertEqual(room.record["missed"][str(FORCE_GUEST)], 0)
+        self.clock.now += 301
+        await self.rooms.expire(room)
+        self.assertEqual(room.steps[-1][1], rooms.STEP_END_TURN)             # one missed turn: no AI takeover
+        self.assertFalse(room.seat_of(GUEST["uid"])["ai"])
+
+    async def test_the_pause_option_stops_the_timer_while_a_player_is_absent(self):
+        room = await self.make_room()
+        await self.rooms.set_options(room, HOST, {"mode": "live", "turn_seconds": 300, "pause_absent": True})
+        await self.rooms.start(room, HOST)
+        host = await self.connect(room, HOST)
+        guest = await self.connect(room, GUEST)
+        await self.report(room, host, -1, FORCE_HOST, "0" * 16)
+        await rooms.leave(self.rooms, room, guest)
+        self.clock.now += 30
+        await self.rooms.expire(room)
+        self.assertFalse(room.record["paused"])                              # 60 seconds to connect again
+        self.clock.now += 31
+        await self.rooms.expire(room)
+        self.assertTrue(room.record["paused"])
+        self.assertEqual(self.timers(host)[-1], {"type": "timer", "acting": FORCE_HOST, "seconds": None, "paused": True})
+        self.clock.now += 3600
+        await self.rooms.expire(room)
+        self.assertEqual(room.steps, [])
+        await self.connect(room, GUEST)
+        self.assertFalse(room.record["paused"])
+        self.assertEqual(room.record["deadline"], self.clock.now + 300 - 61)
 
     def test_the_log_packs_and_unpacks(self):
         steps = [b"abc", b"", bytes(range(200))]

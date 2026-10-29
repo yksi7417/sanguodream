@@ -336,6 +336,114 @@ feature_mp_bytes_tests(test_counts *counts)
     engine_fixture_destroy(&pair.b);
 }
 
+/* The bytes of a step of the room server (MP4): the header only, as
+   web/rooms.py writes it. Byte 3 is the faction that acts in the room. */
+internal u32
+feature_mp_server_step(u8 *bytes, u8 kind, u8 force, u8 acting, u32 value)
+{
+    bytes[0] = ENGINE_STEP_WIRE_VERSION;
+    bytes[1] = kind;
+    bytes[2] = force;
+    bytes[3] = acting;
+    for (u32 index = 0; index < 4; ++index) bytes[4 + index] = (u8)(value >> (8 * index));
+    return ENGINE_STEP_WIRE_HEADER;
+}
+
+/* The server step goes to both engines, as the server sends it to each
+   player. True if both apply it and the checksums agree after it. */
+internal b32
+feature_mp_server_apply(feature_mp_pair *pair, u8 kind, u8 force, u32 value)
+{
+    engine_api *a = &pair->a.api, *b = &pair->b.api;
+    u8 bytes[ENGINE_STEP_WIRE_HEADER];
+    u32 size = feature_mp_server_step(bytes, kind, force, a->whose_turn(a->engine), value);
+    engine_step_apply_result on_a = a->step_apply(a->engine, bytes, size);
+    engine_step_apply_result on_b = b->step_apply(b->engine, bytes, size);
+    pair->steps++;
+    return on_a.status == ENGINE_STEP_APPLIED && on_b.status == ENGINE_STEP_APPLIED && on_a.checksum == on_b.checksum;
+}
+
+internal b32
+feature_mp_is_human(engine_api *api, u8 force)
+{
+    for (u32 index = 0; index < api->faction_count(api->engine); ++index)
+    {
+        engine_faction faction = api->faction_at(api->engine, index);
+        if (faction.force_id == force) return faction.human;
+    }
+    return false;
+}
+
+/* MP4: the steps of the room server. A timer ends a faction turn, the AI
+   takes the faction of an absent player and finishes its turn, and the
+   player gets the faction back. */
+internal void
+feature_mp_server_steps_tests(test_counts *counts)
+{
+    feature_mp_pair pair;
+    feature_mp_pair_init(&pair);
+    engine_api *a = &pair.a.api, *b = &pair.b.api;
+    void *ea = a->engine, *eb = b->engine;
+    u8 other_city  = feature_mp_other_city(a, pair.force);
+    u8 other_force = a->city_at(ea, other_city).owner_force_id;
+    engine_settings settings = a->settings(ea);
+    settings.ai = true;
+    a->set_settings(ea, settings);
+    b->set_settings(eb, settings);
+    a->set_faction_human(ea, other_force, true);
+    b->set_faction_human(eb, other_force, true);
+    a->multiplayer_begin(ea, pair.force, true);
+    b->multiplayer_begin(eb, other_force, false);
+    feature_mp_until_turn_of(&pair, other_force);
+    TEST_CHECK(counts, b->whose_turn(eb) == other_force && pair.agreed, "the faction of B acts");
+
+    u32 steps = b->multiplayer_info(eb).step_count;
+    TEST_CHECK(counts, feature_mp_server_apply(&pair, ENGINE_STEP_END_TURN, other_force, 0),
+               "the end_turn step of the server applies on both engines, and the checksums agree");
+    TEST_CHECK(counts, a->whose_turn(ea) != other_force && b->whose_turn(eb) == a->whose_turn(ea),
+               "after the end_turn step of the server, the faction of B no longer acts");
+    TEST_CHECK(counts, b->multiplayer_info(eb).step_count == steps + 1 && a->multiplayer_info(ea).outgoing == 0,
+               "a step of the server counts, and it goes into no queue");
+    u64 before = b->state_checksum(eb);
+    TEST_CHECK(counts, feature_mp_server_apply(&pair, ENGINE_STEP_END_TURN, other_force, 0) && b->state_checksum(eb) == before &&
+                       b->multiplayer_info(eb).step_count == steps + 2,
+               "an end_turn step for a faction that does not act changes nothing, but it counts");
+
+    feature_mp_until_turn_of(&pair, other_force);
+    TEST_CHECK(counts, b->whose_turn(eb) == other_force, "the faction of B acts again");
+    u32 turn = b->turn(eb);
+    /* One step makes the faction a faction of the AI and finishes its turn. With two
+       steps, the host is the author between them, because a faction without a player
+       acts. Then the host and the server can both send the next step. */
+    TEST_CHECK(counts, feature_mp_server_apply(&pair, ENGINE_STEP_AI_TURN, other_force, 0),
+               "the AI turn step applies on both engines, and the checksums agree");
+    TEST_CHECK(counts, !feature_mp_is_human(a, other_force) && !feature_mp_is_human(b, other_force),
+               "the AI turn step makes the faction a faction of the AI");
+    TEST_CHECK(counts, b->whose_turn(eb) != other_force && (b->whose_turn(eb) == pair.force || b->turn(eb) > turn),
+               "the AI finishes the faction turn, and the next human faction acts");
+    a->end_turn(ea);
+    feature_mp_relay(&pair);
+    TEST_CHECK(counts, pair.agreed && pair.applied, "after the AI turn, the steps of A apply on B and the checksums agree");
+    engine_game_replay_info replay = b->game_replay_info(eb);
+    engine_game_replay_view view = b->game_replay_view(eb, replay.step_count - 1);
+    TEST_CHECK(counts, view.ok && view.matches, "the replay of B rebuilds the AI turn with the checksum of the live game");
+    b->game_replay_close(eb);
+    b32 ai_step = false;
+    for (u32 index = 0; index < replay.step_count; ++index)
+    {
+        if (strcmp(b->game_replay_step_at(eb, index).key, "ai_turn") == 0) ai_step = true;
+    }
+    TEST_CHECK(counts, ai_step, "the replay record has the step ai_turn");
+
+    TEST_CHECK(counts, feature_mp_server_apply(&pair, ENGINE_STEP_HUMAN, other_force, 1) && feature_mp_is_human(b, other_force),
+               "set_faction_human true from the server gives the faction back to the player");
+    feature_mp_until_turn_of(&pair, other_force);
+    TEST_CHECK(counts, b->whose_turn(eb) == other_force && b->multiplayer_info(eb).local_acts,
+               "the faction of B acts again, and B is the author");
+    engine_fixture_destroy(&pair.a);
+    engine_fixture_destroy(&pair.b);
+}
+
 /* A record of FEATURE_MP_TURNS turns with the AI gives one fixed checksum. */
 internal void
 feature_mp_record_checksum_tests(test_counts *counts)
@@ -367,5 +475,6 @@ feature_multiplayer_tests(test_counts *counts)
     feature_mp_lockstep_tests(counts);
     feature_mp_lock_tests(counts);
     feature_mp_bytes_tests(counts);
+    feature_mp_server_steps_tests(counts);
     feature_mp_record_checksum_tests(counts);
 }

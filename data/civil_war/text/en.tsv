@@ -1070,6 +1070,8 @@ net.desync	The copies of the game differ at step	a desync: the number of the ste
 net.bad_image	The start image of the room does not load.	the error of a bad start image
 net.missing_step	A step of the game is missing. Open the page again.	the error of a gap in the steps
 net.bad_step	A step of another player does not apply.	the error of a bad step
+net.paused	The timer stops: a player is absent.	MP4: the banner when the timer of the faction turn stops
+net.bad_pack	The room names no content pack of this game.	MP4: the error of a bad pack name from the room
 settings.font_size	Font size	slider, pixels
 event.transport_arrived	Transport arrived	輸送隊到達
 event_role.transport_arrived.a	Leader	主將

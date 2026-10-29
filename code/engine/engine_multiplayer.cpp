@@ -31,11 +31,12 @@ static_assert(sizeof(engine_settings) == ENGINE_STEP_SETTINGS_STRUCT_SIZE, "engi
 /* ---- the seats ------------------------------------------------------------------ */
 
 /* The engine authors a step for the network: a shared game runs, and the
-   step does not come from step_apply. */
+   step does not come from step_apply. A view of the replay record applies
+   the recorded steps again: they are no new steps, and no lock applies. */
 internal b32
 engine_multiplayer_authors(engine *e)
 {
-    return e->multiplayer.shared && !e->multiplayer.applying;
+    return e->multiplayer.shared && !e->multiplayer.applying && !e->game_replay.applying;
 }
 
 /* A setter outside the steps changes the state of one engine only. Thus
@@ -87,6 +88,20 @@ engine_seat_refusal(engine *e, sim_command_kind kind)
     if (!engine_multiplayer_authors(e)) return SIM_REFUSAL_NONE;
     if (!engine_multiplayer_shares_kind(kind)) return SIM_REFUSAL_NOT_YOUR_SEAT;
     return engine_multiplayer_local_acts(e) ? SIM_REFUSAL_NONE : SIM_REFUSAL_NOT_YOUR_SEAT;
+}
+
+/* MP4: the AI finishes the faction turn of a faction that is no longer
+   human (sim_ai_finish_faction_turn). It is a step of the replay record, so
+   a view of the record rebuilds it. */
+internal void
+engine_ai_finish_turn(engine *e, u8 force)
+{
+    engine_game_replay_pending pending = engine_game_replay_begin_step(e, true);
+    arena_reset(&e->scratch);
+    sim_event_sink sink = sim_sink_from_arena(&e->scratch, ENGINE_SINK_CAPACITY);
+    sim_ai_finish_faction_turn(e->sim, force, 0, &sink);
+    engine_ledger_append(e, &sink);
+    engine_game_replay_end_step(e, &pending, ENGINE_STEP_AI_TURN, 0, 0, force, 0);
 }
 
 /* ---- the bytes of a step ---------------------------------------------------------- */
@@ -260,6 +275,17 @@ engine_api_step_apply(void *opaque, const u8 *bytes, u32 size)
         case ENGINE_STEP_SETTINGS:     engine_api_set_settings(e, settings);                 break;
         case ENGINE_STEP_HUMAN:        engine_api_set_faction_human(e, force, value != 0);  break;
         case ENGINE_STEP_LEDGER_CLEAR: engine_api_ledger_clear(e);                          break;
+        case ENGINE_STEP_END_TURN:
+            /* A step of the server: the timer of the faction ended. If that faction
+               no longer acts, nothing changes, and the step still counts. */
+            if (sim_whose_turn(e->sim) == force) engine_run_command(e, SIM_COMMAND_END_TURN, 0);
+            break;
+        case ENGINE_STEP_AI_TURN:
+            /* The AI takes the faction in the same step. With a step between the two
+               parts, the host can act for a faction without a player. */
+            engine_api_set_faction_human(e, force, false);
+            engine_ai_finish_turn(e, force);
+            break;
         default: break;
     }
     mp->applying = false;
@@ -317,9 +343,19 @@ engine_api_load_start_image(void *opaque, const u8 *bytes, u32 size)
     return loaded;
 }
 
+internal engine_slot_pack
+engine_api_content_pack(void *opaque)
+{
+    engine *e = (engine *)opaque;
+    engine_slot_pack pack = {};
+    snprintf(pack.pack, sizeof(pack.pack), "%s", engine_pack_name(e->content_folder));
+    return pack;
+}
+
 internal void
 engine_bind_multiplayer_api(engine_api *api)
 {
+    api->content_pack      = engine_api_content_pack;
     api->start_image_size  = engine_api_start_image_size;
     api->start_image       = engine_api_start_image;
     api->load_start_image  = engine_api_load_start_image;

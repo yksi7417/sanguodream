@@ -400,9 +400,11 @@ async def api_games_create(request):
 
 
 async def api_game(request):
-    await require_member(request)
+    user = await require_member(request)
     room = await find_room(request)
-    return web.json_response(room.public(), headers={"Cache-Control": "no-store"})
+    data = room.public()
+    data["you_host"] = user["uid"] == room.record["host"]   # the lobby shows the options of the host
+    return web.json_response(data, headers={"Cache-Control": "no-store"})
 
 
 async def api_game_seat(request):
@@ -415,6 +417,19 @@ async def api_game_seat(request):
     async with room.lock:
         try:
             await request.app[KEY_ROOMS].take_seat(room, user, force)
+        except rooms.RoomError as error:
+            return refused(error)
+    return web.json_response(room.public())
+
+
+async def api_game_options(request):
+    """The host sets the mode, the time of a turn and the pause option (MP4)."""
+    user = await require_member(request)
+    room = await find_room(request)
+    body = await read_object(request)
+    async with room.lock:
+        try:
+            await request.app[KEY_ROOMS].set_options(room, user, body)
         except rooms.RoomError as error:
             return refused(error)
     return web.json_response(room.public())
@@ -510,8 +525,7 @@ async def api_game_socket(request):
                 break
     finally:
         async with room.lock:
-            room.peers.discard(peer)
-            await rooms.send_presence(room)
+            await rooms.leave(request.app[KEY_ROOMS], room, peer)
     return socket
 
 
@@ -574,6 +588,7 @@ def make_app(root):
         web.post("/api/games", api_games_create),
         web.get("/api/games/{gid}", api_game),
         web.post("/api/games/{gid}/seat", api_game_seat),
+        web.post("/api/games/{gid}/options", api_game_options),
         web.post("/api/games/{gid}/start", api_game_start),
         web.get("/api/games/{gid}/socket", api_game_socket),
         web.put("/api/games/{gid}/start-image", api_game_start_image_put),

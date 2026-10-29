@@ -2,9 +2,9 @@
 
 This document gives the plan for games that more than one player plays
 together on the fly.io site. It also records the facts of the current
-site that the plan starts from. MP1, MP2 and MP3 exist in code (see
-"The status of MP1", "The status of MP2" and "The status of MP3"). The
-milestones after MP3 do not exist yet.
+site that the plan starts from. MP1 to MP4 exist in code (see the
+sections "The status of MP1" to "The status of MP4"). The milestones
+after MP4 do not exist yet.
 
 ## The current site: one copy of the game for each browser
 Each browser runs its own copy of the game. Two browsers never share a
@@ -303,7 +303,7 @@ already serves the WebSocket of the broadcast.
 | step | client or server | the number of the step and the bytes of the step |
 | checksum | client | the number of the step and the checksum after it |
 | presence | server | the seats that have a connection |
-| timer | server | the faction that acts and its deadline |
+| timer | server | the faction that acts, the rest of the time in seconds, and the stop of the timer |
 | chat | client or server | the uid, the name and the text |
 | desync | server | the step and the request for the state image |
 | error | server | the reason, for example "not your seat" or "old build" |
@@ -706,6 +706,62 @@ The tests:
 - Browser: the guest closes the page. After the timer, the AI commands
   the faction of the guest. The guest opens the page again and gets the
   faction back.
+
+### The status of MP4
+MP4 is complete. These parts exist:
+- The engine has two new kinds of steps. The room server is their author.
+  - ENGINE_STEP_END_TURN ends the faction turn of a faction. If that
+    faction does not act, the step changes nothing. The step still counts.
+  - ENGINE_STEP_AI_TURN makes the faction a faction of the AI. Then the AI
+    finishes its faction turn (sim_ai_finish_faction_turn in
+    code/sim/turn.cpp). The replay record keeps a human step and an
+    ai_turn step.
+- web/rooms.py keeps a deadline for the faction that acts. A report that
+  names a new faction starts the deadline, and each page gets the message
+  timer. A loop checks the deadlines each 2 seconds. The load of a room
+  and each hello also check them.
+- After a deadline, the server sends end_turn. After the second missed
+  faction turn in a row of a player without a socket, the server sends
+  ai_turn in place of end_turn. The seat then has `"ai": true`, and the
+  seat keeps the player.
+- The hello of that player gives the faction back with the step
+  set_faction_human true.
+- The host sets the mode, the time of a turn and the option "Pause when a
+  player is absent" in the lobby: `POST /api/games/<gid>/options`.
+- With the pause option, the timer stops when a player of a seat has no
+  socket for 60 seconds. When all players connect, the timer goes on with
+  the rest of the time.
+- The page connects again after 1, 2, 4 and 8 seconds, then each 15
+  seconds. The hello gives the last step of the page. The messages of the
+  game wait in an outbox until the next welcome.
+- The banner shows the rest of the time, or "The timer stops".
+- The room records the content pack of the host. The page gives the pack
+  to the game before the join (PLATFORM_NET_PACK). If the engine has
+  another pack, the game starts the engine of that pack first.
+
+These decisions came from MP4:
+- The AI takes only the faction of a player without a socket. The hello
+  is the only way to get the faction back. Thus an online player who
+  misses turns gets only end_turn steps.
+- One step makes the faction a faction of the AI and finishes its turn.
+  With two steps, a faction without a player acts between them, and the
+  engine of the host is the author. The UI of the host then ended that
+  turn too, and the two steps of the host and the server collided.
+- After a step of the server, no faction acts in the room until the
+  first report of a member names it. No player can send a step in that
+  time, and a deadline gives one end_turn, not two.
+- A page that joins again reports the start state. The server compares
+  the report, but the report never changes the faction that acts.
+- On the replay of a shared game, the engine applies the recorded steps
+  without the lock of the setters. Before this fix, the view of a guest
+  skipped each human step.
+- The browser tests set HEXDOM_TEST_MIN_TURN_SECONDS for a short turn.
+  The site never sets it.
+
+One limit stays. If a player sends a command at the end of the timer, the
+end_turn of the server can arrive first. The server then refuses the step
+of the player ("old step"), and the copy of that player can differ. MP6
+recovers from this desync.
 
 ### MP5 Shared saves and the list of games
 - The snapshots, the resume from a snapshot and the log.

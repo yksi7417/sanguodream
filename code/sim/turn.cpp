@@ -331,6 +331,21 @@ sim_end_faction_turn(sim_state *sim, u32 cause, sim_event_sink *events)
     if (turns->acting >= turns->order_count) sim_advance_turn(sim, cause, events);
 }
 
+/* A shared game (docs/MULTIPLAYER.md, MP4): a player left the faction in
+   its turn, and the faction is no longer human. The AI finishes that turn.
+   Then the next factions act until a human faction acts. If the faction
+   does not act now, or it is human, nothing changes. */
+internal void
+sim_ai_finish_faction_turn(sim_state *sim, u8 force_id, u32 cause, sim_event_sink *events)
+{
+    if (sim_game_over(sim)) return;
+    sim_turn_state *turns = &sim->turns;
+    if (turns->start_pending || turns->acting >= turns->order_count) return;
+    if (turns->order[turns->acting].force_id != force_id || turns->human[force_id]) return;
+    sim_run_factions_until_human(sim, cause, events);
+    if (turns->acting >= turns->order_count) sim_advance_turn(sim, cause, events);
+}
+
 /* ---- the calendar events ------------------------------------------------ */
 
 internal void
