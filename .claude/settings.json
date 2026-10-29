@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node C:/src/hexdom/.claude/hooks/wall.js",
+            "command": "node -e \"require(require('path').join(process.env.CLAUDE_PROJECT_DIR || '.', '.claude', 'hooks', 'wall.js'))\"",
             "onFailure": "block",
             "timeout": 10
           }
