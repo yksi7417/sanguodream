@@ -125,6 +125,10 @@ def snapshot_key(gid, step):
     return f"{snapshot_prefix(gid)}{step:08d}.hxs"
 
 
+def desync_key(gid, step, uid):
+    return f"games/{gid}/desync/{step:08d}-{uid}.hxs"
+
+
 def code_key(code):
     return f"codes/{code}"
 
@@ -185,7 +189,7 @@ class Room:
         self.steps = []                 # the bytes of the engine of each step, by number
         self.step_bytes = 0
         self.flushed = 0                # the steps that the storage has
-        self.reports = {}               # step -> (checksum, acting) of the first report
+        self.reports = {}               # step -> {uid: (checksum, acting)} in the order of the reports
         self.last_author = None         # the uid of the author of the last step, or SERVER
         self.peers = set()
         self.lock = asyncio.Lock()
@@ -270,8 +274,12 @@ class Room:
         Each player can report, and two different reports give a desync. Only
         the author of the last step and the host can change the faction that
         acts. Each player reports the start state (step -1), and only the
-        report of the host names the first faction that acts."""
-        if self.record["state"] != "running":
+        report of the host names the first faction that acts.
+
+        In a desync (MP6), the reports of the step of the desync go on. Give
+        "judge" after each of them: the room can then decide."""
+        desync = self.record["state"] == "desync"
+        if self.record["state"] != "running" and not (desync and step == self.record.get("desync_step")):
             raise RoomError("the game does not run")
         if not is_int(step) or not START_STEP <= step < len(self.steps):
             raise RoomError("no such step")
@@ -279,7 +287,11 @@ class Room:
             raise RoomError("bad checksum")
         if not is_int(acting) or not 0 <= acting <= NO_FACTION:
             raise RoomError("bad checksum")
-        first = self.reports.setdefault(step, (checksum, acting))
+        entries = self.reports.setdefault(step, {})
+        first = self.first_report(step) or (checksum, acting)
+        entries.setdefault(uid, (checksum, acting))
+        if desync:
+            return "judge"
         if first != (checksum, acting):
             self.record["state"] = "desync"
             self.record["desync_step"] = step
@@ -293,13 +305,20 @@ class Room:
             return "acting"
         return None
 
+    def first_report(self, step):
+        """The (checksum, acting) of the first report of the step, or None."""
+        entries = self.reports.get(step)
+        return next(iter(entries.values())) if entries else None
+
 
 class Rooms:
     """The rooms of the server. A room loads from the storage at its first use."""
 
-    def __init__(self, store, clock=time.time, build=""):
+    def __init__(self, store, clock=time.time, build="", referee=None):
         self.store = store
         self.clock = clock
+        # MP6: async referee(record, first_step, image, steps) gives the checksum after each step (referee.py)
+        self.referee = referee
         self.build = build   # the build of the game files of this server; "" when the server has none
         self.rooms = {}
         self.loading = {}   # gid -> the lock of its first load: two requests make one Room
@@ -432,17 +451,95 @@ class Rooms:
             raise RoomError("bad checksum")
         if not data or len(data) > MAX_START_IMAGE_BYTES:
             raise RoomError("bad snapshot")
-        report = room.reports.get(step)
+        report = room.first_report(step)
         if report is None:
             raise RoomError("no report of the step")
         if report[0] != checksum:
             raise RoomError("the checksum of the snapshot differs")
         await self.store.put(snapshot_key(room.gid, step), data)
-        room.record["snapshot"] = max(step, room.record.get("snapshot", -1))
-        names = sorted(item["name"] for item in await self.store.list(snapshot_prefix(room.gid)))
-        for name in names[:-KEEP_SNAPSHOTS]:
-            await self.store.delete(snapshot_prefix(room.gid) + name)
+        snapshots = room.record.setdefault("snapshots", {})   # the step -> the checksum of each kept snapshot
+        snapshots[str(step)] = checksum
+        for old in sorted(snapshots, key=int)[:-KEEP_SNAPSHOTS]:
+            await self.store.delete(snapshot_key(room.gid, int(old)))
+            del snapshots[old]
+        room.record["snapshot"] = max(int(kept) for kept in snapshots)
         await self.save(room)
+
+    async def drop_snapshots(self, room, step, good):
+        """After a desync: a snapshot of the step or later with another checksum than the good one goes away."""
+        snapshots = room.record.get("snapshots", {})
+        for kept in [kept for kept in snapshots if int(kept) >= step and snapshots[kept] != good]:
+            await self.store.delete(snapshot_key(room.gid, int(kept)))
+            del snapshots[kept]
+        room.record["snapshot"] = max((int(kept) for kept in snapshots), default=None)
+
+    async def base_before(self, room, step):
+        """The latest snapshot before the step, or the start image: (the first step after it, the image)."""
+        snapshots = [int(kept) for kept in room.record.get("snapshots", {}) if int(kept) < step]
+        for kept in sorted(snapshots, reverse=True):
+            data = await self.store.get(snapshot_key(room.gid, kept))
+            if data:
+                return kept + 1, data
+        return 0, await self.store.get(start_key(room.gid))
+
+    # ---- the recovery from a desync (MP6) ----
+
+    async def put_desync_image(self, room, user, step, data):
+        """The image of the state of a player after the step of a desync, for the developer."""
+        if not room.is_member(user["uid"]):
+            raise RoomError("no seat in this game")
+        if room.record["state"] != "desync" or step != room.record.get("desync_step"):
+            raise RoomError("no desync at this step")
+        if not data or len(data) > MAX_START_IMAGE_BYTES:
+            raise RoomError("bad state image")
+        await self.store.put(desync_key(room.gid, step, user["uid"]), data)
+
+    async def judge(self, room):
+        """Decide a desync after the reports of all players with a socket. With three
+        reports or more, a strict majority wins. Else the referee replays the log from the
+        latest snapshot before the step and gives the good checksum. The caller holds the
+        lock of the room."""
+        step = room.record["desync_step"]
+        reports = room.reports.get(step, {})
+        online = {peer.uid for peer in room.peers if room.is_member(peer.uid)}
+        if not online <= set(reports):
+            return
+        counts = {}
+        for value in reports.values():
+            counts[value] = counts.get(value, 0) + 1
+        best = max(counts, key=counts.get)
+        if not (len(reports) >= 3 and 2 * counts[best] > len(reports)):
+            best = await self.ask_referee(room, step, counts)
+            if best is None:
+                return
+        await self.drop_snapshots(room, step, best[0])
+        record = room.record
+        record["state"] = "running"
+        record.pop("desync_step", None)
+        record["acting"] = best[1]
+        room.reports[step] = {uid: value for uid, value in reports.items() if value == best}
+        for peer in list(room.peers):
+            if peer.uid in reports and reports[peer.uid] != best:
+                await peer.send_json({"type": "reload", "step": step})   # the page loads the good state again
+        await broadcast_json(room, {"type": "desync_end", "step": step})
+        await self.start_deadline(room)
+
+    async def ask_referee(self, room, step, counts):
+        """The report that the referee agrees with, or None. Each player gets the reason of a None."""
+        if not self.referee:
+            await broadcast_json(room, {"type": "error", "reason": "no referee"})
+            return None
+        first_step, image = await self.base_before(room, step)
+        try:
+            checksums = await self.referee(room.record, first_step, image, room.steps[first_step:step + 1])
+        except Exception as error:   # the referee is another process: its failure must not stop the server
+            print(f"rooms: the referee failed: {error}", flush=True)
+            checksums = []
+        good = checksums[-1] if checksums else None
+        best = next((value for value in counts if value[0] == good), None)
+        if best is None:
+            await broadcast_json(room, {"type": "error", "reason": "the referee agrees with no player"})
+        return best
 
     async def latest_snapshot(self, room, user):
         """The step and the bytes of the latest snapshot, or None."""
@@ -742,6 +839,8 @@ async def on_checksum(rooms, room, peer, message):
         await rooms.start_deadline(room)
     if result == "desync":
         await broadcast_json(room, {"type": "desync", "step": room.record["desync_step"]})
+    if result in ("desync", "judge"):
+        await rooms.judge(room)   # MP6: the majority or the referee decides after the last report
 
 
 async def on_chat(rooms, room, peer, message):

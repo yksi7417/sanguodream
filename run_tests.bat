@@ -45,11 +45,19 @@ popd
 echo ALL PASS
 exit /b 0
 
-REM The tests of the Python server of the site (tests\server). They need no build.
+REM The tests of the Python server of the site (tests\server). The tests of the
+REM rooms need no build. The tests of the referee (MP6) need build\referee.js
+REM (build_web.bat referee) and the fixture that feature_tests.exe writes.
 :server
 if "%HEXDOM_PYTHON%"=="" set HEXDOM_PYTHON=C:\tools\hexdom-venv\Scripts\python.exe
 echo === server ===
 "%HEXDOM_PYTHON%" -I "%ROOT%tests\server\rooms_tests.py"
+if errorlevel 1 (
+  echo TESTS FAILED
+  exit /b 1
+)
+echo === referee ===
+"%HEXDOM_PYTHON%" -I "%ROOT%tests\server\referee_tests.py"
 if errorlevel 1 (
   echo TESTS FAILED
   exit /b 1

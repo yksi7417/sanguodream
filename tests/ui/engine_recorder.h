@@ -383,6 +383,14 @@ recorder_first_arg(engine_recorder *r, recorder_call_kind kind)
     return U32_MAX;
 }
 
+/* The place of the first call of a kind in the order of the calls, or U32_MAX if none. */
+internal u32
+recorder_index_of(engine_recorder *r, recorder_call_kind kind)
+{
+    for (u32 i = 0; i < r->call_count; ++i) if (r->calls[i].kind == kind) return i;
+    return U32_MAX;
+}
+
 internal void
 recorder_seed_events(engine_recorder *r, u32 count)
 {

@@ -6,6 +6,8 @@ REM                         (code\wasm_test_hooks.h) in build\webtest. The site 
 REM   build_web.bat tests   the unit tests and the feature tests as WebAssembly
 REM                         for node: build\unit_tests.js and build\feature_tests.js.
 REM                         "run_tests.bat --web" runs them.
+REM   build_web.bat referee the referee of the shared games for node: build\referee.js
+REM                         (docs/MULTIPLAYER.md, MP6). "run_tests.bat --server" tests it.
 REM It needs the Emscripten SDK in C:\tools\emsdk, or in EMSDK. The game also
 REM needs build\web\fonts\NotoSansCJKtc-Regular.otf from misc\subset_font.py.
 setlocal
@@ -27,6 +29,7 @@ if not exist "%ROOT%build" mkdir "%ROOT%build"
 pushd "%ROOT%build"
 set ERR=0
 if /i "%~1"=="tests" goto :tests
+if /i "%~1"=="referee" goto :referee
 set OUT=web
 set OBJ=web_obj
 set IMCONFIG=..\code\wasm_imconfig.h
@@ -94,6 +97,17 @@ set LINKFLAGS=-sENVIRONMENT=node -sNODERAWFS=1 -sALLOW_MEMORY_GROWTH=1 -sMAXIMUM
 call em++ %FLAGS% ..\tests\unit\unit_main.cpp -o unit_tests.js %LINKFLAGS%
 if errorlevel 1 set ERR=1
 call em++ %FLAGS% ..\tests\feature\feature_main.cpp -o feature_tests.js %LINKFLAGS%
+if errorlevel 1 set ERR=1
+goto :done
+
+REM ---- the referee (docs/MULTIPLAYER.md, MP6) -----------------------------------
+:referee
+REM A headless engine for node: build\referee.js and build\referee.wasm. NODERAWFS:
+REM it reads the packs from ../data, relative to the current folder (web/referee.py).
+REM The image of the site has node 18 (Debian 12).
+call em++ -std=c++17 -O2 -fno-exceptions -fno-rtti %DEFINES% %WARN% %INCLUDES% ..\code\wasm_referee.cpp -o referee.js ^
+  -sENVIRONMENT=node -sNODERAWFS=1 -sALLOW_MEMORY_GROWTH=1 -sMAXIMUM_MEMORY=1GB -sSTACK_SIZE=8MB -sEXIT_RUNTIME=1 ^
+  -sMIN_NODE_VERSION=180300
 if errorlevel 1 set ERR=1
 
 :done

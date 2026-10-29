@@ -509,6 +509,144 @@ feature_mp_snapshot_tests(test_counts *counts)
     engine_fixture_destroy(&pair.b);
 }
 
+/* MP6: an engine with one changed city gives another checksum at the next
+   step. The engine then loads the good state of the room and follows again. */
+internal void
+feature_mp_desync_tests(test_counts *counts)
+{
+    feature_mp_pair pair;
+    feature_mp_pair_init(&pair);
+    engine_api *a = &pair.a.api, *b = &pair.b.api;
+    void *ea = a->engine, *eb = b->engine;
+    b->set_city_gold(eb, pair.city, a->city_at(ea, pair.city).gold + 1);   /* a cheat, or a bug of the determinism */
+    a->multiplayer_begin(ea, pair.force, true);
+    b->multiplayer_begin(eb, ENGINE_NO_FACTION, false);
+    feature_mp_until_turn_of(&pair, pair.force);
+    a->end_turn(ea);
+    u8 bytes[ENGINE_STEP_WIRE_CAPACITY];
+    engine_outgoing_step out = a->steps_outgoing(ea, bytes, sizeof(bytes));
+    engine_step_apply_result applied = b->step_apply(eb, bytes, out.size);
+    TEST_CHECK(counts, out.size > 0 && applied.status == ENGINE_STEP_APPLIED && applied.checksum != out.checksum,
+               "an engine with one changed city gives another checksum at the next step");
+
+    /* The recovery: B loads the good state of the step, and the steps after it agree. */
+    u32 size = a->start_image_size(ea);
+    u8 *image = (u8 *)malloc(size);
+    u32 written = a->start_image(ea, image, size);
+    b->multiplayer_end(eb);
+    b32 loaded = written && b->load_start_image(eb, image, written);
+    free(image);
+    b->multiplayer_begin(eb, ENGINE_NO_FACTION, false);
+    b->multiplayer_first_step(eb, out.step + 1);
+    TEST_CHECK(counts, loaded && b->state_checksum(eb) == out.checksum, "the good state of the room gives the checksum of the step");
+    a->end_turn(ea);
+    out = a->steps_outgoing(ea, bytes, sizeof(bytes));
+    applied = b->step_apply(eb, bytes, out.size);
+    TEST_CHECK(counts, applied.status == ENGINE_STEP_APPLIED && applied.checksum == out.checksum &&
+                       b->multiplayer_info(eb).step_count == a->multiplayer_info(ea).step_count,
+               "after the load of the good state, the next step gives the checksum of the host");
+    engine_fixture_destroy(&pair.a);
+    engine_fixture_destroy(&pair.b);
+}
+
+/* MP6: the input of the referee (code/wasm_referee.cpp) for a log of the
+   host, and the checksums of the host after each step. The test of the
+   referee in tests/server/referee_tests.py runs the referee under node on
+   these files. Thus the referee and this engine must agree.
+   The images of the native build and of the web build have different
+   layouts. The referee gets the images of the browsers, so its test takes
+   the files of the web build ("run_tests.bat --web"). */
+#ifdef __EMSCRIPTEN__
+#define FEATURE_MP_REFEREE_INPUT  "referee_fixture.bin"
+#define FEATURE_MP_REFEREE_OUTPUT "referee_fixture.txt"
+#else
+#define FEATURE_MP_REFEREE_INPUT  "referee_fixture_native.bin"
+#define FEATURE_MP_REFEREE_OUTPUT "referee_fixture_native.txt"
+#endif
+#define FEATURE_MP_REFEREE_TURNS  4
+
+struct feature_mp_bytes
+{
+    u8 *data;
+    u32 used, capacity;
+};
+
+internal void
+feature_mp_put(feature_mp_bytes *out, const void *data, u32 size)
+{
+    if (out->used + size > out->capacity) return;
+    memcpy(out->data + out->used, data, size);
+    out->used += size;
+}
+
+internal void
+feature_mp_put_u32(feature_mp_bytes *out, u32 value)
+{
+    u8 bytes[4] = { (u8)value, (u8)(value >> 8), (u8)(value >> 16), (u8)(value >> 24) };
+    feature_mp_put(out, bytes, 4);
+}
+
+internal void
+feature_mp_referee_fixture_tests(test_counts *counts)
+{
+    feature_mp_pair pair;
+    feature_mp_pair_init(&pair);
+    engine_api *a = &pair.a.api;
+    void *ea = a->engine;
+    u8 humans[64];
+    u32 human_count = 0;
+    for (u32 index = 0; index < a->faction_count(ea) && human_count < ArrayCount(humans); ++index)
+    {
+        engine_faction faction = a->faction_at(ea, index);
+        if (faction.human) humans[human_count++] = faction.force_id;
+    }
+    u32 image_size = a->start_image_size(ea);
+    u32 input_capacity = image_size + (u32)Megabytes(1);
+    feature_mp_bytes input = { (u8 *)malloc(input_capacity), 0, input_capacity };
+    u8 *image = (u8 *)malloc(image_size);
+    image_size = a->start_image(ea, image, image_size);
+    const char *pack = "placeholder";
+    feature_mp_put(&input, "HXRF", 4);
+    feature_mp_put_u32(&input, 1);                  /* REFEREE_VERSION */
+    feature_mp_put_u32(&input, 1);                  /* REFEREE_PLACEHOLDER_MAP: the map of feature_replay_fixture_init */
+    feature_mp_put_u32(&input, 16384);              /* its ledger */
+    feature_mp_put_u32(&input, 0);                  /* the start image */
+    feature_mp_put_u32(&input, (u32)strlen(pack));
+    feature_mp_put(&input, pack, (u32)strlen(pack));
+    feature_mp_put_u32(&input, human_count);
+    feature_mp_put(&input, humans, human_count);
+    feature_mp_put_u32(&input, image_size);
+    feature_mp_put(&input, image, image_size);
+    free(image);
+
+    a->multiplayer_begin(ea, pair.force, true);
+    char expected[4096];
+    u32 written = 0, step_count = 0, count_at = input.used;
+    feature_mp_put_u32(&input, 0);                  /* the number of the steps: set below */
+    u8 bytes[ENGINE_STEP_WIRE_CAPACITY];
+    for (u32 turn = 0; turn < FEATURE_MP_REFEREE_TURNS && a->end_turn(ea); ++turn)
+    {
+        for (engine_outgoing_step out = a->steps_outgoing(ea, bytes, sizeof(bytes)); out.size;
+             out = a->steps_outgoing(ea, bytes, sizeof(bytes)))
+        {
+            feature_mp_put_u32(&input, out.size);
+            feature_mp_put(&input, bytes, out.size);
+            written += (u32)snprintf(expected + written, sizeof(expected) - written, "%u %016llx\n", out.step,
+                                     (unsigned long long)out.checksum);
+            step_count++;
+        }
+    }
+    written += (u32)snprintf(expected + written, sizeof(expected) - written, "done %u\n", step_count);
+    for (u32 index = 0; index < 4; ++index) input.data[count_at + index] = (u8)(step_count >> (8 * index));
+    TEST_CHECK(counts, step_count == FEATURE_MP_REFEREE_TURNS && input.used < input.capacity, "the host makes the log of the referee fixture");
+    TEST_CHECK(counts, test_platform_write_entire_file(FEATURE_MP_REFEREE_INPUT, input.data, input.used) &&
+                       test_platform_write_entire_file(FEATURE_MP_REFEREE_OUTPUT, expected, written),
+               "the test writes the input and the checksums of the referee fixture");
+    free(input.data);
+    engine_fixture_destroy(&pair.a);
+    engine_fixture_destroy(&pair.b);
+}
+
 /* A record of FEATURE_MP_TURNS turns with the AI gives one fixed checksum. */
 internal void
 feature_mp_record_checksum_tests(test_counts *counts)
@@ -542,5 +680,7 @@ feature_multiplayer_tests(test_counts *counts)
     feature_mp_bytes_tests(counts);
     feature_mp_server_steps_tests(counts);
     feature_mp_snapshot_tests(counts);
+    feature_mp_desync_tests(counts);
+    feature_mp_referee_fixture_tests(counts);
     feature_mp_record_checksum_tests(counts);
 }

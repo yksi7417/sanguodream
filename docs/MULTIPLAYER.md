@@ -2,9 +2,9 @@
 
 This document gives the plan for games that more than one player plays
 together on the fly.io site. It also records the facts of the current
-site that the plan starts from. MP1 to MP5 exist in code (see the
-sections "The status of MP1" to "The status of MP5"). The milestones
-after MP5 do not exist yet.
+site that the plan starts from. MP1 to MP6 exist in code (see the
+sections "The status of MP1" to "The status of MP6"). The milestones
+after MP6 do not exist yet.
 
 ## The current site: one copy of the game for each browser
 Each browser runs its own copy of the game. Two browsers never share a
@@ -288,7 +288,8 @@ later part of the plan (MP6), not a part of the first game together.
 - server.py starts it as a child process, as broadcast.py starts ffmpeg.
   The referee reads steps on stdin and writes checksums on stdout.
 - The referee runs only when the server needs a decision: a desync with
-  two players, or a check of a snapshot.
+  two players, or a desync without a majority. A snapshot needs no
+  referee: the server checks its checksum against the reports.
 - After the run, the process stops. Thus the memory of the machine stays
   small.
 
@@ -832,6 +833,44 @@ The tests:
   third player.
 - Server: the referee replays a stored log and gives the same checksum
   as the engines.
+
+### The status of MP6
+MP6 is complete. These parts exist:
+- web/rooms.py keeps each report of each step. When a report differs, the
+  game stops, and each page gets the message desync. Each page then sends
+  the image of its state: `PUT /api/games/<gid>/desync/<step>`. The server
+  keeps it at `games/<gid>/desync/<step>-<uid>.hxs`.
+- The room decides after the reports of all members with a socket. With
+  three reports or more, a strict majority wins. Else the referee decides.
+- The referee is code/wasm_referee.cpp: a headless engine for node.
+  `build_web.bat referee` builds build/referee.js, and deploy_web.bat
+  builds it too. web/referee.py starts it with the latest snapshot before
+  the step of the desync, or the start image, and the log after it. The
+  referee writes the checksum after each step. Then the process stops.
+- The page of a player with another checksum gets the message reload. The
+  page loads the latest good snapshot and the log after it on a new
+  socket. The UI ends the shared game of the engine, and the join loads
+  the good state.
+- The other pages get desync_end, and the game goes on from the step
+  after the desync.
+- After the decision, the server removes each snapshot of that step or
+  later with another checksum.
+- The image of the site has node, the referee and the data of the packs
+  without the models and the pictures.
+
+These decisions came from MP6:
+- If the referee agrees with no player, or no referee exists, the game
+  stays stopped. Each page then gets an error.
+- The images of the native build and of the web build have different
+  layouts. The web build loads an image of the native build without an
+  error, but the state differs. The test of the referee therefore uses the
+  fixture of the web build (`run_tests.bat --web`). A Windows client
+  (Q-9) needs one layout of the image first.
+- `run_tests.bat --server` also runs tests/server/referee_tests.py. It
+  needs `build_web.bat tests`, `run_tests.bat --web` and
+  `build_web.bat referee` first.
+- No browser test makes a desync. The UI test, the server tests and the
+  feature tests cover the steps of the recovery.
 
 ### MP7 The social part
 - The chat in the game (US-040 of docs/requirements/community-wishlist.md).

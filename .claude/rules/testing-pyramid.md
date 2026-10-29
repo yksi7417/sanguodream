@@ -78,6 +78,9 @@ the layers from the bottom to the top and stops at the first failure.
    (docs/MULTIPLAYER.md). It checks the seats, the order of the steps,
    the checksums and the log after a stop of the server. A test of the real
    site in a browser goes to tests/web (Playwright, `npm test`).
+   referee_tests.py runs the referee (build\referee.js) under node on the
+   fixture of the feature tests of the web build. Run `build_web.bat tests`,
+   `run_tests.bat --web` and `build_web.bat referee` first.
 
 ## Rules of thumb
 - A bug found in the UI gets a ui test (expected API call). If the engine

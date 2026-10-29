@@ -4566,6 +4566,51 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_SAVE_GAME), 0u);
     };
 
+    /* MP6: a desync sends the image of the state to the page, for the developer.
+       The end of the desync clears the banner. A new join loads the good state. */
+    t = IM_REGISTER_TEST(e, "ui", "net_desync_sends_the_state_image_and_a_new_join_loads_the_good_state");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_test_net_reset();
+        v.frame.net_send    = ui_test_net_send;
+        v.frame.net_poll    = ui_test_net_poll;
+        v.frame.frame_arena = &g_ui_test_net.arena;
+        v.recorder.multiplayer.shared = true;
+        v.ui.net.joined = true;
+        platform_net_event desync = {};
+        desync.kind = PLATFORM_NET_DESYNC;
+        desync.step = 9;
+        ui_test_net_queue(desync);
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.net.desync_step, 9);
+        IM_CHECK(g_ui_test_net.sent_count == 1 && g_ui_test_net.sent[0].kind == PLATFORM_NET_STATE_IMAGE &&
+                 g_ui_test_net.sent[0].step == 9 && g_ui_test_net.sent[0].size == 16);
+        desync.step = -1;                                                /* the room decided: the game goes on */
+        ui_test_net_queue(desync);
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.net.desync_step, -1);
+        IM_CHECK_EQ(g_ui_test_net.sent_count, 1u);
+
+        /* The page loads the good state of the room: the shared game ends, then the join loads it. */
+        recorder_reset(&v.recorder);
+        static const u8 image[16] = { 1 };
+        platform_net_event join = {};
+        join.kind = PLATFORM_NET_JOIN;
+        join.step = 10;
+        join.seat = 1;
+        join.data = image;
+        join.size = sizeof(image);
+        join.text = "1\tTester\n";
+        ui_test_net_queue(join);
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_MULTIPLAYER_END), 1u);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOAD_START_IMAGE), 1u);
+        IM_CHECK_LT(recorder_index_of(&v.recorder, RECORDER_MULTIPLAYER_END), recorder_index_of(&v.recorder, RECORDER_LOAD_START_IMAGE));
+    };
+
     /* MP5: a room code on the title menu opens the room. It is no game command. */
     t = IM_REGISTER_TEST(e, "ui", "title_menu_room_code_opens_the_room");
     t->SetVarsDataType<ui_test_vars>();

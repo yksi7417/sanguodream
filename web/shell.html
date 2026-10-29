@@ -440,7 +440,7 @@
        image and the seats to the game (join), then each step of the socket.
      The page shows names with textContent, never as HTML. */
   var NET = { HOST: 1, STEP: 2, CHECKSUM: 3, JOIN: 4, SEATS: 5, DESYNC: 6, ERROR: 7, TIMER: 8, PACK: 9, SNAPSHOT: 10,
-              OPEN_ROOM: 11 };
+              OPEN_ROOM: 11, STATE_IMAGE: 12 };
   var NET_POLL_MS = 2000;
   var RECONNECT_SECONDS = [1, 2, 4, 8, 15];   // after a lost connection; then each 15 seconds (MP4)
   var TURN_CHOICES = { live: [120, 180, 300, 600], correspondence: [12 * 3600, 24 * 3600, 48 * 3600, 72 * 3600] };
@@ -468,6 +468,11 @@
     else if (kind === NET.STEP) sendStep(step, bytes);
     else if (kind === NET.SNAPSHOT) putSnapshot(step, hexChecksum(low, high), bytes, 0);
     else if (kind === NET.OPEN_ROOM && /^[A-Z]{6}$/.test(text)) location.href = "/r/" + text;
+    else if (kind === NET.STATE_IMAGE) {
+      // MP6: the image of the state after the step of a desync, for the developer.
+      fetch("api/games/" + net.gid + "/desync/" + step, { method: "PUT", body: bytes })
+        .catch(function (error) { console.log("platform: room: the state image did not upload: " + error); });
+    }
     else if (kind === NET.CHECKSUM) sendJson({ type: "checksum", step: step, checksum: hexChecksum(low, high), acting: acting });
   };
 
@@ -682,6 +687,8 @@
       else if (message.type === "presence") { net.online = message.seats; netPush(NET.SEATS, 0, 0, false, null, seatsText(true)); }
       else if (message.type === "timer") netPush(NET.TIMER, message.seconds === null ? -1 : message.seconds, 0, false, null, "");
       else if (message.type === "desync") netPush(NET.DESYNC, message.step, 0, false, null, "");
+      else if (message.type === "desync_end") netPush(NET.DESYNC, -1, 0, false, null, "");
+      else if (message.type === "reload") loadGoodState(message.step);
       else if (message.type === "error") { roomStatus(message.reason); netPush(NET.ERROR, 0, 0, false, null, message.reason); }
     };
     socket.onclose = function () {
@@ -692,6 +699,22 @@
       roomStatus("The connection to the room closed. The page tries again in " + wait + " s.");
       setTimeout(connectRoom, wait * 1000);
     };
+  }
+
+  // MP6: the room decided a desync against this page. The page loads the latest good
+  // snapshot (or the start image) and the log after it: a new socket asks for the steps
+  // after the snapshot, and the join then loads the good state into the game.
+  async function loadGoodState(step) {
+    console.log("platform: room: the state of this page differs at step " + step + "; the page loads the good state");
+    var socket = net.socket;
+    net.socket = null;
+    net.joined = false;
+    net.early = [];
+    net.outbox = [];
+    if (socket) { socket.onclose = null; socket.close(); }
+    await loadJoinImage();
+    if (!net.joinStep) net.lastStep = -1;
+    connectRoom();
   }
 
   function welcomeRoom(welcome) {

@@ -87,6 +87,9 @@ decompilation of it.
                     .wasm, .data) with the Emscripten SDK in C:\tools\emsdk.
                     "build_web.bat tests" builds the unit tests and the
                     feature tests as WebAssembly (docs/WEB.md)
+- build_web.bat referee     builds build\referee.js, the referee of the shared
+                    games for node (docs/MULTIPLAYER.md, MP6).
+                    "run_tests.bat --server" tests it
 - build_web.bat test-game   builds the web game with the test hooks into
                     build\webtest; then "npm test" in tests\web runs the
                     Playwright smoke tests (docs/WEB.md, "The browser tests")
@@ -144,6 +147,8 @@ decompilation of it.
                          and relays their steps (docs/MULTIPLAYER.md).
                          web/broadcast.py relays the optional YouTube
                          broadcast
+- code/wasm_referee.cpp  the referee of the shared games: a headless engine
+                         for node. web/referee.py starts it (docs/MULTIPLAYER.md)
 - code/wasm_test_hooks.h the test hooks of "build_web.bat test-game" for
                          the Playwright smoke tests in tests/web
 - code/render/           render commands and camera; png.h, zip.h and

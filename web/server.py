@@ -44,6 +44,7 @@ import auth
 import broadcast
 import game_files
 import pages
+import referee
 import rooms
 import storage
 
@@ -507,6 +508,21 @@ async def api_game_snapshot_latest(request):
                         headers={"Cache-Control": "no-store", "X-Snapshot-Step": str(step)})
 
 
+async def api_game_desync_put(request):
+    """MP6: the image of the state of a player after the step of a desync, for the developer."""
+    user = await require_member(request)
+    room = await find_room(request)
+    if request.content_length is not None and request.content_length > rooms.MAX_START_IMAGE_BYTES:
+        raise web.HTTPRequestEntityTooLarge(max_size=rooms.MAX_START_IMAGE_BYTES, actual_size=request.content_length)
+    data = await request.read()
+    async with room.lock:
+        try:
+            await request.app[KEY_ROOMS].put_desync_image(room, user, int(request.match_info["step"]), data)
+        except rooms.RoomError as error:
+            return refused(error)
+    return web.json_response({"desync": int(request.match_info["step"])})
+
+
 NEXT_COOKIE = "hexdom_next"
 NEXT_SECONDS = 3600
 INVITE_PATH = re.compile(r"/r/[A-Z]{6}")
@@ -598,7 +614,9 @@ def make_app(root):
     app[KEY_FAILURES] = {}
     app[KEY_ADMINS] = auth.admin_emails()
     app[KEY_GAME_FILES] = game_files.GameFiles(app[KEY_ROOT])
-    app[KEY_ROOMS] = rooms.Rooms(app[KEY_STORAGE], build=app[KEY_GAME_FILES].build or "")
+    script = referee.find_script()   # MP6: the referee decides a desync of two players
+    app[KEY_ROOMS] = rooms.Rooms(app[KEY_STORAGE], build=app[KEY_GAME_FILES].build or "",
+                                 referee=referee.Referee(script) if script else None)
     app.cleanup_ctx.append(open_http)
     app.cleanup_ctx.append(game_files.publish_context(app[KEY_GAME_FILES], app[KEY_STORAGE]))
     app.cleanup_ctx.append(rooms.flush_context(app[KEY_ROOMS]))
@@ -630,6 +648,7 @@ def make_app(root):
         web.get("/api/games/{gid}/start-image", api_game_start_image_get),
         web.put("/api/games/{gid}/snap/{step:[0-9]{1,9}}", api_game_snapshot_put),
         web.get("/api/games/{gid}/snap/latest", api_game_snapshot_latest),
+        web.put("/api/games/{gid}/desync/{step:[0-9]{1,9}}", api_game_desync_put),
         web.get("/r/{code}", invite),
         web.get("/", game_file),
         web.get("/{name}", game_file),
@@ -640,6 +659,7 @@ def make_app(root):
     print(f"server.py: broadcast {'on' if app[KEY_BROADCAST].enabled else 'off'}", flush=True)
     print(f"server.py: {len(app[KEY_ADMINS])} admin emails", flush=True)
     print(f"server.py: game build {app[KEY_GAME_FILES].build or 'none'}", flush=True)
+    print(f"server.py: referee {script or 'none'}", flush=True)
     return app
 
 

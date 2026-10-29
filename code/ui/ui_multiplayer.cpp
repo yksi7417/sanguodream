@@ -69,6 +69,9 @@ internal void
 ui_net_join(ui_state *ui, engine_api *api, ui_frame_info *frame, const platform_net_event *event)
 {
     void *e = api->engine;
+    /* MP6: after a desync, the page loads the good state of the room. The shared
+       game of this engine ends first, because a shared game refuses a load. */
+    if (api->multiplayer_info(e).shared) api->multiplayer_end(e);
     /* The names first: the load of a name index adds events to the ledger, and
        the ledger is a part of the checksum. The start image then replaces the ledger. */
     ui_ensure_city_names(ui, api);
@@ -156,6 +159,27 @@ ui_net_timer(ui_state *ui, const platform_net_event *event)
     ui->net.timer_seconds = event->step < 0 ? 0.0f : (f32)event->step;
 }
 
+/* MP6: a desync. The banner names the step, and the image of the state after
+   it goes to the page. The server keeps the images for the developer. Step -1
+   ends the desync: the room decided, and the game goes on. */
+internal void
+ui_net_desync(ui_state *ui, engine_api *api, ui_frame_info *frame, s32 step)
+{
+    ui->net.desync_step = step;
+    memory_arena *arena = frame->frame_arena;
+    void *e = api->engine;
+    if (step < 0 || !arena) return;
+    u32 capacity = api->start_image_size(e);
+    if (capacity > arena->size - arena->used) return;
+    u8 *image = (u8 *)arena_push_size(arena, capacity);
+    platform_net_event state = {};
+    state.kind = PLATFORM_NET_STATE_IMAGE;
+    state.step = step;
+    state.data = image;
+    state.size = api->start_image(e, image, capacity);
+    if (state.size) ui_net_send(frame, &state);
+}
+
 internal void
 ui_net_begin_frame(ui_state *ui, engine_api *api, ui_frame_info *frame)
 {
@@ -170,7 +194,7 @@ ui_net_begin_frame(ui_state *ui, engine_api *api, ui_frame_info *frame)
             case PLATFORM_NET_JOIN:   ui_net_join(ui, api, frame, &event);       break;
             case PLATFORM_NET_STEP:   ui_net_apply_step(ui, api, frame, &event); break;
             case PLATFORM_NET_SEATS:  ui_net_read_seats(ui, event.text);         break;
-            case PLATFORM_NET_DESYNC: ui->net.desync_step = event.step;          break;
+            case PLATFORM_NET_DESYNC: ui_net_desync(ui, api, frame, event.step);  break;
             case PLATFORM_NET_ERROR:  snprintf(ui->net.error, sizeof(ui->net.error), "%s", event.text ? event.text : ""); break;
             case PLATFORM_NET_TIMER:  ui_net_timer(ui, &event);                  break;
             case PLATFORM_NET_PACK:

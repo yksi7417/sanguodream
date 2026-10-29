@@ -603,6 +603,81 @@ class RoomsTests(unittest.IsolatedAsyncioTestCase):
         open_room = await again.get((await again.create(HOST, "G", "S", "placeholder", BUILD, "live", 300, [{"force": 1}])).gid)
         self.assertEqual(open_room.record["build"], BUILD)                  # the server gives the build at the creation
 
+    # ---- MP6: the recovery from a desync and the referee ----
+
+    async def three_players(self, referee=None):
+        self.rooms = rooms.Rooms(self.store, clock=self.clock, referee=referee)
+        room = await self.make_room()
+        await self.rooms.take_seat(room, OTHER, FORCE_AI)
+        await self.rooms.start(room, HOST)
+        peers = [await self.connect(room, user) for user in (HOST, GUEST, OTHER)]
+        await self.report(room, peers[0], -1, FORCE_HOST, "0" * 16)
+        return room, peers
+
+    async def test_a_desync_with_three_players_gives_the_majority_state_to_the_third_player(self):
+        room, (host, guest, other) = await self.three_players()
+        await self.send(room, host, socket_step(0, FORCE_HOST))
+        await self.report(room, host, 0, FORCE_HOST, "1" * 16)
+        await self.report(room, other, 0, FORCE_HOST, "2" * 16)
+        self.assertEqual(room.record["state"], "desync")                     # the game stops for all players
+        self.assertIn({"type": "desync", "step": 0}, guest.socket.texts)
+        self.assertEqual(await self.send(room, host, socket_step(1, FORCE_HOST)), "desync")
+        await self.report(room, guest, 0, FORCE_HOST, "1" * 16)              # the last report: the majority decides
+        self.assertEqual(room.record["state"], "running")
+        self.assertIn({"type": "reload", "step": 0}, other.socket.texts)     # the third player loads the good state
+        self.assertNotIn({"type": "reload", "step": 0}, host.socket.texts)
+        self.assertIn({"type": "desync_end", "step": 0}, host.socket.texts)
+        self.assertIsNone(await self.send(room, host, socket_step(1, FORCE_HOST)))
+
+    async def test_a_desync_of_two_players_asks_the_referee(self):
+        calls = []
+
+        async def referee(record, first_step, image, steps):
+            calls.append((record["pack"], first_step, image, len(steps)))
+            return ["2" * 16 for _ in steps]
+
+        self.rooms = rooms.Rooms(self.store, clock=self.clock, referee=referee)
+        room, host, guest = await self.started_room()
+        await self.steps_with_reports(room, host, 1)
+        await self.rooms.put_snapshot(room, HOST, 0, "1" * 16, b"snapshot")
+        await self.send(room, host, socket_step(1, FORCE_HOST))
+        await self.report(room, host, 1, FORCE_HOST, "3" * 16)
+        await self.report(room, guest, 1, FORCE_HOST, "2" * 16)
+        self.assertEqual(calls, [("placeholder", 1, b"snapshot", 1)])        # the latest snapshot before the step, and the log after it
+        self.assertEqual(room.record["state"], "running")
+        self.assertIn({"type": "reload", "step": 1}, host.socket.texts)      # the referee agrees with the guest
+
+    async def test_without_a_referee_a_desync_of_two_players_stays(self):
+        room, host, guest = await self.started_room()
+        await self.steps_with_reports(room, host, 1)
+        await self.report(room, guest, 0, FORCE_HOST, "2" * 16)
+        self.assertEqual(room.record["state"], "desync")
+        self.assertIn("no referee", guest.socket.errors())
+
+    async def test_the_state_images_of_a_desync_go_to_the_storage(self):
+        room, host, guest = await self.started_room()
+        await self.steps_with_reports(room, host, 1)
+        with self.assertRaises(rooms.RoomError):
+            await self.rooms.put_desync_image(room, GUEST, 0, b"image")      # no desync yet
+        await self.report(room, guest, 0, FORCE_HOST, "2" * 16)
+        await self.rooms.put_desync_image(room, GUEST, 0, b"image")
+        self.assertEqual(await self.store.get(f"games/{room.gid}/desync/00000000-{GUEST['uid']}.hxs"), b"image")
+        with self.assertRaises(rooms.RoomError):
+            await self.rooms.put_desync_image(room, OTHER, 0, b"image")
+
+    async def test_a_snapshot_of_the_bad_state_goes_away(self):
+        room, (host, guest, other) = await self.three_players()
+        await self.steps_with_reports(room, host, 1)
+        await self.rooms.put_snapshot(room, HOST, 0, "1" * 16, b"good")
+        await self.send(room, host, socket_step(1, FORCE_HOST))
+        await self.report(room, host, 1, FORCE_HOST, "3" * 16)              # the host reports first: its snapshot is taken
+        await self.rooms.put_snapshot(room, HOST, 1, "3" * 16, b"bad")
+        await self.report(room, guest, 1, FORCE_HOST, "2" * 16)
+        await self.report(room, other, 1, FORCE_HOST, "2" * 16)
+        self.assertEqual(room.record["state"], "running")
+        self.assertEqual(await self.rooms.latest_snapshot(room, HOST), (0, b"good"))
+        self.assertIn({"type": "reload", "step": 1}, host.socket.texts)
+
     def test_the_log_packs_and_unpacks(self):
         steps = [b"abc", b"", bytes(range(200))]
         self.assertEqual(rooms.unpack_log(rooms.pack_log(steps)), steps)
