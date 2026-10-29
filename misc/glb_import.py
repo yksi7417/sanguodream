@@ -34,7 +34,8 @@ facility_farm_lv2, facility_farm_lv3, facility_barracks,
 facility_barracks_lv2, facility_barracks_lv3, facility_smithy,
 facility_smithy_lv2, facility_smithy_lv3, facility_stable,
 facility_stable_lv2, facility_stable_lv3, facility_shipyard,
-facility_bronze_sparrow_tower, facility_granary or facility_tally_office
+facility_bronze_sparrow_tower, facility_granary, facility_tally_office,
+facility_camp or facility_arrow_tower
 (render_mesh_model_files in code/render/render.h). The
 script needs Pillow (pip install pillow). Keep the GLB
 source in art-src/models, out of git. Add a row for each model to

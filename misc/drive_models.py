@@ -81,6 +81,8 @@ MODEL_NAMES = [
     ("bronze-sparrow-terrace", "facility_bronze_sparrow_tower"),
     ("granary", "facility_granary"),
     ("tally-office", "facility_tally_office"),
+    ("camp", "facility_camp"),
+    ("arrow-tower", "facility_arrow_tower"),
 ]
 
 ENTRY = re.compile(r'<div class="flip-entry" id="entry-([^"]+)".*?<div class="flip-entry-title">([^<]*)</div>', re.S)

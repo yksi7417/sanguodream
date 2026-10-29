@@ -623,6 +623,10 @@ global_variable const char *render_mesh_model_files[RENDER_MESH_COUNT][RENDER_MO
     { "models/facility_bronze_sparrow_tower" },                                                  /* RENDER_MESH_TOWER: the bronze sparrow tower */
     { "models/facility_tally_office" },                                                          /* RENDER_MESH_OFFICE: the offices */
     { "models/facility_stable", "models/facility_stable_lv2", "models/facility_stable_lv3" },   /* RENDER_MESH_SHED: the stable */
+    { 0 },   /* RENDER_MESH_GATE: a pass has the base model */
+    { 0 },   /* RENDER_MESH_PORT: a port has the base model */
+    { "models/facility_camp" },                                                                  /* RENDER_MESH_CAMP: 陣, 砦, 城塞 */
+    { "models/facility_arrow_tower" },                                                           /* RENDER_MESH_WATCHTOWER: 箭樓, 連弩樓, 投石台 */
 };
 
 /* The column of render_mesh_model_files for the level of an instance. An

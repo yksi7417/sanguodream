@@ -180,6 +180,10 @@ unit_render_tests(test_counts *counts)
         TEST_CHECK(counts, render_mesh_model_files[RENDER_MESH_SILO][0] && !render_mesh_model_files[RENDER_MESH_SILO][1] &&
                            render_mesh_model_files[RENDER_MESH_OFFICE][0] && !render_mesh_model_files[RENDER_MESH_OFFICE][1],
                    "the silo and the office shapes name a model for level 1: the granary and the tally office");
+        TEST_CHECK(counts, render_mesh_model_files[RENDER_MESH_CAMP][0] && !render_mesh_model_files[RENDER_MESH_CAMP][1] &&
+                           render_mesh_model_files[RENDER_MESH_WATCHTOWER][0] && !render_mesh_model_files[RENDER_MESH_WATCHTOWER][1] &&
+                           !render_mesh_model_files[RENDER_MESH_GATE][0] && !render_mesh_model_files[RENDER_MESH_PORT][0],
+                   "the camp and the watchtower shapes name a model for level 1, and the pass and the port shapes name none");
         TEST_CHECK(counts, render_model_level_index(0) == 0 && render_model_level_index(1) == 0 && render_model_level_index(2) == 1 &&
                            render_model_level_index(3) == 2 && render_model_level_index(9) == RENDER_MODEL_LEVELS - 1,
                    "level 0 and 1 use the first model column, and a level above the table uses the last");
