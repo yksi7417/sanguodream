@@ -112,3 +112,32 @@ The status column says how strong the check is:
 | 100 | Dominic de Guzman | https://en.wikipedia.org/wiki/Saint_Dominic | https://www.newworldencyclopedia.org/entry/Saint_Dominic | two sources |
 | 101 | Leonardo Fibonacci | https://en.wikipedia.org/wiki/Fibonacci | https://mathshistory.st-andrews.ac.uk/Biographies/Fibonacci/ | two sources |
 | 102 | Walter III of Brienne | https://en.wikipedia.org/wiki/Walter_III_of_Brienne | https://www.wikitree.com/wiki/Brienne-26 | second source is weak |
+
+## The officers of the factions of the east map
+
+The stage e8_factions added these officers to data/medieval_east. The Id is the id in the scenario of that pack. The statuses are as above. The lives are in lore/en.tsv of the pack.
+
+| Id | Officer | First source | Second source | Status |
+|---|---|---|---|---|
+| 43 | Aimery of Lusignan | https://en.wikipedia.org/wiki/Aimery_of_Cyprus | https://www.larousse.fr/encyclopedie/personnage/Amaury/105103 | two sources |
+| 44 | Isabella I of Jerusalem | https://en.wikipedia.org/wiki/Isabella_I_of_Jerusalem | https://www.britannica.com/biography/Isabella-I-queen-of-Jerusalem | two sources |
+| 45 | John of Ibelin | https://en.wikipedia.org/wiki/John,_Old_Lord_of_Beirut | https://fr.wikipedia.org/wiki/Jean_d'Ibelin_(1179-1236) | two sources |
+| 46 | Geoffroy de Donjon | https://en.wikipedia.org/wiki/Geoffroy_de_Donjon | https://www.newadvent.org/cathen/07476a.htm | two sources |
+| 47 | Bohemond III of Antioch | https://en.wikipedia.org/wiki/Bohemond_III_of_Antioch | https://www.britannica.com/biography/Bohemond-III | two sources |
+| 48 | Bohemond IV of Antioch | https://en.wikipedia.org/wiki/Bohemond_IV_of_Antioch | https://www.britannica.com/biography/Bohemond-IV | two sources |
+| 49 | Peter of Angoulême | https://en.wikipedia.org/wiki/Peter_of_Angoul%C3%AAme | https://fr.wikipedia.org/wiki/Pierre_d'Angoul%C3%AAme | second source is weak |
+| 50 | Leo I of Cilicia | https://en.wikipedia.org/wiki/Leo_I,_King_of_Armenia | https://resee.acadsudest.ro/sites/default/files/sites/default/files/articole/2020_03_Neagu.pdf | two sources |
+| 51 | Gregory VI Apirat | https://en.wikipedia.org/wiki/Gregory_VI_of_Cilicia | https://www.newadvent.org/cathen/01736b.htm | second source is weak |
+| 52 | Raymond-Roupen | https://en.wikipedia.org/wiki/Raymond-Roupen | https://fr.wikipedia.org/wiki/Raymond-Roupen_d'Antioche | two sources |
+| 53 | Hugh I of Cyprus | https://en.wikipedia.org/wiki/Hugh_I_of_Cyprus | https://fr.wikipedia.org/wiki/Liste_des_rois_de_Chypre | second source is weak |
+| 54 | Philip of Ibelin | https://en.wikipedia.org/wiki/Philip_of_Ibelin_(1180%E2%80%931227) | https://fr.wikipedia.org/wiki/Philippe_d'Ibelin_(mort_en_1227) | second source is weak |
+| 55 | Walter of Montbéliard | https://en.wikipedia.org/wiki/Walter_of_Montb%C3%A9liard | https://fr.wikipedia.org/wiki/Gautier_de_Montb%C3%A9liard | second source is weak |
+| 56 | Tamar of Georgia | https://en.wikipedia.org/wiki/Tamar_of_Georgia | https://www.britannica.com/biography/Tamara-queen-of-Georgia | two sources |
+| 57 | David Soslan | https://en.wikipedia.org/wiki/David_Soslan | https://travelguide.ge/en/articles/figure-davit-soslani-1250/ | second source is weak |
+| 58 | Zakare II Zakarian | https://en.wikipedia.org/wiki/Zakare_II_Zakarian | https://www.worldhistory.org/Queen_Tamar/ | second source is weak |
+| 59 | Ivane I Zakarian | https://en.wikipedia.org/wiki/Ivane_I_Zakarian | https://www.worldhistory.org/Queen_Tamar/ | second source is weak |
+| 60 | Shota Rustaveli | https://en.wikipedia.org/wiki/Shota_Rustaveli | https://www.britannica.com/biography/Shota-Rustaveli | two sources |
+| 61 | Al-Nasir li-Din Allah | https://en.wikipedia.org/wiki/Al-Nasir | https://www.britannica.com/biography/al-Nasir | two sources |
+| 62 | Shihab al-Din al-Suhrawardi | https://en.wikipedia.org/wiki/Shihab_al-Din_%27Umar_al-Suhrawardi | https://anqa.co.uk/about-ibn-arabi/contemporaries/shihabuddin-abu-hafs-%E2%80%98umar-al-suhrawardi | second source is weak |
+| 63 | Ibn al-Jawzi | https://en.wikipedia.org/wiki/Ibn_al-Jawzi | https://www.britannica.com/biography/Ibn-al-Jawzi | two sources |
+| 64 | Al-Zahir bi-Amr Allah | https://en.wikipedia.org/wiki/Al-Zahir_bi-Amr_Allah | https://historica.fandom.com/wiki/Az-Zahir | second source is weak |

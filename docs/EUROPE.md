@@ -538,15 +538,15 @@ The factions of the prototype on each map:
 | Map | Factions |
 |---|---|
 | West | france, angevin, toulouse, aragon, castile, leon, portugal, almohad, ghaniya, staufer, welf, sicily, bohemia, papacy, venice, flanders, denmark |
-| East | byzantium, bulgaria, rum, ayyubid, hungary, austria, papacy, venice, sicily, almohad, ghaniya |
+| East | byzantium, bulgaria, rum, ayyubid, hungary, austria, papacy, venice, sicily, almohad, ghaniya, jerusalem, antioch, cilicia, cyprus, georgia, abbasid |
 | Neither | poland |
 
-New factions can join the east map. These are the first choices:
+The stage e8_factions added six factions to the east map:
 - the kingdom of Jerusalem, with Acre;
 - the principality of Antioch;
 - the Armenian kingdom of Cilicia;
 - the kingdom of Cyprus;
-- the kingdom of Georgia;
+- the kingdom of Georgia, with Tbilisi in the place of Bologna;
 - the Abbasid caliphate, with Baghdad.
 
 The west map can add the kingdom of Navarre.
@@ -557,11 +557,19 @@ Each pack has 42 cities, 10 passes and 35 ports. Each pack has a scenario of 120
 | Map | Cities that are new | Factions | Officers |
 |---|---|---|---|
 | West | Rouen, Chinon, Lille, Zaragoza, Reims, Coimbra, Cordoba, Brunswick, Roskilde, Genoa, Burgos, Santiago | 17 | 77, with 8 free |
-| East | Antioch, Aleppo, Edessa, Mosul, Baghdad, Damascus, Acre, Nicosia, and 16 more in Anatolia, the Balkans and Italy | 11 | 43, with 6 free |
+| East | Antioch, Aleppo, Edessa, Mosul, Baghdad, Damascus, Acre, Nicosia, and 16 more in Anatolia, the Balkans and Italy | 17 | 65, with 6 free |
 
 The notes of the result:
-- Antioch is a city of the east map. It has no owner. Aleppo and Damascus belong to the Ayyubids.
-- The east map has 12 cities without an owner. The factions of the east wait for step 4.
+- Antioch is a city of the east map. The principality of Antioch owns it. Aleppo and Damascus belong to the Ayyubids.
+- The six factions of step 4 have the force ids 11 to 16. The order is Jerusalem, Antioch, Cilicia, Cyprus, Georgia and the Abbasid caliphate.
+- The cities of the six factions are Acre, Antioch, Sis, Nicosia, Tbilisi and Baghdad.
+- Tbilisi is city 19 of the east map. It takes the place of Bologna.
+- The east map has 6 cities without an owner: Barqa, Milan, Genoa, Florence, Belgrade and Mosul.
+- Aimery of Lusignan is the king of Jerusalem and of Cyprus. He governs Acre. The officer Hugh I of Cyprus governs Nicosia.
+- Bohemond IV was count of Tripoli in 1200. The pack puts him at Antioch, the city of his father. Raymond-Roupen is an infant. The pack puts him in Cilicia, the land of his grandfather.
+- The new officers have the ids 43 to 64. Each has a life, a native name and a URL.
+- Walter of Montbéliard came to Cyprus in 1202. The sim skips an officer that appears after the year of the scenario, so his year of appearance is 1200.
+- The rows 11 to 23 of faction_colours.tsv have new colours for the new forces. The unused colours moved to the later rows.
 - The Almohad officers stand in Tunis on the east map, because Marrakesh is not on the map.
 - Rouen and Acre were ports in the prototype. They are cities now.
 - The new game screen lists the games as rows 9 and 10 of scenarios.tsv, with the keys y1200_west and y1200_east.
@@ -579,7 +587,7 @@ The notes of the result:
    Wikipedia URLs stay the same.
 4. Research the officers of the new factions, with two sources for each
    life (docs/europe/SOURCES.md). The stage e8_factions
-   (misc/stages/e8_factions.md) does this step. It also puts Tbilisi in
+   (misc/stages/e8_factions.md) did this step. It also put Tbilisi in
    the place of Bologna, for Georgia. The stage e8_maps
    (misc/stages/e8_maps.md) did the other steps.
 5. Add one row for each pack to scenarios.tsv of the placeholder pack.
@@ -630,7 +638,36 @@ Lives that have a weak second source:
 - 57 Ludolf, 60 Henry of the Palatinate, 61 Henry of Brabant and 64 Pagliara: one source only.
 - The "SOURCES.md" file marks the other weak sources.
 
-Ten officers have no English article and have "-" in the column
+The officers of the east factions (ids 43 to 64 of data/medieval_east) have these open points. The first source of each is an English article.
+
+Years that the sources give in different ways:
+- 43 Aimery: born in 1144 or in 1145. Wikidata says 1152. The data has 1144.
+- 44 Isabella: born in 1169 or in 1172. The data has 1172.
+- 47 Bohemond III: born in 1144, in 1145 or near 1148. The data has 1144.
+- 48 Bohemond IV: born in 1172 or near 1175. The data has 1172.
+- 50 Leo I: crowned in 1198 or in 1199. The life says both.
+- 52 Raymond-Roupen: born in 1198 or in 1199, and died in 1219, 1221 or 1222. The data has 1198 and 1222.
+- 53 Hugh: born in 1194, 1195 or near 1196. The English article says he was nine in 1205. The data has 1195.
+- 54 Philip of Ibelin: died in 1227 or in 1228. The data has 1227.
+- 57 David Soslan: married Tamar in 1189 or in 1191. The life says approximately 1189.
+- 63 Ibn al-Jawzi: born in 1116 or in 1126, and died in 1200 or in 1201. The data has 1116 and 1201.
+
+Years that are an estimate, because no source gives a year:
+- 46 Geoffroy de Donjon, 49 Peter of Angoulême and 51 Gregory VI: born 1150. Wikidata gives 1200 for the first two. That is a placeholder.
+- 56 Tamar: born near 1160 or near 1166. The data has 1160.
+- 57 David Soslan: born 1160. 58 Zakare II: born 1160. 59 Ivane I: born 1165.
+- 60 Rustaveli: born 1165 and died 1220. Both years are estimates.
+- 55 Walter of Montbéliard: the year of appearance is 1200, but he came to Cyprus in 1202. The sim skips an officer that appears after the year of the scenario.
+
+Lives that have a weak second source: 49, 51, 53, 54, 55, 57, 58, 59, 62 and 64. The file docs/europe/SOURCES.md has the list.
+
+Other points of the east factions:
+- Aimery of Lusignan is king of Jerusalem and of Cyprus. The two sources are Wikipedia and Larousse. Acre has Aimery, and Nicosia has Hugh. The scenario files cannot say that two factions are allies. The engine has only the liked and the disliked officers. Thus the alliance of Jerusalem and Cyprus is not in the data.
+- 48 Bohemond IV was count of Tripoli in 1200. The data puts him at Antioch.
+- 52 Raymond-Roupen was a small child. The data puts him in Cilicia.
+- The arms of Jerusalem, Antioch, Cilicia, Cyprus and Georgia have no checked date (docs/europe/ARMS.md). The arms of Cyprus that are public domain are a photograph of a later relief.
+
+Ten officers of the prototype have no English article. They have "-" in the column
 wikipedia: 3, 4, 19, 22, 33, 35, 38, 57, 78 and 82.
 
 ## The milestones
@@ -643,7 +680,7 @@ wikipedia: 3, 4, 19, 22, 33, 35, 38, 57, 78 and 82.
 | E5 | Coats of arms on the flags | Q-E3 | list done in docs/europe/ARMS.md, external art |
 | E6 | The authorities of the church | Q-E2 | design |
 | E7 | The story mode and the events during the game | no | brief in misc/stages/e7_story.md, after e8_factions |
-| E8 | The west map and the east map, with Antioch on the east map | no | maps done. The new factions of the east are in misc/stages/e8_factions.md |
+| E8 | The west map and the east map, with Antioch on the east map | no | done. The east map has 17 factions |
 
 ## The stage runs
 misc/run_stages.py runs the stages as headless Claude Code sessions, in

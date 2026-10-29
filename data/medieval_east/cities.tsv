@@ -17,12 +17,12 @@ id	key	specialty	slots	port	name_zh	price	name_big5
 11	rome	halberd	18	yes	羅馬	5	C3B9B0A8
 12	naples	crossbow	12	no	拿坡里	5	AEB3A959A8BD
 13	palermo	crossbow	12	yes	巴勒莫	5	A4DAB0C7B2F6
-14	venice	navy	17	no	威尼斯	5	ABC2A5A7B4B5
+14	venice	navy	18	no	威尼斯	5	ABC2A5A7B4B5
 15	milan	pike	18	no	米蘭	5	A6CCC4F5
 16	vienna	halberd	15	no	維也納	5	BAFBA45DAFC7
 17	esztergom	horse	15	no	埃斯泰爾戈姆	5	AE4AB4B5AEF5BAB8A4E0A969
 18	genoa	navy	15	no	熱那亞	5	BCF6A8BAA8C8
-19	bologna	pike	12	no	博洛尼亞	5	B3D5ACA5A5A7A8C8
+19	tbilisi	horse	12	no	第比利斯	5	B2C4A4F1A751B4B5
 20	florence	crossbow	12	yes	佛羅倫斯	5	A6F2C3B9ADDBB4B5
 21	bari	navy	12	yes	巴里	5	A4DAA8BD
 22	kairouan	horse	10	yes	凱魯萬	5	B3CDBE7CB855
@@ -35,7 +35,7 @@ id	key	specialty	slots	port	name_zh	price	name_big5
 29	kayseri	horse	12	no	開塞利	5	B67DB6EBA751
 30	sivas	horse	10	yes	錫瓦斯	5	BFFCA5CBB4B5
 31	ankara	horse	10	no	安卡拉	5	A677A564A9D4
-32	trebizond	navy	12	no	特拉布宗	5	AF53A9D4A5ACA976
+32	trebizond	navy	11	no	特拉布宗	5	AF53A9D4A5ACA976
 33	sis	pike	10	yes	錫斯	5	BFFCB4B5
 34	antioch	siege	15	yes	安條克	5	A677B1F8A74A
 35	aleppo	crossbow	18	no	阿勒坡	5	AAFCB0C7A959

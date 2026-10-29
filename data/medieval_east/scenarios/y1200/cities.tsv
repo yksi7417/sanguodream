@@ -21,7 +21,7 @@ id	owner	governor	troops	gold	food	spears	halberds	crossbows	horses	durability	n
 16	5	17	16000	4000	40000	2000	2000	1000	3000	6000	Vienna, Austria
 17	4	14	18000	3500	44000	2000	0	1000	5000	6000	Esztergom, Hungary
 18	-	-	0	2500	20000	0	0	0	0	5500	Genoa, the commune, no owner
-19	-	-	0	2000	16000	0	0	0	0	5000	Bologna, the commune, no owner
+19	15	56	12000	3500	36000	2000	0	2000	4000	6500	Tbilisi, Georgia
 20	-	-	0	2000	16000	0	0	0	0	5000	Florence, the commune, no owner
 21	8	-	12000	3000	32000	2000	1000	2000	2000	6000	Bari, Sicily
 22	9	-	10000	2500	28000	0	0	2000	1500	5500	Kairouan, Almohads
@@ -35,12 +35,12 @@ id	owner	governor	troops	gold	food	spears	halberds	crossbows	horses	durability	n
 30	2	-	10000	2500	28000	2000	0	1000	3000	5500	Sivas, Rum
 31	2	-	8000	2000	24000	1000	0	1000	3000	5000	Ankara, Rum
 32	0	-	10000	2500	28000	2000	0	1000	1000	6000	Trebizond, Byzantium
-33	-	-	0	2000	16000	0	0	0	0	5000	Sis, the Armenians of Cilicia, no owner
-34	-	-	0	2500	20000	0	0	0	0	6500	Antioch, no owner until a later stage adds the principality
+33	13	50	8000	2500	24000	1000	0	1000	3000	5500	Sis, the Armenian kingdom of Cilicia
+34	12	47	10000	3000	28000	2000	1000	2000	2000	6500	Antioch, the principality
 35	3	-	20000	4500	50000	3000	2000	3000	3000	7000	Aleppo, Ayyubids
 36	3	-	8000	2000	24000	2000	0	1000	2000	5500	Edessa, Ayyubids
 37	-	-	0	2500	20000	0	0	0	0	6000	Mosul, no owner
-38	-	-	0	4000	30000	0	0	0	0	7000	Baghdad, the caliph, no owner
+38	16	61	12000	6000	40000	2000	0	3000	3000	7000	Baghdad, the Abbasid caliph
 39	3	12	20000	5000	50000	3000	0	4000	3000	7000	Damascus, Ayyubids
-40	-	-	0	2500	20000	0	0	0	0	6000	Acre, no owner until a later stage adds the kingdom
-41	-	-	0	2000	16000	0	0	0	0	5000	Nicosia, Cyprus, no owner
+40	11	43	12000	3500	30000	2000	1000	2000	2000	6500	Acre, the kingdom of Jerusalem
+41	14	53	6000	2500	20000	1000	0	1000	1500	5500	Nicosia, the kingdom of Cyprus

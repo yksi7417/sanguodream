@@ -89,7 +89,8 @@ struct feature_pack_spec
     u32                      factions;
     u32                      width;
     u32                      height;
-    feature_pack_city        cities[3];
+    u32                      city_count;
+    feature_pack_city        cities[8];
 };
 
 /* One test for a pack of E8: the counts of the map, the keys of three cities, the scenario and two turns. */
@@ -116,7 +117,7 @@ feature_pack_map_tests(test_counts *counts, const feature_pack_spec *spec)
     TEST_CHECK(counts, feature_world_flowers(api), "each city stands on its flower and has slots");
     TEST_CHECK(counts, api->faction_count(e) == spec->factions, "each row of forces.tsv is a faction");
 
-    for (u32 index = 0; index < ArrayCount(spec->cities); ++index)
+    for (u32 index = 0; index < spec->city_count; ++index)
     {
         const feature_pack_city *want = &spec->cities[index];
         engine_city_name city_name = api->city_name_at(e, want->city_id);
@@ -142,13 +143,17 @@ feature_pack_map_tests_all(test_counts *counts)
 {
     static const feature_pack_spec west =
     {
-        HEXDOM_DATA_ROOT "/medieval_west", 17, 268, 286,
+        HEXDOM_DATA_ROOT "/medieval_west", 17, 268, 286, 3,
         { { 16, "paris", 0 }, { 30, "rouen", 1 }, { 32, "lille", 15 } }
     };
+    /* The new factions of the east have the force ids 11 to 16: Jerusalem, Antioch, Cilicia, Cyprus, Georgia and the caliphate. */
     static const feature_pack_spec east =
     {
-        HEXDOM_DATA_ROOT "/medieval_east", 11, 366, 217,
-        { { 34, "antioch", CITY_OWNER_NONE }, { 35, "aleppo", 3 }, { 39, "damascus", 3 } }
+        HEXDOM_DATA_ROOT "/medieval_east", 17, 366, 217, 8,
+        {
+            { 34, "antioch", 12 }, { 35, "aleppo", 3 }, { 39, "damascus", 3 }, { 40, "acre", 11 },
+            { 38, "baghdad", 16 }, { 33, "sis", 13 }, { 41, "nicosia", 14 }, { 19, "tbilisi", 15 }
+        }
     };
     feature_pack_map_tests(counts, &west);
     feature_pack_map_tests(counts, &east);
