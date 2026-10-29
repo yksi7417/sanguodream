@@ -44,6 +44,7 @@ struct ui_test_vars
     text_catalog    text;     /* the real data\placeholder files, zh-TW */
     ui_state        ui;
     ui_frame_info   frame;
+    f32             frame_seconds;   /* if not zero, the time of each frame in place of the time of ImGui */
     /* e2e only */
     bool            use_real_engine;
     memory_arena    permanent;
@@ -125,7 +126,7 @@ ui_test_gui(ImGuiTestContext *ctx)
         v.ui.show_map  = true;    /* the 2D map panel is closed by default now; its tests need it open */
         v.ui.show_city = false;   /* the City panel asks for city names too; its tests open it */
     }
-    v.frame.dt_seconds = ImGui::GetIO().DeltaTime;
+    v.frame.dt_seconds = v.frame_seconds > 0.0f ? v.frame_seconds : ImGui::GetIO().DeltaTime;
     if (v.frame.frame_arena)   /* a test of the scene: fresh render commands each frame, as the platform makes them */
     {
         v.frame.frame_arena->used = 0;
@@ -288,6 +289,19 @@ internal PLATFORM_FACE_TEXTURE(ui_test_face_texture)
     g_ui_test_face_last_officer = officer_id;
     g_ui_test_face_last_key     = key;
     return 2;
+}
+
+/* A double of the splash picture of the platform: it counts the requests
+   of the UI and gives a 16:9 picture. */
+global_variable u32 g_ui_test_splash_requests;
+
+internal PLATFORM_SPLASH_PICTURE(ui_test_splash_picture)
+{
+    g_ui_test_splash_requests += 1;
+    platform_picture picture = {};
+    picture.texture = 3;   /* any nonzero id: the headless tests draw no texture */
+    picture.aspect  = 9.0f / 16.0f;
+    return picture;
 }
 
 /* Clicks the header of a column of a sortable table. The column labels of
@@ -5662,6 +5676,111 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->Yield((int)(UI_TITLE_SELECT_SECONDS * 60.0f) + 10);
         IM_CHECK(v.ui.show_scenarios && v.ui.feel.title_choice == UI_TITLE_NONE);
         IM_CHECK(ctx->ItemExists("###title_load"));            /* the title is whole again under the new screen */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* The splash shows the art of the pack before the title menu
+       (docs/ASSETS.md, "The splash art"). The HUD and the title stay hidden.
+       After UI_SPLASH_SECONDS the splash closes and the title menu opens.
+       The splash commands nothing. */
+    t = IM_REGISTER_TEST(e, "ui", "splash_shows_the_art_then_opens_the_title_after_its_time");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.ui.hud_mode            = true;
+        v.ui.show_map            = false;
+        v.ui.show_officers = v.ui.show_cities = false;
+        g_ui_test_splash_requests = 0;
+        v.frame.splash_picture    = ui_test_splash_picture;
+        ui_splash_open(&v.ui);
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        IM_CHECK(v.ui.show_splash && !v.ui.show_title);
+        IM_CHECK(ctx->ItemExists("//###Splash/###splash"));
+        IM_CHECK_GT(g_ui_test_splash_requests, 0u);
+        IM_CHECK(!ctx->ItemExists("//###Title/###title_load"));
+        IM_CHECK(!ctx->ItemExists("//###HUD/**/###hud_bases"));   /* no game yet: the splash is a screen of the start */
+        ctx->Yield((int)(UI_SPLASH_SECONDS * 60.0f) + 10);
+        IM_CHECK(!v.ui.show_splash && v.ui.show_title);
+        IM_CHECK(ctx->ItemExists("//###Title/###title_load"));
+        ImGuiWindow *splash = ImGui::FindWindowByName("###Splash");
+        IM_CHECK(splash == 0 || !splash->Active);   /* the splash window does not draw */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        v.frame.splash_picture = 0;
+    };
+
+    /* A click on the splash closes it before its time. Without the art, the
+       splash still shows and closes. */
+    t = IM_REGISTER_TEST(e, "ui", "splash_closes_on_a_click_before_its_time");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.frame.splash_picture   = 0;
+        ui_splash_open(&v.ui);
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        IM_CHECK(v.ui.show_splash);
+        ctx->ItemClick("//###Splash/###splash");
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.show_splash && v.ui.show_title);
+        IM_CHECK_LT(v.ui.splash_seconds, UI_SPLASH_SECONDS);
+        IM_CHECK(ctx->ItemExists("//###Title/###title_load"));
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* The engine starts in the first frame of the game, so the next frame
+       can be several seconds long. One frame adds at most
+       UI_SPLASH_LONGEST_STEP to the time of the splash, so that the player
+       sees the art. */
+    t = IM_REGISTER_TEST(e, "ui", "splash_stays_after_one_long_frame");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        ui_splash_open(&v.ui);
+        v.frame_seconds = UI_SPLASH_SECONDS * 4.0f;
+        ctx->Yield();
+        v.frame_seconds = 0.0f;
+        IM_CHECK(v.ui.show_splash && !v.ui.show_title);
+        IM_CHECK_LE(v.ui.splash_seconds, UI_SPLASH_LONGEST_STEP * 2.0f);
+        IM_CHECK(ctx->ItemExists("//###Splash/###splash"));
+    };
+
+    /* Escape closes the splash too. A game that starts from a shared room
+       closes it immediately (ui_enter_game). */
+    t = IM_REGISTER_TEST(e, "ui", "splash_closes_on_escape_and_on_the_start_of_a_game");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        ui_splash_open(&v.ui);
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->KeyPress(ImGuiKey_Escape);
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.show_splash && v.ui.show_title);
+        ui_splash_open(&v.ui);
+        ctx->Yield(2);
+        IM_CHECK(v.ui.show_splash);
+        ui_enter_game(&v.ui);
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.show_splash && !v.ui.show_title);
+        ImGuiWindow *splash = ImGui::FindWindowByName("###Splash");
+        IM_CHECK(splash == 0 || !splash->Active);   /* the splash window does not draw */
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 

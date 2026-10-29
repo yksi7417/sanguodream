@@ -56,6 +56,12 @@ async function clickHex(page, q, r) {
 // Sign in with the test provider, join the house, and wait for the title menu.
 // A user who joined before goes straight to the game.
 async function signIn(page) {
+  await enterSite(page);
+  await waitForTitle(page);
+}
+
+// Sign in with the test provider and join the house. The game then starts with the splash art.
+async function enterSite(page) {
   page.on("console", (message) => {
     const text = message.text();
     if (/^(platform|hexdom|broadcast):/.test(text)) console.log(`  [page] ${text}`);
@@ -68,14 +74,30 @@ async function signIn(page) {
     await page.click("#house-submit");
     await page.waitForURL((url) => url.pathname === "/");
   }
-  await waitForTitle(page);
 }
 
-// Wait until the game runs and shows the title menu.
-async function waitForTitle(page) {
+// Wait until the game draws its first frame. The splash art comes before the title menu
+// (code/ui/ui_splash.cpp). Before the first frame, the hooks that read the game or ImGui fail.
+// The item hooks read only their own lists, so they are safe at any time.
+async function waitForGame(page) {
   await page.waitForFunction(() => typeof Module !== "undefined" && typeof Module._wasm_test_item === "function",
                              null, { timeout: 120_000 });
-  await expect.poll(() => item(page, "title_load"), { timeout: 120_000 }).not.toBeNull();
+  await expect.poll(async () => JSON.parse(await call(page, "wasm_test_item_ids", "string", ["string"], [""])).length,
+                    { message: "the game draws a frame", timeout: 120_000 }).toBeGreaterThan(0);
+}
+
+// Wait until the game runs and shows the title menu. Escape closes the splash art before its time.
+// The helper does not click the splash: the first click on the canvas also closes "My games".
+async function waitForTitle(page) {
+  await waitForGame(page);
+  await expect.poll(async () => {
+    if (await item(page, "title_load")) return true;
+    if (await item(page, "splash")) {
+      await page.keyboard.press("Escape");
+      await frames(page, 3);
+    }
+    return false;
+  }, { message: "the title menu shows", timeout: 120_000 }).toBe(true);
 }
 
 // Load the save of slot 1 from the title menu, and wait for the map.
@@ -88,4 +110,5 @@ async function loadFirstSave(page) {
   await expect.poll(() => windowShown(page, "LoadTransition")).toBe(false);
 }
 
-module.exports = { frames, call, item, windowShown, gameState, clickAt, clickItem, clickHex, signIn, waitForTitle, loadFirstSave };
+module.exports = { frames, call, item, windowShown, gameState, clickAt, clickItem, clickHex, signIn, enterSite, waitForGame,
+                   waitForTitle, loadFirstSave };

@@ -908,6 +908,7 @@ refusal.no_event	no event waits for this choice	沒有事件
 menu.title	Title	the title menu of the game
 menu.abilities	Abilities	能力表 (PK)
 title.title	hexdom	the title menu
+splash.hint	Click or press a key	the hint at the bottom of the splash art
 title.load	Load game	載入進度
 title.new	New game	重新開始新遊戲
 title.tutorial	Tutorial	遊戲教學; not in the clean room
@@ -1606,10 +1607,10 @@ credits.section.code	Code	section of the Credits window
 credits.section.data	Data	section of the Credits window
 credits.section.tests	Tools of the tests (not in the game)	section of the Credits window
 credits.use.meshy_city	The 3D model of the big cities	what the game uses the work for
-credits.work.own_art	Unit and base art	a work of the project
+credits.work.own_art	Unit, base and splash art	a work of the project
 credits.author.own_art	The hexdom project, with Google Gemini	author of the work
 credits.licence.own_art	Own work of the hexdom project	licence of the work
-credits.use.own_art	The pictures of the units and the cards of the bases	what the game uses the work for
+credits.use.own_art	The splash art at the start, the pictures of the units and the cards of the baseswhat the game uses the work for
 credits.work.portraits	Officer portraits	a work of the project
 credits.author.portraits	The hexdom project, with an image model	author of the work
 credits.licence.portraits	Not recorded yet	docs/ASSETS.md: the licence of the portraits is not recorded

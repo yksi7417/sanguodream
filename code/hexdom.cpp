@@ -110,6 +110,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                  game->text.locale);
         memory->platform.log(locale_line);
         game_start_ui(game);   /* the platform gives a zeroed block: font_size is 0, so the UI takes its default */
+        ui_splash_open(&game->ui);   /* the splash art comes before the title menu, only at the first start */
 
         memory->platform.log("hexdom: game state initialized");
         memory->is_initialized = true;
@@ -133,6 +134,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     frame_info.portraits        = memory->platform.portraits;
     frame_info.portrait_texture = memory->platform.portrait_texture;
     frame_info.face_texture     = memory->platform.face_texture;
+    frame_info.splash_picture   = memory->platform.splash_picture;
     frame_info.net_send         = memory->platform.net_send;
     frame_info.net_poll         = memory->platform.net_poll;
     frame_info.open_url         = memory->platform.open_url;

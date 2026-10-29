@@ -158,6 +158,27 @@ internal PLATFORM_OPEN_URL(wasm_open_url)
     return true;
 }
 
+/* The splash art (docs/ASSETS.md, "The splash art"). The platform loads it
+   one time after the renderer starts (wasm_load_splash). */
+global_variable platform_picture g_wasm_splash;
+
+internal PLATFORM_SPLASH_PICTURE(wasm_splash_picture)
+{
+    return g_wasm_splash;
+}
+
+/* The decoder uses the scratch memory of the renderer only during the
+   load. The texture keeps the pixels, so the memory goes back. */
+internal void
+wasm_load_splash(wasm_state *state)
+{
+    u64 used = state->renderer_scratch.used;
+    GLuint texture = gl_load_png_texture(&state->renderer, HEXDOM_SPLASH_FILE, &state->renderer_scratch, &g_wasm_splash.aspect);
+    state->renderer_scratch.used = used;
+    g_wasm_splash.texture = (u64)texture;
+    wasm_log(texture ? "platform: splash art loaded" : "platform: no splash art");
+}
+
 internal void *
 wasm_imgui_alloc(size_t size, void *user)
 {
@@ -386,6 +407,7 @@ wasm_start(void)
         wasm_log("platform: scene renderer failed to start, drawing panels only");
         wasm_log(state->renderer.last_error);
     }
+    wasm_load_splash(state);
 
     state->font_pixels = HEXDOM_FONT_DEFAULT_PIXELS;
     wasm_log(ui_fonts_load(wasm_read_entire_file, HEXDOM_DATA_ROOT, HEXDOM_CONTENT_PACK, state->font_pixels).message);
@@ -416,7 +438,8 @@ wasm_start(void)
         memory->platform.portrait_texture = wasm_portrait_texture;
     }
     wasm_log(portrait_message);
-    memory->platform.face_texture = wasm_face_texture;
+    memory->platform.face_texture   = wasm_face_texture;
+    memory->platform.splash_picture = wasm_splash_picture;
     memory->platform.net_send     = wasm_net_send;   /* MP3: the socket of a shared game is in the page */
     memory->platform.net_poll     = wasm_net_poll;
     wasm_net_install();

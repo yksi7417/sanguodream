@@ -263,6 +263,30 @@ The source sheets stay in art-src/bases, out of git. To import them again,
 run `python -X utf8 misc\art_import.py art-src\bases` from the root of
 the repository.
 
+## The splash art (data/placeholder/sprites/art/splash.png)
+The game shows this picture at the start, before the title menu. The
+picture goes after 3 seconds, or after a click or a key
+(code/ui/ui_splash.cpp).
+
+| Item | Value |
+|---|---|
+| File | splash.png |
+| Size | 1280 x 720 pixels, 8-bit RGB, 1.7 MB |
+| Source | The owner of the repository made the picture with an image model. The owner shared it on 2026-10-29 in the shared Google Drive folder "Three Kingdoms Animations — Map Art" as sanguo-dream-splash.png. The source is 2048 x 1152 pixels and 4.0 MB. provenance.tsv in the folder has its row. |
+| Licence | the licence of this repository; the picture is original work of the owner, made with an image model |
+
+The source file stays in art-src/splash, out of git. Its SHA-256 is
+d483963318295bea9475ad38911a2d25cca72fe8bf72cee56bb6a095c3d8bddf.
+The pack keeps a smaller copy, because each visit to the web game
+downloads the pack. To make the copy again, scale the source to
+1280 x 720 pixels with a Lanczos filter. Save it as an 8-bit RGB PNG
+without interlace, because code/render/png.h decodes only that format.
+
+The platform loads the picture one time after the renderer starts
+(HEXDOM_SPLASH_FILE in code/hexdom.h). It gives the texture to the UI
+through platform_api.splash_picture. If the file is absent, the splash
+shows a dark screen with the hint.
+
 ## Base models (data/placeholder/models)
 A base kind can have a 3D model in place of its art card. The card faces
 the camera, so it turns when the player turns the view. A model stays

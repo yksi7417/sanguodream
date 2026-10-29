@@ -69,6 +69,29 @@ internal PLATFORM_OPEN_URL(win32_open_url)
     return (INT_PTR)result > 32;
 }
 
+/* The splash art (docs/ASSETS.md, "The splash art"). The platform loads it
+   one time after the renderer starts (win32_load_splash). */
+global_variable ID3D11ShaderResourceView *g_win32_splash_view;
+global_variable platform_picture          g_win32_splash;
+
+internal PLATFORM_SPLASH_PICTURE(win32_splash_picture)
+{
+    return g_win32_splash;
+}
+
+/* The decoder uses the scratch memory of the renderer only during the
+   load. The texture keeps the pixels, so the memory goes back. */
+internal void
+win32_load_splash(d3d11_renderer *renderer, memory_arena *scratch)
+{
+    if (!renderer->device) return;
+    u64 used = scratch->used;
+    g_win32_splash_view    = d3d11_load_png_texture(renderer, HEXDOM_SPLASH_FILE, scratch, &g_win32_splash.aspect);
+    g_win32_splash.texture = (u64)g_win32_splash_view;
+    scratch->used = used;
+    win32_log(g_win32_splash_view ? "platform: splash art loaded" : "platform: no splash art");
+}
+
 /* A relative path is relative to the folder of the executable, not to the
    current directory, so the game finds its data however it was started. */
 internal PLATFORM_READ_ENTIRE_FILE(win32_read_entire_file)
@@ -283,6 +306,7 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
         win32_log("platform: scene renderer failed to start, drawing panels only");
         win32_log(renderer.last_error);
     }
+    win32_load_splash(&renderer, &renderer_scratch);
 
     /* The fonts go into the atlas before the first frame; the DX11 backend
        builds the atlas texture in its first NewFrame. */
@@ -337,8 +361,9 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
     }
     win32_log(portrait_message);
     win32_faces_init(&g_win32_faces, window.device);
-    memory.platform.face_texture = win32_face_texture;
-    memory.platform.open_url     = win32_open_url;
+    memory.platform.face_texture   = win32_face_texture;
+    memory.platform.splash_picture = win32_splash_picture;
+    memory.platform.open_url       = win32_open_url;
 
     win32_game_code game = win32_load_game_code(&g_win32);
     win32_log(game.is_valid ? "platform: loaded hexdom.dll" : "platform: hexdom.dll not loaded yet");
@@ -434,6 +459,7 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
              peak_frame / 1048576.0, frame_size / 1048576.0, renderer_scratch.used / 1048576.0, renderer_scratch.size / 1048576.0);
     win32_log(memory_line);
 
+    if (g_win32_splash_view) g_win32_splash_view->Release();
     d3d11_renderer_destroy(&renderer);
     win32_portraits_close(&g_win32_portraits);
     win32_faces_close(&g_win32_faces);
