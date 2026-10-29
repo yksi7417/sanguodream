@@ -440,7 +440,7 @@
        image and the seats to the game (join), then each step of the socket.
      The page shows names with textContent, never as HTML. */
   var NET = { HOST: 1, STEP: 2, CHECKSUM: 3, JOIN: 4, SEATS: 5, DESYNC: 6, ERROR: 7, TIMER: 8, PACK: 9, SNAPSHOT: 10,
-              OPEN_ROOM: 11, STATE_IMAGE: 12 };
+              OPEN_ROOM: 11, STATE_IMAGE: 12, CHAT: 13 };
   var NET_POLL_MS = 2000;
   var RECONNECT_SECONDS = [1, 2, 4, 8, 15];   // after a lost connection; then each 15 seconds (MP4)
   var TURN_CHOICES = { live: [120, 180, 300, 600], correspondence: [12 * 3600, 24 * 3600, 48 * 3600, 72 * 3600] };
@@ -468,6 +468,7 @@
     else if (kind === NET.STEP) sendStep(step, bytes);
     else if (kind === NET.SNAPSHOT) putSnapshot(step, hexChecksum(low, high), bytes, 0);
     else if (kind === NET.OPEN_ROOM && /^[A-Z]{6}$/.test(text)) location.href = "/r/" + text;
+    else if (kind === NET.CHAT) sendJson({ type: "chat", text: text });   // MP7: the server cleans the line
     else if (kind === NET.STATE_IMAGE) {
       // MP6: the image of the state after the step of a desync, for the developer.
       fetch("api/games/" + net.gid + "/desync/" + step, { method: "PUT", body: bytes })
@@ -546,7 +547,8 @@
     if (!response || !response.ok) { roomStatus("The room does not load."); return; }
     net.room = await response.json();
     drawRoom();
-    if (net.room.state !== "open" && !net.socket && !net.preparing) {
+    // MP7: a member of the house without a seat watches the game after a click on "Watch".
+    if (net.room.state !== "open" && !net.socket && !net.preparing && net.room.you_viewer) {
       clearInterval(net.poll);
       net.poll = null;
       net.preparing = true;
@@ -600,6 +602,18 @@
       list.appendChild(item);
     });
     panel.appendChild(list);
+    if (room.state !== "open" && !room.you_viewer) {
+      if (room.spectators === false) panel.appendChild(element("p", "The host allows no spectators in this game."));
+      else {
+        var watch = element("button", "Watch", "room-watch");
+        watch.type = "button";
+        watch.addEventListener("click", function () {
+          postJson("api/games/" + net.gid + "/watch", {}).then(refreshRoom)
+            .catch(function (error) { roomStatus(String(error.message || error)); });
+        });
+        panel.appendChild(watch);
+      }
+    }
     if (room.state === "open") {
       var start = element("button", "Start the game", "room-start");
       start.type = "button";
@@ -637,15 +651,21 @@
     pause.checked = !!room.pause_absent;
     var label = element("label", " Pause when a player is absent");
     label.prepend(pause);
+    var watch = element("input", undefined, "room-spectators");   // MP7: the host decides (Q-11)
+    watch.type = "checkbox";
+    watch.checked = room.spectators !== false;
+    var watchLabel = element("label", " Spectators can watch");
+    watchLabel.prepend(watch);
     function send(changed) {
-      var body = { mode: mode.value, turn_seconds: parseInt(turn.value, 10), pause_absent: pause.checked };
+      var body = { mode: mode.value, turn_seconds: parseInt(turn.value, 10), pause_absent: pause.checked, spectators: watch.checked };
       if (changed === "mode") body.turn_seconds = TURN_CHOICES[mode.value][2];
       setRoomOptions(body);
     }
     mode.addEventListener("change", function () { send("mode"); });
     turn.addEventListener("change", function () { send("turn"); });
     pause.addEventListener("change", function () { send("pause"); });
-    box.append("A faction turn: ", mode, " ", turn, " ", label);
+    watch.addEventListener("change", function () { send("spectators"); });
+    box.append("A faction turn: ", mode, " ", turn, " ", label, " ", watchLabel);
     return box;
   }
 
@@ -685,7 +705,8 @@
       var message = JSON.parse(event.data);
       if (message.type === "welcome") welcomeRoom(message);
       else if (message.type === "presence") { net.online = message.seats; netPush(NET.SEATS, 0, 0, false, null, seatsText(true)); }
-      else if (message.type === "timer") netPush(NET.TIMER, message.seconds === null ? -1 : message.seconds, 0, false, null, "");
+      else if (message.type === "timer") { netPush(NET.TIMER, message.seconds === null ? -1 : message.seconds, 0, false, null, ""); markYourTurn(message.acting); }
+      else if (message.type === "chat") netPush(NET.CHAT, 0, 0, false, null, message.name + "\t" + message.text);
       else if (message.type === "desync") netPush(NET.DESYNC, message.step, 0, false, null, "");
       else if (message.type === "desync_end") netPush(NET.DESYNC, -1, 0, false, null, "");
       else if (message.type === "reload") loadGoodState(message.step);
@@ -717,9 +738,16 @@
     connectRoom();
   }
 
+  // MP7 (Q-6): the notice "Your turn" is a badge of the site. The title of the tab shows it.
+  function markYourTurn(acting) {
+    var yours = net.seat !== null && net.seat !== undefined && acting === net.seat;
+    document.title = yours ? "● Your turn - hexdom" : "hexdom";
+  }
+
   function welcomeRoom(welcome) {
     net.retries = 0;
     net.room = welcome.room;
+    net.seat = welcome.seat;
     if (net.joined) {
       // A new connection: the messages that waited go to the room now.
       var outbox = net.outbox;
@@ -737,7 +765,9 @@
     // The pack, then the join, go before the steps of the socket. The pack can start the
     // engine of another pack first (MP4). The step of the join is the first step after a
     // snapshot, or 0 for the start image (MP5).
-    net.early.unshift([NET.JOIN, net.joinStep, seat, welcome.host, net.image, seatsText(false)]);
+    // MP7: the last lines of the chat of the room follow the join.
+    var history = (net.room.chat || []).map(function (line) { return [NET.CHAT, 0, 0, false, null, line.name + "\t" + line.text]; });
+    net.early.unshift.apply(net.early, [[NET.JOIN, net.joinStep, seat, welcome.host, net.image, seatsText(false)]].concat(history));
     net.image = null;
     if (net.room.pack) net.early.unshift([NET.PACK, 0, 0, false, null, net.room.pack]);
     net.joined = true;

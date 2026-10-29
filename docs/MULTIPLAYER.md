@@ -887,6 +887,35 @@ The tests:
 - Browser: a spectator sees the moves and cannot take a seat while the
   game runs.
 
+### The status of MP7
+MP7 is complete, but the new rules of a room wait for the user (Q-16).
+These parts exist:
+- The chat: the banner has the button "Chat" with the number of the new
+  lines. The chat panel (`###NetChat`) shows the lines as text and sends
+  a line through the platform (PLATFORM_NET_CHAT). It issues no game
+  command. The room server cleans each line and keeps the last 50 lines
+  in room.json. A page that joins later shows them.
+- The spectators (Q-11): the host chooses "Spectators can watch" in the
+  lobby. The default is yes. A member of the house without a seat opens
+  the game and clicks "Watch" (`POST /api/games/<gid>/watch`). The room
+  keeps at most 32 spectators.
+- A spectator gets the start image, the snapshots and the steps. The
+  engine of a spectator has no local seat, so it refuses each command.
+  The server takes no step and no report from a spectator. Thus a
+  spectator cannot stop a game with a desync.
+- A spectator cannot take a seat while the game runs. The game does not
+  go into the list "My games" of a spectator.
+- The notice "Your turn" (Q-6) is a badge of the site only: the list "My
+  games" (MP5) and the title of the tab of the game.
+- The rules of a room (US-039) are the settings of the game. The host sets
+  them in the start settings before "Play online", and the start image
+  holds them. Each engine applies them to each player. Only the host can
+  change them later, and each change is a step.
+
+New rules, for example a limit on the alliances, need a new rule in the
+sim. The spec has no such rule, and US-039 asks what rules the players
+want. Thus they wait for the answer of the user (Q-16).
+
 ### MP8 The Discord Activity
 - The Discord app, its Activity and the map of the proxy to the site.
 - The provider "discord" in web/auth.py and the signed token of the
@@ -920,3 +949,4 @@ The tests:
 | Q-13 | Do you want the Discord Activity, and in which Discord server? | Yes, in MP8, only in the Discord server of the house |
 | Q-14 | Do you want a public release? It needs an original Three Kingdoms pack and a new name. | No. The site stays for members until a lawyer agrees. |
 | Q-15 | If the cost grows, which way to pay for the site do you prefer? | Donations first |
+| Q-16 | Which new rules can the host of a room set, for example a limit on the alliances? Each rule needs a rule in the sim. | None. The rules of a room are the settings of the game (MP7). |

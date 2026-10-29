@@ -1088,6 +1088,8 @@ net.paused	計時暫停：有玩家不在線上。
 net.bad_pack	房間指定的資料包不存在。
 net.room_code	房間代碼
 net.join_room	加入
+net.chat	聊天
+net.chat_send	送出
 settings.font_size	字型大小
 menu.units	部隊一覽
 units.title	部隊一覽

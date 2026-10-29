@@ -678,6 +678,45 @@ class RoomsTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self.rooms.latest_snapshot(room, HOST), (0, b"good"))
         self.assertIn({"type": "reload", "step": 1}, host.socket.texts)
 
+    # ---- MP7: the spectators and the chat ----
+
+    async def test_a_spectator_gets_the_steps_and_gives_no_command(self):
+        room, host, guest = await self.started_room()
+        with self.assertRaises(rooms.RoomError):
+            await self.rooms.take_seat(room, OTHER, FORCE_AI)                # no seat while the game runs
+        await self.rooms.watch(room, OTHER)
+        self.assertTrue(room.is_viewer(OTHER["uid"]))
+        self.assertFalse(room.is_member(OTHER["uid"]))
+        watcher = await self.connect(room, OTHER)
+        welcome = next(m for m in watcher.socket.texts if m["type"] == "welcome")
+        self.assertIsNone(welcome["seat"])
+        await self.send(room, host, socket_step(0, FORCE_HOST))
+        self.assertEqual(watcher.socket.binaries, [socket_step(0, FORCE_HOST)])
+        self.assertEqual(await self.send(room, watcher, socket_step(1, FORCE_AI)), "not your seat")
+        await self.report(room, host, 0, FORCE_HOST, "1" * 16)
+        self.assertIsNone(await self.report(room, watcher, 0, FORCE_HOST, "2" * 16))   # a spectator gives no report
+        self.assertEqual(room.record["state"], "running")
+        self.assertEqual(await self.rooms.games_of(OTHER["uid"]), [])         # the game is not in the list of the spectator
+
+    async def test_the_host_decides_if_spectators_can_watch(self):
+        room = await self.make_room()
+        await self.rooms.set_options(room, HOST, {"mode": "live", "turn_seconds": 300, "pause_absent": False,
+                                                  "spectators": False})
+        await self.rooms.start(room, HOST)
+        with self.assertRaises(rooms.RoomError):
+            await self.rooms.watch(room, OTHER)
+        self.assertFalse(room.is_viewer(OTHER["uid"]))
+
+    async def test_the_room_keeps_the_last_lines_of_the_chat(self):
+        room, host, guest = await self.started_room()
+        for number in range(rooms.CHAT_HISTORY + 5):
+            await self.send(room, guest, {"type": "chat", "text": f"line {number}"})
+            self.clock.now += 1
+            guest.messages = []                                               # no limit of the messages in this test
+        history = room.public()["chat"]
+        self.assertEqual(len(history), rooms.CHAT_HISTORY)
+        self.assertEqual(history[-1], {"name": "Guest", "text": f"line {rooms.CHAT_HISTORY + 4}"})
+
     def test_the_log_packs_and_unpacks(self):
         steps = [b"abc", b"", bytes(range(200))]
         self.assertEqual(rooms.unpack_log(rooms.pack_log(steps)), steps)

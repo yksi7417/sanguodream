@@ -4655,6 +4655,41 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_LT(recorder_index_of(&v.recorder, RECORDER_MULTIPLAYER_END), recorder_index_of(&v.recorder, RECORDER_LOAD_START_IMAGE));
     };
 
+    /* MP7: the chat of a shared game. The panel shows the lines of the page and
+       sends the text through the platform. It issues no game command. */
+    t = IM_REGISTER_TEST(e, "ui", "net_chat_sends_the_text_through_the_platform_and_no_command");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_test_net_reset();
+        v.frame.net_send = ui_test_net_send;
+        v.frame.net_poll = ui_test_net_poll;
+        v.recorder.multiplayer.shared = true;
+        v.ui.net.joined = true;
+        platform_net_event line = {};
+        line.kind = PLATFORM_NET_CHAT;
+        line.text = "Guest\tGood luck!";
+        ui_test_net_queue(line);
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.net.chat_unread, 1u);
+        ctx->ItemClick("//###NetBanner/###net_chat");                     /* the banner opens the chat */
+        ctx->Yield(2);
+        IM_CHECK(v.ui.net.show_chat && v.ui.net.chat_unread == 0);
+        ImGuiTestItemInfo shown = ctx->ItemInfo("//###NetChat/###chat_line0");
+        IM_CHECK(shown.ID != 0 && strstr(shown.DebugLabel, "Guest") != 0);
+        recorder_reset(&v.recorder);
+        ctx->ItemInputValue("//###NetChat/###chat_text", "Thank you");
+        ctx->ItemClick("//###NetChat/###chat_send");
+        ctx->Yield(2);
+        IM_CHECK_EQ(g_ui_test_net.sent_count, 1u);
+        IM_CHECK(g_ui_test_net.sent[0].kind == PLATFORM_NET_CHAT);
+        IM_CHECK_STR_EQ(g_ui_test_net.text, "Thank you");
+        IM_CHECK(v.ui.net.chat_text[0] == 0);                            /* the field is empty after the send */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
     /* MP5: a room code on the title menu opens the room. It is no game command. */
     t = IM_REGISTER_TEST(e, "ui", "title_menu_room_code_opens_the_room");
     t->SetVarsDataType<ui_test_vars>();

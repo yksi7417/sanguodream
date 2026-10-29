@@ -730,6 +730,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (in_game)   ui_draw_war(ui, api);        /* the strikes and the values over the units */
     ui_draw_status_bar(ui, api);        /* M11: the terrain, the coordinates and what can stand on the hex under the mouse */
     ui_draw_net_banner(ui, api);        /* MP3: whose turn it is in a shared game */
+    ui_draw_net_chat(ui);               /* MP7: the chat of a shared game */
     ui_scene_push(ui, api, frame);
     ui_net_end_frame(ui, api, frame);   /* MP3: the steps of the local seat go to the page */
 }

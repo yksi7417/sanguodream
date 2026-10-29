@@ -405,6 +405,7 @@ async def api_game(request):
     room = await find_room(request)
     data = room.public()
     data["you_host"] = user["uid"] == room.record["host"]   # the lobby shows the options of the host
+    data["you_viewer"] = room.is_viewer(user["uid"])        # MP7: the page opens the socket, or it offers "Watch"
     return web.json_response(data, headers={"Cache-Control": "no-store"})
 
 
@@ -431,6 +432,18 @@ async def api_game_options(request):
     async with room.lock:
         try:
             await request.app[KEY_ROOMS].set_options(room, user, body)
+        except rooms.RoomError as error:
+            return refused(error)
+    return web.json_response(room.public())
+
+
+async def api_game_watch(request):
+    """MP7: a member of the house watches a game that runs."""
+    user = await require_member(request)
+    room = await find_room(request)
+    async with room.lock:
+        try:
+            await request.app[KEY_ROOMS].watch(room, user)
         except rooms.RoomError as error:
             return refused(error)
     return web.json_response(room.public())
@@ -549,7 +562,7 @@ async def api_game_socket(request):
     if not same_origin(request):
         raise web.HTTPForbidden(text="cross-origin request")
     room = await find_room(request)
-    if not room.is_member(user["uid"]):
+    if not room.is_viewer(user["uid"]):
         raise web.HTTPForbidden(text="no seat in this game")
     socket = web.WebSocketResponse(max_msg_size=rooms.MAX_STEP_BYTES, heartbeat=rooms.PING_SECONDS)
     await socket.prepare(request)
@@ -642,6 +655,7 @@ def make_app(root):
         web.get("/api/games/{gid}", api_game),
         web.post("/api/games/{gid}/seat", api_game_seat),
         web.post("/api/games/{gid}/options", api_game_options),
+        web.post("/api/games/{gid}/watch", api_game_watch),
         web.post("/api/games/{gid}/start", api_game_start),
         web.get("/api/games/{gid}/socket", api_game_socket),
         web.put("/api/games/{gid}/start-image", api_game_start_image_put),

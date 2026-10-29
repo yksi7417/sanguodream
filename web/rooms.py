@@ -59,6 +59,8 @@ ENGINE_HEADER = 8
 MAX_STEP_BYTES = 64 * 1024
 MAX_STEPS_PER_SECOND = 20
 MAX_CHAT_CHARS = 300
+CHAT_HISTORY = 50         # MP7: the room keeps the last lines of the chat
+MAX_WATCHERS = 32         # MP7: the spectators of one room
 FLUSH_SECONDS = 30
 PING_SECONDS = 20         # the proxy of fly.io closes an idle connection after 60 seconds
 NO_FACTION = 0xFF
@@ -209,6 +211,10 @@ class Room:
     def is_member(self, uid):
         return uid == self.record["host"] or self.seat_of(uid) is not None
 
+    def is_viewer(self, uid):
+        """A member, or a spectator (MP7). A spectator gets the steps and gives no command."""
+        return self.is_member(uid) or uid in self.record.get("watchers", [])
+
     def author_of(self, acting):
         """The uid that can send a step when the faction acts: its player, else the host."""
         for seat in self.record["seats"]:
@@ -351,6 +357,7 @@ class Rooms:
             "mode": mode,
             "turn_seconds": turn_seconds,
             "pause_absent": False,
+            "spectators": True,
             "deadline": None,
             "paused": False,
             "missed": {},
@@ -396,7 +403,7 @@ class Rooms:
 
     async def start_image(self, room, user):
         """The start image for the host and the players of a running game."""
-        if not room.is_member(user["uid"]):
+        if not room.is_viewer(user["uid"]):
             raise RoomError("no seat in this game")
         if room.record["state"] == "open" or not room.record.get("start_image"):
             raise RoomError("the game did not start")
@@ -543,7 +550,7 @@ class Rooms:
 
     async def latest_snapshot(self, room, user):
         """The step and the bytes of the latest snapshot, or None."""
-        if not room.is_member(user["uid"]):
+        if not room.is_viewer(user["uid"]):
             raise RoomError("no seat in this game")
         step = room.record.get("snapshot")
         if step is None:
@@ -611,10 +618,25 @@ class Rooms:
         if room.record["state"] != "open":
             raise RoomError("the game started")
         mode, turn_seconds, pause = options.get("mode"), options.get("turn_seconds"), options.get("pause_absent")
+        spectators = options.get("spectators", room.record.get("spectators", True))
         check_options(mode, turn_seconds)
-        if not isinstance(pause, bool):
-            raise RoomError("bad pause option")
-        room.record.update(mode=mode, turn_seconds=turn_seconds, pause_absent=pause)
+        if not isinstance(pause, bool) or not isinstance(spectators, bool):
+            raise RoomError("bad option")
+        room.record.update(mode=mode, turn_seconds=turn_seconds, pause_absent=pause, spectators=spectators)
+        await self.save(room)
+
+    async def watch(self, room, user):
+        """MP7: a member of the house watches the game. The host decides if spectators can (Q-11)."""
+        if room.is_viewer(user["uid"]):
+            return
+        if not room.record.get("spectators", True):
+            raise RoomError("the host allows no spectators")
+        if room.record["state"] == "open":
+            raise RoomError("the game did not start")
+        watchers = room.record.setdefault("watchers", [])
+        if len(watchers) >= MAX_WATCHERS:
+            raise RoomError("the room has no place for a spectator")
+        watchers.append(user["uid"])
         await self.save(room)
 
     # ---- the timers (MP4) ----
@@ -832,6 +854,8 @@ async def on_step(rooms, room, peer, data):
 async def on_checksum(rooms, room, peer, message):
     if not peer.welcomed:
         raise RoomError("hello first")
+    if not room.is_member(peer.uid):
+        return   # MP7: the report of a spectator counts for nothing
     result = room.report(peer.uid, message.get("step"), message.get("checksum"), message.get("acting"))
     if result:
         await rooms.save(room)
@@ -846,7 +870,11 @@ async def on_checksum(rooms, room, peer, message):
 async def on_chat(rooms, room, peer, message):
     text = clean_text(message.get("text"), MAX_CHAT_CHARS)
     if text:
-        await broadcast_json(room, {"type": "chat", "name": clean_text(peer.user["name"], MAX_NAME_CHARS), "text": text})
+        line = {"name": clean_text(peer.user["name"], MAX_NAME_CHARS), "text": text}
+        history = room.record.setdefault("chat", [])   # MP7: a page that joins later shows the last lines
+        history.append(line)
+        del history[:-CHAT_HISTORY]
+        await broadcast_json(room, dict(line, type="chat"))
 
 
 HANDLERS = {"hello": on_hello, "checksum": on_checksum, "chat": on_chat}

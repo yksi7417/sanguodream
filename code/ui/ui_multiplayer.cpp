@@ -151,6 +151,17 @@ ui_net_use_pack(ui_state *ui, engine_api *api, const platform_net_event *event)
     return true;
 }
 
+/* MP7: a line of the chat from the page, "name<TAB>line". The page and the
+   room server clean the text; the panel shows it as text. */
+internal void
+ui_net_chat_line(ui_state *ui, const char *text)
+{
+    if (!text || !text[0]) return;
+    snprintf(ui->net.chat_lines[ui->net.chat_count % UI_NET_CHAT_LINES], UI_NET_CHAT_SIZE, "%s", text);
+    ui->net.chat_count++;
+    if (!ui->net.show_chat) ui->net.chat_unread++;
+}
+
 internal void
 ui_net_timer(ui_state *ui, const platform_net_event *event)
 {
@@ -197,6 +208,7 @@ ui_net_begin_frame(ui_state *ui, engine_api *api, ui_frame_info *frame)
             case PLATFORM_NET_DESYNC: ui_net_desync(ui, api, frame, event.step);  break;
             case PLATFORM_NET_ERROR:  snprintf(ui->net.error, sizeof(ui->net.error), "%s", event.text ? event.text : ""); break;
             case PLATFORM_NET_TIMER:  ui_net_timer(ui, &event);                  break;
+            case PLATFORM_NET_CHAT:   ui_net_chat_line(ui, event.text);          break;
             case PLATFORM_NET_PACK:
                 if (ui_net_use_pack(ui, api, &event)) return;
                 break;
@@ -286,6 +298,16 @@ ui_net_end_frame(ui_state *ui, engine_api *api, ui_frame_info *frame)
         open.text = ui->net.room_code;
         ui_net_send(frame, &open);
     }
+    if (ui->net.chat_send)
+    {
+        /* MP7: the line goes to the room through the page. It is no step of the game. */
+        ui->net.chat_send = false;
+        platform_net_event chat = {};
+        chat.kind = PLATFORM_NET_CHAT;
+        chat.text = ui->net.chat_text;
+        if (ui->net.chat_text[0]) ui_net_send(frame, &chat);
+        ui->net.chat_text[0] = 0;
+    }
     if (!ui->net.joined) return;
     u8 bytes[ENGINE_STEP_WIRE_CAPACITY];
     for (;;)
@@ -320,6 +342,35 @@ ui_draw_title_room_code(ui_state *ui)
     ImGui::EndDisabled();
 }
 
+/* MP7: the chat panel of a shared game. Each line shows as text. The field
+   sends a line to the page at the end of the frame (ui_net_end_frame). */
+internal void
+ui_draw_net_chat(ui_state *ui)
+{
+    if (!ui->net.show_chat || !ui->net.joined) return;
+    char title[128], label[96], row[UI_NET_CHAT_SIZE + 32];
+    ImGui::SetNextWindowSize(ImVec2(360, 260), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "net.chat", "NetChat"), &ui->net.show_chat)) { ImGui::End(); return; }
+    ui->net.chat_unread = 0;
+    u32 first = ui->net.chat_count > UI_NET_CHAT_LINES ? ui->net.chat_count - UI_NET_CHAT_LINES : 0;
+    for (u32 index = first; index < ui->net.chat_count; ++index)
+    {
+        const char *text = ui->net.chat_lines[index % UI_NET_CHAT_LINES];
+        const char *tab  = strchr(text, '\t');
+        if (tab) snprintf(row, sizeof(row), "%.*s: %s###chat_line%u", (int)(tab - text), text, tab + 1, index - first);
+        else     snprintf(row, sizeof(row), "%s###chat_line%u", text, index - first);
+        ImGui::BeginDisabled();
+        ImGui::Selectable(row, false);
+        ImGui::EndDisabled();
+    }
+    ImGui::Separator();
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 80);
+    b32 entered = ImGui::InputText("###chat_text", ui->net.chat_text, sizeof(ui->net.chat_text), ImGuiInputTextFlags_EnterReturnsTrue);
+    ImGui::SameLine();
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "net.chat_send", "chat_send")) || entered) ui->net.chat_send = true;
+    ImGui::End();
+}
+
 /* The banner of a shared game: whose turn it is, the wait of the host, a
    desync and the last error. */
 internal void
@@ -351,6 +402,17 @@ ui_draw_net_banner(ui_state *ui, engine_api *api)
         ImGui::Selectable(line, false);
     }
     ImGui::EndDisabled();
+    if (info.shared)
+    {
+        /* MP7: the chat, with the number of the lines that the player did not read. */
+        if (ui->net.chat_unread) snprintf(line, sizeof(line), "%s (%u)###net_chat", text_get(ui->text, "net.chat"), ui->net.chat_unread);
+        else                     snprintf(line, sizeof(line), "%s###net_chat", text_get(ui->text, "net.chat"));
+        if (ImGui::SmallButton(line))
+        {
+            ui->net.show_chat   = !ui->net.show_chat;
+            ui->net.chat_unread = 0;
+        }
+    }
     if (ui->net.error[0]) ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.4f, 1.0f), "%s", ui->net.error);
     ImGui::End();
 }

@@ -223,6 +223,8 @@ struct ui_table_source
 
 #define UI_NET_SEATS     8    /* the human seats of a shared game (docs/MULTIPLAYER.md, Q-1) */
 #define UI_NET_NAME_SIZE 64
+#define UI_NET_CHAT_LINES 32  /* MP7: the lines of the chat that the panel keeps */
+#define UI_NET_CHAT_SIZE  384 /* a name, a tab and a line of at most 300 characters of the room (web/rooms.py) */
 
 struct ui_state
 {
@@ -718,6 +720,13 @@ struct ui_state
         bool snapshot_request;   /* 儲存 in a shared game: the next frame sends a snapshot */
         char room_code[8];       /* the room code of the title menu */
         bool open_room;          /* the next frame sends the room code to the page */
+        /* MP7: the chat. A ring of the last lines "name<TAB>line" of the page. */
+        char chat_lines[UI_NET_CHAT_LINES][UI_NET_CHAT_SIZE];
+        u32  chat_count;         /* all lines so far; the ring keeps the last UI_NET_CHAT_LINES */
+        u32  chat_unread;
+        bool show_chat;
+        bool chat_send;          /* the next frame sends chat_text to the page */
+        char chat_text[UI_NET_CHAT_SIZE];
     } net;
 };
 

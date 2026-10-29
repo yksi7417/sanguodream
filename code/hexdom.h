@@ -92,6 +92,7 @@ enum platform_net_kind
     PLATFORM_NET_SNAPSHOT,  /* MP5, to the page. data: the image of the state after step. checksum: the state */
     PLATFORM_NET_OPEN_ROOM, /* MP5, to the page. text: the room code of the title menu */
     PLATFORM_NET_STATE_IMAGE, /* MP6, to the page. data: the image of the state after the step of a desync */
+    PLATFORM_NET_CHAT,      /* MP7. To the page, text: a line of the player. From the page, text: "name<TAB>line" */
     PLATFORM_NET_KIND_COUNT
 };
 

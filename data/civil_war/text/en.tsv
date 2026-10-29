@@ -1074,6 +1074,8 @@ net.paused	The timer stops: a player is absent.	MP4: the banner when the timer o
 net.bad_pack	The room names no content pack of this game.	MP4: the error of a bad pack name from the room
 net.room_code	Room code	MP5: the field of the title menu for the code of a shared game
 net.join_room	Join	MP5: the button that opens the room of the code
+net.chat	Chat	MP7: the chat panel of a shared game and its button in the banner
+net.chat_send	Send	MP7: the button that sends a line of the chat
 settings.font_size	Font size	slider, pixels
 event.transport_arrived	Transport arrived	輸送隊到達
 event_role.transport_arrived.a	Leader	主將
