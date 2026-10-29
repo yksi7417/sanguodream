@@ -234,9 +234,10 @@ internal PLATFORM_NET_SEND(wasm_net_send)
 {
     EM_ASM({
         if (Module.hexdomNetSend)
-            Module.hexdomNetSend($0, $1, $2 >>> 0, $3 >>> 0, $4, HEAPU8.slice($5, $5 + $6), $7 ? UTF8ToString($7) : "");
+            Module.hexdomNetSend($0, $1, $2 >>> 0, $3 >>> 0, $4, HEAPU8.slice($5, $5 + $6), $7 ? UTF8ToString($7) : "",
+                                 $8 ? UTF8ToString($8) : "");
     }, event->kind, event->step, (u32)(event->checksum & 0xFFFFFFFFull), (u32)(event->checksum >> 32), event->acting,
-       event->data, event->size, event->text);
+       event->data, event->size, event->text, event->pack);
 }
 
 /* The bridge of the page into the queue. The page calls

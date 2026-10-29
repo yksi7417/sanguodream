@@ -1,6 +1,6 @@
 # The coats of arms of 1200
 
-This document lists one coat of arms for each of the 24 factions of the
+This document lists one coat of arms for each of the 30 factions of the
 game of 1200. It is the list for the external work on the arms
 (docs/EUROPE.md, E5). docs/europe/arms.tsv has the same list with the
 direct URL of each file.
@@ -36,11 +36,18 @@ faction.
 | 21 | venice | Republic of Venice | [Flag of Most Serene Republic of Venice.svg](https://commons.wikimedia.org/wiki/File:Flag_of_Most_Serene_Republic_of_Venice.svg) | Public domain | [Flag of the Republic of Venice](https://en.wikipedia.org/wiki/Flag_of_the_Republic_of_Venice) | - |
 | 22 | flanders | County of Flanders | [Arms of Flanders.svg](https://commons.wikimedia.org/wiki/File:Arms_of_Flanders.svg) | CC0 | [Coat of arms of Flanders](https://en.wikipedia.org/wiki/Coat_of_arms_of_Flanders) | - |
 | 23 | denmark | Kingdom of Denmark | [Royal Banner of Denmark (14th Century).svg](https://commons.wikimedia.org/wiki/File:Royal_Banner_of_Denmark_(14th_Century).svg) | Public domain | [Coat of arms of Denmark](https://en.wikipedia.org/wiki/Coat_of_arms_of_Denmark) | - |
+| 24 | jerusalem | Kingdom of Jerusalem | [Arms of the Kingdom of Jerusalem.PNG](https://commons.wikimedia.org/wiki/File:Arms_of_the_Kingdom_of_Jerusalem.PNG) | Public domain | [Kingdom of Jerusalem](https://en.wikipedia.org/wiki/Kingdom_of_Jerusalem) | - |
+| 25 | antioch | Principality of Antioch | [AntiochCOA.PNG](https://commons.wikimedia.org/wiki/File:AntiochCOA.PNG) | Public domain | [Principality of Antioch](https://en.wikipedia.org/wiki/Principality_of_Antioch) | - |
+| 26 | cilicia | Armenian Kingdom of Cilicia | [Armenian kingdom of Cilicia Flag.png](https://commons.wikimedia.org/wiki/File:Armenian_kingdom_of_Cilicia_Flag.png) | Public domain | [Armenian Kingdom of Cilicia](https://en.wikipedia.org/wiki/Armenian_Kingdom_of_Cilicia) | - |
+| 27 | cyprus | Kingdom of Cyprus | [Armoiries Lusignan Chypre.svg](https://commons.wikimedia.org/wiki/File:Armoiries_Lusignan_Chypre.svg) | CC BY-SA 3.0 | [House of Lusignan](https://en.wikipedia.org/wiki/House_of_Lusignan) | [LusignanCoatOfArms.jpg](https://commons.wikimedia.org/wiki/File:LusignanCoatOfArms.jpg) (Public domain) |
+| 28 | georgia | Kingdom of Georgia | [David IV Flag Of Georgian Kingdom.jpg](https://commons.wikimedia.org/wiki/File:David_IV_Flag_Of_Georgian_Kingdom.jpg) | CC0 | [Kingdom of Georgia](https://en.wikipedia.org/wiki/Kingdom_of_Georgia) | - |
+| 29 | abbasid | Abbasid Caliphate | [Flag of the Abbasid Dynasty.svg](https://commons.wikimedia.org/wiki/File:Flag_of_the_Abbasid_Dynasty.svg) | CC0 | [Abbasid Caliphate](https://en.wikipedia.org/wiki/Abbasid_Caliphate) | - |
 
 ## The licences
-- 18 files are in the public domain or have the licence CC0. The game can
+- 23 files are in the public domain or have the licence CC0. The game can
   use them with no credit.
-- Leon and Portugal have a CC BY-SA file and a public-domain choice.
+- Leon, Portugal and Cyprus have a CC BY-SA file and a public-domain choice.
+  The choice of Cyprus is a photograph of a later relief at Kolossi.
 - Bulgaria and Sicily have only CC BY-SA files. A CC BY-SA image needs the
   author and the licence in the credits. A changed image keeps the licence.
 - Staufer and Welf have the licence "Attribution". The credits must name
@@ -57,6 +64,10 @@ of each file.
   Poland, the papacy and Venice.
 - The Almohads, the Banu Ghaniya and the Ayyubids used banners, not arms.
   The files are modern drawings of these banners.
+- The Abbasids also used a banner. The file is a modern picture.
+- Nobody checked the date of the files of Jerusalem, Antioch, Cilicia,
+  Cyprus and Georgia. The column "period" says so. A later step must
+  check these dates.
 
 ## The files from the Drive folder
 The external work puts the images in a shared Google Drive folder. A later

@@ -5,3 +5,5 @@ bio_check	-	data and documents only: lore/en.tsv, officers.tsv, docs/
 e3_native_names	-	the text module, make_scenario.py, ui_fonts.h, the Settings panel
 e4_officer_panel	e3_native_names	edits the text module and make_scenario.py too, so it starts from the push of e3
 e8_maps	-	two new packs, data/placeholder/scenarios.tsv, build_web.bat, world_map_tests.cpp. The work of bio_check and e4 is on master
+e8_factions	-	the six new factions of medieval_east, Tbilisi for Bologna, docs/europe/arms.tsv and ARMS.md. The work of e8_maps is on master
+e7_story	e8_factions	both edit officers.tsv of medieval_east, and the events need the owners of Acre and Antioch

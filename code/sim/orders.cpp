@@ -62,11 +62,29 @@ sim_end_unit_order(sim_state *sim, u32 unit_id, u32 cause, sim_event_sink *event
     sim_emit_unit(sim, SIM_EVENT_UNIT_ORDER_DONE, unit_id, SIM_NO_CITY, kind, true, cause, events);
 }
 
+/* The end of a walk to a goal that the plan does not reach. An example is
+   a city of another owner: no unit enters its 7 hexes. The end is the
+   planned hex nearest to the goal. The plan holds the hexes by cost, so
+   the cheapest of these hexes comes first (assumed, Q-227). Returns false
+   when that hex is the hex of the unit. */
+internal b32
+sim_plan_nearest(sim_reach *plan, hex_coord goal, hex_coord *end)
+{
+    u32 best = 0;
+    for (u32 index = 1; index < plan->count; ++index)
+    {
+        if (hex_distance(plan->cells[index], goal) < hex_distance(plan->cells[best], goal)) best = index;
+    }
+    if (plan->count) *end = plan->cells[best];
+    return best != 0;
+}
+
 /* One step of a plan: the unit moves to the hex of the path that is
    farthest along it and in its reach of this turn. When a unit stands on
    every hex of the path in the reach, the unit moves to the reachable hex
    nearest to the goal. stop_before_goal leaves out the goal, the hex of
-   another unit. Returns true after a move. */
+   another unit. If the unit cannot enter the goal, the path ends at the
+   nearest planned hex. Returns true after a move. */
 internal b32
 sim_unit_step(sim_state *sim, u32 unit_id, hex_coord goal, b32 stop_before_goal, u32 cause, sim_event_sink *events)
 {
@@ -74,8 +92,14 @@ sim_unit_step(sim_state *sim, u32 unit_id, hex_coord goal, b32 stop_before_goal,
     if (!unit || unit->moved_turn == sim->turn + 1 || unit->acted_turn == sim->turn + 1) return false;
     arena_reset(&sim->scratch);
     sim_reach plan = sim_unit_plan(sim, unit_id, goal, &sim->scratch);
+    hex_coord end = goal;
+    if (sim_reach_find(&plan, goal) == U32_MAX)
+    {
+        if (!sim_plan_nearest(&plan, goal, &end)) return false;
+        stop_before_goal = false;
+    }
     hex_coord path[SIM_UNIT_PLAN_CAPACITY];
-    u32 length = sim_plan_path(&plan, goal, path, ArrayCount(path));
+    u32 length = sim_plan_path(&plan, end, path, ArrayCount(path));
     if (stop_before_goal && length) length--;
     if (!length) return false;
     arena_reset(&sim->scratch);   /* the path holds the plan now: the reach gets the whole scratch (the real map needs it) */

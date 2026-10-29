@@ -1,0 +1,8 @@
+id	key	name_zh	open	status
+# The battles of the 決戰稱霸 mode that the Steam guide names (game-setup-and-modes.md). open: yes for the battles open at the start (the manual says four; which four is assumed).
+# The spec has no units, gold, grain, victory conditions or events of a battle, so no battle is playable in the clean room (Q-190).
+0	hefei	合肥之戰	yes	documented
+1	nanjun	南郡之戰	yes	documented
+2	chibi	赤壁之戰	yes	documented
+3	yiling	夷陵之戰	yes	documented
+4	rebels	逆賊討伐戰	no	documented

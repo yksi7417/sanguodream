@@ -223,6 +223,8 @@ struct ui_table_source
 
 #define UI_NET_SEATS     8    /* the human seats of a shared game (docs/MULTIPLAYER.md, Q-1) */
 #define UI_NET_NAME_SIZE 64
+#define UI_NET_CHAT_LINES 32  /* MP7: the lines of the chat that the panel keeps */
+#define UI_NET_CHAT_SIZE  384 /* a name, a tab and a line of at most 300 characters of the room (web/rooms.py) */
 
 struct ui_state
 {
@@ -427,6 +429,11 @@ struct ui_state
     bool show_scenarios;
     bool show_rulers;
     bool show_start_settings;
+    bool show_story;             /* E7: the pages of the story mode, from the list of the rulers */
+    struct
+    {
+        u32 page;                /* the page that the panel shows; 0 is Europe in 1200 */
+    } story;
     bool show_topbar;            /* the game mode: the top bar and the history window */
     bool show_history;
     bool show_saveload;
@@ -671,6 +678,7 @@ struct ui_state
         bool start_loaded;       /* start holds the settings of the engine */
         char pack_request[CONTENT_KEY_SIZE];    /* the pack of a chosen scenario of another pack: the game starts the engine again with it, then clears it */
         char pack_scenario[CONTENT_KEY_SIZE];   /* the key of that scenario: the new engine loads it (ui_start_pack_scenario) */
+        u32  pack_slot;                         /* 1 + the save slot of another pack that the new engine loads; 0 for none */
     } game;
     u8   ledger_city;           /* the ledger filter: ENGINE_ANY_CITY or a city id */
     u8   ledger_resource;        /* the ledger filter: ENGINE_ANY_RESOURCE or a sim_resource */
@@ -704,6 +712,21 @@ struct ui_state
         bool seat_online[UI_NET_SEATS];
         s32  desync_step;        /* -1: none */
         char error[96];
+        bool timer_on;           /* MP4: the room gave a timer of the faction turn */
+        bool timer_paused;       /* the timer stops while a player is absent */
+        f32  timer_seconds;      /* the seconds left; the banner counts down */
+        u32  snapshot_turn;      /* MP5: the game turn of the last snapshot */
+        bool snapshot_author;    /* the local engine was the author of a step in this frame */
+        bool snapshot_request;   /* 儲存 in a shared game: the next frame sends a snapshot */
+        char room_code[8];       /* the room code of the title menu */
+        bool open_room;          /* the next frame sends the room code to the page */
+        /* MP7: the chat. A ring of the last lines "name<TAB>line" of the page. */
+        char chat_lines[UI_NET_CHAT_LINES][UI_NET_CHAT_SIZE];
+        u32  chat_count;         /* all lines so far; the ring keeps the last UI_NET_CHAT_LINES */
+        u32  chat_unread;
+        bool show_chat;
+        bool chat_send;          /* the next frame sends chat_text to the page */
+        char chat_text[UI_NET_CHAT_SIZE];
     } net;
 };
 

@@ -1,0 +1,106 @@
+key	tone	sign	report	log	status	note
+# M18: the tone, the sign rule and the report flag of each event kind (engine_report.cpp). A text provider of the front end uses them to write a line.
+# The player decided on 2026-10-20 (spec DECISIONS.md) that the tone, the personality and the sign of an event matter more than the exact words. The spec has no list of tones, so every row is assumed.
+# tone: neutral, calm, proud, joyful, worried, alarmed, grim, angry, humble. sign: amount (good if the amount rises), good, bad, neutral.
+# log: no for a side effect of a command (its cost, merit, technique points and losses). The original log shows one line for the main effect of a command (ui/clone-gap-report.md, section 4).
+# report: yes if the turn start of the faction shows the event in the message window. The log keeps every event. A kind without a row: tone neutral, sign amount, no report.
+develop_started	calm	neutral	no	yes	assumed	the order of a build; the bubble of the command shows it
+facility_completed	proud	good	yes	yes	assumed	the original reports each finished build at the turn start
+facility_merged	proud	good	yes	yes	assumed
+facility_repaired	calm	good	no	yes	assumed
+facility_damaged	alarmed	bad	yes	yes	assumed
+facility_destroyed	grim	bad	yes	yes	assumed
+black_market_removed	worried	bad	yes	yes	assumed
+gold_income	calm	amount	no	yes	assumed
+grain_income	calm	amount	no	yes	assumed
+grain_harvest	joyful	good	yes	yes	assumed
+salaries_paid	calm	neutral	no	no	assumed
+salaries_unpaid	worried	bad	yes	yes	assumed
+grain_consumed	calm	neutral	no	no	assumed
+soldiers_deserted	alarmed	bad	yes	yes	assumed
+gold_over_cap	worried	bad	no	no	assumed
+grain_over_cap	worried	bad	no	no	assumed
+gold_spent	calm	neutral	no	no	assumed
+weapons_free	joyful	good	no	yes	assumed
+technique_gained	calm	good	no	no	assumed
+merit_gained	proud	good	no	no	assumed
+patrolled	calm	amount	no	yes	assumed	長沙的治安增至89(+10)
+conscripted	proud	amount	no	yes	assumed	長安的士兵增至34894(+3232)
+order_lost	worried	amount	no	no	assumed
+morale_lost	worried	amount	no	no	assumed
+trained	proud	amount	no	yes	assumed
+grain_bought	calm	amount	no	yes	assumed
+grain_sold	calm	neutral	no	no	assumed
+gold_earned	calm	amount	no	yes	assumed
+production_started	calm	neutral	no	yes	assumed
+weapons_produced	proud	good	yes	yes	assumed
+research_started	calm	neutral	no	yes	assumed
+technique_researched	joyful	good	yes	yes	assumed
+merge_started	calm	neutral	no	yes	assumed
+disaster_started	alarmed	bad	yes	yes	assumed
+disaster_ended	calm	good	yes	yes	assumed
+grain_lost	grim	bad	yes	yes	assumed
+soldiers_lost	grim	bad	yes	yes	assumed
+game_won	joyful	good	yes	yes	assumed
+game_lost	grim	bad	yes	yes	assumed
+unit_sortied	proud	neutral	no	yes	assumed	曹純隊自上庸處出征
+unit_destroyed	grim	bad	yes	yes	assumed	呂翔隊潰滅
+unit_retreated	worried	bad	no	yes	assumed	鄧丹隊開始撤退
+unit_entered_base	calm	neutral	no	yes	assumed	a unit enters an own port or pass (the play report of 2026-10-23)
+unit_state	worried	neutral	no	yes	assumed	閻行隊從混亂狀態中恢復
+unit_damaged	alarmed	amount	no	yes	assumed
+counterattack	angry	neutral	no	yes	assumed
+critical_hit	proud	good	no	yes	assumed
+tactic_used	proud	amount	no	yes	assumed
+plot_used	calm	neutral	no	yes	assumed
+fire_started	alarmed	bad	no	yes	assumed
+base_damaged	alarmed	bad	yes	yes	assumed
+base_soldiers_lost	alarmed	bad	yes	yes	assumed
+base_captured	grim	bad	yes	yes	assumed
+base_taken	proud	good	yes	yes	assumed
+officer_found	joyful	good	yes	yes	assumed
+officer_recruited	joyful	good	yes	yes	assumed
+recruit_failed	humble	bad	no	yes	assumed
+officer_captured	grim	bad	yes	yes	assumed
+officer_escaped	worried	bad	yes	yes	assumed
+captive_escaped	worried	bad	yes	yes	assumed
+captive_kept	calm	neutral	no	yes	assumed
+unit_plunder_grain	proud	good	no	yes	observed
+item_taken	grim	bad	yes	yes	observed
+officer_executed	grim	bad	no	yes	assumed
+officer_left	grim	bad	yes	yes	assumed
+officer_died	grim	bad	yes	yes	assumed
+officer_exiled	grim	neutral	no	yes	assumed
+loyalty_changed	calm	amount	no	yes	assumed
+post_appointed	proud	good	no	yes	assumed
+rank_changed	proud	good	yes	yes	assumed
+ruler_succeeded	grim	neutral	yes	yes	assumed
+diplomacy_failed	humble	bad	no	yes	assumed
+faction_surrendered	proud	good	yes	yes	assumed
+aid_arrived	joyful	good	yes	yes	assumed
+duel_ended	proud	neutral	no	yes	assumed
+debate_ended	proud	neutral	no	yes	assumed
+event_fired	calm	neutral	yes	yes	assumed
+ability_researched	joyful	good	yes	yes	assumed
+officer_trained	proud	good	yes	yes	assumed
+ending	calm	neutral	yes	yes	assumed
+ai_planned	neutral	neutral	no	no	assumed	the count of the commands of an AI turn
+unit_moved	neutral	neutral	no	no	assumed
+unit_waited	neutral	neutral	no	no	assumed
+unit_grain_eaten	neutral	neutral	no	no	assumed
+unit_supplies	neutral	neutral	no	no	assumed
+unit_grain_taken	neutral	neutral	no	no	assumed
+unit_weapons_taken	neutral	neutral	no	no	assumed
+unit_gold_returned	neutral	neutral	no	no	assumed
+unit_grain_returned	neutral	neutral	no	no	assumed
+morale_changed	neutral	amount	no	no	assumed
+base_income	calm	amount	no	no	assumed
+unit_ordered	neutral	neutral	no	no	assumed
+unit_order_done	neutral	neutral	no	no	assumed
+officer_moved	neutral	neutral	no	yes	assumed
+officer_arrived	calm	good	no	yes	assumed
+mission_started	neutral	neutral	no	no	assumed
+faction_plot	proud	good	no	yes	assumed
+faction_plot_failed	humble	bad	no	yes	assumed
+search_failed	humble	bad	yes	yes	assumed
+faction_fell	grim	bad	yes	yes	assumed

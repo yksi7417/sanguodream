@@ -50,6 +50,7 @@
 #include "court_tests.cpp"
 #include "rivals_tests.cpp"
 #include "playable_tests.cpp"
+#include "story_tests.cpp"    /* the event rows of the Europe packs (E7) */
 #include "map_tests.cpp"
 #include "faction_colour_tests.cpp"
 #include "wire_tests.cpp"     /* the step codec of a shared game */
@@ -173,6 +174,9 @@ main(void)
     test_counts playable = {};
     unit_playable_tests(&playable, &arena);
     failed |= test_report("unit/playable", &playable);
+    test_counts story = {};
+    unit_story_tests(&story, &arena);
+    failed |= test_report("unit/story", &story);
 
     test_counts map = {};
     unit_map_tests(&map);

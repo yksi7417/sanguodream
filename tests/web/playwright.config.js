@@ -50,6 +50,8 @@ module.exports = defineConfig({
       FLY_APP_NAME: "",
       BUCKET_NAME: "",
       YOUTUBE_STREAM_KEY: "",
+      // MP4: the test of an absent player uses a faction turn of a few seconds (web/rooms.py).
+      HEXDOM_TEST_MIN_TURN_SECONDS: "4",
     },
   },
 });

@@ -7,9 +7,14 @@
    walkthrough into build\demos: an MP4 through ffmpeg, or a GIF through
    gif_encode.exe if ffmpeg is not found, and a PNG of each panel.
 
-   Usage: demo_player.exe [test-name] [--list] [--no-ffmpeg] [--ffmpeg <path>]
+   The fast mode (--fast) runs the same steps and checks at
+   ImGuiTestRunSpeed_Fast, with no vsync and a fixed frame time of 1/60 s.
+   It records no video and no PNG.
+
+   Usage: demo_player.exe [test-name] [--list] [--fast] [--no-ffmpeg] [--ffmpeg <path>]
      test-name     one walkthrough, for example "m0_skeleton"; default: all
      --list        prints the name of each demo test, one on each line
+     --fast        the fast mode: as fast as the machine allows, no recording
      --no-ffmpeg   records a GIF even if ffmpeg is installed
      --ffmpeg      the path of ffmpeg.exe; default: PATH, then winget */
 
@@ -66,6 +71,7 @@ struct demo_options
 {
     const char *test_name;     /* zero: every demo test */
     b32         list;
+    b32         fast;
     b32         no_ffmpeg;
     const char *ffmpeg_path;
 };
@@ -77,6 +83,7 @@ demo_parse_options(int argc, char **argv)
     for (int index = 1; index < argc; ++index)
     {
         if      (strcmp(argv[index], "--list") == 0)                        options.list = true;
+        else if (strcmp(argv[index], "--fast") == 0)                        options.fast = true;
         else if (strcmp(argv[index], "--no-ffmpeg") == 0)                   options.no_ffmpeg = true;
         else if (strcmp(argv[index], "--ffmpeg") == 0 && index + 1 < argc)  options.ffmpeg_path = argv[++index];
         else                                                                options.test_name = argv[index];
@@ -264,7 +271,13 @@ main(int argc, char **argv)
     win32_faces_init(&g_win32_faces, window.device);
     g_demo_face_texture = win32_face_texture;
 
-    test_io.ConfigRunSpeed            = ImGuiTestRunSpeed_Cinematic;
+    /* The fast mode presents with no vsync. The engine gives each frame 1/60 s,
+       so that the timers of the UI count the same frames in both modes. */
+    g_demo_fast                       = options.fast;
+    window.no_vsync                   = options.fast;
+    test_io.ConfigRunSpeed            = options.fast ? ImGuiTestRunSpeed_Fast : ImGuiTestRunSpeed_Cinematic;
+    test_io.ConfigNoThrottle          = options.fast;
+    test_io.ConfigFixedDeltaTime      = options.fast ? 1.0f / 60.0f : 0.0f;
     /* A cinematic walkthrough takes about one minute; the default watchdog stops a test at 60 s. */
     test_io.ConfigWatchdogWarning     = 120.0f;
     test_io.ConfigWatchdogKillTest    = 180.0f;
@@ -272,10 +285,10 @@ main(int argc, char **argv)
     test_io.ConfigVerboseLevel        = ImGuiTestVerboseLevel_Info;
     test_io.ConfigVerboseLevelOnError = ImGuiTestVerboseLevel_Debug;
     test_io.ConfigLogToTTY            = true;
-    test_io.ConfigCaptureEnabled      = true;
+    test_io.ConfigCaptureEnabled      = !options.fast;
     test_io.ScreenCaptureFunc         = demo_capture_screen;
     test_io.ScreenCaptureUserData     = &window;
-    demo_configure_encoder(&test_io, &options, exe_dir);
+    if (!options.fast) demo_configure_encoder(&test_io, &options, exe_dir);
     ImGuiTestEngine_Start(engine, ImGui::GetCurrentContext());
 
     char filter[128];
@@ -287,6 +300,9 @@ main(int argc, char **argv)
        before the present: the DISCARD swap effect drops the buffer. */
     b32 closed_by_user = false;
     u32 frames = 0;
+    LARGE_INTEGER clock_start, clock_end, clock_frequency;
+    QueryPerformanceFrequency(&clock_frequency);
+    QueryPerformanceCounter(&clock_start);
     while (!ImGuiTestEngine_IsTestQueueEmpty(engine) && frames < DEMO_MAX_FRAMES)
     {
         if (!win32_pump_messages(&window) && !closed_by_user)
@@ -311,7 +327,10 @@ main(int argc, char **argv)
     int tested = 0, passed = 0;
     ImGuiTestEngine_GetResult(engine, tested, passed);
     b32 success = tested > 0 && tested == passed && !closed_by_user && frames < DEMO_MAX_FRAMES;
-    printf("%s %d/%d demo (%u frames)\n", success ? "PASS" : "FAIL", passed, tested, frames);
+    QueryPerformanceCounter(&clock_end);
+    f64 seconds = (f64)(clock_end.QuadPart - clock_start.QuadPart) / (f64)clock_frequency.QuadPart;
+    printf("%s %d/%d demo (%u frames in %.1f s, %s mode)\n", success ? "PASS" : "FAIL", passed, tested, frames, seconds,
+           options.fast ? "fast" : "demo");
 
     ImGuiTestEngine_Stop(engine);
     win32_portraits_close(&g_win32_portraits);

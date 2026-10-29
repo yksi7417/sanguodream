@@ -612,6 +612,19 @@ struct history_kind
     u32  name_count;
 };
 
+/* E7: the church of a faction, for the condition church of history.tsv. The
+   engine fills sim_content.force_church from the column church of forces.tsv. */
+#define CONTENT_FORCE_CAPACITY 256   /* = SIM_FORCE_CAPACITY */
+enum content_church
+{
+    CONTENT_CHURCH_NONE,
+    CONTENT_CHURCH_LATIN,
+    CONTENT_CHURCH_GREEK,
+    CONTENT_CHURCH_ARMENIAN,
+    CONTENT_CHURCH_MUSLIM,
+    CONTENT_CHURCH_COUNT
+};
+
 /* M9: one row of portraits.tsv: the age of the second portrait. */
 #define CONTENT_PORTRAIT_CAPACITY 32
 struct portrait_kind
@@ -847,6 +860,7 @@ struct sim_content
     portrait_kind  portraits[CONTENT_PORTRAIT_CAPACITY];
     u32            portrait_count;
     sim_rules      rules;
+    u8             force_church[CONTENT_FORCE_CAPACITY];   /* E7: content_church of each faction; 0 = none */
 };
 
 /* Each parser returns false and leaves its part of the content empty if a
@@ -882,6 +896,7 @@ internal b32 content_load_ancients(sim_content *content, tsv_table *table, u32 *
 internal b32 content_load_history(sim_content *content, tsv_table *table, u32 *bad_row);
 internal b32 content_load_portraits(sim_content *content, tsv_table *table, u32 *bad_row);
 internal b32 content_history_clauses_valid(const char *text, b32 effects, u32 name_count);
+internal u32 content_find_church(const char *name);
 
 internal facility_effect    content_effect_from_name(const char *name);
 internal facility_limit     content_limit_from_name(const char *name);

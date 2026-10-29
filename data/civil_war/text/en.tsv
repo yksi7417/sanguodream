@@ -1070,6 +1070,12 @@ net.desync	The copies of the game differ at step	a desync: the number of the ste
 net.bad_image	The start image of the room does not load.	the error of a bad start image
 net.missing_step	A step of the game is missing. Open the page again.	the error of a gap in the steps
 net.bad_step	A step of another player does not apply.	the error of a bad step
+net.paused	The timer stops: a player is absent.	MP4: the banner when the timer of the faction turn stops
+net.bad_pack	The room names no content pack of this game.	MP4: the error of a bad pack name from the room
+net.room_code	Room code	MP5: the field of the title menu for the code of a shared game
+net.join_room	Join	MP5: the button that opens the room of the code
+net.chat	Chat	MP7: the chat panel of a shared game and its button in the banner
+net.chat_send	Send	MP7: the button that sends a line of the chat
 settings.font_size	Font size	slider, pixels
 event.transport_arrived	Transport arrived	輸送隊到達
 event_role.transport_arrived.a	Leader	主將
@@ -1077,3 +1083,8 @@ event.city	Base	據點
 event_question.transport_arrived	The transport unit has arrived. Where do its officers go?	輸送隊到達了。要如何安置部隊？
 event_choice.transport_arrived.0	Keep them in this base	將其留在該據點
 event_choice.transport_arrived.1	Send them back home	令其返回原據點
+story.title	Story	故事
+story.button	Story	故事
+story.previous	Previous	上一頁
+story.next	Next	下一頁
+story.skip	Skip	略過

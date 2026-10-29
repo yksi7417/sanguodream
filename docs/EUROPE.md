@@ -399,6 +399,18 @@ The pages:
 The story mode is a front-end feature. It reads story/<locale>.tsv of the
 pack and draws the pages. It sends no command to the engine.
 
+The stage e7_story built the story mode:
+- Each pack has story/en.tsv. The rows are title.<page> and page.<page>
+  for the three pages of the world, and force.<key> for each faction.
+- The text is in the Latin script (Q-E4). A locale without its own file
+  uses the English file, as the lore does. Thus there is no zh-TW file.
+- The text module has text_key_story. The panel is code/ui/ui_story.cpp.
+  It has the buttons Previous, Next and Skip.
+- The new-game screen shows the Story button only if the pack has story
+  pages. The panel asks the engine only for the keys of the factions.
+- The pages are in the words of the research. Each fact has two sources in
+  docs/europe/SOURCES.md.
+
 ### The events during the game
 The player chose events during the game (Q-E5). An event does not start
 on a fixed date. Each event has a window of years and preconditions on
@@ -421,9 +433,10 @@ The events of 1200 need these new conditions:
 - owner: the owner of a city is in a list of factions, or the city has
   no owner;
 - church: the church of the faction is latin, greek or muslim;
-- chance: a percent for each month, so that two games do not have the
-  same date;
 - after: the event can start only after another event.
+
+Each row already has the column chance, a percent for each month. Thus
+two games do not have the same date, and no new clause is necessary.
 
 The rows of the Three Kingdoms game name an officer by the Big5 bytes.
 The rows of the Europe pack name an officer by the English key, for
@@ -466,12 +479,36 @@ The new effects are these:
 - seize: an officer takes the rule of his faction;
 - rename: the faction gets a new English name;
 - target: the AI of the faction marches on a city;
-- city_loss: a city loses a percent of its walls and its people;
+- city_loss: a city loses a percent of its walls and its troops;
 - see_holder: a see of E6 gets a new holder, or no holder.
+
+The stage e7_story (misc/stages/e7_story.md) adds all of these effects
+except see_holder. E6 adds see_holder and the parts of the events that
+touch a see.
 
 Each new condition and each new effect gets a unit test first in
 tests/unit/playable_tests.cpp, beside the tests of the M9 events. The Three Kingdoms events do not use
 them, so the fixtures stay green.
+
+### The rows of the stage
+The M9 effects have no gold. Thus the row of the Fourth Crusade gives
+public order to the crusaders in place of gold to Venice. The rows leave
+out the sees. The Latin patriarch of Constantinople waits for E6.
+
+The east map has six rows: fourth_crusade, sack_of_constantinople,
+mamluks_take_cairo, baybars_sultan, siege_of_antioch and fall_of_antioch.
+The west map has four rows: albigensian_crusade, albigensian_france,
+las_navas_de_tolosa and bouvines. The tests of both lists are in
+tests/unit/story_tests.cpp.
+
+The engine changes each @key of a row into an officer before the sim reads
+the row. The file engine_history_keys.cpp does this. The rename effect keeps
+a key, and the sim derives the name of the faction from the rows that
+started. Thus the save format does not change, and a saved game keeps the
+name of the faction after a load. The engine fills the church of each
+faction from forces.tsv, because the save does not hold it. The unit tests
+check each row and each clause. The feature test of the pack checks the
+rename after a save and a load.
 
 ## E8. The west map and the east map
 On 2026-10-28 the player chose two maps for the game of 1200. The west
@@ -480,13 +517,14 @@ crusades at its centre. Each map is a pack of its own, with its own 42
 cities. Thus each map has approximately two times the cities of the
 prototype in each region.
 
-| Map | Pack | Box | Hexes at 11 km | The wars |
+| Map | Pack | Box | Hexes | The wars |
 |---|---|---|---|---|
-| West | medieval_west | 10.5 W to 15 E, 30.5 N to 56 N | approximately 56000 | England and France, the two kings of Germany, the Reconquista, the Albigensian Crusade |
-| East | medieval_east | 8 E to 46 E, 28.5 N to 49 N | approximately 72000 | the crusades in Syria and Egypt, the Fourth Crusade, Byzantium and Bulgaria, the Ayyubids and the Mamluks |
+| West | medieval_west | 10.5 W to 15 E, 30.5 N to 56 N | 268 x 286 = 76648, 10.1 km | England and France, the two kings of Germany, the Reconquista, the Albigensian Crusade |
+| East | medieval_east | 8 E to 46 E, 28.5 N to 49 N | 366 x 217 = 79422, 10.7 km | the crusades in Syria and Egypt, the Fourth Crusade, Byzantium and Bulgaria, the Ayyubids and the Mamluks |
 
 misc/make_world_map.py sets the size of a hex from the distance between
-the cities. The column "Hexes at 11 km" gives the size of the box only.
+the cities. The limit of 80000 hexes stops a finer scale on the east map.
+There the median distance to the nearest city is 17 hexes, not 22.
 
 ### The reasons for the line
 The east edge of the west map is 15 E, not the Rhine:
@@ -532,18 +570,42 @@ The factions of the prototype on each map:
 | Map | Factions |
 |---|---|
 | West | france, angevin, toulouse, aragon, castile, leon, portugal, almohad, ghaniya, staufer, welf, sicily, bohemia, papacy, venice, flanders, denmark |
-| East | byzantium, bulgaria, rum, ayyubid, hungary, austria, papacy, venice, sicily, almohad, ghaniya |
+| East | byzantium, bulgaria, rum, ayyubid, hungary, austria, papacy, venice, sicily, almohad, ghaniya, jerusalem, antioch, cilicia, cyprus, georgia, abbasid |
 | Neither | poland |
 
-New factions can join the east map. These are the first choices:
+The stage e8_factions added six factions to the east map:
 - the kingdom of Jerusalem, with Acre;
 - the principality of Antioch;
 - the Armenian kingdom of Cilicia;
 - the kingdom of Cyprus;
-- the kingdom of Georgia;
+- the kingdom of Georgia, with Tbilisi in the place of Bologna;
 - the Abbasid caliphate, with Baghdad.
 
 The west map can add the kingdom of Navarre.
+
+### The result of E8
+Each pack has 42 cities, 10 passes and 35 ports. Each pack has a scenario of 1200.
+
+| Map | Cities that are new | Factions | Officers |
+|---|---|---|---|
+| West | Rouen, Chinon, Lille, Zaragoza, Reims, Coimbra, Cordoba, Brunswick, Roskilde, Genoa, Burgos, Santiago | 17 | 77, with 8 free |
+| East | Antioch, Aleppo, Edessa, Mosul, Baghdad, Damascus, Acre, Nicosia, and 16 more in Anatolia, the Balkans and Italy | 17 | 65, with 6 free |
+
+The notes of the result:
+- Antioch is a city of the east map. The principality of Antioch owns it. Aleppo and Damascus belong to the Ayyubids.
+- The six factions of step 4 have the force ids 11 to 16. The order is Jerusalem, Antioch, Cilicia, Cyprus, Georgia and the Abbasid caliphate.
+- The cities of the six factions are Acre, Antioch, Sis, Nicosia, Tbilisi and Baghdad.
+- Tbilisi is city 19 of the east map. It takes the place of Bologna.
+- The east map has 6 cities without an owner: Barqa, Milan, Genoa, Florence, Belgrade and Mosul.
+- Aimery of Lusignan is the king of Jerusalem and of Cyprus. He governs Acre. The officer Hugh I of Cyprus governs Nicosia.
+- Bohemond IV was count of Tripoli in 1200. The pack puts him at Antioch, the city of his father. Raymond-Roupen is an infant. The pack puts him in Cilicia, the land of his grandfather.
+- The new officers have the ids 43 to 64. Each has a life, a native name and a URL.
+- Walter of Montbéliard came to Cyprus in 1202. The sim skips an officer that appears after the year of the scenario, so his year of appearance is 1200.
+- The rows 11 to 23 of faction_colours.tsv have new colours for the new forces. The unused colours moved to the later rows.
+- The Almohad officers stand in Tunis on the east map, because Marrakesh is not on the map.
+- Rouen and Acre were ports in the prototype. They are cities now.
+- The new game screen lists the games as rows 9 and 10 of scenarios.tsv, with the keys y1200_west and y1200_east.
+- build_web.bat preloads both packs. Each pack adds approximately 3 MB to index.data.
 
 ### The work of E8
 1. Make data/medieval_west and data/medieval_east from a copy of
@@ -556,8 +618,10 @@ The west map can add the kingdom of Navarre.
    the same in both packs. Thus the lives, the native names and the
    Wikipedia URLs stay the same.
 4. Research the officers of the new factions, with two sources for each
-   life (docs/europe/SOURCES.md). A later stage does this step. The stage
-   e8_maps (misc/stages/e8_maps.md) does the other steps.
+   life (docs/europe/SOURCES.md). The stage e8_factions
+   (misc/stages/e8_factions.md) did this step. It also put Tbilisi in
+   the place of Bologna, for Georgia. The stage e8_maps
+   (misc/stages/e8_maps.md) did the other steps.
 5. Add one row for each pack to scenarios.tsv of the placeholder pack.
    The new game screen then lists the two games of 1200.
 6. Add a feature test for each pack, as the test of the prototype.
@@ -606,7 +670,36 @@ Lives that have a weak second source:
 - 57 Ludolf, 60 Henry of the Palatinate, 61 Henry of Brabant and 64 Pagliara: one source only.
 - The "SOURCES.md" file marks the other weak sources.
 
-Ten officers have no English article and have "-" in the column
+The officers of the east factions (ids 43 to 64 of data/medieval_east) have these open points. The first source of each is an English article.
+
+Years that the sources give in different ways:
+- 43 Aimery: born in 1144 or in 1145. Wikidata says 1152. The data has 1144.
+- 44 Isabella: born in 1169 or in 1172. The data has 1172.
+- 47 Bohemond III: born in 1144, in 1145 or near 1148. The data has 1144.
+- 48 Bohemond IV: born in 1172 or near 1175. The data has 1172.
+- 50 Leo I: crowned in 1198 or in 1199. The life says both.
+- 52 Raymond-Roupen: born in 1198 or in 1199, and died in 1219, 1221 or 1222. The data has 1198 and 1222.
+- 53 Hugh: born in 1194, 1195 or near 1196. The English article says he was nine in 1205. The data has 1195.
+- 54 Philip of Ibelin: died in 1227 or in 1228. The data has 1227.
+- 57 David Soslan: married Tamar in 1189 or in 1191. The life says approximately 1189.
+- 63 Ibn al-Jawzi: born in 1116 or in 1126, and died in 1200 or in 1201. The data has 1116 and 1201.
+
+Years that are an estimate, because no source gives a year:
+- 46 Geoffroy de Donjon, 49 Peter of Angoulême and 51 Gregory VI: born 1150. Wikidata gives 1200 for the first two. That is a placeholder.
+- 56 Tamar: born near 1160 or near 1166. The data has 1160.
+- 57 David Soslan: born 1160. 58 Zakare II: born 1160. 59 Ivane I: born 1165.
+- 60 Rustaveli: born 1165 and died 1220. Both years are estimates.
+- 55 Walter of Montbéliard: the year of appearance is 1200, but he came to Cyprus in 1202. The sim skips an officer that appears after the year of the scenario.
+
+Lives that have a weak second source: 49, 51, 53, 54, 55, 57, 58, 59, 62 and 64. The file docs/europe/SOURCES.md has the list.
+
+Other points of the east factions:
+- Aimery of Lusignan is king of Jerusalem and of Cyprus. The two sources are Wikipedia and Larousse. Acre has Aimery, and Nicosia has Hugh. The scenario files cannot say that two factions are allies. The engine has only the liked and the disliked officers. Thus the alliance of Jerusalem and Cyprus is not in the data.
+- 48 Bohemond IV was count of Tripoli in 1200. The data puts him at Antioch.
+- 52 Raymond-Roupen was a small child. The data puts him in Cilicia.
+- The arms of Jerusalem, Antioch, Cilicia, Cyprus and Georgia have no checked date (docs/europe/ARMS.md). The arms of Cyprus that are public domain are a photograph of a later relief.
+
+Ten officers of the prototype have no English article. They have "-" in the column
 wikipedia: 3, 4, 19, 22, 33, 35, 38, 57, 78 and 82.
 
 ## The milestones
@@ -618,8 +711,8 @@ wikipedia: 3, 4, 19, 22, 33, 35, 38, 57, 78 and 82.
 | E4 | Lives and Wikipedia URLs, the officer panel | no | done |
 | E5 | Coats of arms on the flags | Q-E3 | list done in docs/europe/ARMS.md, external art |
 | E6 | The authorities of the church | Q-E2 | design |
-| E7 | The story mode and the events during the game | no | design |
-| E8 | The west map and the east map, with Antioch on the east map | no | design |
+| E7 | The story mode and the events during the game | no | done, except the sees (E6) |
+| E8 | The west map and the east map, with Antioch on the east map | no | done. The east map has 17 factions |
 
 ## The stage runs
 misc/run_stages.py runs the stages as headless Claude Code sessions, in
@@ -632,7 +725,8 @@ The stages that need no answer now:
 - e4_officer_panel: the life and the Wikipedia button of E4;
 - bio_check: a second source for each life of E4.
 
-E5, E6 and E7 get a brief after the player answers their questions.
+The stages e8_maps, e8_factions and e7_story need no answer either. E5
+and E6 get a brief after the player answers Q-E3 and Q-E2.
 
 ### The order of the stages
 misc/stages/plan.tsv gives the order. A stage waits for another stage only
@@ -651,11 +745,11 @@ flowchart LR
         q3{{Q-E3 licence}} --> art[e5 art<br/>external, Drive folder] --> e5[e5_arms<br/>flags, textures]
         q1{{Q-E2}} --> e6[e6_church<br/>sim rules, engine_api]
         e8[e8_maps<br/>west and east packs] --> e6
-        e7[e7_story<br/>story pages, events]
-        e8 --> e7
+        e8 --> e8f[e8_factions<br/>new factions of the east]
+        e8f --> e7[e7_story<br/>story pages, events]
+        e7 --> e6
     end
     e4 --> e5
-    e6 --> e7
     bio --> e7
     e4 --> check[check<br/>all tests, e2e, web build]
     bio --> check
@@ -668,10 +762,12 @@ The reasons for each arrow:
   misc/make_scenario.py.
 - e4_officer_panel before e5_arms: both add a function to the platform
   contract in code/hexdom.h.
-- e6_church before e7_story: the story tells the rules of the
-  authorities.
-- e8_maps before e6_church and e7_story: the sees and the events need
-  the cities of the two maps.
+- e7_story before e6_church: E6 waits for Q-E2. Thus e7_story leaves out
+  the sees, and e6_church adds see_holder to the rows of e7_story.
+- e8_maps before e6_church and e8_factions: the sees and the factions
+  need the cities of the two maps.
+- e8_factions before e7_story: both edit officers.tsv of the east pack.
+  The events need the owners of Acre and Antioch.
 - bio_check before e7_story: the pages of the rulers use the checked
   facts.
 - e6_church edits code/sim/ and engine_api. It can run in parallel with

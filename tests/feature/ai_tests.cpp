@@ -9,6 +9,9 @@
 #define FEATURE_AI_FREE_CITY_TURNS 6
 #define FEATURE_AI_RESUPPLY_TURNS  3
 #define FEATURE_AI_MONTHS_LATER    6   /* past ai.attack_after_months */
+#define FEATURE_AI_DEAD_END_NEAR   6
+#define FEATURE_AI_DEAD_END_FAR    20
+#define FEATURE_AI_MARCH_TURNS     8
 
 /* The hex of a city: the centre of its flower. */
 internal hex_coord
@@ -233,6 +236,116 @@ feature_ai_free_city_tests(test_counts *counts)
     engine_fixture_destroy(&setup.fixture);
 }
 
+/* ---- the AI marches around an obstacle ---------------------------------------------- */
+
+/* True if no hex in the reach of the unit is nearer to the goal than the
+   hex of the unit: a march to the nearest hex stops there. */
+internal b32
+feature_ai_dead_end(engine_api *api, u32 unit_id, hex_coord goal)
+{
+    engine_reach_view reach = api->reachable(api->engine, unit_id);
+    if (reach.count < 2) return false;
+    s32 own = hex_distance(reach.cells[0], goal);
+    for (u32 index = 1; index < reach.count; ++index)
+    {
+        if (hex_distance(reach.cells[index], goal) < own) return false;
+    }
+    return true;
+}
+
+/* True if the unit has a path to a hex next to the flower of the city at
+   the goal. No unit enters the 7 hexes of a city of another owner. */
+internal b32
+feature_ai_path_beside(engine_api *api, u32 unit_id, hex_coord goal)
+{
+    for (u32 d = 0; d < HEX_DIRECTION_COUNT; ++d)
+    {
+        hex_coord beside = hex_neighbor(hex_neighbor(goal, d), d);
+        if (api->path_to(api->engine, unit_id, beside.q, beside.r).found) return true;
+    }
+    return false;
+}
+
+/* A free hex 6 to 20 hexes from the goal where the unit stands at a dead
+   end and has a path to the city. The unit stays on that hex. */
+internal b32
+feature_ai_dead_end_hex(engine_api *api, u32 unit_id, u8 force, hex_coord goal, hex_coord *found)
+{
+    for (s32 distance = FEATURE_AI_DEAD_END_NEAR; distance <= FEATURE_AI_DEAD_END_FAR; ++distance)
+    {
+        for (s32 dq = -distance; dq <= distance; ++dq)
+        {
+            for (s32 dr = -distance; dr <= distance; ++dr)
+            {
+                hex_coord hex = hex_make(goal.q + dq, goal.r + dr);
+                if (hex_distance(hex, goal) != distance) continue;
+                if (!api->set_unit_place(api->engine, unit_id, force, hex.q, hex.r)) continue;
+                if (!feature_ai_dead_end(api, unit_id, goal)) continue;
+                if (!feature_ai_path_beside(api, unit_id, goal)) continue;
+                *found = hex;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+internal void
+feature_ai_march_tests(test_counts *counts)
+{
+    feature_city_setup setup;
+    feature_map_setup(&setup);   /* the real map: the placeholder map has no obstacle */
+    engine_api *api = setup.api;
+    void *e = api->engine;
+    u8 human = setup.force, home = ENGINE_NO_CITY;
+    u8 force = feature_ai_faction(api, human, &home);
+    u32 unit_id = feature_sortie_unit(api, setup.city, 1);
+    if (force == ENGINE_NO_FACTION || unit_id == ENGINE_NO_UNIT) { TEST_CHECK(counts, false, "an AI faction and a unit"); engine_fixture_destroy(&setup.fixture); return; }
+
+    /* The nearest city of a third owner becomes free and empty. */
+    hex_coord from = feature_city_hex(api, home);
+    u8 target = ENGINE_NO_CITY;
+    s32 best = 0x7FFFFFFF;
+    for (u32 city = 0; city < api->city_count(e); ++city)
+    {
+        engine_city info = api->city_at(e, city);
+        if (info.owner_force_id == force || info.owner_force_id == human) continue;
+        s32 distance = hex_distance(feature_city_hex(api, (u8)city), from);
+        if (distance < best) { best = distance; target = (u8)city; }
+    }
+    if (target == ENGINE_NO_CITY) { TEST_CHECK(counts, false, "a city of a third owner"); engine_fixture_destroy(&setup.fixture); return; }
+    api->set_city_owner(e, target, ENGINE_NO_FACTION);
+    api->set_city_resource(e, target, SIM_RESOURCE_SOLDIERS, 0, 0);
+    api->set_diplomacy(e, force, human, 0, RELATION_NONE, 0);
+
+    /* The unit goes to the AI faction, on a hex where each reachable hex is as far from the city or farther. */
+    hex_coord goal = feature_city_hex(api, target), start = {};
+    b32 placed = feature_ai_dead_end_hex(api, unit_id, force, goal, &start);
+    TEST_CHECK(counts, placed, "a unit of the AI stands 6 to 20 hexes from a free city; no hex in its reach is nearer; a path goes around");
+    if (!placed) { engine_fixture_destroy(&setup.fixture); return; }
+
+    feature_turn_on(api, true, false);
+    api->set_actions(e, force, 255);
+    feature_next_own_turn(api, human);
+    engine_ai_explain explain = api->ai_explain(e, force);
+    engine_ai_option *aim = feature_ai_option(&explain, AI_GOAL_TAKE_FREE_CITY, unit_id, true);
+    engine_unit unit = api->unit_at(e, unit_id);
+    TEST_CHECK(counts, aim && aim->city_id == target, "the chosen goal of the unit is the free city");
+    TEST_CHECK(counts, unit.id != ENGINE_NO_UNIT && (unit.q != start.q || unit.r != start.r),
+               "the unit leaves the dead end: it follows the lowest-cost path to the city (assumed path rule Q-227)");
+
+    u32 turns = 1;
+    while (turns < FEATURE_AI_MARCH_TURNS && api->city_at(e, target).owner_force_id == ENGINE_NO_FACTION)
+    {
+        api->set_actions(e, force, 255);
+        feature_next_own_turn(api, human);
+        turns++;
+    }
+    u8 owner = api->city_at(e, target).owner_force_id;
+    TEST_CHECK(counts, owner != ENGINE_NO_FACTION && owner != human, "an AI faction takes the free city within 8 turns");
+    engine_fixture_destroy(&setup.fixture);
+}
+
 /* ---- the AI defends a city under attack --------------------------------------------- */
 
 internal void
@@ -318,6 +431,7 @@ feature_ai_tests(test_counts *counts)
 {
     feature_ai_explain_tests(counts);
     feature_ai_free_city_tests(counts);
+    feature_ai_march_tests(counts);
     feature_ai_defend_tests(counts);
     feature_ai_grain_tests(counts);
 }

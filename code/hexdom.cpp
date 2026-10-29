@@ -139,14 +139,16 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     ui_draw(&game->ui, &game->api, &frame_info);
     if (game->ui.game.pack_request[0])
     {
-        /* The player chose a scenario of another pack: a new engine with its rules
-           and its map, then the new UI loads the scenario (ui_start_pack_scenario). */
+        /* The player chose a scenario or a save slot of another pack: a new engine with
+           its rules and its map, then the new UI loads it (ui_start_pack_scenario). */
         char pack[CONTENT_KEY_SIZE], scenario[CONTENT_KEY_SIZE];
         snprintf(pack, sizeof(pack), "%s", game->ui.game.pack_request);
         snprintf(scenario, sizeof(scenario), "%s", game->ui.game.pack_scenario);
+        u32 slot = game->ui.game.pack_slot;
         game_create_engine(game, memory, pack);
         game_start_ui(game);
         snprintf(game->ui.game.pack_scenario, sizeof(game->ui.game.pack_scenario), "%s", scenario);
+        game->ui.game.pack_slot = slot;
         memory->platform.log(game->api.map_info(game->api.engine).real_map ? "hexdom: the engine started again with another pack"
                                                                            : "hexdom: the other pack has no map");
     }

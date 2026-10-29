@@ -1,0 +1,184 @@
+key	text	note
+# Written by misc/make_scenario.py. The English names of the pack by English key (docs/EUROPE.md, E2).
+# officer.<key> and force.<key> come from the scenario y1200. city.<key> and base.<key> come from map/source/sites.tsv.
+officer.philip_ii	Philip II Augustus
+officer.louis_viii	Louis the Lion
+officer.blanche	Blanche of Castile
+officer.des_barres	William des Barres
+officer.guerin	Brother Guerin
+officer.dreux	Robert II of Dreux
+officer.montfort	Simon de Montfort
+officer.john	King John
+officer.marshal	William Marshal
+officer.hubert_walter	Hubert Walter
+officer.de_burgh	Hubert de Burgh
+officer.eleanor	Eleanor of Aquitaine
+officer.lacy	Hugh de Lacy
+officer.fitzhenry	Meiler FitzHenry
+officer.longespee	William Longespee
+officer.geoffrey_york	Geoffrey of York
+officer.raymond_vi	Raymond VI of Toulouse
+officer.trencavel	Raymond Roger Trencavel
+officer.foix	Raymond-Roger of Foix
+officer.comminges	Bernard IV of Comminges
+officer.peter_ii	Peter II of Aragon
+officer.alfonso_provence	Alfonso II of Provence
+officer.montcada	Guillem Ramon de Montcada
+officer.nuno_sanchez	Nuno Sanchez
+officer.alfonso_viii	Alfonso VIII of Castile
+officer.haro	Diego Lopez II de Haro
+officer.rada	Rodrigo Jimenez de Rada
+officer.lara	Alvaro Nunez de Lara
+officer.alfonso_ix	Alfonso IX of Leon
+officer.berenguela	Berenguela of Castile
+officer.castro	Pedro Fernandez de Castro
+officer.sancho_i	Sancho I of Portugal
+officer.afonso_ii	Afonso II of Portugal
+officer.sousa	Goncalo Mendes de Sousa
+officer.al_nasir	Muhammad al-Nasir
+officer.ibn_jami	Uthman ibn Jami
+officer.abu_hafs	Abu Muhammad ibn Abi Hafs
+officer.marrakushi	Abd al-Wahid al-Marrakushi
+officer.yahya	Yahya ibn Ghaniya
+officer.qaraqush	Sharaf al-Din Qaraqush
+officer.philip_swabia	Philip of Swabia
+officer.kalden	Heinrich von Kalden
+officer.querfurt	Conrad of Querfurt
+officer.ludolf	Ludolf of Magdeburg
+officer.otto_iv	Otto IV
+officer.adolf_altena	Adolf of Altena
+officer.henry_palatine	Henry V of the Palatinate
+officer.brabant	Henry I of Brabant
+officer.frederick_ii	Frederick II
+officer.markward	Markward of Annweiler
+officer.pagliara	Walter of Pagliara
+officer.diepold	Diepold of Schweinspeunt
+officer.ottokar_i	Ottokar I of Bohemia
+officer.vladislaus	Vladislaus Henry
+officer.innocent_iii	Innocent III
+officer.richard_segni	Richard of Segni
+officer.capuano	Peter Capuano
+officer.ugolino	Ugolino of Segni
+officer.dandolo	Enrico Dandolo
+officer.ranieri	Ranieri Dandolo
+officer.ziani	Pietro Ziani
+officer.morosini	Tommaso Morosini
+officer.baldwin_ix	Baldwin IX of Flanders
+officer.henry_flanders	Henry of Flanders
+officer.bethune	Conon de Bethune
+officer.canute_vi	Canute VI of Denmark
+officer.valdemar_ii	Valdemar II of Denmark
+officer.absalon	Absalon
+officer.sunesen	Anders Sunesen
+officer.ibn_arabi	Ibn Arabi
+officer.vogelweide	Walther von der Vogelweide
+officer.villehardouin	Geoffrey of Villehardouin
+officer.montferrat	Boniface of Montferrat
+officer.francis	Francis of Assisi
+officer.dominic	Dominic de Guzman
+officer.fibonacci	Leonardo Fibonacci
+officer.brienne	Walter III of Brienne
+force.france	Kingdom of France
+force.angevin	Angevin Empire
+force.toulouse	County of Toulouse
+force.aragon	Crown of Aragon
+force.castile	Kingdom of Castile
+force.leon	Kingdom of Leon
+force.portugal	Kingdom of Portugal
+force.almohad	Almohad Caliphate
+force.ghaniya	Banu Ghaniya
+force.staufer	Hohenstaufen party
+force.welf	Welf party
+force.sicily	Kingdom of Sicily
+force.bohemia	Duchy of Bohemia
+force.papacy	Papal States
+force.venice	Republic of Venice
+force.flanders	County of Flanders
+force.denmark	Kingdom of Denmark
+city.lisbon	Lisbon
+city.leon	Leon
+city.toledo	Toledo
+city.seville	Seville
+city.valencia	Valencia
+city.barcelona	Barcelona
+city.marrakesh	Marrakesh
+city.fez	Fez
+city.bejaia	Bejaia
+city.tunis	Tunis
+city.tripoli	Tripoli
+city.rome	Rome
+city.naples	Naples
+city.palermo	Palermo
+city.venice	Venice
+city.milan	Milan
+city.paris	Paris
+city.bordeaux	Bordeaux
+city.toulouse	Toulouse
+city.marseille	Marseille
+city.lyon	Lyon
+city.london	London
+city.york	York
+city.dublin	Dublin
+city.bruges	Bruges
+city.cologne	Cologne
+city.nuremberg	Nuremberg
+city.magdeburg	Magdeburg
+city.lubeck	Lubeck
+city.prague	Prague
+city.rouen	Rouen
+city.chinon	Chinon
+city.lille	Lille
+city.zaragoza	Zaragoza
+city.reims	Reims
+city.coimbra	Coimbra
+city.cordoba	Cordoba
+city.brunswick	Brunswick
+city.roskilde	Roskilde
+city.genoa	Genoa
+city.burgos	Burgos
+city.santiago	Santiago de Compostela
+base.roncevaux	Roncevaux Pass
+base.perthus	Col du Perthus
+base.st_bernard	Great St Bernard Pass
+base.despenaperros	Despenaperros Pass
+base.brenner	Brenner Pass
+base.tichka	Tizi n'Tichka
+base.mont_cenis	Mont Cenis Pass
+base.somosierra	Somosierra Pass
+base.taza_gap	Taza Gap
+base.gotthard	St Gotthard Pass
+base.porto	Porto
+base.cadiz	Cadiz
+base.cartagena	Cartagena
+base.palma	Palma
+base.tangier	Tangier
+base.sale	Sale
+base.oran	Oran
+base.algiers	Algiers
+base.mahdia	Mahdia
+base.cagliari	Cagliari
+base.bastia	Bastia
+base.messina	Messina
+base.syracuse	Syracuse
+base.civitavecchia	Civitavecchia
+base.pisa	Pisa
+base.ancona	Ancona
+base.montpellier	Montpellier
+base.la_rochelle	La Rochelle
+base.southampton	Southampton
+base.bristol	Bristol
+base.hamburg	Hamburg
+base.dover	Dover
+base.saint_malo	Saint-Malo
+base.santander	Santander
+base.a_coruna	A Coruna
+base.tarragona	Tarragona
+base.almeria	Almeria
+base.malaga	Malaga
+base.annaba	Annaba
+base.sfax	Sfax
+base.trapani	Trapani
+base.salerno	Salerno
+base.antwerp	Antwerp
+base.waterford	Waterford
+base.rostock	Rostock

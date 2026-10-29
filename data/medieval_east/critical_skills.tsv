@@ -1,0 +1,25 @@
+id	skill	name_zh	action	unit_class	condition	status
+# The skills that make an attack or a tactic always critical (skills.md, "Attack"). One row for each rule; a skill can have two rows.
+# skill: the number in skills.md. action: attack (a normal attack), tactic, or both. unit_class: the class of the unit (pike, halberd, crossbow, cavalry, siege, navy) or any.
+# condition: always, lower_force (the target's commander has lower force), forest (the unit stands in a forest), building (the target is a base or a building), mounted (an arrow attack of cavalry).
+0	1	飛將	tactic	any	lower_force	documented
+1	16	亂戰	attack	any	forest	documented
+2	17	攻城	both	any	building	documented
+3	23	驅逐	attack	any	lower_force	documented
+4	25	白馬	attack	cavalry	mounted	documented
+5	27	槍將	tactic	pike	lower_force	documented
+6	28	戟將	tactic	halberd	lower_force	documented
+7	29	弓將	tactic	crossbow	lower_force	documented
+8	30	騎將	tactic	cavalry	lower_force	documented
+9	31	水將	tactic	navy	lower_force	documented
+10	32	勇將	tactic	any	lower_force	documented
+11	33	神將	both	any	lower_force	documented
+12	34	鬥神	tactic	pike	always	documented
+13	34	鬥神	tactic	halberd	always	documented
+14	35	槍神	tactic	pike	always	documented
+15	36	戟神	tactic	halberd	always	documented
+16	37	弓神	tactic	crossbow	always	documented
+17	38	騎神	tactic	cavalry	always	documented
+18	39	工神	tactic	siege	always	documented
+19	40	水神	tactic	navy	always	documented
+20	41	霸王	tactic	any	always	documented

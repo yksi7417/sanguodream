@@ -1068,6 +1068,12 @@ net.desync	遊戲副本不一致，步驟
 net.bad_image	無法載入房間的開局資料。
 net.missing_step	缺少一個步驟，請重新開啟頁面。
 net.bad_step	其他玩家的步驟無法套用。
+net.paused	計時暫停：有玩家不在線上。
+net.bad_pack	房間指定的資料包不存在。
+net.room_code	房間代碼
+net.join_room	加入
+net.chat	聊天
+net.chat_send	送出
 settings.font_size	字型大小
 event.transport_arrived	輸送隊到達
 event_role.transport_arrived.a	主將
@@ -1075,3 +1081,8 @@ event.city	據點
 event_question.transport_arrived	輸送隊到達了。要如何安置部隊？
 event_choice.transport_arrived.0	將其留在該據點
 event_choice.transport_arrived.1	令其返回原據點
+story.title	故事
+story.button	故事
+story.previous	上一頁
+story.next	下一頁
+story.skip	略過

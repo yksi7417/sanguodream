@@ -6,6 +6,9 @@ REM The fly builder makes the image from the Dockerfile. Docker is not necessary
 setlocal
 call "%~dp0build_web.bat"
 if errorlevel 1 exit /b 1
+REM MP6: the referee of the shared games runs on the server (docs/MULTIPLAYER.md).
+call "%~dp0build_web.bat" referee
+if errorlevel 1 exit /b 1
 pushd "%~dp0"
 flyctl deploy --remote-only --ha=false
 set ERR=%errorlevel%

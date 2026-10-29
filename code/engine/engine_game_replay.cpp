@@ -374,6 +374,7 @@ engine_game_replay_apply(engine *e, const engine_game_replay_step_record *step)
         case ENGINE_STEP_SETTINGS:     engine_api_set_settings(e, step->settings); break;
         case ENGINE_STEP_HUMAN:        engine_api_set_faction_human(e, step->force, step->value != 0); break;
         case ENGINE_STEP_LEDGER_CLEAR: engine_api_ledger_clear(e); break;
+        case ENGINE_STEP_AI_TURN:      engine_ai_finish_turn(e, step->force); break;
         default: break;
     }
     replay->applying = false;
@@ -497,6 +498,7 @@ engine_api_game_replay_step_at(void *opaque, u32 index)
         case ENGINE_STEP_SETTINGS:     result.key = "settings";     break;
         case ENGINE_STEP_HUMAN:        result.key = "human";        break;
         case ENGINE_STEP_LEDGER_CLEAR: result.key = "ledger_clear"; break;
+        case ENGINE_STEP_AI_TURN:      result.key = "ai_turn";      break;
         default:                       result.key = "none";         break;
     }
     return result;

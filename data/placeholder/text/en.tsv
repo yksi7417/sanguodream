@@ -921,6 +921,8 @@ scenario_kind.1	base	a scenario of the base game
 scenario_kind.2	PK	a Power Up Kit scenario
 scenario_kind.3	pack	a scenario of the content pack in TSV files (docs/MAPS.md)
 scenario.y1200	1200: The Rival Crowns	一二〇〇年 群王爭霸, the scenario of data/medieval_europe
+scenario.y1200_west	1200: England and France	一二〇〇年 英法爭霸, the scenario of data/medieval_west
+scenario.y1200_east	1200: The Crusades	一二〇〇年 十字軍東征, the scenario of data/medieval_east
 scenario.sample_save	Warlords (saved game)	群雄割據 (存檔)
 scenario.warlords	Warlords	群雄割據
 scenario.lu_bu_campaign	The campaign against Lu Bu	呂布討伐戰
@@ -1084,6 +1086,12 @@ net.desync	The copies of the game differ at step	a desync: the number of the ste
 net.bad_image	The start image of the room does not load.	the error of a bad start image
 net.missing_step	A step of the game is missing. Open the page again.	the error of a gap in the steps
 net.bad_step	A step of another player does not apply.	the error of a bad step
+net.paused	The timer stops: a player is absent.	MP4: the banner when the timer of the faction turn stops
+net.bad_pack	The room names no content pack of this game.	MP4: the error of a bad pack name from the room
+net.room_code	Room code	MP5: the field of the title menu for the code of a shared game
+net.join_room	Join	MP5: the button that opens the room of the code
+net.chat	Chat	MP7: the chat panel of a shared game and its button in the banner
+net.chat_send	Send	MP7: the button that sends a line of the chat
 settings.font_size	Font size	slider, pixels
 menu.units	Units	menu item and panel: the list of the units
 units.title	Units	title of the Units panel
@@ -1704,3 +1712,8 @@ settings.names	Names	E3: the combo that chooses the language of the names of the
 settings.names_english	English	E3: the value of the Names combo
 settings.names_native	Own language	E3: the value of the Names combo; the name in the Latin script of its own language
 officer.wikipedia	Wikipedia	E4: the button of the officer panel that opens the English article of the officer
+story.title	Story	故事
+story.button	Story	故事
+story.previous	Previous	上一頁
+story.next	Next	下一頁
+story.skip	Skip	略過

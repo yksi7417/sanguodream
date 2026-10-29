@@ -919,6 +919,8 @@ scenario_kind.1	本篇
 scenario_kind.2	威力加強版
 scenario_kind.3	內容包
 scenario.y1200	一二〇〇年 群王爭霸
+scenario.y1200_west	一二〇〇年 英法爭霸
+scenario.y1200_east	一二〇〇年 十字軍東征
 scenario.sample_save	群雄割據（存檔）
 scenario.warlords	群雄割據
 scenario.lu_bu_campaign	呂布討伐戰
@@ -1082,6 +1084,12 @@ net.desync	遊戲副本不一致，步驟
 net.bad_image	無法載入房間的開局資料。
 net.missing_step	缺少一個步驟，請重新開啟頁面。
 net.bad_step	其他玩家的步驟無法套用。
+net.paused	計時暫停：有玩家不在線上。
+net.bad_pack	房間指定的資料包不存在。
+net.room_code	房間代碼
+net.join_room	加入
+net.chat	聊天
+net.chat_send	送出
 settings.font_size	字型大小
 menu.units	部隊一覽
 units.title	部隊一覽
@@ -1702,3 +1710,8 @@ settings.names	名字
 settings.names_english	英文
 settings.names_native	原語言
 officer.wikipedia	維基百科
+story.title	故事
+story.button	故事
+story.previous	上一頁
+story.next	下一頁
+story.skip	略過

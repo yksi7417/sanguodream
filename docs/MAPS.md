@@ -227,15 +227,36 @@ When the player chooses a row of another pack, these steps occur:
 The fonts, the UI text and the art stay the same for all packs.
 
 The web build has the pack in index.data: build_web.bat preloads
-data/medieval_europe. The Playwright test "a new game of 1200 starts the
+data/medieval_europe, data/medieval_west and data/medieval_east. The
+Playwright test "a new game of 1200 starts the
 engine again with the map of Europe" chooses the row in the browser and
 checks the size of the new map.
 
-Caution: a save holds the size of its map, and an engine refuses a save of
-another size (ENGINE_SAVE_OTHER_VERSION). The title starts the engine of
-the placeholder pack. Thus a save of a 1200 game does not load from the
-title yet. The next step puts the pack in the save, so that the load
-starts the engine of that pack first.
+## The saves of a pack
+The save file slot_NN.hxs keeps its format. An engine refuses a save of
+another pack (ENGINE_SAVE_OTHER_PACK). Thus a second file next to the save
+names its pack. slot_NN.meta has key and value lines:
+
+    key	value
+    # The facts of slot_03.hxs that the save file does not hold (docs/MAPS.md).
+    pack	medieval_europe
+
+The rules of the .meta file:
+- save_game writes slot_NN.meta each time, also for the placeholder pack.
+  Thus a new save in a slot replaces the facts of the old save.
+- A save without slot_NN.meta is a save of HEXDOM_CONTENT_PACK. The saves
+  of the builds before the .meta file are such saves.
+- refresh_save_slots lists a save of another pack as used. The api call
+  slot_pack gives its pack. load_game refuses such a slot.
+- The load screen (ui_load_slot) asks the game for the engine of that
+  pack, as for a scenario of another pack. The new engine reads the slots
+  again and loads the slot (ui_start_pack_scenario).
+- On the web, the page sends each file of the save folder to the server.
+  Thus the .meta file goes to the server with its save.
+
+The feature test feature_pack_save_tests saves a game of 1200. It loads
+the slot list in the engine of the placeholder pack, and it loads the
+save in the engine of medieval_europe.
 
 ## The plan
 | Step | Work | Result |
@@ -253,14 +274,14 @@ its default locale in pack.tsv (docs/EUROPE.md, E1 and E2).
 
 ## The regions of the planned games
 The table gives the hexes at the scale of the placeholder map, 11 km
-between hex centres. A region with more than 80000 hexes needs W4, or
+between hex centres. The rows of finished packs give the real grid of the pack. A region with more than 80000 hexes needs W4, or
 larger hexes. A region with many more than 42 important cities needs W3.
 
 | Game | Area | Hexes at 11 km | Advice |
 |---|---|---|---|
 | medieval_europe | 4500 km x 3000 km | approximately 125000 | Done with 13.6 km hexes and 42 cities |
-| medieval_west | 2100 km x 2800 km | approximately 56000 | The west half of 1200 (docs/EUROPE.md, E8) |
-| medieval_east | 3300 km x 2300 km | approximately 72000 | The east half of 1200 (docs/EUROPE.md, E8) |
+| medieval_west | 2100 km x 2800 km | 76648 (268 x 286) | Done with 10.1 km hexes and 42 cities. The west half of 1200 (docs/EUROPE.md, E8) |
+| medieval_east | 3300 km x 2300 km | 79422 (366 x 217) | Done with 10.7 km hexes and 42 cities. The east half of 1200 (docs/EUROPE.md, E8) |
 | Thirty Years War | 4700 km x 2800 km | approximately 125000 | Needs W3: the Empire alone has more than 42 important towns |
 | American Revolution | Two theatres | 31000 for the Thirteen Colonies | Make two maps. The Atlantic is 5000 km and has no hexes of interest. A sea voyage between the maps is an event, not a march. |
 | East Asia | 6000 km x 5000 km | approximately 300000 | Needs W3 and W4, or one map for each subregion |
@@ -269,3 +290,11 @@ larger hexes. A region with many more than 42 important cities needs W3.
 Large maps are slow to play if the hexes stay small. Keep the distance
 between cities near 22 hexes. Choose the cities first, then let the tool
 choose the size of a hex.
+
+The median distance from a city to the nearest city is 24.5 hexes on the
+west map and 17.0 hexes on the east map. The east map has many cities in
+the Levant and in Italy. The limit of 80000 hexes stops a finer scale.
+
+![The west map](maps/medieval_west.png)
+
+![The east map](maps/medieval_east.png)

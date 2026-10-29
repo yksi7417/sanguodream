@@ -1704,13 +1704,60 @@ global_variable const char *content_history_conditions[] =
     "rules", "rules_any", "not_rules", "cities", "cities_at_most", "rank", "rank_below", "free", "free_any", "serves", "has",
     "unmarried", "captive", "in_other", "loyalty_below", "merit_at_least", "order_ruler", "order_ruler_below", "order_of",
     "emperor_held", "emperor_is", "no_emperor", "dead", "death_year", "adviser", "officers", "age", "faction_cities",
+    "date_until", "at_war", "allied", "owner", "church", "after",
 };
 
 global_variable const char *content_history_effects[] =
 {
     "join", "defect", "merit", "merit_like", "loyalty", "loyalty_all", "order_all", "morale_all", "marry", "sworn", "dies",
     "rank", "emperor", "friendliness_all", "friendliness_with", "raise", "adviser",
+    "seize", "rename", "target", "city_loss",
 };
+
+/* E7: the names of the churches, in the order of content_church. */
+global_variable const char *content_church_names[] = { "none", "latin", "greek", "armenian", "muslim" };
+
+/* The church of a name, or CONTENT_CHURCH_COUNT if there is none. "none" is not a church of a row. */
+internal u32
+content_find_church(const char *name)
+{
+    u32 index = content_find_name(content_church_names, CONTENT_CHURCH_COUNT, name);
+    return index == CONTENT_CHURCH_NONE ? (u32)CONTENT_CHURCH_COUNT : index;
+}
+
+/* The extra checks of the clauses that have a closed list or a limit. args is the text after the
+   name and its colon, up to the end of the clause. */
+internal b32
+content_history_args_valid(const char *name, const char *args)
+{
+    if (strcmp(name, "church") == 0)
+    {
+        char item[16];
+        u32 size = 0;
+        for (const char *at = args;; ++at)
+        {
+            if (*at == '|' || *at == 0)
+            {
+                item[size] = 0;
+                if (content_find_church(item) == CONTENT_CHURCH_COUNT) return false;
+                size = 0;
+                if (*at == 0) return true;
+                continue;
+            }
+            if (size >= sizeof(item) - 1) return false;
+            item[size++] = *at;
+        }
+    }
+    if (strcmp(name, "city_loss") == 0)
+    {
+        const char *percent = strchr(args, ':');
+        if (!percent) return false;
+        u32 value = 0, digits = 0;
+        for (++percent; *percent >= '0' && *percent <= '9'; ++percent, ++digits) value = value * 10 + (u32)(*percent - '0');
+        return digits > 0 && digits < 4 && value <= 100;
+    }
+    return true;
+}
 
 /* True if each clause names a known condition or effect, and each @i names
    an officer of the row. "-" is no clause. */
@@ -1727,6 +1774,11 @@ content_history_clauses_valid(const char *text, b32 effects, u32 name_count)
         while (*at && *at != ':' && *at != ';' && size < sizeof(name) - 1) name[size++] = *at++;
         name[size] = 0;
         if (content_find_name(names, count, name) == count) return false;
+        char args[128];
+        u32 args_size = 0;
+        for (const char *scan = *at == ':' ? at + 1 : at; *scan && *scan != ';' && args_size < sizeof(args) - 1; ++scan) args[args_size++] = *scan;
+        args[args_size] = 0;
+        if (!content_history_args_valid(name, args)) return false;
         while (*at && *at != ';')
         {
             if (*at == '@')

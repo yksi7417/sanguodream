@@ -2,9 +2,9 @@
 
 This document gives the plan for games that more than one player plays
 together on the fly.io site. It also records the facts of the current
-site that the plan starts from. MP1, MP2 and MP3 exist in code (see
-"The status of MP1", "The status of MP2" and "The status of MP3"). The
-milestones after MP3 do not exist yet.
+site that the plan starts from. MP1 to MP8 exist in code (see the
+sections "The status of MP1" to "The status of MP8"). The Discord app of
+MP8 and the new rules of a room (Q-16) wait for the user.
 
 ## The current site: one copy of the game for each browser
 Each browser runs its own copy of the game. Two browsers never share a
@@ -288,7 +288,8 @@ later part of the plan (MP6), not a part of the first game together.
 - server.py starts it as a child process, as broadcast.py starts ffmpeg.
   The referee reads steps on stdin and writes checksums on stdout.
 - The referee runs only when the server needs a decision: a desync with
-  two players, or a check of a snapshot.
+  two players, or a desync without a majority. A snapshot needs no
+  referee: the server checks its checksum against the reports.
 - After the run, the process stops. Thus the memory of the machine stays
   small.
 
@@ -303,7 +304,7 @@ already serves the WebSocket of the broadcast.
 | step | client or server | the number of the step and the bytes of the step |
 | checksum | client | the number of the step and the checksum after it |
 | presence | server | the seats that have a connection |
-| timer | server | the faction that acts and its deadline |
+| timer | server | the faction that acts, the rest of the time in seconds, and the stop of the timer |
 | chat | client or server | the uid, the name and the text |
 | desync | server | the step and the request for the state image |
 | error | server | the reason, for example "not your seat" or "old build" |
@@ -546,8 +547,8 @@ These facts came from the tests of MP1:
 - Two draws of the PRNG in one expression are a bug of the determinism.
   Before you add a draw, put it in its own statement.
 
-The engine does not lock a load yet. MP5 turns off the load menu of a
-shared game.
+The engine does not lock a load. Since MP5, the front end turns off the
+load menu of a shared game.
 
 ### MP2 The room server and the transport
 The server keeps rooms, seats and the log, and it relays steps. A
@@ -707,6 +708,62 @@ The tests:
   the faction of the guest. The guest opens the page again and gets the
   faction back.
 
+### The status of MP4
+MP4 is complete. These parts exist:
+- The engine has two new kinds of steps. The room server is their author.
+  - ENGINE_STEP_END_TURN ends the faction turn of a faction. If that
+    faction does not act, the step changes nothing. The step still counts.
+  - ENGINE_STEP_AI_TURN makes the faction a faction of the AI. Then the AI
+    finishes its faction turn (sim_ai_finish_faction_turn in
+    code/sim/turn.cpp). The replay record keeps a human step and an
+    ai_turn step.
+- web/rooms.py keeps a deadline for the faction that acts. A report that
+  names a new faction starts the deadline, and each page gets the message
+  timer. A loop checks the deadlines each 2 seconds. The load of a room
+  and each hello also check them.
+- After a deadline, the server sends end_turn. After the second missed
+  faction turn in a row of a player without a socket, the server sends
+  ai_turn in place of end_turn. The seat then has `"ai": true`, and the
+  seat keeps the player.
+- The hello of that player gives the faction back with the step
+  set_faction_human true.
+- The host sets the mode, the time of a turn and the option "Pause when a
+  player is absent" in the lobby: `POST /api/games/<gid>/options`.
+- With the pause option, the timer stops when a player of a seat has no
+  socket for 60 seconds. When all players connect, the timer goes on with
+  the rest of the time.
+- The page connects again after 1, 2, 4 and 8 seconds, then each 15
+  seconds. The hello gives the last step of the page. The messages of the
+  game wait in an outbox until the next welcome.
+- The banner shows the rest of the time, or "The timer stops".
+- The room records the content pack of the host. The page gives the pack
+  to the game before the join (PLATFORM_NET_PACK). If the engine has
+  another pack, the game starts the engine of that pack first.
+
+These decisions came from MP4:
+- The AI takes only the faction of a player without a socket. The hello
+  is the only way to get the faction back. Thus an online player who
+  misses turns gets only end_turn steps.
+- One step makes the faction a faction of the AI and finishes its turn.
+  With two steps, a faction without a player acts between them, and the
+  engine of the host is the author. The UI of the host then ended that
+  turn too, and the two steps of the host and the server collided.
+- After a step of the server, no faction acts in the room until the
+  first report of a member names it. No player can send a step in that
+  time, and a deadline gives one end_turn, not two.
+- A page that joins again reports the start state. The server compares
+  the report, but the report never changes the faction that acts.
+- On the replay of a shared game, the engine applies the recorded steps
+  without the lock of the setters. Before this fix, the view of a guest
+  skipped each human step.
+- The browser tests set HEXDOM_TEST_MIN_TURN_SECONDS for a short turn.
+  The site never sets it.
+
+One limit stays. If a player sends a command at the end of the timer, the
+end_turn of the server can arrive first. The server then refuses the step
+of the player ("old step"), and the copy of that player can differ. MP6
+recovers from this desync.
+
 ### MP5 Shared saves and the list of games
 - The snapshots, the resume from a snapshot and the log.
 - The list "My games" with "Your turn", and the room code on the title
@@ -721,6 +778,50 @@ The tests:
 - Browser: two players stop a game. On the next day of the test clock,
   both players open "My games" and continue the game from the same step.
 
+### The status of MP5
+MP5 is complete. These parts exist:
+- A snapshot is an image of the live game in the format of the start
+  image. The checksum of the state does not include the replay record.
+  Thus a snapshot gives the checksum of the live game.
+- The author of the step that ends a game turn sends a snapshot. After a
+  step of the server, the host sends it. The page puts it on the server:
+  `PUT /api/games/<gid>/snap/<step>?checksum=<checksum>`.
+- The server takes a snapshot only if a report of that step exists and
+  has the same checksum. A snapshot can arrive before the report on the
+  socket. The server then answers "no report of the step", and the page
+  tries again three times.
+- The server keeps the last five snapshots at
+  `games/<gid>/snap/<step>.hxs`. room.json names the latest snapshot.
+- A page that joins a game that runs reads
+  `GET /api/games/<gid>/snap/latest` first. The header X-Snapshot-Step
+  gives the step. The hello then asks only for the steps after it.
+  Without a snapshot, the page reads the start image.
+- engine_api has multiplayer_first_step. After a snapshot, the engine
+  counts the steps from the step after the snapshot. The join of a
+  snapshot uses no setters of the seats, because the snapshot holds the
+  human factions. The page reports the checksum of the step of the
+  snapshot.
+- In a shared game, 儲存 sends a snapshot of the state, and 載入 does not
+  open. A shared game never writes a local slot.
+- The page shows the list "My games" when it has no game in the address.
+  "Your turn" marks each game where the faction of the member acts
+  (`GET /api/games` gives "your_turn").
+- The title menu has a field for a room code and the button "Join". The
+  page then opens the invite route `/r/<code>`.
+- At the load of a room that runs, the server moves the room to the build
+  of its game files. room.json keeps the old builds in "old_builds". The
+  pages then load the latest snapshot and apply the log after it with the
+  new build. A page of an old build gets "old build" and must load again.
+
+These decisions came from MP5:
+- A snapshot holds no replay record. The replay panel of a page that
+  joins late starts at the snapshot.
+- If the format of the save changed, the new build cannot load the
+  snapshot. The banner then shows "The start image of the room does not
+  load". The tests of the save format guard against this change.
+- The list of the open rooms of the house (Q-10) does not exist yet. A
+  member joins a room through the invite link or the room code.
+
 ### MP6 The recovery from a desync and the referee
 - The stop, the state images, the majority, the load of the good state.
 - The headless referee and its use for two players.
@@ -732,6 +833,44 @@ The tests:
   third player.
 - Server: the referee replays a stored log and gives the same checksum
   as the engines.
+
+### The status of MP6
+MP6 is complete. These parts exist:
+- web/rooms.py keeps each report of each step. When a report differs, the
+  game stops, and each page gets the message desync. Each page then sends
+  the image of its state: `PUT /api/games/<gid>/desync/<step>`. The server
+  keeps it at `games/<gid>/desync/<step>-<uid>.hxs`.
+- The room decides after the reports of all members with a socket. With
+  three reports or more, a strict majority wins. Else the referee decides.
+- The referee is code/wasm_referee.cpp: a headless engine for node.
+  `build_web.bat referee` builds build/referee.js, and deploy_web.bat
+  builds it too. web/referee.py starts it with the latest snapshot before
+  the step of the desync, or the start image, and the log after it. The
+  referee writes the checksum after each step. Then the process stops.
+- The page of a player with another checksum gets the message reload. The
+  page loads the latest good snapshot and the log after it on a new
+  socket. The UI ends the shared game of the engine, and the join loads
+  the good state.
+- The other pages get desync_end, and the game goes on from the step
+  after the desync.
+- After the decision, the server removes each snapshot of that step or
+  later with another checksum.
+- The image of the site has node, the referee and the data of the packs
+  without the models and the pictures.
+
+These decisions came from MP6:
+- If the referee agrees with no player, or no referee exists, the game
+  stays stopped. Each page then gets an error.
+- The images of the native build and of the web build have different
+  layouts. The web build loads an image of the native build without an
+  error, but the state differs. The test of the referee therefore uses the
+  fixture of the web build (`run_tests.bat --web`). A Windows client
+  (Q-9) needs one layout of the image first.
+- `run_tests.bat --server` also runs tests/server/referee_tests.py. It
+  needs `build_web.bat tests`, `run_tests.bat --web` and
+  `build_web.bat referee` first.
+- No browser test makes a desync. The UI test, the server tests and the
+  feature tests cover the steps of the recovery.
 
 ### MP7 The social part
 - The chat in the game (US-040 of docs/requirements/community-wishlist.md).
@@ -748,6 +887,35 @@ The tests:
 - Browser: a spectator sees the moves and cannot take a seat while the
   game runs.
 
+### The status of MP7
+MP7 is complete, but the new rules of a room wait for the user (Q-16).
+These parts exist:
+- The chat: the banner has the button "Chat" with the number of the new
+  lines. The chat panel (`###NetChat`) shows the lines as text and sends
+  a line through the platform (PLATFORM_NET_CHAT). It issues no game
+  command. The room server cleans each line and keeps the last 50 lines
+  in room.json. A page that joins later shows them.
+- The spectators (Q-11): the host chooses "Spectators can watch" in the
+  lobby. The default is yes. A member of the house without a seat opens
+  the game and clicks "Watch" (`POST /api/games/<gid>/watch`). The room
+  keeps at most 32 spectators.
+- A spectator gets the start image, the snapshots and the steps. The
+  engine of a spectator has no local seat, so it refuses each command.
+  The server takes no step and no report from a spectator. Thus a
+  spectator cannot stop a game with a desync.
+- A spectator cannot take a seat while the game runs. The game does not
+  go into the list "My games" of a spectator.
+- The notice "Your turn" (Q-6) is a badge of the site only: the list "My
+  games" (MP5) and the title of the tab of the game.
+- The rules of a room (US-039) are the settings of the game. The host sets
+  them in the start settings before "Play online", and the start image
+  holds them. Each engine applies them to each player. Only the host can
+  change them later, and each change is a step.
+
+New rules, for example a limit on the alliances, need a new rule in the
+sim. The spec has no such rule, and US-039 asks what rules the players
+want. Thus they wait for the answer of the user (Q-16).
+
 ### MP8 The Discord Activity
 - The Discord app, its Activity and the map of the proxy to the site.
 - The provider "discord" in web/auth.py and the signed token of the
@@ -762,6 +930,61 @@ The tests:
 - A browser test cannot run inside Discord. Thus a member checks the
   Activity in a test server of Discord and writes the result in the play
   reports.
+
+### The status of MP8
+The code of MP8 exists and has its tests. The Discord app, its secrets
+and the check in a Discord server wait for the user. These parts exist:
+- web/auth.py has the provider "discord". It is on only if
+  DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET have a value. The sign-in page
+  of the site can use it as the other providers.
+- `POST /api/discord/token` changes the code of the Embedded App SDK for
+  the Discord access token and a session token of the site. The session
+  token has the format of the session cookie and the key SESSION_SECRET.
+- A request with `Authorization: Bearer <session token>` is a request of
+  that user. `POST /api/house` takes the house password as JSON.
+- A socket without the cookie asks for `?token=1`. Its first message is
+  the hello with the token. A bad token gets the error "401" and the close
+  code 4401.
+- The page and index.js load without a session when the address has
+  `frame_id` (Discord adds it) or `activity=1`. They hold no data of the
+  game. index.wasm and index.data still need a member.
+- The origin `<client id>.discordsays.com` passes the check of the origin.
+- One room for each voice channel: the room of "Play online" in an
+  Activity records the channel. `GET /api/discord/channel/<id>` gives the
+  room, and a second room for a channel gets an error.
+- In an Activity, the page loads the SDK and signs in. A new user types
+  the house password. Then the page opens the room of the voice channel.
+  `GET /api/discord/config` gives the client id and the address of the
+  SDK.
+
+The tests:
+- Server (tests/server/discord_tests.py): a fake Discord api gives the
+  record of the user. A hello with a bad token gets 401. The origin of
+  the Activity passes. One room for each voice channel.
+- Browser (tests/web/token.spec.js): a context without cookies opens the
+  game with the token of the guest. It joins the room and gets the steps.
+- `GET /api/session-token` gives the token of a member to a page of the
+  site. The browser test uses it.
+
+These steps wait for the user:
+1. Make the Discord app in the developer portal of Discord. Turn on the
+   Activity. Do not list the app in the App Directory (Q-13, Q-14).
+2. In the URL mappings, map `/` to `sanguodream.fly.dev` and `/jsdelivr`
+   to `cdn.jsdelivr.net`. The page loads the SDK from
+   `/.proxy/jsdelivr/npm/@discord/embedded-app-sdk@2/+esm`.
+   DISCORD_SDK_URL changes this address.
+3. Set the secrets: `flyctl secrets set DISCORD_CLIENT_ID=... 
+   DISCORD_CLIENT_SECRET=... -a sanguodream`. For the sign-in page, also
+   add the redirect `https://sanguodream.fly.dev/auth/discord/callback`.
+4. Install the app in the Discord server of the house. Start the
+   Activity in a voice channel with two members, play a turn, and write
+   the result in the play reports.
+
+These parts of the plan wait or changed:
+- Inside Discord, the chat of MP7 stays. Discord has its own chat and
+  voice.
+- No test checks the Embedded App SDK. The check in a Discord server
+  (step 4) covers it.
 
 ## The open questions for the user
 | Id | Question | The default of the plan |
@@ -781,3 +1004,4 @@ The tests:
 | Q-13 | Do you want the Discord Activity, and in which Discord server? | Yes, in MP8, only in the Discord server of the house |
 | Q-14 | Do you want a public release? It needs an original Three Kingdoms pack and a new name. | No. The site stays for members until a lawyer agrees. |
 | Q-15 | If the cost grows, which way to pay for the site do you prefer? | Donations first |
+| Q-16 | Which new rules can the host of a room set, for example a limit on the alliances? Each rule needs a rule in the sim. | None. The rules of a room are the settings of the game (MP7). |

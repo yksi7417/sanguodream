@@ -37,7 +37,8 @@ the layers from the bottom to the top and stops at the first failure.
    the real panels, with a handful of tests at most. `run_tests.bat --e2e`
    runs the window for 120 frames and checks its log.
 5. Demo walkthroughs: the "demo" category in tests/demo/demo_tests.cpp,
-   run by demo_player.exe and `run_tests.bat --demo`. Each milestone has
+   run by demo_player.exe, `run_tests.bat --demo-fast` and
+   `run_tests.bat --demo`. Each milestone has
    one cinematic walkthrough, "demo/<milestone>", for example
    "demo/m1_loader". It is the recorded demo of the milestone and also an
    end-to-end smoke test.
@@ -53,6 +54,23 @@ the layers from the bottom to the top and stops at the first failure.
      the UI or the engine breaks.
    - `run_tests.bat --demo` builds nothing. It fails if a demo test fails,
      or if build\demos does not have the video and the PNG files of a test.
+   - `run_tests.bat --demo-fast` runs `demo_player.exe --fast`. The fast
+     mode runs the same steps and checks at ImGuiTestRunSpeed_Fast. It
+     uses no vsync and a fixed frame time of 1/60 s. It records no video
+     and no PNG, and the helpers that record return success.
+   - A walkthrough gives the same result in the two modes. Fast mode
+     skips SleepStandard, and the mouse jumps to its target. The timers
+     of the UI run four times as fast.
+   - If a step waits for the UI, it waits for a condition with a frame
+     limit. Examples are an animation, a timer and the AI round. It does
+     not wait for a time.
+   - Use the fast mode in each quality gate. Before a commit, run
+     `run_tests.bat`, then `run_tests.bat --demo-fast`. The full fast
+     run takes approximately 90 s.
+   - Use the demo mode only to make the video and the PNG files of a
+     milestone. Run `run_tests.bat --demo` when you complete a milestone,
+     or when the user asks for a new video. The full demo run takes
+     approximately 20 minutes.
 
 6. tests/server/ (Python unittest, `run_tests.bat --server`): the server
    of the site in web/, with FolderStorage in a temporary folder and a
@@ -60,6 +78,9 @@ the layers from the bottom to the top and stops at the first failure.
    (docs/MULTIPLAYER.md). It checks the seats, the order of the steps,
    the checksums and the log after a stop of the server. A test of the real
    site in a browser goes to tests/web (Playwright, `npm test`).
+   referee_tests.py runs the referee (build\referee.js) under node on the
+   fixture of the feature tests of the web build. Run `build_web.bat tests`,
+   `run_tests.bat --web` and `build_web.bat referee` first.
 
 ## Rules of thumb
 - A bug found in the UI gets a ui test (expected API call). If the engine

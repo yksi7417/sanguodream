@@ -7,7 +7,7 @@
 #define FEATURE_WORLD_MAX_HEXES 80000    /* max_hexes of map/source/region.tsv */
 
 internal void
-feature_world_map_init(engine_fixture *f)
+feature_world_map_init(engine_fixture *f, const char *content_folder = FEATURE_WORLD_PACK)
 {
     f->permanent = test_arena_create(Megabytes(96));
     f->transient = test_arena_create(Megabytes(32));
@@ -17,7 +17,7 @@ feature_world_map_init(engine_fixture *f)
     config.read_entire_file  = test_platform_read_entire_file;
     config.write_entire_file = test_platform_write_entire_file;
     config.save_folder       = feature_save_folder;
-    config.content_folder    = FEATURE_WORLD_PACK;
+    config.content_folder    = content_folder;
     f->backend = engine_create(&f->permanent, &f->transient, config);
     f->api     = engine_make_api(f->backend);
     engine_settings settings = f->api.settings(f->api.engine);
@@ -72,6 +72,177 @@ feature_world_map_tests(test_counts *counts)
     TEST_CHECK(counts, feature_next_own_turn(api, force) && feature_next_own_turn(api, force),
                "the turns of the AI run on the new map");
     engine_fixture_destroy(&f);
+}
+
+/* ---- the west map and the east map (docs/EUROPE.md, E8) ------------------------------------------ */
+
+struct feature_pack_city
+{
+    u8          city_id;
+    const char *key;
+    u8          owner;       /* the force id, or CITY_OWNER_NONE */
+};
+
+struct feature_pack_spec
+{
+    const char              *folder;
+    u32                      factions;
+    u32                      width;
+    u32                      height;
+    u32                      city_count;
+    feature_pack_city        cities[8];
+};
+
+/* One test for a pack of E8: the counts of the map, the keys of three cities, the scenario and two turns. */
+internal void
+feature_pack_map_tests(test_counts *counts, const feature_pack_spec *spec)
+{
+    engine_fixture f;
+    feature_world_map_init(&f, spec->folder);
+    engine_api *api = &f.api;
+    void *e = api->engine;
+    engine_map_info info = api->map_info(e);
+    TEST_CHECK(counts, api->content_status(e).loaded && info.real_map && strcmp(info.detail, "ok") == 0,
+               "the engine loads the content and the map of the pack");
+    TEST_CHECK(counts, info.width == spec->width && info.height == spec->height && info.width * info.height <= FEATURE_WORLD_MAX_HEXES,
+               "the map has the size that make_world_map.py wrote and fits the budget of the terrain mesh");
+    TEST_CHECK(counts, info.cities == 42 && info.gates == 10 && info.ports == 35 && info.city_hexes == 294 && info.port_hexes == 35,
+               "the map has 42 cities of 7 hexes, 10 gates and 35 ports");
+    TEST_CHECK(counts, info.slots >= 42 * 10 && info.bandit_sites > 0, "each city has development slots, and the map has bandit sites");
+
+    engine_scenario scenario = api->scenario_at(e, 0);
+    TEST_CHECK(counts, scenario.kind == ENGINE_SCENARIO_PACK && scenario.available && scenario.year == 1200 && !scenario.pack[0],
+               "the pack lists its scenario of 1200 first");
+    TEST_CHECK(counts, api->load_scenario(e, scenario.file).status == ENGINE_LOAD_OK, "the scenario of the pack loads");
+    TEST_CHECK(counts, feature_world_flowers(api), "each city stands on its flower and has slots");
+    TEST_CHECK(counts, api->faction_count(e) == spec->factions, "each row of forces.tsv is a faction");
+
+    for (u32 index = 0; index < spec->city_count; ++index)
+    {
+        const feature_pack_city *want = &spec->cities[index];
+        engine_city_name city_name = api->city_name_at(e, want->city_id);
+        u8 owner = ENGINE_NO_FACTION;
+        for (u32 city_index = 0; city_index < api->city_count(e); ++city_index)
+        {
+            engine_city city = api->city_at(e, city_index);
+            if (city.city_id == want->city_id) owner = city.owner_force_id;
+        }
+        TEST_CHECK(counts, strcmp(city_name.key, want->key) == 0 && owner == want->owner,
+                   "the key of a city and its owner in 1200 are the ones of docs/EUROPE.md");
+    }
+
+    u8 force = api->city_at(e, feature_busiest_city(api)).owner_force_id;
+    TEST_CHECK(counts, feature_play_as(api, force), "the player chooses a faction; the first turn of 1200 starts");
+    TEST_CHECK(counts, feature_next_own_turn(api, force) && feature_next_own_turn(api, force),
+               "the AI plays the other factions of the scenario for two turns");
+    engine_fixture_destroy(&f);
+}
+
+internal void
+feature_pack_map_tests_all(test_counts *counts)
+{
+    static const feature_pack_spec west =
+    {
+        HEXDOM_DATA_ROOT "/medieval_west", 17, 268, 286, 3,
+        { { 16, "paris", 0 }, { 30, "rouen", 1 }, { 32, "lille", 15 } }
+    };
+    /* The new factions of the east have the force ids 11 to 16: Jerusalem, Antioch, Cilicia, Cyprus, Georgia and the caliphate. */
+    static const feature_pack_spec east =
+    {
+        HEXDOM_DATA_ROOT "/medieval_east", 17, 366, 217, 8,
+        {
+            { 34, "antioch", 12 }, { 35, "aleppo", 3 }, { 39, "damascus", 3 }, { 40, "acre", 11 },
+            { 38, "baghdad", 16 }, { 33, "sis", 13 }, { 41, "nicosia", 14 }, { 19, "tbilisi", 15 }
+        }
+    };
+    feature_pack_map_tests(counts, &west);
+    feature_pack_map_tests(counts, &east);
+}
+
+/* ---- the events of the packs (docs/EUROPE.md, E7) ---------------------------------------------- */
+
+#define FEATURE_STORY_SLOT      29
+#define FEATURE_STORY_CAIRO     4
+#define FEATURE_STORY_AYYUBID   3
+#define FEATURE_STORY_ROW_CAIRO 2
+
+/* The key of the new name of a faction, or "" if the faction has none. */
+internal const char *
+feature_story_name_key(engine_api *api, u8 force_id, engine_faction *out)
+{
+    for (u32 index = 0; index < api->faction_count(api->engine); ++index)
+    {
+        engine_faction faction = api->faction_at(api->engine, index);
+        if (faction.force_id == force_id) { *out = faction; return out->name_key; }
+    }
+    out->name_key[0] = 0;
+    return out->name_key;
+}
+
+/* True if the engine reads each row of history.tsv and each officer that a row names has been found. */
+internal b32
+feature_story_rows_found(engine_api *api, u32 rows)
+{
+    void *e = api->engine;
+    b32 found = api->history_count(e) == rows && api->content_status(e).history_count == rows;
+    for (u32 row = 0; row < api->history_count(e); ++row)
+    {
+        engine_history_kind kind = api->history_at(e, row);
+        found &= kind.names_found == kind.name_count;
+    }
+    return found;
+}
+
+internal void
+feature_pack_story_tests(test_counts *counts)
+{
+    char path[512];
+    snprintf(path, sizeof(path), "%s/slot_%02u.hxs", feature_save_folder, FEATURE_STORY_SLOT + 1);
+    remove(path);
+
+    engine_fixture west;
+    feature_world_map_init(&west, HEXDOM_DATA_ROOT "/medieval_west");
+    TEST_CHECK(counts, west.api.history_count(west.api.engine) == 4, "the west pack has the 4 events of E7");
+    west.api.load_scenario(west.api.engine, west.api.scenario_at(west.api.engine, 0).file);
+    TEST_CHECK(counts, feature_story_rows_found(&west.api, 4), "each officer that an event of the west pack names exists in the scenario");
+    engine_fixture_destroy(&west);
+
+    engine_fixture f;
+    feature_world_map_init(&f, HEXDOM_DATA_ROOT "/medieval_east");
+    engine_api *api = &f.api;
+    void *e = api->engine;
+    TEST_CHECK(counts, api->history_count(e) == 6, "the east pack has the 6 events of E7");
+    TEST_CHECK(counts, api->load_scenario(e, api->scenario_at(e, 0).file).status == ENGINE_LOAD_OK, "the scenario of the east pack loads");
+    TEST_CHECK(counts, feature_story_rows_found(api, 6), "each officer that an event of the east pack names exists in the scenario");
+
+    engine_faction faction = {};
+    feature_story_name_key(api, FEATURE_STORY_AYYUBID, &faction);
+    TEST_CHECK(counts, faction.force_id == FEATURE_STORY_AYYUBID && strcmp(faction.key, "ayyubid") == 0 && faction.name_key[0] == 0,
+               "the Ayyubids of 1200 have their own name and no new name");
+    TEST_CHECK(counts, !api->history_ready(e, FEATURE_STORY_ROW_CAIRO, FEATURE_STORY_AYYUBID),
+               "the Mamluks do not take Cairo in 1200: the window of the row has not opened");
+
+    api->set_date(e, 1250, 1, 1);
+    TEST_CHECK(counts, api->history_ready(e, FEATURE_STORY_ROW_CAIRO, FEATURE_STORY_AYYUBID),
+               "in 1250 the Ayyubids rule Cairo and the four Mamluk officers are free, so the row is ready");
+    engine_command_result fired = api->trigger_history(e, FEATURE_STORY_ROW_CAIRO, FEATURE_STORY_AYYUBID);
+    feature_story_name_key(api, FEATURE_STORY_AYYUBID, &faction);
+    TEST_CHECK(counts, fired.refusal == SIM_REFUSAL_NONE && strcmp(faction.name_key, "mamluk") == 0 &&
+                           api->history_at(e, FEATURE_STORY_ROW_CAIRO).fired_turn != 0,
+               "the row fires: the faction has the new name key mamluk");
+
+    TEST_CHECK(counts, api->save_game(e, FEATURE_STORY_SLOT, "mamluk") == ENGINE_SAVE_OK, "the game with the new name saves");
+    api->load_scenario(e, api->scenario_at(e, 0).file);
+    feature_story_name_key(api, FEATURE_STORY_AYYUBID, &faction);
+    TEST_CHECK(counts, faction.name_key[0] == 0, "a new scenario clears the new name");
+    TEST_CHECK(counts, api->load_game(e, FEATURE_STORY_SLOT) == ENGINE_SAVE_OK, "the save loads");
+    feature_story_name_key(api, FEATURE_STORY_AYYUBID, &faction);
+    TEST_CHECK(counts, strcmp(faction.name_key, "mamluk") == 0 && strcmp(faction.key, "ayyubid") == 0 &&
+                           api->history_at(e, FEATURE_STORY_ROW_CAIRO).fired_turn != 0,
+               "after the load the faction still has the name key mamluk, and the row stays fired");
+    TEST_CHECK(counts, !api->history_ready(e, FEATURE_STORY_ROW_CAIRO, FEATURE_STORY_AYYUBID), "a row that fired does not fire again");
+    engine_fixture_destroy(&f);
+    remove(path);
 }
 
 /* ---- the scenario of the pack (docs/MAPS.md, step W2) ------------------------------------------ */
@@ -172,4 +343,74 @@ feature_pack_scenario_tests(test_counts *counts)
     TEST_CHECK(counts, feature_next_own_turn(api, FEATURE_WORLD_FRANCE) && feature_next_own_turn(api, FEATURE_WORLD_FRANCE),
                "the AI plays the other 23 factions of the scenario");
     engine_fixture_destroy(&f);
+}
+
+/* ---- the saves of a pack (docs/MAPS.md): slot_NN.meta names the pack ------------------------- */
+
+#define FEATURE_WORLD_SAVE_SLOT  31     /* slot_32.hxs and slot_32.meta: a save of 1200 */
+#define FEATURE_WORLD_PLAIN_SLOT 30     /* slot_31.hxs: a save of the placeholder pack without its .meta file */
+
+/* The .meta file of a slot of the test save folder: the path, and its text in out ("" if there is no file). */
+internal void
+feature_world_meta(u32 slot, char *path, u32 path_size, char *out, u32 out_size)
+{
+    snprintf(path, path_size, "%s/slot_%02u.meta", feature_save_folder, slot + 1);
+    out[0] = 0;
+    FILE *file = fopen(path, "rb");
+    if (!file) return;
+    size_t size = fread(out, 1, out_size - 1, file);
+    out[size] = 0;
+    fclose(file);
+}
+
+internal void
+feature_pack_save_tests(test_counts *counts)
+{
+    char path[512], meta[512], hxs[512];
+    for (u32 slot = FEATURE_WORLD_PLAIN_SLOT; slot <= FEATURE_WORLD_SAVE_SLOT; ++slot)
+    {
+        feature_world_meta(slot, path, sizeof(path), meta, sizeof(meta));
+        remove(path);
+        snprintf(hxs, sizeof(hxs), "%s/slot_%02u.hxs", feature_save_folder, slot + 1);
+        remove(hxs);
+    }
+
+    engine_fixture europe;
+    feature_world_map_init(&europe);
+    engine_api *api = &europe.api;
+    void *e = api->engine;
+    api->load_scenario(e, api->scenario_at(e, 0).file);
+    feature_play_as(api, FEATURE_WORLD_FRANCE);
+    TEST_CHECK(counts, api->save_game(e, FEATURE_WORLD_SAVE_SLOT, "europe") == ENGINE_SAVE_OK, "a game of 1200 saves");
+    feature_world_meta(FEATURE_WORLD_SAVE_SLOT, path, sizeof(path), meta, sizeof(meta));
+    TEST_CHECK(counts, strstr(meta, "\npack\tmedieval_europe\n") != 0, "the save writes slot_NN.meta with the pack medieval_europe");
+    engine_fixture_destroy(&europe);
+
+    engine_fixture three;
+    feature_world_map_init(&three, HEXDOM_DATA_ROOT "/placeholder");
+    api = &three.api;
+    e = api->engine;
+    api->refresh_save_slots(e);
+    TEST_CHECK(counts, api->save_slot(e, FEATURE_WORLD_SAVE_SLOT).used && strcmp(api->slot_pack(e, FEATURE_WORLD_SAVE_SLOT).pack, "medieval_europe") == 0,
+               "the engine of the placeholder pack lists the save of 1200 with its pack");
+    TEST_CHECK(counts, api->load_game(e, FEATURE_WORLD_SAVE_SLOT) == ENGINE_SAVE_OTHER_PACK && api->city_count(e) == 0,
+               "the engine of the placeholder pack does not load it and changes nothing");
+    api->load_save(e, api->scenario_at(e, 0).file);
+    TEST_CHECK(counts, api->save_game(e, FEATURE_WORLD_PLAIN_SLOT, "three kingdoms") == ENGINE_SAVE_OK, "a game of the placeholder pack saves");
+    feature_world_meta(FEATURE_WORLD_PLAIN_SLOT, path, sizeof(path), meta, sizeof(meta));
+    TEST_CHECK(counts, strstr(meta, "\npack\tplaceholder\n") != 0, "its slot_NN.meta names the pack placeholder");
+    remove(path);   /* a save of an older build: no .meta file */
+    engine_fixture_destroy(&three);
+
+    engine_fixture again;
+    feature_world_map_init(&again);
+    api = &again.api;
+    e = api->engine;
+    api->refresh_save_slots(e);
+    TEST_CHECK(counts, api->save_slot(e, FEATURE_WORLD_PLAIN_SLOT).used && strcmp(api->slot_pack(e, FEATURE_WORLD_PLAIN_SLOT).pack, HEXDOM_CONTENT_PACK) == 0,
+               "a save without its .meta file is a save of the default pack");
+    TEST_CHECK(counts, api->slot_pack(e, FEATURE_WORLD_SAVE_SLOT).pack[0] == 0 && api->load_game(e, FEATURE_WORLD_SAVE_SLOT) == ENGINE_SAVE_OK &&
+                       api->city_count(e) == SAVE_CITY_COUNT,
+               "the engine of medieval_europe loads its own save");
+    engine_fixture_destroy(&again);
 }

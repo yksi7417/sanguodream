@@ -213,6 +213,7 @@ struct engine_faction
     b32 human;              /* a player gives its commands; else the AI placeholder passes */
     b32 acted;              /* it pressed "proceed" (or passed) in this turn */
     char key[CONTENT_KEY_SIZE];   /* the English key of the pack, for example "france"; "" for a faction of a save (docs/EUROPE.md, E2) */
+    char name_key[CONTENT_KEY_SIZE];   /* the key of the new name that a row of history.tsv gave, for example "mamluk"; "" if none (E7) */
 };
 
 /* The order of 出征 and 輸送 (city-commands.md). */
@@ -1652,6 +1653,9 @@ enum engine_step_kind
     ENGINE_STEP_SETTINGS,       /* set_settings */
     ENGINE_STEP_HUMAN,          /* set_faction_human: force is the faction, value is 1 for a player */
     ENGINE_STEP_LEDGER_CLEAR,   /* ledger_clear */
+    /* MP4: the room server is the author of the next two kinds (docs/MULTIPLAYER.md). */
+    ENGINE_STEP_END_TURN,       /* the timer of the faction turn of force ended. Only on the wire: the record keeps an end_turn command */
+    ENGINE_STEP_AI_TURN,        /* the AI takes force and finishes its faction turn. The record keeps a human step, then this step */
     ENGINE_STEP_KIND_COUNT
 };
 
@@ -1725,7 +1729,7 @@ typedef u32                     engine_game_replay_turn_step_fn(void *engine, u3
    turn. The setters and the editor commands change nothing, because they
    are not steps. Only a step that step_apply gets can change the human
    factions. Only the host can change the settings, and each change is a
-   step. The engine does not lock a load yet: in MP5 the front end turns
+   step. The engine does not lock a load: since MP5 the front end turns
    off the load menu of a shared game. */
 #define ENGINE_REFUSAL_NOT_YOUR_SEAT SIM_REFUSAL_NOT_YOUR_SEAT
 #define ENGINE_STEP_WIRE_CAPACITY    1024   /* the bytes of one step on the wire, at most */
@@ -1773,6 +1777,11 @@ struct engine_step_apply_result
    start. begin also empties the queue. */
 typedef void                     engine_multiplayer_begin_fn(void *engine, u8 local_force, b32 host);
 typedef void                     engine_multiplayer_end_fn(void *engine);
+/* MP5: a page that joins late loads the latest snapshot of the room with
+   load_start_image, then calls multiplayer_begin. The steps of the room
+   then go on from the step after the snapshot. Only before the first step
+   of the engine; later it changes nothing. */
+typedef void                     engine_multiplayer_first_step_fn(void *engine, u32 step);
 typedef engine_multiplayer_info  engine_multiplayer_info_fn(void *engine);
 /* Takes the oldest step of the queue into buffer. */
 typedef engine_outgoing_step     engine_steps_outgoing_fn(void *engine, u8 *buffer, u32 capacity);
@@ -1789,6 +1798,10 @@ typedef void                     engine_set_seed_fn(void *engine, u64 seed);
 typedef u32                      engine_start_image_size_fn(void *engine);
 typedef u32                      engine_start_image_fn(void *engine, u8 *buffer, u32 capacity);
 typedef b32                      engine_load_start_image_fn(void *engine, const u8 *bytes, u32 size);
+/* The content pack of the engine, for example "placeholder" or
+   "medieval_west". A shared game records it, and each player starts the
+   engine of that pack before the start image (docs/MULTIPLAYER.md). */
+typedef engine_slot_pack         engine_content_pack_fn(void *engine);
 
 struct engine_api
 {
@@ -2040,6 +2053,8 @@ struct engine_api
     engine_start_image_size_fn       *start_image_size;
     engine_start_image_fn            *start_image;
     engine_load_start_image_fn       *load_start_image;
+    engine_content_pack_fn           *content_pack;       /* MP4: the pack of a shared game */
+    engine_multiplayer_first_step_fn *multiplayer_first_step;   /* MP5: the resume from a snapshot */
 };
 
 #define ENGINE_NO_BASE 0xFFFFFFFFu

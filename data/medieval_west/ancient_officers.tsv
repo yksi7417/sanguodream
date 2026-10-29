@@ -1,0 +1,4 @@
+id	key	name_zh	family	given	sex	leadership	force	intellect	politics	charm	skill	personality	status
+# The ancient officers: famous people of other eras that a player can add as new officers (game-setup-and-modes.md, Steam guide section 1).
+# The spec names the feature but not the officers or their numbers: the list, the abilities, the skills and the personalities are assumed (Q-188).
+# family, given: the Big5 bytes in hex. skill: the skills.md number, 0 = none.

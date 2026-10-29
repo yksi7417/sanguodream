@@ -1,4 +1,4 @@
-"""The sign-in of the site: Google, Apple and Facebook (docs/WEB.md).
+"""The sign-in of the site: Google, Apple, Facebook and Discord (docs/WEB.md).
 
 The flow:
 1. /auth/<provider>/start puts a signed state cookie and sends the browser
@@ -242,6 +242,57 @@ class Facebook:
         return me["id"], clean_name(me.get("name"), "Facebook user"), me.get("email", ""), False
 
 
+class Discord:
+    """Discord (docs/MULTIPLAYER.md, MP8). Two ways use it:
+    - the sign-in page of the site, as the other providers;
+    - the Discord Activity: the Embedded App SDK gives the page a code, and
+      the page posts it to /api/discord/token (server.py). That exchange
+      has no redirect address.
+    DISCORD_API_BASE changes the address of the api for the tests."""
+    name = "discord"
+    label = "Discord"
+
+    def __init__(self):
+        self.client_id = os.environ.get("DISCORD_CLIENT_ID", "")
+        self.client_secret = os.environ.get("DISCORD_CLIENT_SECRET", "")
+        self.api = os.environ.get("DISCORD_API_BASE", "") or "https://discord.com/api/v10"
+        self.enabled = bool(self.client_id and self.client_secret)
+
+    def authorize_url(self, redirect_uri, state):
+        query = {
+            "client_id": self.client_id,
+            "redirect_uri": redirect_uri,
+            "response_type": "code",
+            "scope": "identify email",
+            "state": state["state"],
+            "prompt": "none",
+        }
+        return "https://discord.com/oauth2/authorize?" + urllib.parse.urlencode(query)
+
+    async def access_token(self, http, code, redirect_uri=None):
+        form = {"client_id": self.client_id, "client_secret": self.client_secret,
+                "grant_type": "authorization_code", "code": str(code or "")}
+        if redirect_uri:
+            form["redirect_uri"] = redirect_uri
+        async with http.post(self.api + "/oauth2/token", data=form) as response:
+            tokens = await read_json(response)
+        if not tokens.get("access_token"):
+            raise AuthError("Discord gave no access token")
+        return tokens["access_token"]
+
+    async def user(self, http, access_token):
+        """The subject, the name, the email and the check of the email of the Discord user."""
+        async with http.get(self.api + "/users/@me", headers={"Authorization": f"Bearer {access_token}"}) as response:
+            me = await read_json(response)
+        if not me.get("id"):
+            raise AuthError("Discord gave no user id")
+        name = clean_name(me.get("global_name") or me.get("username"), "Discord user")
+        return str(me["id"]), name, me.get("email", "") or "", me.get("verified") is True
+
+    async def identity(self, http, params, state, redirect_uri):
+        return await self.user(http, await self.access_token(http, params.get("code", ""), redirect_uri))
+
+
 class Dev:
     """Sign-in with a name only, for the tests on a local computer."""
     name = "dev"
@@ -296,7 +347,7 @@ def is_admin(user, admins):
 
 def load_providers():
     """Give the providers that are on, in the order of the sign-in page."""
-    providers = [Google(), Apple(), Facebook(), Dev()]
+    providers = [Google(), Apple(), Facebook(), Discord(), Dev()]
     return {provider.name: provider for provider in providers if provider.enabled}
 
 

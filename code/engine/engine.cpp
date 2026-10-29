@@ -88,6 +88,7 @@ struct engine_multiplayer_state
     b32 overflow;
     u8  local_force;        /* ENGINE_NO_FACTION for a spectator */
     u32 step_count;
+    b32 first_step_set;     /* MP5: multiplayer_first_step ran after a snapshot */
     u32 queue_first;        /* the ring of the outgoing steps */
     u32 queue_count;
     u32 queue_sizes[ENGINE_STEP_QUEUE_CAPACITY];
@@ -207,6 +208,7 @@ engine_read_table(engine *e, const char *folder, const char *file_name, tsv_tabl
     return tsv_parse(text, &e->scratch, table);
 }
 
+#include "engine/engine_history_keys.cpp"   /* docs/EUROPE.md, E7: the keys of history.tsv and the church of a faction */
 #include "engine/engine_keys.cpp"   /* docs/EUROPE.md, E2: the English keys of the pack; it reads tables */
 
 /* Loads facilities.tsv, cities.tsv, rules.tsv, techniques.tsv,
@@ -277,6 +279,7 @@ engine_load_content(engine *e, const char *folder)
     else if (!content_load_priorities(content, &priorities, &bad_row))    status->detail = "ai_priorities.tsv has a bad row";
     else if (!content_load_chart(content, &chart, &bad_row))              status->detail = "ability_chart.tsv has a bad row";
     else if (!content_load_ancients(content, &ancients, &bad_row))        status->detail = "ancient_officers.tsv has a bad row";
+    else if (!engine_rewrite_history_keys(e, folder, &history))           status->detail = "history.tsv names an officer that the pack does not have";
     else if (!content_load_history(content, &history, &bad_row))          status->detail = "history.tsv has a bad row";
     else if (!content_load_portraits(content, &portraits, &bad_row))      status->detail = "portraits.tsv has a bad row";
     else
@@ -334,6 +337,7 @@ internal b32         engine_setter_locked(engine *e);
 internal b32         engine_multiplayer_authors(engine *e);
 internal void        engine_multiplayer_queue(engine *e, u8 kind, const sim_command *command, const engine_settings *settings,
                                               u8 force, u32 value, u8 acting);
+internal void        engine_ai_finish_turn(engine *e, u8 force);   /* MP4: a step of the replay record too */
 
 internal engine *
 engine_create(memory_arena *permanent, memory_arena *transient, engine_config config)
@@ -855,6 +859,7 @@ engine_api_faction_at(void *opaque, u32 index)
     result.human             = turns->human[faction->force_id];
     result.acted             = index < turns->acting;
     snprintf(result.key, sizeof(result.key), "%s", engine_force_key((engine *)opaque, faction->force_id));
+    sim_force_rename_key(((engine *)opaque)->sim, faction->force_id, result.name_key, sizeof(result.name_key));
     return result;
 }
 

@@ -44,6 +44,7 @@ import auth
 import broadcast
 import game_files
 import pages
+import referee
 import rooms
 import storage
 
@@ -97,15 +98,29 @@ def set_cookie(response, request, name, value, max_age, same_site="Lax"):
     response.set_cookie(name, value, max_age=max_age, path="/", httponly=True, secure=secure, samesite=same_site)
 
 
-async def current_user(request):
-    """Give the record of the signed-in user, or None."""
-    session = auth.verify(request.app[KEY_SECRET], request.cookies.get(auth.SESSION_COOKIE, ""))
+async def user_of_token(app, token):
+    """Give the record of the user of a signed session token, or None."""
+    session = auth.verify(app[KEY_SECRET], token)
     if not session:
         return None
     try:
-        return await storage.read_user(request.app[KEY_STORAGE], session.get("uid", ""))
+        return await storage.read_user(app[KEY_STORAGE], session.get("uid", ""))
     except ValueError:
         return None
+
+
+async def current_user(request):
+    """Give the record of the signed-in user, or None. The page of the Discord Activity
+    has no cookie: it sends the session token in the header Authorization (MP8)."""
+    token = request.cookies.get(auth.SESSION_COOKIE, "")
+    header = request.headers.get("Authorization", "")
+    if not token and header.startswith("Bearer "):
+        token = header[len("Bearer "):].strip()
+    return await user_of_token(request.app, token)
+
+
+def session_token(request, uid):
+    return auth.sign(request.app[KEY_SECRET], {"uid": uid, "exp": int(time.time()) + auth.SESSION_SECONDS})
 
 
 async def require_member(request):
@@ -118,11 +133,14 @@ async def require_member(request):
 
 
 def same_origin(request):
-    """A form post or an upload must come from a page of this site."""
+    """A form post or an upload must come from a page of this site. The page of the
+    Discord Activity has the origin <client id>.discordsays.com (MP8)."""
     origin = request.headers.get("Origin")
     if origin is None:
         return True
-    return urllib.parse.urlsplit(origin).netloc == request.host
+    host = urllib.parse.urlsplit(origin).netloc
+    discord = request.app[KEY_PROVIDERS].get("discord")
+    return host == request.host or bool(discord and host == f"{discord.client_id}.discordsays.com")
 
 
 @web.middleware
@@ -178,6 +196,15 @@ async def auth_callback(request):
         print(f"auth: {provider.name} sign-in failed: {error}", flush=True)
         raise web.HTTPFound("/login?error=" + urllib.parse.quote(f"The sign-in with {provider.label} failed."))
 
+    user = await sign_in_user(request, provider, subject, name, email, verified)
+    response = redirect("/" if user.get("member") else "/house")
+    set_cookie(response, request, auth.SESSION_COOKIE, session_token(request, user["uid"]), auth.SESSION_SECONDS)
+    response.del_cookie(auth.STATE_COOKIE, path="/")
+    return response
+
+
+async def sign_in_user(request, provider, subject, name, email, verified):
+    """Read or make the record of the user of a provider, and note the sign-in."""
     store = request.app[KEY_STORAGE]
     uid = auth.user_id(provider.name, subject)
     user = await storage.read_user(store, uid) or {"uid": uid, "provider": provider.name, "member": False,
@@ -190,12 +217,80 @@ async def auth_callback(request):
     user["last_login"] = int(time.time())
     await storage.write_user(store, user)
     print(f"auth: {user['name']} signed in with {provider.name}", flush=True)
+    return user
 
-    response = redirect("/" if user.get("member") else "/house")
-    session = {"uid": uid, "exp": int(time.time()) + auth.SESSION_SECONDS}
-    set_cookie(response, request, auth.SESSION_COOKIE, auth.sign(request.app[KEY_SECRET], session), auth.SESSION_SECONDS)
-    response.del_cookie(auth.STATE_COOKIE, path="/")
-    return response
+
+async def api_discord_token(request):
+    """MP8: the page of the Discord Activity changes the code of the Embedded App SDK for
+    the Discord access token (the SDK needs it) and a session token of the site."""
+    provider = request.app[KEY_PROVIDERS].get("discord")
+    if not provider:
+        raise web.HTTPNotFound()
+    body = await read_object(request)
+    try:
+        access = await provider.access_token(request.app[KEY_HTTP], body.get("code"))
+        subject, name, email, verified = await provider.user(request.app[KEY_HTTP], access)
+    except (auth.AuthError, aiohttp.ClientError, asyncio.TimeoutError) as error:
+        print(f"auth: discord activity sign-in failed: {error}", flush=True)
+        raise web.HTTPUnauthorized(text="the Discord sign-in failed")
+    user = await sign_in_user(request, provider, subject, name, email, verified)
+    return web.json_response({"access_token": access, "token": session_token(request, user["uid"]),
+                              "member": bool(user.get("member")), "name": user["name"]},
+                             headers={"Cache-Control": "no-store"})
+
+
+DISCORD_SDK_URL = "/.proxy/jsdelivr/npm/@discord/embedded-app-sdk@2/+esm"   # the URL mapping /jsdelivr -> cdn.jsdelivr.net
+
+
+async def api_discord_config(request):
+    """MP8: the client id of the Discord app and the address of the Embedded App SDK, for
+    the page of the Activity before its sign-in. Neither is a secret."""
+    provider = request.app[KEY_PROVIDERS].get("discord")
+    if not provider:
+        raise web.HTTPNotFound()
+    return web.json_response({"client_id": provider.client_id, "sdk": os.environ.get("DISCORD_SDK_URL") or DISCORD_SDK_URL})
+
+
+async def api_house(request):
+    """MP8: the house password through the api, for the page of the Discord Activity."""
+    user = await current_user(request)
+    if not user:
+        raise web.HTTPUnauthorized()
+    if not user.get("member"):
+        body = await read_object(request)
+        failures = request.app[KEY_FAILURES]
+        now = time.time()
+        recent = [moment for moment in failures.get(user["uid"], []) if now - moment < FAILED_PASSWORD_WINDOW_SECONDS]
+        if len(recent) >= MAX_FAILED_PASSWORDS:
+            return web.json_response({"error": "too many wrong passwords"}, status=429)
+        if not hmac.compare_digest(str(body.get("password", "")).encode("utf-8"), request.app[KEY_HOUSE]):
+            failures[user["uid"]] = recent + [now]
+            await asyncio.sleep(FAILED_PASSWORD_DELAY_SECONDS)
+            return web.json_response({"error": "not the house password"}, status=403)
+        failures.pop(user["uid"], None)
+        user["member"] = True
+        await storage.write_user(request.app[KEY_STORAGE], user)
+        print(f"auth: {user['name']} joined the house", flush=True)
+    return web.json_response({"member": True})
+
+
+async def api_session_token(request):
+    """MP8: the session token of the member, for a page without the cookie (the
+    Activity, and the browser test of the token). Another site cannot read the answer."""
+    user = await require_member(request)
+    return web.json_response({"token": session_token(request, user["uid"])}, headers={"Cache-Control": "no-store"})
+
+
+async def api_discord_channel(request):
+    """MP8: the room of a voice channel of Discord, or 404."""
+    await require_member(request)
+    try:
+        room = await request.app[KEY_ROOMS].room_of_channel(request.match_info["channel"])
+    except rooms.RoomError:
+        room = None
+    if not room:
+        raise web.HTTPNotFound()
+    return web.json_response(room.public(), headers={"Cache-Control": "no-store"})
 
 
 async def house_form(request):
@@ -322,8 +417,22 @@ async def api_broadcast(request):
 
 # ---- the game files ----------------------------------------------------------
 
+PUBLIC_GAME_FILES = ("index.js",)   # MP8: the code of the page, without data; a page without the cookie loads it
+
+
+def activity_page(request):
+    """MP8: the page of the Discord Activity has no cookie. The page and its code have no
+    data of the game, so they load without a session. The page then signs in with a token,
+    and the game files need that token (prefetchGameFiles in shell.html)."""
+    name = request.match_info.get("name") or "index.html"
+    if name in PUBLIC_GAME_FILES:
+        return True
+    return name == "index.html" and ("frame_id" in request.query or request.query.get("activity") == "1")
+
+
 async def game_file(request):
-    await require_member(request)
+    if not activity_page(request):
+        await require_member(request)
     following = request.cookies.get(NEXT_COOKIE, "")
     if request.path == "/" and INVITE_PATH.fullmatch(following):
         return redirect(following)   # an invite link from before the sign-in
@@ -383,16 +492,21 @@ async def api_games(request):
     """The games of the member: the games of the host and of the seats."""
     user = await require_member(request)
     games = await request.app[KEY_ROOMS].games_of(user["uid"])
-    return web.json_response({"games": [room.public() for room in games]}, headers={"Cache-Control": "no-store"})
+    return web.json_response({"games": [room.summary(user["uid"]) for room in games]}, headers={"Cache-Control": "no-store"})
 
 
 async def api_games_create(request):
     user = await require_member(request)
     body = await read_object(request)
+    channel = body.get("channel")   # MP8: the voice channel of a Discord Activity: one room for each channel
     try:
+        if channel is not None and await request.app[KEY_ROOMS].room_of_channel(channel):
+            raise rooms.RoomError("the voice channel has a room")
         room = await request.app[KEY_ROOMS].create(
             user, body.get("name"), body.get("scenario"), body.get("pack"), request.app[KEY_GAME_FILES].build or "",
             body.get("mode"), body.get("turn_seconds"), body.get("factions"))
+        if channel is not None:
+            await request.app[KEY_ROOMS].link_channel(room, channel)
     except rooms.RoomError as error:
         return refused(error)
     print(f"rooms: {user['name']} made the game {room.gid}", flush=True)
@@ -400,9 +514,12 @@ async def api_games_create(request):
 
 
 async def api_game(request):
-    await require_member(request)
+    user = await require_member(request)
     room = await find_room(request)
-    return web.json_response(room.public(), headers={"Cache-Control": "no-store"})
+    data = room.public()
+    data["you_host"] = user["uid"] == room.record["host"]   # the lobby shows the options of the host
+    data["you_viewer"] = room.is_viewer(user["uid"])        # MP7: the page opens the socket, or it offers "Watch"
+    return web.json_response(data, headers={"Cache-Control": "no-store"})
 
 
 async def api_game_seat(request):
@@ -415,6 +532,31 @@ async def api_game_seat(request):
     async with room.lock:
         try:
             await request.app[KEY_ROOMS].take_seat(room, user, force)
+        except rooms.RoomError as error:
+            return refused(error)
+    return web.json_response(room.public())
+
+
+async def api_game_options(request):
+    """The host sets the mode, the time of a turn and the pause option (MP4)."""
+    user = await require_member(request)
+    room = await find_room(request)
+    body = await read_object(request)
+    async with room.lock:
+        try:
+            await request.app[KEY_ROOMS].set_options(room, user, body)
+        except rooms.RoomError as error:
+            return refused(error)
+    return web.json_response(room.public())
+
+
+async def api_game_watch(request):
+    """MP7: a member of the house watches a game that runs."""
+    user = await require_member(request)
+    room = await find_room(request)
+    async with room.lock:
+        try:
+            await request.app[KEY_ROOMS].watch(room, user)
         except rooms.RoomError as error:
             return refused(error)
     return web.json_response(room.public())
@@ -457,6 +599,56 @@ async def api_game_start_image_get(request):
     return web.Response(body=data, content_type="application/octet-stream", headers={"Cache-Control": "no-store"})
 
 
+async def api_game_snapshot_put(request):
+    """MP5: the author of the step that ends a game turn puts the image of the state.
+    The query gives the checksum of the state."""
+    user = await require_member(request)
+    room = await find_room(request)
+    if request.content_length is not None and request.content_length > rooms.MAX_START_IMAGE_BYTES:
+        raise web.HTTPRequestEntityTooLarge(max_size=rooms.MAX_START_IMAGE_BYTES, actual_size=request.content_length)
+    try:
+        step = int(request.match_info["step"])
+    except ValueError:
+        raise web.HTTPBadRequest(text="bad step")
+    data = await request.read()
+    async with room.lock:
+        try:
+            await request.app[KEY_ROOMS].put_snapshot(room, user, step, request.query.get("checksum"), data)
+        except rooms.RoomError as error:
+            return refused(error)
+    return web.json_response({"snapshot": step})
+
+
+async def api_game_snapshot_latest(request):
+    """MP5: the latest snapshot. The header X-Snapshot-Step gives its step."""
+    user = await require_member(request)
+    room = await find_room(request)
+    try:
+        latest = await request.app[KEY_ROOMS].latest_snapshot(room, user)
+    except rooms.RoomError as error:
+        return refused(error)
+    if latest is None:
+        raise web.HTTPNotFound(text="no snapshot")
+    step, data = latest
+    return web.Response(body=data, content_type="application/octet-stream",
+                        headers={"Cache-Control": "no-store", "X-Snapshot-Step": str(step)})
+
+
+async def api_game_desync_put(request):
+    """MP6: the image of the state of a player after the step of a desync, for the developer."""
+    user = await require_member(request)
+    room = await find_room(request)
+    if request.content_length is not None and request.content_length > rooms.MAX_START_IMAGE_BYTES:
+        raise web.HTTPRequestEntityTooLarge(max_size=rooms.MAX_START_IMAGE_BYTES, actual_size=request.content_length)
+    data = await request.read()
+    async with room.lock:
+        try:
+            await request.app[KEY_ROOMS].put_desync_image(room, user, int(request.match_info["step"]), data)
+        except rooms.RoomError as error:
+            return refused(error)
+    return web.json_response({"desync": int(request.match_info["step"])})
+
+
 NEXT_COOKIE = "hexdom_next"
 NEXT_SECONDS = 3600
 INVITE_PATH = re.compile(r"/r/[A-Z]{6}")
@@ -477,22 +669,56 @@ async def invite(request):
     return response
 
 
+TOKEN_HELLO_SECONDS = 10   # MP8: a socket without the cookie must send the hello with the token in this time
+TOKEN_CLOSE_CODE = 4401    # MP8: the close code of a bad token: 4000 + the HTTP status 401
+
+
+async def token_hello(request, socket, room):
+    """MP8: the page of the Discord Activity has no cookie. Its first message is the hello
+    with the session token. Give the user and the hello, or (None, None) after a 401."""
+    try:
+        message = await socket.receive(timeout=TOKEN_HELLO_SECONDS)
+        hello = json.loads(message.data) if message.type == aiohttp.WSMsgType.TEXT else {}
+    except (asyncio.TimeoutError, ValueError, TypeError):
+        hello = {}
+    token = hello.get("token") if isinstance(hello, dict) else None
+    user = await user_of_token(request.app, token if isinstance(token, str) else "")
+    if user and user.get("member") and room.is_viewer(user["uid"]):
+        return user, message.data
+    await socket.send_json({"type": "error", "reason": "401"})
+    await socket.close(code=TOKEN_CLOSE_CODE, message=b"no member session")
+    return None, None
+
+
 async def api_game_socket(request):
-    """The WebSocket of a room: the steps, the checksums and the chat (rooms.py)."""
-    user = await require_member(request)
+    """The WebSocket of a room: the steps, the checksums and the chat (rooms.py). A page
+    without the cookie asks for "?token=1" and sends its session token in the hello (MP8)."""
+    by_token = request.query.get("token") == "1" and not request.cookies.get(auth.SESSION_COOKIE)
+    user = None if by_token else await require_member(request)
     if not same_origin(request):
         raise web.HTTPForbidden(text="cross-origin request")
     room = await find_room(request)
-    if not room.is_member(user["uid"]):
+    if user and not room.is_viewer(user["uid"]):
         raise web.HTTPForbidden(text="no seat in this game")
     socket = web.WebSocketResponse(max_msg_size=rooms.MAX_STEP_BYTES, heartbeat=rooms.PING_SECONDS)
     await socket.prepare(request)
+    hello = None
+    if by_token:
+        user, hello = await token_hello(request, socket, room)
+        if not user:
+            return socket
     peer = rooms.Peer(socket, user)
     async with room.lock:
         old = rooms.join(room, peer)
     if old:
         await old.socket.close(code=aiohttp.WSCloseCode.POLICY_VIOLATION, message=b"a new socket of the same member")
     try:
+        if hello:
+            async with room.lock:   # the hello of the token: the first message of the socket
+                try:
+                    await rooms.handle_text(request.app[KEY_ROOMS], room, peer, hello)
+                except rooms.RoomError as error:
+                    await peer.send_json({"type": "error", "reason": str(error)})
         async for message in socket:
             if message.type not in (aiohttp.WSMsgType.TEXT, aiohttp.WSMsgType.BINARY) or peer.dead:
                 break
@@ -510,8 +736,7 @@ async def api_game_socket(request):
                 break
     finally:
         async with room.lock:
-            room.peers.discard(peer)
-            await rooms.send_presence(room)
+            await rooms.leave(request.app[KEY_ROOMS], room, peer)
     return socket
 
 
@@ -549,7 +774,9 @@ def make_app(root):
     app[KEY_FAILURES] = {}
     app[KEY_ADMINS] = auth.admin_emails()
     app[KEY_GAME_FILES] = game_files.GameFiles(app[KEY_ROOT])
-    app[KEY_ROOMS] = rooms.Rooms(app[KEY_STORAGE])
+    script = referee.find_script()   # MP6: the referee decides a desync of two players
+    app[KEY_ROOMS] = rooms.Rooms(app[KEY_STORAGE], build=app[KEY_GAME_FILES].build or "",
+                                 referee=referee.Referee(script) if script else None)
     app.cleanup_ctx.append(open_http)
     app.cleanup_ctx.append(game_files.publish_context(app[KEY_GAME_FILES], app[KEY_STORAGE]))
     app.cleanup_ctx.append(rooms.flush_context(app[KEY_ROOMS]))
@@ -570,14 +797,24 @@ def make_app(root):
         web.post("/api/client-error", api_client_error),
         web.get("/api/broadcast", api_broadcast),
         web.get("/api/game-files", api_game_files),
+        web.get("/api/discord/config", api_discord_config),
+        web.post("/api/discord/token", api_discord_token),
+        web.get("/api/discord/channel/{channel}", api_discord_channel),
+        web.post("/api/house", api_house),
+        web.get("/api/session-token", api_session_token),
         web.get("/api/games", api_games),
         web.post("/api/games", api_games_create),
         web.get("/api/games/{gid}", api_game),
         web.post("/api/games/{gid}/seat", api_game_seat),
+        web.post("/api/games/{gid}/options", api_game_options),
+        web.post("/api/games/{gid}/watch", api_game_watch),
         web.post("/api/games/{gid}/start", api_game_start),
         web.get("/api/games/{gid}/socket", api_game_socket),
         web.put("/api/games/{gid}/start-image", api_game_start_image_put),
         web.get("/api/games/{gid}/start-image", api_game_start_image_get),
+        web.put("/api/games/{gid}/snap/{step:[0-9]{1,9}}", api_game_snapshot_put),
+        web.get("/api/games/{gid}/snap/latest", api_game_snapshot_latest),
+        web.put("/api/games/{gid}/desync/{step:[0-9]{1,9}}", api_game_desync_put),
         web.get("/r/{code}", invite),
         web.get("/", game_file),
         web.get("/{name}", game_file),
@@ -588,6 +825,7 @@ def make_app(root):
     print(f"server.py: broadcast {'on' if app[KEY_BROADCAST].enabled else 'off'}", flush=True)
     print(f"server.py: {len(app[KEY_ADMINS])} admin emails", flush=True)
     print(f"server.py: game build {app[KEY_GAME_FILES].build or 'none'}", flush=True)
+    print(f"server.py: referee {script or 'none'}", flush=True)
     return app
 
 

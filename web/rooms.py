@@ -31,9 +31,24 @@ The keys in the storage (storage.py):
   save slot. The start of the game needs it.
 - members/<uid>/games/<gid>: an empty file for each game of a member.
 - codes/<code>: the gid of the room of the invite code, as text.
+
+The timers (MP4). The faction that acts has a deadline in room.json. When
+the deadline is over, the server is the author of a step:
+- end_turn (STEP_END_TURN) ends the faction turn. The commands of the
+  faction in that turn stay.
+- After the second missed faction turn in a row of a player without a
+  socket, the server sends STEP_AI_TURN. In one step, the engine makes the
+  faction a faction of the AI, and the AI finishes that faction turn. The
+  hello of the player gives the faction back with set_faction_human true
+  (STEP_HUMAN). A player with a socket keeps the faction.
+After a step of the server, no faction acts in the room until the first
+report of a member names it. Thus a deadline gives one end_turn, not two.
+With the option pause_absent, the timer stops while a player of a seat is
+absent for more than ABSENT_SECONDS.
 """
 import asyncio
 import json
+import os
 import re
 import secrets
 import struct
@@ -44,6 +59,8 @@ ENGINE_HEADER = 8
 MAX_STEP_BYTES = 64 * 1024
 MAX_STEPS_PER_SECOND = 20
 MAX_CHAT_CHARS = 300
+CHAT_HISTORY = 50         # MP7: the room keeps the last lines of the chat
+MAX_WATCHERS = 32         # MP7: the spectators of one room
 FLUSH_SECONDS = 30
 PING_SECONDS = 20         # the proxy of fly.io closes an idle connection after 60 seconds
 NO_FACTION = 0xFF
@@ -53,9 +70,17 @@ CODE_LENGTH = 6
 MAX_SEATS = 8
 MAX_NAME_CHARS = 64
 TURN_SECONDS = {"live": (120, 600), "correspondence": (12 * 3600, 72 * 3600)}
+# The browser tests set a short turn. The site never sets this variable.
+TEST_MIN_TURN_SECONDS = int(os.environ.get("HEXDOM_TEST_MIN_TURN_SECONDS") or 0)
+MISSED_TURNS_FOR_AI = 2   # the AI takes the faction after this number of missed faction turns in a row
+ABSENT_SECONDS = 60       # a player who lost the connection has this time to connect again
+TIMER_SECONDS = 2         # the loop of the deadlines
+SERVER = "~server"        # the author of a step of the server; no uid has a "~"
+PACK = re.compile(r"[a-z0-9_]{1,63}")   # the folder of a content pack under data/
+KEEP_SNAPSHOTS = 5        # MP5: the server keeps the last five snapshots of a game
 
 # The kinds of the steps of the engine (engine_step_kind in code/engine/engine.h).
-STEP_COMMAND, STEP_SETTINGS, STEP_HUMAN, STEP_LEDGER_CLEAR = range(4)
+STEP_COMMAND, STEP_SETTINGS, STEP_HUMAN, STEP_LEDGER_CLEAR, STEP_END_TURN, STEP_AI_TURN = range(6)
 # The first 4 bytes of a command are its kind (code/sim/sim_wire.cpp). SIM_COMMAND_END_TURN is 1.
 END_TURN_KIND = struct.pack("<I", 1)
 
@@ -94,6 +119,25 @@ def start_key(gid):
     return f"games/{gid}/start.hxs"
 
 
+def snapshot_prefix(gid):
+    return f"games/{gid}/snap/"
+
+
+def snapshot_key(gid, step):
+    return f"{snapshot_prefix(gid)}{step:08d}.hxs"
+
+
+def desync_key(gid, step, uid):
+    return f"games/{gid}/desync/{step:08d}-{uid}.hxs"
+
+
+CHANNEL = re.compile(r"[0-9]{1,20}")   # MP8: the id of a voice channel of Discord (a snowflake)
+
+
+def channel_key(channel):
+    return f"discord/channels/{channel}"
+
+
 def code_key(code):
     return f"codes/{code}"
 
@@ -128,21 +172,38 @@ def step_message(number, engine_bytes):
 
 
 def is_end_turn(engine_bytes):
+    if engine_bytes[1] in (STEP_END_TURN, STEP_AI_TURN):
+        return True
     return engine_bytes[1] == STEP_COMMAND and engine_bytes[ENGINE_HEADER:ENGINE_HEADER + 4] == END_TURN_KIND
+
+
+def turn_limits(mode):
+    low, high = TURN_SECONDS[mode]
+    return (min(low, TEST_MIN_TURN_SECONDS) if TEST_MIN_TURN_SECONDS > 0 else low), high
+
+
+def check_options(mode, turn_seconds):
+    if not isinstance(mode, str) or mode not in TURN_SECONDS:
+        raise RoomError("bad mode")
+    low, high = turn_limits(mode)
+    if not is_int(turn_seconds) or not low <= turn_seconds <= high:
+        raise RoomError("bad time of a turn")
 
 
 class Room:
     """One shared game: the record of room.json, the log of steps and the sockets."""
 
-    def __init__(self, record):
+    def __init__(self, record, now=0.0):
         self.record = record
         self.steps = []                 # the bytes of the engine of each step, by number
         self.step_bytes = 0
         self.flushed = 0                # the steps that the storage has
-        self.reports = {}               # step -> (checksum, acting) of the first report
-        self.last_author = None         # the uid of the author of the last step
+        self.reports = {}               # step -> {uid: (checksum, acting)} in the order of the reports
+        self.last_author = None         # the uid of the author of the last step, or SERVER
         self.peers = set()
         self.lock = asyncio.Lock()
+        self.loaded = now               # a player without a socket since the load is absent since then
+        self.absent = {}                # uid -> the time of the loss of the connection
 
     @property
     def gid(self):
@@ -157,18 +218,34 @@ class Room:
     def is_member(self, uid):
         return uid == self.record["host"] or self.seat_of(uid) is not None
 
+    def is_viewer(self, uid):
+        """A member, or a spectator (MP7). A spectator gets the steps and gives no command."""
+        return self.is_member(uid) or uid in self.record.get("watchers", [])
+
     def author_of(self, acting):
         """The uid that can send a step when the faction acts: its player, else the host."""
         for seat in self.record["seats"]:
-            if seat["force"] == acting and seat.get("uid"):
+            if seat["force"] == acting and seat.get("uid") and not seat.get("ai"):
                 return seat["uid"]
         return self.record["host"]
 
+    def player_seat(self, force):
+        """The seat of the faction if a player has it, else None."""
+        return next((seat for seat in self.record["seats"] if seat["force"] == force and seat.get("uid")), None)
+
     def public(self):
         """The room for the pages. The uids of the players stay on the server."""
-        record = {key: value for key, value in self.record.items() if key != "host"}
+        record = {key: value for key, value in self.record.items() if key not in ("host", "deadline")}
         record["seats"] = [{key: seat.get(key) for key in ("force", "name", "user", "ai")} for seat in self.record["seats"]]
         record["step_count"] = len(self.steps)
+        return record
+
+    def summary(self, uid):
+        """The room for the list "My games" of the member (MP5): the room and "Your turn"."""
+        record = self.public()
+        seat = self.seat_of(uid)
+        record["your_turn"] = bool(self.record["state"] == "running" and seat and not seat.get("ai")
+                                   and seat["force"] == self.record["acting"])
         return record
 
     # ---- the steps ----
@@ -201,6 +278,8 @@ class Room:
         self.step_bytes += len(engine_bytes)
         self.last_author = author
         self.record["step_count"] = len(self.steps)
+        if author != SERVER:
+            self.record.setdefault("missed", {})[str(engine_bytes[3])] = 0   # the player acted in the faction turn
 
     def report(self, uid, step, checksum, acting):
         """A checksum after a step. Give "desync", "acting" when the faction that acts changes, or None.
@@ -208,44 +287,59 @@ class Room:
         Each player can report, and two different reports give a desync. Only
         the author of the last step and the host can change the faction that
         acts. Each player reports the start state (step -1), and only the
-        report of the host names the first faction that acts."""
-        if self.record["state"] != "running":
+        report of the host names the first faction that acts.
+
+        In a desync (MP6), the reports of the step of the desync go on. Give
+        "judge" after each of them: the room can then decide."""
+        desync = self.record["state"] == "desync"
+        if self.record["state"] != "running" and not (desync and step == self.record.get("desync_step")):
             raise RoomError("the game does not run")
         if not is_int(step) or not START_STEP <= step < len(self.steps):
-            raise RoomError("no such step")
-        if step == START_STEP and self.steps:
             raise RoomError("no such step")
         if not isinstance(checksum, str) or not CHECKSUM.fullmatch(checksum):
             raise RoomError("bad checksum")
         if not is_int(acting) or not 0 <= acting <= NO_FACTION:
             raise RoomError("bad checksum")
-        first = self.reports.setdefault(step, (checksum, acting))
+        entries = self.reports.setdefault(step, {})
+        first = self.first_report(step) or (checksum, acting)
+        entries.setdefault(uid, (checksum, acting))
+        if desync:
+            return "judge"
         if first != (checksum, acting):
             self.record["state"] = "desync"
             self.record["desync_step"] = step
             return "desync"
-        last = step == len(self.steps) - 1
+        last = step == len(self.steps) - 1   # a late report of the start state (a page that joins again) is not the last
         authors = (self.record["host"],) if step == START_STEP else (self.last_author, self.record["host"])
+        if self.last_author == SERVER and step >= 0:
+            authors = (uid,)   # a step of the server: the first report of a member names the faction
         if last and acting != self.record["acting"] and uid in authors:
             self.record["acting"] = acting
             return "acting"
         return None
 
+    def first_report(self, step):
+        """The (checksum, acting) of the first report of the step, or None."""
+        entries = self.reports.get(step)
+        return next(iter(entries.values())) if entries else None
+
 
 class Rooms:
     """The rooms of the server. A room loads from the storage at its first use."""
 
-    def __init__(self, store):
+    def __init__(self, store, clock=time.time, build="", referee=None):
         self.store = store
+        self.clock = clock
+        # MP6: async referee(record, first_step, image, steps) gives the checksum after each step (referee.py)
+        self.referee = referee
+        self.build = build   # the build of the game files of this server; "" when the server has none
         self.rooms = {}
         self.loading = {}   # gid -> the lock of its first load: two requests make one Room
 
     async def create(self, host, name, scenario, pack, build, mode, turn_seconds, factions):
-        if not isinstance(mode, str) or mode not in TURN_SECONDS:
-            raise RoomError("bad mode")
-        low, high = TURN_SECONDS[mode]
-        if not is_int(turn_seconds) or not low <= turn_seconds <= high:
-            raise RoomError("bad time of a turn")
+        check_options(mode, turn_seconds)
+        if not isinstance(pack, str) or not PACK.fullmatch(pack):
+            raise RoomError("bad pack")   # each player starts the engine of this folder of data/
         if not isinstance(build, str) or not BUILD.fullmatch(build):
             raise RoomError("bad build")   # the build id of game_files.py; the server gives it, not the client
         if not isinstance(factions, list) or not 1 <= len(factions) < NO_FACTION:
@@ -265,10 +359,15 @@ class Rooms:
             "host": host["uid"],
             "host_name": clean_text(host["name"], MAX_NAME_CHARS),
             "scenario": clean_text(scenario, MAX_NAME_CHARS),
-            "pack": clean_text(pack, MAX_NAME_CHARS),
+            "pack": pack,
             "build": build,
             "mode": mode,
             "turn_seconds": turn_seconds,
+            "pause_absent": False,
+            "spectators": True,
+            "deadline": None,
+            "paused": False,
+            "missed": {},
             "seats": seats,
             "state": "open",
             "acting": NO_FACTION,
@@ -276,7 +375,7 @@ class Rooms:
             "step_count": 0,
             "created": int(time.time()),
         }
-        room = Room(record)
+        room = Room(record, self.clock())
         self.rooms[gid] = room
         await self.save(room)
         await self.store.put(member_prefix(host["uid"]) + gid, b"")
@@ -289,6 +388,21 @@ class Rooms:
             if await self.store.get(code_key(code)) is None:
                 return code
         raise RoomError("no free invite code")
+
+    async def room_of_channel(self, channel):
+        """MP8: the room of a voice channel of Discord, or None. A bad id gives a RoomError."""
+        if not isinstance(channel, str) or not CHANNEL.fullmatch(channel):
+            raise RoomError("bad voice channel")
+        gid = await self.store.get(channel_key(channel))
+        return await self.get(gid.decode("ascii", "replace")) if gid else None
+
+    async def link_channel(self, room, channel):
+        """MP8: the Activity of the voice channel opens this room."""
+        if not isinstance(channel, str) or not CHANNEL.fullmatch(channel):
+            raise RoomError("bad voice channel")
+        room.record["channel"] = channel
+        await self.store.put(channel_key(channel), room.gid.encode("ascii"))
+        await self.save(room)
 
     async def find_code(self, code):
         """The room of an invite code, or None."""
@@ -311,7 +425,7 @@ class Rooms:
 
     async def start_image(self, room, user):
         """The start image for the host and the players of a running game."""
-        if not room.is_member(user["uid"]):
+        if not room.is_viewer(user["uid"]):
             raise RoomError("no seat in this game")
         if room.record["state"] == "open" or not room.record.get("start_image"):
             raise RoomError("the game did not start")
@@ -330,14 +444,141 @@ class Rooms:
             data = await self.store.get(room_key(gid))
             if not data:
                 return None
-            room = Room(json.loads(data))
+            room = Room(json.loads(data), self.clock())
             for part in sorted(item["name"] for item in await self.store.list(log_prefix(gid))):
                 room.steps += unpack_log(await self.store.get(log_prefix(gid) + part) or b"")
             room.step_bytes = sum(len(step) for step in room.steps)
             room.flushed = len(room.steps)
             room.record["step_count"] = len(room.steps)
             self.rooms[gid] = room
+            await self.move_to_build(room)
+        async with room.lock:
+            await self.expire(room)   # a deadline that ended while the machine stopped
         return room
+
+    async def move_to_build(self, room):
+        """A deploy gave the server a new build (MP5). A running game goes on in the new build:
+        each page loads the latest snapshot and applies the log after it. The log before the
+        snapshot does not run again. A page of the old build gets "old build"."""
+        record = room.record
+        if not self.build or record["state"] != "running" or record["build"] == self.build:
+            return
+        record.setdefault("old_builds", []).append(record["build"])
+        record["build"] = self.build
+        await self.save(room)
+
+    async def put_snapshot(self, room, user, step, checksum, data):
+        """A snapshot: the image of the state after the step. Its checksum must be the checksum
+        of the reports of that step."""
+        if not room.is_member(user["uid"]):
+            raise RoomError("no seat in this game")
+        if room.record["state"] != "running":
+            raise RoomError("the game does not run")
+        if not is_int(step) or not 0 <= step < len(room.steps):
+            raise RoomError("no such step")
+        if not isinstance(checksum, str) or not CHECKSUM.fullmatch(checksum):
+            raise RoomError("bad checksum")
+        if not data or len(data) > MAX_START_IMAGE_BYTES:
+            raise RoomError("bad snapshot")
+        report = room.first_report(step)
+        if report is None:
+            raise RoomError("no report of the step")
+        if report[0] != checksum:
+            raise RoomError("the checksum of the snapshot differs")
+        await self.store.put(snapshot_key(room.gid, step), data)
+        snapshots = room.record.setdefault("snapshots", {})   # the step -> the checksum of each kept snapshot
+        snapshots[str(step)] = checksum
+        for old in sorted(snapshots, key=int)[:-KEEP_SNAPSHOTS]:
+            await self.store.delete(snapshot_key(room.gid, int(old)))
+            del snapshots[old]
+        room.record["snapshot"] = max(int(kept) for kept in snapshots)
+        await self.save(room)
+
+    async def drop_snapshots(self, room, step, good):
+        """After a desync: a snapshot of the step or later with another checksum than the good one goes away."""
+        snapshots = room.record.get("snapshots", {})
+        for kept in [kept for kept in snapshots if int(kept) >= step and snapshots[kept] != good]:
+            await self.store.delete(snapshot_key(room.gid, int(kept)))
+            del snapshots[kept]
+        room.record["snapshot"] = max((int(kept) for kept in snapshots), default=None)
+
+    async def base_before(self, room, step):
+        """The latest snapshot before the step, or the start image: (the first step after it, the image)."""
+        snapshots = [int(kept) for kept in room.record.get("snapshots", {}) if int(kept) < step]
+        for kept in sorted(snapshots, reverse=True):
+            data = await self.store.get(snapshot_key(room.gid, kept))
+            if data:
+                return kept + 1, data
+        return 0, await self.store.get(start_key(room.gid))
+
+    # ---- the recovery from a desync (MP6) ----
+
+    async def put_desync_image(self, room, user, step, data):
+        """The image of the state of a player after the step of a desync, for the developer."""
+        if not room.is_member(user["uid"]):
+            raise RoomError("no seat in this game")
+        if room.record["state"] != "desync" or step != room.record.get("desync_step"):
+            raise RoomError("no desync at this step")
+        if not data or len(data) > MAX_START_IMAGE_BYTES:
+            raise RoomError("bad state image")
+        await self.store.put(desync_key(room.gid, step, user["uid"]), data)
+
+    async def judge(self, room):
+        """Decide a desync after the reports of all players with a socket. With three
+        reports or more, a strict majority wins. Else the referee replays the log from the
+        latest snapshot before the step and gives the good checksum. The caller holds the
+        lock of the room."""
+        step = room.record["desync_step"]
+        reports = room.reports.get(step, {})
+        online = {peer.uid for peer in room.peers if room.is_member(peer.uid)}
+        if not online <= set(reports):
+            return
+        counts = {}
+        for value in reports.values():
+            counts[value] = counts.get(value, 0) + 1
+        best = max(counts, key=counts.get)
+        if not (len(reports) >= 3 and 2 * counts[best] > len(reports)):
+            best = await self.ask_referee(room, step, counts)
+            if best is None:
+                return
+        await self.drop_snapshots(room, step, best[0])
+        record = room.record
+        record["state"] = "running"
+        record.pop("desync_step", None)
+        record["acting"] = best[1]
+        room.reports[step] = {uid: value for uid, value in reports.items() if value == best}
+        for peer in list(room.peers):
+            if peer.uid in reports and reports[peer.uid] != best:
+                await peer.send_json({"type": "reload", "step": step})   # the page loads the good state again
+        await broadcast_json(room, {"type": "desync_end", "step": step})
+        await self.start_deadline(room)
+
+    async def ask_referee(self, room, step, counts):
+        """The report that the referee agrees with, or None. Each player gets the reason of a None."""
+        if not self.referee:
+            await broadcast_json(room, {"type": "error", "reason": "no referee"})
+            return None
+        first_step, image = await self.base_before(room, step)
+        try:
+            checksums = await self.referee(room.record, first_step, image, room.steps[first_step:step + 1])
+        except Exception as error:   # the referee is another process: its failure must not stop the server
+            print(f"rooms: the referee failed: {error}", flush=True)
+            checksums = []
+        good = checksums[-1] if checksums else None
+        best = next((value for value in counts if value[0] == good), None)
+        if best is None:
+            await broadcast_json(room, {"type": "error", "reason": "the referee agrees with no player"})
+        return best
+
+    async def latest_snapshot(self, room, user):
+        """The step and the bytes of the latest snapshot, or None."""
+        if not room.is_viewer(user["uid"]):
+            raise RoomError("no seat in this game")
+        step = room.record.get("snapshot")
+        if step is None:
+            return None
+        data = await self.store.get(snapshot_key(room.gid, step))
+        return (step, data) if data else None
 
     async def save(self, room):
         await self.store.put(room_key(room.gid), json.dumps(room.record, ensure_ascii=False).encode("utf-8"))
@@ -391,6 +632,128 @@ class Rooms:
         elif user["uid"] != room.record["host"]:
             await self.store.delete(member_prefix(user["uid"]) + room.gid)   # the game leaves the list of the member
         await self.save(room)
+
+    async def set_options(self, room, user, options):
+        """The host sets the mode, the time of a turn and the pause option before the start."""
+        if user["uid"] != room.record["host"]:
+            raise RoomError("only the host sets the options")
+        if room.record["state"] != "open":
+            raise RoomError("the game started")
+        mode, turn_seconds, pause = options.get("mode"), options.get("turn_seconds"), options.get("pause_absent")
+        spectators = options.get("spectators", room.record.get("spectators", True))
+        check_options(mode, turn_seconds)
+        if not isinstance(pause, bool) or not isinstance(spectators, bool):
+            raise RoomError("bad option")
+        room.record.update(mode=mode, turn_seconds=turn_seconds, pause_absent=pause, spectators=spectators)
+        await self.save(room)
+
+    async def watch(self, room, user):
+        """MP7: a member of the house watches the game. The host decides if spectators can (Q-11)."""
+        if room.is_viewer(user["uid"]):
+            return
+        if not room.record.get("spectators", True):
+            raise RoomError("the host allows no spectators")
+        if room.record["state"] == "open":
+            raise RoomError("the game did not start")
+        watchers = room.record.setdefault("watchers", [])
+        if len(watchers) >= MAX_WATCHERS:
+            raise RoomError("the room has no place for a spectator")
+        watchers.append(user["uid"])
+        await self.save(room)
+
+    # ---- the timers (MP4) ----
+
+    def timer_message(self, room):
+        record = room.record
+        deadline = record.get("deadline")
+        seconds = max(0, round(deadline - self.clock())) if deadline is not None else None
+        return {"type": "timer", "acting": record["acting"], "seconds": seconds, "paused": bool(record.get("paused"))}
+
+    async def start_deadline(self, room):
+        """The faction that acts changed: its turn gets the full time."""
+        room.record["deadline"] = self.clock() + room.record["turn_seconds"]
+        room.record["paused"] = False
+        room.record.pop("remaining", None)
+        if room.record.get("pause_absent") and self.absent_player(room):
+            await self.pause(room)
+            return
+        await self.save(room)
+        await broadcast_json(room, self.timer_message(room))
+
+    def absent_player(self, room):
+        """A player of a seat without a socket for more than ABSENT_SECONDS."""
+        now, online = self.clock(), {peer.uid for peer in room.peers}
+        for seat in room.record["seats"]:
+            uid = seat.get("uid")
+            if uid and not seat.get("ai") and uid not in online and now - room.absent.get(uid, room.loaded) > ABSENT_SECONDS:
+                return True
+        return False
+
+    async def pause(self, room):
+        record = room.record
+        if record.get("deadline") is not None:
+            record["remaining"] = max(0, record["deadline"] - self.clock())
+        record["deadline"] = None
+        record["paused"] = True
+        await self.save(room)
+        await broadcast_json(room, self.timer_message(room))
+
+    async def server_step(self, room, kind, force, value=0):
+        """A step of the server: the header of the engine only. Each player gets it."""
+        engine_bytes = bytes([1, kind, force, room.record["acting"]]) + struct.pack("<I", value)
+        room.add_step(engine_bytes, SERVER)
+        message = step_message(len(room.steps) - 1, engine_bytes)
+        for peer in list(room.peers):
+            await peer.send_bytes(message)
+        drop_dead(room)
+
+    async def expire(self, room):
+        """Apply the deadline of the faction turn. The caller holds the lock of the room."""
+        record = room.record
+        if record["state"] != "running":
+            return
+        if record.get("pause_absent"):
+            absent = self.absent_player(room)
+            if absent and not record.get("paused") and record.get("deadline") is not None:
+                await self.pause(room)
+            elif not absent and record.get("paused"):
+                record["paused"] = False
+                record["deadline"] = self.clock() + record.pop("remaining", record["turn_seconds"])
+                await self.save(room)
+                await broadcast_json(room, self.timer_message(room))
+        deadline = record.get("deadline")
+        if deadline is None or self.clock() < deadline:
+            return
+        acting = record["acting"]
+        missed = record.setdefault("missed", {})
+        missed[str(acting)] = missed.get(str(acting), 0) + 1
+        seat = room.player_seat(acting)
+        online = seat and any(peer.uid == seat["uid"] for peer in room.peers)
+        if seat and not online and missed[str(acting)] >= MISSED_TURNS_FOR_AI:
+            # Only an absent player loses the faction: the hello of the player gives it back.
+            await self.server_step(room, STEP_AI_TURN, acting)
+            seat["ai"] = True
+        else:
+            await self.server_step(room, STEP_END_TURN, acting)
+        record["acting"] = NO_FACTION
+        record["deadline"] = None
+        await self.flush(room)
+        await broadcast_json(room, self.timer_message(room))
+
+    async def give_back(self, room, uid):
+        """The player of a seat of the AI connects again: the faction goes back to the player."""
+        seat = room.seat_of(uid)
+        if room.record["state"] != "running" or not seat or not seat.get("ai"):
+            return
+        await self.server_step(room, STEP_HUMAN, seat["force"], 1)
+        seat["ai"] = False
+        room.record.setdefault("missed", {})[str(seat["force"])] = 0
+        await self.flush(room)
+
+    async def expire_all(self):
+        for room in list(self.rooms.values()):
+            async with room.lock:
+                await self.expire(room)
 
     async def start(self, room, user):
         if user["uid"] != room.record["host"]:
@@ -481,13 +844,19 @@ async def on_hello(rooms, room, peer, message):
     peer.welcomed = True
     peer.build_ok = message.get("build") == room.record["build"]
     seat = room.seat_of(peer.uid)
+    room.absent.pop(peer.uid, None)
     await peer.send_json({"type": "welcome", "seat": seat["force"] if seat else None,
                           "host": peer.uid == room.record["host"], "room": room.public(), "from": last + 1})
     for number in range(last + 1, len(room.steps)):
         await peer.send_bytes(step_message(number, room.steps[number]))
     if not peer.build_ok:
         await peer.send_json({"type": "error", "reason": "old build"})
+    else:
+        await rooms.give_back(room, peer.uid)
     await send_presence(room)
+    await rooms.expire(room)   # the pause can end
+    if room.record["state"] == "running":
+        await peer.send_json(rooms.timer_message(room))
 
 
 async def on_step(rooms, room, peer, data):
@@ -507,17 +876,27 @@ async def on_step(rooms, room, peer, data):
 async def on_checksum(rooms, room, peer, message):
     if not peer.welcomed:
         raise RoomError("hello first")
+    if not room.is_member(peer.uid):
+        return   # MP7: the report of a spectator counts for nothing
     result = room.report(peer.uid, message.get("step"), message.get("checksum"), message.get("acting"))
     if result:
         await rooms.save(room)
+    if result == "acting":
+        await rooms.start_deadline(room)
     if result == "desync":
         await broadcast_json(room, {"type": "desync", "step": room.record["desync_step"]})
+    if result in ("desync", "judge"):
+        await rooms.judge(room)   # MP6: the majority or the referee decides after the last report
 
 
 async def on_chat(rooms, room, peer, message):
     text = clean_text(message.get("text"), MAX_CHAT_CHARS)
     if text:
-        await broadcast_json(room, {"type": "chat", "name": clean_text(peer.user["name"], MAX_NAME_CHARS), "text": text})
+        line = {"name": clean_text(peer.user["name"], MAX_NAME_CHARS), "text": text}
+        history = room.record.setdefault("chat", [])   # MP7: a page that joins later shows the last lines
+        history.append(line)
+        del history[:-CHAT_HISTORY]
+        await broadcast_json(room, dict(line, type="chat"))
 
 
 HANDLERS = {"hello": on_hello, "checksum": on_checksum, "chat": on_chat}
@@ -546,6 +925,24 @@ async def handle_binary(rooms, room, peer, data):
     return True
 
 
+async def leave(rooms, room, peer):
+    """The socket of the peer closed. The caller holds the lock of the room."""
+    room.peers.discard(peer)
+    if not any(other.uid == peer.uid for other in room.peers):
+        room.absent[peer.uid] = rooms.clock()
+    await send_presence(room)
+
+
+async def timer_loop(rooms):
+    """Apply the deadlines of the rooms in memory each TIMER_SECONDS."""
+    while True:
+        await asyncio.sleep(TIMER_SECONDS)
+        try:
+            await rooms.expire_all()
+        except Exception as error:   # the loop must go on: the next pass tries again
+            print(f"rooms: the timers failed: {error}", flush=True)
+
+
 async def flush_loop(rooms):
     """Write the new steps of each room to the storage each FLUSH_SECONDS."""
     while True:
@@ -559,8 +956,9 @@ async def flush_loop(rooms):
 def flush_context(rooms):
     """An aiohttp cleanup context: the flush loop runs, and the stop writes each room."""
     async def context(app):
-        task = asyncio.create_task(flush_loop(rooms))
+        tasks = [asyncio.create_task(flush_loop(rooms)), asyncio.create_task(timer_loop(rooms))]
         yield
-        task.cancel()
+        for task in tasks:
+            task.cancel()
         await rooms.flush_all()
     return context

@@ -112,3 +112,60 @@ The status column says how strong the check is:
 | 100 | Dominic de Guzman | https://en.wikipedia.org/wiki/Saint_Dominic | https://www.newworldencyclopedia.org/entry/Saint_Dominic | two sources |
 | 101 | Leonardo Fibonacci | https://en.wikipedia.org/wiki/Fibonacci | https://mathshistory.st-andrews.ac.uk/Biographies/Fibonacci/ | two sources |
 | 102 | Walter III of Brienne | https://en.wikipedia.org/wiki/Walter_III_of_Brienne | https://www.wikitree.com/wiki/Brienne-26 | second source is weak |
+
+## The officers of the factions of the east map
+
+The stage e8_factions added these officers to data/medieval_east. The Id is the id in the scenario of that pack. The statuses are as above. The lives are in lore/en.tsv of the pack.
+
+| Id | Officer | First source | Second source | Status |
+|---|---|---|---|---|
+| 43 | Aimery of Lusignan | https://en.wikipedia.org/wiki/Aimery_of_Cyprus | https://www.larousse.fr/encyclopedie/personnage/Amaury/105103 | two sources |
+| 44 | Isabella I of Jerusalem | https://en.wikipedia.org/wiki/Isabella_I_of_Jerusalem | https://www.britannica.com/biography/Isabella-I-queen-of-Jerusalem | two sources |
+| 45 | John of Ibelin | https://en.wikipedia.org/wiki/John,_Old_Lord_of_Beirut | https://fr.wikipedia.org/wiki/Jean_d'Ibelin_(1179-1236) | two sources |
+| 46 | Geoffroy de Donjon | https://en.wikipedia.org/wiki/Geoffroy_de_Donjon | https://www.newadvent.org/cathen/07476a.htm | two sources |
+| 47 | Bohemond III of Antioch | https://en.wikipedia.org/wiki/Bohemond_III_of_Antioch | https://www.britannica.com/biography/Bohemond-III | two sources |
+| 48 | Bohemond IV of Antioch | https://en.wikipedia.org/wiki/Bohemond_IV_of_Antioch | https://www.britannica.com/biography/Bohemond-IV | two sources |
+| 49 | Peter of Angoulême | https://en.wikipedia.org/wiki/Peter_of_Angoul%C3%AAme | https://fr.wikipedia.org/wiki/Pierre_d'Angoul%C3%AAme | second source is weak |
+| 50 | Leo I of Cilicia | https://en.wikipedia.org/wiki/Leo_I,_King_of_Armenia | https://resee.acadsudest.ro/sites/default/files/sites/default/files/articole/2020_03_Neagu.pdf | two sources |
+| 51 | Gregory VI Apirat | https://en.wikipedia.org/wiki/Gregory_VI_of_Cilicia | https://www.newadvent.org/cathen/01736b.htm | second source is weak |
+| 52 | Raymond-Roupen | https://en.wikipedia.org/wiki/Raymond-Roupen | https://fr.wikipedia.org/wiki/Raymond-Roupen_d'Antioche | two sources |
+| 53 | Hugh I of Cyprus | https://en.wikipedia.org/wiki/Hugh_I_of_Cyprus | https://fr.wikipedia.org/wiki/Liste_des_rois_de_Chypre | second source is weak |
+| 54 | Philip of Ibelin | https://en.wikipedia.org/wiki/Philip_of_Ibelin_(1180%E2%80%931227) | https://fr.wikipedia.org/wiki/Philippe_d'Ibelin_(mort_en_1227) | second source is weak |
+| 55 | Walter of Montbéliard | https://en.wikipedia.org/wiki/Walter_of_Montb%C3%A9liard | https://fr.wikipedia.org/wiki/Gautier_de_Montb%C3%A9liard | second source is weak |
+| 56 | Tamar of Georgia | https://en.wikipedia.org/wiki/Tamar_of_Georgia | https://www.britannica.com/biography/Tamara-queen-of-Georgia | two sources |
+| 57 | David Soslan | https://en.wikipedia.org/wiki/David_Soslan | https://travelguide.ge/en/articles/figure-davit-soslani-1250/ | second source is weak |
+| 58 | Zakare II Zakarian | https://en.wikipedia.org/wiki/Zakare_II_Zakarian | https://www.worldhistory.org/Queen_Tamar/ | second source is weak |
+| 59 | Ivane I Zakarian | https://en.wikipedia.org/wiki/Ivane_I_Zakarian | https://www.worldhistory.org/Queen_Tamar/ | second source is weak |
+| 60 | Shota Rustaveli | https://en.wikipedia.org/wiki/Shota_Rustaveli | https://www.britannica.com/biography/Shota-Rustaveli | two sources |
+| 61 | Al-Nasir li-Din Allah | https://en.wikipedia.org/wiki/Al-Nasir | https://www.britannica.com/biography/al-Nasir | two sources |
+| 62 | Shihab al-Din al-Suhrawardi | https://en.wikipedia.org/wiki/Shihab_al-Din_%27Umar_al-Suhrawardi | https://anqa.co.uk/about-ibn-arabi/contemporaries/shihabuddin-abu-hafs-%E2%80%98umar-al-suhrawardi | second source is weak |
+| 63 | Ibn al-Jawzi | https://en.wikipedia.org/wiki/Ibn_al-Jawzi | https://www.britannica.com/biography/Ibn-al-Jawzi | two sources |
+| 64 | Al-Zahir bi-Amr Allah | https://en.wikipedia.org/wiki/Al-Zahir_bi-Amr_Allah | https://historica.fandom.com/wiki/Az-Zahir | second source is weak |
+| 65 | Qutuz | https://en.wikipedia.org/wiki/Qutuz | https://www.britannica.com/event/Battle-of-Ayn-Jalut | two sources |
+| 66 | Aybak | https://en.wikipedia.org/wiki/Aybak | https://www.britannica.com/biography/Aybak | two sources |
+| 67 | Shajar al-Durr | https://en.wikipedia.org/wiki/Shajar_al-Durr | https://www.britannica.com/biography/Shajar-ad-Durr | two sources |
+| 68 | Baybars | https://en.wikipedia.org/wiki/Baibars | https://www.britannica.com/summary/Baybars-I | two sources |
+| 69 | Baldwin IX of Flanders | https://en.wikipedia.org/wiki/Baldwin_I,_Latin_Emperor | https://www.britannica.com/biography/Baldwin-I-Byzantine-emperor | two sources |
+| 70 | Henry of Flanders | https://en.wikipedia.org/wiki/Henry_of_Flanders | https://www.britannica.com/biography/Henry-of-Hainault | two sources |
+
+## The facts of the story pages
+
+The stage e7_story wrote the story pages of both packs (story/en.tsv). This table lists the main facts of the pages of the world and of the east map. Each fact has two sources. The words of the pages are our own.
+
+| Fact | First source | Second source |
+|---|---|---|
+| Innocent III became pope in January 1198 and claimed to be above the kings | https://en.wikipedia.org/wiki/Pope_Innocent_III | https://www.britannica.com/biography/Innocent-III |
+| The split of 1054 between Rome and Constantinople | https://en.wikipedia.org/wiki/East%E2%80%93West_Schism | https://www.britannica.com/event/Schism-of-1054 |
+| Richard I died in April 1199 and Arthur of Brittany claimed his lands | https://en.wikipedia.org/wiki/Richard_I_of_England | https://www.britannica.com/biography/Arthur-duke-of-Brittany |
+| The two kings of Germany in 1198, Philip of Swabia and Otto of Brunswick | https://en.wikipedia.org/wiki/German_throne_dispute_(1198%E2%80%931215) | https://www.britannica.com/biography/Philip-of-Swabia |
+| The interdict on France in January 1200 | https://en.wikipedia.org/wiki/Ingeborg_of_Denmark | https://www.britannica.com/biography/Philip-II-king-of-France |
+| Innocent III called the Fourth Crusade in 1198 | https://en.wikipedia.org/wiki/Fourth_Crusade | https://www.britannica.com/event/Crusades/The-Fourth-Crusade |
+| Alexios III took the throne in 1195 from Isaac II | https://en.wikipedia.org/wiki/Alexios_III_Angelos | https://www.britannica.com/biography/Alexius-III-Angelus |
+| Kaloyan ruled Bulgaria and wrote to the pope | https://en.wikipedia.org/wiki/Kaloyan_of_Bulgaria | https://www.britannica.com/biography/Kaloyan |
+| Al-Adil took Damascus in 1196 and Egypt in 1200 | https://en.wikipedia.org/wiki/Al-Adil_I | https://www.britannica.com/biography/al-Adil-Ayyubid-sultan |
+| Leo I took the title of king in 1198 | https://en.wikipedia.org/wiki/Leo_I,_King_of_Armenia | https://www.britannica.com/place/Cilicia |
+| Cyprus became a kingdom in 1197 | https://en.wikipedia.org/wiki/Kingdom_of_Cyprus | https://www.britannica.com/place/Cyprus/History |
+| Queen Tamar and the golden age of Georgia | https://en.wikipedia.org/wiki/Tamar_of_Georgia | https://www.britannica.com/biography/Tamara-queen-of-Georgia |
+| The truce of Jerusalem with al-Adil | https://en.wikipedia.org/wiki/Aimery_of_Cyprus | https://www.britannica.com/event/Crusades |
+
+The facts of the pages of the factions of the west map come from the lives of the rulers in the first table. The two sources of each ruler apply to the page of his faction.

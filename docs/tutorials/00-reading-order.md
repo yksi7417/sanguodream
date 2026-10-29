@@ -49,6 +49,7 @@ run_tests.bat --e2e
 | 33 | AI round: the turn of the others with no click, and the show of the AI round | code/ui/ui_round.cpp, code/ui/ui_feel.cpp, code/ui/ui_hud.cpp, code/ui/ui_settings.cpp | tests/ui/ui_tests.cpp, tests/demo/demo_tests.cpp |
 | 34 | Information: the information menu, the tables, the political map and the hover panels | code/ui/ui_information.cpp, code/ui/ui_political.cpp, code/engine/engine_map.cpp | tests/feature/map_tests.cpp, tests/ui/ui_tests.cpp, tests/demo/demo_tests.cpp |
 | 35 | Fit and finish: the global rules of the screen flow, the hidden panels, the menus of the original and the question before 進行 | code/ui/ui_context.cpp, code/ui/ui_hud.cpp, code/ui/ui_locate.cpp, code/ui/ui_information.cpp | tests/ui/ui_tests.cpp, tests/demo/demo_tests.cpp |
+| 36 | Story: the story pages and the events during the game | code/sim/history.cpp, code/engine/engine_history_keys.cpp, code/text/text.cpp, code/ui/ui_story.cpp, data/medieval_west/story/, data/medieval_east/story/, history.tsv | tests/unit/story_tests.cpp, tests/feature/world_map_tests.cpp, tests/ui/ui_tests.cpp |
 
 You will see these conventions everywhere:
 - `internal` means `static`: the function is private to its translation

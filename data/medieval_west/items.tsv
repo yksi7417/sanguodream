@@ -1,0 +1,19 @@
+id	key	name_zh	big5	type	polearm	status
+# The kinds of the items of a save (officers-and-relations.md, Items; manual p.18, p.26). The engine finds the kind of a save item by the Big5 bytes of its name.
+# An item of the save with a name that is not here has the type other: it only raises loyalty. The names of bows and hidden weapons are not in the spec (Q-177).
+0	red_hare	赤兔馬	A8AAA8DFB0A8	horse	plain	documented
+1	dilu	的盧	AABABF63	horse	plain	documented
+2	shadow_runner	爪黃飛電	A4F6B6C0ADB8B971	horse	plain	documented
+3	shadow	絕影	B5B4BC76	horse	plain	documented
+4	ferghana	大宛馬	A46AA97BB0A8	horse	plain	documented
+5	seven_star	七星寶刀	A443AC50C45FA44D	sword	plain	documented
+6	yitian	倚天劍	ADCAA4D1BC43	sword	plain	documented
+7	qinggang	青釭劍	AB43B3AABC43	sword	plain	documented
+8	twin_swords	雌雄一對劍	BBDBB6AFA440B9EFBC43	sword	plain	documented
+9	sky_halberd	方天畫戟	A4E8A4D1B565B475	polearm	sky_halberd	documented
+10	dragon_blade	青龍偃月刀	AB43C073B0B3A4EBA44D	polearm	dragon_blade	documented
+11	snake_spear	蛇矛	B344A5D9	polearm	snake_spear	documented
+12	art_of_war	孫子兵法	AE5DA46CA74CAA6B	book	plain	documented
+13	mengde	孟德新書	A973BC77B773AED1	book	plain	documented
+14	seal	玉璽	A5C9C3A2	seal	plain	documented
+15	bronze_bird	銅雀	BBC9B3B6	bronze	plain	documented

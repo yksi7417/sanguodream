@@ -202,13 +202,22 @@ wasm_test_state(void)
     engine_api *api  = &game->api;
     engine_map_info map = api->map_info(api->engine);
     engine_multiplayer_info shared = api->multiplayer_info(api->engine);   /* MP3: the tests of a shared game */
+    u64 humans = 0;                                                         /* MP4: a bit for each human faction */
+    for (u32 index = 0; index < api->faction_count(api->engine); ++index)
+    {
+        engine_faction faction = api->faction_at(api->engine, index);
+        if (faction.human && faction.force_id < 64) humans |= 1ull << faction.force_id;
+    }
     snprintf(g_test_reply, sizeof(g_test_reply),
              "{\"camera_x\":%.2f,\"camera_z\":%.2f,\"city\":%u,\"unit\":%u,\"turn\":%u,\"whose_turn\":%u,\"map_width\":%u,\"map_height\":%u,"
-             "\"shared\":%d,\"local_force\":%u,\"local_acts\":%d,\"steps\":%u,\"checksum\":\"%016llx\",\"net_error\":\"%s\"}",
+             "\"shared\":%d,\"local_force\":%u,\"local_acts\":%d,\"steps\":%u,\"checksum\":\"%016llx\",\"net_error\":\"%s\","
+             "\"humans\":\"%016llx\",\"timer\":%d,\"pack\":\"%s\",\"chat_lines\":%u}",
              game->ui.scene.cam.target.x, game->ui.scene.cam.target.z, (u32)game->ui.city.selected,
              game->ui.units.selected, api->turn(api->engine), (u32)api->whose_turn(api->engine), map.width, map.height,
              shared.shared ? 1 : 0, (u32)shared.local_force, shared.local_acts ? 1 : 0, shared.step_count,
-             (unsigned long long)api->state_checksum(api->engine), game->ui.net.error);
+             (unsigned long long)api->state_checksum(api->engine), game->ui.net.error, (unsigned long long)humans,
+             game->ui.net.timer_on ? (game->ui.net.timer_paused ? -1 : (int)game->ui.net.timer_seconds) : -2,
+             api->content_pack(api->engine).pack, game->ui.net.chat_count);
     return g_test_reply;
 }
 

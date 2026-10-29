@@ -54,7 +54,11 @@ engine_load_scenario_keys(engine *e, const char *folder)
     arena_reset(&e->scratch);
     tsv_table officers = {}, forces = {};
     if (engine_read_table(e, folder, "officers.tsv", &officers)) engine_keys_from_table(&officers, e->keys->officers, SAVE_OFFICER_SLOTS);
-    if (engine_read_table(e, folder, "forces.tsv", &forces))     engine_keys_from_table(&forces, e->keys->forces, SIM_FORCE_CAPACITY);
+    if (engine_read_table(e, folder, "forces.tsv", &forces))
+    {
+        engine_keys_from_table(&forces, e->keys->forces, SIM_FORCE_CAPACITY);
+        engine_fill_church(e, &forces);   /* docs/EUROPE.md, E7: the condition church of history.tsv */
+    }
 }
 
 /* At the start: the keys of the cities, and the keys of the first scenario

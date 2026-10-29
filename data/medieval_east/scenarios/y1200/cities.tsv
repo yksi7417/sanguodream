@@ -1,0 +1,46 @@
+id	owner	governor	troops	gold	food	spears	halberds	crossbows	horses	durability	note
+# The 42 cities of this map at the start of 1200. owner: the force id of forces.tsv, or - for a city without an owner. governor: an officer id of the owner in the city, or -.
+# troops, gold, food and the four weapon stocks follow the scale of the base scenarios: 6000 to 40000 soldiers, 2000 to 7000 gold.
+# durability: the maximum durability of the walls. note: for the reader; the engine does not read it.
+0	9	33	14000	4000	36000	3000	0	2000	2000	6000	Tunis, Almohads
+1	10	35	12000	2500	26000	0	0	2000	4000	5000	Tripoli, Banu Ghaniya
+2	-	-	0	800	8000	0	0	0	0	4000	Barqa, no owner
+3	3	13	16000	5000	44000	2000	0	3000	2000	7000	Alexandria, Ayyubids
+4	3	10	32000	7000	80000	4000	2000	4000	6000	8000	Cairo, Ayyubid capital
+5	3	-	16000	3500	34000	3000	0	2000	3000	7000	Jerusalem, Ayyubids
+6	0	0	30000	7000	70000	4000	4000	4000	2000	8000	Constantinople, Byzantine capital
+7	2	8	22000	4000	48000	2000	0	3000	6000	6000	Konya, Rum
+8	0	3	14000	3500	36000	2000	2000	2000	1000	6000	Thessalonica, Byzantium
+9	0	4	8000	2500	24000	2000	0	1000	0	5000	Athens, Byzantium
+10	1	5	20000	3500	44000	2000	2000	0	5000	6000	Tarnovo, Bulgaria
+11	6	19	14000	6000	40000	2000	3000	1000	1000	7000	Rome, Papacy
+12	8	30	12000	3500	34000	2000	0	2000	2000	6000	Naples, Sicily
+13	8	27	18000	5000	46000	2000	0	3000	2000	7000	Palermo, Sicilian capital
+14	7	23	14000	7000	36000	2000	2000	3000	0	6000	Venice
+15	-	-	0	2500	20000	0	0	0	0	6000	Milan, the Lombard communes
+16	5	17	16000	4000	40000	2000	2000	1000	3000	6000	Vienna, Austria
+17	4	14	18000	3500	44000	2000	0	1000	5000	6000	Esztergom, Hungary
+18	-	-	0	2500	20000	0	0	0	0	5500	Genoa, the commune, no owner
+19	15	56	12000	3500	36000	2000	0	2000	4000	6500	Tbilisi, Georgia
+20	-	-	0	2000	16000	0	0	0	0	5000	Florence, the commune, no owner
+21	8	-	12000	3000	32000	2000	1000	2000	2000	6000	Bari, Sicily
+22	9	-	10000	2500	28000	0	0	2000	1500	5500	Kairouan, Almohads
+23	4	-	8000	2500	24000	2000	0	1000	1000	5500	Zara, Hungary
+24	4	-	12000	3000	32000	2000	0	1000	3000	6000	Szekesfehervar, Hungary
+25	-	-	0	2000	16000	0	0	0	0	5000	Belgrade, no owner
+26	0	-	10000	2500	28000	2000	1000	1000	1000	5500	Philippopolis, Byzantium
+27	0	-	12000	3000	30000	2000	2000	1000	1000	6000	Adrianople, Byzantium
+28	0	-	12000	3000	32000	2000	2000	1000	1000	6500	Nicaea, Byzantium
+29	2	-	14000	3000	36000	2000	0	2000	4000	6000	Kayseri, Rum
+30	2	-	10000	2500	28000	2000	0	1000	3000	5500	Sivas, Rum
+31	2	-	8000	2000	24000	1000	0	1000	3000	5000	Ankara, Rum
+32	0	-	10000	2500	28000	2000	0	1000	1000	6000	Trebizond, Byzantium
+33	13	50	8000	2500	24000	1000	0	1000	3000	5500	Sis, the Armenian kingdom of Cilicia
+34	12	47	10000	3000	28000	2000	1000	2000	2000	6500	Antioch, the principality
+35	3	-	20000	4500	50000	3000	2000	3000	3000	7000	Aleppo, Ayyubids
+36	3	-	8000	2000	24000	2000	0	1000	2000	5500	Edessa, Ayyubids
+37	-	-	0	2500	20000	0	0	0	0	6000	Mosul, no owner
+38	16	61	12000	6000	40000	2000	0	3000	3000	7000	Baghdad, the Abbasid caliph
+39	3	12	20000	5000	50000	3000	0	4000	3000	7000	Damascus, Ayyubids
+40	11	43	12000	3500	30000	2000	1000	2000	2000	6500	Acre, the kingdom of Jerusalem
+41	14	53	6000	2500	20000	1000	0	1000	1500	5500	Nicosia, the kingdom of Cyprus

@@ -60,6 +60,7 @@ struct ui_test_net_state
     platform_net_event sent[16];
     u32                sent_count;
     char               text[256];      /* the text of the first event with a text */
+    char               pack[64];       /* MP4: the pack of the first event with a pack */
     memory_arena       arena;          /* the frame arena of "Play online": the render commands and the start image */
 };
 #define UI_TEST_NET_ARENA_SIZE Megabytes(4)
@@ -89,6 +90,7 @@ internal PLATFORM_NET_POLL(ui_test_net_poll)
 internal PLATFORM_NET_SEND(ui_test_net_send)
 {
     if (event->text && !g_ui_test_net.text[0]) snprintf(g_ui_test_net.text, sizeof(g_ui_test_net.text), "%s", event->text);
+    if (event->pack && !g_ui_test_net.pack[0]) snprintf(g_ui_test_net.pack, sizeof(g_ui_test_net.pack), "%s", event->pack);
     if (g_ui_test_net.sent_count < ArrayCount(g_ui_test_net.sent)) g_ui_test_net.sent[g_ui_test_net.sent_count++] = *event;
 }
 
@@ -3866,6 +3868,83 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);   /* the load only */
     };
 
+    /* docs/MAPS.md: a save of another pack (its slot_NN.meta names the pack)
+       asks the game for the engine of that pack and loads nothing in the old
+       engine. The new engine reads the slots again and loads the slot. */
+    t = IM_REGISTER_TEST(e, "ui", "a_save_of_another_pack_asks_for_that_pack_then_loads_in_the_new_engine");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.other_pack_slot = 2;   /* slot 1, the used slot of recorder_save_slot */
+        v.recorder.has_names       = true;
+        v.ui.show_saveload         = true;
+        v.ui.game.saving           = false;
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->SetRef("###SaveLoad");
+        ctx->ItemClick("###slot1");
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOAD_GAME), 0u);
+        IM_CHECK_STR_EQ(v.ui.game.pack_request, "medieval_europe");
+        IM_CHECK_EQ(v.ui.game.pack_slot, 2u);
+        IM_CHECK(!v.ui.show_saveload);
+        /* The game starts the engine of the pack: the slot is a slot of this pack now. */
+        v.ui.game.pack_request[0]  = 0;
+        v.recorder.other_pack_slot = 0;
+        recorder_reset(&v.recorder);
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_REFRESH_SAVE_SLOTS), 1u);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOAD_GAME), 1u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_LOAD_GAME), 1u);
+        IM_CHECK(v.ui.game.pack_slot == 0 && !v.ui.show_saveload);
+    };
+
+    /* docs/EUROPE.md, E7: the Story button of the rulers screen opens the pages of the pack. The panel commands nothing. */
+    t = IM_REGISTER_TEST(e, "ui", "story_panel_walks_the_pages_of_a_pack_and_commands_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.faction_key = "byzantium";
+        v.ui.show_rulers       = true;
+        ctx->SetRef("###Rulers");
+        ctx->Yield(2);
+        IM_CHECK(ctx->ItemInfo("###story_open", ImGuiTestOpFlags_NoError).ID == 0);   /* the pack of the test has no story */
+        text_catalog_use_game_pack(&v.text, "medieval_east");
+        ctx->Yield(2);
+        IM_CHECK(ctx->ItemInfo("###story_open", ImGuiTestOpFlags_NoError).ID != 0);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###story_open");
+        ctx->Yield(2);
+        IM_CHECK(v.ui.show_story && v.ui.story.page == 0);
+        char title[UI_NAME_SIZE * 2];
+        const char *body = 0;
+        IM_CHECK(ui_story_page(&v.ui, &v.api, 0, title, sizeof(title), &body) && body && body[0]);
+        IM_CHECK_STR_EQ(title, "Europe in 1200");
+        IM_CHECK_EQ(ui_story_page_count(&v.ui, &v.api), 4u);   /* three pages of the world, one faction with a key */
+        ctx->SetRef("###Story");
+        ctx->ItemClick("###story_previous");   /* disabled on the first page */
+        IM_CHECK_EQ(v.ui.story.page, 0u);
+        ctx->ItemClick("###story_next");
+        ctx->ItemClick("###story_next");
+        ctx->ItemClick("###story_next");
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.story.page, 3u);
+        IM_CHECK(ui_story_page(&v.ui, &v.api, 3, title, sizeof(title), &body) && body && body[0] && title[0]);
+        ctx->ItemClick("###story_next");        /* disabled on the last page */
+        IM_CHECK_EQ(v.ui.story.page, 3u);
+        ctx->ItemClick("###story_previous");
+        IM_CHECK_EQ(v.ui.story.page, 2u);
+        ctx->ItemClick("###story_skip");
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.show_story && v.ui.show_rulers);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        text_catalog_use_game_pack(&v.text, HEXDOM_CONTENT_PACK);
+    };
+
     t = IM_REGISTER_TEST(e, "ui", "title_new_game_flow_loads_chooses_rulers_and_sets_settings");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;
@@ -4399,7 +4478,270 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_START_IMAGE), 1u);
         IM_CHECK(g_ui_test_net.sent_count == 1 && g_ui_test_net.sent[0].kind == PLATFORM_NET_HOST && g_ui_test_net.sent[0].size == 16);
         IM_CHECK(strncmp(g_ui_test_net.text, "1\t", 2) == 0);         /* one line for the chosen ruler, force 1 */
+        IM_CHECK_STR_EQ(g_ui_test_net.pack, "placeholder");          /* MP4: the room records the pack */
         IM_CHECK(v.ui.net.waiting);
+    };
+
+    /* MP4: the page gives the pack of the room before the join. Another pack
+       starts the engine of that pack first, and the join waits in the queue. */
+    t = IM_REGISTER_TEST(e, "ui", "net_pack_of_the_room_starts_the_engine_of_that_pack_before_the_join");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_test_net_reset();
+        v.frame.net_send = ui_test_net_send;
+        v.frame.net_poll = ui_test_net_poll;
+        static const u8 image[16] = { 1 };
+        platform_net_event pack = {};
+        pack.kind = PLATFORM_NET_PACK;
+        pack.text = "placeholder";                                       /* the pack of the engine: nothing changes */
+        platform_net_event join = {};
+        join.kind = PLATFORM_NET_JOIN;
+        join.seat = 1;
+        join.data = image;
+        join.size = sizeof(image);
+        join.text = "1\tTester\n";
+        ui_test_net_queue(pack);
+        ui_test_net_queue(join);
+        ctx->Yield(2);
+        IM_CHECK(v.ui.game.pack_request[0] == 0);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOAD_START_IMAGE), 1u);
+
+        ui_test_net_reset();
+        recorder_reset(&v.recorder);
+        v.ui.net.joined = false;
+        pack.text = "medieval_west";
+        ui_test_net_queue(pack);
+        ui_test_net_queue(join);
+        ctx->Yield(1);
+        IM_CHECK_STR_EQ(v.ui.game.pack_request, "medieval_west");
+        IM_CHECK_EQ(g_ui_test_net.queued_next, 1u);                      /* the join stays for the engine of the pack */
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOAD_START_IMAGE), 0u);
+        v.ui.game.pack_request[0] = 0;
+
+        ui_test_net_reset();
+        pack.text = "../saves";                                          /* no folder name: the UI refuses it */
+        ui_test_net_queue(pack);
+        ctx->Yield(2);
+        IM_CHECK(v.ui.game.pack_request[0] == 0 && v.ui.net.error[0] != 0);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* MP5: a join with a snapshot resumes the game: no setters of the seats,
+       the steps go on after the snapshot, and the report names the step of the snapshot. */
+    t = IM_REGISTER_TEST(e, "ui", "net_join_of_a_snapshot_resumes_the_game_after_the_snapshot");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_test_net_reset();
+        v.frame.net_send = ui_test_net_send;
+        v.frame.net_poll = ui_test_net_poll;
+        static const u8 image[16] = { 1 };
+        platform_net_event join = {};
+        join.kind = PLATFORM_NET_JOIN;
+        join.step = 7;                                                   /* the snapshot of step 6: the next step is 7 */
+        join.seat = 1;
+        join.data = image;
+        join.size = sizeof(image);
+        join.text = "1\tTester\n2\t\n";
+        ui_test_net_queue(join);
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOAD_START_IMAGE), 1u);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_SET_FACTION_HUMAN), 0u);   /* the snapshot holds the human factions */
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_MULTIPLAYER_FIRST_STEP), 7u);
+        IM_CHECK(g_ui_test_net.sent_count == 1 && g_ui_test_net.sent[0].kind == PLATFORM_NET_CHECKSUM && g_ui_test_net.sent[0].step == 6);
+    };
+
+    /* MP5: the author of the step that ends a game turn sends a snapshot of the state to the page. */
+    t = IM_REGISTER_TEST(e, "ui", "net_end_of_a_game_turn_sends_a_snapshot");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_test_net_reset();
+        v.frame.net_send    = ui_test_net_send;
+        v.frame.net_poll    = ui_test_net_poll;
+        v.frame.frame_arena = &g_ui_test_net.arena;
+        v.recorder.multiplayer.shared = true;
+        v.recorder.turn         = 3;
+        v.ui.net.joined         = true;
+        v.ui.net.snapshot_turn  = 3;
+        v.recorder.outgoing_script = 1;                                  /* a step of the local seat, in the same game turn */
+        ctx->Yield(2);
+        IM_CHECK(g_ui_test_net.sent_count == 2 && g_ui_test_net.sent[0].kind == PLATFORM_NET_STEP);
+        v.recorder.turn            = 4;                                  /* the next step ends the game turn */
+        v.recorder.outgoing_script = 1;
+        ctx->Yield(2);
+        IM_CHECK_EQ(g_ui_test_net.sent_count, 5u);
+        IM_CHECK(g_ui_test_net.sent[4].kind == PLATFORM_NET_SNAPSHOT && g_ui_test_net.sent[4].step == 1 && g_ui_test_net.sent[4].size == 16);
+        IM_CHECK_EQ(v.ui.net.snapshot_turn, 4u);
+        ctx->Yield(2);
+        IM_CHECK_EQ(g_ui_test_net.sent_count, 5u);                       /* one snapshot for each game turn */
+    };
+
+    /* MP5: in a shared game, the save menu writes a snapshot for the room, and the load menu is off. */
+    t = IM_REGISTER_TEST(e, "ui", "net_save_writes_a_snapshot_and_the_load_menu_is_off_in_a_shared_game");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_test_net_reset();
+        v.frame.net_send    = ui_test_net_send;
+        v.frame.net_poll    = ui_test_net_poll;
+        v.frame.frame_arena = &g_ui_test_net.arena;
+        v.recorder.multiplayer.shared     = true;
+        v.recorder.multiplayer.step_count = 5;
+        v.ui.net.joined = true;
+        ctx->Yield(1);
+        ui_open_saveload(&v.ui, &v.api, false);                          /* 載入 */
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.show_saveload);
+        ui_open_saveload(&v.ui, &v.api, true);                           /* 儲存 */
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.show_saveload);                                   /* a shared game writes no local slot */
+        IM_CHECK_EQ(g_ui_test_net.sent_count, 1u);
+        IM_CHECK(g_ui_test_net.sent[0].kind == PLATFORM_NET_SNAPSHOT && g_ui_test_net.sent[0].step == 4);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_SAVE_GAME), 0u);
+    };
+
+    /* MP6: a desync sends the image of the state to the page, for the developer.
+       The end of the desync clears the banner. A new join loads the good state. */
+    t = IM_REGISTER_TEST(e, "ui", "net_desync_sends_the_state_image_and_a_new_join_loads_the_good_state");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_test_net_reset();
+        v.frame.net_send    = ui_test_net_send;
+        v.frame.net_poll    = ui_test_net_poll;
+        v.frame.frame_arena = &g_ui_test_net.arena;
+        v.recorder.multiplayer.shared = true;
+        v.ui.net.joined = true;
+        platform_net_event desync = {};
+        desync.kind = PLATFORM_NET_DESYNC;
+        desync.step = 9;
+        ui_test_net_queue(desync);
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.net.desync_step, 9);
+        IM_CHECK(g_ui_test_net.sent_count == 1 && g_ui_test_net.sent[0].kind == PLATFORM_NET_STATE_IMAGE &&
+                 g_ui_test_net.sent[0].step == 9 && g_ui_test_net.sent[0].size == 16);
+        desync.step = -1;                                                /* the room decided: the game goes on */
+        ui_test_net_queue(desync);
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.net.desync_step, -1);
+        IM_CHECK_EQ(g_ui_test_net.sent_count, 1u);
+
+        /* The page loads the good state of the room: the shared game ends, then the join loads it. */
+        recorder_reset(&v.recorder);
+        static const u8 image[16] = { 1 };
+        platform_net_event join = {};
+        join.kind = PLATFORM_NET_JOIN;
+        join.step = 10;
+        join.seat = 1;
+        join.data = image;
+        join.size = sizeof(image);
+        join.text = "1\tTester\n";
+        ui_test_net_queue(join);
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_MULTIPLAYER_END), 1u);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOAD_START_IMAGE), 1u);
+        IM_CHECK_LT(recorder_index_of(&v.recorder, RECORDER_MULTIPLAYER_END), recorder_index_of(&v.recorder, RECORDER_LOAD_START_IMAGE));
+    };
+
+    /* MP7: the chat of a shared game. The panel shows the lines of the page and
+       sends the text through the platform. It issues no game command. */
+    t = IM_REGISTER_TEST(e, "ui", "net_chat_sends_the_text_through_the_platform_and_no_command");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_test_net_reset();
+        v.frame.net_send = ui_test_net_send;
+        v.frame.net_poll = ui_test_net_poll;
+        v.recorder.multiplayer.shared = true;
+        v.ui.net.joined = true;
+        platform_net_event line = {};
+        line.kind = PLATFORM_NET_CHAT;
+        line.text = "Guest\tGood luck!";
+        ui_test_net_queue(line);
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.net.chat_unread, 1u);
+        ctx->ItemClick("//###NetBanner/###net_chat");                     /* the banner opens the chat */
+        ctx->Yield(2);
+        IM_CHECK(v.ui.net.show_chat && v.ui.net.chat_unread == 0);
+        ImGuiTestItemInfo shown = ctx->ItemInfo("//###NetChat/###chat_line0");
+        IM_CHECK(shown.ID != 0 && strstr(shown.DebugLabel, "Guest") != 0);
+        recorder_reset(&v.recorder);
+        ctx->ItemInputValue("//###NetChat/###chat_text", "Thank you");
+        ctx->ItemClick("//###NetChat/###chat_send");
+        ctx->Yield(2);
+        IM_CHECK_EQ(g_ui_test_net.sent_count, 1u);
+        IM_CHECK(g_ui_test_net.sent[0].kind == PLATFORM_NET_CHAT);
+        IM_CHECK_STR_EQ(g_ui_test_net.text, "Thank you");
+        IM_CHECK(v.ui.net.chat_text[0] == 0);                            /* the field is empty after the send */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* MP5: a room code on the title menu opens the room. It is no game command. */
+    t = IM_REGISTER_TEST(e, "ui", "title_menu_room_code_opens_the_room");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_test_net_reset();
+        v.frame.net_send = ui_test_net_send;
+        v.frame.net_poll = ui_test_net_poll;
+        v.ui.show_title  = true;
+        ctx->Yield(2);
+        ctx->ItemInputValue("//###Title/###title_code", "abcdef");
+        ctx->ItemClick("//###Title/###title_join");
+        ctx->Yield(2);
+        IM_CHECK_EQ(g_ui_test_net.sent_count, 1u);
+        IM_CHECK(g_ui_test_net.sent[0].kind == PLATFORM_NET_OPEN_ROOM);
+        IM_CHECK_STR_EQ(g_ui_test_net.text, "ABCDEF");                   /* the codes have capital letters */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* MP4: the timer of the faction turn counts down in the banner. */
+    t = IM_REGISTER_TEST(e, "ui", "net_timer_counts_down_in_the_banner");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_test_net_reset();
+        v.frame.net_send = ui_test_net_send;
+        v.frame.net_poll = ui_test_net_poll;
+        v.recorder.multiplayer.shared       = true;
+        v.recorder.multiplayer.local_force  = 2;
+        v.recorder.multiplayer.acting_force = 2;
+        v.ui.net.joined = true;
+        platform_net_event timer = {};
+        timer.kind   = PLATFORM_NET_TIMER;
+        timer.acting = 2;
+        timer.step   = 90;                                               /* the seconds left */
+        ui_test_net_queue(timer);
+        ctx->Yield(2);
+        ImGuiTestItemInfo clock = ctx->ItemInfo("//###NetBanner/###net_timer");
+        IM_CHECK(clock.ID != 0 && (strstr(clock.DebugLabel, "1:30") || strstr(clock.DebugLabel, "1:29")));
+        v.ui.net.timer_seconds = 5.5f;
+        ctx->Yield(2);
+        IM_CHECK(strstr(ctx->ItemInfo("//###NetBanner/###net_timer").DebugLabel, "0:05") != 0);
+        timer.step = -1;                                                 /* the timer stops: a player is absent */
+        ui_test_net_queue(timer);
+        ctx->Yield(2);
+        const char *paused = text_get(v.ui.text, "net.paused");          /* DebugLabel keeps the start of the label */
+        IM_CHECK(strncmp(ctx->ItemInfo("//###NetBanner/###net_timer").DebugLabel, paused, Minimum(strlen(paused), (size_t)12)) == 0);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
     t = IM_REGISTER_TEST(e, "ui", "city_panel_greys_a_button_that_the_action_points_refuse");

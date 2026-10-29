@@ -236,6 +236,7 @@ enum recorder_call_kind
     RECORDER_STEP_APPLY,           /* arg = the bytes */
     RECORDER_SET_SEED,
     RECORDER_LOAD_START_IMAGE,     /* arg = the bytes */
+    RECORDER_MULTIPLAYER_FIRST_STEP,   /* MP5: arg = the first step after a snapshot */
     RECORDER_CALL_KIND_COUNT
 };
 
@@ -274,6 +275,7 @@ struct engine_recorder
     b32           units_acted;        /* M22: both units acted in this turn */
     u32           officer_count;      /* scripted rows for the Officers and Cities panels */
     const char   *officer_key;        /* the English key of the scripted officer 100, or 0 (docs/EUROPE.md, E2) */
+    const char   *faction_key;        /* the English key of the faction at index 0, or 0 (docs/EUROPE.md, E7) */
     u32           city_count;
     b32           has_water;          /* hex_at reports the river kind (2) at water_q, water_r */
     s32           water_q, water_r;
@@ -284,6 +286,7 @@ struct engine_recorder
     b32           own_base_hex;       /* hex_at reports location 42 and base_at_hex reports index 0 (recorder_base_at: force 1) at the axial hex (3, 2) */
     b32           pack_base_keys;     /* recorder_base_at gives keys without a UI string: the label takes the name index (docs/MAPS.md, W2) */
     u8            pack_rows;          /* recorder_scenario_at row 1: 0 a PK scenario; 1 y1200 of the pack medieval_europe; 2 y1200 of this pack */
+    u32           other_pack_slot;    /* 1 + the slot that recorder_slot_pack gives to medieval_europe; 0 for none */
     char          last_name_index_path[RECORDER_MAX_PATH];
     sim_refusal   can_issue_refusal;  /* script the answer of can_issue and command_develop */
     engine_command last_develop;      /* the arguments of the last command_develop */
@@ -320,6 +323,8 @@ struct engine_recorder
     b32           replay_viewing;     /* the replay of a game: a view is open */
     u32           replay_view_step;
     engine_multiplayer_info multiplayer;   /* script the answer of multiplayer_info; local_acts is true by default */
+    char          content_pack[CONTENT_KEY_SIZE];   /* MP4: the answer of content_pack; "" gives "placeholder" */
+    u32           outgoing_script;    /* MP5: steps_outgoing gives this number of steps of 16 bytes */
 };
 
 internal void
@@ -376,6 +381,14 @@ internal u32
 recorder_first_arg(engine_recorder *r, recorder_call_kind kind)
 {
     for (u32 i = 0; i < r->call_count; ++i) if (r->calls[i].kind == kind) return r->calls[i].arg;
+    return U32_MAX;
+}
+
+/* The place of the first call of a kind in the order of the calls, or U32_MAX if none. */
+internal u32
+recorder_index_of(engine_recorder *r, recorder_call_kind kind)
+{
+    for (u32 i = 0; i < r->call_count; ++i) if (r->calls[i].kind == kind) return i;
     return U32_MAX;
 }
 
@@ -654,6 +667,8 @@ internal engine_faction recorder_faction_at(void *o, u32 index)
     engine_faction faction = {};
     faction.force_id = index == 0 ? 1 : ENGINE_NO_FACTION;
     faction.city_count = 2; faction.action_points = 100; faction.human = true;
+    engine_recorder *self = (engine_recorder *)o;
+    if (index == 0 && self->faction_key) snprintf(faction.key, sizeof(faction.key), "%s", self->faction_key);
     return faction;
 }
 internal engine_check recorder_can_issue(void *o, const engine_command *command)
@@ -1755,6 +1770,13 @@ internal engine_save_slot recorder_save_slot(void *o, u32 slot)
     return info;
 }
 internal void recorder_refresh_save_slots(void *o) { recorder_record((engine_recorder *)o, RECORDER_REFRESH_SAVE_SLOTS, 0); }
+/* The pack of a slot: medieval_europe for the slot of other_pack_slot, else this pack (docs/MAPS.md). */
+internal engine_slot_pack recorder_slot_pack(void *o, u32 slot)
+{
+    engine_slot_pack pack = {};
+    if (((engine_recorder *)o)->other_pack_slot == slot + 1) snprintf(pack.pack, sizeof(pack.pack), "medieval_europe");
+    return pack;
+}
 
 /* ---- M9: two chart rows (row 0 with 2 uses), one ancient officer, one
    history row, two scenarios (the save and an unavailable PK one), two
@@ -2098,10 +2120,21 @@ internal void recorder_multiplayer_end(void *o)
 }
 internal engine_outgoing_step recorder_steps_outgoing(void *o, u8 *buffer, u32 capacity)
 {
-    (void)buffer;
-    recorder_record((engine_recorder *)o, RECORDER_STEPS_OUTGOING, capacity);
+    engine_recorder *r = (engine_recorder *)o;
+    recorder_record(r, RECORDER_STEPS_OUTGOING, capacity);
     engine_outgoing_step out = {};
+    if (!r->outgoing_script || !buffer || capacity < 16) return out;
+    r->outgoing_script--;
+    memset(buffer, 0x11, 16);
+    out.size     = 16;
+    out.step     = r->multiplayer.step_count++;
+    out.checksum = 1;
+    out.acting   = r->multiplayer.acting_force;
     return out;
+}
+internal void recorder_multiplayer_first_step(void *o, u32 step)
+{
+    recorder_record((engine_recorder *)o, RECORDER_MULTIPLAYER_FIRST_STEP, step);
 }
 internal engine_step_apply_result recorder_step_apply(void *o, const u8 *bytes, u32 size)
 {
@@ -2136,6 +2169,14 @@ internal b32 recorder_load_start_image(void *o, const u8 *bytes, u32 size)
     (void)bytes;
     recorder_record((engine_recorder *)o, RECORDER_LOAD_START_IMAGE, size);
     return true;
+}
+
+internal engine_slot_pack recorder_content_pack(void *o)
+{
+    engine_recorder *r = (engine_recorder *)o;
+    engine_slot_pack pack = {};
+    snprintf(pack.pack, sizeof(pack.pack), "%s", r->content_pack[0] ? r->content_pack : "placeholder");
+    return pack;
 }
 
 internal void recorder_set_unit_grain(void *o, u32 unit_id, u32 grain)
@@ -2401,6 +2442,7 @@ recorder_make_api(engine_recorder *r)
     api.load_game             = recorder_load_game;
     api.save_slot             = recorder_save_slot;
     api.refresh_save_slots    = recorder_refresh_save_slots;
+    api.slot_pack             = recorder_slot_pack;
     api.chart_count           = recorder_chart_count;
     api.chart_row_at          = recorder_chart_row_at;
     api.faction_chart         = recorder_faction_chart;
@@ -2452,6 +2494,8 @@ recorder_make_api(engine_recorder *r)
     api.start_image_size       = recorder_start_image_size;
     api.start_image            = recorder_start_image;
     api.load_start_image       = recorder_load_start_image;
+    api.content_pack           = recorder_content_pack;   /* a query: no record */
+    api.multiplayer_first_step = recorder_multiplayer_first_step;
     return api;
 }
 

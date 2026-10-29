@@ -1,0 +1,13 @@
+id	key	name_zh	chance	conditions	effects	names_zh	names	status
+# The events during the game of the west map (docs/EUROPE.md, E7). The engine has one interpreter. Each row has a window and preconditions. No row has a fixed date.
+# conditions: clauses separated by ";". A row starts when all clauses hold for one faction. effects: the changes, in order. chance: the percent for each month.
+# The row names an officer by the English key, for example @raymond_vi. The engine changes each key to the officer before the sim reads the row (E7).
+# Clauses of E7: date_from:YYYY/MM, date_until:YYYY/MM, at_war:F:G, allied:F:G, owner:CITY:F|G|- (a dash is a city without an owner), church:latin|greek|armenian|muslim, after:KEY.
+#   F and G are the ids of forces.tsv, and CITY is the id of cities.tsv. The other clauses are the clauses of the M9 events: rules:C|C, free:@i|@j, has:@i, ruler:@i, merit_at_least:@i:N, order_ruler_below:N.
+# Effects of E7: seize:@i (the officer takes the rule of his faction), rename:@i:KEY (the new English name of his faction), target:@i:CITY:MONTHS, city_loss:CITY:PERCENT.
+#   The other effects are the effects of the M9 events: join:@i:LOYALTY:MERIT, merit:@i:N, loyalty_all:N, order_all:N, morale_all:N, friendliness_with:@i:N.
+# The rows leave out the sees of the church. E6 adds them. The effect friendliness_with acts for the faction of the row, so France has its own row after the crusade.
+0	albigensian_crusade	阿爾比十字軍	15	date_from:1205/1;date_until:1220/12;ruler:@raymond_vi;rules:18	loyalty_all:-10;order_all:-10	-	-	story
+1	albigensian_france	法蘭西與教宗結盟於阿爾比戰事	100	after:albigensian_crusade;date_until:1225/12;ruler:@philip_ii	friendliness_with:@innocent_iii:10	-	-	story
+2	las_navas_de_tolosa	拉斯納瓦斯德托洛薩之役	20	date_from:1208/1;date_until:1225/12;rules:3;allied:4:3;at_war:4:7;church:muslim	morale_all:-15;merit:@alfonso_viii:500;merit:@peter_ii:500	-	-	story
+3	bouvines	布汶之役	20	date_from:1210/1;date_until:1225/12;ruler:@philip_ii;at_war:0:10;at_war:0:1	merit:@philip_ii:600;morale_all:10	-	-	story

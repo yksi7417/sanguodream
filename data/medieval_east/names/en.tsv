@@ -1,0 +1,179 @@
+key	text	note
+# Written by misc/make_scenario.py. The English names of the pack by English key (docs/EUROPE.md, E2).
+# officer.<key> and force.<key> come from the scenario y1200. city.<key> and base.<key> come from map/source/sites.tsv.
+officer.alexios_iii	Alexios III Angelos
+officer.mourtzouphlos	Alexios Doukas
+officer.laskaris	Theodore Laskaris
+officer.niketas	Niketas Choniates
+officer.michael_choniates	Michael Choniates
+officer.kaloyan	Kaloyan
+officer.boril	Boril
+officer.strez	Strez
+officer.suleiman_ii	Suleiman II of Rum
+officer.kaykaus	Kaykaus I
+officer.al_adil	al-Adil
+officer.al_kamil	al-Kamil
+officer.al_muazzam	al-Muazzam Isa
+officer.al_ashraf	al-Ashraf Musa
+officer.emeric	Emeric of Hungary
+officer.andrew_ii	Andrew II of Hungary
+officer.job	Job of Esztergom
+officer.leopold_vi	Leopold VI of Austria
+officer.kuenring	Hadmar II of Kuenring
+officer.innocent_iii	Innocent III
+officer.richard_segni	Richard of Segni
+officer.capuano	Peter Capuano
+officer.ugolino	Ugolino of Segni
+officer.dandolo	Enrico Dandolo
+officer.ranieri	Ranieri Dandolo
+officer.ziani	Pietro Ziani
+officer.morosini	Tommaso Morosini
+officer.frederick_ii	Frederick II
+officer.markward	Markward of Annweiler
+officer.pagliara	Walter of Pagliara
+officer.diepold	Diepold of Schweinspeunt
+officer.al_nasir	Muhammad al-Nasir
+officer.ibn_jami	Uthman ibn Jami
+officer.abu_hafs	Abu Muhammad ibn Abi Hafs
+officer.marrakushi	Abd al-Wahid al-Marrakushi
+officer.yahya	Yahya ibn Ghaniya
+officer.qaraqush	Sharaf al-Din Qaraqush
+officer.maimonides	Maimonides
+officer.kaykhusraw	Kaykhusraw I
+officer.sgouros	Leo Sgouros
+officer.francis	Francis of Assisi
+officer.montferrat	Boniface of Montferrat
+officer.brienne	Walter III of Brienne
+officer.aimery_lusignan	Aimery of Lusignan
+officer.isabella_jerusalem	Isabella I of Jerusalem
+officer.john_ibelin	John of Ibelin
+officer.geoffroy_donjon	Geoffroy de Donjon
+officer.bohemond_iii	Bohemond III of Antioch
+officer.bohemond_iv	Bohemond IV of Antioch
+officer.peter_angouleme	Peter of Angoulême
+officer.leo_i	Leo I of Cilicia
+officer.gregory_vi	Gregory VI Apirat
+officer.raymond_roupen	Raymond-Roupen
+officer.hugh_cyprus	Hugh I of Cyprus
+officer.philip_ibelin	Philip of Ibelin
+officer.walter_montbeliard	Walter of Montbéliard
+officer.queen_tamar	Tamar of Georgia
+officer.david_soslan	David Soslan
+officer.zakare_ii	Zakare II Zakarian
+officer.ivane_i	Ivane I Zakarian
+officer.shota_rustaveli	Shota Rustaveli
+officer.al_nasir_abbasid	Al-Nasir li-Din Allah
+officer.al_suhrawardi	Shihab al-Din al-Suhrawardi
+officer.ibn_al_jawzi	Ibn al-Jawzi
+officer.al_zahir	Al-Zahir bi-Amr Allah
+officer.qutuz	Qutuz
+officer.aybak	Aybak
+officer.shajar_al_durr	Shajar al-Durr
+officer.baybars	Baybars
+officer.baldwin_ix	Baldwin IX of Flanders
+officer.henry_flanders	Henry of Flanders
+force.byzantium	Byzantine Empire
+force.bulgaria	Second Bulgarian Empire
+force.rum	Sultanate of Rum
+force.ayyubid	Ayyubid Sultanate
+force.hungary	Kingdom of Hungary
+force.austria	Duchy of Austria
+force.papacy	Papal States
+force.venice	Republic of Venice
+force.sicily	Kingdom of Sicily
+force.almohad	Almohad Caliphate
+force.ghaniya	Banu Ghaniya
+force.jerusalem	Kingdom of Jerusalem
+force.antioch	Principality of Antioch
+force.cilicia	Armenian Kingdom of Cilicia
+force.cyprus	Kingdom of Cyprus
+force.georgia	Kingdom of Georgia
+force.abbasid	Abbasid Caliphate
+force.mamluk	Mamluk Sultanate
+city.tunis	Tunis
+city.tripoli	Tripoli
+city.barqa	Barqa
+city.alexandria	Alexandria
+city.cairo	Cairo
+city.jerusalem	Jerusalem
+city.constantinople	Constantinople
+city.konya	Konya
+city.thessalonica	Thessalonica
+city.athens	Athens
+city.tarnovo	Tarnovo
+city.rome	Rome
+city.naples	Naples
+city.palermo	Palermo
+city.venice	Venice
+city.milan	Milan
+city.vienna	Vienna
+city.esztergom	Esztergom
+city.genoa	Genoa
+city.tbilisi	Tbilisi
+city.florence	Florence
+city.bari	Bari
+city.kairouan	Kairouan
+city.zara	Zara
+city.szekesfehervar	Szekesfehervar
+city.belgrade	Belgrade
+city.philippopolis	Philippopolis
+city.adrianople	Adrianople
+city.nicaea	Nicaea
+city.kayseri	Kayseri
+city.sivas	Sivas
+city.ankara	Ankara
+city.trebizond	Trebizond
+city.sis	Sis
+city.antioch	Antioch
+city.aleppo	Aleppo
+city.edessa	Edessa
+city.mosul	Mosul
+city.baghdad	Baghdad
+city.damascus	Damascus
+city.acre	Acre
+city.nicosia	Nicosia
+base.brenner	Brenner Pass
+base.trajan_gate	Gate of Trajan
+base.thermopylae	Thermopylae
+base.cilician_gates	Cilician Gates
+base.tarvisio	Tarvisio Pass
+base.shipka	Shipka Pass
+base.syrian_gates	Syrian Gates
+base.zigana	Zigana Pass
+base.semmering	Semmering Pass
+base.iron_gates	Iron Gates
+base.mahdia	Mahdia
+base.cagliari	Cagliari
+base.bastia	Bastia
+base.messina	Messina
+base.syracuse	Syracuse
+base.civitavecchia	Civitavecchia
+base.pisa	Pisa
+base.ancona	Ancona
+base.ragusa	Ragusa
+base.durazzo	Durazzo
+base.corinth	Corinth
+base.candia	Candia
+base.rhodes	Rhodes
+base.smyrna	Smyrna
+base.famagusta	Famagusta
+base.damietta	Damietta
+base.antalya	Antalya
+base.varna	Varna
+base.sfax	Sfax
+base.trapani	Trapani
+base.brindisi	Brindisi
+base.split	Split
+base.corfu	Corfu
+base.patras	Patras
+base.negroponte	Negroponte
+base.limassol	Limassol
+base.latakia	Latakia
+base.beirut	Beirut
+base.jaffa	Jaffa
+base.ayas	Ayas
+base.sinope	Sinope
+base.constanta	Constanta
+base.mesembria	Mesembria
+base.gallipoli	Gallipoli
+base.derna	Derna
