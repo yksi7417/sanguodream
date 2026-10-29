@@ -421,9 +421,10 @@ The events of 1200 need these new conditions:
 - owner: the owner of a city is in a list of factions, or the city has
   no owner;
 - church: the church of the faction is latin, greek or muslim;
-- chance: a percent for each month, so that two games do not have the
-  same date;
 - after: the event can start only after another event.
+
+Each row already has the column chance, a percent for each month. Thus
+two games do not have the same date, and no new clause is necessary.
 
 The rows of the Three Kingdoms game name an officer by the Big5 bytes.
 The rows of the Europe pack name an officer by the English key, for
@@ -466,8 +467,12 @@ The new effects are these:
 - seize: an officer takes the rule of his faction;
 - rename: the faction gets a new English name;
 - target: the AI of the faction marches on a city;
-- city_loss: a city loses a percent of its walls and its people;
+- city_loss: a city loses a percent of its walls and its troops;
 - see_holder: a see of E6 gets a new holder, or no holder.
+
+The stage e7_story (misc/stages/e7_story.md) adds all of these effects
+except see_holder. E6 adds see_holder and the parts of the events that
+touch a see.
 
 Each new condition and each new effect gets a unit test first in
 tests/unit/playable_tests.cpp, beside the tests of the M9 events. The Three Kingdoms events do not use
@@ -573,8 +578,10 @@ The notes of the result:
    the same in both packs. Thus the lives, the native names and the
    Wikipedia URLs stay the same.
 4. Research the officers of the new factions, with two sources for each
-   life (docs/europe/SOURCES.md). A later stage does this step. The stage
-   e8_maps (misc/stages/e8_maps.md) does the other steps.
+   life (docs/europe/SOURCES.md). The stage e8_factions
+   (misc/stages/e8_factions.md) does this step. It also puts Tbilisi in
+   the place of Bologna, for Georgia. The stage e8_maps
+   (misc/stages/e8_maps.md) did the other steps.
 5. Add one row for each pack to scenarios.tsv of the placeholder pack.
    The new game screen then lists the two games of 1200.
 6. Add a feature test for each pack, as the test of the prototype.
@@ -635,8 +642,8 @@ wikipedia: 3, 4, 19, 22, 33, 35, 38, 57, 78 and 82.
 | E4 | Lives and Wikipedia URLs, the officer panel | no | done |
 | E5 | Coats of arms on the flags | Q-E3 | list done in docs/europe/ARMS.md, external art |
 | E6 | The authorities of the church | Q-E2 | design |
-| E7 | The story mode and the events during the game | no | design |
-| E8 | The west map and the east map, with Antioch on the east map | no | done, 42 cities for each map and 11 scenarios in the list |
+| E7 | The story mode and the events during the game | no | brief in misc/stages/e7_story.md, after e8_factions |
+| E8 | The west map and the east map, with Antioch on the east map | no | maps done. The new factions of the east are in misc/stages/e8_factions.md |
 
 ## The stage runs
 misc/run_stages.py runs the stages as headless Claude Code sessions, in
@@ -649,7 +656,8 @@ The stages that need no answer now:
 - e4_officer_panel: the life and the Wikipedia button of E4;
 - bio_check: a second source for each life of E4.
 
-E5, E6 and E7 get a brief after the player answers their questions.
+The stages e8_maps, e8_factions and e7_story need no answer either. E5
+and E6 get a brief after the player answers Q-E3 and Q-E2.
 
 ### The order of the stages
 misc/stages/plan.tsv gives the order. A stage waits for another stage only
@@ -668,11 +676,11 @@ flowchart LR
         q3{{Q-E3 licence}} --> art[e5 art<br/>external, Drive folder] --> e5[e5_arms<br/>flags, textures]
         q1{{Q-E2}} --> e6[e6_church<br/>sim rules, engine_api]
         e8[e8_maps<br/>west and east packs] --> e6
-        e7[e7_story<br/>story pages, events]
-        e8 --> e7
+        e8 --> e8f[e8_factions<br/>new factions of the east]
+        e8f --> e7[e7_story<br/>story pages, events]
+        e7 --> e6
     end
     e4 --> e5
-    e6 --> e7
     bio --> e7
     e4 --> check[check<br/>all tests, e2e, web build]
     bio --> check
@@ -685,10 +693,12 @@ The reasons for each arrow:
   misc/make_scenario.py.
 - e4_officer_panel before e5_arms: both add a function to the platform
   contract in code/hexdom.h.
-- e6_church before e7_story: the story tells the rules of the
-  authorities.
-- e8_maps before e6_church and e7_story: the sees and the events need
-  the cities of the two maps.
+- e7_story before e6_church: E6 waits for Q-E2. Thus e7_story leaves out
+  the sees, and e6_church adds see_holder to the rows of e7_story.
+- e8_maps before e6_church and e8_factions: the sees and the factions
+  need the cities of the two maps.
+- e8_factions before e7_story: both edit officers.tsv of the east pack.
+  The events need the owners of Acre and Antioch.
 - bio_check before e7_story: the pages of the rulers use the checked
   facts.
 - e6_church edits code/sim/ and engine_api. It can run in parallel with
