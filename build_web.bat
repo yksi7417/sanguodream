@@ -1,6 +1,7 @@
 @echo off
 REM The web build (docs/WEB.md).
-REM   build_web.bat         the game: build\web\index.html, .js, .wasm and .data
+REM   build_web.bat         the game: build\web\index.html, .js, .wasm and .data, and
+REM                         shared_game.js
 REM   build_web.bat test-game   the game with the test hooks of the Playwright tests
 REM                         (code\wasm_test_hooks.h) in build\webtest. The site never uses it.
 REM   build_web.bat tests   the unit tests and the feature tests as WebAssembly
@@ -86,6 +87,9 @@ set GAME_LINK=-sUSE_GLFW=3 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sALLOW_M
   --shell-file ..\web\shell.html
 call em++ -std=c++17 -O2 -fno-exceptions -fno-rtti -include %IMCONFIG% %DEFINES% %GAME_DEFINES% %WARN% %INCLUDES% ..\code\wasm_hexdom.cpp %OBJ%\imgui_web.a ^
   -o %OUT%\index.html %GAME_LINK% %GAME_EXPORTS% %PACK%
+if errorlevel 1 set ERR=1
+REM The page loads the script of a shared game from a second file (web\shell.html, loadGame).
+copy /y ..\web\shared_game.js %OUT%\shared_game.js >nul
 if errorlevel 1 set ERR=1
 goto :done
 

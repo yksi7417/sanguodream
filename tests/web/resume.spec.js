@@ -57,7 +57,9 @@ test("two players stop a game and continue it from the same step on the next day
   for (const page of [hostAgain, guestAgain]) {
     await page.waitForFunction(() => typeof Module !== "undefined" && typeof Module._wasm_test_state === "function",
                                null, { timeout: 120_000 });
-    await expect.poll(async () => (await h.gameState(page)).shared, { timeout: 120_000 }).toBe(1);
+    // Before its first frame, the hook has no engine and throws.
+    await expect.poll(async () => { try { return (await h.gameState(page)).shared; } catch (error) { return -1; } },
+                      { timeout: 120_000 }).toBe(1);
   }
 
   // Both pages go on from the snapshot and the log after it, at the step of the day before.

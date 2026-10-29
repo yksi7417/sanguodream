@@ -13,13 +13,14 @@ RUN useradd --system --no-create-home hexdom
 WORKDIR /srv
 COPY web/requirements.txt /srv/requirements.txt
 RUN pip install --no-cache-dir --requirement /srv/requirements.txt
-COPY web/server.py web/auth.py web/storage.py web/pages.py web/broadcast.py web/game_files.py web/rooms.py web/referee.py /srv/
+COPY web/server.py web/http_common.py web/games_api.py web/auth.py web/storage.py web/pages.py web/broadcast.py \
+     web/game_files.py web/rooms.py web/room_state.py web/room_socket.py web/referee.py /srv/
 # The referee reads the rules and the maps of the packs from ../data (.dockerignore keeps out the models).
 COPY build/referee.js build/referee.wasm /srv/referee/
 COPY data /srv/data
-COPY build/web/index.html build/web/index.js build/web/index.wasm build/web/index.data /srv/web/
+COPY build/web/index.html build/web/index.js build/web/index.wasm build/web/index.data build/web/shared_game.js /srv/web/
 # The server sends FILE.gz to a browser that accepts gzip.
-RUN gzip --keep -9 /srv/web/index.html /srv/web/index.js /srv/web/index.wasm /srv/web/index.data
+RUN gzip --keep -9 /srv/web/index.html /srv/web/index.js /srv/web/index.wasm /srv/web/index.data /srv/web/shared_game.js
 
 USER hexdom
 EXPOSE 8080

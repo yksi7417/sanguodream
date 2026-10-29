@@ -33,6 +33,7 @@ The parts of the web platform layer:
 | code/wasm_portraits.h | The default portraits and the generated faces as WebGL2 textures. |
 | code/wasm_imconfig.h | 32-bit ImGui indices. The draw list of the main map has more than 65536 vertices. |
 | web/shell.html | The page: a canvas that fills the window. |
+| web/shared_game.js | The script of a shared game: the lobby and the socket of a room. The page loads it before the game. |
 
 The rules of the web build:
 - The current folder is /build, and index.data holds /data and the three
@@ -104,9 +105,13 @@ A member is a user who did these two steps:
 | web/storage.py | The records of the users and the saves, in an S3 bucket or in a local folder. |
 | web/broadcast.py | The YouTube broadcast, an option. |
 | web/game_files.py | index.wasm and index.data in the bucket, and their presigned addresses for the members |
+| web/http_common.py | The keys of the application, the session of the user and the check of the origin, for server.py and games_api.py |
+| web/games_api.py | The routes of the shared games: the lobby, the start image, the snapshots, the invite link and the socket |
 | web/rooms.py | The rooms of the shared games: the seats, the order of the steps, the checksums and the log in the bucket (docs/MULTIPLAYER.md) |
+| web/room_state.py | The format of a step, the limits and the checks of one room, for rooms.py |
+| web/room_socket.py | The messages of the socket of a room and the loops of the flush and of the timers, for rooms.py |
 | web/requirements.txt | The Python packages of the server, with exact versions. |
-| Dockerfile | The image: Python 3.12, ffmpeg, the server and the four files of build/web. It does not compile the game. |
+| Dockerfile | The image: Python 3.12, ffmpeg, the server and the five files of build/web. It does not compile the game. |
 | .dockerignore | It lets only the server files and the web build into the context of the builder. |
 | fly.toml | The app, the region iad, port 8080 and the health check /healthz. The machine stops when nobody uses it. |
 | deploy_web.bat | It runs build_web.bat, then `flyctl deploy --remote-only --ha=false`. |

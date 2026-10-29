@@ -140,6 +140,16 @@ class DiscordTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(Exception):
             await self.client.ws_connect(f"/api/games/{room['gid']}/socket?token=1", headers={"Origin": "https://evil.test"})
 
+    async def test_discord_can_put_the_pages_of_the_site_in_its_frame(self):
+        response = await self.client.get("/login?frame_id=test")
+        self.assertEqual(response.status, 200)
+        self.assertNotIn("X-Frame-Options", response.headers)   # DENY stops the frame of the Activity
+        ancestors = response.headers["Content-Security-Policy"]
+        self.assertTrue(ancestors.startswith("frame-ancestors 'self' "))
+        self.assertIn("https://discord.com", ancestors)
+        self.assertIn("https://*.discordsays.com", ancestors)
+        self.assertNotIn(" *", ancestors)   # other sites cannot frame the site
+
     async def test_one_room_for_each_voice_channel(self):
         token = await self.member()
         first = await self.make_room(token, channel="5550001")

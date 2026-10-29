@@ -273,8 +273,9 @@ of the period, or a later attribution with a note.
 ## E6. The authorities of the church
 This section is a design. On 2026-10-28 the player chose the Pentarchy
 as the five authorities (Q-E1). The player also chose a new city for
-Antioch (Q-E7). The work starts after the answer to Q-E2 and after the
-two maps of E8.
+Antioch (Q-E7). On 2026-10-29 the player chose two caliphs as the
+authorities of the Muslim factions (Q-E2). The stage e6_church
+(misc/stages/e6_church.md) does the work.
 
 In the Three Kingdoms game, the Han emperor gives legitimacy. The faction
 that holds his city gains technique points each month. Officers who
@@ -315,7 +316,8 @@ The Muslim rulers took their legitimacy from a caliph. The rules of the
 caliph are not the rules of the church:
 - The Ayyubids named the Abbasid caliph al-Nasir li-Din Allah in the
   Friday sermon and on their coins. He ruled in Baghdad from 1180 to 1225.
-  Baghdad is not on the map.
+  Baghdad is a city of the east map, and the Abbasid faction holds it
+  (E8).
 - The Almohads did not accept Baghdad. Their own ruler had the title of
   caliph.
 - The Banu Ghaniya were heirs of the Almoravids. The Almoravids accepted
@@ -362,6 +364,30 @@ The proposed rules:
 
 The facts of this section come from sources that the research checked.
 The list of sources is in the section "The sources".
+
+### The two caliphs
+The player chose two caliphs on 2026-10-29 (Q-E2). The game then has
+seven authorities: the five sees and two caliphs.
+
+| Authority | Seat | Map of the seat | The factions that it recognizes |
+|---|---|---|---|
+| The Abbasid caliph | Baghdad | east | ayyubid, rum, ghaniya, and the Mamluks after E7 |
+| The Almohad caliph | Marrakesh | west | almohad |
+
+The rules of a caliph are the rules of a see:
+- Each month, the faction that holds the seat gains technique points.
+  Devout officers of that faction gain loyalty.
+- A Muslim ruler needs the recognition of his caliph for the rank of
+  king or emperor.
+- If the seat is not on the map, the caliph acts without a city. A
+  faction then gets recognition only from friendliness with the holder.
+
+The reasons for two caliphs:
+- The Almohad rulers had the title of caliph and did not accept Baghdad.
+- The Ayyubids named the Abbasid caliph in the Friday sermon.
+- In 1261 Baybars put an Abbasid caliph in Cairo after the Mongols took
+  Baghdad in 1258. Thus a caliph can move to a new seat. The story of the
+  Mamluks uses this fact.
 
 ### The city of Antioch
 The player chose to add Antioch as a city (Q-E7). Antioch is at
@@ -710,7 +736,7 @@ wikipedia: 3, 4, 19, 22, 33, 35, 38, 57, 78 and 82.
 | E3 | Native names in officers.tsv and the Names setting | Q-E4 for Arabic | done, Latin script only |
 | E4 | Lives and Wikipedia URLs, the officer panel | no | done |
 | E5 | Coats of arms on the flags | Q-E3 | list done in docs/europe/ARMS.md, external art |
-| E6 | The authorities of the church | Q-E2 | design |
+| E6 | The authorities of the church and the two caliphs | Q-E2, answered | brief in misc/stages/e6_church.md |
 | E7 | The story mode and the events during the game | no | done, except the sees (E6) |
 | E8 | The west map and the east map, with Antioch on the east map | no | done. The east map has 17 factions |
 
@@ -725,8 +751,9 @@ The stages that need no answer now:
 - e4_officer_panel: the life and the Wikipedia button of E4;
 - bio_check: a second source for each life of E4.
 
-The stages e8_maps, e8_factions and e7_story need no answer either. E5
-and E6 get a brief after the player answers Q-E3 and Q-E2.
+The stages e8_maps, e8_factions and e7_story need no answer either. The
+player answered Q-E2 on 2026-10-29, and e6_church has its brief. E5 gets
+a brief after the art arrives and the player answers Q-E3.
 
 ### The order of the stages
 misc/stages/plan.tsv gives the order. A stage waits for another stage only
@@ -743,7 +770,7 @@ flowchart LR
     end
     subgraph wait["Waits for answers"]
         q3{{Q-E3 licence}} --> art[e5 art<br/>external, Drive folder] --> e5[e5_arms<br/>flags, textures]
-        q1{{Q-E2}} --> e6[e6_church<br/>sim rules, engine_api]
+        q1{{Q-E2 answered}} --> e6[e6_church<br/>sees, caliphs, sim rules, engine_api]
         e8[e8_maps<br/>west and east packs] --> e6
         e8 --> e8f[e8_factions<br/>new factions of the east]
         e8f --> e7[e7_story<br/>story pages, events]
@@ -815,7 +842,9 @@ merges the work of the first in its rebase.
   the player? Another choice is a group of the West: the pope and four
   great archbishops. The answer of 2026-10-28: the Pentarchy.
 - Q-E2. The Muslim factions. Does the caliph of Baghdad act as a sixth
-  authority for the Ayyubids and the Seljuks?
+  authority for the Ayyubids and the Seljuks? Closed on 2026-10-29: the
+  player chose two caliphs, Baghdad and Marrakesh (E6, "The two
+  caliphs").
 - Q-E3. The licence of the arms. Can the game use CC BY-SA images? Each
   one then needs credits, and a changed image keeps CC BY-SA.
 - Q-E4. The scripts. Must the UI show Arabic, Greek and Cyrillic names in
