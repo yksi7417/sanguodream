@@ -137,14 +137,20 @@ decompilation of it.
                          one renderer goes into the other in the same commit
 - code/wasm_portraits.h  the portraits and the generated faces of the web
 - code/wasm_imconfig.h   the ImGui settings of the web build
-- web/shell.html         the page of the web build
+- web/shell.html         the page of the web build. It loads
+                         web/shared_game.js, the lobby and the socket of a
+                         shared game
 - web/server.py          the server of the fly.io site (Dockerfile,
-                         fly.toml). web/auth.py signs in the users, and
+                         fly.toml). web/http_common.py has the parts that
+                         its routes share, and web/games_api.py has the
+                         routes of the shared games. web/auth.py signs in the users, and
                          web/storage.py keeps the saves in S3.
                          web/game_files.py serves index.wasm and
                          index.data from the bucket to members.
                          web/rooms.py keeps the rooms of the shared games
                          and relays their steps (docs/MULTIPLAYER.md).
+                         web/room_state.py has the checks of one room, and
+                         web/room_socket.py has the messages of its socket.
                          web/broadcast.py relays the optional YouTube
                          broadcast
 - code/wasm_referee.cpp  the referee of the shared games: a headless engine

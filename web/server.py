@@ -5,7 +5,7 @@ Usage: python -u web/server.py [FOLDER]
 The server gives the files of FOLDER (default /srv/web) to a member. A
 member is a user who signed in (auth.py) and typed the house password one
 time. The server also keeps the saves of each member (storage.py), relays
-the steps of the shared games (rooms.py) and, as an option, relays a
+the steps of the shared games (games_api.py, rooms.py) and, as an option, relays a
 YouTube broadcast (broadcast.py).
 
 The environment variables:
@@ -32,7 +32,6 @@ import hmac
 import json
 import mimetypes
 import os
-import re
 import sys
 import time
 import urllib.parse
@@ -43,105 +42,28 @@ from aiohttp import web
 import auth
 import broadcast
 import game_files
+import games_api
 import pages
 import referee
 import rooms
 import storage
+from http_common import (KEY_ADMINS, KEY_BROADCAST, KEY_FAILURES, KEY_GAME_FILES, KEY_HOUSE, KEY_HTTP,
+                         KEY_PROVIDERS, KEY_ROOMS, KEY_ROOT, KEY_SECRET, KEY_STORAGE, current_user,
+                         public_url, read_object, redirect, require_member, same_origin, session_token,
+                         set_cookie)
 
 DEFAULT_FOLDER = "/srv/web"
 DEFAULT_PORT = 8080
 FAILED_PASSWORD_DELAY_SECONDS = 1.0
 MAX_FAILED_PASSWORDS = 10
 FAILED_PASSWORD_WINDOW_SECONDS = 3600
-GAME_FILES = ("index.html", "index.js", "index.wasm", "index.data")
+GAME_FILES = ("index.html", "index.js", "index.wasm", "index.data", "shared_game.js")
 
 mimetypes.add_type("application/wasm", ".wasm")
 mimetypes.add_type("text/javascript", ".js")
 
-KEY_SECRET = web.AppKey("secret", bytes)
-KEY_HOUSE = web.AppKey("house", bytes)
-KEY_ROOT = web.AppKey("root", str)
-KEY_PROVIDERS = web.AppKey("providers", dict)
-KEY_STORAGE = web.AppKey("storage", object)
-KEY_HTTP = web.AppKey("http", aiohttp.ClientSession)
-KEY_BROADCAST = web.AppKey("broadcast", broadcast.Broadcast)
-KEY_FAILURES = web.AppKey("failures", dict)
-KEY_ADMINS = web.AppKey("admins", frozenset)
-KEY_GAME_FILES = web.AppKey("game_files", game_files.GameFiles)
-KEY_ROOMS = web.AppKey("rooms", rooms.Rooms)
 
-
-# ---- helpers ---------------------------------------------------------------
-
-def public_url(request):
-    configured = os.environ.get("PUBLIC_URL", "").rstrip("/")
-    if configured:
-        return configured
-    fly_app = os.environ.get("FLY_APP_NAME", "")
-    if fly_app:
-        return f"https://{fly_app}.fly.dev"
-    return f"{request.scheme}://{request.host}"
-
-
-def redirect(location):
-    return web.Response(status=302, headers={"Location": location})
-
-
-def secure_cookies(request):
-    return public_url(request).startswith("https://")
-
-
-def set_cookie(response, request, name, value, max_age, same_site="Lax"):
-    secure = secure_cookies(request)
-    if same_site == "None" and not secure:
-        same_site = "Lax"   # A browser refuses SameSite=None without Secure.
-    response.set_cookie(name, value, max_age=max_age, path="/", httponly=True, secure=secure, samesite=same_site)
-
-
-async def user_of_token(app, token):
-    """Give the record of the user of a signed session token, or None."""
-    session = auth.verify(app[KEY_SECRET], token)
-    if not session:
-        return None
-    try:
-        return await storage.read_user(app[KEY_STORAGE], session.get("uid", ""))
-    except ValueError:
-        return None
-
-
-async def current_user(request):
-    """Give the record of the signed-in user, or None. The page of the Discord Activity
-    has no cookie: it sends the session token in the header Authorization (MP8)."""
-    token = request.cookies.get(auth.SESSION_COOKIE, "")
-    header = request.headers.get("Authorization", "")
-    if not token and header.startswith("Bearer "):
-        token = header[len("Bearer "):].strip()
-    return await user_of_token(request.app, token)
-
-
-def session_token(request, uid):
-    return auth.sign(request.app[KEY_SECRET], {"uid": uid, "exp": int(time.time()) + auth.SESSION_SECONDS})
-
-
-async def require_member(request):
-    user = await current_user(request)
-    if user and user.get("member"):
-        return user
-    if request.path.startswith("/api/"):
-        raise web.HTTPUnauthorized()
-    raise web.HTTPFound("/house" if user else "/login")
-
-
-def same_origin(request):
-    """A form post or an upload must come from a page of this site. The page of the
-    Discord Activity has the origin <client id>.discordsays.com (MP8)."""
-    origin = request.headers.get("Origin")
-    if origin is None:
-        return True
-    host = urllib.parse.urlsplit(origin).netloc
-    discord = request.app[KEY_PROVIDERS].get("discord")
-    return host == request.host or bool(discord and host == f"{discord.client_id}.discordsays.com")
-
+# ---- the headers of each response --------------------------------------------
 
 @web.middleware
 async def security_headers(request, handler):
@@ -281,18 +203,6 @@ async def api_session_token(request):
     return web.json_response({"token": session_token(request, user["uid"])}, headers={"Cache-Control": "no-store"})
 
 
-async def api_discord_channel(request):
-    """MP8: the room of a voice channel of Discord, or 404."""
-    await require_member(request)
-    try:
-        room = await request.app[KEY_ROOMS].room_of_channel(request.match_info["channel"])
-    except rooms.RoomError:
-        room = None
-    if not room:
-        raise web.HTTPNotFound()
-    return web.json_response(room.public(), headers={"Cache-Control": "no-store"})
-
-
 async def house_form(request):
     user = await current_user(request)
     if not user:
@@ -417,7 +327,7 @@ async def api_broadcast(request):
 
 # ---- the game files ----------------------------------------------------------
 
-PUBLIC_GAME_FILES = ("index.js",)   # MP8: the code of the page, without data; a page without the cookie loads it
+PUBLIC_GAME_FILES = ("index.js", "shared_game.js")   # MP8: the code of the page, without data; a page without the cookie loads it
 
 
 def activity_page(request):
@@ -433,8 +343,8 @@ def activity_page(request):
 async def game_file(request):
     if not activity_page(request):
         await require_member(request)
-    following = request.cookies.get(NEXT_COOKIE, "")
-    if request.path == "/" and INVITE_PATH.fullmatch(following):
+    following = request.cookies.get(games_api.NEXT_COOKIE, "")
+    if request.path == "/" and games_api.INVITE_PATH.fullmatch(following):
         return redirect(following)   # an invite link from before the sign-in
     name = request.match_info.get("name") or "index.html"
     if name not in GAME_FILES:
@@ -455,289 +365,6 @@ async def api_game_files(request):
     if not files.build:
         raise web.HTTPNotFound()
     return web.json_response(files.describe(request.app[KEY_STORAGE]), headers={"Cache-Control": "no-store"})
-
-
-# ---- the shared games (rooms.py) -----------------------------------------------
-
-MAX_JSON_BYTES = 8 * 1024   # the body of a request of the rooms; the saves have their own limit
-
-
-async def read_object(request):
-    if request.content_length is not None and request.content_length > MAX_JSON_BYTES:
-        raise web.HTTPRequestEntityTooLarge(max_size=MAX_JSON_BYTES, actual_size=request.content_length)
-    data = await request.content.read(MAX_JSON_BYTES + 1)
-    if len(data) > MAX_JSON_BYTES:
-        raise web.HTTPRequestEntityTooLarge(max_size=MAX_JSON_BYTES, actual_size=len(data))
-    try:
-        body = json.loads(data)
-    except ValueError:
-        raise web.HTTPBadRequest(text="bad json")
-    if not isinstance(body, dict):
-        raise web.HTTPBadRequest(text="bad json")
-    return body
-
-
-def refused(error):
-    return web.json_response({"error": str(error)}, status=409)
-
-
-async def find_room(request):
-    room = await request.app[KEY_ROOMS].get(request.match_info["gid"])
-    if not room:
-        raise web.HTTPNotFound()
-    return room
-
-
-async def api_games(request):
-    """The games of the member: the games of the host and of the seats."""
-    user = await require_member(request)
-    games = await request.app[KEY_ROOMS].games_of(user["uid"])
-    return web.json_response({"games": [room.summary(user["uid"]) for room in games]}, headers={"Cache-Control": "no-store"})
-
-
-async def api_games_create(request):
-    user = await require_member(request)
-    body = await read_object(request)
-    channel = body.get("channel")   # MP8: the voice channel of a Discord Activity: one room for each channel
-    try:
-        if channel is not None and await request.app[KEY_ROOMS].room_of_channel(channel):
-            raise rooms.RoomError("the voice channel has a room")
-        room = await request.app[KEY_ROOMS].create(
-            user, body.get("name"), body.get("scenario"), body.get("pack"), request.app[KEY_GAME_FILES].build or "",
-            body.get("mode"), body.get("turn_seconds"), body.get("factions"))
-        if channel is not None:
-            await request.app[KEY_ROOMS].link_channel(room, channel)
-    except rooms.RoomError as error:
-        return refused(error)
-    print(f"rooms: {user['name']} made the game {room.gid}", flush=True)
-    return web.json_response(room.public(), status=201)
-
-
-async def api_game(request):
-    user = await require_member(request)
-    room = await find_room(request)
-    data = room.public()
-    data["you_host"] = user["uid"] == room.record["host"]   # the lobby shows the options of the host
-    data["you_viewer"] = room.is_viewer(user["uid"])        # MP7: the page opens the socket, or it offers "Watch"
-    return web.json_response(data, headers={"Cache-Control": "no-store"})
-
-
-async def api_game_seat(request):
-    user = await require_member(request)
-    room = await find_room(request)
-    body = await read_object(request)
-    force = body.get("force")
-    if force is not None and not isinstance(force, int):
-        raise web.HTTPBadRequest(text="bad force")
-    async with room.lock:
-        try:
-            await request.app[KEY_ROOMS].take_seat(room, user, force)
-        except rooms.RoomError as error:
-            return refused(error)
-    return web.json_response(room.public())
-
-
-async def api_game_options(request):
-    """The host sets the mode, the time of a turn and the pause option (MP4)."""
-    user = await require_member(request)
-    room = await find_room(request)
-    body = await read_object(request)
-    async with room.lock:
-        try:
-            await request.app[KEY_ROOMS].set_options(room, user, body)
-        except rooms.RoomError as error:
-            return refused(error)
-    return web.json_response(room.public())
-
-
-async def api_game_watch(request):
-    """MP7: a member of the house watches a game that runs."""
-    user = await require_member(request)
-    room = await find_room(request)
-    async with room.lock:
-        try:
-            await request.app[KEY_ROOMS].watch(room, user)
-        except rooms.RoomError as error:
-            return refused(error)
-    return web.json_response(room.public())
-
-
-async def api_game_start(request):
-    user = await require_member(request)
-    room = await find_room(request)
-    async with room.lock:
-        try:
-            await request.app[KEY_ROOMS].start(room, user)
-        except rooms.RoomError as error:
-            return refused(error)
-    return web.json_response(room.public())
-
-
-async def api_game_start_image_put(request):
-    user = await require_member(request)
-    room = await find_room(request)
-    if request.content_length is not None and request.content_length > rooms.MAX_START_IMAGE_BYTES:
-        raise web.HTTPRequestEntityTooLarge(max_size=rooms.MAX_START_IMAGE_BYTES, actual_size=request.content_length)
-    data = await request.read()
-    async with room.lock:
-        try:
-            await request.app[KEY_ROOMS].put_start_image(room, user, data)
-        except rooms.RoomError as error:
-            return refused(error)
-    return web.json_response(room.public())
-
-
-async def api_game_start_image_get(request):
-    user = await require_member(request)
-    room = await find_room(request)
-    try:
-        data = await request.app[KEY_ROOMS].start_image(room, user)
-    except rooms.RoomError as error:
-        return refused(error)
-    if data is None:
-        raise web.HTTPNotFound()
-    return web.Response(body=data, content_type="application/octet-stream", headers={"Cache-Control": "no-store"})
-
-
-async def api_game_snapshot_put(request):
-    """MP5: the author of the step that ends a game turn puts the image of the state.
-    The query gives the checksum of the state."""
-    user = await require_member(request)
-    room = await find_room(request)
-    if request.content_length is not None and request.content_length > rooms.MAX_START_IMAGE_BYTES:
-        raise web.HTTPRequestEntityTooLarge(max_size=rooms.MAX_START_IMAGE_BYTES, actual_size=request.content_length)
-    try:
-        step = int(request.match_info["step"])
-    except ValueError:
-        raise web.HTTPBadRequest(text="bad step")
-    data = await request.read()
-    async with room.lock:
-        try:
-            await request.app[KEY_ROOMS].put_snapshot(room, user, step, request.query.get("checksum"), data)
-        except rooms.RoomError as error:
-            return refused(error)
-    return web.json_response({"snapshot": step})
-
-
-async def api_game_snapshot_latest(request):
-    """MP5: the latest snapshot. The header X-Snapshot-Step gives its step."""
-    user = await require_member(request)
-    room = await find_room(request)
-    try:
-        latest = await request.app[KEY_ROOMS].latest_snapshot(room, user)
-    except rooms.RoomError as error:
-        return refused(error)
-    if latest is None:
-        raise web.HTTPNotFound(text="no snapshot")
-    step, data = latest
-    return web.Response(body=data, content_type="application/octet-stream",
-                        headers={"Cache-Control": "no-store", "X-Snapshot-Step": str(step)})
-
-
-async def api_game_desync_put(request):
-    """MP6: the image of the state of a player after the step of a desync, for the developer."""
-    user = await require_member(request)
-    room = await find_room(request)
-    if request.content_length is not None and request.content_length > rooms.MAX_START_IMAGE_BYTES:
-        raise web.HTTPRequestEntityTooLarge(max_size=rooms.MAX_START_IMAGE_BYTES, actual_size=request.content_length)
-    data = await request.read()
-    async with room.lock:
-        try:
-            await request.app[KEY_ROOMS].put_desync_image(room, user, int(request.match_info["step"]), data)
-        except rooms.RoomError as error:
-            return refused(error)
-    return web.json_response({"desync": int(request.match_info["step"])})
-
-
-NEXT_COOKIE = "hexdom_next"
-NEXT_SECONDS = 3600
-INVITE_PATH = re.compile(r"/r/[A-Z]{6}")
-
-
-async def invite(request):
-    """The invite link of a room: a member goes to the game page of the room.
-    A visitor signs in first, and the page "/" then sends the visitor back here."""
-    user = await current_user(request)
-    if not user or not user.get("member"):
-        response = redirect("/house" if user else "/login")
-        if INVITE_PATH.fullmatch(request.path):
-            set_cookie(response, request, NEXT_COOKIE, request.path, NEXT_SECONDS)
-        return response
-    room = await request.app[KEY_ROOMS].find_code(request.match_info["code"].upper())
-    response = redirect(f"/?game={room.gid}") if room else web.Response(status=404, text="no game has this invite code")
-    response.del_cookie(NEXT_COOKIE, path="/")
-    return response
-
-
-TOKEN_HELLO_SECONDS = 10   # MP8: a socket without the cookie must send the hello with the token in this time
-TOKEN_CLOSE_CODE = 4401    # MP8: the close code of a bad token: 4000 + the HTTP status 401
-
-
-async def token_hello(request, socket, room):
-    """MP8: the page of the Discord Activity has no cookie. Its first message is the hello
-    with the session token. Give the user and the hello, or (None, None) after a 401."""
-    try:
-        message = await socket.receive(timeout=TOKEN_HELLO_SECONDS)
-        hello = json.loads(message.data) if message.type == aiohttp.WSMsgType.TEXT else {}
-    except (asyncio.TimeoutError, ValueError, TypeError):
-        hello = {}
-    token = hello.get("token") if isinstance(hello, dict) else None
-    user = await user_of_token(request.app, token if isinstance(token, str) else "")
-    if user and user.get("member") and room.is_viewer(user["uid"]):
-        return user, message.data
-    await socket.send_json({"type": "error", "reason": "401"})
-    await socket.close(code=TOKEN_CLOSE_CODE, message=b"no member session")
-    return None, None
-
-
-async def api_game_socket(request):
-    """The WebSocket of a room: the steps, the checksums and the chat (rooms.py). A page
-    without the cookie asks for "?token=1" and sends its session token in the hello (MP8)."""
-    by_token = request.query.get("token") == "1" and not request.cookies.get(auth.SESSION_COOKIE)
-    user = None if by_token else await require_member(request)
-    if not same_origin(request):
-        raise web.HTTPForbidden(text="cross-origin request")
-    room = await find_room(request)
-    if user and not room.is_viewer(user["uid"]):
-        raise web.HTTPForbidden(text="no seat in this game")
-    socket = web.WebSocketResponse(max_msg_size=rooms.MAX_STEP_BYTES, heartbeat=rooms.PING_SECONDS)
-    await socket.prepare(request)
-    hello = None
-    if by_token:
-        user, hello = await token_hello(request, socket, room)
-        if not user:
-            return socket
-    peer = rooms.Peer(socket, user)
-    async with room.lock:
-        old = rooms.join(room, peer)
-    if old:
-        await old.socket.close(code=aiohttp.WSCloseCode.POLICY_VIOLATION, message=b"a new socket of the same member")
-    try:
-        if hello:
-            async with room.lock:   # the hello of the token: the first message of the socket
-                try:
-                    await rooms.handle_text(request.app[KEY_ROOMS], room, peer, hello)
-                except rooms.RoomError as error:
-                    await peer.send_json({"type": "error", "reason": str(error)})
-        async for message in socket:
-            if message.type not in (aiohttp.WSMsgType.TEXT, aiohttp.WSMsgType.BINARY) or peer.dead:
-                break
-            async with room.lock:
-                try:
-                    if message.type == aiohttp.WSMsgType.TEXT:
-                        ok = await rooms.handle_text(request.app[KEY_ROOMS], room, peer, message.data)
-                    else:
-                        ok = await rooms.handle_binary(request.app[KEY_ROOMS], room, peer, message.data)
-                except rooms.RoomError as error:
-                    ok = True
-                    await peer.send_json({"type": "error", "reason": str(error)})
-            if not ok:
-                await socket.close(code=aiohttp.WSCloseCode.POLICY_VIOLATION, message=b"too many messages")
-                break
-    finally:
-        async with room.lock:
-            await rooms.leave(request.app[KEY_ROOMS], room, peer)
-    return socket
 
 
 async def health(request):
@@ -799,23 +426,23 @@ def make_app(root):
         web.get("/api/game-files", api_game_files),
         web.get("/api/discord/config", api_discord_config),
         web.post("/api/discord/token", api_discord_token),
-        web.get("/api/discord/channel/{channel}", api_discord_channel),
+        web.get("/api/discord/channel/{channel}", games_api.api_discord_channel),
         web.post("/api/house", api_house),
         web.get("/api/session-token", api_session_token),
-        web.get("/api/games", api_games),
-        web.post("/api/games", api_games_create),
-        web.get("/api/games/{gid}", api_game),
-        web.post("/api/games/{gid}/seat", api_game_seat),
-        web.post("/api/games/{gid}/options", api_game_options),
-        web.post("/api/games/{gid}/watch", api_game_watch),
-        web.post("/api/games/{gid}/start", api_game_start),
-        web.get("/api/games/{gid}/socket", api_game_socket),
-        web.put("/api/games/{gid}/start-image", api_game_start_image_put),
-        web.get("/api/games/{gid}/start-image", api_game_start_image_get),
-        web.put("/api/games/{gid}/snap/{step:[0-9]{1,9}}", api_game_snapshot_put),
-        web.get("/api/games/{gid}/snap/latest", api_game_snapshot_latest),
-        web.put("/api/games/{gid}/desync/{step:[0-9]{1,9}}", api_game_desync_put),
-        web.get("/r/{code}", invite),
+        web.get("/api/games", games_api.api_games),
+        web.post("/api/games", games_api.api_games_create),
+        web.get("/api/games/{gid}", games_api.api_game),
+        web.post("/api/games/{gid}/seat", games_api.api_game_seat),
+        web.post("/api/games/{gid}/options", games_api.api_game_options),
+        web.post("/api/games/{gid}/watch", games_api.api_game_watch),
+        web.post("/api/games/{gid}/start", games_api.api_game_start),
+        web.get("/api/games/{gid}/socket", games_api.api_game_socket),
+        web.put("/api/games/{gid}/start-image", games_api.api_game_start_image_put),
+        web.get("/api/games/{gid}/start-image", games_api.api_game_start_image_get),
+        web.put("/api/games/{gid}/snap/{step:[0-9]{1,9}}", games_api.api_game_snapshot_put),
+        web.get("/api/games/{gid}/snap/latest", games_api.api_game_snapshot_latest),
+        web.put("/api/games/{gid}/desync/{step:[0-9]{1,9}}", games_api.api_game_desync_put),
+        web.get("/r/{code}", games_api.invite),
         web.get("/", game_file),
         web.get("/{name}", game_file),
     ])

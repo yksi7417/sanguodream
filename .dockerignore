@@ -8,6 +8,10 @@
 !web/broadcast.py
 !web/game_files.py
 !web/rooms.py
+!web/room_state.py
+!web/room_socket.py
+!web/http_common.py
+!web/games_api.py
 !web/referee.py
 !build/referee.js
 !build/referee.wasm
@@ -25,3 +29,4 @@ data/**/*.stackdump
 !build/web/index.js
 !build/web/index.wasm
 !build/web/index.data
+!build/web/shared_game.js

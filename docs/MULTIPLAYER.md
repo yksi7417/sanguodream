@@ -99,7 +99,7 @@ applies a step of a player.
 |---|---|---|
 | The step codec | code/sim/sim_wire.cpp (new) | Writes a step to bytes and reads it back. It has no I/O. |
 | The multiplayer mode of the engine | code/engine/engine_multiplayer.cpp (new) | The seats, the queue of outgoing steps, the apply of a remote step, the lock of the setters |
-| The net bridge of the platform | code/wasm_hexdom.cpp, web/shell.html | The WebSocket in the page. It moves the bytes between the socket and the game. |
+| The net bridge of the platform | code/wasm_hexdom.cpp, web/shared_game.js | The WebSocket in the page. It moves the bytes between the socket and the game. |
 | The panels | code/ui/ui_multiplayer.cpp (new) | The banner of the acting player, the timer, the seats, the chat. They call engine_api only. |
 | The room server | web/rooms.py (new) | The rooms, the seats, the log of steps, the timers, the checksums |
 | The lobby pages | web/pages.py, web/lobby.html (new) | Make a game, the invite link, the choice of factions, the list of games |
@@ -945,7 +945,7 @@ and the check in a Discord server wait for the user. These parts exist:
 - A socket without the cookie asks for `?token=1`. Its first message is
   the hello with the token. A bad token gets the error "401" and the close
   code 4401.
-- The page and index.js load without a session when the address has
+- The page, index.js and shared_game.js load without a session when the address has
   `frame_id` (Discord adds it) or `activity=1`. They hold no data of the
   game. index.wasm and index.data still need a member.
 - The origin `<client id>.discordsays.com` passes the check of the origin.
