@@ -46,7 +46,7 @@ packs.
 - The save of hexdom is a table of the members of sim_state
   (code/engine/engine_saves.cpp). A new member goes in the X lists of
   engine_saves.cpp and engine_game_replay.cpp. An old save loads with the
-  new member at zero. Keep that load working.
+  new member at zero. The old saves must load as they do now.
 - Take each draw of the PRNG in its own statement (CLAUDE.md).
 
 ## The work
