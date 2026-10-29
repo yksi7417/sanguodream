@@ -232,11 +232,31 @@ Playwright test "a new game of 1200 starts the
 engine again with the map of Europe" chooses the row in the browser and
 checks the size of the new map.
 
-Caution: a save holds the size of its map, and an engine refuses a save of
-another size (ENGINE_SAVE_OTHER_VERSION). The title starts the engine of
-the placeholder pack. Thus a save of a 1200 game does not load from the
-title yet. The next step puts the pack in the save, so that the load
-starts the engine of that pack first.
+## The saves of a pack
+The save file slot_NN.hxs keeps its format. An engine refuses a save of
+another pack (ENGINE_SAVE_OTHER_PACK). Thus a second file next to the save
+names its pack. slot_NN.meta has key and value lines:
+
+    key	value
+    # The facts of slot_03.hxs that the save file does not hold (docs/MAPS.md).
+    pack	medieval_europe
+
+The rules of the .meta file:
+- save_game writes slot_NN.meta each time, also for the placeholder pack.
+  Thus a new save in a slot replaces the facts of the old save.
+- A save without slot_NN.meta is a save of HEXDOM_CONTENT_PACK. The saves
+  of the builds before the .meta file are such saves.
+- refresh_save_slots lists a save of another pack as used. The api call
+  slot_pack gives its pack. load_game refuses such a slot.
+- The load screen (ui_load_slot) asks the game for the engine of that
+  pack, as for a scenario of another pack. The new engine reads the slots
+  again and loads the slot (ui_start_pack_scenario).
+- On the web, the page sends each file of the save folder to the server.
+  Thus the .meta file goes to the server with its save.
+
+The feature test feature_pack_save_tests saves a game of 1200. It loads
+the slot list in the engine of the placeholder pack, and it loads the
+save in the engine of medieval_europe.
 
 ## The plan
 | Step | Work | Result |

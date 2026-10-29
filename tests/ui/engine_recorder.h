@@ -284,6 +284,7 @@ struct engine_recorder
     b32           own_base_hex;       /* hex_at reports location 42 and base_at_hex reports index 0 (recorder_base_at: force 1) at the axial hex (3, 2) */
     b32           pack_base_keys;     /* recorder_base_at gives keys without a UI string: the label takes the name index (docs/MAPS.md, W2) */
     u8            pack_rows;          /* recorder_scenario_at row 1: 0 a PK scenario; 1 y1200 of the pack medieval_europe; 2 y1200 of this pack */
+    u32           other_pack_slot;    /* 1 + the slot that recorder_slot_pack gives to medieval_europe; 0 for none */
     char          last_name_index_path[RECORDER_MAX_PATH];
     sim_refusal   can_issue_refusal;  /* script the answer of can_issue and command_develop */
     engine_command last_develop;      /* the arguments of the last command_develop */
@@ -1755,6 +1756,13 @@ internal engine_save_slot recorder_save_slot(void *o, u32 slot)
     return info;
 }
 internal void recorder_refresh_save_slots(void *o) { recorder_record((engine_recorder *)o, RECORDER_REFRESH_SAVE_SLOTS, 0); }
+/* The pack of a slot: medieval_europe for the slot of other_pack_slot, else this pack (docs/MAPS.md). */
+internal engine_slot_pack recorder_slot_pack(void *o, u32 slot)
+{
+    engine_slot_pack pack = {};
+    if (((engine_recorder *)o)->other_pack_slot == slot + 1) snprintf(pack.pack, sizeof(pack.pack), "medieval_europe");
+    return pack;
+}
 
 /* ---- M9: two chart rows (row 0 with 2 uses), one ancient officer, one
    history row, two scenarios (the save and an unavailable PK one), two
@@ -2401,6 +2409,7 @@ recorder_make_api(engine_recorder *r)
     api.load_game             = recorder_load_game;
     api.save_slot             = recorder_save_slot;
     api.refresh_save_slots    = recorder_refresh_save_slots;
+    api.slot_pack             = recorder_slot_pack;
     api.chart_count           = recorder_chart_count;
     api.chart_row_at          = recorder_chart_row_at;
     api.faction_chart         = recorder_faction_chart;

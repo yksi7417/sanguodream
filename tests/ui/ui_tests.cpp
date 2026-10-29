@@ -3866,6 +3866,39 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);   /* the load only */
     };
 
+    /* docs/MAPS.md: a save of another pack (its slot_NN.meta names the pack)
+       asks the game for the engine of that pack and loads nothing in the old
+       engine. The new engine reads the slots again and loads the slot. */
+    t = IM_REGISTER_TEST(e, "ui", "a_save_of_another_pack_asks_for_that_pack_then_loads_in_the_new_engine");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.other_pack_slot = 2;   /* slot 1, the used slot of recorder_save_slot */
+        v.recorder.has_names       = true;
+        v.ui.show_saveload         = true;
+        v.ui.game.saving           = false;
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->SetRef("###SaveLoad");
+        ctx->ItemClick("###slot1");
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOAD_GAME), 0u);
+        IM_CHECK_STR_EQ(v.ui.game.pack_request, "medieval_europe");
+        IM_CHECK_EQ(v.ui.game.pack_slot, 2u);
+        IM_CHECK(!v.ui.show_saveload);
+        /* The game starts the engine of the pack: the slot is a slot of this pack now. */
+        v.ui.game.pack_request[0]  = 0;
+        v.recorder.other_pack_slot = 0;
+        recorder_reset(&v.recorder);
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_REFRESH_SAVE_SLOTS), 1u);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOAD_GAME), 1u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_LOAD_GAME), 1u);
+        IM_CHECK(v.ui.game.pack_slot == 0 && !v.ui.show_saveload);
+    };
+
     t = IM_REGISTER_TEST(e, "ui", "title_new_game_flow_loads_chooses_rulers_and_sets_settings");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;

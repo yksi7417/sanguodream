@@ -671,6 +671,7 @@ struct ui_state
         bool start_loaded;       /* start holds the settings of the engine */
         char pack_request[CONTENT_KEY_SIZE];    /* the pack of a chosen scenario of another pack: the game starts the engine again with it, then clears it */
         char pack_scenario[CONTENT_KEY_SIZE];   /* the key of that scenario: the new engine loads it (ui_start_pack_scenario) */
+        u32  pack_slot;                         /* 1 + the save slot of another pack that the new engine loads; 0 for none */
     } game;
     u8   ledger_city;           /* the ledger filter: ENGINE_ANY_CITY or a city id */
     u8   ledger_resource;        /* the ledger filter: ENGINE_ANY_RESOURCE or a sim_resource */

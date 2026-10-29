@@ -159,12 +159,47 @@ ui_choose_scenario(ui_state *ui, engine_api *api, const engine_scenario *scenari
     ui->show_rulers    = true;
 }
 
-/* After the engine started again with another pack: load the scenario of
-   that pack that the player chose, then show the ruler list. */
+/* Loads a save slot and enters the game. A save of another pack (its
+   slot_NN.meta names that pack) does not load here: the UI asks the game to
+   start the engine of that pack, and the new engine loads the slot. */
+internal void
+ui_load_slot(ui_state *ui, engine_api *api, u32 slot)
+{
+    void *e = api->engine;
+    engine_slot_pack pack = api->slot_pack(e, slot);
+    if (pack.pack[0])
+    {
+        snprintf(ui->game.pack_request, sizeof(ui->game.pack_request), "%s", pack.pack);
+        ui->game.pack_slot = slot + 1;
+        ui->show_saveload  = false;
+        return;
+    }
+    engine_save_status status = api->load_game(e, slot);
+    text_label(ui->text, "save_status", status, ui->game.message, sizeof(ui->game.message));
+    if (status != ENGINE_SAVE_OK) return;
+    ui_ensure_city_names(ui, api);
+    ui->show_saveload = false;
+    ui_enter_game(ui);
+    ui->feel.loaded_game = true;   /* G3-023: 劉表，可終於輪到你了啊。 and an empty log */
+    ui_feel_begin_transition(ui);
+}
+
+/* After the engine started again with another pack: load the scenario or
+   the save slot of that pack that the player chose. A scenario then shows
+   the ruler list; a slot enters the game. */
 internal void
 ui_start_pack_scenario(ui_state *ui, engine_api *api)
 {
-    if (!ui->game.pack_scenario[0] || ui->game.pack_request[0]) return;
+    if (ui->game.pack_request[0]) return;
+    if (ui->game.pack_slot)
+    {
+        u32 slot = ui->game.pack_slot - 1;
+        ui->game.pack_slot = 0;
+        api->refresh_save_slots(api->engine);
+        ui_load_slot(ui, api, slot);
+        return;
+    }
+    if (!ui->game.pack_scenario[0]) return;
     void *e = api->engine;
     for (u32 index = 0; index < api->scenario_count(e); ++index)
     {
@@ -405,16 +440,7 @@ ui_draw_saveload(ui_state *ui, engine_api *api)
             if (ui->game.saving) { ui->game.chosen = slot; snprintf(ui->game.comment, sizeof(ui->game.comment), "%s", info.comment); }
             else
             {
-                engine_save_status status = api->load_game(e, slot);
-                text_label(ui->text, "save_status", status, ui->game.message, sizeof(ui->game.message));
-                if (status == ENGINE_SAVE_OK)
-                {
-                    ui_ensure_city_names(ui, api);
-                    ui->show_saveload = false;
-                    ui_enter_game(ui);
-                    ui->feel.loaded_game = true;   /* G3-023: 劉表，可終於輪到你了啊。 and an empty log */
-                    ui_feel_begin_transition(ui);
-                }
+                ui_load_slot(ui, api, slot);
             }
         }
         ImGui::EndDisabled();

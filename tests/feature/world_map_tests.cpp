@@ -253,3 +253,73 @@ feature_pack_scenario_tests(test_counts *counts)
                "the AI plays the other 23 factions of the scenario");
     engine_fixture_destroy(&f);
 }
+
+/* ---- the saves of a pack (docs/MAPS.md): slot_NN.meta names the pack ------------------------- */
+
+#define FEATURE_WORLD_SAVE_SLOT  31     /* slot_32.hxs and slot_32.meta: a save of 1200 */
+#define FEATURE_WORLD_PLAIN_SLOT 30     /* slot_31.hxs: a save of the placeholder pack without its .meta file */
+
+/* The .meta file of a slot of the test save folder: the path, and its text in out ("" if there is no file). */
+internal void
+feature_world_meta(u32 slot, char *path, u32 path_size, char *out, u32 out_size)
+{
+    snprintf(path, path_size, "%s/slot_%02u.meta", feature_save_folder, slot + 1);
+    out[0] = 0;
+    FILE *file = fopen(path, "rb");
+    if (!file) return;
+    size_t size = fread(out, 1, out_size - 1, file);
+    out[size] = 0;
+    fclose(file);
+}
+
+internal void
+feature_pack_save_tests(test_counts *counts)
+{
+    char path[512], meta[512], hxs[512];
+    for (u32 slot = FEATURE_WORLD_PLAIN_SLOT; slot <= FEATURE_WORLD_SAVE_SLOT; ++slot)
+    {
+        feature_world_meta(slot, path, sizeof(path), meta, sizeof(meta));
+        remove(path);
+        snprintf(hxs, sizeof(hxs), "%s/slot_%02u.hxs", feature_save_folder, slot + 1);
+        remove(hxs);
+    }
+
+    engine_fixture europe;
+    feature_world_map_init(&europe);
+    engine_api *api = &europe.api;
+    void *e = api->engine;
+    api->load_scenario(e, api->scenario_at(e, 0).file);
+    feature_play_as(api, FEATURE_WORLD_FRANCE);
+    TEST_CHECK(counts, api->save_game(e, FEATURE_WORLD_SAVE_SLOT, "europe") == ENGINE_SAVE_OK, "a game of 1200 saves");
+    feature_world_meta(FEATURE_WORLD_SAVE_SLOT, path, sizeof(path), meta, sizeof(meta));
+    TEST_CHECK(counts, strstr(meta, "\npack\tmedieval_europe\n") != 0, "the save writes slot_NN.meta with the pack medieval_europe");
+    engine_fixture_destroy(&europe);
+
+    engine_fixture three;
+    feature_world_map_init(&three, HEXDOM_DATA_ROOT "/placeholder");
+    api = &three.api;
+    e = api->engine;
+    api->refresh_save_slots(e);
+    TEST_CHECK(counts, api->save_slot(e, FEATURE_WORLD_SAVE_SLOT).used && strcmp(api->slot_pack(e, FEATURE_WORLD_SAVE_SLOT).pack, "medieval_europe") == 0,
+               "the engine of the placeholder pack lists the save of 1200 with its pack");
+    TEST_CHECK(counts, api->load_game(e, FEATURE_WORLD_SAVE_SLOT) == ENGINE_SAVE_OTHER_PACK && api->city_count(e) == 0,
+               "the engine of the placeholder pack does not load it and changes nothing");
+    api->load_save(e, api->scenario_at(e, 0).file);
+    TEST_CHECK(counts, api->save_game(e, FEATURE_WORLD_PLAIN_SLOT, "three kingdoms") == ENGINE_SAVE_OK, "a game of the placeholder pack saves");
+    feature_world_meta(FEATURE_WORLD_PLAIN_SLOT, path, sizeof(path), meta, sizeof(meta));
+    TEST_CHECK(counts, strstr(meta, "\npack\tplaceholder\n") != 0, "its slot_NN.meta names the pack placeholder");
+    remove(path);   /* a save of an older build: no .meta file */
+    engine_fixture_destroy(&three);
+
+    engine_fixture again;
+    feature_world_map_init(&again);
+    api = &again.api;
+    e = api->engine;
+    api->refresh_save_slots(e);
+    TEST_CHECK(counts, api->save_slot(e, FEATURE_WORLD_PLAIN_SLOT).used && strcmp(api->slot_pack(e, FEATURE_WORLD_PLAIN_SLOT).pack, HEXDOM_CONTENT_PACK) == 0,
+               "a save without its .meta file is a save of the default pack");
+    TEST_CHECK(counts, api->slot_pack(e, FEATURE_WORLD_SAVE_SLOT).pack[0] == 0 && api->load_game(e, FEATURE_WORLD_SAVE_SLOT) == ENGINE_SAVE_OK &&
+                       api->city_count(e) == SAVE_CITY_COUNT,
+               "the engine of medieval_europe loads its own save");
+    engine_fixture_destroy(&again);
+}

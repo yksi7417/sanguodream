@@ -117,6 +117,7 @@ main(int argc, char **argv)
     test_counts world_map_counts = {};
     feature_world_map_tests(&world_map_counts);
     feature_pack_scenario_tests(&world_map_counts);
+    feature_pack_save_tests(&world_map_counts);
     feature_pack_map_tests_all(&world_map_counts);
     failed |= test_report("feature/world_map", &world_map_counts);
     test_counts save_map_counts = {};
