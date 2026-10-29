@@ -2522,7 +2522,8 @@ demo_ai_pick(engine_api *api, u8 human, u8 *force_out, u8 *home_out, u8 *target_
 /* M15 (an opponent worth playing; tutorial 28): on the real map, a city
    next to an AI faction becomes free and empty, 6 months after the start
    of the scenario. The AI sends a unit out (row take_free), the unit
-   marches, and the city falls. The AI panel shows the scored options of
+   marches around the obstacles on the path of the lowest cost, and the city
+   falls. The AI panel shows the scored options of
    each AI turn, and the scene draws a line from the unit to its goal. */
 internal void
 demo_m15_ai(ImGuiTestContext *ctx)
@@ -2554,6 +2555,12 @@ demo_m15_ai(ImGuiTestContext *ctx)
     engine_date today = api->date(e);
     u32 later = (u32)today.month - 1 + 6;   /* past ai.attack_after_months */
     api->set_date(e, (u16)(today.year + later / 12), (u8)(later % 12 + 1), 1);
+    /* A ceasefire with each other faction. In the sample, a unit of a third
+       faction holds the road to the city, and the AI fights it for 15 turns. */
+    for (u32 other = 0; other < SIM_FORCE_CAPACITY; ++other)
+    {
+        if (other != force) api->set_diplomacy(e, force, (u8)other, 50, RELATION_CEASEFIRE, 12);
+    }
     v.ui.ai.faction = force;
 
     IM_CHECK(demo_begin_video(ctx, milestone));

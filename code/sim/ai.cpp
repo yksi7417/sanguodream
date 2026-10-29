@@ -533,24 +533,16 @@ sim_ai_unit_goals(sim_state *sim, u32 unit_id, sim_ai_choice *choices)
     }
 }
 
-/* Moves the unit to the reachable hex nearest to the goal. An own city at
-   the end takes the unit in. */
+/* Moves the unit one step along the lowest-cost path to the goal, as a
+   long order does (sim_unit_step, assumed path rule Q-227). Q-185 gives
+   no path rule for the AI. A move in a straight line to the nearest
+   reachable hex stops in front of a river or a mountain. An own city at the end
+   takes the unit in. Before a city of another owner, the unit stops at
+   the nearest hex and attacks from there. */
 internal b32
 sim_ai_march(sim_state *sim, u32 unit_id, hex_coord goal, sim_event_sink *events)
 {
-    arena_reset(&sim->scratch);
-    sim_reach reach = sim_unit_reach(sim, unit_id, &sim->scratch);
-    u32 best = 0;
-    for (u32 index = 1; index < reach.count; ++index)
-    {
-        if (hex_distance(reach.cells[index], goal) < hex_distance(reach.cells[best], goal)) best = index;
-    }
-    if (!best) return false;
-    sim_command move = sim_make_command(sim, SIM_COMMAND_MOVE);
-    move.unit.unit = (u16)unit_id;
-    move.unit.to   = reach.cells[best];
-    sim_apply(sim, move, events);
-    return true;
+    return sim_unit_step(sim, unit_id, goal, false, 0, events);
 }
 
 /* Attacks the hex if it can; returns true after an attack. */
