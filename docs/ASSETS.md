@@ -317,12 +317,12 @@ placeholder mesh.
 
 | Item | Value |
 |---|---|
-| Files | base_city, base_big_city, base_gate and base_port for the bases. facility_market, facility_market_lv2, facility_market_lv3, facility_farm, facility_farm_lv2, facility_farm_lv3, facility_barracks, facility_barracks_lv2, facility_barracks_lv3, facility_smithy, facility_smithy_lv2, facility_smithy_lv3, facility_stable, facility_stable_lv2, facility_stable_lv3, facility_shipyard, facility_bronze_sparrow_tower, facility_granary and facility_tally_office for the shapes of the facilities. facility_camp and facility_arrow_tower for the shapes of the field buildings. Each model has two files: <name>.hxm and <name>.png. |
+| Files | base_city, base_big_city, base_gate and base_port for the bases. facility_market, facility_market_lv2, facility_market_lv3, facility_farm, facility_farm_lv2, facility_farm_lv3, facility_barracks, facility_barracks_lv2, facility_barracks_lv3, facility_smithy, facility_smithy_lv2, facility_smithy_lv3, facility_stable, facility_stable_lv2, facility_stable_lv3, facility_shipyard, facility_bronze_sparrow_tower, facility_granary and facility_tally_office for the shapes of the facilities. facility_camp, facility_arrow_tower, building_drum_tower, building_earth_wall, building_stone_maze and building_fire_seed for the shapes of the field buildings. facility_scaffold, facility_scaffold_lv2 and facility_scaffold_lv3 for the scaffold. A facility_<kind> or building_<kind> file for each kind in render_model_id. Each model has two files: <name>.hxm and <name>.png. |
 | Mesh | the HXM1 format of the engine: positions, normals and uv. The larger side of the footprint is one unit. The ground is at y = 0. |
 | Texture | the base colour of the model, RGB, 1024 pixels at most. The renderer makes the mip levels at the start. |
 | Source | a binary glTF file (GLB). misc/glb_import.py converts it. provenance.tsv in the folder has one row for each model. |
 | Licence | the licence of the source of each model, in provenance.tsv. CC-BY-4.0.txt gives the credit and the licence of the Meshy models. |
-| Models now | 25 models from Meshy, CC BY 4.0. The table below gives each model. |
+| Models now | 57 models from Meshy, CC BY 4.0. The table below gives each model. |
 
 | Model | Kind | Source GLB | Triangles | Mesh file | Licence |
 |---|---|---|---|---|---|
@@ -351,6 +351,38 @@ placeholder mesh.
 | facility_stable_lv2 | the shed shape at level 2 | stable-lv2-30k.glb | 30,186 | 2.1 MB | CC BY 4.0, credit "Meshy" |
 | facility_stable_lv3 | the shed shape at level 3 | stable-lv3-30k.glb | 30,311 | 2.2 MB | CC BY 4.0, credit "Meshy" |
 | facility_tally_office | the office shape at level 1: the tally office, the personnel office, the plot office, the diplomacy office | tally-office-30k.glb | 29,763 | 2.3 MB | CC BY 4.0, credit "Meshy" |
+| building_catapult_tower | the catapult tower, 投石台 | catapult-platform-30k.glb | 29,389 | 1.7 MB | CC BY 4.0, credit "Meshy" |
+| building_citadel | the citadel, 城塞 | citadel-30k.glb | 29,326 | 2.2 MB | CC BY 4.0, credit "Meshy" |
+| building_dike | the dike, 堤防 | dike-30k.glb | 30,016 | 1.2 MB | CC BY 4.0, credit "Meshy" |
+| building_drum_tower | the stage shape of the field buildings: 太鼓台, 軍樂台 | drum-tower-30k.glb | 29,564 | 1.5 MB | CC BY 4.0, credit "Meshy" |
+| building_earth_wall | the wall shape of the field buildings: 土壘, 石牆, 堤防 | earth-wall-30k.glb | 29,657 | 1.7 MB | CC BY 4.0, credit "Meshy" |
+| building_fire_ball | the fire ball, 火球 | fire-ball-30k.glb | 30,940 | 2.3 MB | CC BY 4.0, credit "Meshy" |
+| building_fire_ball_2 | the flame ball, 火陷球 | flame-ball-30k.glb | 29,960 | 2.3 MB | CC BY 4.0, credit "Meshy" |
+| building_fire_ball_3 | the inferno ball, 業火球 | inferno-ball-30k.glb | 30,388 | 2.3 MB | CC BY 4.0, credit "Meshy" |
+| building_fire_seed | the trap shape of the field buildings: the fire traps, 落石 | fire-seed-30k.glb | 31,026 | 2.3 MB | CC BY 4.0, credit "Meshy" |
+| building_fire_seed_2 | the flame seed, 火陷種 | flame-seed-30k.glb | 30,427 | 2.6 MB | CC BY 4.0, credit "Meshy" |
+| building_fire_seed_3 | the inferno seed, 業火種 | inferno-seed-30k.glb | 30,746 | 2.5 MB | CC BY 4.0, credit "Meshy" |
+| building_fire_ship | the fire ship, 火船 | fire-ship-30k.glb | 30,430 | 2.0 MB | CC BY 4.0, credit "Meshy" |
+| building_fort | the fort, 砦 | fort-30k.glb | 29,046 | 2.0 MB | CC BY 4.0, credit "Meshy" |
+| building_music_tower | the music tower, 軍樂台 | music-tower-30k.glb | 30,692 | 2.4 MB | CC BY 4.0, credit "Meshy" |
+| building_repeating_tower | the repeating crossbow tower, 連弩樓 | repeating-crossbow-tower-30k.glb | 28,966 | 1.7 MB | CC BY 4.0, credit "Meshy" |
+| building_rockfall | the rockfall, 落石 | rockfall-30k.glb | 30,734 | 2.0 MB | CC BY 4.0, credit "Meshy" |
+| building_stone_maze | the stones shape of the field buildings: 石兵八陣 | stone-maze-30k.glb | 30,669 | 1.6 MB | CC BY 4.0, credit "Meshy" |
+| building_stone_wall | the stone wall, 石牆 | stone-wall-30k.glb | 29,740 | 1.1 MB | CC BY 4.0, credit "Meshy" |
+| facility_black_market | the black market | black-market-30k.glb | 30,506 | 2.1 MB | CC BY 4.0, credit "Meshy" |
+| facility_diplomacy_office | the diplomacy office | diplomacy-office-30k.glb | 28,505 | 1.6 MB | CC BY 4.0, credit "Meshy" |
+| facility_drill_ground | the drill ground | drill-ground-30k.glb | 29,316 | 1.6 MB | CC BY 4.0, credit "Meshy" |
+| facility_fish_market | the fish market | fish-market-30k.glb | 29,999 | 1.8 MB | CC BY 4.0, credit "Meshy" |
+| facility_great_market | the great market | great-market-30k.glb | 30,207 | 2.2 MB | CC BY 4.0, credit "Meshy" |
+| facility_military_farm | the military farm | military-farm-30k.glb | 30,176 | 2.5 MB | CC BY 4.0, credit "Meshy" |
+| facility_military_office | the military office | military-office-30k.glb | 29,196 | 1.8 MB | CC BY 4.0, credit "Meshy" |
+| facility_mint | the mint | mint-30k.glb | 29,308 | 1.5 MB | CC BY 4.0, credit "Meshy" |
+| facility_personnel_office | the personnel office | personnel-office-30k.glb | 29,150 | 1.7 MB | CC BY 4.0, credit "Meshy" |
+| facility_plot_office | the plot office | plot-office-30k.glb | 28,709 | 1.6 MB | CC BY 4.0, credit "Meshy" |
+| facility_scaffold | the small scaffold: a field building in progress | scaffold-small-30k.glb | 30,698 | 1.4 MB | CC BY 4.0, credit "Meshy" |
+| facility_scaffold_lv2 | the medium scaffold: a facility in progress | scaffold-medium-30k.glb | 29,744 | 1.9 MB | CC BY 4.0, credit "Meshy" |
+| facility_scaffold_lv3 | the large scaffold. The scene does not use it now | scaffold-large-30k.glb | 29,568 | 2.0 MB | CC BY 4.0, credit "Meshy" |
+| facility_workshop | the workshop | workshop-30k.glb | 30,013 | 2.1 MB | CC BY 4.0, credit "Meshy" |
 
 The owner of the repository made the first eight models on 2026-10-27.
 The models of the barracks and of the farm at levels 2 and 3 came on
@@ -358,7 +390,9 @@ The models of the barracks and of the farm at levels 2 and 3 came on
 barracks at level 3 came later on 2026-10-28. The model of the bronze
 sparrow tower came in the evening of 2026-10-28. The models of the
 granary and of the tally office came on 2026-10-29. The models of the
-camp and of the arrow tower came later on 2026-10-29. The GLB
+camp and of the arrow tower came later on 2026-10-29. The 32 models of
+the other facility kinds, the field buildings and the scaffold came on
+2026-10-30. The GLB
 files came from the shared Google Drive folder "Three Kingdoms Animations
 — Map Art", subfolder 07-3D-Models. Each texture is 1024 x 1024 pixels.
 The first model of the big city had 354,640 triangles.
@@ -366,20 +400,24 @@ big-city-v2-rectangular-30k.glb replaced it on 2026-10-27, and the
 download became 11 MB smaller.
 
 The model of a facility replaces the placeholder shape of its kind
-(render_mesh_model_files in code/render/render.h). Each facility kind with
-that shape shows the model. The model keeps the scale of the shape, so it
-covers the same part of the slot hex. A build in progress shows the model
-under the scaffold.
+(render_model_files in code/render/render.h). The first rows of the table
+are the models of the shapes, in the order of render_mesh_id. A kind with
+its own model has a row after them (render_model_id). ui_facility_look.cpp
+gives the model of each facility kind, and ui_building_looks gives the
+model of each field building kind. If the pack has no model for a kind,
+the kind uses the model of its shape. The model keeps the scale of the
+shape, so it covers the same part of the slot hex. A build in progress
+shows the model in the scaffold. A facility gets the medium scaffold, and
+a field building gets the small scaffold.
 
 A facility has a level from 1 to 3. The scene gives the level to the
-renderer (render_push_facility). render_mesh_model_files has a column for
+renderer (render_push_facility). render_model_files has a column for
 each level. A level without a model uses the model of the next lower
 level. The market, the farm, the hall, the forge and the shed shapes have
-a model for each level. The dock, the tower, the silo and the office
-shapes have a model for level 1 only, so the levels 2 and 3 use it.
-A field building has no level. The camp and the watchtower shapes use
-the model of level 1. The red banners of a model show the colour of the
-owner.
+a model for each level. The other shapes and the kinds have a model for
+level 1 only, so the levels 2 and 3 use it. A field building has no
+level, so it uses the model of level 1. The red banners of a model show
+the colour of the owner.
 
 A model with many triangles costs time on each frame. The map has many
 facilities, so the renderer uses two rules:
@@ -425,9 +463,9 @@ do these steps:
 To import the new models of the Drive folder, run misc/drive_models.py
 from the root of the repository. The script needs no sign-in, because the
 owner shares the folder by link. It does these steps:
-- It finds the model name of each GLB from the start of its file name:
-  big-city, city, gate, port, market-lv1, market-lv2, market-lv3 and
-  farm-lv1.
+- It finds the model name of each GLB from the start of its file name
+  (MODEL_NAMES in the script). For example, market-lv2 gives
+  facility_market_lv2, and flame-seed gives building_fire_seed_2.
 - It skips a GLB that provenance.tsv names as a source, and a GLB with
   more than 40,000 triangles.
 - It keeps a model that the pack has, unless you give --replace NAME.
@@ -443,9 +481,10 @@ owner shares the folder by link. It does these steps:
 import, add the model to the table above, run build.bat and
 run_tests.bat, and look at the model in the game.
 
-On 2026-10-27 the game has a model from each name of the folder. The
-other GLBs of the folder are larger exports of the same models. Each of
-them has more than 40,000 triangles.
+On 2026-10-30 the game has a model from each name of the folder, but
+two. temple-30k.glb and ruin-30k.glb have no kind in the game, so the
+script skips them. The other GLBs of the folder are other exports of the
+same models, for example the -textured files.
 
 To import one GLB by hand, put it in art-src/models, out of git. Then run
 this command from the root of the repository. The name is one of the

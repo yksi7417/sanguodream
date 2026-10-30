@@ -118,7 +118,7 @@ struct d3d11_renderer
     d3d11_sprite             sprites[D3D11_MAX_SPRITES];
     u32                      sprite_count;
     d3d11_base_model         base_models[D3D11_BASE_KINDS];
-    d3d11_base_model         mesh_models[RENDER_MESH_COUNT][RENDER_MODEL_LEVELS];   /* render_mesh_model_files */
+    d3d11_base_model         mesh_models[RENDER_MODEL_COUNT][RENDER_MODEL_LEVELS];   /* render_model_files */
     ID3D11Buffer            *instances;        /* dynamic, shared by meshes and billboards */
     u32                      instance_capacity;
     ID3D11Buffer            *billboard_quad;
@@ -514,12 +514,12 @@ d3d11_renderer_init(d3d11_renderer *r, ID3D11Device *device, ID3D11DeviceContext
     {
         d3d11_load_base_model(r, render_base_model_files[kind], scratch, r->base_models + kind);
     }
-    /* The models of the placeholder shapes for each level, for example the market. */
-    for (u32 mesh_id = 0; mesh_id < RENDER_MESH_COUNT; ++mesh_id)
+    /* The models of the shapes and of the kinds for each level, for example the market. */
+    for (u32 model_id = 0; model_id < RENDER_MODEL_COUNT; ++model_id)
     {
         for (u32 level = 0; level < RENDER_MODEL_LEVELS; ++level)
         {
-            d3d11_load_base_model(r, render_mesh_model_files[mesh_id][level], scratch, r->mesh_models[mesh_id] + level);
+            d3d11_load_base_model(r, render_model_files[model_id][level], scratch, r->mesh_models[model_id] + level);
         }
     }
 
@@ -552,7 +552,7 @@ d3d11_renderer_destroy(d3d11_renderer *r)
         d3d11_base_model *model = r->base_models + kind;
         d3d11_release((IUnknown **)&model->mesh.vertices); d3d11_release((IUnknown **)&model->mesh.indices); d3d11_release((IUnknown **)&model->texture);
     }
-    for (u32 model_index = 0; model_index < RENDER_MESH_COUNT * RENDER_MODEL_LEVELS; ++model_index)
+    for (u32 model_index = 0; model_index < RENDER_MODEL_COUNT * RENDER_MODEL_LEVELS; ++model_index)
     {
         d3d11_base_model *model = r->mesh_models[0] + model_index;
         d3d11_release((IUnknown **)&model->mesh.vertices); d3d11_release((IUnknown **)&model->mesh.indices); d3d11_release((IUnknown **)&model->texture);
@@ -650,9 +650,22 @@ d3d11_has_art(d3d11_renderer *r, render_mesh_instance *m)
 
 /* The 3D model that the platform draws for an instance, or 0. A model goes
    before the art card and before the placeholder mesh. A base uses only
-   the model of its kind. Another instance uses the model of its shape and
+   the model of its kind. Another instance uses the model of its kind and
    its level, or of the next lower level with a model, if the camera is
-   near (render_shape_models_on). */
+   near (render_shape_models_on). A kind without a model uses the model of
+   its shape. */
+internal d3d11_base_model *
+d3d11_level_model_of(d3d11_renderer *r, u32 model_id, u32 level)
+{
+    if (model_id >= RENDER_MODEL_COUNT) return 0;
+    for (s32 column = (s32)render_model_level_index(level); column >= 0; --column)
+    {
+        d3d11_base_model *model = r->mesh_models[model_id] + column;
+        if (model->texture) return model;
+    }
+    return 0;
+}
+
 internal d3d11_base_model *
 d3d11_model_of(d3d11_renderer *r, render_mesh_instance *m, const camera *cam)
 {
@@ -662,12 +675,8 @@ d3d11_model_of(d3d11_renderer *r, render_mesh_instance *m, const camera *cam)
         return model->texture ? model : 0;
     }
     if (m->mesh_id >= RENDER_MESH_COUNT || !render_shape_models_on(cam)) return 0;
-    for (s32 level = (s32)render_model_level_index(m->level); level >= 0; --level)
-    {
-        d3d11_base_model *model = r->mesh_models[m->mesh_id] + level;
-        if (model->texture) return model;
-    }
-    return 0;
+    d3d11_base_model *model = d3d11_level_model_of(r, m->model, m->level);
+    return model ? model : d3d11_level_model_of(r, m->mesh_id, m->level);
 }
 
 /* One instanced draw of a model, with its texture, for each instance
@@ -805,7 +814,7 @@ d3d11_renderer_draw(d3d11_renderer *r, render_commands *rc, ID3D11RenderTargetVi
     /* the 3D models: one instanced draw for each base kind and each shape
        that has a model in the pack */
     for (u32 kind = 0; kind < D3D11_BASE_KINDS; ++kind) d3d11_draw_model(r, rc, fc.view_projection, r->base_models + kind, scratch);
-    for (u32 model_index = 0; model_index < RENDER_MESH_COUNT * RENDER_MODEL_LEVELS; ++model_index) d3d11_draw_model(r, rc, fc.view_projection, r->mesh_models[0] + model_index, scratch);
+    for (u32 model_index = 0; model_index < RENDER_MODEL_COUNT * RENDER_MODEL_LEVELS; ++model_index) d3d11_draw_model(r, rc, fc.view_projection, r->mesh_models[0] + model_index, scratch);
 
     /* billboards: one instanced draw per sprite id, alpha tested, drawn last.
        The quad winds counter-clockwise on the screen, so the back-face cull

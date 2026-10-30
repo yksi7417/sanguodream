@@ -35,8 +35,10 @@ facility_barracks_lv2, facility_barracks_lv3, facility_smithy,
 facility_smithy_lv2, facility_smithy_lv3, facility_stable,
 facility_stable_lv2, facility_stable_lv3, facility_shipyard,
 facility_bronze_sparrow_tower, facility_granary, facility_tally_office,
-facility_camp or facility_arrow_tower
-(render_mesh_model_files in code/render/render.h). The
+facility_camp or facility_arrow_tower. The other names of facility
+kinds, field buildings and scaffolds are in render_model_files, for
+example facility_mint or building_fort
+(render_model_files in code/render/render.h). The
 script needs Pillow (pip install pillow). Keep the GLB
 source in art-src/models, out of git. Add a row for each model to
 data/<pack>/models/provenance.tsv.

@@ -476,7 +476,9 @@ struct render_mesh_instance
                               the platform draws that picture in place of the mesh
                               when the pack has it (render_base_billboard) */
     u32 level;             /* the level of a facility, 1 to 3, for its model
-                              (render_mesh_model_files). 0 for other instances */
+                              (render_model_files). 0 for other instances */
+    u32 model;             /* render_model_id: the model of the kind. The
+                              shape of mesh_id gives the default */
 };
 
 #define RENDER_NO_ART 0    /* sprite 0 is the figure of a unit, never the art of a base */
@@ -602,18 +604,52 @@ global_variable const char *render_base_model_files[RENDER_SPRITE_COUNT - RENDER
     "models/base_city", "models/base_big_city", "models/base_gate", "models/base_port",
 };
 
-/* The 3D models of the placeholder shapes, by render_mesh_id and by the
-   level of the facility (docs/ASSETS.md, "Base models"). The platform
-   draws the model in place of the shape when the pack has both files.
-   Each facility kind with that shape shows the model (ui_facility_look.cpp).
-   A level without a model uses the model of the next lower level. The
-   shapes and the models have a footprint of one unit, so the model keeps
-   the scale of the instance. 0: the shape has no model at that level. */
+/* The 3D models of the facilities and of the field buildings. The first
+   RENDER_MESH_COUNT models are the models of the placeholder shapes, in
+   the order of render_mesh_id. A kind with its own model follows them
+   (ui_facility_look.cpp). */
+enum render_model_id
+{
+    RENDER_MODEL_WORKSHOP = RENDER_MESH_COUNT,
+    RENDER_MODEL_MINT,
+    RENDER_MODEL_PERSONNEL_OFFICE,
+    RENDER_MODEL_PLOT_OFFICE,
+    RENDER_MODEL_GREAT_MARKET,
+    RENDER_MODEL_BLACK_MARKET,
+    RENDER_MODEL_DIPLOMACY_OFFICE,
+    RENDER_MODEL_MILITARY_OFFICE,
+    RENDER_MODEL_DRILL_GROUND,
+    RENDER_MODEL_FISH_MARKET,
+    RENDER_MODEL_MILITARY_FARM,
+    RENDER_MODEL_FORT,              /* 砦 */
+    RENDER_MODEL_CITADEL,           /* 城塞 */
+    RENDER_MODEL_REPEATING_TOWER,   /* 連弩樓 */
+    RENDER_MODEL_CATAPULT_TOWER,    /* 投石台 */
+    RENDER_MODEL_MUSIC_TOWER,       /* 軍樂台 */
+    RENDER_MODEL_STONE_WALL,        /* 石牆 */
+    RENDER_MODEL_DIKE,              /* 堤防 */
+    RENDER_MODEL_FIRE_SEED_2,       /* 火陷種 */
+    RENDER_MODEL_FIRE_SEED_3,       /* 業火種 */
+    RENDER_MODEL_FIRE_BALL,         /* 火球 */
+    RENDER_MODEL_FIRE_BALL_2,       /* 火陷球 */
+    RENDER_MODEL_FIRE_BALL_3,       /* 業火球 */
+    RENDER_MODEL_FIRE_SHIP,         /* 火船 */
+    RENDER_MODEL_ROCKFALL,          /* 落石 */
+    RENDER_MODEL_COUNT
+};
+
+/* The files of each render_model_id, by the level of the facility
+   (docs/ASSETS.md, "Base models"). The platform draws the model in place
+   of the shape when the pack has both files. A level without a model uses
+   the model of the next lower level. A kind without a model uses the
+   model of its shape. The shapes and the models have a footprint of one
+   unit, so the model keeps the scale of the instance. 0: no model at that
+   level. */
 #define RENDER_MODEL_LEVELS 3
 
-global_variable const char *render_mesh_model_files[RENDER_MESH_COUNT][RENDER_MODEL_LEVELS] = {
+global_variable const char *render_model_files[RENDER_MODEL_COUNT][RENDER_MODEL_LEVELS] = {
     { 0 },   /* RENDER_MESH_SETTLEMENT: a base has the models above */
-    { 0 },   /* RENDER_MESH_SCAFFOLD */
+    { "models/facility_scaffold", "models/facility_scaffold_lv2", "models/facility_scaffold_lv3" },   /* RENDER_MESH_SCAFFOLD: small, medium, large */
     { "models/facility_market", "models/facility_market_lv2", "models/facility_market_lv3" },   /* RENDER_MESH_STALL: the markets */
     { "models/facility_farm", "models/facility_farm_lv2", "models/facility_farm_lv3" },         /* RENDER_MESH_FIELD: the farms */
     { "models/facility_barracks", "models/facility_barracks_lv2", "models/facility_barracks_lv3" },   /* RENDER_MESH_HALL: the barracks, the drill ground */
@@ -627,9 +663,38 @@ global_variable const char *render_mesh_model_files[RENDER_MESH_COUNT][RENDER_MO
     { 0 },   /* RENDER_MESH_PORT: a port has the base model */
     { "models/facility_camp" },                                                                  /* RENDER_MESH_CAMP: 陣, 砦, 城塞 */
     { "models/facility_arrow_tower" },                                                           /* RENDER_MESH_WATCHTOWER: 箭樓, 連弩樓, 投石台 */
+    { "models/building_drum_tower" },                                                            /* RENDER_MESH_STAGE: 太鼓台, 軍樂台 */
+    { "models/building_earth_wall" },                                                            /* RENDER_MESH_WALL: 土壘, 石牆, 堤防 */
+    { "models/building_stone_maze" },                                                            /* RENDER_MESH_STONES: 石兵八陣 */
+    { "models/building_fire_seed" },                                                             /* RENDER_MESH_TRAP: the fire traps, 落石 */
+    { "models/facility_workshop" },
+    { "models/facility_mint" },
+    { "models/facility_personnel_office" },
+    { "models/facility_plot_office" },
+    { "models/facility_great_market" },
+    { "models/facility_black_market" },
+    { "models/facility_diplomacy_office" },
+    { "models/facility_military_office" },
+    { "models/facility_drill_ground" },
+    { "models/facility_fish_market" },
+    { "models/facility_military_farm" },
+    { "models/building_fort" },
+    { "models/building_citadel" },
+    { "models/building_repeating_tower" },
+    { "models/building_catapult_tower" },
+    { "models/building_music_tower" },
+    { "models/building_stone_wall" },
+    { "models/building_dike" },
+    { "models/building_fire_seed_2" },
+    { "models/building_fire_seed_3" },
+    { "models/building_fire_ball" },
+    { "models/building_fire_ball_2" },
+    { "models/building_fire_ball_3" },
+    { "models/building_fire_ship" },
+    { "models/building_rockfall" },
 };
 
-/* The column of render_mesh_model_files for the level of an instance. An
+/* The column of render_model_files for the level of an instance. An
    instance without a level (0) and a level above the table use the
    nearest column. */
 internal u32
@@ -674,7 +739,7 @@ render_base_model_instance(const render_mesh_instance *mesh)
 }
 
 /* The instance of a model. The model of a base covers the base. The model
-   of a shape (render_mesh_model_files) keeps the instance of the shape. */
+   of a shape or a kind (render_model_files) keeps the instance of the shape. */
 internal render_mesh_instance
 render_model_instance(const render_mesh_instance *mesh)
 {
@@ -756,6 +821,7 @@ render_push_mesh(render_commands *rc, u32 mesh_id, v3 position, f32 yaw, f32 sca
     m->mesh_id = mesh_id; m->position = position; m->yaw = yaw; m->scale = scale; m->tint = tint;
     m->art_sprite = RENDER_NO_ART;
     m->level = 0;
+    m->model = mesh_id;   /* the model of the shape */
 }
 
 /* A base: the placeholder mesh, and the sprite of its art. The platform
@@ -768,15 +834,20 @@ render_push_base(render_commands *rc, u32 mesh_id, u32 art_sprite, v3 position, 
     if (rc->mesh_instance_count > before) rc->mesh_instances[before].art_sprite = art_sprite;
 }
 
-/* A facility: the placeholder shape of its kind and its level. The
-   platform draws the model of that shape and level in place of the shape
-   when the pack has it (render_mesh_model_files). */
+/* A facility or a field building: the placeholder shape, the model of
+   its kind (render_model_id) and its level. The platform draws the model
+   of that kind and level in place of the shape when the pack has it
+   (render_model_files). */
 internal void
-render_push_facility(render_commands *rc, u32 mesh_id, u32 level, v3 position, f32 yaw, f32 scale, u32 tint)
+render_push_facility(render_commands *rc, u32 mesh_id, u32 model, u32 level, v3 position, f32 yaw, f32 scale, u32 tint)
 {
     u32 before = rc->mesh_instance_count;
     render_push_mesh(rc, mesh_id, position, yaw, scale, tint);
-    if (rc->mesh_instance_count > before) rc->mesh_instances[before].level = level;
+    if (rc->mesh_instance_count > before)
+    {
+        rc->mesh_instances[before].level = level;
+        rc->mesh_instances[before].model = model;
+    }
 }
 
 internal void

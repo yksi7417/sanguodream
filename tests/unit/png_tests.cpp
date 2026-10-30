@@ -152,10 +152,10 @@ unit_model_file_tests(test_counts *counts)
     memory_arena arena = test_arena_create(Megabytes(48));
     char exe_dir[MAX_PATH], path[MAX_PATH * 2];
     test_exe_dir(exe_dir, MAX_PATH);
-    const char *names[RENDER_SPRITE_COUNT - RENDER_SPRITE_FIRST_BASE + RENDER_MESH_COUNT * RENDER_MODEL_LEVELS] = {};
+    const char *names[RENDER_SPRITE_COUNT - RENDER_SPRITE_FIRST_BASE + RENDER_MODEL_COUNT * RENDER_MODEL_LEVELS] = {};
     u32 name_count = 0;
     for (u32 kind = 0; kind < RENDER_SPRITE_COUNT - RENDER_SPRITE_FIRST_BASE; ++kind) names[name_count++] = render_base_model_files[kind];
-    for (u32 model_index = 0; model_index < RENDER_MESH_COUNT * RENDER_MODEL_LEVELS; ++model_index) names[name_count++] = render_mesh_model_files[0][model_index];
+    for (u32 model_index = 0; model_index < RENDER_MODEL_COUNT * RENDER_MODEL_LEVELS; ++model_index) names[name_count++] = render_model_files[0][model_index];
     b32 models_read = true;
     u32 model_count = 0;
     for (u32 index = 0; index < name_count; ++index)
@@ -174,8 +174,8 @@ unit_model_file_tests(test_counts *counts)
         models_read &= parsed && texture.contents != 0 && image.error == 0 && image.width > 0 && image.width <= 1024 && image.height <= 1024;
         model_count++;
     }
-    TEST_CHECK(counts, models_read && model_count == 25,
-               "the pack has the models of the four base kinds, the market, the farm, the barracks, the smithy and the stable at levels 1 to 3, the shipyard, the bronze sparrow tower, the granary, the tally office, the camp and the arrow tower, and each mesh and texture reads");
+    TEST_CHECK(counts, models_read && model_count == 57,
+               "the pack has the models of the four base kinds, the market, the farm, the barracks, the smithy, the stable and the scaffold at levels 1 to 3, the shipyard, the bronze sparrow tower, the granary, the tally office, the camp, the arrow tower, the drum tower, the earth wall, the stone maze, the fire seed and each kind in render_model_id, and each mesh and texture reads");
     test_arena_destroy(&arena);
 }
 
