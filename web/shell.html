@@ -66,7 +66,7 @@
 </head>
 <body>
 <!-- The right mouse button is a game command: the page shows no context menu. -->
-<canvas id="canvas" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
+<canvas id="canvas" tabindex="-1"></canvas>
 <div id="status">Loading hexdom...</div>
 <button id="live" type="button" title="Broadcast the game to YouTube">● Live</button>
 <div id="user">
@@ -123,6 +123,8 @@
   };
 
   var statusElement = document.getElementById("status");
+  // The CSP of the Discord proxy blocks an attribute such as oncontextmenu. A listener is not blocked.
+  document.getElementById("canvas").addEventListener("contextmenu", function (event) { event.preventDefault(); });
   var Module = {
     canvas: document.getElementById("canvas"),
     // The page can come from an address with a password ("user:pw@host"). Then fetch
