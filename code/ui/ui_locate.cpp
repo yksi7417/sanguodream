@@ -170,7 +170,7 @@ ui_draw_hex_info_box(ui_state *ui, engine_api *api)
 #define UI_PLATE_SLOT_DISTANCE 60.0f   /* the slots draw when the camera is nearer than this */
 #define UI_BASE_PLATE_FONT_SCALE 1.4f  /* the name of a base, in font sizes (the player, 2026-10-28) */
 
-internal void ui_draw_unit_flag(engine_api *api, ImDrawList *draw, f32 right, f32 bottom, u8 force_id);   /* below */
+internal void ui_draw_unit_flag(ui_state *ui, engine_api *api, ImDrawList *draw, f32 right, f32 bottom, u8 force_id);   /* below */
 internal void ui_draw_scene_effects(ui_state *ui, engine_api *api, m4 view_projection, ImDrawList *draw);   /* ui_effects.cpp */
 
 /* The plate of a base: the name, a number (the soldiers) and a thin bar
@@ -179,7 +179,7 @@ internal void ui_draw_scene_effects(ui_state *ui, engine_api *api, m4 view_proje
    unit. A base without an owner has no flag. The plate sits on the
    background, under the panels. */
 internal void
-ui_draw_plate(engine_api *api, ImDrawList *draw, f32 x, f32 y, const char *name, u32 number, f32 fraction, u8 force_id, bool selected)
+ui_draw_plate(ui_state *ui, engine_api *api, ImDrawList *draw, f32 x, f32 y, const char *name, u32 number, f32 fraction, u8 force_id, bool selected)
 {
     char line[UI_NAME_SIZE * 2 + 16];
     snprintf(line, sizeof(line), "%s %u", name, number);
@@ -194,7 +194,7 @@ ui_draw_plate(engine_api *api, ImDrawList *draw, f32 x, f32 y, const char *name,
     draw->AddText(font, font_size, ImVec2(top.x + 5.0f, top.y + 2.0f), IM_COL32(255, 255, 255, 255), line);
     f32 clamped = fraction < 0.0f ? 0.0f : (fraction > 1.0f ? 1.0f : fraction);
     draw->AddRectFilled(ImVec2(top.x + 2.0f, bottom.y - 4.0f), ImVec2(top.x + 2.0f + (bottom.x - top.x - 4.0f) * clamped, bottom.y - 2.0f), colour);
-    if (force_id != ENGINE_NO_FACTION) ui_draw_unit_flag(api, draw, top.x - 2.0f, bottom.y, force_id);
+    if (force_id != ENGINE_NO_FACTION) ui_draw_unit_flag(ui, api, draw, top.x - 2.0f, bottom.y, force_id);
 }
 
 /* The screen point over a hex, or false when it is off the screen. */
@@ -261,6 +261,7 @@ ui_grain_colour(u32 grain_turns)
 #define UI_FLAG_TAIL_SCALE      0.30f   /* the depth of the swallowtail, in character sizes */
 #define UI_FLAG_LIGHT_LUMA      150     /* a colour this light or lighter gets a dark character */
 #define UI_FLAG_NAME_SIZE       16      /* two Chinese characters in UTF-8, with the NUL */
+#define UI_FLAG_ARMS_SCALE      1.5f    /* the width of a coat of arms on the flag, in character sizes (E5) */
 
 /* The family name of the ruler of a faction, in UTF-8. A corps of a save
    has no ruler, so then the leader of corps 1 names it, as in
@@ -297,16 +298,37 @@ ui_flag_ink(ImU32 flag, ImU32 *ink, ImU32 *outline)
     *outline = light ? 0 : IM_COL32(0, 0, 0, 200);
 }
 
-/* The flag of a unit: a banner with a swallowtail in the colour of the
-   faction. It shows the family name of the ruler in large characters,
-   one under the other: 曹, 孫, 劉 or 公孫. A pole holds it at its left edge.
-   right and bottom are the corner of the flag next to the plate. The flag
-   asks the engine for the ruler and the colour, and commands nothing. */
-internal void
-ui_draw_unit_flag(engine_api *api, ImDrawList *draw, f32 right, f32 bottom, u8 force_id)
+/* docs/EUROPE.md, E5: the coat of arms of a faction. The text module gives
+   the file of arms.tsv for the English key of the faction, and the platform
+   gives the picture. The texture is zero if the platform, the key, the row
+   or the file is missing. */
+internal platform_picture
+ui_force_arms(ui_state *ui, engine_api *api, u8 force_id)
 {
-    char family[UI_FLAG_NAME_SIZE];
-    ui_force_family_name(api, force_id, family, sizeof(family));
+    platform_picture none = {};
+    if (!ui->data_picture || force_id == ENGINE_NO_FACTION) return none;
+    for (u32 index = 0; index < api->faction_count(api->engine); ++index)
+    {
+        engine_faction faction = api->faction_at(api->engine, index);
+        if (faction.force_id != force_id) continue;
+        const char *file = text_key_arms(ui->text, faction.key);
+        return file ? ui->data_picture(file) : none;
+    }
+    return none;
+}
+
+/* The flag of a unit: a banner with a swallowtail in the colour of the
+   faction. It shows the coat of arms of the faction (E5). A faction without
+   arms shows the family name of the ruler in large characters, one under
+   the other: 曹, 孫, 劉 or 公孫. A pole holds it at its left edge. right and
+   bottom are the corner of the flag next to the plate. The flag asks the
+   engine for the ruler, the key and the colour, and commands nothing. */
+internal void
+ui_draw_unit_flag(ui_state *ui, engine_api *api, ImDrawList *draw, f32 right, f32 bottom, u8 force_id)
+{
+    platform_picture arms = ui_force_arms(ui, api, force_id);
+    char family[UI_FLAG_NAME_SIZE] = {};
+    if (!arms.texture) ui_force_family_name(api, force_id, family, sizeof(family));
     char characters[2][UI_FLAG_NAME_SIZE] = {};
     ui_first_character(family, characters[0], sizeof(characters[0]));
     ui_first_character(family + strlen(characters[0]), characters[1], sizeof(characters[1]));
@@ -315,7 +337,10 @@ ui_draw_unit_flag(engine_api *api, ImDrawList *draw, f32 right, f32 bottom, u8 f
     ImFont *font = ImGui::GetFont();
     f32 size = ImGui::GetFontSize() * UI_FLAG_CHARACTER_SCALE;
     f32 pad = size * UI_FLAG_PAD_SCALE, tail = size * UI_FLAG_TAIL_SCALE;
-    f32 width = size + pad * 2.0f, height = size * (f32)lines + pad * 2.0f + tail;
+    f32 arms_width = size * UI_FLAG_ARMS_SCALE, arms_height = arms_width * (arms.aspect > 0.0f ? arms.aspect : 1.0f);
+    f32 content_width  = arms.texture ? arms_width : size;
+    f32 content_height = arms.texture ? arms_height : size * (f32)lines;
+    f32 width = content_width + pad * 2.0f, height = content_height + pad * 2.0f + tail;
     f32 left = right - width, top = bottom - height, body_bottom = bottom - tail, middle = (left + right) * 0.5f;
     ImU32 colour = ui_faction_color(api, force_id), ink, outline;
     ui_flag_ink(colour, &ink, &outline);
@@ -333,6 +358,12 @@ ui_draw_unit_flag(engine_api *api, ImDrawList *draw, f32 right, f32 bottom, u8 f
     ImVec2 shape[5] = { ImVec2(left, top), ImVec2(right, top), ImVec2(right, bottom), ImVec2(middle, body_bottom), ImVec2(left, bottom) };
     draw->AddPolyline(shape, 5, edge, ImDrawFlags_Closed, 1.5f);
 
+    if (arms.texture)
+    {
+        ImVec2 arms_top(middle - arms_width * 0.5f, top + pad);
+        draw->AddImage((ImTextureID)arms.texture, arms_top, ImVec2(arms_top.x + arms_width, arms_top.y + arms_height));
+        return;
+    }
     for (u32 line = 0; line < lines; ++line)
     {
         ImVec2 extent = font->CalcTextSizeA(size, FLT_MAX, 0.0f, characters[line]);
@@ -391,7 +422,7 @@ ui_draw_unit_plate(ui_state *ui, engine_api *api, ImDrawList *draw, f32 x, f32 y
     }
     draw->AddRectFilled(top, bottom, IM_COL32(0, 0, 0, 170), 3.0f);
     draw->AddRect(top, bottom, selected ? IM_COL32(255, 230, 60, 255) : faction, 3.0f, 0, selected ? 2.0f : 1.0f);
-    ui_draw_unit_flag(api, draw, top.x - 2.0f, bottom.y, unit->force_id);   /* the faction at a glance (the player, 2026-10-25) */
+    ui_draw_unit_flag(ui, api, draw, top.x - 2.0f, bottom.y, unit->force_id);   /* the faction at a glance (the player, 2026-10-25) */
 
     ImVec2 face_top(top.x + pad, top.y + pad), face_bottom(top.x + pad + portrait, top.y + pad + portrait);
     draw->AddRectFilled(face_top, face_bottom, faction, 2.0f);
@@ -482,7 +513,7 @@ ui_draw_scene_labels(ui_state *ui, engine_api *api)
         ui_city_label(ui, api, city.city_id, name, sizeof(name));
         engine_city_siege siege = api->city_siege(api->engine, city.city_id);
         f32 fraction = siege.durability_max ? (f32)siege.durability / (f32)siege.durability_max : 1.0f;
-        ui_draw_plate(api, draw, x, y, name, city.troops, fraction, city.owner_force_id, city.city_id == ui->city.selected);
+        ui_draw_plate(ui, api, draw, x, y, name, city.troops, fraction, city.owner_force_id, city.city_id == ui->city.selected);
     }
     for (u32 index = 0; index < api->base_count(api->engine); ++index)
     {
@@ -491,7 +522,7 @@ ui_draw_scene_labels(ui_state *ui, engine_api *api)
         if (base.id == ENGINE_NO_ROW || !ui_scene_screen(api, view_projection, hex_make(base.q, base.r), UI_LABEL_LIFT, &x, &y)) continue;
         f32 fraction = base.durability_max ? (f32)base.durability / (f32)base.durability_max : 1.0f;
         char name[UI_NAME_SIZE * 2];
-        ui_draw_plate(api, draw, x, y, ui_base_name(ui, api, &base, name, sizeof(name)), base.troops, fraction, base.force, false);
+        ui_draw_plate(ui, api, draw, x, y, ui_base_name(ui, api, &base, name, sizeof(name)), base.troops, fraction, base.force, false);
     }
     for (u32 id = 0; id < api->unit_count(api->engine); ++id)
     {

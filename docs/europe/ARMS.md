@@ -52,7 +52,9 @@ faction.
   author and the licence in the credits. A changed image keeps the licence.
 - Staufer and Welf have the licence "Attribution". The credits must name
   David Liuzzo.
-- The game uses no CC BY-SA image until the player agrees (question Q-E3).
+- The game uses no CC BY-SA image. The images of the game come from the
+  Drive folder, and Google Gemini made them (question Q-E3, closed on
+  2026-10-30).
 
 ## The dates of the arms
 Heraldry started in western Europe in the 12th century. Some arms in the
@@ -80,3 +82,12 @@ step of E5 imports them into data/medieval_europe/arms.
   these columns: key, source_url, licence, author.
 - If a person or a tool made a new image, give its name in the column
   author. Give the licence that the person or the tool permits.
+
+On 2026-10-30, misc/arms_import.py imported the 24 images of the folder.
+The folder has no image for Jerusalem, Antioch, Cilicia, Cyprus, Georgia
+and the Abbasids. To add them, put the files in the folder and in a local
+folder, then run the tool again:
+
+    python -X utf8 -E -P misc\arms_import.py FOLDER
+
+Add the rows of the new files to data/medieval_europe/arms/sources.tsv.

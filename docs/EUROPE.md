@@ -200,14 +200,22 @@ Tests:
 The flag of a unit shows the coat of arms of the faction. The arms also
 show in the faction list and in the ruler list of a new game.
 
-The design:
-1. arms.tsv of the pack lists one image for each force key. The images
-   are PNG files in data/medieval_europe/arms. A tool turns the SVG files
-   of Wikimedia Commons into PNG files of 128 x 128 pixels.
-2. The platform makes a texture from each PNG file, as it does for the
-   portraits.
-3. ui_draw_unit_flag draws the arms on the cloth of the flag. A faction
-   without arms keeps the family name of its ruler.
+The design, as built on 2026-10-30:
+1. arms/arms.tsv of the pack lists one image for each force key, as the
+   row force.<key>. The images are PNG files of 256 x 256 pixels in
+   data/medieval_europe/arms. misc/arms_import.py makes them from the
+   files of the Drive folder and writes the three tables.
+2. The text module reads the table (text_key_arms). The platform makes a
+   texture from a PNG file when the UI first asks for it
+   (platform_api.data_picture).
+3. ui_draw_unit_flag draws the arms on the cloth of the flag of a unit and
+   of a base. A faction without arms keeps the family name of its ruler.
+4. The Credits window has the row arms. docs/ASSETS.md has the source.
+
+The west map and the prototype have arms for each faction. On the east map,
+six factions have no file in the Drive folder: Jerusalem, Antioch, Cilicia,
+Cyprus, Georgia and the Abbasids. Their flags keep the family name. The arms
+do not show yet in the faction list and in the ruler list of a new game.
 
 The licences:
 - Many images on Wikimedia Commons are in the public domain. Others have
@@ -856,7 +864,7 @@ wikipedia: 3, 4, 19, 22, 33, 35, 38, 57, 78 and 82.
 | E2 | English keys in engine_api, names of the pack | no | done |
 | E3 | Native names in officers.tsv and the Names setting | Q-E4 for Arabic | done, Latin script only |
 | E4 | Lives and Wikipedia URLs, the officer panel | no | done |
-| E5 | Coats of arms on the flags | Q-E3 | list done in docs/europe/ARMS.md, external art |
+| E5 | Coats of arms on the flags | Q-E3, answered | done for 24 factions. Six factions of the east map have no art |
 | E6 | The authorities of the church and the two caliphs | Q-E2, Q-E9 and Q-E10, answered | done, with the devout officers |
 | E7 | The story mode and the events during the game | no | done, with the rows of the sees from E6 |
 | E8 | The west map and the east map, with Antioch on the east map | no | done. The east map has 17 factions |
@@ -967,7 +975,10 @@ merges the work of the first in its rebase.
   player chose two caliphs, Baghdad and Marrakesh (E6, "The two
   caliphs").
 - Q-E3. The licence of the arms. Can the game use CC BY-SA images? Each
-  one then needs credits, and a changed image keeps CC BY-SA.
+  one then needs credits, and a changed image keeps CC BY-SA. Closed on
+  2026-10-30: the question does not apply. The player made the 24 images
+  of the Drive folder with Google Gemini. No image is a file of Wikimedia
+  Commons, so the game uses no CC BY-SA image.
 - Q-E4. The scripts. Must the UI show Arabic, Greek and Cyrillic names in
   their own script? This needs new fonts and a shaper for Arabic.
 - Q-E5. The story during the game. Must the story mode continue with

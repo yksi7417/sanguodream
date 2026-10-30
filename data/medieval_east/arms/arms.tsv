@@ -1,0 +1,14 @@
+key	file	note
+# Written by misc/arms_import.py. The coat of arms of each faction (docs/EUROPE.md, E5). file: a PNG file under the folder data.
+# The flag of a unit shows the arms. A faction without a row keeps the family name of its ruler. The sources are in data/medieval_europe/arms/sources.tsv.
+force.byzantium	medieval_europe/arms/byzantium.png	
+force.bulgaria	medieval_europe/arms/bulgaria.png	
+force.rum	medieval_europe/arms/rum.png	
+force.ayyubid	medieval_europe/arms/ayyubid.png	
+force.hungary	medieval_europe/arms/hungary.png	
+force.austria	medieval_europe/arms/austria.png	
+force.papacy	medieval_europe/arms/papacy.png	
+force.venice	medieval_europe/arms/venice.png	
+force.sicily	medieval_europe/arms/sicily.png	
+force.almohad	medieval_europe/arms/almohad.png	
+force.ghaniya	medieval_europe/arms/ghaniya.png	

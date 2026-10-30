@@ -136,6 +136,7 @@ struct text_catalog
     text_table   pack_strings;                /* text/<locale>.tsv of the game pack: these rows replace the rows of strings */
     text_table   fallback_pack_strings;       /* text/<fallback locale>.tsv of the game pack */
     text_table   fallback_pack_story;         /* story/<fallback locale>.tsv of the game pack */
+    text_table   pack_arms;                   /* arms/arms.tsv of the game pack: the PNG file of the arms of each faction (E5) */
     b32          native_names;                /* the Names setting: text_key_name gives the native name first */
     u32          locale_count;
     text_locale_info locales[TEXT_MAX_LOCALES];   /* from text/locales.tsv, in file order */
@@ -209,6 +210,18 @@ internal const char *text_key_story(text_catalog *catalog, const char *kind, con
    0 if the key is empty, the row is absent, or text_link_is_allowed refuses
    the URL. */
 internal const char *text_key_link(text_catalog *catalog, const char *kind, const char *key);
+
+/* docs/EUROPE.md, E5: the file of the coat of arms of a faction: the row
+   "force.<key>" of arms/arms.tsv of the game pack. The path is under the
+   data folder, for example "medieval_europe/arms/france.png". The table
+   does not depend on the locale. 0 if the key is empty, the row is absent,
+   or text_arms_file_is_allowed refuses the path. */
+internal const char *text_key_arms(text_catalog *catalog, const char *key);
+
+/* True if the path is a PNG file under the data folder: lower-case letters,
+   digits, "_", "-", "." and "/", no "..", no first "/", and the end ".png".
+   The platform reads only such a path. */
+internal b32 text_arms_file_is_allowed(const char *path);
 
 /* True if the URL is an article of the English Wikipedia: it starts with
    "https://en.wikipedia.org/wiki/", it has a name after that prefix, and it

@@ -457,6 +457,7 @@ text_catalog_set_locale(text_catalog *catalog, const char *locale)
     catalog->pack_links        = empty;
     catalog->pack_story        = empty;
     catalog->fallback_pack_story = empty;
+    catalog->pack_arms         = empty;
     catalog->pack_strings      = empty;
     catalog->fallback_pack_strings = empty;
     text_copy_utf8(code, catalog->locale, sizeof(catalog->locale));
@@ -475,6 +476,7 @@ text_catalog_set_locale(text_catalog *catalog, const char *locale)
         if (strcmp(code, catalog->fallback_locale) == 0) catalog->fallback_pack_lore = catalog->pack_lore;
         else catalog->fallback_pack_lore = text_catalog_load_pack_table(catalog, catalog->game_pack, "lore", catalog->fallback_locale, "key");
         catalog->pack_links = text_catalog_load_pack_table(catalog, catalog->game_pack, "lore", "links", "key");
+        catalog->pack_arms  = text_catalog_load_pack_table(catalog, catalog->game_pack, "arms", "arms", "key");   /* E5 */
         /* docs/EUROPE.md, E7: the pages of the story mode. */
         catalog->pack_strings = text_catalog_load_pack_table(catalog, catalog->game_pack, "text", code, "id");
         if (strcmp(code, catalog->fallback_locale) == 0) catalog->fallback_pack_strings = catalog->pack_strings;
@@ -571,6 +573,31 @@ text_key_link(text_catalog *catalog, const char *kind, const char *key)
     if (!text_record_id(catalog, kind, key, id, sizeof(id))) return 0;
     const char *url = text_table_find(&catalog->pack_links, id);
     return text_link_is_allowed(url) ? url : 0;
+}
+
+internal b32
+text_arms_file_is_allowed(const char *path)
+{
+    static const char suffix[] = ".png";
+    if (!path || !path[0] || path[0] == '/' || strstr(path, "..")) return false;
+    u64 length = strlen(path);
+    if (length <= sizeof(suffix) - 1 || strcmp(path + length - (sizeof(suffix) - 1), suffix) != 0) return false;
+    for (const char *letter = path; *letter; ++letter)
+    {
+        char c = *letter;
+        b32 allowed = (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.' || c == '/';
+        if (!allowed) return false;
+    }
+    return true;
+}
+
+internal const char *
+text_key_arms(text_catalog *catalog, const char *key)
+{
+    char id[TEXT_PACK_SIZE + 64];
+    if (!text_record_id(catalog, "force", key, id, sizeof(id))) return 0;
+    const char *file = text_table_find(&catalog->pack_arms, id);
+    return text_arms_file_is_allowed(file) ? file : 0;
 }
 
 internal const char *

@@ -193,6 +193,9 @@ decompilation of it.
 - misc/make_pair_index.py  writes data/placeholder/pairs.tsv from the save
                          pairs of the spec (run it after a spec update;
                          tutorial 26)
+- misc/arms_import.py    copies the coats of arms of a folder into
+                         data/medieval_europe/arms at 256 x 256 and writes
+                         arms/arms.tsv of each pack of 1200 (docs/ASSETS.md)
 - misc/glb_import.py     converts a GLB into the 3D model of a base kind
                          or of a facility shape,
                          data/<pack>/models/<name>.hxm and .png

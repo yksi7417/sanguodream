@@ -36,6 +36,7 @@ global_variable const ui_credit ui_credits[] = {
     {UI_CREDIT_ART, "meshy_city", "Walled Imperial City", "Meshy", "CC BY 4.0",
      "https://creativecommons.org/licenses/by/4.0/", "https://www.meshy.ai"},
     {UI_CREDIT_ART, "own_art", 0, 0, 0, 0, 0},
+    {UI_CREDIT_ART, "arms", 0, 0, 0, "https://policies.google.com/terms", 0},   /* docs/EUROPE.md, E5 */
     {UI_CREDIT_ART, "portraits", 0, 0, 0, 0, 0},
     {UI_CREDIT_FONTS, "noto_cjk", "Noto Sans CJK TC", "Google, Adobe", "SIL Open Font License 1.1",
      "https://openfontlicense.org", "https://github.com/notofonts/noto-cjk"},

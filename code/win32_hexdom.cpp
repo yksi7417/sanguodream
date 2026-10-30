@@ -92,6 +92,48 @@ win32_load_splash(d3d11_renderer *renderer, memory_arena *scratch)
     win32_log(g_win32_splash_view ? "platform: splash art loaded" : "platform: no splash art");
 }
 
+/* docs/EUROPE.md, E5: the PNG files under the data folder, for example the
+   coats of arms. The platform loads a file at the first ask and keeps it.
+   It also keeps a file that does not load, so it never asks the disk again. */
+struct win32_data_picture
+{
+    char                      file[96];
+    platform_picture          picture;
+    ID3D11ShaderResourceView *view;
+};
+
+struct win32_data_pictures
+{
+    d3d11_renderer    *renderer;
+    memory_arena      *scratch;
+    u32                count;
+    win32_data_picture entries[PLATFORM_DATA_PICTURE_CAPACITY];
+};
+
+global_variable win32_data_pictures g_win32_pictures;
+
+internal PLATFORM_DATA_PICTURE(win32_data_picture_of)
+{
+    platform_picture none = {};
+    win32_data_pictures *pictures = &g_win32_pictures;
+    if (!text_arms_file_is_allowed(file) || strlen(file) >= sizeof(pictures->entries[0].file)) return none;
+    for (u32 index = 0; index < pictures->count; ++index)
+    {
+        if (strcmp(pictures->entries[index].file, file) == 0) return pictures->entries[index].picture;
+    }
+    if (!pictures->renderer || !pictures->renderer->device || pictures->count >= PLATFORM_DATA_PICTURE_CAPACITY) return none;
+    win32_data_picture *entry = pictures->entries + pictures->count++;
+    snprintf(entry->file, sizeof(entry->file), "%s", file);
+    char relative[128];
+    snprintf(relative, sizeof(relative), "../%s", file);   /* the renderer reads under the folder of the default pack */
+    u64 used = pictures->scratch->used;
+    entry->view = d3d11_load_png_texture(pictures->renderer, relative, pictures->scratch, &entry->picture.aspect, true);
+    pictures->scratch->used = used;
+    entry->picture.texture = (u64)entry->view;
+    if (!entry->view) win32_log("platform: a picture of the data folder does not load");
+    return entry->picture;
+}
+
 /* A relative path is relative to the folder of the executable, not to the
    current directory, so the game finds its data however it was started. */
 internal PLATFORM_READ_ENTIRE_FILE(win32_read_entire_file)
@@ -307,6 +349,8 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
         win32_log(renderer.last_error);
     }
     win32_load_splash(&renderer, &renderer_scratch);
+    g_win32_pictures.renderer = &renderer;
+    g_win32_pictures.scratch  = &renderer_scratch;
 
     /* The fonts go into the atlas before the first frame; the DX11 backend
        builds the atlas texture in its first NewFrame. */
@@ -363,6 +407,7 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
     win32_faces_init(&g_win32_faces, window.device);
     memory.platform.face_texture   = win32_face_texture;
     memory.platform.splash_picture = win32_splash_picture;
+    memory.platform.data_picture   = win32_data_picture_of;
     memory.platform.open_url       = win32_open_url;
 
     win32_game_code game = win32_load_game_code(&g_win32);
@@ -460,6 +505,10 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
     win32_log(memory_line);
 
     if (g_win32_splash_view) g_win32_splash_view->Release();
+    for (u32 index = 0; index < g_win32_pictures.count; ++index)
+    {
+        if (g_win32_pictures.entries[index].view) g_win32_pictures.entries[index].view->Release();
+    }
     d3d11_renderer_destroy(&renderer);
     win32_portraits_close(&g_win32_portraits);
     win32_faces_close(&g_win32_faces);

@@ -179,6 +179,45 @@ wasm_load_splash(wasm_state *state)
     wasm_log(texture ? "platform: splash art loaded" : "platform: no splash art");
 }
 
+/* docs/EUROPE.md, E5: the PNG files under the data folder, for example the
+   coats of arms. The platform loads a file at the first ask and keeps it.
+   It also keeps a file that does not load, so it never asks again. */
+struct wasm_data_picture
+{
+    char             file[96];
+    platform_picture picture;
+};
+
+struct wasm_data_pictures
+{
+    u32               count;
+    wasm_data_picture entries[PLATFORM_DATA_PICTURE_CAPACITY];
+};
+
+global_variable wasm_data_pictures g_wasm_pictures;
+
+internal PLATFORM_DATA_PICTURE(wasm_data_picture_of)
+{
+    platform_picture none = {};
+    wasm_data_pictures *pictures = &g_wasm_pictures;
+    if (!text_arms_file_is_allowed(file) || strlen(file) >= sizeof(pictures->entries[0].file)) return none;
+    for (u32 index = 0; index < pictures->count; ++index)
+    {
+        if (strcmp(pictures->entries[index].file, file) == 0) return pictures->entries[index].picture;
+    }
+    if (!g_wasm.window || pictures->count >= PLATFORM_DATA_PICTURE_CAPACITY) return none;
+    wasm_data_picture *entry = pictures->entries + pictures->count++;
+    snprintf(entry->file, sizeof(entry->file), "%s", file);
+    char relative[128];
+    snprintf(relative, sizeof(relative), "../%s", file);   /* the renderer reads under the folder of the default pack */
+    u64 used = g_wasm.renderer_scratch.used;
+    GLuint texture = gl_load_png_texture(&g_wasm.renderer, relative, &g_wasm.renderer_scratch, &entry->picture.aspect, true);
+    g_wasm.renderer_scratch.used = used;
+    entry->picture.texture = (u64)texture;
+    if (!texture) wasm_log("platform: a picture of the data folder does not load");
+    return entry->picture;
+}
+
 internal void *
 wasm_imgui_alloc(size_t size, void *user)
 {
@@ -440,6 +479,7 @@ wasm_start(void)
     wasm_log(portrait_message);
     memory->platform.face_texture   = wasm_face_texture;
     memory->platform.splash_picture = wasm_splash_picture;
+    memory->platform.data_picture   = wasm_data_picture_of;
     memory->platform.net_send     = wasm_net_send;   /* MP3: the socket of a shared game is in the page */
     memory->platform.net_poll     = wasm_net_poll;
     wasm_net_install();

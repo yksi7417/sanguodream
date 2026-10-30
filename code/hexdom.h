@@ -74,6 +74,16 @@ struct platform_picture
 #define PLATFORM_SPLASH_PICTURE(name) platform_picture name(void)
 typedef PLATFORM_SPLASH_PICTURE(platform_splash_picture);
 
+/* docs/EUROPE.md, E5: a PNG file under the data folder, for example the
+   coat of arms "medieval_europe/arms/france.png" (text_key_arms). The
+   platform loads a file one time, when the game first asks for it, and
+   keeps at most PLATFORM_DATA_PICTURE_CAPACITY files. It refuses a path
+   that text_arms_file_is_allowed refuses. The texture is zero if the file
+   is absent or does not decode. */
+#define PLATFORM_DATA_PICTURE_CAPACITY 64
+#define PLATFORM_DATA_PICTURE(name) platform_picture name(const char *file)
+typedef PLATFORM_DATA_PICTURE(platform_data_picture);
+
 /* docs/EUROPE.md, E4: opens a link of the English Wikipedia. The platform
    opens it in the default browser, or in a new tab on the web. The platform
    refuses a URL for which text_link_is_allowed (text/text.h) gives false.
@@ -143,6 +153,7 @@ struct platform_api
     platform_portrait_texture *portrait_texture;
     platform_face_texture     *face_texture;     /* the generated faces; zero without a device */
     platform_splash_picture   *splash_picture;   /* the splash art; zero without a device */
+    platform_data_picture     *data_picture;     /* E5: the coats of arms; zero without a device */
     platform_net_send        *net_send;         /* MP3: zero without a network (the Windows build) */
     platform_net_poll         *net_poll;
     platform_open_url         *open_url;         /* E4: the Wikipedia button of the officer panel */

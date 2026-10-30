@@ -107,6 +107,41 @@ unit_sprite_file_tests(test_counts *counts)
     test_arena_destroy(&arena);
 }
 
+/* docs/EUROPE.md, E5: each row of arms/arms.tsv of the packs of 1200 names
+   an allowed PNG file under the data folder, and the decoder reads it at
+   256 x 256 pixels (misc/arms_import.py). */
+internal void
+unit_arms_file_tests(test_counts *counts)
+{
+    static const char *packs[] = { "medieval_west", "medieval_east", "medieval_europe" };
+    memory_arena arena = test_arena_create(Megabytes(8));
+    char exe_dir[MAX_PATH], path[MAX_PATH * 2];
+    test_exe_dir(exe_dir, MAX_PATH);
+    for (u32 pack = 0; pack < ArrayCount(packs); ++pack)
+    {
+        arena.used = 0;
+        snprintf(path, sizeof(path), "%s/../data/%s/arms/arms.tsv", exe_dir, packs[pack]);
+        test_file table_file = test_read_file(path, &arena);
+        text_table table = table_file.contents ? text_table_parse((const char *)table_file.contents, table_file.size, "key", &arena) : text_table{};
+        u64 mark = arena.used;
+        b32 rows_good = table.row_count > 0;
+        for (u32 row = 0; row < table.row_count; ++row)
+        {
+            arena.used = mark;
+            const char *file = table.row_texts[row];
+            b32 allowed = strncmp(table.row_keys[row], "force.", 6) == 0 && text_arms_file_is_allowed(file);
+            snprintf(path, sizeof(path), "%s/../data/%s", exe_dir, allowed ? file : "");
+            test_file picture = allowed ? test_read_file(path, &arena) : test_file{};
+            png_image image = picture.contents ? png_decode(picture.contents, picture.size, &arena) : png_image{};
+            rows_good &= allowed && image.error == 0 && image.width == 256 && image.height == 256;
+        }
+        char name[160];
+        snprintf(name, sizeof(name), "%s: each row of arms.tsv names a PNG under the data folder, and it decodes at 256 x 256", packs[pack]);
+        TEST_CHECK(counts, rows_good, name);
+    }
+    test_arena_destroy(&arena);
+}
+
 /* The 3D models of the pack (docs/ASSETS.md, "Base models"): the mesh file
    of each model parses as HXM1, and the decoder reads its texture. The
    pack has the models of the four base kinds, the market and the farm at
@@ -193,4 +228,5 @@ unit_png_tests(test_counts *counts)
     test_arena_destroy(&arena);
     unit_sprite_file_tests(counts);
     unit_model_file_tests(counts);
+    unit_arms_file_tests(counts);   /* E5 */
 }

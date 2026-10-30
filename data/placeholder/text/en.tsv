@@ -1610,7 +1610,11 @@ credits.use.meshy_city	The 3D model of the big cities	what the game uses the wor
 credits.work.own_art	Unit, base and splash art	a work of the project
 credits.author.own_art	The hexdom project, with Google Gemini	author of the work
 credits.licence.own_art	Own work of the hexdom project	licence of the work
-credits.use.own_art	The splash art at the start, the pictures of the units and the cards of the baseswhat the game uses the work for
+credits.use.own_art	The splash art at the start, the pictures of the units and the cards of the bases	what the game uses the work for
+credits.work.arms	Coats of arms of 1200	a work of the project (docs/EUROPE.md, E5)
+credits.author.arms	Google Gemini, edited by the player	author of the work
+credits.licence.arms	Generated content: the Google Terms of Service apply	licence of the work
+credits.use.arms	The flags of the factions in the game of 1200	what the game uses the work for
 credits.work.portraits	Officer portraits	a work of the project
 credits.author.portraits	The hexdom project, with an image model	author of the work
 credits.licence.portraits	Not recorded yet	docs/ASSETS.md: the licence of the portraits is not recorded

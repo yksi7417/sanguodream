@@ -135,6 +135,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     frame_info.portrait_texture = memory->platform.portrait_texture;
     frame_info.face_texture     = memory->platform.face_texture;
     frame_info.splash_picture   = memory->platform.splash_picture;
+    frame_info.data_picture     = memory->platform.data_picture;
     frame_info.net_send         = memory->platform.net_send;
     frame_info.net_poll         = memory->platform.net_poll;
     frame_info.open_url         = memory->platform.open_url;

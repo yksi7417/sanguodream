@@ -1609,6 +1609,10 @@ credits.work.own_art	部隊、據點與開場美術
 credits.author.own_art	hexdom 專案，使用 Google Gemini 製作
 credits.licence.own_art	hexdom 專案原創作品
 credits.use.own_art	開場畫面、部隊圖像與據點圖卡
+credits.work.arms	1200 年的紋章
+credits.author.arms	Google Gemini，由玩家修改
+credits.licence.arms	生成內容：適用 Google 服務條款
+credits.use.arms	1200 年劇本中各勢力的旗幟
 credits.work.portraits	武將頭像
 credits.author.portraits	hexdom 專案，使用圖像模型製作
 credits.licence.portraits	尚未記錄

@@ -634,6 +634,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     ui->portrait_texture = frame->portrait_texture;
     ui->face_texture     = frame->face_texture;
     ui->splash_picture   = frame->splash_picture;
+    ui->data_picture     = frame->data_picture;
     ui->open_url         = frame->open_url;
     if (!ui->show_map) ui->map.focused = false;   /* a closed panel takes no keys */
     /* The game mode hides the debug menu bar and the debug tools; F12 shows them. */

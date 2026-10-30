@@ -82,6 +82,12 @@ global_variable const test_text_file test_text_files[] =
       "# the new names of the game pack\n"
       "menu.windows\tPanes\n"
       "status.0\tKing\n" },
+    { "root/europe/arms/arms.tsv",
+      "key\tfile\tnote\n"
+      "# the arms of the factions\n"
+      "force.france\tmedieval_europe/arms/france.png\tGoogle Gemini\n"
+      "force.up\t../secret/france.png\n"
+      "force.bmp\tmedieval_europe/arms/france.bmp\n" },
     { "root/odd/pack.tsv",
       "key\tvalue\n"
       "default_locale\t../en\n" },
@@ -531,6 +537,35 @@ unit_text_story_tests(test_counts *counts, memory_arena *arena)
     TEST_CHECK(counts, text_key_story(&catalog, "page", "europe") == 0, "a pack without story files has no page");
 }
 
+/* docs/EUROPE.md, E5: arms/arms.tsv of the game pack, the coat of arms of each faction. */
+internal void
+unit_text_arms_tests(test_counts *counts, memory_arena *arena)
+{
+    text_catalog catalog;
+    text_catalog_init(&catalog, arena_sub(arena, Kilobytes(64)), test_text_read_file, "root", "pack", "en");
+    text_catalog_set_game_pack(&catalog, "europe");
+    text_catalog_set_locale(&catalog, "en");
+
+    const char *france = text_key_arms(&catalog, "france");
+    TEST_CHECK(counts, france && strcmp(france, "medieval_europe/arms/france.png") == 0, "the key of a faction gives the file of its arms");
+    TEST_CHECK(counts, text_key_arms(&catalog, "papacy") == 0, "a faction without a row has no arms");
+    TEST_CHECK(counts, text_key_arms(&catalog, "") == 0, "an empty key has no arms");
+    TEST_CHECK(counts, text_key_arms(&catalog, "up") == 0, "a file outside the data folder is not a file of arms");
+    TEST_CHECK(counts, text_key_arms(&catalog, "bmp") == 0, "a file that is not a PNG is not a file of arms");
+    text_catalog_set_locale(&catalog, "ko");
+    TEST_CHECK(counts, text_key_arms(&catalog, "france") != 0, "the arms do not depend on the locale");
+
+    TEST_CHECK(counts, text_arms_file_is_allowed("medieval_europe/arms/france.png"), "a PNG under the data folder is allowed");
+    TEST_CHECK(counts, !text_arms_file_is_allowed(0) && !text_arms_file_is_allowed(""), "no file is not allowed");
+    TEST_CHECK(counts, !text_arms_file_is_allowed("/etc/france.png") && !text_arms_file_is_allowed("C:/x/france.png"), "an absolute path is not allowed");
+    TEST_CHECK(counts, !text_arms_file_is_allowed("a/../../france.png") && !text_arms_file_is_allowed("a\\france.png"), "a parent folder or a backslash is not allowed");
+    TEST_CHECK(counts, !text_arms_file_is_allowed("arms/France.png") && !text_arms_file_is_allowed("arms/fr ance.png"), "a capital letter or a space is not allowed");
+
+    text_catalog_set_game_pack(&catalog, "pack");
+    text_catalog_set_locale(&catalog, "en");
+    TEST_CHECK(counts, text_key_arms(&catalog, "france") == 0, "a pack without arms.tsv has no arms");
+}
+
 internal void
 unit_text_link_tests(test_counts *counts)
 {
@@ -735,6 +770,7 @@ unit_text_tests(test_counts *counts)
     unit_text_native_name_tests(counts, &arena);   /* E3 */
     unit_text_lore_tests(counts, &arena);          /* E4 */
     unit_text_story_tests(counts, &arena);         /* E7 */
+    unit_text_arms_tests(counts, &arena);          /* E5 */
     unit_text_link_tests(counts);                  /* E4 */
     unit_text_label_tests(counts, &arena);
     unit_text_provider_tests(counts, &arena);   /* M18 */

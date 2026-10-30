@@ -287,6 +287,27 @@ The platform loads the picture one time after the renderer starts
 through platform_api.splash_picture. If the file is absent, the splash
 shows a dark screen with the hint.
 
+## Coats of arms (data/medieval_europe/arms)
+The flag of a faction in the game of 1200 shows its coat of arms
+(docs/EUROPE.md, E5).
+
+| Item | Value |
+|---|---|
+| Files | 24 PNG files, one for each force key, for example france.png |
+| Size | 256 x 256 pixels, 8-bit RGBA with a transparent background, 1.3 MB in all |
+| Source | The owner of the repository made the pictures with Google Gemini. The owner composited Welf and Hungary and edited Denmark. The owner shared them on 2026-10-29 in a shared Google Drive folder at 1024 x 1024 pixels. sources.tsv in the folder gives the Gemini link of each picture. |
+| Licence | generated content, under the Google Terms of Service. No picture is a file of Wikimedia Commons, so no CC BY-SA credit applies (Q-E3). |
+
+To import new files, put them in a folder with the force key as the name.
+Then run misc/arms_import.py with that folder. The tool makes the copies of
+256 x 256 pixels and writes arms/arms.tsv of each pack of 1200. The test
+unit_arms_file_tests decodes each file of these tables.
+
+The platform loads a file when the UI first asks for it
+(PLATFORM_DATA_PICTURE in code/hexdom.h). The path of the file is under the
+data folder, and text_arms_file_is_allowed must accept it. If the file is
+absent, the flag shows the family name of the ruler.
+
 ## Base models (data/placeholder/models)
 A base kind can have a 3D model in place of its art card. The card faces
 the camera, so it turns when the player turns the view. A model stays
