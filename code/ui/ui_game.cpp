@@ -232,17 +232,52 @@ ui_draw_scenarios(ui_state *ui, engine_api *api)
     ui_center_next_window();   /* the request of the player of 2026-10-20 */
     if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "scenarios.title", "Scenarios"), &ui->show_scenarios)) { ImGui::End(); return; }
     void *e = api->engine;
-    for (u32 index = 0; index < api->scenario_count(e); ++index)
+    /* The request of the player of 2026-10-30: the list shows only the
+       scenarios with a file, in the order of their years. Thus the Three
+       Kingdoms come before the game of 1200. In one year, a scenario comes
+       before a saved game. The id of each row stays its index in the list. */
+    u32 order[UI_SCENARIO_ROWS];
+    u32 shown = 0;
+    for (u32 index = 0; index < api->scenario_count(e) && shown < UI_SCENARIO_ROWS; ++index)
     {
+        engine_scenario scenario = api->scenario_at(e, index);
+        if (!scenario.available) continue;
+        u32 place = shown++;
+        u32 rank  = (u32)scenario.year * 2 + (scenario.kind == ENGINE_SCENARIO_SAVE ? 1 : 0);
+        while (place > 0)
+        {
+            engine_scenario before = api->scenario_at(e, order[place - 1]);
+            if ((u32)before.year * 2 + (before.kind == ENGINE_SCENARIO_SAVE ? 1 : 0) <= rank) break;
+            order[place] = order[place - 1];
+            --place;
+        }
+        order[place] = index;
+    }
+    ImGuiStorage *storage = ImGui::GetStateStorage();
+    ImGuiID hover_id = ImGui::GetID("scenario_hover");
+    for (u32 row_index = 0; row_index < shown; ++row_index)
+    {
+        u32 index = order[row_index];
         engine_scenario scenario = api->scenario_at(e, index);
         char kind[48], row[256];
         text_label(ui->text, "scenario_kind", scenario.kind, kind, sizeof(kind));
-        if (scenario.year) snprintf(row, sizeof(row), "%u  %s  [%s]###sc%u", scenario.year, ui_text_with_key(ui, "scenario", scenario.key), kind, index);
-        else               snprintf(row, sizeof(row), "-  %s  [%s]###sc%u", ui_text_with_key(ui, "scenario", scenario.key), kind, index);
-        ImGui::BeginDisabled(!scenario.available);
+        snprintf(row, sizeof(row), "%u  %s  [%s]###sc%u", scenario.year, ui_text_with_key(ui, "scenario", scenario.key), kind, index);
         if (ImGui::Selectable(row)) ui_choose_scenario(ui, api, &scenario);
-        ImGui::EndDisabled();
-        if (!scenario.available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("%s", text_get(ui->text, "scenarios.unavailable"));
+        if (ImGui::IsItemHovered()) storage->SetInt(hover_id, (int)index + 1);
+    }
+    /* The description of the scenario under the pointer, or of the last one. */
+    int hovered = storage->GetInt(hover_id, shown ? (int)order[0] + 1 : 0);
+    if (hovered > 0 && (u32)hovered <= api->scenario_count(e))
+    {
+        engine_scenario scenario = api->scenario_at(e, (u32)hovered - 1);
+        char id[96];
+        snprintf(id, sizeof(id), "scenario_about.%s", scenario.key);
+        const char *about = text_find_string(ui->text, id);
+        if (about && scenario.available)
+        {
+            ImGui::Separator();
+            ImGui::TextWrapped("%s", about);
+        }
     }
     ImGui::End();
 }

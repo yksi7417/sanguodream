@@ -4034,7 +4034,7 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->Yield(2);
         IM_CHECK(v.ui.show_scenarios && recorder_count_commands(&v.recorder) == 0u);
         ctx->SetRef("###Scenarios");
-        IM_CHECK((ctx->ItemInfo("###sc1").ItemFlags & ImGuiItemFlags_Disabled) != 0);   /* a PK scenario without its file */
+        IM_CHECK(!ctx->ItemExists("###sc1"));   /* the list hides a PK scenario without its file (the player, 2026-10-30) */
         ctx->ItemClick("###sc0");
         ctx->Yield(2);
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_LOAD_SAVE), 1u);

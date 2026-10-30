@@ -922,6 +922,8 @@ scenario_kind.3	內容包
 scenario.y1200	一二〇〇年 群王爭霸
 scenario.y1200_west	一二〇〇年 英法爭霸
 scenario.y1200_east	一二〇〇年 十字軍東征
+scenario.y196	一九六年 天子東遷
+scenario_about.y196	建安元年秋。董卓已死，李傕、郭汜爭奪殘破的長安。年幼的獻帝東歸，回到焚毀的洛陽。曹操迎天子，遷都許昌，從此挾天子以令諸侯。河北袁紹據有冀州，與公孫瓚連年交戰。呂布奪取下邳，劉備寄身小沛。袁術據壽春，心懷稱帝之志。江東孫策渡江，擊破劉繇、王朗。荊州劉表保境安民，益州劉璋閉關自守。二十路諸侯，逐鹿天下。
 scenario.sample_save	群雄割據（存檔）
 scenario.warlords	群雄割據
 scenario.lu_bu_campaign	呂布討伐戰

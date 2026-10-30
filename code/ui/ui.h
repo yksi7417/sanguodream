@@ -40,6 +40,7 @@ enum ui_context_kind
    own unit, G2-058 on a far hex). */
 enum ui_target_kind { UI_TARGET_NONE, UI_TARGET_ENEMY, UI_TARGET_FOLLOW, UI_TARGET_FAR, UI_TARGET_FACILITY, UI_TARGET_BASE };   /* UI_TARGET_FACILITY: G3-020, the question before an attack order on a facility; UI_TARGET_BASE: the question before the entry of an own port or pass */
 #define UI_PLATE_CAPACITY 128   /* the unit plates of one frame that a click can hit (G2-042) */
+#define UI_SCENARIO_ROWS   64   /* the rows that the scenario list can show */
 
 /* M22, screen-flow.md, rule 7: the pitch of the rows of a list, of the
    items of a menu, and of the tabs. */

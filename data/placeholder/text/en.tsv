@@ -924,6 +924,8 @@ scenario_kind.3	pack	a scenario of the content pack in TSV files (docs/MAPS.md)
 scenario.y1200	1200: The Rival Crowns	一二〇〇年 群王爭霸, the scenario of data/medieval_europe
 scenario.y1200_west	1200: England and France	一二〇〇年 英法爭霸, the scenario of data/medieval_west
 scenario.y1200_east	1200: The Crusades	一二〇〇年 十字軍東征, the scenario of data/medieval_east
+scenario.y196	196: The Emperor Moves East	一九六年 天子東遷, the scenario of data/han_196
+scenario_about.y196	Autumn of 196, the first year of Jian'an. Dong Zhuo is dead, and Li Jue and Guo Si fight over the ruins of Chang'an. The young Emperor Xian escapes east to burned Luoyang. Cao Cao meets him and moves the court to Xuchang. Now Cao Cao gives orders in the name of the Emperor. In the north, Yuan Shao holds Ji Province and fights Gongsun Zan. Lü Bu has taken Xiapi from Liu Bei, and Liu Bei shelters at Xiaopei. Yuan Shu at Shouchun dreams of the throne. South of the Yangtze, the young Sun Ce defeats Liu Yao and Wang Lang. Liu Biao guards Jing Province, and Liu Zhang rules Yi Province behind the mountains. Twenty warlords fight for the land of the Han.	the description under the scenario list
 scenario.sample_save	Warlords (saved game)	群雄割據 (存檔)
 scenario.warlords	Warlords	群雄割據
 scenario.lu_bu_campaign	The campaign against Lu Bu	呂布討伐戰
