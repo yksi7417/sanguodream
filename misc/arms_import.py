@@ -3,8 +3,9 @@
 Usage: python -X utf8 -E -P misc\\arms_import.py FOLDER
 
 FOLDER holds one PNG file for each force key, for example france.png, as in
-the shared Drive folder of docs/europe/ARMS.md. The tool makes a copy of
-256 x 256 pixels of each file in data/medieval_europe/arms. Then it writes
+the shared Drive folder of docs/europe/ARMS.md. The tool crops each file to
+its shape, puts the shape in the centre of a square and makes a copy of
+256 x 256 pixels in data/medieval_europe/arms. Then it writes
 arms/arms.tsv of each pack of 1200: one row for each faction of forces.tsv
 that has a file. A faction without a file keeps the family name of its
 ruler on its flag. The tool needs Pillow.
@@ -16,6 +17,8 @@ import sys
 from PIL import Image
 
 SIZE = 256
+SOLID_ALPHA = 128   # pixels below this alpha do not count as a part of the shape
+MARGIN = 0.04       # the empty border around the shape, as a part of the side
 PACKS = ("medieval_west", "medieval_east", "medieval_europe")
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 
@@ -30,6 +33,19 @@ def force_keys(pack):
     return keys
 
 
+def centred(image):
+    """Crops the image to its solid shape and puts the shape in the centre of a square.
+    Gemini does not always put the shield in the centre, and it can leave faint specks."""
+    box = image.getchannel("A").point(lambda value: 255 if value >= SOLID_ALPHA else 0).getbbox()
+    if box is None:
+        return image
+    shape = image.crop(box)
+    side = int(max(shape.width, shape.height) * (1.0 + 2.0 * MARGIN))
+    square = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+    square.paste(shape, ((side - shape.width) // 2, (side - shape.height) // 2))
+    return square
+
+
 def main():
     if len(sys.argv) != 2:
         sys.exit(__doc__)
@@ -37,7 +53,7 @@ def main():
     os.makedirs(out, exist_ok=True)
     for path in sorted(glob.glob(os.path.join(sys.argv[1], "*.png"))):
         key = os.path.basename(path)[:-4]
-        image = Image.open(path).convert("RGBA").resize((SIZE, SIZE), Image.LANCZOS)
+        image = centred(Image.open(path).convert("RGBA")).resize((SIZE, SIZE), Image.LANCZOS)
         image.save(os.path.join(out, key + ".png"), optimize=True)
     have = {os.path.basename(path)[:-4] for path in glob.glob(os.path.join(out, "*.png"))}
 

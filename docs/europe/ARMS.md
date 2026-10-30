@@ -83,18 +83,20 @@ step of E5 imports them into data/medieval_europe/arms.
 - If a person or a tool made a new image, give its name in the column
   author. Give the licence that the person or the tool permits.
 
-On 2026-10-30, misc/arms_import.py imported the 24 images of the folder.
-The folder has no image for Jerusalem, Antioch, Cilicia, Cyprus, Georgia
-and the Abbasids. To add them, put the files in the folder and in a local
-folder, then run the tool again:
+On 2026-10-30, misc/arms_import.py imported the 30 images of the folder:
+first 24, then the six of the prompts below. Each faction now has arms. To
+replace an image, put the new file in the folder and in a local folder,
+then run the tool again on the local folder:
 
     python -X utf8 -E -P misc\arms_import.py FOLDER
 
-Add the rows of the new files to data/medieval_europe/arms/sources.tsv.
+The tool crops each image to its solid shape and puts the shape in the
+centre of the square. Add the row of each new file to
+data/medieval_europe/arms/sources.tsv.
 
-## The prompts for the six missing arms
-These prompts make the six missing images in the style of the 24 images
-of the folder. Give the common text first, then the text of the faction.
+## The prompts for the last six arms
+These prompts made the images of Jerusalem, Antioch, Cilicia, Cyprus,
+Georgia and the Abbasids in the style of the first 24 images of the folder. Give the common text first, then the text of the faction.
 Name each file with the key, for example jerusalem.png.
 
 The common text:

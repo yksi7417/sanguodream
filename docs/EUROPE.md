@@ -215,10 +215,10 @@ The design, as built on 2026-10-30:
    ruler list of a new game and in the faction list of 勢力情報. A faction
    without arms gets an empty square, so the names stay in one column.
 
-The west map and the prototype have arms for each faction. On the east map,
-six factions have no file in the Drive folder: Jerusalem, Antioch, Cilicia,
-Cyprus, Georgia and the Abbasids. Their flags keep the family name.
-docs/europe/ARMS.md gives the prompts for these six images.
+Each faction of the three packs has arms: 30 images in all. The last six
+(Jerusalem, Antioch, Cilicia, Cyprus, Georgia and the Abbasids) came from
+the prompts of docs/europe/ARMS.md. The tool crops each image to its shape
+and puts the shape in the centre of the square.
 
 The licences:
 - Many images on Wikimedia Commons are in the public domain. Others have
@@ -979,7 +979,7 @@ merges the work of the first in its rebase.
   caliphs").
 - Q-E3. The licence of the arms. Can the game use CC BY-SA images? Each
   one then needs credits, and a changed image keeps CC BY-SA. Closed on
-  2026-10-30: the question does not apply. The player made the 24 images
+  2026-10-30: the question does not apply. The player made the 30 images
   of the Drive folder with Google Gemini. No image is a file of Wikimedia
   Commons, so the game uses no CC BY-SA image.
 - Q-E4. The scripts. Must the UI show Arabic, Greek and Cyrillic names in
