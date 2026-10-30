@@ -98,6 +98,12 @@ Do these steps in `D:\src\hexdom`:
    then `run_tests.bat --server`.
 5. In tests\web: `npm install`, then
    `node node_modules/@playwright/test/cli.js install chromium`.
+   If each test fails with "browserType.launch: spawn UNKNOWN", chrome.exe
+   does not start from the user folder. The application event log then
+   shows a SideBySide error for chrome.exe. Set the user variable
+   PLAYWRIGHT_BROWSERS_PATH to `D:\tools\ms-playwright`, then install
+   chromium again. On the PC DESKTOP-MANOR, the user folder has a dot in
+   its name, and this step was necessary.
    Then `build_web.bat test-game` and `npm test`. The suite takes
    approximately 25 minutes.
 
