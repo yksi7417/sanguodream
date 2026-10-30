@@ -452,10 +452,12 @@ and Alexandria, and Muslim for the two caliphs.
 
 The rules:
 1. The keeper of an authority is the owner of its seat. A see with no
-   holder has no keeper.
+   holder has no keeper. A seat that is not on the map has no keeper
+   (Q-E9).
 2. Each month, the keeper gains the technique points of authority.technique.
    Its officers with han_respect 2 gain authority.loyalty. These officers
-   are the devout officers.
+   are the devout officers. The column devout of officers.tsv sets them
+   (Q-E10).
 3. A faction has recognition if it is the keeper of its authority, if the
    keeper is its ally, or if it has a crown. An interdict removes the
    recognition until it ends.
@@ -517,8 +519,9 @@ Decisions that the stage made, and their limits:
 - A list of owners in a history clause has 16 items at most. The row
   caliph_to_cairo lists 15 owners of Baghdad. It leaves out Byzantium and the
   Abbasid faction.
-- No officer of the packs has han_respect 2. The unit tests check the
-  loyalty rule, and the packs gain only the technique points. See Q-E10.
+- The packs of 1200 have a column devout in officers.tsv (Q-E10). The
+  loader gives han_respect 2 to each officer with yes. A pack without the
+  column has no devout officer.
 - The AI had no rule for a crown or for an interdict. E6 adds the two simple
   rules above, and the AI of the Three Kingdoms does not use them.
 - The tutorial is docs/tutorials/37-authorities.md.
@@ -854,7 +857,7 @@ wikipedia: 3, 4, 19, 22, 33, 35, 38, 57, 78 and 82.
 | E3 | Native names in officers.tsv and the Names setting | Q-E4 for Arabic | done, Latin script only |
 | E4 | Lives and Wikipedia URLs, the officer panel | no | done |
 | E5 | Coats of arms on the flags | Q-E3 | list done in docs/europe/ARMS.md, external art |
-| E6 | The authorities of the church and the two caliphs | Q-E2, answered | done. See Q-E9 and Q-E10 |
+| E6 | The authorities of the church and the two caliphs | Q-E2, Q-E9 and Q-E10, answered | done, with the devout officers |
 | E7 | The story mode and the events during the game | no | done, with the rows of the sees from E6 |
 | E8 | The west map and the east map, with Antioch on the east map | no | done. The east map has 17 factions |
 
@@ -983,11 +986,21 @@ merges the work of the first in its rebase.
   43 cities. Closed on 2026-10-28: the player chose two maps (E8). The
   east map holds Antioch, and Barqa stays.
 - Q-E9. The keeper of a seat that is not on the map. The stage e6_church
-  gives the authority to the faction of the authority with the most cities.
-  This holds for each authority with a dash for its seat on a map. Is this
-  the rule of the player? Another choice is a keeper with no faction, and no technique
-  points.
-- Q-E10. The devout officers. No officer of the two packs has han_respect 2,
-  so the loyalty rule of an authority never acts in a game. Can the packs get
-  a column devout in officers.tsv? The data of the lives can set it for
-  bishops and abbots.
+  gave the authority to the faction of the authority with the most cities.
+  Closed on 2026-10-30: the player chose no keeper. The history agrees. In
+  1200 the caliph al-Nasir ruled Baghdad himself. The Banu Ghaniya used
+  his name in the Friday prayer, but they got no royal title from him. The
+  old rule gave them a free crown on the west map. Now a seat that is not
+  on the map gives no recognition, no crown and no technique points. This
+  also holds for the Almohad caliph on the east map.
+- Q-E10. The devout officers. No officer of the two packs had han_respect 2,
+  so the loyalty rule of an authority never acted in a game. Closed on
+  2026-10-30: the player agreed to a column devout in officers.tsv. The
+  lives set it. A churchman, a brother of a religious order and a
+  religious scholar are devout. An officer is also devout if the life of
+  the officer says "pious" or "devout". The west map has 22 devout officers, and
+  the east map has 16. The column does not change the format of a save.
+  An old save keeps its officers normal. A replay keeps its own start
+  image. The Three Kingdoms packs have no column, so they do not change.
+  The rule does not compare the church of an officer with the church of
+  the seat.

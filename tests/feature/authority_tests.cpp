@@ -8,8 +8,11 @@
 #define FEATURE_AUTHORITY_EAST    HEXDOM_DATA_ROOT "/medieval_east"
 #define FEATURE_AUTHORITY_FRANCE  0      /* a Latin ruler of the west pack, not the owner of Rome */
 #define FEATURE_AUTHORITY_ENGLAND 1
+#define FEATURE_AUTHORITY_GHANIYA 8      /* the Banu Ghaniya of the west pack; their caliph sits in Baghdad */
 #define FEATURE_AUTHORITY_PAPACY  13     /* the owner of Rome in the west pack */
 #define FEATURE_AUTHORITY_ROME    11
+#define FEATURE_AUTHORITY_SEGNI   55     /* Richard of Segni, an officer of the papacy who is not devout */
+#define FEATURE_AUTHORITY_CAPUANO 56     /* Peter Capuano, a devout cardinal of the papacy (Q-E10) */
 #define FEATURE_AUTHORITY_TECHNIQUE 50   /* authority.technique of rules.tsv */
 #define FEATURE_AUTHORITY_MONTHS  12     /* interdict.months of rules.tsv */
 #define FEATURE_AUTHORITY_CAIRO_SEAT 4   /* the city of Cairo in the east pack */
@@ -92,8 +95,8 @@ feature_authority_rows_check(test_counts *counts, engine_api *api, const char *p
         snprintf(name, sizeof(name), "the %s pack: authority %u is %s, with its seat and its church of 1200", pack, index, rows[index].key);
         TEST_CHECK(counts, right, name);
         b32 on_map = rows[index].seat_city != ENGINE_NO_CITY;
-        b32 keeper_right = on_map ? authority.keeper == feature_authority_owner(api, rows[index].seat_city) : authority.keeper == ENGINE_NO_FACTION || api->recognition(e, authority.keeper).authority == index;
-        snprintf(name, sizeof(name), "the %s pack: the keeper of %s is the owner of the seat, or the largest faction of the authority", pack, rows[index].key);
+        b32 keeper_right = on_map ? authority.keeper == feature_authority_owner(api, rows[index].seat_city) : authority.keeper == ENGINE_NO_FACTION;
+        snprintf(name, sizeof(name), "the %s pack: the keeper of %s is the owner of the seat, or no faction if the seat is not on the map", pack, rows[index].key);
         TEST_CHECK(counts, keeper_right, name);
         TEST_CHECK(counts, authority.holder[0] != 0, "each authority has the name of its holder for the panel");
     }
@@ -132,6 +135,9 @@ feature_authority_query_tests(test_counts *counts)
                "the keeper of Rome has recognition, and no crown and no interdict");
     TEST_CHECK(counts, w.api.recognition(w.api.engine, 7).authority == 6, "the Almohads have the authority of the Almohad caliph");
     TEST_CHECK(counts, w.api.recognition(w.api.engine, 7).recognized, "the owner of Marrakesh has recognition from its own authority");
+    engine_recognition ghaniya = w.api.recognition(w.api.engine, FEATURE_AUTHORITY_GHANIYA);
+    TEST_CHECK(counts, ghaniya.authority == 5 && !ghaniya.recognized,
+               "west: Baghdad is not on the map, so the Banu Ghaniya get no recognition from the Abbasid caliph");
     TEST_CHECK(counts, w.api.recognition(w.api.engine, 250).authority == ENGINE_NO_ROW, "a faction that does not exist has no authority");
     engine_fixture_destroy(&w);
 
@@ -163,6 +169,15 @@ feature_authority_month_tests(test_counts *counts)
     u8 marrakesh = feature_authority_owner(&w.api, 6);
     TEST_CHECK(counts, feature_authority_month_gain(&w.api, marrakesh) >= FEATURE_AUTHORITY_TECHNIQUE,
                "west: the owner of Marrakesh gains the technique points for the seat of the Almohad caliph");
+    /* The column devout of officers.tsv (Q-E10). The two officers get the same edit, so only the rule of the seat makes a difference. */
+    engine_officer_edit edit = feature_edit_of(&w.api, FEATURE_AUTHORITY_CAPUANO);
+    edit.loyalty = 80;
+    w.api.set_officer(w.api.engine, FEATURE_AUTHORITY_CAPUANO, &edit);
+    w.api.set_officer(w.api.engine, FEATURE_AUTHORITY_SEGNI, &edit);
+    feature_authority_month_gain(&w.api, FEATURE_AUTHORITY_PAPACY);
+    u32 devout = w.api.officer_detail(w.api.engine, FEATURE_AUTHORITY_CAPUANO).loyalty;
+    u32 plain  = w.api.officer_detail(w.api.engine, FEATURE_AUTHORITY_SEGNI).loyalty;
+    TEST_CHECK(counts, devout == plain + 1, "west: the devout cardinal of the owner of Rome gains 1 loyalty a month more than the brother of the pope");
     engine_fixture_destroy(&w);
 
     engine_fixture h;

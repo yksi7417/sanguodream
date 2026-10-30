@@ -145,7 +145,8 @@ unit_authority_recognition_tests(test_counts *counts, memory_arena *arena)
                "a pack with the model authorities uses them, and each faction has its authority");
     TEST_CHECK(counts, sim_authority_keeper(sim, 0) == 0 && sim_authority_seat(sim, 0) == 0 && sim_authority_seat(sim, 1) == SIM_NO_CITY,
                "the owner of the seat is the keeper, and a seat that is not on the map has no city");
-    TEST_CHECK(counts, sim_authority_keeper(sim, 1) == 2, "a seat that is not on the map has the largest faction of the authority as keeper");
+    TEST_CHECK(counts, sim_authority_keeper(sim, 1) == SIM_NO_FORCE, "a seat that is not on the map has no keeper (Q-E9)");
+    TEST_CHECK(counts, !sim_has_recognition(sim, 2), "the only faction of an authority with no seat on the map gets no recognition");
     TEST_CHECK(counts, sim_has_recognition(sim, 0), "the keeper of a seat has recognition");
     TEST_CHECK(counts, !sim_has_recognition(sim, 1), "a faction with no alliance and no crown has no recognition");
     sim->diplomacy.relation[0][1] = sim->diplomacy.relation[1][0] = RELATION_ALLIANCE;
@@ -178,6 +179,25 @@ unit_authority_rank_tests(test_counts *counts, memory_arena *arena)
     sim->rank[1] = 0;
     sim->content.rules.legitimacy_model = LEGITIMACY_EMPEROR;
     TEST_CHECK(counts, sim_rank_for(sim, 1, false) == 2, "the model emperor does not look at the authorities when no Han emperor exists");
+    arena->used = mark;
+}
+
+/* The column devout of a pack (Q-E10) reaches the officer through its record. */
+internal void
+unit_authority_devout_tests(test_counts *counts, memory_arena *arena)
+{
+    u64 mark = arena->used;
+    sim_state *sim = unit_authority_world(arena);
+    officer_component *officer = sim_find_officer(sim, 20);
+    officer_record record = {};
+    record.devout = true;
+    sim_init_officer_state(sim, officer, &record);
+    TEST_CHECK(counts, officer->han_respect == 2, "a record with devout gives an officer who respects the authority");
+    record.devout = false;
+    sim_init_officer_state(sim, officer, &record);
+    TEST_CHECK(counts, officer->han_respect == 1, "a record without devout gives a normal officer");
+    sim_init_officer_state(sim, officer, 0);
+    TEST_CHECK(counts, officer->han_respect == 1, "an officer with no record is normal");
     arena->used = mark;
 }
 
@@ -383,6 +403,7 @@ unit_authority_tests(test_counts *counts, memory_arena *arena)
     unit_authority_history_row_tests(counts, arena);
     unit_authority_recognition_tests(counts, arena);
     unit_authority_rank_tests(counts, arena);
+    unit_authority_devout_tests(counts, arena);
     unit_authority_month_tests(counts, arena);
     unit_authority_crown_tests(counts, arena);
     unit_authority_interdict_tests(counts, arena);

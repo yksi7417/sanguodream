@@ -125,6 +125,7 @@ engine_pack_officer(sim_content *content, tsv_table *table, u32 row, u32 force_c
     if ((officer->status == OFFICER_STATUS_FREE_OR_NOT_APPEARED) != (force == OFFICER_FORCE_NONE)) return false;
     officer->id = (u16)id;
     officer->female = tsv_cell_yes(table, row, "female");
+    officer->devout = tsv_cell_yes(table, row, "devout");   /* Q-E10; a pack without the column has no devout officer */
     officer->appearance_year = (u16)years[0];
     officer->birth_year      = (u16)years[1];
     officer->death_year      = (u16)years[2];

@@ -709,7 +709,7 @@ struct officer_component
     u16 disliked[OFFICER_RELATION_SLOTS];
     u16 experience[CONTENT_ABILITY_COUNT];
     u32 rewarded_turn;                   /* sim turn + 1 of the last reward */
-    u8  han_respect;                     /* M8: 0 漢室無視, 1 normal, 2 漢室重視; the save field is not decoded (Q-186) */
+    u8  han_respect;                     /* M8: 0 漢室無視, 1 normal, 2 漢室重視 or devout (Q-E10); the save field is not decoded (Q-186) */
     u8  training_turns;                  /* M9: the turns of 培育武將 left; the officer is away */
     u8  training_row;                    /* M9: the row of ability_chart.tsv that the training gives */
     b32 created;                         /* M9: a new officer of this game */

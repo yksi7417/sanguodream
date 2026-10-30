@@ -40,27 +40,15 @@ sim_authority_church(sim_state *sim, u32 authority)
 }
 
 /* The faction that acts for the holder of an authority. It is the owner of the
-   seat. If the seat is not on the map, it is the largest faction of the
-   authority (assumed, Q-E9). A seat without a holder has no keeper. */
+   seat. A seat that is not on the map has no keeper (the player, Q-E9). A seat
+   without a holder has no keeper. */
 internal u8
 sim_authority_keeper(sim_state *sim, u32 authority)
 {
     if (authority >= sim->content.authority_count || sim_authority_church(sim, authority) == CONTENT_CHURCH_NONE) return SIM_NO_FORCE;
     u8 seat = sim_authority_seat(sim, authority);
-    if (seat != SIM_NO_CITY)
-    {
-        city_component *city = sim_find_city(sim, seat);
-        return city ? city->owner_force_id : (u8)SIM_NO_FORCE;
-    }
-    u8 keeper = SIM_NO_FORCE;
-    u32 best = 0;
-    for (u32 force = 0; force < SIM_FORCE_CAPACITY; ++force)
-    {
-        if (sim->content.force_authority[force] != authority + 1) continue;
-        u32 cities = sim_faction_city_count(sim, (u8)force);
-        if (cities > best) { best = cities; keeper = (u8)force; }
-    }
-    return keeper;
+    city_component *city = seat == SIM_NO_CITY ? 0 : sim_find_city(sim, seat);
+    return city ? city->owner_force_id : (u8)SIM_NO_FORCE;
 }
 
 /* The authority gives recognition to its keeper, to the allies of the keeper and to a faction with a crown. */

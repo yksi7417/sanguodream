@@ -25,6 +25,8 @@ authorities replace him: the five sees of the Pentarchy and two caliphs.
 A pack with the rule legitimacy.model = authorities has authorities.tsv.
 Each row has a key, the seat, the church and the name of the holder. The
 seat is a city key or a dash. A dash means that the seat is not on the map.
+A seat that is not on the map has no keeper, so it gives no recognition
+(docs/EUROPE.md, Q-E9).
 
 The column authority of forces.tsv gives the authority of each faction.
 The loader stores it as an index plus 1. The value 0 means no authority.
@@ -32,7 +34,9 @@ The loader stores it as an index plus 1. The value 0 means no authority.
 ## The monthly rule
 The function sim_run_authority_month runs each month. The owner of the seat
 of an authority gains authority.technique points. Its devout officers gain
-authority.loyalty. Then each interdict has its month.
+authority.loyalty. Then each interdict has its month. The column devout of
+officers.tsv gives an officer han_respect 2 (docs/EUROPE.md, Q-E10). The
+test unit_authority_devout_tests checks this step.
 
 ## The recognition
 The ranks that have needs_emperor need recognition. A faction has

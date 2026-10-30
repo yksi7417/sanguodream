@@ -216,6 +216,9 @@ struct officer_record
        a decoder did not fill. */
     b32 has_loyalty;
     u8  loyalty;
+    /* The column devout of officers.tsv of a pack (docs/EUROPE.md, Q-E10).
+       A save file has no such byte, so a decoder leaves it false. */
+    b32 devout;
     /* save only; zero for a scenario record */
     b32 has_save_fields;
     u16 per_stat_experience[OFFICER_STAT_COUNT];

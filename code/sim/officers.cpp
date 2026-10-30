@@ -37,7 +37,8 @@ sim_init_officer_state(sim_state *sim, officer_component *officer, officer_recor
     officer->stamina      = 100;
     officer->post         = CONTENT_NO_POST;
     officer->former_force = SIM_NO_FORCE;
-    officer->han_respect  = 1;   /* M8: normal; the save field is not decoded (Q-186) */
+    /* M8: normal, because the save field is not decoded (Q-186). A devout officer of a pack respects the authority (Q-E10). */
+    officer->han_respect  = record && record->devout ? 2 : 1;
     for (u32 slot = 0; slot < OFFICER_RELATION_SLOTS; ++slot)
     {
         officer->liked[slot]    = record ? record->liked_officers[slot] : SIM_NO_OFFICER;

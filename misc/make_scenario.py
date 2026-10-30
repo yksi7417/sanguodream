@@ -150,6 +150,7 @@ def main():
         if row["status"] not in STATUSES: fail(where + ": the status must be one of " + ", ".join(STATUSES))
         if (row["status"] == "free") != (row["force"] == "-"): fail(where + ": a free officer has the force -, and only a free officer")
         if len(row["aptitudes"]) != 6 or any(c not in "CBAS" for c in row["aptitudes"]): fail(where + ": aptitudes are 6 letters of C, B, A, S")
+        if row.get("devout", "no") not in ("yes", "no"): fail(where + ": devout is yes or no (docs/EUROPE.md, Q-E10)")
 
     for index, force in enumerate(forces):
         ruler = by_id.get(force["ruler"])
