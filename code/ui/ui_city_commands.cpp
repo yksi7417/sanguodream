@@ -184,8 +184,7 @@ ui_draw_weapon_rows(ui_state *ui, engine_api *api, engine_city_economy *economy)
         /* G2-029: the 效果 line of the weapon, when the text table has one. */
         char effect_id[64];
         snprintf(effect_id, sizeof(effect_id), "weapon_effect.%s", selected_key);
-        const char *effect = text_table_find(&ui->text->strings, effect_id);
-        if (!effect) effect = text_table_find(&ui->text->fallback_strings, effect_id);
+        const char *effect = text_find_string(ui->text, effect_id);
         if (effect) ImGui::Text("%s: %s", text_get(ui->text, "command.weapon_effect"), effect);
     }
 }

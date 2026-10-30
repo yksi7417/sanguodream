@@ -457,6 +457,8 @@ text_catalog_set_locale(text_catalog *catalog, const char *locale)
     catalog->pack_links        = empty;
     catalog->pack_story        = empty;
     catalog->fallback_pack_story = empty;
+    catalog->pack_strings      = empty;
+    catalog->fallback_pack_strings = empty;
     text_copy_utf8(code, catalog->locale, sizeof(catalog->locale));
 
     text_catalog_load_locales(catalog);
@@ -474,6 +476,9 @@ text_catalog_set_locale(text_catalog *catalog, const char *locale)
         else catalog->fallback_pack_lore = text_catalog_load_pack_table(catalog, catalog->game_pack, "lore", catalog->fallback_locale, "key");
         catalog->pack_links = text_catalog_load_pack_table(catalog, catalog->game_pack, "lore", "links", "key");
         /* docs/EUROPE.md, E7: the pages of the story mode. */
+        catalog->pack_strings = text_catalog_load_pack_table(catalog, catalog->game_pack, "text", code, "id");
+        if (strcmp(code, catalog->fallback_locale) == 0) catalog->fallback_pack_strings = catalog->pack_strings;
+        else catalog->fallback_pack_strings = text_catalog_load_pack_table(catalog, catalog->game_pack, "text", catalog->fallback_locale, "id");
         catalog->pack_story = text_catalog_load_pack_table(catalog, catalog->game_pack, "story", code, "key");
         if (strcmp(code, catalog->fallback_locale) == 0) catalog->fallback_pack_story = catalog->pack_story;
         else catalog->fallback_pack_story = text_catalog_load_pack_table(catalog, catalog->game_pack, "story", catalog->fallback_locale, "key");
@@ -587,13 +592,24 @@ text_catalog_has_strings(text_catalog *catalog)
     return catalog->strings.header_ok;
 }
 
+/* The UI string of an id: the game pack first, then the base pack, each in the active
+   locale and then in the fallback locale. 0 if no table has the id. */
+internal const char *
+text_find_ui_string(text_catalog *catalog, const char *id)
+{
+    const char *found = text_table_find(&catalog->pack_strings, id);
+    if (!found) found = text_table_find(&catalog->strings, id);
+    if (!found) found = text_table_find(&catalog->fallback_pack_strings, id);
+    if (!found) found = text_table_find(&catalog->fallback_strings, id);
+    return found;
+}
+
 internal const char *
 text_get(text_catalog *catalog, const char *id)
 {
     if (!catalog) return id;
     catalog->stats.string_lookups++;
-    const char *found = text_table_find(&catalog->strings, id);
-    if (!found) found = text_table_find(&catalog->fallback_strings, id);
+    const char *found = text_find_ui_string(catalog, id);
     if (found) return found;
     catalog->stats.missing_strings++;
     return id;
@@ -629,8 +645,7 @@ text_label(text_catalog *catalog, const char *prefix, u32 code, char *out, u32 o
     if (catalog)
     {
         catalog->stats.label_lookups++;
-        found = text_table_find(&catalog->strings, id);
-        if (!found) found = text_table_find(&catalog->fallback_strings, id);
+        found = text_find_ui_string(catalog, id);
         if (!found) catalog->stats.unknown_labels++;
     }
     if (found)
@@ -725,8 +740,7 @@ internal const char *
 text_find_string(text_catalog *catalog, const char *id)
 {
     if (!catalog) return 0;
-    const char *found = text_table_find(&catalog->strings, id);
-    return found ? found : text_table_find(&catalog->fallback_strings, id);
+    return text_find_ui_string(catalog, id);
 }
 
 /* "prefix" + "part" into out (64 bytes at most). */

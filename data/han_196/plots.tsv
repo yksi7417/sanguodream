@@ -1,14 +1,15 @@
 id	key	name_zh	morale	range	area	target	effect	turns	needs_skill	needs_skill_2	from_terrain	not_unit_types	status
+# han_196: the column name_zh has the new names of text/zh-TW.tsv of this pack. The rules of the rows are the rules of data/placeholder.
 # The battlefield plots of plots-and-states.md (manual p.17, p.34; guide book p.18). One row for each plot.
 # morale, range: documented. area: single, or splash (the target and the six hexes around it). target: enemy, own, hex.
 # effect: fire, extinguish, false_report, confuse, calm, ambush, infighting, sorcery, lightning. turns: the length of the state (documented 3 for 偽報; the others assumed, Q-173).
 # needs_skill, needs_skill_2: the skills (skills.md numbers) of which the unit needs one (妖術 #71, 鬼門 #72); 0 = none. from_terrain: the terrain key of the unit's hex, or -. not_unit_types: classes that cannot use it.
-0	fire	火計	10	1	single	hex	fire	3	0	0	-	-	documented
-1	extinguish	滅火	10	2	splash	hex	extinguish	0	0	0	-	-	documented
-2	false_report	偽報	15	2	single	enemy	false_report	3	0	0	-	-	documented
-3	confusion	擾亂	15	2	single	enemy	confuse	2	0	0	-	-	documented
-4	calm	鎮靜	10	2	single	own	calm	0	0	0	-	-	documented
-5	ambush	伏兵	10	1	single	enemy	ambush	0	0	0	forest	cavalry|ram|wood_beast|tower|catapult	documented
-6	infighting	內訌	20	1	single	enemy	infighting	0	0	0	-	ram|wood_beast|tower|catapult	documented
-7	sorcery	妖術	50	2	splash	enemy	sorcery	2	71	72	-	-	documented
-8	lightning	落雷	50	2	splash	hex	lightning	0	72	0	-	-	documented
+0	fire	縱火	10	1	single	hex	fire	3	0	0	-	-	documented
+1	extinguish	救火	10	2	splash	hex	extinguish	0	0	0	-	-	documented
+2	false_report	謠報	15	2	single	enemy	false_report	3	0	0	-	-	documented
+3	confusion	惑亂	15	2	single	enemy	confuse	2	0	0	-	-	documented
+4	calm	安撫	10	2	single	own	calm	0	0	0	-	-	documented
+5	ambush	埋伏	10	1	single	enemy	ambush	0	0	0	forest	cavalry|ram|wood_beast|tower|catapult	documented
+6	infighting	離間	20	1	single	enemy	infighting	0	0	0	-	ram|wood_beast|tower|catapult	documented
+7	sorcery	幻術	50	2	splash	enemy	sorcery	2	71	72	-	-	documented
+8	lightning	雷擊	50	2	splash	hex	lightning	0	72	0	-	-	documented

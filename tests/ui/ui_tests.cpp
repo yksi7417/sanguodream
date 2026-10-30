@@ -627,6 +627,26 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_STR_EQ(v.text.locale, "zh-TW");   /* pack.tsv of the placeholder pack */
     };
 
+    /* data/han_196/README.md: text/<locale>.tsv of the game pack gives new names to the skills and the tactics. */
+    t = IM_REGISTER_TEST(e, "ui", "skill_and_tactic_of_the_han_196_pack_show_the_new_names_of_the_pack_and_command_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ctx->Yield();
+        recorder_reset(&v.recorder);
+        text_catalog_use_game_pack(&v.text, "han_196");
+        IM_CHECK_STR_EQ(v.text.locale, "zh-TW");                                                  /* pack.tsv of the pack */
+        IM_CHECK_STR_EQ(ui_text_with_key(&v.ui, "skill", "flying_general"), "\xE5\xA5\x94\xE9\x9B\xB7");     /* the new name of the pack */
+        IM_CHECK_STR_EQ(ui_text_with_key(&v.ui, "tactic", "charge"), "\xE8\xA1\x9D\xE9\x8B\x92");
+        text_catalog_set_locale(&v.text, "en");
+        IM_CHECK_STR_EQ(ui_text_with_key(&v.ui, "skill", "flying_general"), "Thunder rider");
+        text_catalog_use_game_pack(&v.text, HEXDOM_CONTENT_PACK);
+        IM_CHECK_STR_EQ(ui_text_with_key(&v.ui, "skill", "flying_general"), "\xE9\xA3\x9B\xE5\xB0\x87");     /* the base pack keeps its names */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
     /* docs/EUROPE.md, E3: the Names choice of the Settings panel. */
     t = IM_REGISTER_TEST(e, "ui", "names_choice_of_the_settings_panel_shows_the_native_name_of_an_officer_and_commands_nothing");
     t->SetVarsDataType<ui_test_vars>();

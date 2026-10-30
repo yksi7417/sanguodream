@@ -77,6 +77,11 @@ global_variable const test_text_file test_text_files[] =
       "key\turl\n"
       "officer.philip_ii\thttps://en.wikipedia.org/wiki/Philip_II_of_France\n"
       "officer.bad\thttps://example.org/wiki/Philip\n" },
+    { "root/europe/text/en.tsv",
+      "id\ttext\n"
+      "# the new names of the game pack\n"
+      "menu.windows\tPanes\n"
+      "status.0\tKing\n" },
     { "root/odd/pack.tsv",
       "key\tvalue\n"
       "default_locale\t../en\n" },
@@ -388,6 +393,35 @@ unit_text_pack_tests(test_counts *counts, memory_arena *arena)
     TEST_CHECK(counts, strcmp(catalog.locale, "ko") == 0, "a pack without pack.tsv keeps the active locale");
 }
 
+/* data/han_196/README.md: text/<locale>.tsv of the game pack replaces the UI strings of the
+   base pack with the same id. The other strings and the fallback locale stay. */
+internal void
+unit_text_pack_string_tests(test_counts *counts, memory_arena *arena)
+{
+    text_catalog catalog;
+    text_catalog_init(&catalog, arena_sub(arena, Kilobytes(64)), test_text_read_file, "root", "pack", "en");
+    text_catalog_set_locale(&catalog, "en");
+    TEST_CHECK(counts, strcmp(text_get(&catalog, "menu.windows"), "Windows") == 0, "without a game pack, the base pack gives the string");
+
+    text_catalog_set_game_pack(&catalog, "europe");
+    text_catalog_set_locale(&catalog, "en");
+    TEST_CHECK(counts, strcmp(text_get(&catalog, "menu.windows"), "Panes") == 0, "the row of the game pack replaces the row of the base pack");
+    TEST_CHECK(counts, strcmp(text_get(&catalog, "only.en"), "Only English") == 0, "an id that the game pack does not have comes from the base pack");
+    char out[32];
+    TEST_CHECK(counts, strcmp(text_label(&catalog, "status", 0, out, sizeof(out)), "King") == 0, "a label also comes from the game pack first");
+    TEST_CHECK(counts, text_find_string(&catalog, "menu.windows") && strcmp(text_find_string(&catalog, "menu.windows"), "Panes") == 0,
+               "the text providers also find the row of the game pack");
+
+    text_catalog_set_locale(&catalog, "zh-TW");
+    TEST_CHECK(counts, strcmp(text_get(&catalog, "menu.windows"), TEST_UTF8_WINDOW) == 0,
+               "zh-TW: the base pack in the active locale comes before the game pack in the fallback locale");
+    TEST_CHECK(counts, strcmp(text_get(&catalog, "only.en"), "Only English") == 0, "the base pack in the fallback locale still comes last");
+
+    text_catalog_set_locale(&catalog, "ko");
+    TEST_CHECK(counts, strcmp(text_get(&catalog, "menu.windows"), "Panes") == 0,
+               "ko has no files: the game pack in the fallback locale comes before the base pack in the fallback locale");
+}
+
 /* docs/EUROPE.md, E3: names/native.tsv of the game pack, the names in their own
    language. The Names setting of the front end turns it on. */
 internal void
@@ -697,6 +731,7 @@ unit_text_tests(test_counts *counts)
     unit_text_catalog_tests(counts, &arena);
     unit_text_name_tests(counts, &arena);
     unit_text_pack_tests(counts, &arena);
+    unit_text_pack_string_tests(counts, &arena);
     unit_text_native_name_tests(counts, &arena);   /* E3 */
     unit_text_lore_tests(counts, &arena);          /* E4 */
     unit_text_story_tests(counts, &arena);         /* E7 */

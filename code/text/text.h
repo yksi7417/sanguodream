@@ -14,6 +14,9 @@
                                      the Big5 bytes of one name as hex
    data/<pack>/text/locales.tsv (columns "code", "name") lists the locales.
    A new locale is a set of files and one row in locales.tsv, and no code.
+   A game pack (text_catalog_set_game_pack) can also have text/<locale>.tsv.
+   Its rows replace the rows of the base pack with the same id. Thus a pack
+   can give new names to the skills and the tactics of its game.
 
    The module has no Windows headers, no CRT I/O and no ImGui. It reads files
    only through the platform reader that the caller gives it. */
@@ -130,6 +133,8 @@ struct text_catalog
     text_table   fallback_pack_lore;          /* lore/<fallback locale>.tsv of the game pack */
     text_table   pack_links;                  /* lore/links.tsv of the game pack: the URL of the article of each record */
     text_table   pack_story;                  /* story/<locale>.tsv of the game pack, keyed by "<kind>.<key>" (E7) */
+    text_table   pack_strings;                /* text/<locale>.tsv of the game pack: these rows replace the rows of strings */
+    text_table   fallback_pack_strings;       /* text/<fallback locale>.tsv of the game pack */
     text_table   fallback_pack_story;         /* story/<fallback locale>.tsv of the game pack */
     b32          native_names;                /* the Names setting: text_key_name gives the native name first */
     u32          locale_count;

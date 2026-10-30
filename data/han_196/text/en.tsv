@@ -1,0 +1,167 @@
+id	text
+# The new names of the pack han_196. Each row replaces the UI string of data/placeholder/text with the same id (code/text/text.h).
+# The pack chose the names. The skills, the tactics, the plots and the techniques keep their rules and get new names. The items keep their names from the history and the novel.
+skill.flying_general	Thunder rider
+skill.escape	Breakout
+skill.forced_march	Hard march
+skill.long_drive	Deep thrust
+skill.push_on	Press forward
+skill.helmsman	Steersman
+skill.trailblazer	Pathfinder
+skill.haul	Carrier
+skill.antidote	Miasma ward
+skill.sweep	Clearance
+skill.awe	Dread
+skill.elation	Uplift
+skill.double_attack	Second strike
+skill.surprise	Sudden strike
+skill.raid	Storming
+skill.melee	Brawler
+skill.siege_master	Wallbreaker
+skill.pincer	Two fronts
+skill.capture	Seizer
+skill.subtle	Finesse
+skill.plunder	Pillager
+skill.heart_attack	Mind siege
+skill.expel	Repel
+skill.range	Long shot
+skill.white_horse	Silver saddle
+skill.aide	Staff aide
+skill.pike_general	Spear captain
+skill.halberd_general	Glaive captain
+skill.bow_general	Archer captain
+skill.cavalry_general	Horse captain
+skill.navy_general	Fleet captain
+skill.brave_general	Valiant
+skill.divine_general	Peerless
+skill.battle_god	War paragon
+skill.pike_god	Spear master
+skill.halberd_god	Glaive master
+skill.bow_god	Archery master
+skill.cavalry_god	Horse master
+skill.engineer_god	Engine master
+skill.navy_god	Fleet master
+skill.overlord	Conqueror
+skill.gallop	Swift
+skill.archer	Marksman
+skill.fierce	Ferocious
+skill.unyielding	Steadfast
+skill.diamond	Iron frame
+skill.iron_wall	Stone rampart
+skill.fury	Rage
+skill.rattan	Vine shield
+skill.fortune	Favoured
+skill.blood_path	Cut through
+skill.guard	Escort
+skill.ambush	Lie in wait
+skill.fire_attack	Firebrand
+skill.false_word	Slander
+skill.tactician	Adaptable
+skill.trickery	Wiles
+skill.feint	Diversion
+skill.clever_plan	Bright scheme
+skill.secret_plan	Hidden scheme
+skill.see_through	Unmask
+skill.insight	Discernment
+skill.fire_god	Skyfire
+skill.strategist	Grand design
+skill.many_plans	Resourceful
+skill.cunning	Dark plot
+skill.chain	Linked ships
+skill.deep_plan	Foresight
+skill.counter_plot	Turnabout
+skill.beauty	Allure
+skill.sorcery	Illusion
+skill.demon_gate	Hidden gate
+skill.discipline	Strict orders
+skill.composure	Calm
+skill.clear_mirror	Candour
+skill.music	Court music
+skill.poetry	Eloquent pen
+skill.fortify	Builder
+skill.farming	Field colonies
+skill.fame	Noble house
+skill.capable	Able clerk
+skill.breeding	Herder
+skill.invention	Ingenuity
+skill.shipbuilding	Shipwright
+skill.teaching	Mentor
+skill.keen_eye	Judge of men
+skill.debater	Orator
+skill.rich	Wealth
+skill.rice	Celestial master
+skill.tax	Treasurer
+skill.levy	Grain levy
+skill.wuhuan_friend	Wuhuan ties
+skill.qiang_friend	Qiang ties
+skill.yue_friend	Yue ties
+skill.man_friend	Man ties
+skill.intimidate	Thunderous voice
+skill.benevolence	Clemency
+skill.fengshui	Geomancy
+skill.prayer	Blessing
+skill.wife_help	Good spouse
+tactic.pierce	Thrust
+tactic.spiral_pierce	Twisting thrust
+tactic.double_pierce	Twin thrust
+tactic.hook	Hook strike
+tactic.sweep	Sweep strike
+tactic.whirlwind	Wheel cut
+tactic.fire_arrow	Fire arrows
+tactic.pierce_arrow	Armour arrows
+tactic.volley	Volley fire
+tactic.charge	Charge
+tactic.breakthrough	Line breaker
+tactic.onslaught	Onrush
+tactic.smash	Batter
+tactic.flame	Fire jet
+tactic.tower_arrow	Fire arrows (tower)
+tactic.stone	Hurl stone
+tactic.ship_arrow	Fire arrows (ship)
+tactic.ram_ship	Ramming
+tactic.ship_stone	Hurl stone (ship)
+plot.fire	Arson
+plot.extinguish	Put out fire
+plot.false_report	Feigned news
+plot.confusion	Disarray
+plot.calm	Steady
+plot.ambush	Hidden troops
+plot.infighting	Discord
+plot.sorcery	Illusion
+plot.lightning	Thunderstrike
+technique.pike_drill	Spear training
+technique.grain_raid	Cut supplies
+technique.ambush	Ambuscade
+technique.elite_pike	Picked spears
+technique.halberd_drill	Glaive training
+technique.arrow_shield	Arrow guard
+technique.great_shield	Tower shield
+technique.elite_halberd	Picked glaives
+technique.crossbow_drill	Crossbow training
+technique.return_fire	Counter volley
+technique.strong_crossbow	Heavy crossbow
+technique.elite_crossbow	Picked crossbows
+technique.cavalry_drill	Horse training
+technique.fine_horses	Fine studs
+technique.mounted_archery	Horse archery
+technique.elite_cavalry	Picked horse
+technique.veterans	Old soldiers
+technique.rough_march	Rough ground
+technique.army_reform	Army rules
+technique.ladders	Scaling ladders
+technique.axles	Sturdy axles
+technique.stonework	Masonry
+technique.catapults	Traction trebuchet
+technique.thunderbolt	Heavy trebuchet
+technique.engineers	Sappers
+technique.strong_facilities	Firm works
+technique.strong_walls	High walls
+technique.strong_defence	Tight guard
+technique.wood_beasts	Wooden tigers
+technique.divine_fire	Blaze
+technique.gunpowder	Fire oil
+technique.explosives	Fire bombs
+technique.wooden_ox	Wooden ox
+technique.port_expansion	Harbour works
+technique.order_decrees	Clear laws
+technique.hearts_and_minds	Popular support
