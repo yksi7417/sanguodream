@@ -52,6 +52,7 @@ Install these tools in this order:
 1. Git, the GitHub CLI and Node.js 22: `winget install Git.Git GitHub.cli OpenJS.NodeJS.LTS`.
 2. Visual Studio 2022 Build Tools with the C++ workload and the Windows SDK
    10.0.26100. build.bat finds vcvars64.bat at the default path on C:.
+   If Visual Studio is on another path, build.bat finds it through vswhere.
 3. Python 3.13, and numpy for misc/make_world_map.py: `pip install numpy`.
 4. The venv of the site, in `C:\tools\hexdom-venv` or in `D:\tools\hexdom-venv`:
    `python -m venv D:\tools\hexdom-venv`, then
@@ -60,6 +61,9 @@ Install these tools in this order:
    It needs approximately 2 GB.
    `git clone https://github.com/emscripten-core/emsdk D:\tools\emsdk`, then
    `emsdk install 6.0.13` and `emsdk activate 6.0.13`.
+   emsdk.bat uses the first python on PATH, and it needs Python 3.10 or
+   later. If an older Python (for example Anaconda) is first on PATH, run
+   `py -3.13 emsdk.py install 6.0.13` and `py -3.13 emsdk.py activate 6.0.13`.
 6. ffmpeg and flyctl: `winget install Gyan.FFmpeg Fly-io.flyctl`.
 7. The Claude desktop app. Then install the ECC plugin from the marketplace
    `https://github.com/affaan-m/ECC.git`. The GateGuard hook and the ECC
