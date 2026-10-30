@@ -27,9 +27,9 @@ id	key	name_zh	kind	owner_city	durability	status	name_big5
 65	baima	白馬津	port	11	2000	assumed	A5D5B0A8AC7A
 66	mengjin	孟津	port	14	2000	assumed	A973AC7A
 67	yanjin	延津	port	12	2000	assumed	A9B5AC7A
-68	pingyuanjin	平原津	port	9	2000	assumed	A5ADADECAC7A
+68	pingyuanjin	平原津	port	8	2000	assumed	A5ADADECAC7A
 69	puban	蒲阪津	port	7	2000	assumed	BB5AA8C1AC7A
-70	jinchengjin	金城津	port	17	2000	assumed	AAF7ABB0AC7A
+70	ruxu	濡須口	port	36	2000	assumed	C0E1B6B7A466
 71	fancheng	樊城	port	25	2000	assumed	BCD4ABB0
 72	xiakou	夏口	port	26	2000	assumed	AE4CA466
 73	hanjin	漢津	port	26	2000	assumed	BA7EAC7A
@@ -37,7 +37,7 @@ id	key	name_zh	kind	owner_city	durability	status	name_big5
 75	baqiu	巴丘	port	28	2000	assumed	A4DAA543
 76	gongan	公安	port	26	2000	assumed	A4BDA677
 77	yiling	夷陵	port	26	2000	assumed	A669B3AE
-78	zigui	秭歸	port	26	2000	assumed	D2F1C26B
+78	zigui	秭歸	port	23	2000	assumed	D2F1C26B
 79	fuling	涪陵	port	22	2000	assumed	B265B3AE
 80	jiangyang	江陽	port	22	2000	assumed	A6BFB6A7
 81	qichun	蘄春	port	39	2000	assumed	F4BFAC4B

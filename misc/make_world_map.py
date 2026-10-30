@@ -13,6 +13,23 @@ The tool keeps the downloads in build/geo_cache. With --offline it uses only tha
 
 The grid is the grid of the engine: flat-top hexes in odd-q offset rows.
 An odd column is half a hex lower (to the south) than an even column.
+
+The rivers follow the rivers of the placeholder map (formats/map-data.md). That map has
+two kinds of river. A 河 river is wide water for ships, with a 岸 bank strip that no unit
+enters. No road fords a 河 river: armies cross it by ship from a port. A 川 stream is
+narrow water that no unit enters. A road crosses it at a 渡所 ford. These settings of
+region.tsv choose the kind and the width of each Natural Earth river:
+- river_widths: "Name=W" or "Name=W|W2@LON|W3@LON3", separated by ";". W is the width in
+  hexes. W2 is the width west of the longitude LON. The rivers in this list are 河 rivers.
+  A width of 0 makes that part of the river a minor river.
+- river_minor_width and river_minor_terrain: the width and the terrain (river or stream)
+  of the other rivers. The defaults 1 and river keep the maps of the first packs.
+- river_banks: yes puts 岸 hexes along the 河 rivers, except next to a base or a road.
+- river_fords: no stops the roads at the 河 rivers. The default yes keeps the first packs.
+- river_shallows_every: a 淺瀨 shallows crossing after this many hexes of each 川 stream,
+  as in the placeholder map. Land units cross a stream there without a road. 0 = none.
+- river_extra: more lines for a river, "Name:LON,LAT LON,LAT ...", separated by ";". Use it
+  where Natural Earth stops a river before the sea.
 """
 import heapq
 import json
@@ -38,11 +55,11 @@ ETOPO_STRIDE = 3          # 3 arc-minutes, approximately 5 km: sufficient for he
 NE_URL = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/%s.geojson"
 
 # The terrain ids of data/placeholder/terrain.tsv.
-GRASS, EARTH, SAND, SWAMP, FOREST, RIVER, SEA, WASTE, ROAD, FORD, CLIFF, CITY, PORT, GATE = 0, 1, 2, 3, 5, 7, 8, 9, 10, 12, 15, 16, 17, 18
+GRASS, EARTH, SAND, SWAMP, FOREST, STREAM, RIVER, SEA, WASTE, ROAD, FORD, SHALLOWS, SHORE, CLIFF, CITY, PORT, GATE =     0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18
 WATER = (RIVER, SEA)
 NATURAL_LAND = (GRASS, EARTH, SAND, SWAMP, FOREST, WASTE)
 # The foot cost of terrain.tsv, for the roads and the regions. 0 = closed.
-COST = {GRASS: 5, EARTH: 5, SAND: 5, SWAMP: 8, FOREST: 6, WASTE: 6, ROAD: 4, FORD: 4, CITY: 4, PORT: 4, GATE: 4}
+COST = {GRASS: 5, EARTH: 5, SAND: 5, SWAMP: 8, FOREST: 6, WASTE: 6, ROAD: 4, FORD: 4, SHALLOWS: 5, CITY: 4, PORT: 4, GATE: 4}
 ROAD_RIVER_COST = 14      # a road can cross a river: the crossing becomes a ford
 
 # The cube directions of the flat-top grid: 0 = north, then clockwise.
@@ -69,7 +86,39 @@ def read_settings(pack):
     settings["city_spacing_hexes"] = float(settings.get("city_spacing_hexes", SAN11_CITY_SPACING))
     km = settings.get("km_per_hex", "-")
     settings["km_per_hex"] = None if km in ("", "-") else float(km)
+    settings["river_widths"] = parse_river_widths(settings.get("river_widths", "-"))
+    settings["river_minor_width"] = int(settings.get("river_minor_width", "1"))
+    minor = settings.get("river_minor_terrain", "river")
+    if minor not in ("river", "stream"): sys.exit("region.tsv: river_minor_terrain must be river or stream")
+    settings["river_minor_terrain"] = STREAM if minor == "stream" else RIVER
+    settings["river_banks"] = settings.get("river_banks", "no") == "yes"
+    settings["river_fords"] = settings.get("river_fords", "yes") == "yes"
+    settings["river_shallows_every"] = int(settings.get("river_shallows_every", "0"))
+    extra_text, settings["river_extra"] = settings.get("river_extra", "-"), []
+    for entry in extra_text.split(";"):
+        if entry in ("", "-"): continue
+        name, points = entry.split(":")
+        settings["river_extra"].append((name.strip(), [[float(v) for v in point.split(",")] for point in points.split()]))
     return settings
+
+
+def parse_river_widths(text):
+    """{name: (width, [(lon, width west of lon), ...])} from "Name=W|W2@LON;Name2=W"."""
+    widths = {}
+    if text in ("", "-"): return widths
+    for entry in text.split(";"):
+        name, value = entry.split("=")
+        parts = value.split("|")
+        west = sorted(((float(p.split("@")[1]), int(p.split("@")[0])) for p in parts[1:]), reverse=True)
+        widths[name.strip()] = (int(parts[0]), west)
+    return widths
+
+
+def river_width(rule, lon):
+    width, west = rule
+    for limit, narrow in west:
+        if lon < limit: width = narrow
+    return width
 
 
 def read_sites(pack):
@@ -189,6 +238,20 @@ def hex_line(a, b):
         elif dr > ds: rr = -rq - rs
         out.append(from_cube(int(rq), int(rr)))
     return out
+
+
+def disc(centre, radius):
+    """The hexes at a distance of radius or less from centre."""
+    out = [centre]
+    for r in range(1, radius + 1): out += ring(centre, r)
+    return out
+
+
+def thick_cells(cell, width):
+    """The hexes of a river of this width around one hex of its centre line. An even width adds the hexes to the south."""
+    cells = disc(cell, (width - 1) // 2)
+    if width % 2 == 0: cells += [neighbour(c, 3) for c in cells]
+    return cells
 
 
 def ring(centre, radius):
@@ -401,20 +464,57 @@ class WorldMap:
         self.terrain = t
 
     def add_rivers(self):
-        s, grid = self.settings, self.grid
+        """The minor rivers first, then the 河 rivers of river_widths over them."""
+        s = self.settings
+        self.major_river = np.zeros((self.grid.height, self.grid.width), dtype=bool)
+        features = []
         for feature in load_ne("ne_50m_rivers_lake_centerlines", self.offline):
             props = feature["properties"]
             name = props.get("name") or ""
             if (props.get("scalerank") or 99) > s["river_max_scalerank"]: continue
             if "Canal" in name or "Csatorna" in name: continue   # modern canals
-            geometry = feature["geometry"]
+            features.append((name in s["river_widths"], name, feature["geometry"]))
+        for name, points in s["river_extra"]:
+            features.append((name in s["river_widths"], name, {"type": "LineString", "coordinates": points}))
+        for major, name, geometry in sorted(features, key=lambda f: f[0]):
             lines = geometry["coordinates"] if geometry["type"] == "MultiLineString" else [geometry["coordinates"]]
-            for line in lines:
-                x, y = self.proj.forward(np.array([p[1] for p in line]), np.array([p[0] for p in line]))
-                cells = [grid.hex_of(a, b) for a, b in zip(x, y)]
-                for a, b in zip(cells, cells[1:]):
-                    for cell in hex_line(a, b):
-                        if grid.contains(cell) and self.at(cell) != SEA: self.put(cell, RIVER)
+            for line in lines: self.draw_river(line, name if major else None)
+
+    def draw_river(self, line, major_name):
+        s, grid = self.settings, self.grid
+        x, y = self.proj.forward(np.array([p[1] for p in line]), np.array([p[0] for p in line]))
+        cells = [grid.hex_of(a, b) for a, b in zip(x, y)]
+        every, walked = s["river_shallows_every"], 0
+        for index, (a, b) in enumerate(zip(cells, cells[1:])):
+            width = river_width(s["river_widths"][major_name], (line[index][0] + line[index + 1][0]) / 2.0) if major_name else 0
+            major = width > 0
+            if not major: width, kind = s["river_minor_width"], s["river_minor_terrain"]
+            else: kind = RIVER
+            for centre in hex_line(a, b):
+                walked += 1
+                here = kind
+                if kind == STREAM and every and walked % every == every // 2: here = SHALLOWS
+                for cell in thick_cells(centre, width):
+                    if not grid.contains(cell) or self.at(cell) == SEA: continue
+                    if self.major_river[cell[1], cell[0]] or self.lake[cell[1], cell[0]]: continue
+                    if here == STREAM and self.at(cell) == SHALLOWS: continue
+                    self.put(cell, here)
+                    if major: self.major_river[cell[1], cell[0]] = True
+
+    def add_banks(self):
+        """岸 hexes on the land along the 河 rivers. A hex next to a base, a road or a ford stays open."""
+        if not self.settings["river_banks"]: return
+        grid, open_kinds = self.grid, (CITY, PORT, GATE, ROAD, FORD)
+        banks = []
+        for row in range(grid.height):
+            for col in range(grid.width):
+                cell = (col, row)
+                if self.at(cell) not in NATURAL_LAND or cell in self.reserved: continue
+                around = [n for n in neighbours(cell) if grid.contains(n)]
+                if not any(self.at(n) == RIVER for n in around): continue
+                if any(self.at(n) in open_kinds for n in around): continue
+                banks.append(cell)
+        for cell in banks: self.put(cell, SHORE)
 
     # -- the sites --
 
@@ -493,7 +593,10 @@ class WorldMap:
 
     def road_cost(self, cell):
         kind = self.at(cell)
-        if kind == RIVER: return 0 if self.lake[cell[1], cell[0]] else ROAD_RIVER_COST
+        if kind == STREAM: return ROAD_RIVER_COST
+        if kind == RIVER:
+            if self.lake[cell[1], cell[0]] or not self.settings["river_fords"]: return 0
+            return ROAD_RIVER_COST
         if kind == ROAD: return 2
         cost = COST.get(kind, 0)
         if cost and kind in NATURAL_LAND: cost += min(6, max(0.0, self.elev_mean[cell[1], cell[0]]) / 250.0)
@@ -529,7 +632,7 @@ class WorldMap:
     def lay_road(self, path):
         for cell in path:
             kind = self.at(cell)
-            if kind == RIVER: self.put(cell, FORD)
+            if kind in (RIVER, STREAM): self.put(cell, FORD)
             elif kind in NATURAL_LAND: self.put(cell, ROAD)
 
     def add_roads(self):
@@ -650,6 +753,7 @@ class WorldMap:
         self.add_rivers()
         self.place_sites()
         self.add_roads()
+        self.add_banks()
         self.make_regions()
         self.place_slots()
         self.place_bandits()
@@ -658,7 +762,7 @@ class WorldMap:
 
     def height_value(self, row, col):
         kind = self.terrain[row, col]
-        if kind in WATER: return 0
+        if kind in WATER or kind == STREAM: return 0
         value = int(round(12 + max(0.0, float(self.elev_mean[row, col])) / 15.0))
         if kind == CLIFF: value = max(value, 90)
         return min(255, value)
@@ -721,7 +825,8 @@ class WorldMap:
     def preview(self, path, pixels=3.0):
         colours = {GRASS: (142, 178, 92), EARTH: (190, 176, 112), SAND: (226, 206, 148), SWAMP: (104, 140, 110), FOREST: (58, 112, 60),
                    RIVER: (70, 130, 200), SEA: (36, 74, 128), WASTE: (150, 128, 96), ROAD: (214, 196, 150), FORD: (120, 170, 210),
-                   CLIFF: (96, 84, 76), CITY: (200, 40, 40), PORT: (240, 160, 40), GATE: (150, 40, 160)}
+                   CLIFF: (96, 84, 76), CITY: (200, 40, 40), PORT: (240, 160, 40), GATE: (150, 40, 160),
+                   STREAM: (110, 160, 210), SHORE: (170, 150, 110), SHALLOWS: (150, 190, 215)}
         grid = self.grid
         w = int((grid.width * 1.5 + 0.5) * pixels) + 2
         h = int((grid.height + 0.5) * pixels * math.sqrt(3)) + 2

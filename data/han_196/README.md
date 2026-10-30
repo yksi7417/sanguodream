@@ -11,7 +11,7 @@ of 196.
 ## The parts of the pack and their sources
 | Part | Source |
 |---|---|
-| The map | misc/make_world_map.py from NOAA ETOPO 2022 heights and Natural Earth vectors. Both are public domain. |
+| The map | misc/make_world_map.py from NOAA ETOPO 2022 heights and Natural Earth vectors. Both are public domain. The rivers follow the widths of the placeholder map (docs/MAPS.md, "The rivers"). |
 | The 42 cities, 10 passes and 35 ports | The seats of the Han commanderies and the passes of the history, in map/source/sites.tsv. The pack chose the list. |
 | The 20 factions and 161 officers | The history of 196, from the Records of the Three Kingdoms (public domain). |
 | The abilities | The tiers of scenarios/y196/source/officers.tsv and the rubric of misc/make_tier_officers.py. |

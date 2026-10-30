@@ -133,6 +133,35 @@ The steps of the tool:
 The tool writes build/maps/<pack>.png, a picture of the map with the
 city names. Look at it before you start the game.
 
+## The rivers
+The placeholder map has two kinds of river. The tool can copy them:
+
+| Terrain | Width in the placeholder map | Units | Crossing |
+|---|---|---|---|
+| 河 river | 3 to 12 hexes. The Yangtze is 5 to 9, the Yellow River 3 to 6. | Ships only | By ship from a port. No road crosses it. |
+| 岸 shore | One hex along each bank of a 河 river | None | None |
+| 川 stream | Approximately 2 hexes | None | A 渡所 ford on a road, or a 淺瀨 shallows crossing |
+
+In the placeholder map, the Yellow River cuts the seven northern cities
+from the others. The Yangtze has a long land route round its upper course.
+Thus most battles at a river are at the ports and on the water.
+
+These settings of region.tsv choose the rivers. The defaults give the thin
+rivers of the first packs, so the old maps do not change:
+
+| Setting | Default | Effect |
+|---|---|---|
+| river_widths | - | The 河 rivers by Natural Earth name, with a width in hexes. "7\|5@111\|0@105" gives 7, then 5 west of 111 E, then a minor river west of 105 E. |
+| river_minor_width | 1 | The width of the other rivers. |
+| river_minor_terrain | river | river or stream. |
+| river_banks | no | yes puts 岸 hexes along the 河 rivers. A hex next to a base, a road or a ford stays open. |
+| river_fords | yes | no keeps the roads off the 河 rivers. |
+| river_shallows_every | 0 | A 淺瀨 crossing after this many hexes of each stream. |
+| river_extra | - | More points for a river, for example where Natural Earth stops it before the sea. |
+
+data/han_196 uses all of them. Its Yangtze, Yellow River and Han are 河
+rivers, and the other rivers are streams.
+
 ## Make a map
 1. Copy data/medieval_europe to data/<name>. Keep the tables that the tool
    does not write.

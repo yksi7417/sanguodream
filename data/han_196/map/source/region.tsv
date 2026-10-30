@@ -7,6 +7,12 @@ key	value
 # max_hexes: the largest map. The terrain mesh needs approximately 1.65 KB of frame memory for each hex. 80000 hexes fit in the 160 MB of each platform. If the map needs more hexes, the tool makes the hexes larger.
 # river_max_scalerank: Natural Earth rivers with this scalerank or less become 河 river hexes. 6 keeps the big rivers only.
 # cliff_metres: a hex with a mean height above this value becomes 崖 cliff (no unit can enter).
+# river_widths: the 河 rivers for ships and their widths in hexes, after the rivers of the placeholder map. "W|W2@LON": the width W2 west of the longitude LON. 0 = a minor river there.
+#   The Yangtze is 7 hexes below the gorges, 5 in Ba and a stream above 105 E, so the land route goes round in the west. The Yellow River cuts the north from the south east of 106 E. The Han is 河 from Xiangyang down.
+# river_minor_width and river_minor_terrain: the other rivers are 川 streams of 2 hexes. A road crosses a stream at a 渡所 ford.
+# river_banks: yes puts 岸 bank hexes along the 河 rivers. river_fords: no keeps the roads off the 河 rivers. Armies cross them by ship from a port.
+# river_shallows_every: a 淺瀨 shallows crossing after each 30 hexes of a stream, so armies can wade across away from the roads.
+# river_extra: Natural Earth stops the Yangtze at Jiangyin. This line takes it to the sea.
 # mountain_metres: a hex with a mean height above this value becomes 荒地 waste.
 name	han_196
 lat_min	20.5
@@ -21,3 +27,10 @@ river_max_scalerank	6
 cliff_metres	2600
 mountain_metres	1300
 seed	196
+river_widths	Yangtze=7|5@111|0@105;Chang Jiang=7|5@111|0@105;Huang=5|0@106;Han=3|0@111.5
+river_minor_width	2
+river_minor_terrain	stream
+river_banks	yes
+river_fords	no
+river_extra	Yangtze:120.07,31.96 120.60,31.85 121.20,31.65 121.90,31.40
+river_shallows_every	30
