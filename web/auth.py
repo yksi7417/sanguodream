@@ -91,7 +91,10 @@ def pkce_pair():
 async def read_json(response):
     data = await response.json(content_type=None)
     if response.status != 200 or not isinstance(data, dict):
-        raise AuthError(f"the provider answered {response.status}")
+        # The OAuth error code (for example "invalid_client") is not a secret. It tells the log the cause.
+        code = data.get("error") if isinstance(data, dict) else None
+        detail = f" ({code[:40]})" if isinstance(code, str) and code else ""
+        raise AuthError(f"the provider answered {response.status}{detail} at {response.url.path}")
     return data
 
 
