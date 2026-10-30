@@ -1,0 +1,167 @@
+# The source of the officers of 196. misc/make_tier_officers.py turns this table into officers.tsv and lore/en.tsv.
+# The names, the years, the factions and the cities are historical facts. The tiers are the judgement of the pack from the Records of the Three Kingdoms (三國志, Chen Shou, 3rd century, public domain).
+# A year in the history with no record (for example the birth of Guan Yu) has a round estimate here.
+# tiers: leadership, war, intelligence, politics, charm; S A B C D E F. region: n north, w northwest, c central plain, s south, y Yi (the southwest). It gives the arm of the aptitudes.
+# home: the province of the home, for compatibility. bond: kin, core, new or guest. It gives loyalty. skill: a key of skills.tsv, chosen from an act of the officer in the history.
+key	family_zh	given_zh	name_en	wiki	female	birth	death	appear	force	city	status	tiers	region	home	bond	skill	life
+cao_cao	曹	操	Cao Cao	Cao_Cao	no	155	220	175	0	13	ruler	ABSAA	c	yu	kin	farming	A warlord from Pei. In 196 he brought Emperor Xian to Xu and started military farms. He later ruled the north and his son founded Wei.
+xiahou_dun	夏侯	惇	Xiahou Dun	Xiahou_Dun	no	156	220	175	0	11	officer	BBCCB	c	yu	kin	unyielding	A cousin of Cao Cao. An arrow took his eye in 198, and he fought on. He held the rear and built dams for the farms.
+xiahou_yuan	夏侯	淵	Xiahou Yuan	Xiahou_Yuan	no	160	219	180	0	12	officer	BADDC	c	yu	kin	gallop	A cousin of Cao Cao, famous for fast marches. He ruled the west for Cao Cao and fell at Mount Dingjun.
+cao_ren	曹	仁	Cao Ren	Cao_Ren	no	168	223	186	0	13	officer	ABCCC	c	yu	kin	iron_wall	A cousin of Cao Cao. He held Jiangling against Zhou Yu and Fancheng against Guan Yu.
+cao_hong	曹	洪	Cao Hong	Cao_Hong	no	170	232	188	0	13	officer	CBDCD	c	yu	kin	-	A cousin of Cao Cao. At Xingyang in 190 he gave his horse to Cao Cao and saved his life. He was very rich.
+cao_chun	曹	純	Cao Chun	Cao_Chun	no	170	210	188	0	13	officer	BBCCC	c	yu	kin	cavalry_general	A younger brother of Cao Ren. He led the elite cavalry of Cao Cao and took the head of Yuan Tan.
+xun_yu	荀	彧	Xun Yu	Xun_Yu	no	163	212	181	0	13	officer	DESSA	c	yu	core	aide	A scholar of Yingchuan. He kept the capital and the supplies for Cao Cao and sent him many able men.
+xun_you	荀	攸	Xun You	Xun_You	no	157	214	176	0	13	officer	CEABB	c	yu	core	secret_plan	A nephew of Xun Yu. He joined Cao Cao in 196 and gave the plans that beat Lü Bu and Yuan Shao.
+guo_jia	郭	嘉	Guo Jia	Guo_Jia	no	170	207	188	0	13	officer	DESBB	c	yu	core	insight	A young adviser from Yingchuan. He read the minds of the rivals of Cao Cao. He died on the return from the Wuhuan war.
+cheng_yu	程	昱	Cheng Yu	Cheng_Yu	no	141	220	170	0	11	officer	CDABC	c	yan	core	tactician	An officer of Dong commandery. He held three counties for Cao Cao when Lü Bu took Yan province in 194.
+dian_wei	典	韋	Dian Wei	Dian_Wei	no	160	197	180	0	13	officer	CSEFD	c	yan	core	guard	The bodyguard of Cao Cao, a man of great strength. He died at the gate of the camp at Wancheng in 197.
+xu_chu	許	褚	Xu Chu	Xu_Chu	no	170	230	188	0	13	officer	CAEED	c	yu	core	fierce	A strong man of Qiao. He led a band of local men to Cao Cao and became his guard.
+yu_jin	于	禁	Yu Jin	Yu_Jin	no	160	221	180	0	13	officer	BBCCC	c	yan	core	discipline	A general known for strict discipline. He surrendered to Guan Yu at the flood of Fancheng in 219.
+yue_jin	樂	進	Yue Jin	Yue_Jin	no	160	218	180	0	12	officer	BBDDC	c	yan	core	raid	A short and brave officer. He was often the first man on the walls.
+li_dian	李	典	Li Dian	Li_Dian	no	174	209	190	0	11	officer	CCBCB	c	yan	core	-	A young officer who liked books. He moved his clan of more than ten thousand people to Ye.
+mao_jie	毛	玠	Mao Jie	Mao_Jie	no	160	216	180	0	13	officer	EEBAB	c	yan	core	capable	An honest official. He told Cao Cao to serve the emperor and to farm the land.
+dong_zhao	董	昭	Dong Zhao	Dong_Zhao	no	156	236	176	0	14	officer	DEAAB	c	yan	new	-	An official who made the plan to move Emperor Xian from Luoyang to Xu in 196.
+man_chong	滿	寵	Man Chong	Man_Chong	no	170	242	188	0	13	officer	BCBAC	c	yan	core	fortify	A strict magistrate. He later built the new city of Hefei against Wu.
+xu_huang	徐	晃	Xu Huang	Xu_Huang	no	165	227	184	0	13	officer	AACCB	c	si	new	surprise	An officer of Yang Feng. He joined Cao Cao at the end of 196 and later broke the siege of Fancheng.
+yuan_shao	袁	紹	Yuan Shao	Yuan_Shao	no	154	202	175	1	4	ruler	ABBBA	n	yu	kin	fame	The head of the Yuan clan, the strongest lord of the north. Cao Cao beat him at Guandu in 200.
+yuan_tan	袁	譚	Yuan Tan	Yuan_Tan	no	173	205	190	1	10	officer	CCCDC	n	yu	kin	-	The eldest son of Yuan Shao. In 196 he took Beihai from Kong Rong.
+yuan_xi	袁	熙	Yuan Xi	Yuan_Xi	no	176	207	192	1	8	officer	CDCCC	n	yu	kin	-	The second son of Yuan Shao. He later governed You province.
+yuan_shang	袁	尚	Yuan Shang	Yuan_Shang	no	178	207	194	1	4	officer	CCCDB	n	yu	kin	-	The favourite son of Yuan Shao. His war with Yuan Tan opened the north to Cao Cao.
+yan_liang	顏	良	Yan Liang	Yan_Liang	no	160	200	180	1	4	officer	CAEED	n	ji	core	brave_general	A famous general of Yuan Shao. Guan Yu killed him at Baima in 200.
+wen_chou	文	醜	Wen Chou	Wen_Chou	no	160	200	180	1	4	officer	CAEED	n	ji	core	long_drive	A cavalry general of Yuan Shao. He died at Yanjin in 200.
+tian_feng	田	豐	Tian Feng	Tian_Feng	no	150	200	170	1	4	officer	DESAC	n	ji	core	clear_mirror	An adviser who spoke the truth to Yuan Shao. Yuan Shao put him in prison and then killed him.
+ju_shou	沮	授	Ju Shou	Ju_Shou	no	155	200	175	1	4	officer	CEAAB	n	ji	core	see_through	An adviser who told Yuan Shao to take the emperor first. Cao Cao captured him at Guandu.
+shen_pei	審	配	Shen Pei	Shen_Pei	no	155	204	175	1	4	officer	CDBBC	n	ji	core	fortify	An official of Yuan Shao. He held Ye against Cao Cao for months in 204.
+feng_ji	逢	紀	Feng Ji	Feng_Ji	no	155	202	175	1	4	officer	EEBBC	n	jing	core	-	An adviser of Yuan Shao from Nanyang. He helped Yuan Shao to take Ji province.
+xu_you	許	攸	Xu You	Xu_You_(Han_dynasty)	no	155	204	175	1	4	officer	EEACD	n	jing	guest	-	An old friend of Cao Cao. At Guandu he left Yuan Shao and told Cao Cao where the grain was.
+guo_tu	郭	圖	Guo Tu	Guo_Tu	no	155	205	175	1	9	officer	DEBCC	n	yu	core	-	An adviser of Yuan Shao who later served Yuan Tan.
+zhang_he	張	郃	Zhang He	Zhang_He	no	167	231	185	1	4	officer	AACCB	n	ji	new	trailblazer	A general of Yuan Shao. He joined Cao Cao at Guandu and served Wei for thirty years.
+gao_lan	高	覽	Gao Lan	Gao_Lan	no	165	210	184	1	4	officer	BBDDD	n	ji	core	-	A general of Yuan Shao who went to Cao Cao with Zhang He.
+qu_yi	麴	義	Qu Yi	Qu_Yi	no	160	199	180	1	3	officer	BADDD	w	liang	guest	bow_general	An officer from Liang province. His crossbowmen beat the White Horse cavalry of Gongsun Zan at Jieqiao.
+chunyu_qiong	淳于	瓊	Chunyu Qiong	Chunyu_Qiong	no	150	200	170	1	4	officer	CCDDC	n	yu	core	-	An old colonel of the capital. He guarded the grain of Yuan Shao at Wuchao.
+xin_ping	辛	評	Xin Ping	Xin_Ping	no	160	204	180	1	10	officer	DEBBC	n	yu	core	-	An adviser of Yuan Shao who went with Yuan Tan.
+xin_pi	辛	毗	Xin Pi	Xin_Pi	no	170	235	188	1	4	officer	DEBBB	n	yu	core	debater	A younger brother of Xin Ping. He later served Wei and spoke boldly to its emperors.
+gao_gan	高	幹	Gao Gan	Gao_Gan	no	170	206	188	1	4	officer	CCCCC	n	yan	kin	-	A nephew of Yuan Shao. He later governed Bing province.
+gongsun_zan	公孫	瓚	Gongsun Zan	Gongsun_Zan	no	152	199	170	2	1	ruler	BACCB	n	you	kin	white_horse	A lord of You province. His White Horse Volunteers fought the Wuhuan. He died in his tower at Yijing.
+gongsun_xu	公孫	續	Gongsun Xu	-	no	175	199	192	2	1	officer	CCDDD	n	you	kin	-	The son of Gongsun Zan. He went to the Heishan army for help in 199.
+tian_kai	田	楷	Tian Kai	Tian_Kai	no	160	199	180	2	1	officer	CCDCC	n	you	core	-	The governor of Qing province for Gongsun Zan. Yuan Tan drove him out.
+guan_jing	關	靖	Guan Jing	-	no	160	199	180	2	1	officer	DEBBD	n	you	core	-	An adviser of Gongsun Zan. He died in the battle of Yijing.
+gongsun_du	公孫	度	Gongsun Du	Gongsun_Du	no	150	204	170	3	0	ruler	BBBBC	n	you	kin	-	The governor of Liaodong. He ruled the northeast as a king and fought Goguryeo.
+gongsun_kang	公孫	康	Gongsun Kang	Gongsun_Kang	no	170	221	188	3	0	officer	CCCCC	n	you	kin	-	The son of Gongsun Du. He sent the heads of Yuan Shang and Yuan Xi to Cao Cao.
+liu_yi	柳	毅	Liu Yi	-	no	160	210	180	3	0	officer	DDCCD	n	you	core	-	An officer of Gongsun Du in Liaodong.
+yang_yi	陽	儀	Yang Yi	-	no	160	220	180	3	0	officer	DDCCD	n	you	core	-	An officer of Gongsun Du in Liaodong.
+lu_bu	呂	布	Lü Bu	Lü_Bu	no	161	199	178	4	33	ruler	BSEFC	w	bing	kin	flying_general	A warrior from Wuyuan, called the Flying General. In 196 he took Xu province from Liu Bei.
+chen_gong	陳	宮	Chen Gong	Chen_Gong	no	160	199	180	4	33	officer	CDABB	c	yan	core	tactician	An adviser who turned against Cao Cao in 194 and gave Yan province to Lü Bu.
+zhang_liao	張	遼	Zhang Liao	Zhang_Liao	no	169	222	186	4	33	officer	AABCB	w	bing	core	awe	An officer of Lü Bu who later served Cao Cao. At Hefei in 215 he beat a large army of Wu.
+gao_shun	高	順	Gao Shun	Gao_Shun	no	160	199	180	4	33	officer	BADDC	w	bing	core	push_on	An honest officer of Lü Bu. His small elite unit broke many lines of the enemy.
+zang_ba	臧	霸	Zang Ba	Zang_Ba	no	165	230	184	4	33	officer	BBCCC	c	yan	guest	-	A leader of the bands of Taishan who joined Lü Bu and later Cao Cao.
+wei_xu	魏	續	Wei Xu	-	no	165	200	184	4	33	officer	DCEEE	w	bing	kin	-	A relative of Lü Bu who gave Chen Gong to Cao Cao in 199.
+song_xian	宋	憲	Song Xian	-	no	165	200	184	4	33	officer	DCEEE	w	bing	core	-	An officer of Lü Bu who surrendered at Xiapi.
+hou_cheng	侯	成	Hou Cheng	-	no	165	200	184	4	33	officer	DCEEE	w	bing	core	-	An officer of Lü Bu who surrendered at Xiapi.
+chen_deng	陳	登	Chen Deng	Chen_Deng	no	163	201	181	4	35	officer	BCAAB	c	xu	guest	capable	A local noble of Xu province. He served Lü Bu but helped Cao Cao. He governed Guangling well.
+chen_gui	陳	珪	Chen Gui	Chen_Gui	no	140	200	170	4	33	officer	DEABB	c	xu	guest	false_word	The father of Chen Deng. His words broke the alliance of Lü Bu and Yuan Shu.
+liu_bei	劉	備	Liu Bei	Liu_Bei	no	161	223	178	5	34	ruler	ABBBS	c	you	kin	benevolence	A man of the Han clan from Zhuo. In 196 Lü Bu took Xiapi from him, and he moved to Xiaopei. He later founded Shu.
+guan_yu	關	羽	Guan Yu	Guan_Yu	no	160	220	180	5	34	officer	ASBCA	c	si	kin	navy_general	A sworn brother of Liu Bei from Hedong. He killed Yan Liang at Baima and later held Jing province.
+zhang_fei	張	飛	Zhang Fei	Zhang_Fei	no	165	221	184	5	34	officer	BSDDC	c	you	kin	intimidate	A sworn brother of Liu Bei. At the bridge of Changban he stopped the army of Cao Cao with a shout.
+jian_yong	簡	雍	Jian Yong	Jian_Yong	no	162	214	180	5	34	officer	EEBCA	c	you	core	debater	An old friend of Liu Bei from Zhuo. He was a good envoy.
+mi_zhu	糜	竺	Mi Zhu	Mi_Zhu	no	165	221	184	5	34	officer	EECAA	c	xu	core	rich	A rich merchant of Donghai. He gave his money and his sister to Liu Bei in 196.
+sun_qian	孫	乾	Sun Qian	Sun_Qian	no	165	214	184	5	34	officer	EECBB	c	qing	core	-	A scholar of Beihai. He was an envoy of Liu Bei to Yuan Shao and to Liu Biao.
+mi_fang	糜	芳	Mi Fang	Mi_Fang	no	168	222	186	5	34	officer	DCDDD	c	xu	core	-	A younger brother of Mi Zhu. In 219 he gave Jiangling to Wu.
+yuan_shu	袁	術	Yuan Shu	Yuan_Shu	no	155	199	175	6	32	ruler	CCCDB	c	yu	kin	-	A cousin of Yuan Shao who ruled Huainan. He named himself emperor in 197.
+ji_ling	紀	靈	Ji Ling	Ji_Ling	no	160	200	180	6	32	officer	BBDDD	c	yu	core	-	A general of Yuan Shu. In 196 Lü Bu shot an arrow into a halberd and stopped his attack on Liu Bei.
+zhang_xun	張	勳	Zhang Xun	Zhang_Xun	no	160	200	180	6	31	officer	CCDDD	c	yu	core	-	A general of Yuan Shu.
+qiao_rui	橋	蕤	Qiao Rui	Qiao_Rui	no	160	197	180	6	32	officer	CCDDD	c	yu	core	-	A general of Yuan Shu. Cao Cao killed him in 197.
+yan_xiang	閻	象	Yan Xiang	-	no	160	200	180	6	32	officer	EEBBC	c	yu	core	-	An official of Yuan Shu who spoke against the claim of an emperor.
+yang_hong	楊	弘	Yang Hong	-	no	160	200	180	6	32	officer	EEBCC	c	yu	core	-	The chief clerk of Yuan Shu.
+lei_bo	雷	薄	Lei Bo	-	no	165	210	184	6	32	officer	DCEEE	c	yu	core	-	An officer of Yuan Shu who later became a bandit chief.
+chen_lan	陳	蘭	Chen Lan	-	no	165	209	184	6	32	officer	DCEEE	c	yu	core	-	An officer of Yuan Shu who later became a bandit chief.
+liu_xun	劉	勳	Liu Xun	Liu_Xun_(Han_dynasty)	no	160	210	180	6	39	officer	CCCCC	s	yu	core	-	The governor of Lujiang for Yuan Shu. Sun Ce took his city in 199.
+yang_feng	楊	奉	Yang Feng	Yang_Feng	no	160	197	180	6	31	officer	CBEDD	w	bing	guest	-	A former White Wave leader who guarded the emperor on the road to Luoyang. He went to Yuan Shu at the end of 196.
+han_xian	韓	暹	Han Xian	Han_Xian	no	160	197	180	6	31	officer	CBEEE	w	bing	guest	-	A former White Wave leader who guarded the emperor with Yang Feng.
+sun_ce	孫	策	Sun Ce	Sun_Ce	no	175	200	191	7	37	ruler	AABCA	s	yang	kin	overlord	The son of Sun Jian, called the Little Conqueror. From 194 to 199 he took the lands south of the Yangtze.
+sun_quan	孫	權	Sun Quan	Sun_Quan	no	182	252	196	7	37	officer	BCBAA	s	yang	kin	keen_eye	The younger brother of Sun Ce. He was a good judge of men. He later founded Wu.
+sun_ben	孫	賁	Sun Ben	Sun_Ben	no	160	210	180	7	37	officer	CCCCC	s	yang	kin	-	A cousin of Sun Ce who governed Yuzhang for him.
+wu_jing	吳	景	Wu Jing	Wu_Jing	no	155	203	175	7	36	officer	CCCCC	s	yang	kin	-	The uncle of Sun Ce, the governor of Danyang.
+zhou_yu	周	瑜	Zhou Yu	Zhou_Yu	no	175	210	191	7	36	officer	SBSAA	s	yang	core	fire_god	A friend of Sun Ce from Lujiang. He led the fleet that burned the ships of Cao Cao at Red Cliffs.
+zhang_zhao	張	昭	Zhang Zhao	Zhang_Zhao	no	156	236	176	7	37	officer	EEASB	s	xu	core	capable	A scholar from Pengcheng. Sun Ce gave him the government of his lands.
+zhang_hong	張	紘	Zhang Hong	Zhang_Hong	no	153	212	173	7	37	officer	EEAAB	s	xu	core	poetry	A scholar and writer from Guangling. He was an envoy of Sun Ce to the court.
+cheng_pu	程	普	Cheng Pu	Cheng_Pu	no	150	215	170	7	37	officer	BBCCB	s	you	core	navy_general	An old officer of Sun Jian. He shared the command with Zhou Yu at Red Cliffs.
+huang_gai	黃	蓋	Huang Gai	Huang_Gai	no	150	215	170	7	37	officer	BBCCB	s	jing	core	fire_attack	An old officer of Sun Jian. At Red Cliffs his false surrender sent fire ships into the fleet of Cao Cao.
+han_dang	韓	當	Han Dang	Han_Dang	no	155	227	175	7	37	officer	BBDDC	s	you	core	archer	An old officer of Sun Jian, good with the bow on a horse.
+lu_fan	呂	範	Lü Fan	Lü_Fan	no	160	228	180	7	37	officer	CCCBB	s	yu	core	tax	An early follower of Sun Ce. He kept the accounts with a strict hand.
+zhu_zhi	朱	治	Zhu Zhi	Zhu_Zhi	no	156	224	176	7	37	officer	CCCBB	s	yang	core	-	An old officer of Sun Jian. He governed Wu commandery for many years.
+jiang_qin	蔣	欽	Jiang Qin	Jiang_Qin	no	168	219	186	7	37	officer	CBDDC	s	yang	core	-	An early follower of Sun Ce from Jiujiang.
+zhou_tai	周	泰	Zhou Tai	Zhou_Tai	no	168	225	186	7	37	officer	CAEED	s	yang	core	guard	An early follower of Sun Ce. In 196 he saved Sun Quan from bandits at Xuancheng with twelve wounds.
+taishi_ci	太史	慈	Taishi Ci	Taishi_Ci	no	166	206	184	7	37	officer	BACDB	s	qing	new	bow_general	An archer of Donglai. He fought Sun Ce in a duel at Shenting and then joined him.
+chen_wu	陳	武	Chen Wu	Chen_Wu	no	177	215	193	7	37	officer	CBDDC	s	yang	core	-	An officer of Sun Ce from Lujiang. He led the guard units.
+lu_meng	呂	蒙	Lü Meng	Lü_Meng	no	178	220	194	7	36	officer	AABCC	s	yu	core	feint	A young officer who later studied hard. In 219 his men dressed as merchants and took Jing province.
+wang_lang	王	朗	Wang Lang	Wang_Lang	no	155	228	175	8	38	ruler	DEAAB	s	xu	kin	teaching	The governor of Kuaiji, a scholar of the classics. Sun Ce beat him in 196, and he later served Wei.
+yu_fan	虞	翻	Yu Fan	Yu_Fan	no	164	233	182	8	38	officer	DCABC	s	yang	core	fengshui	A scholar of Kuaiji and a master of the Book of Changes. He later served Sun Ce.
+yan_baihu	嚴	白虎	Yan Baihu	Yan_Baihu	no	160	197	180	8	38	officer	CCEED	s	yang	guest	-	The leader of a strong band in Wu commandery. Sun Ce beat him.
+liu_yao	劉	繇	Liu Yao	Liu_Yao	no	156	197	176	9	40	ruler	DDBBB	s	qing	kin	-	The inspector of Yang province for the court. Sun Ce drove him to Yuzhang, and he died there in 197.
+hua_xin	華	歆	Hua Xin	Hua_Xin	no	157	232	176	9	40	officer	EEAAB	s	qing	new	capable	The governor of Yuzhang, an honest official. He later served Wei as a high minister.
+fan_neng	樊	能	Fan Neng	-	no	160	200	180	9	40	officer	DCEEE	s	qing	core	-	An officer of Liu Yao.
+liu_biao	劉	表	Liu Biao	Liu_Biao	no	142	208	170	10	25	ruler	CDBAA	s	yan	kin	teaching	A scholar of the Han clan, the governor of Jing province. He kept peace there and opened schools.
+liu_qi	劉	琦	Liu Qi	Liu_Qi_(Han_dynasty)	no	180	209	196	10	26	officer	DDCCB	s	yan	kin	-	The eldest son of Liu Biao. He was a friend of Liu Bei.
+kuai_liang	蒯	良	Kuai Liang	Kuai_Liang	no	160	210	180	10	25	officer	EEAAB	s	jing	core	-	An adviser of Liu Biao. He told Liu Biao to rule with benevolence.
+kuai_yue	蒯	越	Kuai Yue	Kuai_Yue	no	160	214	180	10	25	officer	EEAAB	s	jing	core	trickery	An adviser of Liu Biao. He called the chiefs of the bandits to a feast and killed them.
+cai_mao	蔡	瑁	Cai Mao	Cai_Mao	no	160	215	180	10	25	officer	CCCCC	s	jing	core	navy_general	A noble of Xiangyang and the brother-in-law of Liu Biao. He led the fleet of Jing province.
+huang_zu	黃	祖	Huang Zu	Huang_Zu	no	150	208	170	10	26	officer	CCDDD	s	jing	core	archer	The governor of Jiangxia. His men shot Sun Jian. Sun Quan killed him in 208.
+zhang_xian	張	羨	Zhang Xian	-	no	150	198	170	10	28	officer	CCCCC	s	jing	guest	-	The governor of Changsha. He rose against Liu Biao in 198.
+wen_ping	文	聘	Wen Ping	Wen_Ping	no	165	225	184	10	25	officer	BBCCC	s	jing	core	-	A general of Liu Biao. He held Jiangxia for Wei for decades.
+liu_pan	劉	磐	Liu Pan	Liu_Pan	no	165	210	184	10	28	officer	CBDDD	s	yan	kin	-	A nephew of Liu Biao. He often fought Sun Ce in Changsha.
+huang_zhong	黃	忠	Huang Zhong	Huang_Zhong	no	150	220	170	10	28	officer	BADDC	s	jing	core	elation	An officer in Changsha. At an old age he killed Xiahou Yuan at Mount Dingjun.
+han_song	韓	嵩	Han Song	Han_Song	no	155	215	175	10	25	officer	EEABB	s	jing	core	-	An adviser of Liu Biao. He went to the court at Xu and praised Cao Cao.
+yi_ji	伊	籍	Yi Ji	Yi_Ji	no	165	220	184	10	25	officer	EEBBB	s	yan	core	debater	An official from Shanyang in Jing province. He later served Liu Bei as an envoy.
+zhang_xiu	張	繡	Zhang Xiu	Zhang_Xiu	no	165	207	184	11	24	ruler	BBCDC	w	liang	kin	pincer	The nephew of Zhang Ji. In 196 he took the army of his uncle and held Wancheng.
+jia_xu	賈	詡	Jia Xu	Jia_Xu	no	147	223	170	11	24	officer	DESAC	w	liang	new	counter_plot	An adviser from Wuwei. His plans beat Cao Cao at Wancheng twice. He later served Wei.
+hu_cheer	胡	車兒	Hu Che'er	Hu_Che'er	no	165	210	184	11	24	officer	DBEEE	w	liang	core	-	A strong officer of Zhang Xiu.
+liu_zhang	劉	璋	Liu Zhang	Liu_Zhang	no	162	219	180	12	21	ruler	DDCCB	y	jing	kin	-	The governor of Yi province after his father Liu Yan. He gave Yi province to Liu Bei in 214.
+zhao_wei	趙	韙	Zhao Wei	Zhao_Wei	no	150	201	170	12	21	officer	CCCCC	y	yi	core	-	A high officer of Liu Zhang. He rose against him in 200.
+huang_quan	黃	權	Huang Quan	Huang_Quan	no	170	240	188	12	21	officer	BCAAB	y	yi	core	deep_plan	An official of Liu Zhang who later served Liu Bei and Wei.
+wang_lei	王	累	Wang Lei	-	no	165	211	184	12	21	officer	EEBBC	y	yi	core	clear_mirror	An official of Liu Zhang. He hung himself from the city gate to warn Liu Zhang.
+zhang_song	張	松	Zhang Song	Zhang_Song	no	170	212	188	12	21	officer	EEAAD	y	yi	core	insight	An official of Liu Zhang with a strong memory. He gave the maps of Yi province to Liu Bei.
+fa_zheng	法	正	Fa Zheng	Fa_Zheng	no	176	220	196	12	21	officer	CDSAC	y	si	guest	clever_plan	An adviser from Fufeng who came to Yi province in 196. He later planned the war of Hanzhong for Liu Bei.
+meng_da	孟	達	Meng Da	Meng_Da	no	170	228	188	12	21	officer	BBBCC	y	si	guest	-	An officer from Fufeng who came with Fa Zheng. He changed sides three times.
+zhang_ren	張	任	Zhang Ren	Zhang_Ren	no	165	213	184	12	20	officer	BBCDC	y	yi	core	-	A general of Liu Zhang. He died loyal at Luo.
+yan_yan	嚴	顏	Yan Yan	Yan_Yan	no	150	220	170	12	22	officer	BBCCC	y	yi	core	composure	The governor of Ba commandery. He told Zhang Fei that Ba had only generals who lost their heads.
+pang_xi	龐	羲	Pang Xi	Pang_Xi	no	160	220	180	12	22	officer	CCCCC	y	si	core	-	An old friend of the family of Liu Zhang. He governed Baxi.
+wu_yi	吳	懿	Wu Yi	Wu_Yi	no	170	237	188	12	23	officer	BCCCC	y	jing	core	-	An officer who came to Yi province with Liu Yan. He later led the armies of Shu.
+zheng_du	鄭	度	Zheng Du	-	no	165	215	184	12	21	officer	EEBCC	y	yi	core	-	An adviser of Liu Zhang. He told Liu Zhang to burn the fields before Liu Bei.
+zhang_lu	張	魯	Zhang Lu	Zhang_Lu	no	160	216	180	13	19	ruler	DDBAB	y	yu	kin	rice	The master of the Way of the Five Pecks of Rice. He ruled Hanzhong as a church state for thirty years.
+zhang_wei	張	衛	Zhang Wei	-	no	165	215	184	13	19	officer	CCDDD	y	yu	kin	-	The younger brother of Zhang Lu. He held the pass of Yangping against Cao Cao in 215.
+yan_pu	閻	圃	Yan Pu	Yan_Pu	no	160	225	180	13	19	officer	EEABB	y	yi	core	-	An adviser of Zhang Lu. He told him not to take the title of king.
+yang_ang	楊	昂	Yang Ang	-	no	160	215	180	13	19	officer	CCDDD	y	yi	core	-	A general of Zhang Lu.
+yang_ren	楊	任	Yang Ren	-	no	160	215	180	13	19	officer	CCDDD	y	yi	core	-	A general of Zhang Lu.
+yang_song	楊	松	Yang Song	-	no	160	215	180	13	19	officer	EECDD	y	yi	core	false_word	An adviser of Zhang Lu who took bribes.
+li_jue	李	傕	Li Jue	Li_Jue	no	150	198	170	14	15	ruler	CBDED	w	liang	kin	plunder	A general of Dong Zhuo. He took Chang'an in 192 and held the court until 195.
+guo_si	郭	汜	Guo Si	Guo_Si	no	150	197	170	14	15	officer	CBEEE	w	liang	guest	plunder	A general of Dong Zhuo and the partner of Li Jue. The two men fought each other in Chang'an.
+li_xian	李	暹	Li Xian	-	no	160	198	180	14	15	officer	DCEEE	w	liang	kin	-	A nephew of Li Jue.
+ma_teng	馬	騰	Ma Teng	Ma_Teng	no	155	212	175	15	16	ruler	BBDDB	w	si	kin	qiang_friend	A general of Liang province with a Qiang mother. He shared the west with Han Sui.
+ma_chao	馬	超	Ma Chao	Ma_Chao	no	176	222	192	15	16	officer	ASDDB	w	si	kin	cavalry_general	The eldest son of Ma Teng. In 211 he led the armies of the west against Cao Cao at Tong Pass.
+ma_xiu	馬	休	Ma Xiu	-	no	178	212	194	15	16	officer	CCDDD	w	si	kin	-	A son of Ma Teng.
+ma_tie	馬	鐵	Ma Tie	-	no	180	212	196	15	16	officer	CCDDD	w	si	kin	-	A son of Ma Teng.
+pang_de	龐	德	Pang De	Pang_De	no	170	219	188	15	18	officer	BADDC	w	liang	core	unyielding	An officer of Ma Teng. At Fancheng in 219 he died before he surrendered.
+han_sui	韓	遂	Han Sui	Han_Sui	no	145	215	170	16	17	ruler	BBBCB	w	liang	kin	qiang_friend	A leader of the Liang rebels for thirty years. He fought Cao Cao at Tong Pass in 211.
+chenggong_ying	成公	英	Chenggong Ying	-	no	165	225	184	16	17	officer	DDABC	w	liang	core	-	The loyal adviser of Han Sui.
+yan_xing	閻	行	Yan Xing	-	no	165	225	184	16	17	officer	BADDD	w	liang	core	-	A strong officer of Han Sui. He almost killed Ma Chao with a spear.
+zhang_yang	張	楊	Zhang Yang	Zhang_Yang	no	155	198	175	17	7	ruler	CCDCB	n	bing	kin	-	The governor of Henei. He gave food to the emperor on the road to Luoyang in 196.
+yang_chou	楊	醜	Yang Chou	-	no	160	198	180	17	7	officer	DCEEE	n	bing	core	-	An officer of Zhang Yang who killed him in 198.
+sui_gu	眭	固	Sui Gu	-	no	160	199	180	17	7	officer	DCEEE	n	bing	core	-	An officer of Zhang Yang who killed Yang Chou.
+zhang_yan	張	燕	Zhang Yan	Zhang_Yan	no	160	230	180	18	6	ruler	BBDDB	n	ji	kin	forced_march	The leader of the Heishan army in the Taihang mountains. People called him the Flying Swallow for his speed.
+sun_qing	孫	輕	Sun Qing	-	no	160	210	180	18	6	officer	DCEEE	n	ji	core	-	A chief of the Heishan army.
+wang_dang	王	當	Wang Dang	-	no	160	210	180	18	6	officer	DCEEE	n	ji	core	-	A chief of the Heishan army.
+shi_xie	士	燮	Shi Xie	Shi_Xie	no	137	226	170	19	41	ruler	DEBAA	s	jiao	kin	yue_friend	The governor of Jiaozhi for forty years. He kept the far south in peace and favoured learning.
+shi_yi	士	壹	Shi Yi	-	no	140	230	170	19	41	officer	CDCCC	s	jiao	kin	-	A younger brother of Shi Xie.
+shi_wu	士	武	Shi Wu	-	no	145	200	170	19	41	officer	DDCCC	s	jiao	kin	-	A younger brother of Shi Xie, the governor of Nanhai.
+zhao_yun	趙	雲	Zhao Yun	Zhao_Yun	no	168	229	186	-	1	free	AABCB	n	ji	core	guard	An officer from Changshan. He left Gongsun Zan and joined Liu Bei in 200. At Changban he saved the son of Liu Bei.
+lu_su	魯	肅	Lu Su	Lu_Su	no	172	217	190	-	32	free	CDAAA	s	xu	core	rich	A rich man of Linhuai. He gave half of his grain to Zhou Yu and later planned the alliance with Liu Bei.
+gan_ning	甘	寧	Gan Ning	Gan_Ning	no	170	220	188	-	22	free	BACDC	y	yi	core	raid	A river pirate from Ba. He later served Wu and raided the camp of Cao Cao with one hundred men.
+xu_shu	徐	庶	Xu Shu	Xu_Shu	no	170	234	188	-	25	free	CCABB	c	yu	core	see_through	A scholar of Yingchuan in Jing province. He told Liu Bei about Zhuge Liang.
+zhuge_liang	諸葛	亮	Zhuge Liang	Zhuge_Liang	no	181	234	196	-	25	free	ACSSA	c	xu	core	invention	A young scholar who moved to Jing province. He later governed Shu and made new machines for its army.
+pang_tong	龐	統	Pang Tong	Pang_Tong	no	179	214	196	-	25	free	CDSBB	s	jing	core	keen_eye	A scholar of Xiangyang, known as the Young Phoenix. He judged men well. He died at Luo.
+wei_yan	魏	延	Wei Yan	Wei_Yan	no	170	234	188	-	25	free	AACDC	s	jing	core	push_on	An officer of Yiyang. He later held Hanzhong for Shu for many years.
+sima_yi	司馬	懿	Sima Yi	Sima_Yi	no	179	251	201	-	7	free	ACSAB	c	si	core	deep_plan	A noble of Henei. He served Cao Cao from 208 and later held the power of Wei.
+lu_xun	陸	遜	Lu Xun	Lu_Xun	no	183	245	203	-	37	free	ACSAB	s	yang	core	fire_attack	A noble of Wu commandery. In 222 he burned the camps of Liu Bei at Yiling.
+cai_yan	蔡	琰	Cai Yan	Cai_Wenji	yes	177	250	196	-	5	free	EEABA	n	yan	core	music	The daughter of Cai Yong, a poet and musician. The Xiongnu took her north. Cao Cao paid a ransom for her in 207.
+duan_wei	段	煨	Duan Wei	Duan_Wei	no	150	209	170	-	15	free	CCCBB	w	liang	core	-	A general of Dong Zhuo at Huayin. He helped the officials of the court on the road east.

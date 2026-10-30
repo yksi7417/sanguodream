@@ -1,0 +1,23 @@
+id	key	name_zh	name_en	ruler
+# The 20 factions of the tenth month of 196. id: the force id (faction_colours.tsv gives the colour). ruler: the officer id of officers.tsv.
+# The engine reads id and ruler. The names are for the reader: the game names a faction after its ruler.
+0	cao_cao	曹操軍	Cao Cao	0
+1	yuan_shao	袁紹軍	Yuan Shao	19
+2	gongsun_zan	公孫瓚軍	Gongsun Zan	38
+3	gongsun_du	公孫度軍	Gongsun Du	42
+4	lu_bu	呂布軍	Lü Bu	46
+5	liu_bei	劉備軍	Liu Bei	56
+6	yuan_shu	袁術軍	Yuan Shu	63
+7	sun_ce	孫策軍	Sun Ce	74
+8	wang_lang	王朗軍	Wang Lang	91
+9	liu_yao	劉繇軍	Liu Yao	94
+10	liu_biao	劉表軍	Liu Biao	97
+11	zhang_xiu	張繡軍	Zhang Xiu	109
+12	liu_zhang	劉璋軍	Liu Zhang	112
+13	zhang_lu	張魯軍	Zhang Lu	124
+14	li_jue	李傕軍	Li Jue	130
+15	ma_teng	馬騰軍	Ma Teng	133
+16	han_sui	韓遂軍	Han Sui	138
+17	zhang_yang	張楊軍	Zhang Yang	141
+18	zhang_yan	張燕軍	Zhang Yan	144
+19	shi_xie	士燮軍	Shi Xie	147

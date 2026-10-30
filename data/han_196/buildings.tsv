@@ -1,0 +1,25 @@
+id	key	name_zh	kind	durability	gold	technique	replaces	range_min	range_max	value	water	natural	status
+# The buildings that a unit places on the map (military-facilities-and-traps.md; manual p.16, p.34; guide book p.19), and the natural traps of terrain-and-map.md.
+# kind: camp (protects and gives grain), tower (shoots), drum (more damage), music (morale), maze (confuses; more damage), wall (blocks), seed, ball, ship (traps), dike, rockfall (natural traps).
+# durability, gold, technique, the PK ranges: documented. replaces: the weak building that a faction with this one cannot build any more, or -.
+# value: tower: soldiers that one shot kills; drum and maze: percent of more damage; camp: percent of less damage; music: morale each turn; traps: soldiers lost; dike and rockfall: the damage. All values are assumed (Q-174).
+0	camp	陣	camp	1100	500	-	-	1	2	20	no	no	documented
+1	fort	砦	camp	1100	500	strong_facilities	camp	1	3	20	no	no	documented
+2	citadel	城塞	camp	1100	500	strong_walls	fort	1	4	20	no	no	documented
+3	arrow_tower	箭樓	tower	700	600	-	-	1	2	300	no	no	documented
+4	repeating_tower	連弩樓	tower	700	600	strong_facilities	arrow_tower	1	3	300	no	no	documented
+5	catapult_tower	投石台	tower	1000	800	catapults	-	2	3	500	no	no	documented
+6	drum_tower	太鼓台	drum	800	500	-	-	1	3	10	no	no	documented
+7	music_tower	軍樂台	music	800	800	-	-	1	2	10	no	no	documented
+8	stone_maze	石兵八陣	maze	1000	1200	stonework	-	1	1	10	no	no	documented
+9	earth_wall	土壘	wall	400	300	-	-	0	0	0	no	no	documented
+10	stone_wall	石牆	wall	400	300	stonework	earth_wall	0	0	0	no	no	documented
+11	fire_seed	火種	seed	200	200	-	-	1	1	500	no	no	documented
+12	fire_seed_2	火陷種	seed	200	200	gunpowder	fire_seed	1	1	800	no	no	documented
+13	fire_seed_3	業火種	seed	200	200	explosives	fire_seed_2	1	2	1200	no	no	documented
+14	fire_ball	火球	ball	200	200	-	-	1	3	500	no	no	documented
+15	fire_ball_2	火陷球	ball	200	200	gunpowder	fire_ball	1	3	800	no	no	documented
+16	fire_ball_3	業火球	ball	200	200	explosives	fire_ball_2	1	3	1200	no	no	documented
+17	fire_ship	火船	ship	200	200	-	-	1	1	800	yes	no	documented
+18	dike	堤防	dike	800	0	-	-	1	2	2000	no	yes	assumed
+19	rockfall	落石	rockfall	10	0	-	-	1	2	1000	no	yes	assumed

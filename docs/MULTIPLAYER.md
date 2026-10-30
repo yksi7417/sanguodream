@@ -449,6 +449,10 @@ The path to a public game:
    map from real geography (docs/MAPS.md). The history of the period and
    the old text of the novel 三國演義 are in the public domain. A modern
    translation is not.
+   Status on 2026-10-30: data/han_196 is the first original pack. It has
+   the year 196, a map from real geography, 20 factions and 161 officers.
+   Its abilities come from tiers and a written rubric. Its rule tables
+   still have the names of the original (data/han_196/README.md).
 2. Give the game a name that is not 三國志.
 3. Keep the install reader of M16 for a player who owns the original.
    The data then stays on the computer of that player, in a game for one

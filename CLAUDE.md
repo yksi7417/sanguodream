@@ -187,6 +187,9 @@ decompilation of it.
                          the Big5 names of its officers (docs/MAPS.md).
                          It also writes names/en.tsv and lore/links.tsv of
                          the pack (docs/EUROPE.md)
+- misc/make_tier_officers.py  writes officers.tsv and the lives of a pack
+                         scenario from the tiers of source/officers.tsv
+                         and a written rubric (data/han_196/README.md)
 - misc/make_pair_index.py  writes data/placeholder/pairs.tsv from the save
                          pairs of the spec (run it after a spec update;
                          tutorial 26)
@@ -215,6 +218,9 @@ decompilation of it.
                          and its own scenario; see its README.md
 - data/medieval_east/    the east map of the game of 1200 (E8): 42 cities,
                          with Antioch, and its own scenario; see its README.md
+- data/han_196/          the original Three Kingdoms pack: the year 196 on a
+                         map from real geography, with no data of the
+                         original game; see its README.md
 - data/fonts/, data/unicode/   open-licence assets; see docs/ASSETS.md
 - tests/unit/            per-module unit tests
 - tests/feature/         engine_api behaviour tests and the fixture runner

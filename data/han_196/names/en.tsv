@@ -1,0 +1,271 @@
+key	text	note
+# Written by misc/make_scenario.py. The English names of the pack by English key (docs/EUROPE.md, E2).
+# officer.<key> and force.<key> come from the scenario y196. city.<key> and base.<key> come from map/source/sites.tsv.
+officer.cao_cao	Cao Cao
+officer.xiahou_dun	Xiahou Dun
+officer.xiahou_yuan	Xiahou Yuan
+officer.cao_ren	Cao Ren
+officer.cao_hong	Cao Hong
+officer.cao_chun	Cao Chun
+officer.xun_yu	Xun Yu
+officer.xun_you	Xun You
+officer.guo_jia	Guo Jia
+officer.cheng_yu	Cheng Yu
+officer.dian_wei	Dian Wei
+officer.xu_chu	Xu Chu
+officer.yu_jin	Yu Jin
+officer.yue_jin	Yue Jin
+officer.li_dian	Li Dian
+officer.mao_jie	Mao Jie
+officer.dong_zhao	Dong Zhao
+officer.man_chong	Man Chong
+officer.xu_huang	Xu Huang
+officer.yuan_shao	Yuan Shao
+officer.yuan_tan	Yuan Tan
+officer.yuan_xi	Yuan Xi
+officer.yuan_shang	Yuan Shang
+officer.yan_liang	Yan Liang
+officer.wen_chou	Wen Chou
+officer.tian_feng	Tian Feng
+officer.ju_shou	Ju Shou
+officer.shen_pei	Shen Pei
+officer.feng_ji	Feng Ji
+officer.xu_you	Xu You
+officer.guo_tu	Guo Tu
+officer.zhang_he	Zhang He
+officer.gao_lan	Gao Lan
+officer.qu_yi	Qu Yi
+officer.chunyu_qiong	Chunyu Qiong
+officer.xin_ping	Xin Ping
+officer.xin_pi	Xin Pi
+officer.gao_gan	Gao Gan
+officer.gongsun_zan	Gongsun Zan
+officer.gongsun_xu	Gongsun Xu
+officer.tian_kai	Tian Kai
+officer.guan_jing	Guan Jing
+officer.gongsun_du	Gongsun Du
+officer.gongsun_kang	Gongsun Kang
+officer.liu_yi	Liu Yi
+officer.yang_yi	Yang Yi
+officer.lu_bu	Lü Bu
+officer.chen_gong	Chen Gong
+officer.zhang_liao	Zhang Liao
+officer.gao_shun	Gao Shun
+officer.zang_ba	Zang Ba
+officer.wei_xu	Wei Xu
+officer.song_xian	Song Xian
+officer.hou_cheng	Hou Cheng
+officer.chen_deng	Chen Deng
+officer.chen_gui	Chen Gui
+officer.liu_bei	Liu Bei
+officer.guan_yu	Guan Yu
+officer.zhang_fei	Zhang Fei
+officer.jian_yong	Jian Yong
+officer.mi_zhu	Mi Zhu
+officer.sun_qian	Sun Qian
+officer.mi_fang	Mi Fang
+officer.yuan_shu	Yuan Shu
+officer.ji_ling	Ji Ling
+officer.zhang_xun	Zhang Xun
+officer.qiao_rui	Qiao Rui
+officer.yan_xiang	Yan Xiang
+officer.yang_hong	Yang Hong
+officer.lei_bo	Lei Bo
+officer.chen_lan	Chen Lan
+officer.liu_xun	Liu Xun
+officer.yang_feng	Yang Feng
+officer.han_xian	Han Xian
+officer.sun_ce	Sun Ce
+officer.sun_quan	Sun Quan
+officer.sun_ben	Sun Ben
+officer.wu_jing	Wu Jing
+officer.zhou_yu	Zhou Yu
+officer.zhang_zhao	Zhang Zhao
+officer.zhang_hong	Zhang Hong
+officer.cheng_pu	Cheng Pu
+officer.huang_gai	Huang Gai
+officer.han_dang	Han Dang
+officer.lu_fan	Lü Fan
+officer.zhu_zhi	Zhu Zhi
+officer.jiang_qin	Jiang Qin
+officer.zhou_tai	Zhou Tai
+officer.taishi_ci	Taishi Ci
+officer.chen_wu	Chen Wu
+officer.lu_meng	Lü Meng
+officer.wang_lang	Wang Lang
+officer.yu_fan	Yu Fan
+officer.yan_baihu	Yan Baihu
+officer.liu_yao	Liu Yao
+officer.hua_xin	Hua Xin
+officer.fan_neng	Fan Neng
+officer.liu_biao	Liu Biao
+officer.liu_qi	Liu Qi
+officer.kuai_liang	Kuai Liang
+officer.kuai_yue	Kuai Yue
+officer.cai_mao	Cai Mao
+officer.huang_zu	Huang Zu
+officer.zhang_xian	Zhang Xian
+officer.wen_ping	Wen Ping
+officer.liu_pan	Liu Pan
+officer.huang_zhong	Huang Zhong
+officer.han_song	Han Song
+officer.yi_ji	Yi Ji
+officer.zhang_xiu	Zhang Xiu
+officer.jia_xu	Jia Xu
+officer.hu_cheer	Hu Che'er
+officer.liu_zhang	Liu Zhang
+officer.zhao_wei	Zhao Wei
+officer.huang_quan	Huang Quan
+officer.wang_lei	Wang Lei
+officer.zhang_song	Zhang Song
+officer.fa_zheng	Fa Zheng
+officer.meng_da	Meng Da
+officer.zhang_ren	Zhang Ren
+officer.yan_yan	Yan Yan
+officer.pang_xi	Pang Xi
+officer.wu_yi	Wu Yi
+officer.zheng_du	Zheng Du
+officer.zhang_lu	Zhang Lu
+officer.zhang_wei	Zhang Wei
+officer.yan_pu	Yan Pu
+officer.yang_ang	Yang Ang
+officer.yang_ren	Yang Ren
+officer.yang_song	Yang Song
+officer.li_jue	Li Jue
+officer.guo_si	Guo Si
+officer.li_xian	Li Xian
+officer.ma_teng	Ma Teng
+officer.ma_chao	Ma Chao
+officer.ma_xiu	Ma Xiu
+officer.ma_tie	Ma Tie
+officer.pang_de	Pang De
+officer.han_sui	Han Sui
+officer.chenggong_ying	Chenggong Ying
+officer.yan_xing	Yan Xing
+officer.zhang_yang	Zhang Yang
+officer.yang_chou	Yang Chou
+officer.sui_gu	Sui Gu
+officer.zhang_yan	Zhang Yan
+officer.sun_qing	Sun Qing
+officer.wang_dang	Wang Dang
+officer.shi_xie	Shi Xie
+officer.shi_yi	Shi Yi
+officer.shi_wu	Shi Wu
+officer.zhao_yun	Zhao Yun
+officer.lu_su	Lu Su
+officer.gan_ning	Gan Ning
+officer.xu_shu	Xu Shu
+officer.zhuge_liang	Zhuge Liang
+officer.pang_tong	Pang Tong
+officer.wei_yan	Wei Yan
+officer.sima_yi	Sima Yi
+officer.lu_xun	Lu Xun
+officer.cai_yan	Cai Yan
+officer.duan_wei	Duan Wei
+force.cao_cao	Cao Cao
+force.yuan_shao	Yuan Shao
+force.gongsun_zan	Gongsun Zan
+force.gongsun_du	Gongsun Du
+force.lu_bu	Lü Bu
+force.liu_bei	Liu Bei
+force.yuan_shu	Yuan Shu
+force.sun_ce	Sun Ce
+force.wang_lang	Wang Lang
+force.liu_yao	Liu Yao
+force.liu_biao	Liu Biao
+force.zhang_xiu	Zhang Xiu
+force.liu_zhang	Liu Zhang
+force.zhang_lu	Zhang Lu
+force.li_jue	Li Jue
+force.ma_teng	Ma Teng
+force.han_sui	Han Sui
+force.zhang_yang	Zhang Yang
+force.zhang_yan	Zhang Yan
+force.shi_xie	Shi Xie
+city.xiangping	Xiangping
+city.ji	Ji
+city.dai	Dai
+city.nanpi	Nanpi
+city.ye	Ye
+city.jinyang	Jinyang
+city.shangdang	Shangdang
+city.hedong	Hedong
+city.pingyuan	Pingyuan
+city.jinan	Jinan
+city.beihai	Beihai
+city.puyang	Puyang
+city.chenliu	Chenliu
+city.xu	Xu
+city.luoyang	Luoyang
+city.changan	Chang'an
+city.hanyang	Hanyang
+city.jincheng	Jincheng
+city.wuwei	Wuwei
+city.hanzhong	Hanzhong
+city.zitong	Zitong
+city.chengdu	Chengdu
+city.jiangzhou	Jiangzhou
+city.yufu	Yufu
+city.wan	Wan
+city.xiangyang	Xiangyang
+city.jiangling	Jiangling
+city.wuling	Wuling
+city.changsha	Changsha
+city.lingling	Lingling
+city.guiyang	Guiyang
+city.runan	Runan
+city.shouchun	Shouchun
+city.xiapi	Xiapi
+city.xiaopei	Xiaopei
+city.guangling	Guangling
+city.danyang	Danyang
+city.wu	Wu
+city.kuaiji	Kuaiji
+city.lujiang	Lujiang
+city.yuzhang	Yuzhang
+city.panyu	Panyu
+base.juyong	Juyong Pass
+base.jingxing	Jingxing Pass
+base.tianjing	Tianjing Pass
+base.hulao	Hulao Pass
+base.tongguan	Tong Pass
+base.wuguan	Wu Pass
+base.sanguan	San Pass
+base.yangping	Yangping Pass
+base.jiange	Jiange
+base.minge	Ming'e Pass
+base.tashi	Tashi
+base.yongnu	Yongnu
+base.zhangwu	Zhangwu
+base.donglai	Donglai
+base.langya	Langya
+base.yuzhou	Yuzhou
+base.yandu	Yandu
+base.dantu	Dantu
+base.haiyan	Haiyan
+base.juzhang	Juzhang
+base.dongye	Dongye
+base.jieyang	Jieyang
+base.hepu	Hepu
+base.baima	Baima Ford
+base.mengjin	Mengjin
+base.yanjin	Yanjin
+base.pingyuanjin	Pingyuan Ford
+base.puban	Puban Ford
+base.jinchengjin	Jincheng Ford
+base.fancheng	Fancheng
+base.xiakou	Xiakou
+base.hanjin	Hanjin
+base.lukou	Lukou
+base.baqiu	Baqiu
+base.gongan	Gong'an
+base.yiling	Yiling
+base.zigui	Zigui
+base.fuling	Fuling
+base.jiangyang	Jiangyang
+base.qichun	Qichun
+base.xunyang	Xunyang
+base.wankou	Wankou
+base.niuzhu	Niuzhu
+base.huaiyin	Huaiyin
+base.zhongli	Zhongli

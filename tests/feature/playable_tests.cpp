@@ -468,9 +468,9 @@ feature_scenario_tests(test_counts *counts)
         pk_available += scenario.kind == ENGINE_SCENARIO_PK && scenario.available;
     }
     engine_scenario warlords = api->scenario_at(e, 1);
-    TEST_CHECK(counts, api->scenario_count(e) == 11 && pk == 6 && pk_available == 0 && api->scenario_at(e, 0).available &&
+    TEST_CHECK(counts, api->scenario_count(e) == 12 && pk == 6 && pk_available == 0 && api->scenario_at(e, 0).available &&
                        warlords.kind == ENGINE_SCENARIO_BASE && warlords.available && warlords.year == 194 && !warlords.pack[0],
-               "scenarios.tsv lists the save, 群雄割據, the six PK scenarios and the three scenarios of 1200; the clean room has the files of the first two only");
+               "scenarios.tsv lists the save, 群雄割據, the six PK scenarios, the three scenarios of 1200 and the scenario of 196; the clean room has the files of the first two only");
     engine_scenario europe = api->scenario_at(e, 8);
     TEST_CHECK(counts, europe.kind == ENGINE_SCENARIO_PACK && strcmp(europe.pack, "medieval_europe") == 0 && europe.available && europe.year == 1200 &&
                        strcmp(europe.file, HEXDOM_DATA_ROOT "/medieval_europe/scenarios/y1200/scenario.tsv") == 0,
@@ -480,6 +480,9 @@ feature_scenario_tests(test_counts *counts)
     TEST_CHECK(counts, west.kind == ENGINE_SCENARIO_PACK && strcmp(west.pack, "medieval_west") == 0 && strcmp(west.key, "y1200_west") == 0 && west.available &&
                        east.kind == ENGINE_SCENARIO_PACK && strcmp(east.pack, "medieval_east") == 0 && strcmp(east.key, "y1200_east") == 0 && east.available,
                "rows 9 and 10 are the 1200 scenarios of the packs medieval_west and medieval_east (docs/EUROPE.md, E8)");
+    engine_scenario han = api->scenario_at(e, 11);
+    TEST_CHECK(counts, han.kind == ENGINE_SCENARIO_PACK && strcmp(han.pack, "han_196") == 0 && strcmp(han.key, "y196") == 0 && han.available && han.year == 196,
+               "row 11 is the scenario of 196 of the pack han_196, the Three Kingdoms pack without the data of the original");
 
     engine_load_result loaded = api->load_scenario(e, warlords.file);
     u32 rulers = 0, owned = 0;

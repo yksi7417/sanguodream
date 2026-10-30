@@ -86,6 +86,7 @@ struct feature_pack_city
 struct feature_pack_spec
 {
     const char              *folder;
+    u32                      year;
     u32                      factions;
     u32                      width;
     u32                      height;
@@ -111,8 +112,8 @@ feature_pack_map_tests(test_counts *counts, const feature_pack_spec *spec)
     TEST_CHECK(counts, info.slots >= 42 * 10 && info.bandit_sites > 0, "each city has development slots, and the map has bandit sites");
 
     engine_scenario scenario = api->scenario_at(e, 0);
-    TEST_CHECK(counts, scenario.kind == ENGINE_SCENARIO_PACK && scenario.available && scenario.year == 1200 && !scenario.pack[0],
-               "the pack lists its scenario of 1200 first");
+    TEST_CHECK(counts, scenario.kind == ENGINE_SCENARIO_PACK && scenario.available && scenario.year == spec->year && !scenario.pack[0],
+               "the pack lists its own scenario first");
     TEST_CHECK(counts, api->load_scenario(e, scenario.file).status == ENGINE_LOAD_OK, "the scenario of the pack loads");
     TEST_CHECK(counts, feature_world_flowers(api), "each city stands on its flower and has slots");
     TEST_CHECK(counts, api->faction_count(e) == spec->factions, "each row of forces.tsv is a faction");
@@ -128,11 +129,11 @@ feature_pack_map_tests(test_counts *counts, const feature_pack_spec *spec)
             if (city.city_id == want->city_id) owner = city.owner_force_id;
         }
         TEST_CHECK(counts, strcmp(city_name.key, want->key) == 0 && owner == want->owner,
-                   "the key of a city and its owner in 1200 are the ones of docs/EUROPE.md");
+                   "the key of a city and its owner at the start are the ones of the scenario");
     }
 
     u8 force = api->city_at(e, feature_busiest_city(api)).owner_force_id;
-    TEST_CHECK(counts, feature_play_as(api, force), "the player chooses a faction; the first turn of 1200 starts");
+    TEST_CHECK(counts, feature_play_as(api, force), "the player chooses a faction; the first turn of the scenario starts");
     TEST_CHECK(counts, feature_next_own_turn(api, force) && feature_next_own_turn(api, force),
                "the AI plays the other factions of the scenario for two turns");
     engine_fixture_destroy(&f);
@@ -143,20 +144,27 @@ feature_pack_map_tests_all(test_counts *counts)
 {
     static const feature_pack_spec west =
     {
-        HEXDOM_DATA_ROOT "/medieval_west", 17, 268, 286, 3,
+        HEXDOM_DATA_ROOT "/medieval_west", 1200, 17, 268, 286, 3,
         { { 16, "paris", 0 }, { 30, "rouen", 1 }, { 32, "lille", 15 } }
     };
     /* The new factions of the east have the force ids 11 to 16: Jerusalem, Antioch, Cilicia, Cyprus, Georgia and the caliphate. */
     static const feature_pack_spec east =
     {
-        HEXDOM_DATA_ROOT "/medieval_east", 17, 366, 217, 8,
+        HEXDOM_DATA_ROOT "/medieval_east", 1200, 17, 366, 217, 8,
         {
             { 34, "antioch", 12 }, { 35, "aleppo", 3 }, { 39, "damascus", 3 }, { 40, "acre", 11 },
             { 38, "baghdad", 16 }, { 33, "sis", 13 }, { 41, "nicosia", 14 }, { 19, "tbilisi", 15 }
         }
     };
+    /* The original Three Kingdoms pack of 196: Cao Cao holds Xu, Lü Bu holds Xiapi, Liu Bei holds Xiaopei, and Dai has no owner. */
+    static const feature_pack_spec han =
+    {
+        HEXDOM_DATA_ROOT "/han_196", 196, 20, 271, 291, 5,
+        { { 13, "xu", 0 }, { 33, "xiapi", 4 }, { 34, "xiaopei", 5 }, { 21, "chengdu", 12 }, { 2, "dai", ENGINE_NO_FACTION } }
+    };
     feature_pack_map_tests(counts, &west);
     feature_pack_map_tests(counts, &east);
+    feature_pack_map_tests(counts, &han);
 }
 
 /* ---- the events of the packs (docs/EUROPE.md, E7) ---------------------------------------------- */

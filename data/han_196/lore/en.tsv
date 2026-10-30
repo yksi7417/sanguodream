@@ -1,0 +1,164 @@
+key	text	note
+# The life of each officer of the scenario, keyed by officer.<key> (docs/EUROPE.md, E4).
+# Written by misc/make_tier_officers.py from the column life of source/officers.tsv. The pack wrote each life in its own words.
+officer.cao_cao	A warlord from Pei. In 196 he brought Emperor Xian to Xu and started military farms. He later ruled the north and his son founded Wei.	-
+officer.xiahou_dun	A cousin of Cao Cao. An arrow took his eye in 198, and he fought on. He held the rear and built dams for the farms.	-
+officer.xiahou_yuan	A cousin of Cao Cao, famous for fast marches. He ruled the west for Cao Cao and fell at Mount Dingjun.	-
+officer.cao_ren	A cousin of Cao Cao. He held Jiangling against Zhou Yu and Fancheng against Guan Yu.	-
+officer.cao_hong	A cousin of Cao Cao. At Xingyang in 190 he gave his horse to Cao Cao and saved his life. He was very rich.	-
+officer.cao_chun	A younger brother of Cao Ren. He led the elite cavalry of Cao Cao and took the head of Yuan Tan.	-
+officer.xun_yu	A scholar of Yingchuan. He kept the capital and the supplies for Cao Cao and sent him many able men.	-
+officer.xun_you	A nephew of Xun Yu. He joined Cao Cao in 196 and gave the plans that beat Lü Bu and Yuan Shao.	-
+officer.guo_jia	A young adviser from Yingchuan. He read the minds of the rivals of Cao Cao. He died on the return from the Wuhuan war.	-
+officer.cheng_yu	An officer of Dong commandery. He held three counties for Cao Cao when Lü Bu took Yan province in 194.	-
+officer.dian_wei	The bodyguard of Cao Cao, a man of great strength. He died at the gate of the camp at Wancheng in 197.	-
+officer.xu_chu	A strong man of Qiao. He led a band of local men to Cao Cao and became his guard.	-
+officer.yu_jin	A general known for strict discipline. He surrendered to Guan Yu at the flood of Fancheng in 219.	-
+officer.yue_jin	A short and brave officer. He was often the first man on the walls.	-
+officer.li_dian	A young officer who liked books. He moved his clan of more than ten thousand people to Ye.	-
+officer.mao_jie	An honest official. He told Cao Cao to serve the emperor and to farm the land.	-
+officer.dong_zhao	An official who made the plan to move Emperor Xian from Luoyang to Xu in 196.	-
+officer.man_chong	A strict magistrate. He later built the new city of Hefei against Wu.	-
+officer.xu_huang	An officer of Yang Feng. He joined Cao Cao at the end of 196 and later broke the siege of Fancheng.	-
+officer.yuan_shao	The head of the Yuan clan, the strongest lord of the north. Cao Cao beat him at Guandu in 200.	-
+officer.yuan_tan	The eldest son of Yuan Shao. In 196 he took Beihai from Kong Rong.	-
+officer.yuan_xi	The second son of Yuan Shao. He later governed You province.	-
+officer.yuan_shang	The favourite son of Yuan Shao. His war with Yuan Tan opened the north to Cao Cao.	-
+officer.yan_liang	A famous general of Yuan Shao. Guan Yu killed him at Baima in 200.	-
+officer.wen_chou	A cavalry general of Yuan Shao. He died at Yanjin in 200.	-
+officer.tian_feng	An adviser who spoke the truth to Yuan Shao. Yuan Shao put him in prison and then killed him.	-
+officer.ju_shou	An adviser who told Yuan Shao to take the emperor first. Cao Cao captured him at Guandu.	-
+officer.shen_pei	An official of Yuan Shao. He held Ye against Cao Cao for months in 204.	-
+officer.feng_ji	An adviser of Yuan Shao from Nanyang. He helped Yuan Shao to take Ji province.	-
+officer.xu_you	An old friend of Cao Cao. At Guandu he left Yuan Shao and told Cao Cao where the grain was.	-
+officer.guo_tu	An adviser of Yuan Shao who later served Yuan Tan.	-
+officer.zhang_he	A general of Yuan Shao. He joined Cao Cao at Guandu and served Wei for thirty years.	-
+officer.gao_lan	A general of Yuan Shao who went to Cao Cao with Zhang He.	-
+officer.qu_yi	An officer from Liang province. His crossbowmen beat the White Horse cavalry of Gongsun Zan at Jieqiao.	-
+officer.chunyu_qiong	An old colonel of the capital. He guarded the grain of Yuan Shao at Wuchao.	-
+officer.xin_ping	An adviser of Yuan Shao who went with Yuan Tan.	-
+officer.xin_pi	A younger brother of Xin Ping. He later served Wei and spoke boldly to its emperors.	-
+officer.gao_gan	A nephew of Yuan Shao. He later governed Bing province.	-
+officer.gongsun_zan	A lord of You province. His White Horse Volunteers fought the Wuhuan. He died in his tower at Yijing.	-
+officer.gongsun_xu	The son of Gongsun Zan. He went to the Heishan army for help in 199.	-
+officer.tian_kai	The governor of Qing province for Gongsun Zan. Yuan Tan drove him out.	-
+officer.guan_jing	An adviser of Gongsun Zan. He died in the battle of Yijing.	-
+officer.gongsun_du	The governor of Liaodong. He ruled the northeast as a king and fought Goguryeo.	-
+officer.gongsun_kang	The son of Gongsun Du. He sent the heads of Yuan Shang and Yuan Xi to Cao Cao.	-
+officer.liu_yi	An officer of Gongsun Du in Liaodong.	-
+officer.yang_yi	An officer of Gongsun Du in Liaodong.	-
+officer.lu_bu	A warrior from Wuyuan, called the Flying General. In 196 he took Xu province from Liu Bei.	-
+officer.chen_gong	An adviser who turned against Cao Cao in 194 and gave Yan province to Lü Bu.	-
+officer.zhang_liao	An officer of Lü Bu who later served Cao Cao. At Hefei in 215 he beat a large army of Wu.	-
+officer.gao_shun	An honest officer of Lü Bu. His small elite unit broke many lines of the enemy.	-
+officer.zang_ba	A leader of the bands of Taishan who joined Lü Bu and later Cao Cao.	-
+officer.wei_xu	A relative of Lü Bu who gave Chen Gong to Cao Cao in 199.	-
+officer.song_xian	An officer of Lü Bu who surrendered at Xiapi.	-
+officer.hou_cheng	An officer of Lü Bu who surrendered at Xiapi.	-
+officer.chen_deng	A local noble of Xu province. He served Lü Bu but helped Cao Cao. He governed Guangling well.	-
+officer.chen_gui	The father of Chen Deng. His words broke the alliance of Lü Bu and Yuan Shu.	-
+officer.liu_bei	A man of the Han clan from Zhuo. In 196 Lü Bu took Xiapi from him, and he moved to Xiaopei. He later founded Shu.	-
+officer.guan_yu	A sworn brother of Liu Bei from Hedong. He killed Yan Liang at Baima and later held Jing province.	-
+officer.zhang_fei	A sworn brother of Liu Bei. At the bridge of Changban he stopped the army of Cao Cao with a shout.	-
+officer.jian_yong	An old friend of Liu Bei from Zhuo. He was a good envoy.	-
+officer.mi_zhu	A rich merchant of Donghai. He gave his money and his sister to Liu Bei in 196.	-
+officer.sun_qian	A scholar of Beihai. He was an envoy of Liu Bei to Yuan Shao and to Liu Biao.	-
+officer.mi_fang	A younger brother of Mi Zhu. In 219 he gave Jiangling to Wu.	-
+officer.yuan_shu	A cousin of Yuan Shao who ruled Huainan. He named himself emperor in 197.	-
+officer.ji_ling	A general of Yuan Shu. In 196 Lü Bu shot an arrow into a halberd and stopped his attack on Liu Bei.	-
+officer.zhang_xun	A general of Yuan Shu.	-
+officer.qiao_rui	A general of Yuan Shu. Cao Cao killed him in 197.	-
+officer.yan_xiang	An official of Yuan Shu who spoke against the claim of an emperor.	-
+officer.yang_hong	The chief clerk of Yuan Shu.	-
+officer.lei_bo	An officer of Yuan Shu who later became a bandit chief.	-
+officer.chen_lan	An officer of Yuan Shu who later became a bandit chief.	-
+officer.liu_xun	The governor of Lujiang for Yuan Shu. Sun Ce took his city in 199.	-
+officer.yang_feng	A former White Wave leader who guarded the emperor on the road to Luoyang. He went to Yuan Shu at the end of 196.	-
+officer.han_xian	A former White Wave leader who guarded the emperor with Yang Feng.	-
+officer.sun_ce	The son of Sun Jian, called the Little Conqueror. From 194 to 199 he took the lands south of the Yangtze.	-
+officer.sun_quan	The younger brother of Sun Ce. He was a good judge of men. He later founded Wu.	-
+officer.sun_ben	A cousin of Sun Ce who governed Yuzhang for him.	-
+officer.wu_jing	The uncle of Sun Ce, the governor of Danyang.	-
+officer.zhou_yu	A friend of Sun Ce from Lujiang. He led the fleet that burned the ships of Cao Cao at Red Cliffs.	-
+officer.zhang_zhao	A scholar from Pengcheng. Sun Ce gave him the government of his lands.	-
+officer.zhang_hong	A scholar and writer from Guangling. He was an envoy of Sun Ce to the court.	-
+officer.cheng_pu	An old officer of Sun Jian. He shared the command with Zhou Yu at Red Cliffs.	-
+officer.huang_gai	An old officer of Sun Jian. At Red Cliffs his false surrender sent fire ships into the fleet of Cao Cao.	-
+officer.han_dang	An old officer of Sun Jian, good with the bow on a horse.	-
+officer.lu_fan	An early follower of Sun Ce. He kept the accounts with a strict hand.	-
+officer.zhu_zhi	An old officer of Sun Jian. He governed Wu commandery for many years.	-
+officer.jiang_qin	An early follower of Sun Ce from Jiujiang.	-
+officer.zhou_tai	An early follower of Sun Ce. In 196 he saved Sun Quan from bandits at Xuancheng with twelve wounds.	-
+officer.taishi_ci	An archer of Donglai. He fought Sun Ce in a duel at Shenting and then joined him.	-
+officer.chen_wu	An officer of Sun Ce from Lujiang. He led the guard units.	-
+officer.lu_meng	A young officer who later studied hard. In 219 his men dressed as merchants and took Jing province.	-
+officer.wang_lang	The governor of Kuaiji, a scholar of the classics. Sun Ce beat him in 196, and he later served Wei.	-
+officer.yu_fan	A scholar of Kuaiji and a master of the Book of Changes. He later served Sun Ce.	-
+officer.yan_baihu	The leader of a strong band in Wu commandery. Sun Ce beat him.	-
+officer.liu_yao	The inspector of Yang province for the court. Sun Ce drove him to Yuzhang, and he died there in 197.	-
+officer.hua_xin	The governor of Yuzhang, an honest official. He later served Wei as a high minister.	-
+officer.fan_neng	An officer of Liu Yao.	-
+officer.liu_biao	A scholar of the Han clan, the governor of Jing province. He kept peace there and opened schools.	-
+officer.liu_qi	The eldest son of Liu Biao. He was a friend of Liu Bei.	-
+officer.kuai_liang	An adviser of Liu Biao. He told Liu Biao to rule with benevolence.	-
+officer.kuai_yue	An adviser of Liu Biao. He called the chiefs of the bandits to a feast and killed them.	-
+officer.cai_mao	A noble of Xiangyang and the brother-in-law of Liu Biao. He led the fleet of Jing province.	-
+officer.huang_zu	The governor of Jiangxia. His men shot Sun Jian. Sun Quan killed him in 208.	-
+officer.zhang_xian	The governor of Changsha. He rose against Liu Biao in 198.	-
+officer.wen_ping	A general of Liu Biao. He held Jiangxia for Wei for decades.	-
+officer.liu_pan	A nephew of Liu Biao. He often fought Sun Ce in Changsha.	-
+officer.huang_zhong	An officer in Changsha. At an old age he killed Xiahou Yuan at Mount Dingjun.	-
+officer.han_song	An adviser of Liu Biao. He went to the court at Xu and praised Cao Cao.	-
+officer.yi_ji	An official from Shanyang in Jing province. He later served Liu Bei as an envoy.	-
+officer.zhang_xiu	The nephew of Zhang Ji. In 196 he took the army of his uncle and held Wancheng.	-
+officer.jia_xu	An adviser from Wuwei. His plans beat Cao Cao at Wancheng twice. He later served Wei.	-
+officer.hu_cheer	A strong officer of Zhang Xiu.	-
+officer.liu_zhang	The governor of Yi province after his father Liu Yan. He gave Yi province to Liu Bei in 214.	-
+officer.zhao_wei	A high officer of Liu Zhang. He rose against him in 200.	-
+officer.huang_quan	An official of Liu Zhang who later served Liu Bei and Wei.	-
+officer.wang_lei	An official of Liu Zhang. He hung himself from the city gate to warn Liu Zhang.	-
+officer.zhang_song	An official of Liu Zhang with a strong memory. He gave the maps of Yi province to Liu Bei.	-
+officer.fa_zheng	An adviser from Fufeng who came to Yi province in 196. He later planned the war of Hanzhong for Liu Bei.	-
+officer.meng_da	An officer from Fufeng who came with Fa Zheng. He changed sides three times.	-
+officer.zhang_ren	A general of Liu Zhang. He died loyal at Luo.	-
+officer.yan_yan	The governor of Ba commandery. He told Zhang Fei that Ba had only generals who lost their heads.	-
+officer.pang_xi	An old friend of the family of Liu Zhang. He governed Baxi.	-
+officer.wu_yi	An officer who came to Yi province with Liu Yan. He later led the armies of Shu.	-
+officer.zheng_du	An adviser of Liu Zhang. He told Liu Zhang to burn the fields before Liu Bei.	-
+officer.zhang_lu	The master of the Way of the Five Pecks of Rice. He ruled Hanzhong as a church state for thirty years.	-
+officer.zhang_wei	The younger brother of Zhang Lu. He held the pass of Yangping against Cao Cao in 215.	-
+officer.yan_pu	An adviser of Zhang Lu. He told him not to take the title of king.	-
+officer.yang_ang	A general of Zhang Lu.	-
+officer.yang_ren	A general of Zhang Lu.	-
+officer.yang_song	An adviser of Zhang Lu who took bribes.	-
+officer.li_jue	A general of Dong Zhuo. He took Chang'an in 192 and held the court until 195.	-
+officer.guo_si	A general of Dong Zhuo and the partner of Li Jue. The two men fought each other in Chang'an.	-
+officer.li_xian	A nephew of Li Jue.	-
+officer.ma_teng	A general of Liang province with a Qiang mother. He shared the west with Han Sui.	-
+officer.ma_chao	The eldest son of Ma Teng. In 211 he led the armies of the west against Cao Cao at Tong Pass.	-
+officer.ma_xiu	A son of Ma Teng.	-
+officer.ma_tie	A son of Ma Teng.	-
+officer.pang_de	An officer of Ma Teng. At Fancheng in 219 he died before he surrendered.	-
+officer.han_sui	A leader of the Liang rebels for thirty years. He fought Cao Cao at Tong Pass in 211.	-
+officer.chenggong_ying	The loyal adviser of Han Sui.	-
+officer.yan_xing	A strong officer of Han Sui. He almost killed Ma Chao with a spear.	-
+officer.zhang_yang	The governor of Henei. He gave food to the emperor on the road to Luoyang in 196.	-
+officer.yang_chou	An officer of Zhang Yang who killed him in 198.	-
+officer.sui_gu	An officer of Zhang Yang who killed Yang Chou.	-
+officer.zhang_yan	The leader of the Heishan army in the Taihang mountains. People called him the Flying Swallow for his speed.	-
+officer.sun_qing	A chief of the Heishan army.	-
+officer.wang_dang	A chief of the Heishan army.	-
+officer.shi_xie	The governor of Jiaozhi for forty years. He kept the far south in peace and favoured learning.	-
+officer.shi_yi	A younger brother of Shi Xie.	-
+officer.shi_wu	A younger brother of Shi Xie, the governor of Nanhai.	-
+officer.zhao_yun	An officer from Changshan. He left Gongsun Zan and joined Liu Bei in 200. At Changban he saved the son of Liu Bei.	-
+officer.lu_su	A rich man of Linhuai. He gave half of his grain to Zhou Yu and later planned the alliance with Liu Bei.	-
+officer.gan_ning	A river pirate from Ba. He later served Wu and raided the camp of Cao Cao with one hundred men.	-
+officer.xu_shu	A scholar of Yingchuan in Jing province. He told Liu Bei about Zhuge Liang.	-
+officer.zhuge_liang	A young scholar who moved to Jing province. He later governed Shu and made new machines for its army.	-
+officer.pang_tong	A scholar of Xiangyang, known as the Young Phoenix. He judged men well. He died at Luo.	-
+officer.wei_yan	An officer of Yiyang. He later held Hanzhong for Shu for many years.	-
+officer.sima_yi	A noble of Henei. He served Cao Cao from 208 and later held the power of Wei.	-
+officer.lu_xun	A noble of Wu commandery. In 222 he burned the camps of Liu Bei at Yiling.	-
+officer.cai_yan	The daughter of Cai Yong, a poet and musician. The Xiongnu took her north. Cao Cao paid a ransom for her in 207.	-
+officer.duan_wei	A general of Dong Zhuo at Huayin. He helped the officials of the court on the road east.	-

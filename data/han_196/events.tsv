@@ -1,0 +1,10 @@
+id	key	name_zh	check	min_days	months	chance	p1	p2	p3	p4	p5	p6	names	status
+# The 21 generic events of events.md (guide book p.56 to p.83). One row for each event; the engine has one handler for each key.
+# check: quarter (day 1 of the months in months), month (day 1 of each month), search (after 探索人材), wait (after 待命 of a unit), none.
+# min_days: the days since the start. chance: percent at each check; most are assumed (Q-184). p1..p6: the numbers of the trigger and the effect, in the order of the handler (tutorial 20).
+# names: the Big5 hex of the officers that the event names (the traveller first), | between names.
+0	treason	統一前謀反的嫌疑	quarter	360	1|4|7|10	30	8	2	5	10	20	0	-	assumed
+1	spouse_help	夫婦的助力	wait	0	-	50	0	0	0	0	0	0	-	assumed
+2	sworn_spirit	義兄弟之氣炎	wait	0	-	50	60	0	0	0	0	0	-	assumed
+3	transport_arrived	輸送隊到達	none	0	-	100	0	0	0	0	0	0	-	documented
+# transport_arrived: the question when a transport of the player reaches its city (G2-027): 0 the officers stay, 1 they return to the home city. The code asks it; no check fires it.

@@ -1,0 +1,3 @@
+id	key	name_zh	name	age	status
+# The officers with a second portrait and the age of the change (events.md, portrait change; guide book). name: the Big5 bytes of family + given name in hex.
+# The clean room has placeholder portraits: the engine gives the stage (0 or 1) and the front end picks the picture. 呂蒙 also changes at the event 吳下阿蒙.

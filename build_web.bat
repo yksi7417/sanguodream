@@ -76,6 +76,7 @@ set PACK=--preload-file ../data/placeholder@/data/placeholder ^
   --preload-file ../data/medieval_europe@/data/medieval_europe ^
   --preload-file ../data/medieval_west@/data/medieval_west ^
   --preload-file ../data/medieval_east@/data/medieval_east ^
+  --preload-file ../data/han_196@/data/han_196 ^
   --preload-file web/fonts/NotoSansCJKtc-Regular.otf@/data/fonts/NotoSansCJKtc-Regular.otf ^
   --preload-file ../data/fonts/NotoSans-Regular.ttf@/data/fonts/NotoSans-Regular.ttf ^
   --preload-file ../data/fonts/NotoSansThai-Regular.ttf@/data/fonts/NotoSansThai-Regular.ttf ^

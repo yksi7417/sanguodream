@@ -1,0 +1,13 @@
+id	key	name_zh	soldiers	cities	needs_emperor	status
+# The ranks of a ruler (factions-corps-and-posts.md; guide book p.6). cities: the cities that the faction needs.
+# 公: the guide book says 18 cities, the manual says 16 (Q-026); this pack uses 18.
+0	none	無	10000	0	no	documented
+1	inspector	州刺史	11000	2	no	documented
+2	governor	州牧	11000	4	no	documented
+3	guard_general	羽林中郎將	12000	6	no	documented
+4	household_general	五官中郎將	12000	8	no	documented
+5	grand_general	大將軍	13000	12	no	documented
+6	grand_marshal	大司馬	13000	14	no	documented
+7	duke	公	14000	18	no	documented
+8	king	王	14000	20	yes	assumed
+9	emperor	皇帝	15000	24	yes	documented

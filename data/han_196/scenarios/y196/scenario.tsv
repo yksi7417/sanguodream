@@ -1,0 +1,11 @@
+key	value
+# The scenario of the pack han_196 for the year 196 (docs/MAPS.md, W2). The engine reads year, month, ten_day and number.
+# In the ninth month of 196 Cao Cao took Emperor Xian from Luoyang to Xu. Lü Bu held Xiapi, and Liu Bei had moved to Xiaopei.
+# number: the scenario number of history.tsv. The pack has no history events. 110 is free of the numbers of the other packs.
+# The other files of this folder: forces.tsv, officers.tsv and cities.tsv. misc/make_tier_officers.py writes officers.tsv from source/officers.tsv.
+title_zh	一九六年 天子東遷
+title_en	196: The Emperor Moves East
+year	196
+month	10
+ten_day	1
+number	110
