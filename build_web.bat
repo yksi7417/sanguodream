@@ -85,7 +85,11 @@ set PACK=--preload-file ../data/placeholder@/data/placeholder ^
   --preload-file ../spec-src/spec/fixtures/scenarios/Scenario.s11@/spec-src/spec/fixtures/scenarios/Scenario.s11
 set GAME_LINK=-sUSE_GLFW=3 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sALLOW_MEMORY_GROWTH=1 -sMAXIMUM_MEMORY=2GB ^
   -sINITIAL_MEMORY=64MB -sSTACK_SIZE=8MB -sFORCE_FILESYSTEM=1 -lidbfs.js --profiling-funcs ^
-  --shell-file ..\web\shell.html
+  --shell-file %OBJ%\shell.html
+REM The page carries the splash art and the favicon as data URIs (misc\web_shell.py).
+if "%EMSDK_PYTHON%"=="" set EMSDK_PYTHON=python
+"%EMSDK_PYTHON%" ..\misc\web_shell.py ..\web\shell.html %OBJ%\shell.html
+if errorlevel 1 goto :failed
 call em++ -std=c++17 -O2 -fno-exceptions -fno-rtti -include %IMCONFIG% %DEFINES% %GAME_DEFINES% %WARN% %INCLUDES% ..\code\wasm_hexdom.cpp %OBJ%\imgui_web.a ^
   -o %OUT%\index.html %GAME_LINK% %GAME_EXPORTS% %PACK%
 if errorlevel 1 set ERR=1

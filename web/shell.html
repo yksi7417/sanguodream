@@ -4,13 +4,26 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>hexdom</title>
+<!-- misc/web_shell.py puts the pictures into the page as data URIs (misc/make_splash.py makes them). -->
+<link rel="icon" type="image/png" href="HEXDOM_FAVICON_URI">
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #17191f; color: #c8c8c8;
                font: 14px system-ui, sans-serif; }
   /* The GLFW backend of ImGui sizes the window to the CSS size of the canvas. */
   #canvas { display: block; width: 100vw; height: 100vh; border: 0; outline: none; }
-  #status { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
-            pointer-events: none; }
+  /* The splash of the load: the splash art and its progress bar, as in win32_splash.h. The
+     picture keeps its aspect 16:9 at the centre. The bar and the text use the fractions
+     HEXDOM_SPLASH_BAR_* and HEXDOM_SPLASH_HINT_TOP of code/hexdom.h. The splash goes
+     after the first frame of the game, and the game then shows the same picture. */
+  #splash { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+            background: #08090c; pointer-events: none; }
+  #splash.done { display: none; }
+  #splash-picture { position: relative; width: min(100vw, calc(100vh * 16 / 9)); height: min(100vh, calc(100vw * 9 / 16));
+                    background: #08090c url("HEXDOM_SPLASH_URI") center / contain no-repeat; }
+  #splash-bar { position: absolute; left: 30%; right: 30%; top: 65%; height: 3%; background: #1d2f49; }
+  #splash-fill { width: 0; height: 100%; background: #e6b300; transition: width 0.25s linear; }
+  #status { position: absolute; left: 0; right: 0; top: 70%; text-align: center; color: #c8c8c8;
+            font-size: clamp(11px, 1.6vh, 15px); }
   #live { position: fixed; right: 12px; bottom: 12px; display: none; padding: 6px 12px; border-radius: 6px;
           border: 1px solid #3a3f4b; background: #232731; color: #e8e8e8; font: inherit; cursor: pointer; }
   #live.on { background: #b3261e; border-color: #b3261e; }
@@ -67,7 +80,7 @@
 <body>
 <!-- The right mouse button is a game command: the page shows no context menu. -->
 <canvas id="canvas" tabindex="-1"></canvas>
-<div id="status">Loading hexdom...</div>
+<div id="splash"><div id="splash-picture"><div id="splash-bar"><div id="splash-fill"></div></div><div id="status">Loading hexdom...</div></div></div>
 <button id="live" type="button" title="Broadcast the game to YouTube">● Live</button>
 <div id="user">
   <button id="user-button" type="button" aria-haspopup="true" aria-expanded="false">
@@ -123,6 +136,11 @@
   };
 
   var statusElement = document.getElementById("status");
+  var splashProgress = 0;
+  function showSplashProgress(fraction) {
+    splashProgress = Math.max(splashProgress, Math.min(1, fraction));   // the bar never goes back
+    document.getElementById("splash-fill").style.width = (100 * splashProgress).toFixed(1) + "%";
+  }
   // The CSP of the Discord proxy blocks an attribute such as oncontextmenu. A listener is not blocked.
   document.getElementById("canvas").addEventListener("contextmenu", function (event) { event.preventDefault(); });
   var Module = {
@@ -132,9 +150,26 @@
     locateFile: function (path) { return new URL(path, location.origin + location.pathname).href; },
     print: function (text) { console.log(text); },
     printErr: function (text) { console.error(text); },
+    // The text of the load goes under the bar of the splash. Emscripten writes
+    // "Downloading data... (12/34)", and the page writes "Loading hexdom... 42%".
+    // The download fills 90% of the bar, and the first frame of the game fills the rest.
     setStatus: function (text) {
-      statusElement.textContent = text;
-      statusElement.style.display = text ? "flex" : "none";
+      var part = /\((\d+)\/(\d+)\)/.exec(text || "");
+      var percent = /(\d+)%/.exec(text || "");
+      if (part && Number(part[2]) > 0) {
+        var done = Number(part[1]) / Number(part[2]);
+        showSplashProgress(0.9 * done);
+        text = "Loading hexdom... " + Math.floor(100 * done) + "%";
+      } else if (percent) {
+        showSplashProgress(0.9 * Number(percent[1]) / 100);
+      }
+      statusElement.textContent = text || "";
+    },
+    // code/wasm_hexdom.cpp calls this after the first frame of the game. The game then
+    // shows the same picture with the full bar, so the splash of the page can go.
+    hexdomFirstFrame: function () {
+      showSplashProgress(1);
+      document.getElementById("splash").classList.add("done");
     },
     monitorRunDependencies: function (left) {
       Module.setStatus(left ? "Loading hexdom... (" + left + ")" : "");

@@ -16,6 +16,8 @@
 #include "text/text.h"
 #include "text/text.cpp"
 #include "ui/ui_fonts.h"
+#include "win32_splash.h"
+#include "win32_loader.h"
 
 struct win32_game_code
 {
@@ -69,27 +71,14 @@ internal PLATFORM_OPEN_URL(win32_open_url)
     return (INT_PTR)result > 32;
 }
 
-/* The splash art (docs/ASSETS.md, "The splash art"). The platform loads it
-   one time after the renderer starts (win32_load_splash). */
+/* The splash art (docs/ASSETS.md, "The splash art"). The first job of the
+   load decodes it (win32_loader.h). The UI shows it after the load. */
 global_variable ID3D11ShaderResourceView *g_win32_splash_view;
 global_variable platform_picture          g_win32_splash;
 
 internal PLATFORM_SPLASH_PICTURE(win32_splash_picture)
 {
     return g_win32_splash;
-}
-
-/* The decoder uses the scratch memory of the renderer only during the
-   load. The texture keeps the pixels, so the memory goes back. */
-internal void
-win32_load_splash(d3d11_renderer *renderer, memory_arena *scratch)
-{
-    if (!renderer->device) return;
-    u64 used = scratch->used;
-    g_win32_splash_view    = d3d11_load_png_texture(renderer, HEXDOM_SPLASH_FILE, scratch, &g_win32_splash.aspect);
-    g_win32_splash.texture = (u64)g_win32_splash_view;
-    scratch->used = used;
-    win32_log(g_win32_splash_view ? "platform: splash art loaded" : "platform: no splash art");
 }
 
 /* docs/EUROPE.md, E5: the PNG files under the data folder, for example the
@@ -307,6 +296,98 @@ win32_parse_pack_arg(char *pack, u32 size)
     pack[length] = 0;
 }
 
+/* ---- the load ----------------------------------------------------------- */
+
+/* One frame of the load: the uploads of the ready jobs, then the splash. The
+   loop of the load calls it, and so does the timer of the window while the
+   user drags or sizes the window. */
+struct win32_load_state
+{
+    win32_window  *window;
+    win32_loader  *loader;
+    win32_splash  *splash;
+    LARGE_INTEGER  last_counter;
+};
+
+internal void
+win32_load_frame(void *user)
+{
+    win32_load_state *state = (win32_load_state *)user;
+    win32_loader_upload(state->loader);
+    state->splash->picture = state->loader->splash_view;
+    state->splash->aspect  = state->loader->splash_aspect;
+    LARGE_INTEGER frequency, now;
+    QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&now);
+    f32 dt_seconds = (f32)(now.QuadPart - state->last_counter.QuadPart) / (f32)frequency.QuadPart;
+    state->last_counter = now;
+    win32_splash_draw(state->splash, state->window, win32_loader_progress(state->loader), dt_seconds);
+    win32_present_frame(state->window);
+}
+
+/* Loads the splash art, the fonts and the files of the renderer. The workers
+   decode, and the main thread keeps the window alive: it pumps the messages,
+   uploads and draws the splash with its bar. If no worker starts, the main
+   thread does each job itself. Returns false if the user closed the window. */
+internal b32
+win32_load_game(win32_window *window, d3d11_renderer *renderer, memory_arena *renderer_scratch,
+                const char *font_data_dir, u32 font_pixels, ui_font_result *fonts)
+{
+    LARGE_INTEGER frequency, start;
+    QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&start);
+    win32_splash splash;
+    win32_splash_start(&splash, window->device);
+    win32_loader loader;
+    b32 threaded = win32_loader_start(&loader, renderer, renderer_scratch, font_data_dir, font_pixels);
+    u32 worker_count = loader.worker_count;
+    if (threaded)
+    {
+        win32_load_state state = { window, &loader, &splash, start };
+        window->imgui_paused = true;
+        window->modal_frame  = win32_load_frame;
+        window->modal_user   = &state;
+        win32_load_frame(&state);   /* the first frame of the window is the splash */
+        while (!win32_loader_done(&loader) && win32_pump_messages(window)) win32_load_frame(&state);
+        window->modal_frame  = 0;
+        window->modal_user   = 0;
+        win32_loader_finish(&loader, !window->running);
+        window->imgui_paused = false;
+    }
+    else
+    {
+        win32_loader_finish(&loader, true);
+        win32_log("platform: no worker thread; the main thread loads the game");
+        win32_splash_draw(&splash, window, 0.0f, 0.0f);
+        win32_present_frame(window);
+        loader.splash_view = d3d11_load_png_texture(renderer, HEXDOM_SPLASH_FILE, renderer_scratch, &loader.splash_aspect);
+        loader.fonts = ui_fonts_load(win32_read_entire_file, font_data_dir, HEXDOM_CONTENT_PACK, font_pixels);
+        for (u32 job = 0; job < D3D11_ASSET_COUNT; ++job)
+        {
+            u64 used = renderer_scratch->used;
+            d3d11_asset_data data;
+            d3d11_asset_prepare(renderer, job, renderer_scratch, &data);
+            d3d11_asset_upload(renderer, job, &data, renderer_scratch);
+            renderer_scratch->used = used;
+        }
+    }
+    win32_splash_stop(&splash);
+
+    g_win32_splash_view    = loader.splash_view;
+    g_win32_splash.texture = (u64)loader.splash_view;
+    g_win32_splash.aspect  = loader.splash_aspect;
+    *fonts = loader.fonts;
+    LARGE_INTEGER end;
+    QueryPerformanceCounter(&end);
+    char line[160];
+    snprintf(line, sizeof(line), "platform: the load took %.0f ms with %u worker threads%s",
+             (f64)(end.QuadPart - start.QuadPart) * 1000.0 / (f64)frequency.QuadPart, threaded ? worker_count : 0,
+             window->running ? "" : ", stopped by the user");
+    win32_log(line);
+    win32_log(g_win32_splash_view ? "platform: splash art loaded" : "platform: no splash art");
+    return window->running;
+}
+
 /* ---- main --------------------------------------------------------------- */
 
 int WINAPI
@@ -343,22 +424,24 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
     memory_arena renderer_scratch;
     arena_init(&renderer_scratch, malloc((size_t)Megabytes(64)), Megabytes(64));
     d3d11_renderer renderer;
-    if (!d3d11_renderer_init(&renderer, window.device, window.context, win32_read_entire_file, data_dir, &renderer_scratch))
+    b32 renderer_started = d3d11_renderer_start(&renderer, window.device, window.context, win32_read_entire_file, data_dir, &renderer_scratch);
+    renderer.terrain_on_worker = true;   /* the first map takes approximately 1 s to build */
+
+    /* The fonts go into the atlas during the load. The DX11 backend makes
+       the texture of the atlas in its first NewFrame. */
+    char font_data_dir[MAX_PATH];
+    snprintf(font_data_dir, MAX_PATH, "%s\\%s", g_win32.exe_dir, HEXDOM_DATA_ROOT);
+    u32 font_pixels = HEXDOM_FONT_DEFAULT_PIXELS;
+    ui_font_result fonts = {};
+    win32_load_game(&window, &renderer, &renderer_scratch, font_data_dir, font_pixels, &fonts);
+    win32_log(fonts.message);
+    if (!renderer_started || !d3d11_renderer_finish(&renderer))
     {
         win32_log("platform: scene renderer failed to start, drawing panels only");
         win32_log(renderer.last_error);
     }
-    win32_load_splash(&renderer, &renderer_scratch);
     g_win32_pictures.renderer = &renderer;
     g_win32_pictures.scratch  = &renderer_scratch;
-
-    /* The fonts go into the atlas before the first frame; the DX11 backend
-       builds the atlas texture in its first NewFrame. */
-    char font_data_dir[MAX_PATH];
-    snprintf(font_data_dir, MAX_PATH, "%s\\%s", g_win32.exe_dir, HEXDOM_DATA_ROOT);
-    u32 font_pixels = HEXDOM_FONT_DEFAULT_PIXELS;
-    ui_font_result fonts = ui_fonts_load(win32_read_entire_file, font_data_dir, HEXDOM_CONTENT_PACK, font_pixels);
-    win32_log(fonts.message);
 
     /* One memory block for the whole game, carved into permanent, transient
        and frame regions. A fixed base address in internal builds keeps

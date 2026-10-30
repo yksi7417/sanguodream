@@ -264,28 +264,47 @@ run `python -X utf8 misc\art_import.py art-src\bases` from the root of
 the repository.
 
 ## The splash art (data/placeholder/sprites/art/splash.png)
-The game shows this picture at the start, before the title menu. The
-picture goes after 3 seconds, or after a click or a key
-(code/ui/ui_splash.cpp).
+The game shows this picture from the first frame. The picture has a
+progress bar, and the bar fills while the game loads. After the load, the
+bar is full and the hint shows. The picture goes after 3 seconds, or
+after a click or a key (code/ui/ui_splash.cpp).
 
 | Item | Value |
 |---|---|
 | File | splash.png |
-| Size | 1280 x 720 pixels, 8-bit RGB, 1.7 MB |
-| Source | The owner of the repository made the picture with an image model. The owner shared it on 2026-10-29 in the shared Google Drive folder "Three Kingdoms Animations — Map Art" as sanguo-dream-splash.png. The source is 2048 x 1152 pixels and 4.0 MB. provenance.tsv in the folder has its row. |
-| Licence | the licence of this repository; the picture is original work of the owner, made with an image model |
+| Size | 1280 x 720 pixels, 8-bit RGB, 1.6 MB |
+| Source | misc/make_splash.py makes it from a capture of the game: the map of the year 196 with the banners of the rulers, at 1920 x 1080 pixels. A card in the style of the panels is at the centre, with the title in the game font and the track of the bar. |
+| Licence | the licence of this repository. The fonts of the title are under the SIL Open Font License (see the fonts above). |
 
-The source file stays in art-src/splash, out of git. Its SHA-256 is
-d483963318295bea9475ad38911a2d25cca72fe8bf72cee56bb6a095c3d8bddf.
-The pack keeps a smaller copy, because each visit to the web game
-downloads the pack. To make the copy again, scale the source to
-1280 x 720 pixels with a Lanczos filter. Save it as an 8-bit RGB PNG
-without interlace, because code/render/png.h decodes only that format.
+The capture stays in art-src/splash/map-196.png, out of git. Its SHA-256
+is 0c7eb60d183a6972bb5f6a37fb8f8f5c26442ba630aaa6bbe837668e5599f9ec.
+To make the pictures again, run this command from the root of the
+repository. It needs Python 3 with Pillow 9 or later:
 
-The platform loads the picture one time after the renderer starts
-(HEXDOM_SPLASH_FILE in code/hexdom.h). It gives the texture to the UI
-through platform_api.splash_picture. If the file is absent, the splash
-shows a dark screen with the hint.
+    py -3 -X utf8 misc\make_splash.py
+
+The script writes four files:
+- data/placeholder/sprites/art/splash.png, the picture of the game. It is
+  an 8-bit RGB PNG without interlace, because code/render/png.h decodes
+  only that format.
+- web/splash.jpg, the same picture for the page of the web game.
+- code/hexdom.ico, the icon of win32_hexdom.exe in seven sizes from 16 to
+  256 pixels. The icon is one hex of the map with the character 國.
+  code/win32_hexdom.rc puts it into the exe, and the window class uses it.
+- web/favicon.png, the icon of the page, 64 x 64 pixels.
+
+The bar is at HEXDOM_SPLASH_BAR_LEFT, _RIGHT, _TOP and _BOTTOM in
+code/hexdom.h, as fractions of the picture. The script, the platforms
+and web/shell.html use the same numbers.
+
+On Windows, a worker thread decodes the picture first
+(code/win32_loader.h). The platform draws the picture and the bar with
+D3D11 alone (code/win32_splash.h), because ImGui has no font before the
+load ends. On the web, the page shows web/splash.jpg and the bar while
+the browser downloads the game. misc/web_shell.py puts the picture and
+the favicon into the page as data URIs. The page removes its splash
+after the first frame of the game. If the file is absent, the splash
+shows a dark screen with the bar and the hint.
 
 ## Coats of arms (data/medieval_europe/arms)
 The flag of a faction in the game of 1200 shows its coat of arms

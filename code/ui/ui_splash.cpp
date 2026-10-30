@@ -71,15 +71,24 @@ ui_draw_splash(ui_state *ui, f32 dt_seconds)
     ImDrawList *draw = ImGui::GetWindowDrawList();
     platform_picture picture = {};
     if (ui->splash_picture) picture = ui->splash_picture();
-    if (picture.texture && picture.aspect > 0.0f)
-    {
-        ImVec2 top_left, bottom_right;
-        ui_splash_fit(display, picture.aspect, &top_left, &bottom_right);
-        draw->AddImage((ImTextureID)picture.texture, top_left, bottom_right);
-    }
     const char *hint = text_get(ui->text, "splash.hint");
     ImVec2 hint_size = ImGui::CalcTextSize(hint);
     ImVec2 hint_at((display.x - hint_size.x) * 0.5f, display.y - hint_size.y * 2.5f);
+    if (picture.texture && picture.aspect > 0.0f)
+    {
+        /* The picture of the load, with the bar full: the platform drew the
+           same picture and bar while it loaded (win32_splash.h, web/shell.html).
+           The hint goes under the bar, in the card of the picture. */
+        ImVec2 top_left, bottom_right;
+        ui_splash_fit(display, picture.aspect, &top_left, &bottom_right);
+        draw->AddImage((ImTextureID)picture.texture, top_left, bottom_right);
+        f32 width  = bottom_right.x - top_left.x;
+        f32 height = bottom_right.y - top_left.y;
+        draw->AddRectFilled(ImVec2(top_left.x + width * HEXDOM_SPLASH_BAR_LEFT, top_left.y + height * HEXDOM_SPLASH_BAR_TOP),
+                            ImVec2(top_left.x + width * HEXDOM_SPLASH_BAR_RIGHT, top_left.y + height * HEXDOM_SPLASH_BAR_BOTTOM),
+                            ImGui::GetColorU32(ImGuiCol_PlotHistogram));
+        hint_at.y = top_left.y + height * HEXDOM_SPLASH_HINT_TOP;
+    }
     draw->AddText(ImVec2(hint_at.x + 1.0f, hint_at.y + 1.0f), IM_COL32(0, 0, 0, 200), hint);
     draw->AddText(hint_at, IM_COL32(255, 255, 255, 230), hint);
     ImGui::End();

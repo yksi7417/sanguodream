@@ -100,8 +100,10 @@ REM "build.bat dll" rebuilds only the DLL: the hot-reload loop while the window 
 REM (the exe cannot be relinked while it is running).
 if /i "%~1"=="dll" goto :done
 
-REM Platform layer.
-cl %COMMON% ..\code\win32_hexdom.cpp /Fe:win32_hexdom.exe %LINKFLAGS% /SUBSYSTEM:WINDOWS imgui.lib user32.lib gdi32.lib shell32.lib d3d11.lib dxgi.lib d3dcompiler.lib
+REM Platform layer. The resource file gives the exe its icon (code\win32_hexdom.rc).
+rc /nologo /fo win32_hexdom.res ..\code\win32_hexdom.rc
+if errorlevel 1 set ERR=1
+cl %COMMON% ..\code\win32_hexdom.cpp /Fe:win32_hexdom.exe %LINKFLAGS% /SUBSYSTEM:WINDOWS win32_hexdom.res imgui.lib user32.lib gdi32.lib shell32.lib d3d11.lib dxgi.lib d3dcompiler.lib
 if errorlevel 1 set ERR=1
 
 REM The test pyramid, bottom to top.

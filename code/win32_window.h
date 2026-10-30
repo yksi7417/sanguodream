@@ -40,7 +40,15 @@ struct win32_window
     u32                     staging_width;
     u32                     staging_height;
     b32                     no_vsync;         /* the present does not wait for the vertical blank */
+    /* While a worker thread loads the game (win32_loader.h), the main
+       thread makes no ImGui call: the input does not go to ImGui, and
+       modal_frame draws a frame while the user moves or sizes the window. */
+    b32                     imgui_paused;
+    void                  (*modal_frame)(void *user);
+    void                   *modal_user;
 };
+
+#define WIN32_MODAL_FRAME_TIMER 1
 
 /* The window procedure has no user pointer, so it finds the window here. */
 global_variable win32_window *g_window;
@@ -127,7 +135,8 @@ win32_destroy_d3d(win32_window *window)
 internal LRESULT CALLBACK
 win32_window_proc(HWND handle, UINT message, WPARAM wparam, LPARAM lparam)
 {
-    if (ImGui_ImplWin32_WndProcHandler(handle, message, wparam, lparam)) return 1;
+    b32 imgui_paused = g_window && g_window->imgui_paused;
+    if (!imgui_paused && ImGui_ImplWin32_WndProcHandler(handle, message, wparam, lparam)) return 1;
 
     switch (message)
     {
@@ -139,6 +148,23 @@ win32_window_proc(HWND handle, UINT message, WPARAM wparam, LPARAM lparam)
                 g_window->resize_width   = LOWORD(lparam);
                 g_window->resize_height  = HIWORD(lparam);
             }
+            return 0;
+        }
+        /* Windows runs its own message loop while the user drags or sizes
+           the window. A timer then keeps the frames of the load going. */
+        case WM_ENTERSIZEMOVE:
+        {
+            if (g_window && g_window->modal_frame) SetTimer(handle, WIN32_MODAL_FRAME_TIMER, 16, 0);
+            break;
+        }
+        case WM_EXITSIZEMOVE:
+        {
+            KillTimer(handle, WIN32_MODAL_FRAME_TIMER);
+            break;
+        }
+        case WM_TIMER:
+        {
+            if (wparam == WIN32_MODAL_FRAME_TIMER && g_window && g_window->modal_frame) g_window->modal_frame(g_window->modal_user);
             return 0;
         }
         case WM_SYSCOMMAND:
@@ -174,6 +200,7 @@ win32_open_window(win32_window *window, HINSTANCE instance, const char *title,
     window_class.lpfnWndProc   = win32_window_proc;
     window_class.hInstance     = instance;
     window_class.hCursor       = LoadCursorA(0, IDC_ARROW);
+    window_class.hIcon         = LoadIconA(instance, MAKEINTRESOURCEA(1));   /* code/win32_hexdom.rc; zero without the resource */
     window_class.lpszClassName = window->class_name;
     RegisterClassExA(&window_class);
 
@@ -217,10 +244,9 @@ win32_pump_messages(win32_window *window)
     return window->running;
 }
 
-/* Starts a frame: applies a pending resize, then starts the ImGui backends
-   and the ImGui frame. */
+/* Applies a pending resize to the swap chain. */
 internal void
-win32_begin_frame(win32_window *window)
+win32_apply_resize(win32_window *window)
 {
     if (window->resize_pending && window->swap_chain)
     {
@@ -230,6 +256,14 @@ win32_begin_frame(win32_window *window)
         win32_create_render_target(window);
         window->resize_pending = false;
     }
+}
+
+/* Starts a frame: applies a pending resize, then starts the ImGui backends
+   and the ImGui frame. */
+internal void
+win32_begin_frame(win32_window *window)
+{
+    win32_apply_resize(window);
     ImGui_ImplDX11_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();

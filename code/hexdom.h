@@ -65,6 +65,17 @@ typedef PLATFORM_FACE_TEXTURE(platform_face_texture);
    platform loads it one time, at the start. */
 #define HEXDOM_SPLASH_FILE "sprites/art/splash.png"
 
+/* The progress bar of the splash, as fractions of the width and the
+   height of the picture. The picture has the track of the bar at this
+   place (misc/make_splash.py). The platform draws the fill while it
+   loads, and the UI draws the full bar after the load (ui_splash.cpp).
+   web/shell.html uses the same numbers. */
+#define HEXDOM_SPLASH_BAR_LEFT   0.30f
+#define HEXDOM_SPLASH_BAR_RIGHT  0.70f
+#define HEXDOM_SPLASH_BAR_TOP    0.65f
+#define HEXDOM_SPLASH_BAR_BOTTOM 0.68f
+#define HEXDOM_SPLASH_HINT_TOP   0.70f   /* the top of the hint under the bar */
+
 struct platform_picture
 {
     u64 texture;   /* an ImTextureID; zero if the file is absent or does not decode */

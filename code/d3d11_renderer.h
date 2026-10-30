@@ -73,6 +73,24 @@ struct d3d11_billboard_instance
     u32 tint;
 };
 
+/* The build of a terrain mesh on a worker thread (d3d11_ensure_terrain). */
+struct d3d11_terrain_job
+{
+    HANDLE         thread;     /* zero when no build runs */
+    volatile LONG  done;
+    u8            *memory;
+    memory_arena   arena;
+    render_terrain input;      /* a copy: its arrays are in the arena */
+    struct d3d11_renderer *renderer;
+    /* The worker makes the buffers too: ID3D11Device is thread safe, only
+       the device context is not. */
+    ID3D11Buffer  *vertices;
+    ID3D11Buffer  *indices;
+    ID3D11Buffer  *grid;
+    u32            index_count;
+    u32            grid_count;
+};
+
 struct d3d11_renderer
 {
     ID3D11Device            *device;
@@ -107,6 +125,8 @@ struct d3d11_renderer
     u32                      grid_index_count;
     u32                      terrain_version;
     u32                      terrain_cells;
+    b32                      terrain_on_worker;   /* a worker thread builds a new terrain mesh */
+    d3d11_terrain_job        terrain_job;
 
     ID3D11Texture2D         *overlay_texture;
     ID3D11ShaderResourceView *overlay_view;
@@ -239,7 +259,7 @@ d3d11_make_texture(d3d11_renderer *r, const u32 *rgba, u32 width, u32 height, b3
 /* Reads a whole file of data_dir into the arena through the file reader
    of the platform; zero size when absent. */
 internal u8 *
-d3d11_read_data_file(d3d11_renderer *r, const char *relative, memory_arena *arena, u64 *size_out)
+d3d11_read_data_file(const d3d11_renderer *r, const char *relative, memory_arena *arena, u64 *size_out)
 {
     char path[520];
     snprintf(path, sizeof(path), "%s/%s", r->data_dir, relative);
@@ -310,18 +330,38 @@ d3d11_placeholder_mesh(d3d11_renderer *r, u32 mesh_id, memory_arena *arena, d3d1
     return mesh->vertices && mesh->indices;
 }
 
-/* A mesh file of the pack (render_mesh_file_parse) as a GPU mesh. */
+/* A mesh of the CPU (a mesh file or a placeholder shape) as a GPU mesh. */
 internal b32
-d3d11_load_mesh_file(d3d11_renderer *r, const char *relative, memory_arena *arena, d3d11_mesh *mesh)
+d3d11_make_mesh(d3d11_renderer *r, const render_mesh_file *file, d3d11_mesh *mesh)
+{
+    mesh->vertices    = d3d11_make_buffer(r, file->vertices, file->vertex_count * (u32)sizeof(d3d11_mesh_vertex), D3D11_BIND_VERTEX_BUFFER, false);
+    mesh->indices     = d3d11_make_buffer(r, file->indices, file->index_count * 4, D3D11_BIND_INDEX_BUFFER, false);
+    mesh->index_count = file->index_count;
+    return mesh->vertices && mesh->indices;
+}
+
+/* Reads and parses a mesh file of the pack (render_mesh_file_parse). It
+   uses no D3D11 call, so any thread can call it. */
+internal b32
+d3d11_read_mesh_file(const d3d11_renderer *r, const char *relative, memory_arena *arena, render_mesh_file *file)
 {
     u64 size = 0;
     u8 *data = d3d11_read_data_file(r, relative, arena, &size);
-    render_mesh_file file = {};
-    if (!render_mesh_file_parse(data, size, &file)) return false;
-    mesh->vertices = d3d11_make_buffer(r, file.vertices, file.vertex_count * (u32)sizeof(d3d11_mesh_vertex), D3D11_BIND_VERTEX_BUFFER, false);
-    mesh->indices  = d3d11_make_buffer(r, file.indices, file.index_count * 4, D3D11_BIND_INDEX_BUFFER, false);
-    mesh->index_count = file.index_count;
-    return mesh->vertices && mesh->indices;
+    *file = {};
+    return render_mesh_file_parse(data, size, file);
+}
+
+/* Reads and decodes a PNG file of the pack. The pixels are zero if the
+   file is absent or bad. It uses no D3D11 call, so any thread can call it. */
+internal png_image
+d3d11_read_png_file(const d3d11_renderer *r, const char *relative, memory_arena *arena)
+{
+    png_image image = {};
+    u64 size = 0;
+    u8 *data = d3d11_read_data_file(r, relative, arena, &size);
+    if (data) image = png_decode(data, size, arena);
+    if (image.error || !image.width) image = {};
+    return image;
 }
 
 /* A texture with the full chain of mip levels: the GPU makes the smaller
@@ -345,44 +385,168 @@ d3d11_make_mipmapped_texture(d3d11_renderer *r, const u32 *rgba, u32 width, u32 
     return view;
 }
 
+/* A decoded picture as a texture. Call it on the thread of the device context. */
+internal ID3D11ShaderResourceView *
+d3d11_make_picture_texture(d3d11_renderer *r, const png_image *image, b32 mipmaps)
+{
+    if (!image->rgba) return 0;
+    if (mipmaps) return d3d11_make_mipmapped_texture(r, (const u32 *)image->rgba, image->width, image->height);
+    return d3d11_make_texture(r, (const u32 *)image->rgba, image->width, image->height, false, 0);
+}
+
 internal ID3D11ShaderResourceView *
 d3d11_load_png_texture(d3d11_renderer *r, const char *relative, memory_arena *arena, f32 *aspect_out = 0, b32 mipmaps = false)
 {
-    u64 size = 0;
-    u8 *data = d3d11_read_data_file(r, relative, arena, &size);
-    if (!data) return 0;
-    png_image image = png_decode(data, size, arena);
-    if (image.error || !image.width) return 0;
+    png_image image = d3d11_read_png_file(r, relative, arena);
+    if (!image.rgba) return 0;
     if (aspect_out) *aspect_out = (f32)image.height / (f32)image.width;
-    if (mipmaps) return d3d11_make_mipmapped_texture(r, (const u32 *)image.rgba, image.width, image.height);
-    return d3d11_make_texture(r, (const u32 *)image.rgba, image.width, image.height, false, 0);
+    return d3d11_make_picture_texture(r, &image, mipmaps);
 }
 
-/* The model of one base kind or shape: <name>.hxm and <name>.png of the
-   pack. If one of the two files is absent, the kind has no model. The GPU
-   keeps the mesh and the texture, so the scratch arena gets its bytes back. */
-internal void
-d3d11_load_base_model(d3d11_renderer *r, const char *name, memory_arena *arena, d3d11_base_model *model)
+/* ---- the files of the renderer ------------------------------------------ */
+
+/* The renderer loads its files in jobs: the atlas, the settlement, one job
+   for each sprite and one job for each model. A job has two halves:
+   - d3d11_asset_prepare reads and decodes the files. It uses no D3D11
+     call, so a worker thread can do it (win32_loader.h).
+   - d3d11_asset_upload makes the GPU resources from the result. Call it
+     on the thread of the device context.
+   A model has two files: <name>.hxm and <name>.png. If one of the two is
+   absent, the kind has no model. */
+#define D3D11_ASSET_ATLAS             0
+#define D3D11_ASSET_SETTLEMENT        1
+#define D3D11_ASSET_FIRST_SPRITE      2
+#define D3D11_ASSET_FIRST_BASE_MODEL  (D3D11_ASSET_FIRST_SPRITE + RENDER_SPRITE_COUNT)
+#define D3D11_ASSET_FIRST_MESH_MODEL  (D3D11_ASSET_FIRST_BASE_MODEL + D3D11_BASE_KINDS)
+#define D3D11_ASSET_COUNT             (D3D11_ASSET_FIRST_MESH_MODEL + RENDER_MODEL_COUNT * RENDER_MODEL_LEVELS)
+
+/* The result of d3d11_asset_prepare. The pointers go into the arena of the job. */
+struct d3d11_asset_data
 {
-    *model = {};
-    if (!name) return;
-    char mesh_file[260], texture_file[260];
-    snprintf(mesh_file, sizeof(mesh_file), "%s.hxm", name);
-    snprintf(texture_file, sizeof(texture_file), "%s.png", name);
-    u64 arena_used = arena->used;
-    if (d3d11_load_mesh_file(r, mesh_file, arena, &model->mesh)) model->texture = d3d11_load_png_texture(r, texture_file, arena, 0, true);
-    arena->used = arena_used;
-    if (model->texture) return;
-    if (model->mesh.vertices) model->mesh.vertices->Release();
-    if (model->mesh.indices) model->mesh.indices->Release();
-    *model = {};
+    png_image        picture;   /* rgba is zero when the job has no picture */
+    render_mesh_file mesh;      /* vertices is zero when the job has no mesh */
+};
+
+/* The name of the model of a model job, or zero. */
+internal const char *
+d3d11_asset_model_name(u32 job)
+{
+    if (job >= D3D11_ASSET_FIRST_MESH_MODEL && job < D3D11_ASSET_COUNT)
+    {
+        u32 model = job - D3D11_ASSET_FIRST_MESH_MODEL;
+        return render_model_files[model / RENDER_MODEL_LEVELS][model % RENDER_MODEL_LEVELS];
+    }
+    if (job >= D3D11_ASSET_FIRST_BASE_MODEL && job < D3D11_ASSET_FIRST_MESH_MODEL) return render_base_model_files[job - D3D11_ASSET_FIRST_BASE_MODEL];
+    return 0;
+}
+
+internal void
+d3d11_asset_prepare(const d3d11_renderer *r, u32 job, memory_arena *arena, d3d11_asset_data *data)
+{
+    *data = {};
+    if (job == D3D11_ASSET_ATLAS)
+    {
+        data->picture = d3d11_read_png_file(r, "materials.png", arena);
+    }
+    else if (job == D3D11_ASSET_SETTLEMENT)
+    {
+        d3d11_read_mesh_file(r, "settlement.hxm", arena, &data->mesh);
+    }
+    else if (job < D3D11_ASSET_FIRST_BASE_MODEL)
+    {
+        /* The sprite: the art first, then the placeholder picture. A base
+           has no placeholder picture (docs/ASSETS.md, "Base art"). */
+        u32 sprite_id = job - D3D11_ASSET_FIRST_SPRITE;
+        if (render_sprite_art_files[sprite_id]) data->picture = d3d11_read_png_file(r, render_sprite_art_files[sprite_id], arena);
+        if (!data->picture.rgba && sprite_id < RENDER_SPRITE_FIRST_BASE) data->picture = d3d11_read_png_file(r, render_sprite_files[sprite_id], arena);
+    }
+    else if (const char *name = d3d11_asset_model_name(job))
+    {
+        char mesh_file[260], texture_file[260];
+        snprintf(mesh_file, sizeof(mesh_file), "%s.hxm", name);
+        snprintf(texture_file, sizeof(texture_file), "%s.png", name);
+        if (d3d11_read_mesh_file(r, mesh_file, arena, &data->mesh)) data->picture = d3d11_read_png_file(r, texture_file, arena);
+        if (!data->picture.rgba) data->mesh = {};
+    }
+}
+
+/* The model of a model job, or zero. */
+internal d3d11_base_model *
+d3d11_asset_model(d3d11_renderer *r, u32 job)
+{
+    if (job >= D3D11_ASSET_FIRST_MESH_MODEL && job < D3D11_ASSET_COUNT)
+    {
+        u32 model = job - D3D11_ASSET_FIRST_MESH_MODEL;
+        return r->mesh_models[model / RENDER_MODEL_LEVELS] + model % RENDER_MODEL_LEVELS;
+    }
+    if (job >= D3D11_ASSET_FIRST_BASE_MODEL && job < D3D11_ASSET_FIRST_MESH_MODEL) return r->base_models + (job - D3D11_ASSET_FIRST_BASE_MODEL);
+    return 0;
+}
+
+/* Makes the GPU resources of a job. If the files are absent, the atlas,
+   the settlement and the sprites of the units take a placeholder. The
+   scratch arena holds a placeholder only during the call. */
+internal void
+d3d11_asset_upload(d3d11_renderer *r, u32 job, const d3d11_asset_data *data, memory_arena *scratch)
+{
+    u64 scratch_used = scratch->used;
+    if (job == D3D11_ASSET_ATLAS)
+    {
+        r->atlas_view = d3d11_make_picture_texture(r, &data->picture, false);
+        if (!r->atlas_view)
+        {
+            u32 *atlas = d3d11_placeholder_atlas(scratch);
+            r->atlas_view = d3d11_make_texture(r, atlas, D3D11_ATLAS_TILES * D3D11_ATLAS_TILE_SIZE, D3D11_ATLAS_TILE_SIZE, false, 0);
+        }
+    }
+    else if (job == D3D11_ASSET_SETTLEMENT)
+    {
+        /* mesh 0: the settlement, from settlement.hxm or the placeholder house */
+        if (!data->mesh.vertices || !d3d11_make_mesh(r, &data->mesh, r->meshes + 0))
+        {
+            d3d11_placeholder_mesh(r, RENDER_MESH_SETTLEMENT, scratch, r->meshes + 0);
+        }
+    }
+    else if (job < D3D11_ASSET_FIRST_BASE_MODEL)
+    {
+        u32 sprite_id = job - D3D11_ASSET_FIRST_SPRITE;
+        if (sprite_id < D3D11_MAX_SPRITES)
+        {
+            d3d11_sprite *sprite_slot = r->sprites + sprite_id;
+            sprite_slot->view   = d3d11_make_picture_texture(r, &data->picture, false);
+            sprite_slot->aspect = data->picture.rgba ? (f32)data->picture.height / (f32)data->picture.width : 1.0f;
+            if (!sprite_slot->view && sprite_id < RENDER_SPRITE_FIRST_BASE)
+            {
+                u32 *sprite = d3d11_placeholder_sprite(scratch);
+                sprite_slot->view = d3d11_make_texture(r, sprite, D3D11_SPRITE_SIZE, D3D11_SPRITE_SIZE, false, 0);
+            }
+        }
+    }
+    else if (d3d11_base_model *model = d3d11_asset_model(r, job))
+    {
+        *model = {};
+        if (data->mesh.vertices && data->picture.rgba && d3d11_make_mesh(r, &data->mesh, &model->mesh))
+        {
+            model->texture = d3d11_make_picture_texture(r, &data->picture, true);
+        }
+        if (!model->texture)
+        {
+            if (model->mesh.vertices) model->mesh.vertices->Release();
+            if (model->mesh.indices) model->mesh.indices->Release();
+            *model = {};
+        }
+    }
+    scratch->used = scratch_used;
 }
 
 /* ---- init --------------------------------------------------------------- */
 
+/* The first half of the init: the shaders, the states, the buffers and the
+   placeholder shapes. It reads no file. The jobs of the files come after
+   it (d3d11_asset_prepare and d3d11_asset_upload), then d3d11_renderer_finish. */
 internal b32
-d3d11_renderer_init(d3d11_renderer *r, ID3D11Device *device, ID3D11DeviceContext *context,
-                    platform_read_entire_file *read_file, const char *data_dir, memory_arena *scratch)
+d3d11_renderer_start(d3d11_renderer *r, ID3D11Device *device, ID3D11DeviceContext *context,
+                     platform_read_entire_file *read_file, const char *data_dir, memory_arena *scratch)
 {
     *r = {};
     r->device = device; r->context = context;
@@ -465,63 +629,25 @@ d3d11_renderer_init(d3d11_renderer *r, ID3D11Device *device, ID3D11DeviceContext
     blend.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
     device->CreateBlendState(&blend, &r->blend_alpha);
 
-    /* the material atlas: the pack's file, or the placeholder */
-    r->atlas_view = d3d11_load_png_texture(r, "materials.png", scratch);
-    if (!r->atlas_view)
-    {
-        u32 *atlas = d3d11_placeholder_atlas(scratch);
-        r->atlas_view = d3d11_make_texture(r, atlas, D3D11_ATLAS_TILES * D3D11_ATLAS_TILE_SIZE, D3D11_ATLAS_TILE_SIZE, false, 0);
-    }
-
-    /* mesh 0: the settlement, from settlement.hxm or the placeholder house.
-       The other meshes are the placeholder shapes of the facility slots. */
-    if (!d3d11_load_mesh_file(r, "settlement.hxm", scratch, r->meshes + 0))
-    {
-        d3d11_placeholder_mesh(r, RENDER_MESH_SETTLEMENT, scratch, r->meshes + 0);
-    }
+    /* Mesh 0 is the settlement: a job of the files makes it. The other
+       meshes are the placeholder shapes of the facility slots. */
     r->mesh_count = 1;
     for (u32 mesh_id = 1; mesh_id < RENDER_MESH_COUNT && mesh_id < D3D11_MAX_MESHES; ++mesh_id)
     {
-        if (!d3d11_placeholder_mesh(r, mesh_id, scratch, r->meshes + mesh_id)) break;
+        u64 scratch_used = scratch->used;
+        b32 made = d3d11_placeholder_mesh(r, mesh_id, scratch, r->meshes + mesh_id);
+        scratch->used = scratch_used;
+        if (!made) break;
         r->mesh_count = mesh_id + 1;
     }
 
-    /* The sprites: one picture for each render_sprite, from the sprites
-       folder of the content pack: the art first, then the placeholder
-       picture. If both are absent, the renderer uses the placeholder
-       figure (docs/ASSETS.md, "Unit sprites"). A base has no placeholder
-       picture: without its art, the view stays 0 and the renderer draws
-       the mesh of the base (docs/ASSETS.md, "Base art"). */
-    for (u32 sprite_id = 0; sprite_id < RENDER_SPRITE_COUNT && sprite_id < D3D11_MAX_SPRITES; ++sprite_id)
-    {
-        d3d11_sprite *sprite_slot = r->sprites + sprite_id;
-        sprite_slot->view   = 0;
-        sprite_slot->aspect = 1.0f;
-        r->sprite_count = sprite_id + 1;
-        if (render_sprite_art_files[sprite_id]) sprite_slot->view = d3d11_load_png_texture(r, render_sprite_art_files[sprite_id], scratch, &sprite_slot->aspect);
-        if (sprite_id >= RENDER_SPRITE_FIRST_BASE) continue;
-        if (!sprite_slot->view) sprite_slot->view = d3d11_load_png_texture(r, render_sprite_files[sprite_id], scratch, &sprite_slot->aspect);
-        if (!sprite_slot->view)
-        {
-            u32 *sprite = d3d11_placeholder_sprite(scratch);
-            sprite_slot->view = d3d11_make_texture(r, sprite, D3D11_SPRITE_SIZE, D3D11_SPRITE_SIZE, false, 0);
-        }
-    }
-
-    /* The 3D models of the base kinds (docs/ASSETS.md, "Base models"). A
-       kind with a model shows it in place of its art card. */
-    for (u32 kind = 0; kind < D3D11_BASE_KINDS; ++kind)
-    {
-        d3d11_load_base_model(r, render_base_model_files[kind], scratch, r->base_models + kind);
-    }
-    /* The models of the shapes and of the kinds for each level, for example the market. */
-    for (u32 model_id = 0; model_id < RENDER_MODEL_COUNT; ++model_id)
-    {
-        for (u32 level = 0; level < RENDER_MODEL_LEVELS; ++level)
-        {
-            d3d11_load_base_model(r, render_model_files[model_id][level], scratch, r->mesh_models[model_id] + level);
-        }
-    }
+    /* The sprites: one picture for each render_sprite. The jobs of the
+       files load them. Without art or a placeholder picture, a unit gets
+       the placeholder figure (docs/ASSETS.md, "Unit sprites"). A base has
+       no placeholder picture: without its art, the view stays 0 and the
+       renderer draws the mesh of the base (docs/ASSETS.md, "Base art"). */
+    r->sprite_count = RENDER_SPRITE_COUNT < D3D11_MAX_SPRITES ? RENDER_SPRITE_COUNT : D3D11_MAX_SPRITES;
+    for (u32 sprite_id = 0; sprite_id < r->sprite_count; ++sprite_id) r->sprites[sprite_id].aspect = 1.0f;
 
     r->instance_capacity = RENDER_MAX_MESH_INSTANCES > RENDER_MAX_BILLBOARDS ? RENDER_MAX_MESH_INSTANCES : RENDER_MAX_BILLBOARDS;
     r->instances = d3d11_make_buffer(r, 0, r->instance_capacity * (u32)sizeof(d3d11_mesh_instance), D3D11_BIND_VERTEX_BUFFER, true);
@@ -529,10 +655,35 @@ d3d11_renderer_init(d3d11_renderer *r, ID3D11Device *device, ID3D11DeviceContext
     f32 quad[] = { -0.5f, 0.0f, 0.0f, 1.0f,   0.5f, 0.0f, 1.0f, 1.0f,   -0.5f, 1.0f, 0.0f, 0.0f,
                     0.5f, 0.0f, 1.0f, 1.0f,   0.5f, 1.0f, 1.0f, 0.0f,   -0.5f, 1.0f, 0.0f, 0.0f };
     r->billboard_quad = d3d11_make_buffer(r, quad, sizeof(quad), D3D11_BIND_VERTEX_BUFFER, false);
+    return true;
+}
 
+/* The last half of the init, after the upload of each job of the files.
+   The renderer draws only when it is ready. */
+internal b32
+d3d11_renderer_finish(d3d11_renderer *r)
+{
     r->ready = r->constants && r->atlas_view && r->meshes[0].vertices && r->sprites[0].view && r->instances && r->billboard_quad;
     if (!r->ready) snprintf(r->last_error, sizeof(r->last_error), "a D3D11 resource could not be created");
     return r->ready;
+}
+
+/* The full init on one thread: the start, each job of the files, then the
+   finish. The arena holds the files of one job at a time. */
+internal b32
+d3d11_renderer_init(d3d11_renderer *r, ID3D11Device *device, ID3D11DeviceContext *context,
+                    platform_read_entire_file *read_file, const char *data_dir, memory_arena *scratch)
+{
+    if (!d3d11_renderer_start(r, device, context, read_file, data_dir, scratch)) return false;
+    for (u32 job = 0; job < D3D11_ASSET_COUNT; ++job)
+    {
+        u64 scratch_used = scratch->used;
+        d3d11_asset_data data;
+        d3d11_asset_prepare(r, job, scratch, &data);
+        d3d11_asset_upload(r, job, &data, scratch);
+        scratch->used = scratch_used;
+    }
+    return d3d11_renderer_finish(r);
 }
 
 internal void
@@ -541,9 +692,12 @@ d3d11_release(IUnknown **p)
     if (*p) { (*p)->Release(); *p = 0; }
 }
 
+internal void d3d11_terrain_job_end(d3d11_terrain_job *job);
+
 internal void
 d3d11_renderer_destroy(d3d11_renderer *r)
 {
+    d3d11_terrain_job_end(&r->terrain_job);
     d3d11_release((IUnknown **)&r->terrain_vs); d3d11_release((IUnknown **)&r->terrain_ps); d3d11_release((IUnknown **)&r->terrain_layout);
     d3d11_release((IUnknown **)&r->mesh_vs); d3d11_release((IUnknown **)&r->mesh_ps); d3d11_release((IUnknown **)&r->mesh_layout);
     d3d11_release((IUnknown **)&r->model_ps);
@@ -589,41 +743,143 @@ d3d11_ensure_depth(d3d11_renderer *r, u32 width, u32 height)
     r->depth_width = width; r->depth_height = height;
 }
 
-/* Rebuilds the terrain buffers from the command's terrain when its version changed. */
-internal void
-d3d11_ensure_terrain(d3d11_renderer *r, render_terrain *terrain, memory_arena *scratch)
+/* The grid lines: the six top edges of each cell. */
+internal u32 *
+d3d11_terrain_lines(const render_terrain *terrain, memory_arena *arena, u32 *count_out)
 {
     u32 cells = terrain->width * terrain->height;
-    if (r->terrain_vertices && r->terrain_version == terrain->version && r->terrain_cells == cells) return;
+    u32 *lines = PushArray(arena, cells * 12, u32);
+    u32 count = 0;
+    for (u32 cell = 0; cell < cells; ++cell)
+    {
+        if (terrain->grid && !terrain->grid[cell]) continue;   /* M11: no grid on cliffs (ui/main-map.md) */
+        u32 base = cell * TERRAIN_VERTS_PER_CELL;
+        for (u32 edge = 0; edge < 6; ++edge) { lines[count++] = base + 1 + edge; lines[count++] = base + 1 + (edge + 1) % 6; }
+    }
+    *count_out = count;
+    return lines;
+}
+
+/* Makes the buffers of a built terrain: the cells, then the grid lines. */
+internal void
+d3d11_terrain_buffers(d3d11_renderer *r, render_terrain *terrain, memory_arena *arena, d3d11_terrain_job *out)
+{
+    terrain_mesh mesh = terrain_mesh_build(terrain, arena);
+    u32 line_count = 0;
+    u32 *lines = d3d11_terrain_lines(terrain, arena, &line_count);
+    out->vertices    = d3d11_make_buffer(r, mesh.vertices, mesh.vertex_count * (u32)sizeof(terrain_vertex), D3D11_BIND_VERTEX_BUFFER, false);
+    out->indices     = d3d11_make_buffer(r, mesh.indices, mesh.index_count * 4, D3D11_BIND_INDEX_BUFFER, false);
+    out->index_count = mesh.index_count;
+    out->grid        = d3d11_make_buffer(r, lines, line_count * 4, D3D11_BIND_INDEX_BUFFER, false);
+    out->grid_count  = line_count;
+}
+
+/* Puts the buffers of a built terrain in place of the old ones. The
+   renderer takes the buffers of the job. */
+internal void
+d3d11_terrain_apply(d3d11_renderer *r, const render_terrain *terrain, d3d11_terrain_job *built)
+{
     d3d11_release((IUnknown **)&r->terrain_vertices);
     d3d11_release((IUnknown **)&r->terrain_indices);
     d3d11_release((IUnknown **)&r->grid_indices);
-    r->terrain_index_count = r->grid_index_count = 0;
+    r->terrain_vertices    = built->vertices;
+    r->terrain_indices     = built->indices;
+    r->terrain_index_count = built->index_count;
+    r->grid_indices        = built->grid;
+    r->grid_index_count    = built->grid_count;
+    built->vertices = built->indices = built->grid = 0;
     r->terrain_version = terrain->version;
-    r->terrain_cells = cells;
-    if (!cells) return;
-
-    terrain_mesh mesh = terrain_mesh_build(terrain, scratch);
-    r->terrain_vertices = d3d11_make_buffer(r, mesh.vertices, mesh.vertex_count * (u32)sizeof(terrain_vertex), D3D11_BIND_VERTEX_BUFFER, false);
-    r->terrain_indices  = d3d11_make_buffer(r, mesh.indices, mesh.index_count * 4, D3D11_BIND_INDEX_BUFFER, false);
-    r->terrain_index_count = mesh.index_count;
-
-    /* grid lines: the six top edges of each cell */
-    u32 *lines = PushArray(scratch, cells * 12, u32);
-    u32 n = 0;
-    for (u32 c = 0; c < cells; ++c)
-    {
-        if (terrain->grid && !terrain->grid[c]) continue;   /* M11: no grid on cliffs (ui/main-map.md) */
-        u32 base = c * TERRAIN_VERTS_PER_CELL;
-        for (u32 k = 0; k < 6; ++k) { lines[n++] = base + 1 + k; lines[n++] = base + 1 + (k + 1) % 6; }
-    }
-    r->grid_indices = d3d11_make_buffer(r, lines, n * 4, D3D11_BIND_INDEX_BUFFER, false);
-    r->grid_index_count = n;
+    r->terrain_cells   = terrain->width * terrain->height;
+    if (!r->terrain_cells) return;
 
     d3d11_release((IUnknown **)&r->overlay_view);
     d3d11_release((IUnknown **)&r->overlay_texture);
     r->overlay_view = d3d11_make_texture(r, 0, terrain->width, terrain->height, true, &r->overlay_texture);
     r->overlay_width = terrain->width; r->overlay_height = terrain->height;
+}
+
+/* The build of a terrain on a worker thread. The job has a copy of the
+   cells, because the arrays of the command live only for one frame. */
+internal DWORD WINAPI
+d3d11_terrain_worker(LPVOID parameter)
+{
+    d3d11_terrain_job *job = (d3d11_terrain_job *)parameter;
+    d3d11_terrain_buffers(job->renderer, &job->input, &job->arena, job);
+    InterlockedExchange(&job->done, 1);
+    return 0;
+}
+
+/* Starts the build of a terrain on a worker thread. False if the memory
+   or the thread is not available. */
+internal b32
+d3d11_terrain_job_start(d3d11_renderer *r, d3d11_terrain_job *job, const render_terrain *terrain)
+{
+    u64 cells = (u64)terrain->width * terrain->height;
+    u64 size = cells * (3 + TERRAIN_VERTS_PER_CELL * sizeof(terrain_vertex) + TERRAIN_TRIS_PER_CELL * 3 * 4 + 12 * 4) + Megabytes(1);
+    *job = {};
+    job->memory = (u8 *)VirtualAlloc(0, (SIZE_T)size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    if (!job->memory) return false;
+    arena_init(&job->arena, job->memory, size);
+    job->renderer = r;
+    job->input = *terrain;
+    u8 *kind  = PushArray(&job->arena, cells, u8);
+    u8 *level = PushArray(&job->arena, cells, u8);
+    memcpy(kind, terrain->kind, (size_t)cells);
+    memcpy(level, terrain->level, (size_t)cells);
+    job->input.kind  = kind;
+    job->input.level = level;
+    if (terrain->grid)
+    {
+        u8 *grid = PushArray(&job->arena, cells, u8);
+        memcpy(grid, terrain->grid, (size_t)cells);
+        job->input.grid = grid;
+    }
+    job->thread = CreateThread(0, 0, d3d11_terrain_worker, job, 0, 0);
+    if (job->thread) return true;
+    VirtualFree(job->memory, 0, MEM_RELEASE);
+    *job = {};
+    return false;
+}
+
+/* Waits for the worker of the job and frees its memory. */
+internal void
+d3d11_terrain_job_end(d3d11_terrain_job *job)
+{
+    if (job->thread)
+    {
+        WaitForSingleObject(job->thread, INFINITE);
+        CloseHandle(job->thread);
+    }
+    if (job->memory) VirtualFree(job->memory, 0, MEM_RELEASE);
+    d3d11_release((IUnknown **)&job->vertices);
+    d3d11_release((IUnknown **)&job->indices);
+    d3d11_release((IUnknown **)&job->grid);
+    *job = {};
+}
+
+/* Rebuilds the terrain buffers from the command's terrain when its version
+   changed. With terrain_on_worker, a worker thread builds the mesh, and the
+   old terrain stays on the screen until the new one is ready. The first map
+   of han_196 takes approximately 1 s to build, so the window does not
+   freeze. Without it, the build is on this thread. */
+internal void
+d3d11_ensure_terrain(d3d11_renderer *r, render_terrain *terrain, memory_arena *scratch)
+{
+    d3d11_terrain_job *job = &r->terrain_job;
+    if (job->thread)
+    {
+        if (!job->done) return;
+        WaitForSingleObject(job->thread, INFINITE);
+        d3d11_terrain_apply(r, &job->input, job);
+        d3d11_terrain_job_end(job);
+    }
+    u32 cells = terrain->width * terrain->height;
+    if (r->terrain_version == terrain->version && r->terrain_cells == cells && (r->terrain_vertices || !cells)) return;
+    if (cells && r->terrain_on_worker && terrain->kind && terrain->level && d3d11_terrain_job_start(r, job, terrain)) return;
+
+    d3d11_terrain_job built = {};
+    if (cells) d3d11_terrain_buffers(r, terrain, scratch, &built);
+    d3d11_terrain_apply(r, terrain, &built);
 }
 
 internal void
@@ -755,7 +1011,10 @@ d3d11_renderer_draw(d3d11_renderer *r, render_commands *rc, ID3D11RenderTargetVi
     {
         u32 cells = r->overlay_width * r->overlay_height;
         u32 *colors = PushArray(scratch, cells, u32);
-        if (rc->overlay) memcpy(colors, rc->overlay, (u64)cells * 4);
+        memset(colors, 0, (size_t)cells * 4);
+        /* While a worker builds a terrain of another size, the old terrain shows without overlay. */
+        b32 same_size = rc->terrain.width == r->overlay_width && rc->terrain.height == r->overlay_height;
+        if (rc->overlay && same_size) memcpy(colors, rc->overlay, (u64)cells * 4);
         d3d11_upload(r, r->overlay_texture, colors, cells * 4, r->overlay_width * 4);
     }
 

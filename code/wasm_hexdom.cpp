@@ -405,6 +405,9 @@ wasm_frame(void)
 
     /* ImGui writes saves/imgui.ini by itself; this write keeps it. */
     if (state->frame_index % WASM_SYNC_FRAMES == WASM_SYNC_FRAMES - 1) wasm_sync_saves();
+    /* The page shows its splash until the first frame of the game is ready.
+       This frame shows the same picture with the full bar (ui_splash.cpp). */
+    if (state->frame_index == 0) EM_ASM({ if (Module.hexdomFirstFrame) Module.hexdomFirstFrame(); });
     state->frame_index++;
 }
 

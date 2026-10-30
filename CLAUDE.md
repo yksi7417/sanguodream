@@ -130,6 +130,12 @@ decompilation of it.
                          fonts, memory block, hot reload
 - code/win32_window.h    the window and the D3D11 swap chain, for
                          win32_hexdom.exe and demo_player.exe
+- code/win32_loader.h    the load of the start on worker threads: the
+                         splash art, the fonts and the files of the renderer.
+                         The main thread pumps the messages and uploads
+- code/win32_splash.h    the splash and its progress bar during the load,
+                         drawn with D3D11 alone
+- code/win32_hexdom.rc   the icon of the exe (code/hexdom.ico)
 - code/win32_portraits.h the default portraits: maps the archive, makes a
                          texture for each picture on demand (docs/ASSETS.md)
 - code/wasm_hexdom.cpp   the web platform layer: Emscripten, WebGL2, ImGui
@@ -205,6 +211,10 @@ decompilation of it.
                          the decision for each file (docs/ASSETS.md)
 - misc/subset_font.py    writes the subset of the CJK font for the web
                          build to build/web/fonts (docs/WEB.md)
+- misc/make_splash.py    makes the splash art, the icon and the favicon from
+                         a capture of the map (docs/ASSETS.md)
+- misc/web_shell.py      puts the splash art and the favicon into the page
+                         of the web build; build_web.bat runs it
 - misc/make_portraits.py  makes data/civil_war/Portraits.zip, the 224 x 280
                          portraits, from the source archives (docs/ASSETS.md)
 - data/placeholder/      the content pack: text/<locale>.tsv (UI strings),
