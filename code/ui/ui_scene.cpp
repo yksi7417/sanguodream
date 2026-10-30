@@ -280,12 +280,12 @@ ui_scene_push_slots(render_commands *rc, engine_api *api, engine_terrain_view vi
         ui_facility_look look = ui_facility_look_of(kind.key);
         if (facility.state == SIM_SLOT_BUILDING)
         {
-            render_push_mesh(rc, RENDER_MESH_SCAFFOLD, ground, 0.0f, UI_FACILITY_MODEL_SCALE, UI_SCAFFOLD_RGBA);
-            render_push_facility(rc, look.mesh, facility.level, ground, 0.0f, UI_FACILITY_BUILDING_SCALE, ui_rgba_dim(look.rgba, 0.55f));
+            render_push_facility(rc, RENDER_MESH_SCAFFOLD, RENDER_MESH_SCAFFOLD, UI_SCAFFOLD_FACILITY_LEVEL, ground, 0.0f, UI_FACILITY_MODEL_SCALE, UI_SCAFFOLD_RGBA);
+            render_push_facility(rc, look.mesh, look.model, facility.level, ground, 0.0f, UI_FACILITY_BUILDING_SCALE, ui_rgba_dim(look.rgba, 0.55f));
         }
         else
         {
-            render_push_facility(rc, look.mesh, facility.level, ground, 0.0f, UI_FACILITY_MODEL_SCALE, look.rgba);   /* the level picks the model */
+            render_push_facility(rc, look.mesh, look.model, facility.level, ground, 0.0f, UI_FACILITY_MODEL_SCALE, look.rgba);   /* the level picks the model */
         }
     }
 }
@@ -306,16 +306,18 @@ ui_scene_push_buildings(render_commands *rc, engine_api *api, engine_terrain_vie
         hex_offset o = hex_to_offset(h);
         if (o.col < 0 || o.row < 0 || (u32)o.col >= view.width || (u32)o.row >= view.height) continue;
         v3 ground = hex_world_center(h, terrain_level_y(view.level[(u32)o.row * view.width + (u32)o.col]));
-        u32 mesh = ui_building_mesh(api->building_kind_at(api->engine, building.kind).type);
+        engine_building_kind kind = api->building_kind_at(api->engine, building.kind);
+        u32 mesh = ui_building_mesh(kind.type);
+        u32 model = ui_building_model(kind.key, mesh);
         u32 rgba = building.force_id == ENGINE_NO_FACTION ? UI_BUILDING_NO_OWNER_RGBA : ui_faction_rgba(api, building.force_id);
         if (!building.complete)
         {
             render_push_mesh(rc, RENDER_MESH_SCAFFOLD, ground, 0.0f, UI_FACILITY_MODEL_SCALE, UI_SCAFFOLD_RGBA);
-            render_push_mesh(rc, mesh, ground, 0.0f, UI_FACILITY_BUILDING_SCALE, ui_rgba_dim(rgba, 0.55f));
+            render_push_facility(rc, mesh, model, 0, ground, 0.0f, UI_FACILITY_BUILDING_SCALE, ui_rgba_dim(rgba, 0.55f));
         }
         else
         {
-            render_push_mesh(rc, mesh, ground, 0.0f, UI_FACILITY_MODEL_SCALE, rgba);
+            render_push_facility(rc, mesh, model, 0, ground, 0.0f, UI_FACILITY_MODEL_SCALE, rgba);
         }
     }
 }

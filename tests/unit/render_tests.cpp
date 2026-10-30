@@ -159,30 +159,45 @@ unit_render_tests(test_counts *counts)
         TEST_CHECK(counts, shape_model.scale == market.scale && shape_model.position.x == 1.0f && shape_model.position.z == 2.0f &&
                            shape_model.yaw == 0.5f && shape_model.tint == market.tint && near_f32(render_model_instance(&big).scale, 5.0f * 1.5f, 1e-5f),
                    "the model of a shape keeps the instance of the shape, and the model of a base covers the base");
-        TEST_CHECK(counts, render_mesh_model_files[RENDER_MESH_STALL][0] && render_mesh_model_files[RENDER_MESH_FIELD][0] &&
-                           !render_mesh_model_files[RENDER_MESH_SETTLEMENT][0] && !render_mesh_model_files[RENDER_MESH_SCAFFOLD][0] &&
-                           !render_mesh_model_files[RENDER_MESH_GATE][0] && !render_mesh_model_files[RENDER_MESH_PORT][0],
-                   "the market and the farm shapes name a model, and the shapes of the bases and the scaffold name none");
-        TEST_CHECK(counts, render_mesh_model_files[RENDER_MESH_STALL][1] && render_mesh_model_files[RENDER_MESH_STALL][2] &&
-                           render_mesh_model_files[RENDER_MESH_FIELD][1] && render_mesh_model_files[RENDER_MESH_FIELD][2],
+        TEST_CHECK(counts, render_model_files[RENDER_MESH_STALL][0] && render_model_files[RENDER_MESH_FIELD][0] &&
+                           !render_model_files[RENDER_MESH_SETTLEMENT][0] &&
+                           !render_model_files[RENDER_MESH_GATE][0] && !render_model_files[RENDER_MESH_PORT][0],
+                   "the market and the farm shapes name a model, and the shapes of the bases name none");
+        TEST_CHECK(counts, render_model_files[RENDER_MESH_SCAFFOLD][0] && render_model_files[RENDER_MESH_SCAFFOLD][1] &&
+                           render_model_files[RENDER_MESH_SCAFFOLD][2],
+                   "the scaffold names a small, a medium and a large model");
+        TEST_CHECK(counts, render_model_files[RENDER_MESH_STAGE][0] && render_model_files[RENDER_MESH_WALL][0] &&
+                           render_model_files[RENDER_MESH_STONES][0] && render_model_files[RENDER_MESH_TRAP][0],
+                   "the shapes of the field buildings name a model for level 1");
+        {
+            b32 kinds_named = true;
+            for (u32 model_id = RENDER_MESH_COUNT; model_id < RENDER_MODEL_COUNT; ++model_id)
+            {
+                kinds_named &= render_model_files[model_id][0] != 0 && render_model_files[model_id][1] == 0;
+            }
+            TEST_CHECK(counts, kinds_named && RENDER_MODEL_ROCKFALL == RENDER_MODEL_COUNT - 1,
+                       "each kind with its own model names one model for level 1");
+        }
+        TEST_CHECK(counts, render_model_files[RENDER_MESH_STALL][1] && render_model_files[RENDER_MESH_STALL][2] &&
+                           render_model_files[RENDER_MESH_FIELD][1] && render_model_files[RENDER_MESH_FIELD][2],
                    "the market and the farm shapes name a model for the levels 2 and 3");
-        TEST_CHECK(counts, render_mesh_model_files[RENDER_MESH_HALL][0] && render_mesh_model_files[RENDER_MESH_HALL][1] &&
-                           render_mesh_model_files[RENDER_MESH_HALL][2],
+        TEST_CHECK(counts, render_model_files[RENDER_MESH_HALL][0] && render_model_files[RENDER_MESH_HALL][1] &&
+                           render_model_files[RENDER_MESH_HALL][2],
                    "the hall shape names a model for the levels 1 to 3");
-        TEST_CHECK(counts, render_mesh_model_files[RENDER_MESH_FORGE][0] && render_mesh_model_files[RENDER_MESH_FORGE][1] &&
-                           render_mesh_model_files[RENDER_MESH_FORGE][2] && render_mesh_model_files[RENDER_MESH_SHED][0] &&
-                           render_mesh_model_files[RENDER_MESH_SHED][1] && render_mesh_model_files[RENDER_MESH_SHED][2],
+        TEST_CHECK(counts, render_model_files[RENDER_MESH_FORGE][0] && render_model_files[RENDER_MESH_FORGE][1] &&
+                           render_model_files[RENDER_MESH_FORGE][2] && render_model_files[RENDER_MESH_SHED][0] &&
+                           render_model_files[RENDER_MESH_SHED][1] && render_model_files[RENDER_MESH_SHED][2],
                    "the forge and the shed shapes name a model for the levels 1 to 3");
-        TEST_CHECK(counts, render_mesh_model_files[RENDER_MESH_TOWER][0] && !render_mesh_model_files[RENDER_MESH_TOWER][1],
+        TEST_CHECK(counts, render_model_files[RENDER_MESH_TOWER][0] && !render_model_files[RENDER_MESH_TOWER][1],
                    "the tower shape names a model for level 1: the bronze sparrow tower");
-        TEST_CHECK(counts, render_mesh_model_files[RENDER_MESH_DOCK][0] && !render_mesh_model_files[RENDER_MESH_DOCK][1],
+        TEST_CHECK(counts, render_model_files[RENDER_MESH_DOCK][0] && !render_model_files[RENDER_MESH_DOCK][1],
                    "the dock shape names a model for level 1: the shipyard");
-        TEST_CHECK(counts, render_mesh_model_files[RENDER_MESH_SILO][0] && !render_mesh_model_files[RENDER_MESH_SILO][1] &&
-                           render_mesh_model_files[RENDER_MESH_OFFICE][0] && !render_mesh_model_files[RENDER_MESH_OFFICE][1],
+        TEST_CHECK(counts, render_model_files[RENDER_MESH_SILO][0] && !render_model_files[RENDER_MESH_SILO][1] &&
+                           render_model_files[RENDER_MESH_OFFICE][0] && !render_model_files[RENDER_MESH_OFFICE][1],
                    "the silo and the office shapes name a model for level 1: the granary and the tally office");
-        TEST_CHECK(counts, render_mesh_model_files[RENDER_MESH_CAMP][0] && !render_mesh_model_files[RENDER_MESH_CAMP][1] &&
-                           render_mesh_model_files[RENDER_MESH_WATCHTOWER][0] && !render_mesh_model_files[RENDER_MESH_WATCHTOWER][1] &&
-                           !render_mesh_model_files[RENDER_MESH_GATE][0] && !render_mesh_model_files[RENDER_MESH_PORT][0],
+        TEST_CHECK(counts, render_model_files[RENDER_MESH_CAMP][0] && !render_model_files[RENDER_MESH_CAMP][1] &&
+                           render_model_files[RENDER_MESH_WATCHTOWER][0] && !render_model_files[RENDER_MESH_WATCHTOWER][1] &&
+                           !render_model_files[RENDER_MESH_GATE][0] && !render_model_files[RENDER_MESH_PORT][0],
                    "the camp and the watchtower shapes name a model for level 1, and the pass and the port shapes name none");
         TEST_CHECK(counts, render_model_level_index(0) == 0 && render_model_level_index(1) == 0 && render_model_level_index(2) == 1 &&
                            render_model_level_index(3) == 2 && render_model_level_index(9) == RENDER_MODEL_LEVELS - 1,
@@ -190,12 +205,13 @@ unit_render_tests(test_counts *counts)
         {
             memory_arena level_frame = test_arena_create(Megabytes(1));
             render_commands *level_rc = render_commands_begin(&level_frame, vw, vh);
-            render_push_facility(level_rc, RENDER_MESH_STALL, 3, v3_make(1, 0, 1), 0.0f, 1.6f, 0xFFFFFFFFu);
+            render_push_facility(level_rc, RENDER_MESH_STALL, RENDER_MODEL_GREAT_MARKET, 3, v3_make(1, 0, 1), 0.0f, 1.6f, 0xFFFFFFFFu);
             render_push_mesh(level_rc, RENDER_MESH_HALL, v3_make(2, 0, 1), 0.0f, 1.0f, 0xFFFFFFFFu);
             TEST_CHECK(counts, level_rc->mesh_instance_count == 2 && level_rc->mesh_instances[0].level == 3 &&
                                level_rc->mesh_instances[0].mesh_id == RENDER_MESH_STALL && level_rc->mesh_instances[0].art_sprite == RENDER_NO_ART &&
-                               level_rc->mesh_instances[1].level == 0,
-                       "a facility keeps its level for its model, and a plain mesh has no level");
+                               level_rc->mesh_instances[0].model == RENDER_MODEL_GREAT_MARKET &&
+                               level_rc->mesh_instances[1].level == 0 && level_rc->mesh_instances[1].model == RENDER_MESH_HALL,
+                       "a facility keeps its level and the model of its kind, and a plain mesh has no level and the model of its shape");
             test_arena_destroy(&level_frame);
         }
         camera near_cam = camera_default(10.0f, 10.0f);

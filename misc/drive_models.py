@@ -55,8 +55,9 @@ MODEL_SOURCE = "Meshy (free plan)"
 MODEL_LICENCE = 'CC BY 4.0, credit "Meshy"'
 
 # The start of the file name and the model name. The first match counts.
-# The names agree with render_base_model_files and render_mesh_model_files
+# The names agree with render_base_model_files and render_model_files
 # in code/render/render.h. A market of level 2 or 3 has its own model.
+# temple and ruin have no kind in the game, so they have no rule.
 MODEL_NAMES = [
     ("big-city", "base_big_city"),
     ("city", "base_city"),
@@ -83,6 +84,38 @@ MODEL_NAMES = [
     ("tally-office", "facility_tally_office"),
     ("camp", "facility_camp"),
     ("arrow-tower", "facility_arrow_tower"),
+    ("scaffold-small", "facility_scaffold"),
+    ("scaffold-medium", "facility_scaffold_lv2"),
+    ("scaffold-large", "facility_scaffold_lv3"),
+    ("workshop", "facility_workshop"),
+    ("mint", "facility_mint"),
+    ("personnel-office", "facility_personnel_office"),
+    ("plot-office", "facility_plot_office"),
+    ("great-market", "facility_great_market"),
+    ("black-market", "facility_black_market"),
+    ("diplomacy-office", "facility_diplomacy_office"),
+    ("military-office", "facility_military_office"),
+    ("drill-ground", "facility_drill_ground"),
+    ("fish-market", "facility_fish_market"),
+    ("military-farm", "facility_military_farm"),
+    ("fort", "building_fort"),
+    ("citadel", "building_citadel"),
+    ("repeating-crossbow-tower", "building_repeating_tower"),
+    ("catapult-platform", "building_catapult_tower"),
+    ("drum-tower", "building_drum_tower"),
+    ("music-tower", "building_music_tower"),
+    ("stone-maze", "building_stone_maze"),
+    ("earth-wall", "building_earth_wall"),
+    ("stone-wall", "building_stone_wall"),
+    ("dike", "building_dike"),
+    ("fire-seed", "building_fire_seed"),
+    ("flame-seed", "building_fire_seed_2"),
+    ("inferno-seed", "building_fire_seed_3"),
+    ("fire-ball", "building_fire_ball"),
+    ("flame-ball", "building_fire_ball_2"),
+    ("inferno-ball", "building_fire_ball_3"),
+    ("fire-ship", "building_fire_ship"),
+    ("rockfall", "building_rockfall"),
 ]
 
 ENTRY = re.compile(r'<div class="flip-entry" id="entry-([^"]+)".*?<div class="flip-entry-title">([^<]*)</div>', re.S)
