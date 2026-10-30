@@ -1,93 +1,94 @@
-id	kind	key	name_zh	name_en	lat	lon	slots	specialty	owner
+id	kind	key	name_zh	name_en	lat	lon	slots	specialty	owner	across
 # The sites of the map of the Eastern Han in 196: 42 cities (id 0 to 41), 10 passes (42 to 51) and 35 ports (52 to 86), the same counts as the placeholder pack.
-# The cities are the seats of commanderies and of states of the Han. The pack chose the 42 seats from the history of 196. The list does not come from another game.
+# Most cities are the seats of commanderies and of states of the Han. The pack chose the 42 cities from the novel Romance of the Three Kingdoms, with the places of its major battles first. Liucheng, Hefei and Jianye are not seats in 196, but the novel tells of their battles. The list does not come from another game.
 # lat and lon: degrees, WGS84. The positions are the sites of the Han towns or of the modern cities on those sites. These facts are common knowledge. Wikidata (CC0) has the same values.
 # slots: the number of development slots that the tool tries to place. specialty: the specialty of cities.tsv. Passes and ports use -.
 # owner: the city id of a pass or a port. - = the nearest city.
-0	city	xiangping	襄平	Xiangping	41.27	123.17	12	horse	-
-1	city	ji	薊	Ji	39.90	116.40	14	horse	-
-2	city	dai	代	Dai	39.83	114.57	10	horse	-
-3	city	nanpi	南皮	Nanpi	38.03	116.70	13	halberd	-
-4	city	ye	鄴	Ye	36.32	114.38	20	big_city	-
-5	city	jinyang	晉陽	Jinyang	37.80	112.50	14	horse	-
-6	city	shangdang	上黨	Shangdang	36.12	112.87	10	halberd	-
-7	city	hedong	河東	Hedong	35.07	111.03	12	pike	-
-8	city	pingyuan	平原	Pingyuan	37.17	116.43	12	pike	-
-9	city	jinan	濟南	Jinan	36.73	117.27	12	pike	-
-10	city	beihai	北海	Beihai	36.75	118.80	13	navy	-
-11	city	puyang	濮陽	Puyang	35.76	115.03	13	halberd	-
-12	city	chenliu	陳留	Chenliu	34.80	114.55	14	crossbow	-
-13	city	xu	許	Xu	34.04	113.83	16	crossbow	-
-14	city	luoyang	洛陽	Luoyang	34.68	112.62	18	big_city	-
-15	city	changan	長安	Chang'an	34.27	108.94	20	big_city	-
-16	city	hanyang	漢陽	Hanyang	34.75	105.33	12	horse	-
-17	city	jincheng	金城	Jincheng	36.06	103.83	10	horse	-
-18	city	wuwei	武威	Wuwei	37.93	102.64	12	horse	-
-19	city	hanzhong	漢中	Hanzhong	33.07	107.03	14	halberd	-
-20	city	zitong	梓潼	Zitong	31.64	105.17	10	crossbow	-
-21	city	chengdu	成都	Chengdu	30.66	104.07	20	big_city	-
-22	city	jiangzhou	江州	Jiangzhou	29.56	106.55	13	navy	-
-23	city	yufu	魚復	Yufu	31.03	109.50	10	navy	-
-24	city	wan	宛	Wan	33.00	112.53	15	pike	-
-25	city	xiangyang	襄陽	Xiangyang	32.01	112.12	16	navy	-
-26	city	jiangling	江陵	Jiangling	30.35	112.19	15	navy	-
-27	city	wuling	武陵	Wuling	29.03	111.69	10	crossbow	-
-28	city	changsha	長沙	Changsha	28.20	112.97	14	pike	-
-29	city	lingling	零陵	Lingling	26.42	111.60	10	crossbow	-
-30	city	guiyang	桂陽	Guiyang	25.77	113.03	10	halberd	-
-31	city	runan	汝南	Runan	32.96	114.63	13	halberd	-
-32	city	shouchun	壽春	Shouchun	32.58	116.79	16	crossbow	-
-33	city	xiapi	下邳	Xiapi	34.30	117.95	14	horse	-
-34	city	xiaopei	小沛	Xiaopei	34.73	116.93	10	pike	-
-35	city	guangling	廣陵	Guangling	32.39	119.43	12	navy	-
-36	city	danyang	丹陽	Danyang	30.95	118.75	14	navy	-
-37	city	wu	吳	Wu	31.30	120.62	15	navy	-
-38	city	kuaiji	會稽	Kuaiji	30.00	120.58	13	navy	-
-39	city	lujiang	廬江	Lujiang	31.05	116.95	12	crossbow	-
-40	city	yuzhang	豫章	Yuzhang	28.68	115.89	13	navy	-
-41	city	panyu	番禺	Panyu	23.13	113.26	12	navy	-
-42	pass	juyong	居庸關	Juyong Pass	40.29	116.07	-	-	-
-43	pass	jingxing	井陘關	Jingxing Pass	38.05	114.10	-	-	-
-44	pass	tianjing	天井關	Tianjing Pass	35.52	112.90	-	-	-
-45	pass	hulao	虎牢關	Hulao Pass	34.83	113.20	-	-	-
-46	pass	tongguan	潼關	Tong Pass	34.60	110.25	-	-	-
-47	pass	wuguan	武關	Wu Pass	33.60	110.60	-	-	-
-48	pass	sanguan	散關	San Pass	34.25	107.00	-	-	-
-49	pass	yangping	陽平關	Yangping Pass	33.15	106.67	-	-	-
-50	pass	jiange	劍閣	Jiange	32.20	105.55	-	-	-
-51	pass	minge	冥阨關	Ming'e Pass	31.85	114.05	-	-	-
-52	port	tashi	沓氏	Tashi	39.00	121.60	-	-	0
-53	port	yongnu	雍奴	Yongnu	39.10	117.70	-	-	-
-54	port	zhangwu	章武	Zhangwu	38.30	117.70	-	-	-
-55	port	donglai	東萊	Donglai	37.65	120.30	-	-	-
-56	port	langya	琅邪	Langya	35.60	119.70	-	-	-
-57	port	yuzhou	郁洲	Yuzhou	34.65	119.40	-	-	-
-58	port	yandu	鹽瀆	Yandu	33.40	120.30	-	-	-
-59	port	dantu	丹徒	Dantu	32.20	119.45	-	-	-
-60	port	haiyan	海鹽	Haiyan	30.55	120.95	-	-	-
-61	port	juzhang	句章	Juzhang	29.95	121.60	-	-	-
-62	port	dongye	東冶	Dongye	26.05	119.40	-	-	-
-63	port	jieyang	揭陽	Jieyang	23.45	116.60	-	-	-
-64	port	hepu	合浦	Hepu	21.60	109.20	-	-	-
-65	port	baima	白馬津	Baima Ford	35.65	114.60	-	-	-
-66	port	mengjin	孟津	Mengjin	34.85	112.60	-	-	-
-67	port	yanjin	延津	Yanjin	35.15	114.20	-	-	-
-68	port	pingyuanjin	平原津	Pingyuan Ford	36.90	116.50	-	-	-
-69	port	puban	蒲阪津	Puban Ford	34.85	110.35	-	-	-
-70	port	ruxu	濡須口	Ruxu	31.10	117.90	-	-	-
-71	port	fancheng	樊城	Fancheng	32.08	112.15	-	-	25
-72	port	xiakou	夏口	Xiakou	30.57	114.28	-	-	-
-73	port	hanjin	漢津	Hanjin	30.95	113.10	-	-	-
-74	port	lukou	陸口	Lukou	29.75	113.75	-	-	-
-75	port	baqiu	巴丘	Baqiu	29.37	113.10	-	-	-
-76	port	gongan	公安	Gong'an	30.05	112.20	-	-	26
-77	port	yiling	夷陵	Yiling	30.70	111.30	-	-	-
-78	port	zigui	秭歸	Zigui	30.83	110.98	-	-	-
-79	port	fuling	涪陵	Fuling	29.70	107.40	-	-	-
-80	port	jiangyang	江陽	Jiangyang	28.88	105.43	-	-	-
-81	port	qichun	蘄春	Qichun	30.25	115.43	-	-	-
-82	port	xunyang	尋陽	Xunyang	29.75	116.00	-	-	-
-83	port	wankou	皖口	Wankou	30.50	117.05	-	-	-
-84	port	niuzhu	牛渚	Niuzhu	31.60	118.50	-	-	-
-85	port	huaiyin	淮陰	Huaiyin	33.60	119.00	-	-	-
-86	port	zhongli	鍾離	Zhongli	32.92	117.55	-	-	-
+# across: the city id on the other side of a pass. The gate guards the owner city against it. - = the nearest city behind the gate.
+0	city	xiangping	襄平	Xiangping	41.27	123.17	12	horse	-	-
+1	city	beiping	北平	Beiping	39.90	116.40	14	horse	-	-
+2	city	liucheng	柳城	Liucheng	41.57	120.45	10	horse	-	-
+3	city	nanpi	南皮	Nanpi	38.03	116.70	13	halberd	-	-
+4	city	ye	鄴	Ye	36.32	114.38	20	big_city	-	-
+5	city	jinyang	晉陽	Jinyang	37.80	112.50	14	horse	-	-
+6	city	shangdang	上黨	Shangdang	36.12	112.87	10	halberd	-	-
+7	city	hedong	河東	Hedong	35.07	111.03	12	pike	-	-
+8	city	pingyuan	平原	Pingyuan	37.17	116.43	12	pike	-	-
+9	city	jinan	濟南	Jinan	36.73	117.27	12	pike	-	-
+10	city	beihai	北海	Beihai	36.75	118.80	13	navy	-	-
+11	city	puyang	濮陽	Puyang	35.76	115.03	13	halberd	-	-
+12	city	chenliu	陳留	Chenliu	34.80	114.55	14	crossbow	-	-
+13	city	xuchang	許昌	Xuchang	34.04	113.83	16	crossbow	-	-
+14	city	luoyang	洛陽	Luoyang	34.68	112.62	18	big_city	-	-
+15	city	changan	長安	Chang'an	34.27	108.94	20	big_city	-	-
+16	city	tianshui	天水	Tianshui	34.75	105.33	12	horse	-	-
+17	city	jincheng	金城	Jincheng	36.06	103.83	10	horse	-	-
+18	city	wuwei	武威	Wuwei	37.93	102.64	12	horse	-	-
+19	city	hanzhong	漢中	Hanzhong	33.07	107.03	14	halberd	-	-
+20	city	zitong	梓潼	Zitong	31.64	105.17	10	crossbow	-	-
+21	city	chengdu	成都	Chengdu	30.66	104.07	20	big_city	-	-
+22	city	jiangzhou	江州	Jiangzhou	29.56	106.55	13	navy	-	-
+23	city	baidi	白帝	Baidi	31.03	109.50	10	navy	-	-
+24	city	wancheng	宛城	Wancheng	33.00	112.53	15	pike	-	-
+25	city	xiangyang	襄陽	Xiangyang	32.01	112.12	16	navy	-	-
+26	city	jiangling	江陵	Jiangling	30.35	112.19	15	navy	-	-
+27	city	wuling	武陵	Wuling	29.03	111.69	10	crossbow	-	-
+28	city	changsha	長沙	Changsha	28.20	112.97	14	pike	-	-
+29	city	lingling	零陵	Lingling	26.42	111.60	10	crossbow	-	-
+30	city	guiyang	桂陽	Guiyang	25.77	113.03	10	halberd	-	-
+31	city	runan	汝南	Runan	32.96	114.63	13	halberd	-	-
+32	city	shouchun	壽春	Shouchun	32.58	116.79	16	crossbow	-	-
+33	city	xiapi	下邳	Xiapi	34.30	117.95	14	horse	-	-
+34	city	xiaopei	小沛	Xiaopei	34.73	116.93	10	pike	-	-
+35	city	guangling	廣陵	Guangling	32.39	119.43	12	navy	-	-
+36	city	jianye	建業	Jianye	32.05	118.78	14	navy	-	-
+37	city	wujun	吳郡	Wujun	31.30	120.62	15	navy	-	-
+38	city	kuaiji	會稽	Kuaiji	30.00	120.58	13	navy	-	-
+39	city	hefei	合肥	Hefei	31.82	117.23	12	crossbow	-	-
+40	city	yuzhang	豫章	Yuzhang	28.68	115.89	13	navy	-	-
+41	city	nanhai	南海	Nanhai	23.13	113.26	12	navy	-	-
+42	pass	lulong	盧龍塞	Lulong Fort	40.15	119.10	-	-	1	2
+43	pass	huguan	壺關	Hu Pass	36.11	113.21	-	-	6	4
+44	pass	qishan	祁山	Qishan	34.05	105.30	-	-	16	19
+45	pass	hulao	虎牢關	Hulao Pass	34.83	113.20	-	-	14	12
+46	pass	tongguan	潼關	Tong Pass	34.60	110.25	-	-	15	14
+47	pass	wuguan	武關	Wu Pass	33.60	110.60	-	-	15	24
+48	pass	chencang	陳倉	Chencang	34.20	107.10	-	-	15	19
+49	pass	yangping	陽平關	Yangping Pass	33.15	106.67	-	-	19	20
+50	pass	jiange	劍閣	Jiange	32.20	105.55	-	-	20	19
+51	pass	jieting	街亭	Jieting	34.70	106.20	-	-	16	15
+52	port	liaodong	遼東	Liaodong	39.00	121.60	-	-	0	-
+53	port	yuyang	漁陽	Yuyang	39.10	117.70	-	-	-	-
+54	port	bohai	渤海	Bohai	38.30	117.70	-	-	-	-
+55	port	donglai	東萊	Donglai	37.65	120.30	-	-	-	-
+56	port	langya	琅邪	Langya	35.60	119.70	-	-	-	-
+57	port	donghai	東海	Donghai	34.65	119.40	-	-	-	-
+58	port	yandu	鹽瀆	Yandu	33.40	120.30	-	-	-	-
+59	port	jingkou	京口	Jingkou	32.20	119.45	-	-	-	-
+60	port	qiantang	錢唐	Qiantang	30.27	120.17	-	-	-	-
+61	port	juzhang	句章	Juzhang	29.95	121.60	-	-	-	-
+62	port	dongye	東冶	Dongye	26.05	119.40	-	-	-	-
+63	port	jieyang	揭陽	Jieyang	23.45	116.60	-	-	-	-
+64	port	hengjiang	橫江	Hengjiang	31.80	118.30	-	-	-	-
+65	port	baima	白馬津	Baima Ford	35.50	114.65	-	-	-	-
+66	port	mengjin	孟津	Mengjin	34.85	112.60	-	-	-	-
+67	port	yanjin	延津	Yanjin	35.15	114.20	-	-	-	-
+68	port	cangting	倉亭	Cangting	36.03	115.75	-	-	-	-
+69	port	puban	蒲阪津	Puban Ford	34.85	110.35	-	-	-	-
+70	port	ruxu	濡須口	Ruxu	31.10	117.90	-	-	-	-
+71	port	fancheng	樊城	Fancheng	32.08	112.15	-	-	25	-
+72	port	xiakou	夏口	Xiakou	30.57	114.28	-	-	-	-
+73	port	hanjin	漢津	Hanjin	30.95	113.10	-	-	-	-
+74	port	chibi	赤壁	Chibi	29.80	113.55	-	-	-	-
+75	port	baqiu	巴丘	Baqiu	29.37	113.10	-	-	-	-
+76	port	gongan	公安	Gong'an	30.05	112.20	-	-	26	-
+77	port	yiling	夷陵	Yiling	30.70	111.30	-	-	-	-
+78	port	zigui	秭歸	Zigui	30.83	110.98	-	-	-	-
+79	port	wulin	烏林	Wulin	30.10	113.40	-	-	-	-
+80	port	huarong	華容	Huarong	29.82	112.90	-	-	-	-
+81	port	poyang	鄱陽	Poyang	29.00	116.68	-	-	-	-
+82	port	chaisang	柴桑	Chaisang	29.72	115.98	-	-	-	-
+83	port	wankou	皖口	Wankou	30.50	117.05	-	-	-	-
+84	port	niuzhu	牛渚	Niuzhu	31.60	118.50	-	-	-	-
+85	port	liyang	黎陽	Liyang	35.85	114.50	-	-	-	-
+86	port	lukou	陸口	Lukou	29.62	113.92	-	-	-	-

@@ -3,8 +3,8 @@ id	owner	governor	troops	gold	food	spears	halberds	crossbows	horses	durability	n
 # troops, gold, food and the four weapon stocks are a design of the pack. They follow the scale of the other packs: 6000 to 40000 soldiers, 1000 to 7000 gold.
 # durability: the maximum durability of the walls. note: for the reader; the engine does not read it.
 0	3	42	18000	3000	40000	2000	1000	1000	5000	6000	Xiangping, Gongsun Du
-1	2	38	26000	3000	45000	2000	2000	2000	8000	7000	Ji, Gongsun Zan
-2	-	-	0	800	8000	0	0	0	0	4000	Dai, the Wuhuan border, no owner
+1	2	38	26000	3000	45000	2000	2000	2000	8000	7000	Beiping (Ji), Gongsun Zan
+2	-	-	0	800	8000	0	0	0	0	4000	Liucheng, the Wuhuan, no owner
 3	1	33	16000	3000	40000	3000	2000	3000	2000	6000	Nanpi, Yuan Shao
 4	1	19	40000	7000	90000	5000	5000	4000	4000	9000	Ye, the seat of Yuan Shao
 5	-	-	0	1000	10000	0	0	0	0	5000	Jinyang, Bing province, no owner
@@ -15,18 +15,18 @@ id	owner	governor	troops	gold	food	spears	halberds	crossbows	horses	durability	n
 10	1	20	14000	3000	32000	2000	2000	1000	0	5000	Beihai, Yuan Tan took it in 196
 11	0	1	16000	3000	35000	3000	2000	2000	1000	6000	Puyang, Cao Cao
 12	0	2	14000	3000	35000	2000	2000	2000	1000	6000	Chenliu, Cao Cao
-13	0	0	30000	6000	70000	4000	3000	4000	2000	8000	Xu, the new capital of Emperor Xian
+13	0	0	30000	6000	70000	4000	3000	4000	2000	8000	Xuchang, the new capital of Emperor Xian
 14	0	16	6000	1000	10000	1000	0	1000	0	6000	Luoyang, ruined in 190
 15	14	130	22000	3000	30000	2000	3000	2000	4000	8000	Chang'an, Li Jue
-16	15	133	20000	2500	30000	2000	1000	1000	7000	6000	Hanyang, Ma Teng
+16	15	133	20000	2500	30000	2000	1000	1000	7000	6000	Tianshui, Ma Teng
 17	16	138	18000	2000	25000	1000	1000	1000	6000	5000	Jincheng, Han Sui
 18	15	137	12000	1500	20000	1000	1000	0	5000	5000	Wuwei, Ma Teng
 19	13	124	20000	4000	50000	3000	2000	2000	1000	7000	Hanzhong, Zhang Lu
 20	12	119	12000	2000	30000	2000	1000	2000	0	6000	Zitong, Liu Zhang
 21	12	112	32000	7000	90000	4000	3000	4000	1000	8000	Chengdu, Liu Zhang
 22	12	121	15000	3000	40000	2000	1000	2000	0	6000	Jiangzhou, Liu Zhang
-23	12	122	10000	2000	25000	1000	1000	1000	0	5000	Yufu, Liu Zhang
-24	11	109	16000	2500	30000	2000	2000	1000	3000	6000	Wan, Zhang Xiu
+23	12	122	10000	2000	25000	1000	1000	1000	0	5000	Baidi (Yufu), Liu Zhang
+24	11	109	16000	2500	30000	2000	2000	1000	3000	6000	Wancheng, Zhang Xiu
 25	10	97	30000	6000	80000	4000	3000	4000	1000	8000	Xiangyang, Liu Biao
 26	10	102	18000	4000	50000	2000	2000	3000	0	7000	Jiangling, Liu Biao
 27	10	-	8000	1500	20000	1000	1000	1000	0	4000	Wuling, Liu Biao
@@ -38,9 +38,9 @@ id	owner	governor	troops	gold	food	spears	halberds	crossbows	horses	durability	n
 33	4	46	24000	4000	40000	2000	2000	2000	6000	7000	Xiapi, Lü Bu took it in 196
 34	5	56	6000	1000	12000	1000	1000	0	500	4000	Xiaopei, Liu Bei
 35	4	54	12000	3000	35000	1000	1000	2000	0	5000	Guangling, Chen Deng for Lü Bu
-36	7	77	14000	2500	35000	2000	1000	2000	0	6000	Danyang, Sun Ce
-37	7	74	20000	4000	50000	2000	2000	3000	0	7000	Wu, Sun Ce
+36	7	77	14000	2500	35000	2000	1000	2000	0	6000	Jianye (Moling), Sun Ce
+37	7	74	20000	4000	50000	2000	2000	3000	0	7000	Wujun, Sun Ce
 38	8	91	12000	3000	40000	1000	1000	2000	0	6000	Kuaiji, Wang Lang
-39	6	71	12000	3000	35000	1000	1000	2000	0	6000	Lujiang, Liu Xun for Yuan Shu
+39	6	71	12000	3000	35000	1000	1000	2000	0	6000	Hefei, Liu Xun for Yuan Shu
 40	9	94	10000	2000	30000	1000	1000	1000	0	5000	Yuzhang, Liu Yao
-41	19	147	14000	4000	40000	2000	1000	2000	0	6000	Panyu, Shi Xie
+41	19	147	14000	4000	40000	2000	1000	2000	0	6000	Nanhai (Panyu), Shi Xie

@@ -6,7 +6,7 @@ id	key	name_zh	kind	owner_city	durability	status	name_big5
 44	st_bernard	聖伯納德關	pass	24	4000	assumed	B874A742AFC7BC77C3F6
 45	despenaperros	德斯佩尼亞佩羅斯關	pass	2	4000	assumed	BC77B4B5A8D8A5A7A8C8A8D8C3B9B4B5C3F6
 46	brenner	布倫納關	pass	23	4000	assumed	A5ACADDBAFC7C3F6
-47	trajan_gate	圖拉真門	pass	19	4000	assumed	B9CFA9D4AF75AAF9
+47	trajan_gate	圖拉真門	pass	17	4000	assumed	B9CFA9D4AF75AAF9
 48	thermopylae	溫泉關	pass	18	4000	assumed	B7C5AC75C3F6
 49	cilician_gates	奇里乞亞門	pass	16	4000	assumed	A95FA8BDA45EA8C8AAF9
 50	tichka	提契卡關	pass	6	4000	assumed	B4A3ABB4A564C3F6
@@ -39,7 +39,7 @@ id	key	name_zh	kind	owner_city	durability	status	name_big5
 77	acre	阿卡港	port	14	2000	assumed	AAFCA564B4E4
 78	damietta	杜姆亞特港	port	12	2000	assumed	A7F9A969A8C8AF53B4E4
 79	antalya	安塔利亞港	port	16	2000	assumed	A677B6F0A751A8C8B4E4
-80	varna	瓦爾納港	port	19	2000	assumed	A5CBBAB8AFC7B4E4
+80	varna	瓦爾納港	port	15	2000	assumed	A5CBBAB8AFC7B4E4
 81	montpellier	蒙彼利埃港	port	28	2000	assumed	BB58A9BCA751AE4AB4E4
 82	la_rochelle	拉羅謝爾港	port	26	2000	assumed	A9D4C3B9C1C2BAB8B4E4
 83	rouen	盧昂港	port	25	2000	assumed	BF63A9F9B4E4

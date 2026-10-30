@@ -1,27 +1,28 @@
 id	key	specialty	slots	port	name_zh	price	name_big5
 # Written by misc/make_world_map.py from map/source/sites.tsv. slots: the slots that the tool placed on the map.
+# port: yes for a city that owns a port or that is on the water. The city can build ships.
 # price: 5 for each city, the middle of the range 3 to 7 (the placeholder pack, Q-155).
 # name_big5: the Big5 bytes of name_zh in hex. The scenario of the pack names the cities with it (docs/MAPS.md, W2).
 # key: the English key of the city. The names of the front end use it (docs/EUROPE.md, E2).
 0	tunis	pike	15	yes	突尼斯	5	ACF0A5A7B4B5
-1	tripoli	horse	11	no	的黎波里	5	AABABEA4AA69A8BD
+1	tripoli	horse	11	yes	的黎波里	5	AABABEA4AA69A8BD
 2	barqa	horse	10	yes	巴爾卡	5	A4DABAB8A564
-3	alexandria	navy	10	no	亞歷山卓	5	A8C8BEFAA473A8F4
+3	alexandria	navy	10	yes	亞歷山卓	5	A8C8BEFAA473A8F4
 4	cairo	big_city	22	yes	開羅	5	B67DC3B9
 5	jerusalem	pike	15	yes	耶路撒冷	5	AD43B8F4BCBBA74E
-6	constantinople	big_city	11	no	君士坦丁堡	5	A767A468A95AA442B3F9
+6	constantinople	big_city	11	yes	君士坦丁堡	5	A767A468A95AA442B3F9
 7	konya	horse	15	yes	科尼亞	5	ACECA5A7A8C8
 8	thessalonica	navy	15	yes	帖撒羅尼迦	5	A9ABBCBBC3B9A5A7AD7B
 9	athens	pike	12	yes	雅典	5	B6AEA8E5
 10	tarnovo	horse	12	yes	特爾諾沃	5	AF53BAB8BFD5A855
 11	rome	halberd	18	yes	羅馬	5	C3B9B0A8
-12	naples	crossbow	12	no	拿坡里	5	AEB3A959A8BD
+12	naples	crossbow	12	yes	拿坡里	5	AEB3A959A8BD
 13	palermo	crossbow	12	yes	巴勒莫	5	A4DAB0C7B2F6
-14	venice	navy	18	no	威尼斯	5	ABC2A5A7B4B5
+14	venice	navy	18	yes	威尼斯	5	ABC2A5A7B4B5
 15	milan	pike	18	no	米蘭	5	A6CCC4F5
 16	vienna	halberd	15	no	維也納	5	BAFBA45DAFC7
 17	esztergom	horse	15	no	埃斯泰爾戈姆	5	AE4AB4B5AEF5BAB8A4E0A969
-18	genoa	navy	15	no	熱那亞	5	BCF6A8BAA8C8
+18	genoa	navy	15	yes	熱那亞	5	BCF6A8BAA8C8
 19	tbilisi	horse	12	no	第比利斯	5	B2C4A4F1A751B4B5
 20	florence	crossbow	12	yes	佛羅倫斯	5	A6F2C3B9ADDBB4B5
 21	bari	navy	12	yes	巴里	5	A4DAA8BD
@@ -35,7 +36,7 @@ id	key	specialty	slots	port	name_zh	price	name_big5
 29	kayseri	horse	12	no	開塞利	5	B67DB6EBA751
 30	sivas	horse	10	yes	錫瓦斯	5	BFFCA5CBB4B5
 31	ankara	horse	10	no	安卡拉	5	A677A564A9D4
-32	trebizond	navy	11	no	特拉布宗	5	AF53A9D4A5ACA976
+32	trebizond	navy	12	yes	特拉布宗	5	AF53A9D4A5ACA976
 33	sis	pike	10	yes	錫斯	5	BFFCB4B5
 34	antioch	siege	15	yes	安條克	5	A677B1F8A74A
 35	aleppo	crossbow	18	no	阿勒坡	5	AAFCB0C7A959
@@ -43,5 +44,5 @@ id	key	specialty	slots	port	name_zh	price	name_big5
 37	mosul	horse	15	no	摩蘇爾	5	BCAFC4ACBAB8
 38	baghdad	big_city	20	no	巴格達	5	A4DAAEE6B946
 39	damascus	crossbow	18	yes	大馬士革	5	A46AB0A8A468ADB2
-40	acre	navy	12	no	阿卡	5	AAFCA564
+40	acre	navy	12	yes	阿卡	5	AAFCA564
 41	nicosia	pike	10	yes	尼科西亞	5	A5A7ACECA6E8A8C8

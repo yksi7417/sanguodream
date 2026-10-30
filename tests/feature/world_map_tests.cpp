@@ -156,11 +156,11 @@ feature_pack_map_tests_all(test_counts *counts)
             { 38, "baghdad", 16 }, { 33, "sis", 13 }, { 41, "nicosia", 14 }, { 19, "tbilisi", 15 }
         }
     };
-    /* The original Three Kingdoms pack of 196: Cao Cao holds Xu, Lü Bu holds Xiapi, Liu Bei holds Xiaopei, and Dai has no owner. */
+    /* The original Three Kingdoms pack of 196: Cao Cao holds Xuchang, Lü Bu holds Xiapi, Liu Bei holds Xiaopei, and Liucheng has no owner. */
     static const feature_pack_spec han =
     {
-        HEXDOM_DATA_ROOT "/han_196", 196, 20, 271, 291, 5,
-        { { 13, "xu", 0 }, { 33, "xiapi", 4 }, { 34, "xiaopei", 5 }, { 21, "chengdu", 12 }, { 2, "dai", ENGINE_NO_FACTION } }
+        HEXDOM_DATA_ROOT "/han_196", 196, 20, 280, 282, 5,
+        { { 13, "xuchang", 0 }, { 33, "xiapi", 4 }, { 34, "xiaopei", 5 }, { 21, "chengdu", 12 }, { 2, "liucheng", ENGINE_NO_FACTION } }
     };
     feature_pack_map_tests(counts, &west);
     feature_pack_map_tests(counts, &east);

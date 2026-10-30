@@ -121,8 +121,11 @@ The steps of the tool:
    a value noise for the forests.
 4. Add the rivers. The Natural Earth rivers with a scalerank of 6 or less
    become 河 river hexes.
-5. Put each city on a flower of seven 都市 hexes. Put each pass on a wall
-   of 關所 and 崖 hexes across the ridge. Put each port on a shore hex.
+5. Put each city on a flower of seven 都市 hexes. If the map has relief
+   cliffs, open the valleys of the passes and of the neighbour cities.
+   Put each pass at the narrowest gap of its route. Put each port on a
+   shore hex of water that leads to other ports. See "The mountains and
+   the bases".
 6. Make roads between neighbour cities with an A* search. A road that
    crosses a river makes a 渡所 ford.
 7. Make the regions with a Dijkstra search from all bases. The sea belongs
@@ -161,6 +164,45 @@ rivers of the first packs, so the old maps do not change:
 
 data/han_196 uses all of them. Its Yangtze, Yellow River and Han are 河
 rivers, and the other rivers are streams.
+
+## The mountains and the bases
+The placeholder map has 42% 崖 cliff on land. Armies go through the
+mountains only in valleys and at gates. A map from heights alone has few
+cliffs, because few hexes are higher than cliff_metres. Thus armies walk
+over the ranges, and a gate guards nothing.
+
+These settings of region.tsv make relief cliffs:
+
+| Setting | Default | Effect |
+|---|---|---|
+| cliff_relief_share | 0 | This share of the land becomes 崖 cliff. The tool takes the hexes that stand highest above the lowest land within cliff_relief_hexes. 0 = no relief cliffs. |
+| cliff_relief_hexes | 6 | The radius of the search for the lowest land near a hex. |
+| cliff_relief_min_metres | 250 | A hex less than this height above the land near it never becomes cliff. |
+
+Relief cliffs close the ridges and keep the valleys and the high plains
+open. data/han_196 uses a share of 0.30. With relief cliffs, the tool
+opens valleys of 荒地 waste in this order:
+1. The valley of each pass goes from the owner city through the position
+   of the pass to the city across the pass. Thus the historical road goes
+   through the pass.
+2. A valley joins two neighbour cities if the cliffs make the route 1.5
+   times longer.
+3. If a group of cities has no land route to the others, a valley joins
+   the nearest pair. A 淺瀨 shallows hex crosses each stream on it.
+
+The bases follow these rules on all maps:
+
+| Base | Rule |
+|---|---|
+| Pass | The owner column of sites.tsv gives the city that the gate guards. The across column gives the city on the other side. The tool finds the route between the two cities. It puts the gate on the route, at most 12 hexes from the position of the pass, at least 8 hexes from a city and 8 hexes from another gate. Two walls of 崖 go from the gate to a large barrier: mountains, a river, the sea or the edge of the map. The walls follow the high ground. The tool takes the cheapest gap where the route without the gate is at least 1.3 times longer. |
+| Port | A port must be on a sea with 2 ports or more, or on a lake or river with 3 ports or more. The tool moves a port on a closed lake to the nearest good shore, up to 30 hexes away. |
+| Port height | A port hex has the height 8. This is level 0, the level of the water, so the model of the port stands at the level of the sea. |
+| City on the water | A city with water at 2 hexes from its centre, or open land next to water at that distance, gets port = yes in cities.tsv. It can build a shipyard and ships. Its units step onto 河 and 海 from the open land next to the city. |
+
+The summary of the tool gives a line for each pass. The line gives the
+move from its position, the walls, the route and the route without the
+gate. The summary also gives the cities on the water, the moved ports and the
+cities without a land route.
 
 ## Make a map
 1. Copy data/medieval_europe to data/<name>. Keep the tables that the tool

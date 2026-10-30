@@ -30,6 +30,19 @@ region.tsv choose the kind and the width of each Natural Earth river:
   as in the placeholder map. Land units cross a stream there without a road. 0 = none.
 - river_extra: more lines for a river, "Name:LON,LAT LON,LAT ...", separated by ";". Use it
   where Natural Earth stops a river before the sea.
+
+The bases follow these rules:
+- A pass guards the city in its owner column against the city in its across column. The
+  tool finds the land route between the two cities. It puts the gate at the narrowest gap
+  of that route near the position of the pass. Two walls of 崖 cliff go from the gate to
+  large barriers: mountains, rivers, the sea or the edge of the map. Thus an army must go
+  through the gate or take a long detour. The walls follow the high ground.
+- A port must be on water that leads to other ports: a sea with 2 ports or more, or a lake
+  or river with 3 ports or more. The tool moves a port on a closed lake to the nearest good shore.
+- A port stands at the level of the water, so its model stands at the level of the sea.
+- A city on the water gets port = yes in cities.tsv: it can build ships, and its units go
+  on the water from the city. A city on the water has water, or open land next to water,
+  at a distance of 2 hexes from its centre.
 """
 import heapq
 import json
@@ -61,6 +74,28 @@ NATURAL_LAND = (GRASS, EARTH, SAND, SWAMP, FOREST, WASTE)
 # The foot cost of terrain.tsv, for the roads and the regions. 0 = closed.
 COST = {GRASS: 5, EARTH: 5, SAND: 5, SWAMP: 8, FOREST: 6, WASTE: 6, ROAD: 4, FORD: 4, SHALLOWS: 5, CITY: 4, PORT: 4, GATE: 4}
 ROAD_RIVER_COST = 14      # a road can cross a river: the crossing becomes a ford
+# A land unit cannot enter these hexes. The walls of a pass end at a large group of them.
+BARRIER = (CLIFF, SEA, RIVER, SHORE)
+BIG_BARRIER_HEXES = 40    # a smaller group of barrier hexes is a hill that an army walks around
+WALL_KINDS = NATURAL_LAND + (STREAM, SHALLOWS)
+WALL_MAX_COST = 90.0      # the longest wall of a pass: 15 hexes of plain or 90 hexes of mountain
+WALL_HIGH_METRES = 1000.0 # a wall hex at this height or higher costs 1
+WALL_LOW_METRES = 300.0   # a wall hex at this height or lower costs 1 + WALL_LOW_EXTRA
+WALL_LOW_EXTRA = 5.0
+PASS_SEARCH_HEXES = 12    # the gate moves along the route up to this distance from the position of the pass
+PASS_MOVE_COST = 3.0      # the cost of each hex of that move, against the cost of the walls
+GATE_CITY_HEXES = 8       # no gate comes nearer to the centre of a city
+GATE_GATE_HEXES = 8       # no gate comes nearer to another gate
+GATE_DETOUR = 1.3         # a good gap: the route without the gate is at least this factor longer
+GATE_DETOUR_TRIES = 8     # the cheapest gaps that the tool tests for the detour
+CITY_CLEAR_HEXES = 3      # no wall comes this near to the centre of a city
+CITY_OPEN_HEXES = 5       # with relief cliffs, the tool opens the cliffs this near to the centre of a city
+VALLEY_CLIFF_COST = 30   # the cost of a cliff hex on the route of a valley: the valley crosses few cliffs
+VALLEY_DETOUR = 1.5       # the tool opens a valley if the route around the cliffs is longer than this factor
+VALLEY_GROUP_TRIES = 8    # the pairs of cities that the tool tries to join two land groups
+PORT_MOVE_HEXES = 30     # the largest move of a port from a closed lake to a good shore
+PORT_LAKE_PORTS = 3       # a lake or a river without the sea needs this many ports
+PORT_HEIGHT = 8           # below 16: the level of the water in the engine (sim.h, SIM_MAP_HEIGHT_STEP)
 
 # The cube directions of the flat-top grid: 0 = north, then clockwise.
 CUBE_DIRECTIONS = ((0, -1), (1, -1), (1, 0), (0, 1), (-1, 1), (-1, 0))
@@ -84,6 +119,9 @@ def read_settings(pack):
     for key in ("river_max_scalerank", "seed", "max_hexes", "margin_hexes"):
         settings[key] = int(settings[key])
     settings["city_spacing_hexes"] = float(settings.get("city_spacing_hexes", SAN11_CITY_SPACING))
+    settings["cliff_relief_share"] = float(settings.get("cliff_relief_share", "0"))
+    settings["cliff_relief_hexes"] = int(settings.get("cliff_relief_hexes", "6"))
+    settings["cliff_relief_min_metres"] = float(settings.get("cliff_relief_min_metres", "250"))
     km = settings.get("km_per_hex", "-")
     settings["km_per_hex"] = None if km in ("", "-") else float(km)
     settings["river_widths"] = parse_river_widths(settings.get("river_widths", "-"))
@@ -238,6 +276,12 @@ def hex_line(a, b):
         elif dr > ds: rr = -rq - rs
         out.append(from_cube(int(rq), int(rr)))
     return out
+
+
+def hex_xy(cell):
+    """The centre of a hex on a plane, in units of the hex size, with y to the south."""
+    col, row = cell
+    return 1.5 * col, math.sqrt(3) * (row + 0.5 * (col & 1))
 
 
 def disc(centre, radius):
@@ -460,8 +504,26 @@ class WorldMap:
         t[land & (e < 3) & ((lat >= 45) | self.delta)] = SWAMP
         t[land & (e > s["mountain_metres"])] = WASTE
         t[land & ((e > s["cliff_metres"]) | (self.elev_max > s["cliff_metres"] * 1.8))] = CLIFF
+        if s["cliff_relief_share"] > 0:
+            # The slopes and the ridges become cliffs: the hexes that stand highest above the lowest land near them.
+            # The valleys and the high plains stay open, as on the placeholder map.
+            relief = self.local_relief(s["cliff_relief_hexes"])
+            limit = max(s["cliff_relief_min_metres"], float(np.quantile(relief[land], 1.0 - s["cliff_relief_share"])))
+            t[land & (relief >= limit)] = CLIFF
         t[self.lake] = RIVER
         self.terrain = t
+
+    def local_relief(self, radius):
+        """For each land hex, its mean height minus the lowest mean height of the land within radius hexes."""
+        heights = np.where(self.land, self.elev_mean, np.inf)
+        rows, cols = heights.shape
+        padded = np.pad(heights, radius, constant_values=np.inf)
+        low = heights.copy()
+        for dr in range(-radius, radius + 1):
+            for dc in range(-radius, radius + 1):
+                if dr * dr + dc * dc > radius * radius: continue
+                low = np.minimum(low, padded[radius + dr:radius + dr + rows, radius + dc:radius + dc + cols])
+        return np.where(self.land & np.isfinite(low), self.elev_mean - low, 0.0)
 
     def add_rivers(self):
         """The minor rivers first, then the 河 rivers of river_widths over them."""
@@ -509,7 +571,7 @@ class WorldMap:
         for row in range(grid.height):
             for col in range(grid.width):
                 cell = (col, row)
-                if self.at(cell) not in NATURAL_LAND or cell in self.reserved: continue
+                if self.at(cell) not in NATURAL_LAND or cell in self.reserved or cell in self.open_ways: continue
                 around = [n for n in neighbours(cell) if grid.contains(n)]
                 if not any(self.at(n) == RIVER for n in around): continue
                 if any(self.at(n) in open_kinds for n in around): continue
@@ -533,11 +595,15 @@ class WorldMap:
         return self.terrain[cell[1], cell[0]]
 
     def put(self, cell, kind):
-        if self.grid.contains(cell): self.terrain[cell[1], cell[0]] = kind
+        if not self.grid.contains(cell): return
+        self.terrain[cell[1], cell[0]] = kind
+        if hasattr(self, "road_costs"): self.road_costs[cell[1]][cell[0]] = self.road_cost_of(cell)
 
     def place_sites(self):
+        self.make_cost_table()
         self.base_cell = {}
         self.reserved = set()
+        self.open_ways = set()
         is_land = lambda c: self.grid.contains(c) and self.at(c) not in WATER and self.at(c) != CLIFF
         for city in self.cities:
             centre = self.nearest(self.site_cell(city), is_land)
@@ -546,10 +612,14 @@ class WorldMap:
             for cell in [centre] + neighbours(centre):
                 self.put(cell, CITY)
                 self.reserved.add(cell)
+        self.city_zone = set()
+        for city in self.cities: self.city_zone.update(disc(self.base_cell[city["id"]], CITY_CLEAR_HEXES))
+        self.gate_centres, self.pass_report = set(), []
+        self.carve_valleys(is_land)
+        self.find_big_barriers()
         for site in self.sites:
             if site["kind"] == "pass": self.place_pass(site, is_land)
-        for site in self.sites:
-            if site["kind"] == "port": self.place_port(site)
+        self.place_ports()
         for site in self.sites:
             if site["kind"] == "city": continue
             owner = site["owner"]
@@ -558,11 +628,248 @@ class WorldMap:
                 owner = min(self.cities, key=lambda c: hex_distance(cell, self.base_cell[c["id"]]))["id"]
             site["owner_city"] = int(owner)
 
+    # -- the passes --
+
+    def carve_valleys(self, is_land):
+        """Opens a valley of 荒地 through the cliffs where the cliffs make a long detour between two neighbour cities,
+        or between the two cities of a pass. The valley takes the route through the fewest and lowest cliff hexes."""
+        if not self.settings["cliff_relief_share"]: return
+        self.valley_hexes = 0   # the hexes of the valleys go into open_ways: add_banks keeps them open
+        # The land around a city stays open, so that the city has room for its slots (4 to 9 hexes away).
+        for city in self.cities:
+            for cell in disc(self.base_cell[city["id"]], CITY_OPEN_HEXES):
+                if self.grid.contains(cell) and self.at(cell) == CLIFF:
+                    self.put(cell, WASTE)
+                    self.valley_hexes += 1
+        # First the valley of each pass: the historical road goes through the position of the pass.
+        for site in self.sites:
+            if site["kind"] != "pass": continue
+            here = self.nearest(self.site_cell(site), lambda c: self.at(c) not in WATER + (STREAM, SHORE))
+            if here is None: continue
+            a, b = self.pass_cities(site, here)
+            first = self.land_path(self.base_cell[a], here, cliff_cost=VALLEY_CLIFF_COST)
+            second = self.land_path(here, self.base_cell[b], cliff_cost=VALLEY_CLIFF_COST)
+            if first is None or second is None: continue
+            for cell in first + second:
+                if self.at(cell) == CLIFF:
+                    self.put(cell, WASTE)
+                    self.valley_hexes += 1
+            self.open_ways.update(first + second)
+        # Then a valley between two neighbour cities where the cliffs make a long detour.
+        for a, b in self.road_pairs():
+            start, goal = self.base_cell[a], self.base_cell[b]
+            through = self.land_path(start, goal, cliff_cost=VALLEY_CLIFF_COST)
+            # A route far longer than the straight line goes around a river or a sea: no valley helps it.
+            if through is None or len(through) > 2.2 * hex_distance(start, goal) + 6: continue
+            cliffs =[cell for cell in through if self.at(cell) == CLIFF]
+            if not cliffs: continue
+            around = self.land_path(start, goal)
+            if around is not None and len(around) <= VALLEY_DETOUR * len(through) + 5: continue
+            for cell in cliffs: self.put(cell, WASTE)
+            self.open_ways.update(through)
+            self.valley_hexes += len(cliffs)
+        # The rivers without fords and the cliffs can still cut a group of cities from the others.
+        # A valley then joins the nearest pair of cities of two groups, around the rivers if necessary.
+        for _ in range(len(self.cities)):
+            groups = self.city_groups()
+            if len(set(groups.values())) == 1: break
+            main = groups[self.cities[0]["id"]]
+            tries = sorted((hex_distance(self.base_cell[a["id"]], self.base_cell[b["id"]]), a["id"], b["id"])
+                           for a in self.cities for b in self.cities if groups[a["id"]] == main and groups[b["id"]] != main)
+            for _, a, b in tries[:VALLEY_GROUP_TRIES]:
+                through = self.land_path(self.base_cell[a], self.base_cell[b], cliff_cost=VALLEY_CLIFF_COST)
+                if through is None: continue
+                cliffs = [cell for cell in through if self.at(cell) == CLIFF]
+                for cell in cliffs: self.put(cell, WASTE)
+                for cell in through:
+                    if self.at(cell) == STREAM: self.put(cell, SHALLOWS)   # a land unit wades across here
+                self.open_ways.update(through)
+                self.valley_hexes += len(cliffs)
+                break
+            else:
+                break
+
+    def city_groups(self):
+        """{city id: land group} before the gates: the cities that a land unit joins have the same group."""
+        group_of = {}
+        for city in self.cities:
+            start = self.base_cell[city["id"]]
+            if start in group_of: continue
+            seen, stack = {start}, [start]
+            while stack:
+                cell = stack.pop()
+                for n in neighbours(cell):
+                    if n not in seen and self.grid.contains(n) and COST.get(self.at(n)):
+                        seen.add(n)
+                        stack.append(n)
+            for cell in seen: group_of[cell] = city["id"]
+        return {c["id"]: group_of[self.base_cell[c["id"]]] for c in self.cities}
+
+    def find_big_barriers(self):
+        """Marks the barrier hexes of a group of BIG_BARRIER_HEXES or more, or of a group at the edge of the map."""
+        grid = self.grid
+        self.big_barrier = np.zeros((grid.height, grid.width), dtype=bool)
+        seen = np.zeros((grid.height, grid.width), dtype=bool)
+        for row in range(grid.height):
+            for col in range(grid.width):
+                if seen[row, col] or self.at((col, row)) not in BARRIER: continue
+                group, stack, edge = [], [(col, row)], False
+                seen[row, col] = True
+                while stack:
+                    cell = stack.pop()
+                    group.append(cell)
+                    for n in neighbours(cell):
+                        if not grid.contains(n):
+                            edge = True
+                        elif not seen[n[1], n[0]] and self.at(n) in BARRIER:
+                            seen[n[1], n[0]] = True
+                            stack.append(n)
+                if edge or len(group) >= BIG_BARRIER_HEXES:
+                    for cell in group: self.big_barrier[cell[1], cell[0]] = True
+
+    def land_path(self, start, goal, closed=frozenset(), cliff_cost=0):
+        """The cheapest land route before the roads, as a list of hexes, or None. A gate is open only at its centre.
+        With cliff_cost, the route can go through a cliff hex at that cost."""
+        frontier, came, best = [(0.0, start)], {start: None}, {start: 0.0}
+        while frontier:
+            _, cell = heapq.heappop(frontier)
+            if cell == goal: break
+            for nxt in neighbours(cell):
+                if not self.grid.contains(nxt) or nxt in closed: continue
+                step = self.road_cost(nxt) or (cliff_cost if self.at(nxt) == CLIFF else 0)
+                if not step or (self.at(nxt) == GATE and nxt not in self.gate_centres): continue
+                cost = best[cell] + step
+                if cost < best.get(nxt, 1e18):
+                    best[nxt], came[nxt] = cost, cell
+                    heapq.heappush(frontier, (cost + 4 * hex_distance(nxt, goal), nxt))
+        if goal not in came: return None
+        path, cell = [], goal
+        while cell is not None:
+            path.append(cell)
+            cell = came[cell]
+        return path[::-1]
+
+    def pass_cities(self, site, cell):
+        """The city that the pass guards and the city on the other side, from the owner and across columns.
+        Without a value, the owner is the nearest city, and the other side is the nearest city behind the gate."""
+        centre = lambda c: self.base_cell[c["id"]]
+        owner = site.get("owner", "-")
+        owner = int(owner) if owner not in ("", "-") else min(self.cities, key=lambda c: hex_distance(cell, centre(c)))["id"]
+        across = site.get("across", "-")
+        if across not in ("", "-"): return owner, int(across)
+        gx, gy = hex_xy(cell)
+        ox, oy = hex_xy(self.base_cell[owner])
+        behind = []
+        for city in self.cities:
+            if city["id"] == owner: continue
+            cx, cy = hex_xy(centre(city))
+            if (ox - gx) * (cx - gx) + (oy - gy) * (cy - gy) < 0: behind.append(city)
+        pool = behind or [c for c in self.cities if c["id"] != owner]
+        return owner, min(pool, key=lambda c: hex_distance(cell, centre(c)))["id"]
+
+    def wall(self, start, gate, road, sign, forbidden):
+        """The cheapest line of hexes from the side hex start to a large barrier, on the side sign of the road
+        through the gate. Hexes of low ground cost more, so the line follows the ridges. Returns (cost, hexes) or None."""
+        gx, gy = hex_xy(gate)
+        def side(cell):
+            x, y = hex_xy(cell)
+            return road[0] * (y - gy) - road[1] * (x - gx)
+        frontier, came, best = [(0.0, start)], {start: None}, {start: 0.0}
+        while frontier:
+            cost, cell = heapq.heappop(frontier)
+            if cost > best[cell]: continue
+            if any(not self.grid.contains(n) or self.big_barrier[n[1], n[0]] for n in neighbours(cell) if n != gate):
+                line = []
+                while cell != start:
+                    line.append(cell)
+                    cell = came[cell]
+                return cost, line
+            for nxt in neighbours(cell):
+                if not self.grid.contains(nxt) or nxt in forbidden or self.at(nxt) not in WALL_KINDS: continue
+                if side(nxt) * sign <= 0: continue
+                height = float(self.elev_mean[nxt[1], nxt[0]])
+                low = min(1.0, max(0.0, (WALL_HIGH_METRES - height) / (WALL_HIGH_METRES - WALL_LOW_METRES)))
+                new = cost + 1.0 + WALL_LOW_EXTRA * low
+                if new <= WALL_MAX_COST and new < best.get(nxt, 1e18):
+                    best[nxt], came[nxt] = new, cell
+                    heapq.heappush(frontier, (new, nxt))
+        return None
+
+    def choose_gate(self, route, near):
+        """The hex of the route with the shortest walls, near the position of the pass. Returns (score, gate, axis, walls) or None."""
+        cities = [self.base_cell[c["id"]] for c in self.cities]
+        corridor = set(route)
+        for cell in route: corridor.update(neighbours(cell))
+        found_gates = []
+        for index in range(1, len(route) - 1):
+            gate = route[index]
+            if hex_distance(gate, near) > PASS_SEARCH_HEXES or self.at(gate) not in NATURAL_LAND: continue
+            if min(hex_distance(gate, c) for c in cities) < GATE_CITY_HEXES: continue
+            if any(hex_distance(gate, other) < GATE_GATE_HEXES for other in self.gate_centres): continue
+            ring_cells = neighbours(gate)
+            if any(not self.grid.contains(n) or n in self.reserved for n in ring_cells): continue
+            (ax, ay), (bx, by) = hex_xy(route[index - 1]), hex_xy(route[index + 1])
+            road = (bx - ax, by - ay)
+            length = math.hypot(*road)
+            gx, gy = hex_xy(gate)
+            def across_road(d):
+                x, y = hex_xy(neighbour(gate, d))
+                return abs((x - gx) * road[0] + (y - gy) * road[1]) / length
+            axis = min(range(3), key=across_road)
+            forbidden = corridor | self.city_zone | self.reserved | set(ring_cells) | {gate}
+            walls, score = [], PASS_MOVE_COST * hex_distance(gate, near)
+            for direction in (axis, axis + 3):
+                start = neighbour(gate, direction)
+                x, y = hex_xy(start)
+                sign = 1 if road[0] * (y - gy) - road[1] * (x - gx) > 0 else -1
+                found = self.wall(start, gate, road, sign, forbidden)
+                if found is None: break
+                score += found[0]
+                walls.append(found[1])
+            if len(walls) == 2: found_gates.append((score, gate, axis, walls))
+        # The cheapest gap that makes a real detour: without the gate, the route is much longer or closed.
+        found_gates.sort(key=lambda g: g[0])
+        start, goal = route[0], route[-1]
+        for score, gate, axis, walls in found_gates[:GATE_DETOUR_TRIES]:
+            closed = frozenset([gate, neighbour(gate, axis), neighbour(gate, axis + 3)] + walls[0] + walls[1])
+            detour = self.land_path(start, goal, closed=closed)
+            if detour is None or len(detour) >= GATE_DETOUR * len(route): return score, gate, axis, walls
+        return found_gates[0] if found_gates else None
+
     def place_pass(self, site, is_land):
-        free = lambda c: is_land(c) and c not in self.reserved
-        centre = self.nearest(self.site_cell(site), free) or self.nearest(self.site_cell(site), lambda c: c not in self.reserved)
+        """A gate at the narrowest gap of the route between the two cities of the pass, with walls to the barriers."""
+        near = self.nearest(self.site_cell(site), lambda c: is_land(c) and c not in self.reserved) or self.site_cell(site)
+        owner, across = self.pass_cities(site, near)
+        start, goal = self.base_cell[owner], self.base_cell[across]
+        route = self.land_path(start, goal)
+        chosen = self.choose_gate(route, near) if route else None
+        if chosen is None:
+            self.place_pass_alone(site, near)
+            self.pass_report.append("pass %s: no gap with walls between %s and %s; a gate without walls" %
+                                    (site["key"], self.sites[owner]["key"], self.sites[across]["key"]))
+            return
+        _, centre, axis, walls = chosen
         self.base_cell[site["id"]] = centre
-        # The wall of the pass lies along the highest pair of opposite neighbours. Units go through the other four.
+        self.gate_centres.add(centre)
+        for cell in [centre, neighbour(centre, axis), neighbour(centre, axis + 3)]:
+            self.put(cell, GATE)   # the engine makes the two side gate hexes cliffs (F-151)
+            self.reserved.add(cell)
+            self.big_barrier[cell[1], cell[0]] = cell != centre
+        for line in walls:
+            for cell in line:
+                self.put(cell, CLIFF)
+                self.big_barrier[cell[1], cell[0]] = True
+        self.open_passage(centre, axis)
+        open_route = self.land_path(start, goal)
+        detour = self.land_path(start, goal, closed=frozenset([centre]))
+        self.pass_report.append("pass %s: guards %s from %s, %d hexes from its position, walls %d + %d hexes, route %d hexes, without the gate %s" %
+                                (site["key"], self.sites[owner]["key"], self.sites[across]["key"], hex_distance(centre, near),
+                                 len(walls[0]), len(walls[1]), len(open_route) if open_route else 0, "%d hexes" % len(detour) if detour else "no route"))
+
+    def place_pass_alone(self, site, centre):
+        """The gate of the first packs: a short wall along the highest pair of opposite neighbours."""
+        self.base_cell[site["id"]] = centre
+        self.gate_centres.add(centre)
         height = lambda c: self.elev_mean[c[1], c[0]] if self.grid.contains(c) else -1e9
         axis = max(range(3), key=lambda d: height(neighbour(centre, d)) + height(neighbour(centre, d + 3)))
         self.put(centre, GATE)
@@ -574,24 +881,92 @@ class WorldMap:
                 if cell in self.reserved: break
                 self.put(cell, GATE if step == 1 else CLIFF)   # the engine makes the two side gate hexes cliffs
                 self.reserved.add(cell)
+        self.open_passage(centre, axis)
+
+    def open_passage(self, centre, axis):
+        """Units go through the four neighbours of the gate that are not on its axis."""
         for direction in range(6):
             if direction % 3 == axis: continue
             cell = neighbour(centre, direction)
-            if self.grid.contains(cell) and self.at(cell) in (CLIFF, RIVER, SEA) and cell not in self.reserved: self.put(cell, WASTE)
+            if self.grid.contains(cell) and self.at(cell) in BARRIER and cell not in self.reserved: self.put(cell, WASTE)
 
-    def place_port(self, site):
-        def by_water(cell):
-            if not self.grid.contains(cell) or cell in self.reserved or self.at(cell) in WATER or self.at(cell) == CLIFF: return False
-            return any(self.grid.contains(n) and self.at(n) in WATER for n in neighbours(cell))
-        cell = self.nearest(self.site_cell(site), by_water, radius=10)
-        if cell is None: sys.exit("no shore near the port %s" % site["key"])
-        self.base_cell[site["id"]] = cell
-        self.put(cell, PORT)
-        self.reserved.add(cell)
+    # -- the ports --
+
+    def find_water_bodies(self):
+        """The id of the water body of each 河 and 海 hex (-1 for land), and the bodies with sea."""
+        grid = self.grid
+        self.water_body = np.full((grid.height, grid.width), -1, dtype=np.int32)
+        sea_bodies = set()
+        count = 0
+        for row in range(grid.height):
+            for col in range(grid.width):
+                if self.water_body[row, col] >= 0 or self.at((col, row)) not in WATER: continue
+                stack = [(col, row)]
+                self.water_body[row, col] = count
+                while stack:
+                    cell = stack.pop()
+                    if self.at(cell) == SEA: sea_bodies.add(count)
+                    for n in neighbours(cell):
+                        if grid.contains(n) and self.water_body[n[1], n[0]] < 0 and self.at(n) in WATER:
+                            self.water_body[n[1], n[0]] = count
+                            stack.append(n)
+                count += 1
+        return sea_bodies
+
+    def bodies_next_to(self, cell):
+        return {int(self.water_body[n[1], n[0]]) for n in neighbours(cell) if self.grid.contains(n) and self.water_body[n[1], n[0]] >= 0}
+
+    def place_ports(self):
+        """Each port on the shore nearest to its position. A port on a closed lake moves to water that leads to other ports."""
+        ports = [s for s in self.sites if s["kind"] == "port"]
+        sea_bodies = self.find_water_bodies()
+        def shore(cell, good=None):
+            if not self.grid.contains(cell) or cell in self.reserved or self.at(cell) in WATER or self.at(cell) in (CLIFF, GATE): return False
+            bodies = self.bodies_next_to(cell)
+            return bool(bodies) if good is None else bool(bodies & good)
+        first = {}
+        for site in ports:
+            first[site["id"]] = self.nearest(self.site_cell(site), shore, radius=10)
+            if first[site["id"]] is None: sys.exit("no shore near the port %s" % site["key"])
+        ports_of = {}
+        for cell in first.values():
+            for body in self.bodies_next_to(cell): ports_of[body] = ports_of.get(body, 0) + 1
+        self.good_bodies = {body for body, count in ports_of.items() if count >= (2 if body in sea_bodies else PORT_LAKE_PORTS)}
+        self.port_report = []
+        for site in ports:
+            cell = first[site["id"]]
+            if not (self.bodies_next_to(cell) & self.good_bodies):
+                moved = self.nearest(cell, lambda c: shore(c, self.good_bodies), radius=PORT_MOVE_HEXES)
+                if moved is None: sys.exit("the port %s is on a closed lake, and no good shore is near. Move it in sites.tsv." % site["key"])
+                self.port_report.append("port %s: moved %d hexes from a closed lake to water with other ports" % (site["key"], hex_distance(cell, moved)))
+                cell = moved
+            if cell in self.reserved:   # another port took the hex first
+                cell = self.nearest(cell, lambda c: shore(c, self.good_bodies), radius=PORT_MOVE_HEXES)
+                if cell is None: sys.exit("the port %s has no free shore. Move it in sites.tsv." % site["key"])
+            self.base_cell[site["id"]] = cell
+            self.put(cell, PORT)
+            self.reserved.add(cell)
+
+    def on_water(self, city):
+        """True if water of the ports is at a distance of 2 from the centre, or next to open land at that distance."""
+        good = lambda c: self.grid.contains(c) and self.at(c) in WATER and int(self.water_body[c[1], c[0]]) in self.good_bodies
+        for cell in ring(self.base_cell[city["id"]], 2):
+            if good(cell): return True
+            if self.grid.contains(cell) and COST.get(self.at(cell)) and any(good(n) for n in neighbours(cell)): return True
+        return False
 
     # -- the roads --
 
     def road_cost(self, cell):
+        """The cost of a hex for the road searches, from the table of make_cost_table."""
+        return self.road_costs[cell[1]][cell[0]]
+
+    def make_cost_table(self):
+        """Nested lists of road_cost_of for each hex. A read of a list is much faster than a read of a numpy cell.
+        put keeps the table current after this call."""
+        self.road_costs = [[self.road_cost_of((col, row)) for col in range(self.grid.width)] for row in range(self.grid.height)]
+
+    def road_cost_of(self, cell):
         kind = self.at(cell)
         if kind == STREAM: return ROAD_RIVER_COST
         if kind == RIVER:
@@ -635,6 +1010,16 @@ class WorldMap:
             if kind in (RIVER, STREAM): self.put(cell, FORD)
             elif kind in NATURAL_LAND: self.put(cell, ROAD)
 
+    def road_pairs(self):
+        """The pairs of neighbour cities that a road can join, the nearest pair first."""
+        pairs = set()
+        for city in self.cities:
+            others = sorted((great_circle_km(city, o), o["id"]) for o in self.cities if o is not city)
+            limit = max(others[0][0] * 1.7, others[2][0])
+            for km, other in others[:4]:
+                if km <= limit: pairs.add(tuple(sorted((city["id"], other))))
+        return sorted(pairs, key=lambda p: great_circle_km(self.sites[p[0]], self.sites[p[1]]))
+
     def add_roads(self):
         self.gate_centres = {self.base_cell[s["id"]] for s in self.sites if s["kind"] == "pass"}
         self.base_of_cell = {}
@@ -643,14 +1028,8 @@ class WorldMap:
             for cell in [centre] + neighbours(centre): self.base_of_cell[cell] = city["id"]
         for site in self.sites:
             if site["kind"] != "city": self.base_of_cell[self.base_cell[site["id"]]] = site["id"]
-        pairs = set()
-        for city in self.cities:
-            others = sorted((great_circle_km(city, o), o["id"]) for o in self.cities if o is not city)
-            limit = max(others[0][0] * 1.7, others[2][0])
-            for km, other in others[:4]:
-                if km <= limit: pairs.add(tuple(sorted((city["id"], other))))
         self.roads = []
-        for a, b in sorted(pairs, key=lambda p: great_circle_km(self.sites[p[0]], self.sites[p[1]])):
+        for a, b in self.road_pairs():
             path = self.find_path(self.base_cell[a], self.base_cell[b])
             # A road that is much longer than the straight line goes around a sea: the two cities trade by ship.
             if path and len(path) <= 2.2 * hex_distance(self.base_cell[a], self.base_cell[b]) + 6:
@@ -763,6 +1142,7 @@ class WorldMap:
     def height_value(self, row, col):
         kind = self.terrain[row, col]
         if kind in WATER or kind == STREAM: return 0
+        if kind == PORT: return PORT_HEIGHT
         value = int(round(12 + max(0.0, float(self.elev_mean[row, col])) / 15.0))
         if kind == CLIFF: value = max(value, 90)
         return min(255, value)
@@ -792,8 +1172,10 @@ class WorldMap:
         write_lines(os.path.join(pack, "map", "bases.tsv"), bases)
 
         port_owners = {s["owner_city"] for s in self.sites if s["kind"] == "port"}
+        port_owners |= {c["id"] for c in self.cities if self.on_water(c)}
         cities = ["id\tkey\tspecialty\tslots\tport\tname_zh\tprice\tname_big5",
                   "# Written by misc/make_world_map.py from map/source/sites.tsv. slots: the slots that the tool placed on the map.",
+                  "# port: yes for a city that owns a port or that is on the water. The city can build ships.",
                   "# price: 5 for each city, the middle of the range 3 to 7 (the placeholder pack, Q-155).",
                   "# name_big5: the Big5 bytes of name_zh in hex. The scenario of the pack names the cities with it (docs/MAPS.md, W2).",
                   "# key: the English key of the city. The names of the front end use it (docs/EUROPE.md, E2)."]
@@ -820,7 +1202,22 @@ class WorldMap:
                 "nearest city: median %.1f hexes (placeholder map: %d)" % ((nearest[20] + nearest[21]) / 2, SAN11_CITY_SPACING),
                 "roads between cities: %d" % len(self.roads),
                 "slots: %d (asked %d)" % (sum(self.slot_count.values()), sum(int(c["slots"]) for c in self.cities)),
-                "terrain: " + ", ".join("%d=%d" % (k, v) for k, v in enumerate(counts) if v)]
+                "terrain: " + ", ".join("%d=%d" % (k, v) for k, v in enumerate(counts) if v),
+                "cities on the water: " + " ".join(c["key"] for c in self.cities if self.on_water(c)),
+                "cities without a land route to %s: %s" % (self.cities[0]["key"], " ".join(self.cut_off_cities()) or "none")] + self.pass_report + self.port_report
+
+    def cut_off_cities(self):
+        """The keys of the cities that a land unit cannot reach from the first city. The side hexes of a gate are closed."""
+        start = self.base_cell[self.cities[0]["id"]]
+        seen, stack = {start}, [start]
+        while stack:
+            cell = stack.pop()
+            for n in neighbours(cell):
+                if n in seen or not self.grid.contains(n) or not COST.get(self.at(n)): continue
+                if self.at(n) == GATE and n not in self.gate_centres: continue
+                seen.add(n)
+                stack.append(n)
+        return [c["key"] for c in self.cities if self.base_cell[c["id"]] not in seen]
 
     def preview(self, path, pixels=3.0):
         colours = {GRASS: (142, 178, 92), EARTH: (190, 176, 112), SAND: (226, 206, 148), SWAMP: (104, 140, 110), FOREST: (58, 112, 60),
@@ -878,4 +1275,4 @@ def main():
     print("preview:", preview)
 
 
-main()
+if __name__ == "__main__": main()

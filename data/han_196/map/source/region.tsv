@@ -14,6 +14,9 @@ key	value
 # river_shallows_every: a 淺瀨 shallows crossing after each 30 hexes of a stream, so armies can wade across away from the roads.
 # river_extra: Natural Earth stops the Yangtze at Jiangyin. This line takes it to the sea.
 # mountain_metres: a hex with a mean height above this value becomes 荒地 waste.
+# cliff_relief_share: this share of the land becomes 崖 cliff where it stands highest above the lowest land within cliff_relief_hexes.
+#   Thus the ridges of the Qinling, the Taihang and the Daba close, and the valleys stay open. The placeholder map has 42% cliff on land.
+# cliff_relief_min_metres: a hex less than this height above the land near it never becomes cliff.
 name	han_196
 lat_min	20.5
 lat_max	43.0
@@ -34,3 +37,6 @@ river_banks	yes
 river_fords	no
 river_extra	Yangtze:120.07,31.96 120.60,31.85 121.20,31.65 121.90,31.40
 river_shallows_every	30
+cliff_relief_share	0.30
+cliff_relief_hexes	6
+cliff_relief_min_metres	250
