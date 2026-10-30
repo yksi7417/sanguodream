@@ -317,6 +317,25 @@ ui_force_arms(ui_state *ui, engine_api *api, u8 force_id)
     return none;
 }
 
+/* The coat of arms before the name of a faction in a list: the ruler list
+   of a new game and the faction list of 勢力情報. The icon is as high as
+   one line. A faction without arms gets an empty square of the same size,
+   so the names stay in one column. Call ImGui::SameLine after it. */
+internal void
+ui_draw_arms_icon(ui_state *ui, engine_api *api, u8 force_id)
+{
+    f32 side = ImGui::GetFrameHeight();
+    ImVec2 corner = ImGui::GetCursorScreenPos();
+    ImGui::Dummy(ImVec2(side, side));
+    platform_picture arms = ui_force_arms(ui, api, force_id);
+    if (!arms.texture) return;
+    /* A shield is taller than wide, a banner wider than tall: fit both in the square. */
+    f32 aspect = arms.aspect > 0.0f ? arms.aspect : 1.0f;
+    f32 width = aspect >= 1.0f ? side / aspect : side, height = aspect >= 1.0f ? side : side * aspect;
+    ImVec2 top(corner.x + (side - width) * 0.5f, corner.y + (side - height) * 0.5f);
+    ImGui::GetWindowDrawList()->AddImage((ImTextureID)arms.texture, top, ImVec2(top.x + width, top.y + height));
+}
+
 /* The flag of a unit: a banner with a swallowtail in the colour of the
    faction. It shows the coat of arms of the faction (E5). A faction without
    arms shows the family name of the ruler in large characters, one under

@@ -211,11 +211,14 @@ The design, as built on 2026-10-30:
 3. ui_draw_unit_flag draws the arms on the cloth of the flag of a unit and
    of a base. A faction without arms keeps the family name of its ruler.
 4. The Credits window has the row arms. docs/ASSETS.md has the source.
+5. ui_draw_arms_icon draws a small icon of the arms before each name in the
+   ruler list of a new game and in the faction list of 勢力情報. A faction
+   without arms gets an empty square, so the names stay in one column.
 
 The west map and the prototype have arms for each faction. On the east map,
 six factions have no file in the Drive folder: Jerusalem, Antioch, Cilicia,
-Cyprus, Georgia and the Abbasids. Their flags keep the family name. The arms
-do not show yet in the faction list and in the ruler list of a new game.
+Cyprus, Georgia and the Abbasids. Their flags keep the family name.
+docs/europe/ARMS.md gives the prompts for these six images.
 
 The licences:
 - Many images on Wikimedia Commons are in the public domain. Others have

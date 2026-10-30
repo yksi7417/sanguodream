@@ -533,6 +533,8 @@ ui_draw_faction_info(ui_state *ui, engine_api *api)
         char name[UI_NAME_SIZE * 2], label[UI_NAME_SIZE * 2 + 24];
         ui_force_text(ui, api, faction.force_id, name, sizeof(name));
         snprintf(label, sizeof(label), "%s###faction%u", name, faction.force_id);
+        ui_draw_arms_icon(ui, api, faction.force_id);   /* E5 */
+        ImGui::SameLine();
         if (ImGui::Selectable(label, ui->info.faction == faction.force_id)) ui->info.faction = faction.force_id;
     }
     ImGui::EndChild();

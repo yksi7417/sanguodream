@@ -91,3 +91,33 @@ folder, then run the tool again:
     python -X utf8 -E -P misc\arms_import.py FOLDER
 
 Add the rows of the new files to data/medieval_europe/arms/sources.tsv.
+
+## The prompts for the six missing arms
+These prompts make the six missing images in the style of the 24 images
+of the folder. Give the common text first, then the text of the faction.
+Name each file with the key, for example jerusalem.png.
+
+The common text:
+
+    A flat vector heraldic image for a strategy game, 1024 x 1024 pixels,
+    on a fully transparent background. Flat colours only: no shading, no
+    gradients, no texture, no 3D bevel, no metal effect. A thin dark
+    brown outline around the shape. No text, no letters, no crown above
+    the shape, no supporters, no motto, no frame. The shape fills the
+    image and is centred.
+
+| Key | Shape | The text of the faction | The source of the design |
+|---|---|---|---|
+| jerusalem | heater shield | A heater shield. The field is silver-white. A gold cross potent (each arm ends in a short crossbar) in the centre, and a small plain gold cross in each of the four quarters. Gold on silver, with no other colour. | The arms of the kings of Jerusalem, known from the 13th century. They break the rule of tinctures on purpose. |
+| antioch | heater shield | A heater shield. The field is silver-white. A red cross pattée (the arms widen at the ends) that reaches the edges. A small red crescent, horns down, in the upper right quarter of the shield as the viewer sees it. | No arms of Antioch survive. The deniers of Bohemond III (1163-1201) show a cross with a crescent in the second quarter. The colours are a choice of the game. |
+| cilicia | heater shield | A heater shield. The field is gold. A red lion rampant with a gold crown. The lion holds a red double-barred cross upright in its front paws. | The silver trams of Leo I (king from 1198) show a crowned lion with a double-barred cross. The colours are the later royal arms of Cilicia. |
+| cyprus | heater shield | A heater shield. The field is barry of ten: ten horizontal stripes of equal height, silver-white and blue in turn, the top stripe silver-white. No charge. | The family arms of the Lusignans. Aimery of Lusignan was king of Cyprus in 1200. The red lion of the later royal arms is not in this image. |
+| georgia | rectangular banner, 3:2 | A rectangular banner, wider than tall. The field is white. A dark red cross that reaches the four edges. A small dark red six-pointed star in the upper quarter next to the pole. | The banner that tradition gives to Queen Tamar (1184-1213). It is a modern reconstruction (D. Kldiashvili). |
+| abbasid | rectangular banner, 5:3 | A rectangular banner, wider than tall. The field is plain black. No charge. | The black banner of the Abbasids is well known from the chronicles. The Ayyubid image has the same style: a plain banner. |
+
+After you make the images:
+1. Put the six files in the Drive folder.
+2. Add six rows to sources.tsv in the folder, with the URL of the Gemini chat.
+3. Tell Claude to import them, or run misc/arms_import.py yourself.
+
+The result: each faction of the east map shows its arms on the flags.

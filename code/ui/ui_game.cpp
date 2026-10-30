@@ -247,6 +247,8 @@ ui_draw_scenarios(ui_state *ui, engine_api *api)
     ImGui::End();
 }
 
+internal void ui_draw_arms_icon(ui_state *ui, engine_api *api, u8 force_id);   /* ui_locate.cpp (E5) */
+
 /* Up to 8 rulers (manual p.4). The faction that the save played starts checked. */
 internal void
 ui_draw_rulers(ui_state *ui, engine_api *api)
@@ -266,6 +268,8 @@ ui_draw_rulers(ui_state *ui, engine_api *api)
         ui_force_text(ui, api, faction.force_id, name, sizeof(name));
         snprintf(row, sizeof(row), "%s###ruler%u", name, faction.force_id);
         bool on = ((ui->game.rulers >> faction.force_id) & 1) != 0;
+        ui_draw_arms_icon(ui, api, faction.force_id);   /* E5 */
+        ImGui::SameLine();
         ImGui::BeginDisabled(!on && chosen >= 8);
         if (ImGui::Checkbox(row, &on)) ui->game.rulers ^= 1ull << faction.force_id;
         ImGui::EndDisabled();
