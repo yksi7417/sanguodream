@@ -515,6 +515,47 @@ If the front of the model faces the wrong way, add `--yaw 90`, or
 another angle in degrees. The script refuses a GLB with a wrong length in
 its header. A text transfer of a binary file causes this error.
 
+## The art of a pack
+A pack can have its own art. The renderer then shows that art in place of
+the art of data/placeholder. The packs of 1200 use this for the Europe art.
+
+The art folder of a pack is the row `art_pack` of its pack.tsv. Without
+the row, the art folder is the pack itself. medieval_west and
+medieval_east have the row `art_pack	medieval_europe`, so the three packs
+of 1200 share one set of art.
+
+The art folder has the same layout as data/placeholder:
+- sprites/art/<name>.png for the units and the bases,
+- sprites/<name>.png for the placeholder pictures of the units,
+- models/<name>.hxm and models/<name>.png for the 3D models,
+- materials.png for the terrain and settlement.hxm for the settlement.
+
+The renderer reads each file in the art folder first. If the file is not
+there, it reads the file of data/placeholder. Thus a pack needs only the
+files that it changes. A Europe pack without a Europe sword sprite shows
+the sword sprite of data/placeholder.
+
+When the player starts a game of another pack, the game writes the art
+folder in game_memory.art_pack. The platform then calls
+d3d11_renderer_use_pack or webgl2_renderer_use_pack. The renderer loads
+again only the files that the old folder or the new folder has. A pack
+without art costs no time. The log of the window has one line for each
+change, for example `platform: art of the pack "medieval_europe": 3
+sprites, models or textures loaded again`.
+
+The Europe art comes from the Drive folder "Europe — Map Art". It has the
+same subfolders as the Han folder, from 00-Style-Bible to 07-3D-Models.
+To import its models, run this command:
+
+    python -X utf8 -E misc\drive_models.py --europe
+
+The command needs the folder shared with "anyone with the link". To
+import the unit sheets, give the pack to art_import.py:
+
+    python -X utf8 misc\art_import.py <folder of the sheets> data\medieval_europe
+
+Each art folder keeps its own provenance.tsv.
+
 ## Text of the content pack (data/placeholder)
 The project wrote these files. They contain no text from the original game.
 - text/locales.tsv, text/zh-TW.tsv and text/en.tsv: the UI strings.

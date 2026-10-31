@@ -193,6 +193,9 @@ struct game_memory
     u64   permanent_used;   /* the use of the two blocks after each frame. The platform logs */
     u64   transient_used;   /* the peak, to size the blocks of each platform (docs/WEB.md)  */
     char  content_pack[64]; /* "--pack NAME": the folder under HEXDOM_DATA_ROOT of the rules and the map. Empty: HEXDOM_CONTENT_PACK (docs/MAPS.md) */
+    char  art_pack[64];     /* the game writes it: the folder under HEXDOM_DATA_ROOT of the art of the active pack. The
+                               renderer reads a file there first, then in HEXDOM_CONTENT_PACK. Empty: the art of
+                               HEXDOM_CONTENT_PACK alone (docs/ASSETS.md, "The art of a pack") */
 };
 
 #define GAME_UPDATE_AND_RENDER(name) void name(game_memory *memory, game_input *input, \

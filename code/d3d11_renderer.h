@@ -96,6 +96,7 @@ struct d3d11_renderer
     ID3D11Device            *device;
     ID3D11DeviceContext     *context;
     char                     data_dir[260];
+    char                     pack_dir[260];   /* the art of the active pack: read before data_dir. Empty: none */
     platform_read_entire_file *read_file;   /* the file reader of the platform */
 
     ID3D11VertexShader      *terrain_vs;
@@ -256,14 +257,24 @@ d3d11_make_texture(d3d11_renderer *r, const u32 *rgba, u32 width, u32 height, b3
     return view;
 }
 
-/* Reads a whole file of data_dir into the arena through the file reader
-   of the platform; zero size when absent. */
+/* Reads a whole file into the arena through the file reader of the
+   platform: the file of pack_dir first, then the file of data_dir. Zero
+   size when both are absent. */
 internal u8 *
 d3d11_read_data_file(const d3d11_renderer *r, const char *relative, memory_arena *arena, u64 *size_out)
 {
     char path[520];
-    snprintf(path, sizeof(path), "%s/%s", r->data_dir, relative);
-    read_file_result file = r->read_file(path, arena);
+    read_file_result file = {};
+    if (r->pack_dir[0])
+    {
+        snprintf(path, sizeof(path), "%s/%s", r->pack_dir, relative);
+        file = r->read_file(path, arena);
+    }
+    if (!file.contents)
+    {
+        snprintf(path, sizeof(path), "%s/%s", r->data_dir, relative);
+        file = r->read_file(path, arena);
+    }
     *size_out = file.contents ? file.size : 0;
     return *size_out ? (u8 *)file.contents : 0;
 }
@@ -690,6 +701,98 @@ internal void
 d3d11_release(IUnknown **p)
 {
     if (*p) { (*p)->Release(); *p = 0; }
+}
+
+/* ---- the art of a pack -------------------------------------------------- */
+
+/* The files of a job, relative to the data folder. Returns their count. */
+internal u32
+d3d11_asset_files(u32 job, char files[2][260])
+{
+    u32 count = 0;
+    if (job == D3D11_ASSET_ATLAS) snprintf(files[count++], 260, "materials.png");
+    else if (job == D3D11_ASSET_SETTLEMENT) snprintf(files[count++], 260, "settlement.hxm");
+    else if (job < D3D11_ASSET_FIRST_BASE_MODEL)
+    {
+        u32 sprite_id = job - D3D11_ASSET_FIRST_SPRITE;
+        if (render_sprite_art_files[sprite_id]) snprintf(files[count++], 260, "%s", render_sprite_art_files[sprite_id]);
+        if (sprite_id < RENDER_SPRITE_FIRST_BASE && render_sprite_files[sprite_id]) snprintf(files[count++], 260, "%s", render_sprite_files[sprite_id]);
+    }
+    else if (const char *name = d3d11_asset_model_name(job))
+    {
+        snprintf(files[count++], 260, "%s.hxm", name);
+        snprintf(files[count++], 260, "%s.png", name);
+    }
+    return count;
+}
+
+/* True if the folder has a file of the job. An empty folder has none. */
+internal b32
+d3d11_asset_in_pack(const char *pack_dir, u32 job)
+{
+    if (!pack_dir || !pack_dir[0]) return false;
+    char files[2][260];
+    u32 count = d3d11_asset_files(job, files);
+    for (u32 index = 0; index < count; ++index)
+    {
+        char path[520];
+        snprintf(path, sizeof(path), "%s/%s", pack_dir, files[index]);
+        if (GetFileAttributesA(path) != INVALID_FILE_ATTRIBUTES) return true;
+    }
+    return false;
+}
+
+internal void
+d3d11_release_mesh(d3d11_mesh *mesh)
+{
+    d3d11_release((IUnknown **)&mesh->vertices);
+    d3d11_release((IUnknown **)&mesh->indices);
+    mesh->index_count = 0;
+}
+
+/* Frees the GPU resources of a job before the job loads again. */
+internal void
+d3d11_asset_release(d3d11_renderer *r, u32 job)
+{
+    if (job == D3D11_ASSET_ATLAS) d3d11_release((IUnknown **)&r->atlas_view);
+    else if (job == D3D11_ASSET_SETTLEMENT) d3d11_release_mesh(r->meshes + 0);
+    else if (job < D3D11_ASSET_FIRST_BASE_MODEL)
+    {
+        u32 sprite_id = job - D3D11_ASSET_FIRST_SPRITE;
+        if (sprite_id < D3D11_MAX_SPRITES) d3d11_release((IUnknown **)&r->sprites[sprite_id].view);
+    }
+    else if (d3d11_base_model *model = d3d11_asset_model(r, job))
+    {
+        d3d11_release_mesh(&model->mesh);
+        d3d11_release((IUnknown **)&model->texture);
+    }
+}
+
+/* Uses the art of another pack folder, or "" for the art of data_dir
+   alone. Only a job with a file in the old folder or in the new folder
+   loads again. Thus a pack without art costs no time. Returns the count of
+   the jobs that loaded again. Call it on the thread of the device context. */
+internal u32
+d3d11_renderer_use_pack(d3d11_renderer *r, const char *pack_dir, memory_arena *scratch)
+{
+    if (!pack_dir) pack_dir = "";
+    if (strcmp(r->pack_dir, pack_dir) == 0) return 0;
+    char old_dir[260];
+    snprintf(old_dir, sizeof(old_dir), "%s", r->pack_dir);
+    snprintf(r->pack_dir, sizeof(r->pack_dir), "%s", pack_dir);
+    u32 loaded = 0;
+    for (u32 job = 0; job < D3D11_ASSET_COUNT; ++job)
+    {
+        if (!d3d11_asset_in_pack(old_dir, job) && !d3d11_asset_in_pack(r->pack_dir, job)) continue;
+        u64 scratch_used = scratch->used;
+        d3d11_asset_data data;
+        d3d11_asset_prepare(r, job, scratch, &data);
+        d3d11_asset_release(r, job);
+        d3d11_asset_upload(r, job, &data, scratch);
+        scratch->used = scratch_used;
+        loaded++;
+    }
+    return loaded;
 }
 
 internal void d3d11_terrain_job_end(d3d11_terrain_job *job);

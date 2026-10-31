@@ -24,7 +24,13 @@ Run it from the root of the repository. Do not give -I to Python, because
 glb_import.py needs Pillow from the site packages:
 
     python -X utf8 -E misc\\drive_models.py [--list] [--replace NAME]
-        [--max-triangles N] [--pack DIR] [--work DIR]
+        [--max-triangles N] [--pack DIR] [--work DIR] [--europe]
+        [--folder ID] [--source NAME]
+
+--europe imports the models of the Drive folder "Europe — Map Art"/
+07-3D-Models into data/medieval_europe. The packs of 1200 use them, and
+the Han packs keep the models of data/placeholder. --folder and --source
+give another Drive folder and the name of the folder in provenance.tsv.
 
 --list prints the folder and the decision for each GLB, and changes
 nothing. The work folder (default art-src/models/drive, out of git) holds
@@ -48,6 +54,17 @@ import glb_import  # noqa: E402  (the importer is in the same folder)
 
 FOLDER_ID = "1ET0ml0BmUF8_yvlmf-J5rZhJhx8n2wyG"
 FOLDER_NAME = 'Google Drive "Three Kingdoms Animations — Map Art"/07-3D-Models'
+# --europe: the models of the packs of 1200. The packs medieval_west and
+# medieval_east use them through art_pack in pack.tsv (docs/ASSETS.md,
+# "The art of a pack").
+EUROPE_FOLDER_ID = "16IxiqkKK9L81ISR_LW_kP76_ZC68o314"
+EUROPE_FOLDER_NAME = 'Google Drive "Europe — Map Art"/07-3D-Models'
+EUROPE_PACK = os.path.join("data", "medieval_europe")
+EUROPE_WORK = os.path.join("art-src", "models", "drive_europe")
+PROVENANCE_HEADER = ["file\tsource\tmodel\tdate\tlicence\tnote",
+                     "# The provenance of each model of this folder (docs/ASSETS.md, \"Base models\"). "
+                     "The owner of the repository made each model with Meshy on its free plan. "
+                     "misc/glb_import.py converted each GLB."]
 LIST_URL = "https://drive.google.com/embeddedfolderview?id={}"
 DOWNLOAD_URL = "https://drive.usercontent.google.com/download?id={}&export=download&confirm=t"
 MAX_TRIANGLES = 40000   # docs/ASSETS.md: the limit for a new model
@@ -133,9 +150,9 @@ def model_name_of(title):
     return None
 
 
-def list_folder():
+def list_folder(folder_id):
     """Returns (file id, title) for each file of the Drive folder."""
-    with urllib.request.urlopen(LIST_URL.format(FOLDER_ID), timeout=60) as response:
+    with urllib.request.urlopen(LIST_URL.format(folder_id), timeout=60) as response:
         page = response.read().decode("utf-8", "replace")
     entries = [(match.group(1), html.unescape(match.group(2)).strip()) for match in ENTRY.finditer(page)]
     if not entries:
@@ -144,7 +161,10 @@ def list_folder():
 
 
 def read_provenance(path):
-    """Returns the lines of provenance.tsv, the models and the source GLBs."""
+    """Returns the lines of provenance.tsv, the models and the source GLBs.
+    A pack without the file starts with the header alone."""
+    if not os.path.exists(path):
+        return list(PROVENANCE_HEADER), set(), set()
     with open(path, encoding="utf-8") as source:
         lines = source.read().splitlines()
     models, sources = set(), set()
@@ -157,9 +177,9 @@ def read_provenance(path):
     return lines, models, sources
 
 
-def write_provenance(path, lines, name, title, triangles):
+def write_provenance(path, lines, name, title, triangles, folder_name):
     """Replaces the row of the model, or adds a row at the end."""
-    row = "\t".join([name, f"{title}, {FOLDER_NAME}", MODEL_SOURCE, datetime.date.today().isoformat(),
+    row = "\t".join([name, f"{title}, {folder_name}", MODEL_SOURCE, datetime.date.today().isoformat(),
                      MODEL_LICENCE, f"{triangles} triangles, the base colour texture at {glb_import.TEXTURE_MAX} pixels"])
     for index, line in enumerate(lines):
         if index > 0 and line.split("\t")[0] == name:
@@ -233,12 +253,15 @@ def main(arguments):
     only_list = "--list" in arguments
     replace = {arguments[index + 1] for index, value in enumerate(arguments) if value == "--replace"}
     max_triangles = int(option(arguments, "--max-triangles", MAX_TRIANGLES))
-    pack = option(arguments, "--pack", os.path.join("data", "placeholder"))
-    work = option(arguments, "--work", os.path.join("art-src", "models", "drive"))
+    europe = "--europe" in arguments
+    folder_id = option(arguments, "--folder", EUROPE_FOLDER_ID if europe else FOLDER_ID)
+    folder_name = option(arguments, "--source", EUROPE_FOLDER_NAME if europe else FOLDER_NAME)
+    pack = option(arguments, "--pack", EUROPE_PACK if europe else os.path.join("data", "placeholder"))
+    work = option(arguments, "--work", EUROPE_WORK if europe else os.path.join("art-src", "models", "drive"))
     provenance_path = os.path.join(pack, "models", "provenance.tsv")
     state_path = os.path.join(work, "state.tsv")
     try:
-        entries = list_folder()
+        entries = list_folder(folder_id)
         lines, models, sources = read_provenance(provenance_path)
     except (OSError, glb_import.GlbError) as error:
         print(f"error: {error}")
@@ -285,7 +308,7 @@ def main(arguments):
         except (OSError, glb_import.GlbError) as error:
             print(f"error  {title}: {error}")
             continue
-        write_provenance(provenance_path, lines, name, title, triangles)
+        write_provenance(provenance_path, lines, name, title, triangles, folder_name)
         print(f"import {title} -> {pack}/models/{name}.hxm and .png")
     if best:
         print("Next: add each model to docs/ASSETS.md, run build.bat and run_tests.bat, and look at the model in the game.")
