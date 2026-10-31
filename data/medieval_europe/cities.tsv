@@ -25,7 +25,7 @@ id	key	specialty	slots	port	name_zh	price	name_big5
 18	athens	pike	12	yes	雅典	5	B6AEA8E5
 19	tarnovo	horse	12	no	特爾諾沃	5	AF53BAB8BFD5A855
 20	rome	halberd	17	yes	羅馬	5	C3B9B0A8
-21	naples	crossbow	12	yes	拿坡里	5	AEB3A959A8BD
+21	naples	crossbow	14	yes	拿坡里	5	AEB3A959A8BD
 22	palermo	crossbow	13	yes	巴勒莫	5	A4DAB0C7B2F6
 23	venice	navy	18	yes	威尼斯	5	ABC2A5A7B4B5
 24	milan	pike	18	yes	米蘭	5	A6CCC4F5

@@ -3442,6 +3442,7 @@ register_ui_tests(ImGuiTestEngine *e)
         v.recorder.officer_count = 3;
         v.recorder.city_count    = 2;
         v.recorder.duel_active   = true;
+        v.ui.feel.show_duels     = true;                                /* the setting turns the screen on */
         ctx->Yield(2);
         IM_CHECK(v.ui.show_duel);                                       /* the screen opens when a duel runs */
         ctx->SetRef("###Duel");
@@ -3469,6 +3470,7 @@ register_ui_tests(ImGuiTestEngine *e)
         v.recorder.officer_count = 3;
         v.recorder.city_count    = 2;
         v.recorder.debate_active = true;
+        v.ui.feel.show_debates   = true;
         ctx->Yield(2);
         IM_CHECK(v.ui.show_debate);
         ctx->SetRef("###Debate");
@@ -3478,6 +3480,70 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_DEBATE_ACTION), 1u);
         IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_COMMAND_DEBATE_ACTION), (u32)(SIM_DEBATE_PLAY | (1 << 8)));
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+    };
+
+    /* The default: no duel screen. The UI asks the engine to play the duel
+       at once, and one line shows the result. */
+    t = IM_REGISTER_TEST(e, "ui", "duel_off_issues_one_duel_auto_and_shows_the_result_line");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count  = 3;
+        v.recorder.city_count     = 2;
+        IM_CHECK(!v.ui.feel.show_duels);                                /* off by default */
+        ctx->Yield();
+        recorder_reset(&v.recorder);
+        v.recorder.mini_game_ends = true;
+        v.recorder.duel_active    = true;
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_DUEL_ACTION), 1u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_COMMAND_DUEL_ACTION), (u32)SIM_DUEL_AUTO);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);
+        IM_CHECK(!v.ui.show_duel);
+        IM_CHECK(v.ui.feel.mini_result_seconds > 0.0f && v.ui.feel.mini_result[0] != 0);
+    };
+
+    /* The default: no debate screen. The UI asks the engine to play the
+       exchanges, then takes the first result choice. */
+    t = IM_REGISTER_TEST(e, "ui", "debate_off_issues_debate_auto_then_finish_and_shows_the_result_line");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count  = 3;
+        v.recorder.city_count     = 2;
+        IM_CHECK(!v.ui.feel.show_debates);
+        ctx->Yield();
+        recorder_reset(&v.recorder);
+        v.recorder.mini_game_ends = true;
+        v.recorder.debate_active  = true;
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_COMMAND_DEBATE_ACTION), 2u);
+        IM_CHECK_EQ(recorder_first_arg(&v.recorder, RECORDER_COMMAND_DEBATE_ACTION), (u32)SIM_DEBATE_AUTO);
+        IM_CHECK_EQ(recorder_count_arg(&v.recorder, RECORDER_COMMAND_DEBATE_ACTION, (u32)SIM_DEBATE_FINISH), 1u);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 2u);
+        IM_CHECK(!v.ui.show_debate);
+        IM_CHECK(v.ui.feel.mini_result_seconds > 0.0f && v.ui.feel.mini_result[0] != 0);
+    };
+
+    /* The two settings are check boxes of the Settings panel. A click commands nothing. */
+    t = IM_REGISTER_TEST(e, "ui", "settings_duel_and_debate_screens_toggle_and_command_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.ui.show_settings = true;
+        ctx->Yield(2);
+        ctx->SetRef("###Settings");
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("###show_duels");
+        ctx->ItemClick("###show_debates");
+        IM_CHECK(v.ui.feel.show_duels && v.ui.feel.show_debates);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
     t = IM_REGISTER_TEST(e, "ui", "ruler_corps_create_and_dissolve_issue_one_command_corps_each");

@@ -3,7 +3,7 @@ id	key	name_zh	kind	owner_city	durability	status	name_big5
 # name_big5: the Big5 bytes of name_zh in hex, for the names of the scenario (docs/MAPS.md, W2).
 42	lulong	盧龍塞	pass	1	4000	assumed	BF63C073B6EB
 43	huguan	壺關	pass	6	4000	assumed	B3FDC3F6
-44	qishan	祁山	pass	16	4000	assumed	AAC2A473
+44	jingxing	井陘	pass	5	4000	assumed	A4ABB0A4
 45	hulao	虎牢關	pass	14	4000	assumed	AAEAA863C3F6
 46	tongguan	潼關	pass	15	4000	assumed	BCE0C3F6
 47	wuguan	武關	pass	15	4000	assumed	AA5AC3F6

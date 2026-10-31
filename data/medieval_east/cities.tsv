@@ -29,13 +29,13 @@ id	key	specialty	slots	port	name_zh	price	name_big5
 22	kairouan	horse	10	yes	凱魯萬	5	B3CDBE7CB855
 23	zara	navy	10	yes	札拉	5	A5BEA9D4
 24	szekesfehervar	horse	12	no	塞克什白堡	5	B6EBA74AA4B0A5D5B3F9
-25	belgrade	halberd	10	no	貝爾格勒	5	A8A9BAB8AEE6B0C7
+25	belgrade	halberd	10	yes	貝爾格勒	5	A8A9BAB8AEE6B0C7
 26	philippopolis	horse	12	no	菲利波波利斯	5	B5E1A751AA69AA69A751B4B5
 27	adrianople	siege	12	yes	阿德里安堡	5	AAFCBC77A8BDA677B3F9
 28	nicaea	siege	12	no	尼西亞	5	A5A7A6E8A8C8
 29	kayseri	horse	12	no	開塞利	5	B67DB6EBA751
 30	sivas	horse	10	yes	錫瓦斯	5	BFFCA5CBB4B5
-31	ankara	horse	10	no	安卡拉	5	A677A564A9D4
+31	ankara	horse	10	yes	安卡拉	5	A677A564A9D4
 32	trebizond	navy	12	yes	特拉布宗	5	AF53A9D4A5ACA976
 33	sis	pike	10	yes	錫斯	5	BFFCB4B5
 34	antioch	siege	15	yes	安條克	5	A677B1F8A74A

@@ -515,6 +515,8 @@ duel.substitute	Substitute	替換
 duel.next_round	Next round	下一合
 duel.auto	Automatic	自動
 duel.close	Close	關閉
+duel.result_win	%s defeats %s in a duel	the result line with no duel screen: the winner, the loser
+duel.result_draw	%s and %s fight to a draw in a duel	the result line with no duel screen
 duel_result.0	Running	進行中
 duel_result.1	Victory	勝利
 duel_result.2	Draw	平手
@@ -534,6 +536,8 @@ debate.lost	The debate is lost.	舌戰失敗
 debate.sympathy	Show sympathy	施予同情
 debate.press	Press	進逼
 debate.close	Close	關閉
+debate.result_win	%s defeats %s in a debate	the result line with no debate screen: the winner, the loser
+debate.result_draw	%s and %s end the debate even	the result line with no debate screen
 topic.0	Reason	道理
 topic.1	Story	故事
 topic.2	Season	時節
@@ -1343,6 +1347,8 @@ placement.officers	Officers	M19: 武將
 placement.site	Site	M19: 場所
 placement.hint	Click an empty slot of the city.	M19: the placement mode after 開發
 settings.ai_show	Show the turns of the other factions	M20: off by default; no part of the show needs a click
+settings.show_duels	Show the duel screen	off by default: the computer plays the duel, and one line shows the result
+settings.show_debates	Show the debate screen	off by default: the computer plays the debate, and one line shows the result
 info_menu.own_faction	Own faction	M21: 自軍勢力
 info_menu.own_officers	Own officers	M21: 勢力武將
 info_menu.own_cities	Own cities	M21: 勢力都市

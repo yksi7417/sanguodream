@@ -513,6 +513,8 @@ duel.substitute	替換
 duel.next_round	下一合
 duel.auto	自動
 duel.close	關閉
+duel.result_win	%s於單挑中擊敗%s
+duel.result_draw	%s與%s單挑平手
 duel_result.0	進行中
 duel_result.1	勝利
 duel_result.2	平手
@@ -532,6 +534,8 @@ debate.lost	舌戰失敗
 debate.sympathy	施予同情
 debate.press	進逼
 debate.close	關閉
+debate.result_win	%s於舌戰中駁倒%s
+debate.result_draw	%s與%s舌戰不分勝負
 topic.0	道理
 topic.1	故事
 topic.2	時節
@@ -1342,6 +1346,8 @@ placement.officers	武將
 placement.site	場所
 placement.hint	點選都市的空地。
 settings.ai_show	顯示其他勢力的行動
+settings.show_duels	顯示單挑畫面
+settings.show_debates	顯示舌戰畫面
 info_menu.own_faction	自軍勢力
 info_menu.own_officers	勢力武將
 info_menu.own_cities	勢力都市

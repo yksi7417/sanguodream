@@ -1,5 +1,5 @@
 id	kind	key	name_zh	name_en	lat	lon	slots	specialty	owner	across
-# The sites of the map of the Eastern Han in 196: 42 cities (id 0 to 41), 10 passes (42 to 51) and 35 ports (52 to 86), the same counts as the placeholder pack.
+# The sites of the map of the Eastern Han in 196: 42 cities (id 0 to 41), 10 passes (42 to 51, the gates of README.md) and 35 ports (52 to 86), the same counts as the placeholder pack.
 # Most cities are the seats of commanderies and of states of the Han. The pack chose the 42 cities from the novel Romance of the Three Kingdoms, with the places of its major battles first. Liucheng, Hefei and Jianye are not seats in 196, but the novel tells of their battles. The list does not come from another game.
 # lat and lon: degrees, WGS84. The positions are the sites of the Han towns or of the modern cities on those sites. These facts are common knowledge. Wikidata (CC0) has the same values.
 # slots: the number of development slots that the tool tries to place. specialty: the specialty of cities.tsv. Passes and ports use -.
@@ -49,7 +49,7 @@ id	kind	key	name_zh	name_en	lat	lon	slots	specialty	owner	across
 41	city	nanhai	南海	Nanhai	23.13	113.26	12	navy	-	-
 42	pass	lulong	盧龍塞	Lulong Fort	40.15	119.10	-	-	1	2
 43	pass	huguan	壺關	Hu Pass	36.11	113.21	-	-	6	4
-44	pass	qishan	祁山	Qishan	34.05	105.30	-	-	16	19
+44	pass	jingxing	井陘	Jingxing Pass	38.03	114.15	-	-	5	3
 45	pass	hulao	虎牢關	Hulao Pass	34.83	113.20	-	-	14	12
 46	pass	tongguan	潼關	Tong Pass	34.60	110.25	-	-	15	14
 47	pass	wuguan	武關	Wu Pass	33.60	110.60	-	-	15	24

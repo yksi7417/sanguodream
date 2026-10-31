@@ -743,13 +743,75 @@ ui_draw_debate(ui_state *ui, engine_api *api)
     ImGui::End();
 }
 
+/* The one line of the result of a duel or a debate with no screen. The
+   template of "<kind>.result_win" names the winner, then the loser. */
+internal void
+ui_mini_game_result(ui_state *ui, engine_api *api, const char *kind, u8 winner, u16 left, u16 right)
+{
+    char first[UI_NAME_SIZE * 2], second[UI_NAME_SIZE * 2], text_id[48];
+    b32 won = winner < 2;
+    ui_officer_text(ui, api, won && winner == 1 ? right : left, first, sizeof(first));
+    ui_officer_text(ui, api, won && winner == 1 ? left : right, second, sizeof(second));
+    snprintf(text_id, sizeof(text_id), "%s.%s", kind, won ? "result_win" : "result_draw");
+    snprintf(ui->feel.mini_result, sizeof(ui->feel.mini_result), text_get(ui->text, text_id), first, second);
+    ui->feel.mini_result_seconds = UI_MINI_RESULT_SECONDS;
+}
+
+/* With show_duels off, the computer plays the rounds of a duel at once
+   (SIM_DUEL_AUTO), and the player sees only the result line. With
+   show_debates off, the computer plays the exchanges of a debate and takes
+   the first result choice. The engine decides the result in the two modes. */
+internal void
+ui_resolve_mini_games(ui_state *ui, engine_api *api)
+{
+    void *e = api->engine;
+    engine_duel_view duel = api->duel_view(e);
+    if (duel.active && !ui->feel.show_duels)
+    {
+        api->command_duel_action(e, SIM_DUEL_AUTO, 0);
+        duel = api->duel_view(e);
+        if (!duel.active)
+        {
+            ui_mini_game_result(ui, api, "duel", duel.winner, duel.side[0].officers[duel.side[0].fighter],
+                                duel.side[1].officers[duel.side[1].fighter]);
+        }
+    }
+    engine_debate_view debate = api->debate_view(e);
+    if (debate.active && !ui->feel.show_debates)
+    {
+        if (!debate.finished) api->command_debate_action(e, SIM_DEBATE_AUTO, 0);
+        debate = api->debate_view(e);
+        if (debate.active && debate.finished) api->command_debate_action(e, SIM_DEBATE_FINISH, 0);
+        debate = api->debate_view(e);
+        if (!debate.active) ui_mini_game_result(ui, api, "debate", debate.winner, debate.side[0].officer, debate.side[1].officer);
+    }
+}
+
+/* The result line shows at the top centre of the window for a time. */
+internal void
+ui_draw_mini_game_result(ui_state *ui)
+{
+    if (ui->feel.mini_result_seconds <= 0.0f) return;
+    ui->feel.mini_result_seconds -= ImGui::GetIO().DeltaTime;
+    ImGuiViewport *viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + viewport->WorkSize.x * 0.5f, viewport->WorkPos.y + 48.0f),
+                            ImGuiCond_Always, ImVec2(0.5f, 0.0f));
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoInputs |
+                             ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoSavedSettings;
+    if (ImGui::Begin("###MiniGameResult", 0, flags)) ImGui::TextUnformatted(ui->feel.mini_result);
+    ImGui::End();
+}
+
 /* The duel and debate screens open when one runs, and stay open to show
-   the result until the player closes them. */
+   the result until the player closes them. The feel settings show_duels
+   and show_debates turn the screens on. Both are off by default. */
 internal void
 ui_draw_mini_games(ui_state *ui, engine_api *api)
 {
+    ui_resolve_mini_games(ui, api);
     if (api->duel_view(api->engine).active)     ui->show_duel = true;
     if (api->debate_view(api->engine).active)   ui->show_debate = true;
     if (ui->show_duel)   ui_draw_duel(ui, api);
     if (ui->show_debate) ui_draw_debate(ui, api);
+    ui_draw_mini_game_result(ui);
 }

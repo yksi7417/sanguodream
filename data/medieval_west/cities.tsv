@@ -21,7 +21,7 @@ id	key	specialty	slots	port	name_zh	price	name_big5
 14	venice	navy	18	no	威尼斯	5	ABC2A5A7B4B5
 15	milan	pike	18	no	米蘭	5	A6CCC4F5
 16	paris	big_city	20	no	巴黎	5	A4DABEA4
-17	bordeaux	crossbow	12	no	波爾多	5	AA69BAB8A668
+17	bordeaux	crossbow	12	yes	波爾多	5	AA69BAB8A668
 18	toulouse	halberd	15	no	土魯斯	5	A467BE7CB4B5
 19	marseille	navy	12	yes	馬賽	5	B0A8C1C9
 20	lyon	siege	12	yes	里昂	5	A8BDA9F9

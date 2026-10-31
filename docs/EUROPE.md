@@ -59,7 +59,7 @@ English key to each record:
 - officers.tsv: the column key, for example philip_ii;
 - forces.tsv: the column key, for example france;
 - map/source/sites.tsv: the column key of each city, pass and port, for
-  example paris or brenner.
+  example paris or roncevaux.
 
 The design:
 1. The engine reads the keys of the pack when it loads the pack scenario.
@@ -742,7 +742,7 @@ The stage e8_factions added six factions to the east map:
 The west map can add the kingdom of Navarre.
 
 ### The result of E8
-Each pack has 42 cities, 10 passes and 35 ports. Each pack has a scenario of 1200.
+Each pack has 42 cities and 45 passes and ports. The map of 1200 has 9 passes. The west map and the east map have 4 passes each. The other gates had no purpose on those maps (docs/MAPS.md, "The purpose of a gate"). Each pack has a scenario of 1200.
 
 | Map | Cities that are new | Factions | Officers |
 |---|---|---|---|

@@ -313,6 +313,8 @@ struct engine_recorder
     u8            unit0_state;        /* the sim_unit_state of unit 0 */
     b32           duel_active;        /* M7: the duel_view and debate_view answers */
     b32           debate_active;
+    b32           debate_finished;    /* the debate_view answer; SIM_DEBATE_AUTO sets it */
+    b32           mini_game_ends;     /* SIM_DUEL_AUTO ends the duel, and SIM_DEBATE_FINISH ends the debate */
     engine_court_order last_court;    /* the order of the last command_court */
     b32           pending_active;     /* M8: the pending_event answer */
     u32           authority_count;    /* E6: the authority_count answer; 0 is a pack of the Han emperor */
@@ -1506,7 +1508,8 @@ internal engine_debate_view recorder_debate_view(void *o)
     engine_recorder *r = (engine_recorder *)o;
     recorder_record(r, RECORDER_DEBATE_VIEW, 0);
     engine_debate_view view = {};
-    view.active = r->debate_active;
+    view.active   = r->debate_active;
+    view.finished = r->debate_finished;
     for (u32 index = 0; index < 2; ++index)
     {
         view.side[index].officer    = (u16)(100 + index);
@@ -1563,12 +1566,15 @@ internal engine_command_result recorder_command_duel_action(void *o, u8 action, 
 {
     engine_recorder *r = (engine_recorder *)o;
     recorder_record(r, RECORDER_COMMAND_DUEL_ACTION, (u32)action | ((u32)value << 8));
+    if (r->mini_game_ends && action == SIM_DUEL_AUTO) r->duel_active = false;
     return recorder_unit_result(r);
 }
 internal engine_command_result recorder_command_debate_action(void *o, u8 action, u8 value)
 {
     engine_recorder *r = (engine_recorder *)o;
     recorder_record(r, RECORDER_COMMAND_DEBATE_ACTION, (u32)action | ((u32)value << 8));
+    if (r->mini_game_ends && action == SIM_DEBATE_AUTO)   r->debate_finished = true;
+    if (r->mini_game_ends && action == SIM_DEBATE_FINISH) r->debate_active = false;
     return recorder_unit_result(r);
 }
 internal engine_command_result recorder_start_debate(void *o, u16 a, u16 b)

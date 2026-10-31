@@ -1069,6 +1069,8 @@ demo_m7_court(ImGuiTestContext *ctx)
     demo_vars &v = ctx->GetVars<demo_vars>();
     engine_api *api = &v.api;
     void *e = api->engine;
+    v.ui.feel.show_duels   = true;   /* the walkthrough shows the screens: the settings turn them on */
+    v.ui.feel.show_debates = true;
     IM_CHECK(demo_begin_video(ctx, milestone));
 
     IM_CHECK(demo_open_panel(ctx, "Simulation", &v.ui.show_sim));

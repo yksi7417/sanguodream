@@ -77,6 +77,7 @@ enum ui_hud_tab { UI_HUD_TAB_BASES, UI_HUD_TAB_OFFICERS, UI_HUD_TAB_UNITS, UI_HU
 #define UI_LOG_HEIGHT_SHARE        0.34f  /* of the height of the window; the HUD list above it is taller than in the original */
 #define UI_LOG_MARGIN              4.0f
 #define UI_BUBBLE_SECONDS          3.0f   /* the speech bubble closes by itself after this time */
+#define UI_MINI_RESULT_SECONDS     4.0f   /* the result line of a duel or a debate with no screen */
 #define UI_BUBBLE_WIDTH            294.0f /* main-map.md: 819, 521, 294, 74 */
 #define UI_FLOAT_SECONDS           1.6f   /* a value rises over the base for this time */
 #define UI_FLOAT_RISE              40.0f  /* pixels */
@@ -498,6 +499,12 @@ struct ui_state
         bool loaded_game;         /* G3-023: the game came from a save: the first line is 劉表，可終於輪到你了啊 with no portrait */
         u8   threat_city;         /* G2-007: the enemy city of the threat message; ENGINE_NO_CITY if none */
         u32  framed_message;      /* the message that moved the camera; U32_MAX for none */
+        /* The duel and debate screens. Off by default: the computer plays
+           them at once, and one line shows the result (ui_court.cpp). */
+        bool show_duels;
+        bool show_debates;
+        char mini_result[256];                /* the last result line */
+        f32  mini_result_seconds;             /* above 0 while the line shows */
     } feel;
     /* M18: the words of the events and the feedback of a command
        (ui_report.cpp). The provider is a plug-in: ui_set_text_provider

@@ -4,15 +4,15 @@ This pack is the west map of the game of 1200 (docs/EUROPE.md, E8). It shows
 the west of Europe and the Maghreb. The war of England and France is at its
 centre.
 
-The box goes from 10.5 W to 15 E and from 30.5 N to 56 N. The map has 268 x 286
-hexes of 10.1 km. The 42 cities, the 10 passes and the 35 ports are in
+The box goes from 10.5 W to 15 E and from 30.5 N to 56 N. The map has 268 x 282
+hexes of 10.1 km. The 42 cities, the 4 passes and the 41 ports are in
 map/source/sites.tsv.
 
 misc/make_world_map.py writes these files from map/source/region.tsv and
 map/source/sites.tsv:
 - map/hexes.tsv and map/bases.tsv: the map;
 - cities.tsv: the 42 cities, with their specialty, slots and Big5 names;
-- bases.tsv: the 10 passes and the 35 ports, with their Big5 names.
+- bases.tsv: the 4 passes and the 41 ports, with their Big5 names.
 
 The pack has its own scenario in scenarios/y1200: 17 factions and 77
 historical officers in 1200. scenarios.tsv lists it. misc/make_scenario.py

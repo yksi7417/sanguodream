@@ -194,15 +194,58 @@ The bases follow these rules on all maps:
 
 | Base | Rule |
 |---|---|
-| Pass | The owner column of sites.tsv gives the city that the gate guards. The across column gives the city on the other side. The tool finds the route between the two cities. It puts the gate on the route, at most 12 hexes from the position of the pass, at least 8 hexes from a city and 8 hexes from another gate. Two walls of 崖 go from the gate to a large barrier: mountains, a river, the sea or the edge of the map. The walls follow the high ground. The tool takes the cheapest gap where the route without the gate is at least 1.3 times longer. |
+| Pass | The owner column of sites.tsv gives the city that the gate guards. The across column gives the city on the other side. The tool finds the route between the two cities. It puts the gate on the route, at most 12 hexes from the position of the pass, at least 8 hexes from a city and 8 hexes from another gate. Two walls of 崖 go from the gate to a large barrier: mountains, a river, the sea or the edge of the map. The walls follow the high ground. The tool takes the cheapest gap that has a purpose. See "The purpose of a gate". |
 | Port | A port must be on a sea with 2 ports or more, or on a lake or river with 3 ports or more. The tool moves a port on a closed lake to the nearest good shore, up to 30 hexes away. |
-| Port height | A port hex has the height 8. This is level 0, the level of the water, so the model of the port stands at the level of the sea. |
+| Port height | A port hex stands 8 above the level of the lowest water next to it. On the sea, this is level 0, so the model of the port stands at the level of the sea. |
+| Water height | The sea has the height 0. Inland water has a height near the land next to it. See "The height of the water". |
 | City on the water | A city with water at 2 hexes from its centre, or open land next to water at that distance, gets port = yes in cities.tsv. It can build a shipyard and ships. Its units step onto 河 and 海 from the open land next to the city. |
 
 The summary of the tool gives a line for each pass. The line gives the
 move from its position, the walls, the route and the route without the
-gate. The summary also gives the cities on the water, the moved ports and the
+gate. A second line for each gate gives the result of the purpose check. The summary also gives the cities on the water, the moved ports and the
 cities without a land route.
+
+## The purpose of a gate
+A gate must guard something: a road through the mountains, or an
+important city, with no short other route. The tool checks each gate on the
+finished map, with the roads and the fords:
+1. It finds the land route between the owner city and the across city.
+   A land unit crosses a river only at a ford or at shallows.
+2. It closes the centre hex of the gate and finds the route again.
+3. The gate has a purpose if the second route is 1.5 times longer, or
+   20 hexes longer, or if no second route exists.
+
+If a gate fails the check, the tool writes nothing and stops with the keys
+of the weak gates. With --keep-weak-gates, it writes the map and only
+reports them. Then move the gate, change its owner and across cities, or
+leave it out. The engine needs 45 passes and ports, so a port takes the id
+of a gate that you leave out.
+
+These gates had no purpose, and the packs left them out:
+
+| Pack | Gates left out | The new ports |
+|---|---|---|
+| han_196 | 祁山 Qishan. 井陘 Jingxing takes its id. | none |
+| medieval_europe | Brenner Pass | Brindisi |
+| medieval_west | Great St Bernard, Brenner, Tizi n'Tichka, Mont Cenis, Somosierra, St Gotthard | Bayonne, Bremen, Ceuta, Nice, Nantes, Denia |
+| medieval_east | Brenner, Cilician Gates, Shipka, Syrian Gates, Semmering, Iron Gates | Cherson, Tarsus, Sudak, Saint Symeon, Tyre, Christoupolis |
+
+The maps of 1200 have no relief cliffs, so most ranges are open land. A
+gate in the Alps then has no wall, and an army goes past it on open land. A map with
+relief cliffs has more gates with a purpose (data/han_196).
+
+## The height of the water
+The height of a hex changes only the picture. The engine divides it by 16
+for the level of the renderer (sim.h, SIM_MAP_HEIGHT_STEP). The cost of a
+hex comes from its terrain, so the height does not change the movement.
+The tool gives the water these heights:
+- The sea has the height 0.
+- A river hex stands 8 below the lowest land next to it.
+- A river never climbs on its way to the sea. Each hex takes the lowest
+  height of the water that flows into it. Thus a river in a gorge stays at
+  the height of the basin above the gorge.
+- A lake is flat at the height of its lowest hex.
+- A port stands 8 above the level of the lowest water next to it.
 
 ## Make a map
 1. Copy data/medieval_europe to data/<name>. Keep the tables that the tool

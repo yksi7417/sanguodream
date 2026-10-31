@@ -1,6 +1,6 @@
 """Makes the map of a content pack from real geography (docs/MAPS.md).
 
-    python misc/make_world_map.py data/medieval_europe [--offline] [--preview FILE]
+    python misc/make_world_map.py data/medieval_europe [--offline] [--preview FILE] [--keep-weak-gates]
 
 The tool reads <pack>/map/source/region.tsv and <pack>/map/source/sites.tsv.
 It writes <pack>/map/hexes.tsv, <pack>/map/bases.tsv, <pack>/cities.tsv and
@@ -37,9 +37,17 @@ The bases follow these rules:
   of that route near the position of the pass. Two walls of 崖 cliff go from the gate to
   large barriers: mountains, rivers, the sea or the edge of the map. Thus an army must go
   through the gate or take a long detour. The walls follow the high ground.
+- Each gate must have a purpose. After the tool made the map, it closes the centre hex of
+  each gate. Then the land route between the two cities of the pass must be 1.5 times
+  longer, or 20 hexes longer, or closed. If a gate fails this check, the tool writes
+  nothing and stops. With --keep-weak-gates, it writes the map and only reports the gate.
 - A port must be on water that leads to other ports: a sea with 2 ports or more, or a lake
   or river with 3 ports or more. The tool moves a port on a closed lake to the nearest good shore.
-- A port stands at the level of the water, so its model stands at the level of the sea.
+- A port stands at the level of its water. On the sea, its model stands at the level of the sea.
+- Inland water has a height near the height of the land around it. A lake takes the height of
+  its lowest shore. A river falls step by step toward the sea, and it never climbs on its way
+  down. The sea has the height 0. The height changes only the picture: the engine divides it
+  by 16 for the level of the renderer, and the cost of a hex comes from its terrain.
 - A city on the water gets port = yes in cities.tsv: it can build ships, and its units go
   on the water from the city. A city on the water has water, or open land next to water,
   at a distance of 2 hexes from its centre.
@@ -70,6 +78,7 @@ NE_URL = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/
 # The terrain ids of data/placeholder/terrain.tsv.
 GRASS, EARTH, SAND, SWAMP, FOREST, STREAM, RIVER, SEA, WASTE, ROAD, FORD, SHALLOWS, SHORE, CLIFF, CITY, PORT, GATE =     0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18
 WATER = (RIVER, SEA)
+FLOWING = (RIVER, STREAM, FORD, SHALLOWS)   # inland water: its height follows the land (make_water_heights)
 NATURAL_LAND = (GRASS, EARTH, SAND, SWAMP, FOREST, WASTE)
 # The foot cost of terrain.tsv, for the roads and the regions. 0 = closed.
 COST = {GRASS: 5, EARTH: 5, SAND: 5, SWAMP: 8, FOREST: 6, WASTE: 6, ROAD: 4, FORD: 4, SHALLOWS: 5, CITY: 4, PORT: 4, GATE: 4}
@@ -86,8 +95,9 @@ PASS_SEARCH_HEXES = 12    # the gate moves along the route up to this distance f
 PASS_MOVE_COST = 3.0      # the cost of each hex of that move, against the cost of the walls
 GATE_CITY_HEXES = 8       # no gate comes nearer to the centre of a city
 GATE_GATE_HEXES = 8       # no gate comes nearer to another gate
-GATE_DETOUR = 1.3         # a good gap: the route without the gate is at least this factor longer
-GATE_DETOUR_TRIES = 8     # the cheapest gaps that the tool tests for the detour
+GATE_DETOUR_TRIES = 40    # the cheapest gaps that the tool tests for the detour
+GATE_PURPOSE_FACTOR = 1.5 # the purpose check: with the gate hex closed, the route is this factor longer,
+GATE_PURPOSE_EXTRA = 20   # or this many hexes longer, or no route goes from one side to the other
 CITY_CLEAR_HEXES = 3      # no wall comes this near to the centre of a city
 CITY_OPEN_HEXES = 5       # with relief cliffs, the tool opens the cliffs this near to the centre of a city
 VALLEY_CLIFF_COST = 30   # the cost of a cliff hex on the route of a valley: the valley crosses few cliffs
@@ -95,7 +105,9 @@ VALLEY_DETOUR = 1.5       # the tool opens a valley if the route around the clif
 VALLEY_GROUP_TRIES = 8    # the pairs of cities that the tool tries to join two land groups
 PORT_MOVE_HEXES = 30     # the largest move of a port from a closed lake to a good shore
 PORT_LAKE_PORTS = 3       # a lake or a river without the sea needs this many ports
-PORT_HEIGHT = 8           # below 16: the level of the water in the engine (sim.h, SIM_MAP_HEIGHT_STEP)
+PORT_HEIGHT = 8           # a port stands this much above the level of its water (sim.h, SIM_MAP_HEIGHT_STEP is 16)
+HEIGHT_STEP = 16          # the height of one level of the renderer (sim.h, SIM_MAP_HEIGHT_STEP)
+WATER_BELOW_SHORE = 8     # inland water stands this much below the lowest land next to it
 
 # The cube directions of the flat-top grid: 0 = north, then clockwise.
 CUBE_DIRECTIONS = ((0, -1), (1, -1), (1, 0), (0, 1), (-1, 1), (-1, 0))
@@ -727,16 +739,17 @@ class WorldMap:
                 if edge or len(group) >= BIG_BARRIER_HEXES:
                     for cell in group: self.big_barrier[cell[1], cell[0]] = True
 
-    def land_path(self, start, goal, closed=frozenset(), cliff_cost=0):
+    def land_path(self, start, goal, closed=frozenset(), cliff_cost=0, army=False):
         """The cheapest land route before the roads, as a list of hexes, or None. A gate is open only at its centre.
-        With cliff_cost, the route can go through a cliff hex at that cost."""
+        With cliff_cost, the route can go through a cliff hex at that cost. With army, the route uses only the hexes
+        that a land unit enters: it crosses a river only at a ford or at shallows."""
         frontier, came, best = [(0.0, start)], {start: None}, {start: 0.0}
         while frontier:
             _, cell = heapq.heappop(frontier)
             if cell == goal: break
             for nxt in neighbours(cell):
                 if not self.grid.contains(nxt) or nxt in closed: continue
-                step = self.road_cost(nxt) or (cliff_cost if self.at(nxt) == CLIFF else 0)
+                step = (COST.get(self.at(nxt), 0) if army else self.road_cost(nxt)) or (cliff_cost if self.at(nxt) == CLIFF else 0)
                 if not step or (self.at(nxt) == GATE and nxt not in self.gate_centres): continue
                 cost = best[cell] + step
                 if cost < best.get(nxt, 1e18):
@@ -827,19 +840,23 @@ class WorldMap:
                 score += found[0]
                 walls.append(found[1])
             if len(walls) == 2: found_gates.append((score, gate, axis, walls))
-        # The cheapest gap that makes a real detour: without the gate, the route is much longer or closed.
+        # The cheapest gap with a purpose: without the gate, the route is much longer or closed (check_gates).
+        # If no gap has a purpose, the gap with the longest detour. The purpose check then reports the gate.
         found_gates.sort(key=lambda g: g[0])
         start, goal = route[0], route[-1]
+        best, best_length = None, -1
         for score, gate, axis, walls in found_gates[:GATE_DETOUR_TRIES]:
             closed = frozenset([gate, neighbour(gate, axis), neighbour(gate, axis + 3)] + walls[0] + walls[1])
-            detour = self.land_path(start, goal, closed=closed)
-            if detour is None or len(detour) >= GATE_DETOUR * len(route): return score, gate, axis, walls
-        return found_gates[0] if found_gates else None
+            detour = self.land_path(start, goal, closed=closed, army=True)
+            if detour is None or gate_has_purpose(len(route), len(detour)): return score, gate, axis, walls
+            if len(detour) > best_length: best, best_length = (score, gate, axis, walls), len(detour)
+        return best
 
     def place_pass(self, site, is_land):
         """A gate at the narrowest gap of the route between the two cities of the pass, with walls to the barriers."""
         near = self.nearest(self.site_cell(site), lambda c: is_land(c) and c not in self.reserved) or self.site_cell(site)
         owner, across = self.pass_cities(site, near)
+        site["guards"] = (owner, across)   # the purpose check uses the same two cities
         start, goal = self.base_cell[owner], self.base_cell[across]
         route = self.land_path(start, goal)
         chosen = self.choose_gate(route, near) if route else None
@@ -1136,18 +1153,114 @@ class WorldMap:
         self.make_regions()
         self.place_slots()
         self.place_bandits()
+        self.check_gates()
+
+    def check_gates(self):
+        """The purpose check of each gate on the finished map, with the roads: the gate hex closed, the route between
+        the two cities of the pass must grow by GATE_PURPOSE_FACTOR or GATE_PURPOSE_EXTRA hexes, or close."""
+        self.gate_report, self.weak_gates = [], []
+        for site in self.sites:
+            if site["kind"] != "pass": continue
+            centre = self.base_cell[site["id"]]
+            owner, across = site["guards"]
+            start, goal = self.base_cell[owner], self.base_cell[across]
+            route = self.land_path(start, goal, army=True)
+            detour = self.land_path(start, goal, closed=frozenset([centre]), army=True)
+            if route is None:
+                purpose = False
+                result = "no route through the gate"
+            elif detour is None:
+                purpose = True
+                result = "route %d hexes, without the gate no route" % len(route)
+            else:
+                purpose = gate_has_purpose(len(route), len(detour))
+                result = "route %d hexes, without the gate %d hexes (x%.2f)" % (len(route), len(detour), len(detour) / len(route))
+            self.gate_report.append("gate %s (%s - %s): %s: %s" % (site["key"], self.sites[owner]["key"], self.sites[across]["key"],
+                                                                   result, "purpose" if purpose else "NO PURPOSE"))
+            if not purpose: self.weak_gates.append(site["key"])
 
     # -- the output --
 
-    def height_value(self, row, col):
-        kind = self.terrain[row, col]
-        if kind in WATER or kind == STREAM: return 0
-        if kind == PORT: return PORT_HEIGHT
+    def land_height(self, row, col):
         value = int(round(12 + max(0.0, float(self.elev_mean[row, col])) / 15.0))
-        if kind == CLIFF: value = max(value, 90)
+        if self.terrain[row, col] == CLIFF: value = max(value, 90)
         return min(255, value)
 
+    def height_value(self, row, col):
+        kind = self.terrain[row, col]
+        if kind == SEA: return 0
+        if kind in FLOWING: return self.water_height[row, col]
+        if kind == PORT: return self.port_height(row, col)
+        return self.land_height(row, col)
+
+    def shore_height(self, cell):
+        """The target height of an inland water hex: a little below the lowest land next to it. None without land."""
+        shore = [self.land_height(n[1], n[0]) for n in neighbours(cell)
+                 if self.grid.contains(n) and self.at(n) not in FLOWING + (SEA, PORT)]
+        return max(0, min(shore) - WATER_BELOW_SHORE) if shore else None
+
+    def make_water_heights(self):
+        """The heights of the inland water. A priority flood upstream from the sea gives each water hex the hex below it,
+        toward the sea. A closed basin starts at its lowest hex. Then each hex takes the lowest shore height of the water
+        that flows into it, with its own hex. Thus the water falls toward the sea, and no water stands above its shores.
+        A river in a gorge stays at the height of the basin above the gorge. A lake is flat at its lowest height."""
+        grid = self.grid
+        self.water_height = np.zeros((grid.height, grid.width), dtype=np.int32)
+        flowing = {(col, row) for row in range(grid.height) for col in range(grid.width) if self.at((col, row)) in FLOWING}
+        target = {cell: self.shore_height(cell) for cell in flowing}
+        lakes, seen = [], set()
+        for cell in flowing:
+            if cell in seen or not self.lake[cell[1], cell[0]]: continue
+            group, stack = [cell], [cell]
+            seen.add(cell)
+            while stack:
+                for n in neighbours(stack.pop()):
+                    if n in flowing and n not in seen and self.lake[n[1], n[0]]:
+                        seen.add(n)
+                        group.append(n)
+                        stack.append(n)
+            lakes.append(group)
+        # The flood: below[cell] is the next hex toward the sea, order is the order from the sea upstream.
+        below, order, root = {}, [], (-1, -1)   # root: the parent of a hex next to the sea, or of the start of a basin
+        frontier = [(target[c] or 0, c, root) for c in flowing
+                    if any(self.grid.contains(n) and self.at(n) == SEA for n in neighbours(c))]
+        heapq.heapify(frontier)
+        rest, next_rest = sorted(flowing, key=lambda c: (target[c] or 0, c)), 0
+        while True:
+            while frontier:
+                height, cell, parent = heapq.heappop(frontier)
+                if cell in below: continue
+                below[cell] = parent if parent != root else None
+                order.append(cell)
+                for n in neighbours(cell):
+                    if n in flowing and n not in below: heapq.heappush(frontier, (max(height, target[n] or 0), n, cell))
+            while next_rest < len(rest) and rest[next_rest] in below: next_rest += 1
+            if next_rest == len(rest): break
+            first = rest[next_rest]
+            heapq.heappush(frontier, (target[first] or 0, first, root))
+        # The lowest shore of the water upstream: from the sources down to the sea.
+        unknown = 1 << 30
+        height = {cell: unknown if target[cell] is None else target[cell] for cell in flowing}
+        for cell in reversed(order):
+            parent = below[cell]
+            if parent is not None and height[cell] < height[parent]: height[parent] = height[cell]
+        # A wide river has hexes without land next to them: they take the height of the hex below them.
+        for cell in order:
+            if height[cell] == unknown: height[cell] = height[below[cell]] if below[cell] is not None else 0
+        for group in lakes:
+            level = min(height[c] for c in group)
+            for c in group: height[c] = level
+        for (col, row), value in height.items(): self.water_height[row, col] = min(255, value)
+
+    def port_height(self, row, col):
+        """A port stands PORT_HEIGHT above the level of the lowest water next to it."""
+        water = [0 if self.at(n) == SEA else int(self.water_height[n[1], n[0]]) for n in neighbours((col, row))
+                 if self.grid.contains(n) and self.at(n) in FLOWING + (SEA,)]
+        level = min(water) // HEIGHT_STEP if water else 0
+        return level * HEIGHT_STEP + PORT_HEIGHT
+
     def write(self, pack):
+        self.make_water_heights()
         terrain_names = {int(r["id"]): r["name_zh"] for r in read_tsv(os.path.join(ROOT, "data", "placeholder", "terrain.tsv"))}
         grid = self.grid
         out = ["x\ty\tterrain\tterrain_name\tregion\ttrap\twater_dir\tslot\tflag6\tflag7\tflood\tzone\tflag10\theight",
@@ -1204,7 +1317,7 @@ class WorldMap:
                 "slots: %d (asked %d)" % (sum(self.slot_count.values()), sum(int(c["slots"]) for c in self.cities)),
                 "terrain: " + ", ".join("%d=%d" % (k, v) for k, v in enumerate(counts) if v),
                 "cities on the water: " + " ".join(c["key"] for c in self.cities if self.on_water(c)),
-                "cities without a land route to %s: %s" % (self.cities[0]["key"], " ".join(self.cut_off_cities()) or "none")] + self.pass_report + self.port_report
+                "cities without a land route to %s: %s" % (self.cities[0]["key"], " ".join(self.cut_off_cities()) or "none")] + self.pass_report + self.gate_report + self.port_report
 
     def cut_off_cities(self):
         """The keys of the cities that a land unit cannot reach from the first city. The side hexes of a gate are closed."""
@@ -1247,6 +1360,11 @@ class WorldMap:
         image.save(path, optimize=True)
 
 
+def gate_has_purpose(route_hexes, detour_hexes):
+    """The purpose rule of a gate: the route without the gate is much longer than the route through it."""
+    return detour_hexes >= GATE_PURPOSE_FACTOR * route_hexes or detour_hexes - route_hexes >= GATE_PURPOSE_EXTRA
+
+
 def big5_hex(text, limit):
     """The Big5 bytes of a name in hex, as the engine reads them. limit: the bytes before the NUL of the record."""
     data = text.encode("big5")
@@ -1269,6 +1387,9 @@ def main():
     world = WorldMap(read_settings(pack), read_sites(pack), offline)
     print("grid %d x %d, %.1f km between hex centres" % (world.grid.width, world.grid.height, world.spacing_km))
     world.build()
+    if world.weak_gates and "--keep-weak-gates" not in args:
+        for line in world.gate_report: print(line)
+        sys.exit("gates without a purpose: %s. Move them, change their owner and across cities, or leave them out." % " ".join(world.weak_gates))
     world.write(pack)
     world.preview(preview)
     for line in world.summary(): print(line)

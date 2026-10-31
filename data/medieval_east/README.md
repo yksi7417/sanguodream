@@ -5,7 +5,7 @@ the east of Europe, Anatolia, the Levant, Egypt and Mesopotamia as far as
 Baghdad. The crusades are at its centre.
 
 The box goes from 8 E to 46 E and from 28.5 N to 49 N. The map has 366 x 217
-hexes of 10.7 km. The 42 cities, the 10 passes and the 35 ports are in
+hexes of 10.7 km. The 42 cities, the 4 passes and the 41 ports are in
 map/source/sites.tsv.
 
 Six factions of the east have their own cities: Jerusalem (Acre), Antioch,
@@ -17,7 +17,7 @@ misc/make_world_map.py writes these files from map/source/region.tsv and
 map/source/sites.tsv:
 - map/hexes.tsv and map/bases.tsv: the map;
 - cities.tsv: the 42 cities, with their specialty, slots and Big5 names;
-- bases.tsv: the 10 passes and the 35 ports, with their Big5 names.
+- bases.tsv: the 4 passes and the 41 ports, with their Big5 names.
 
 The pack has its own scenario in scenarios/y1200: 17 factions and 65
 historical officers in 1200. scenarios.tsv lists it. misc/make_scenario.py

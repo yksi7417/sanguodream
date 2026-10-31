@@ -1,11 +1,11 @@
 id	key	name_zh	kind	owner_city	durability	status	name_big5
 # Written by misc/make_world_map.py from map/source/sites.tsv. durability: 4000 for a pass and 2000 for a port (assumed).
 # name_big5: the Big5 bytes of name_zh in hex, for the names of the scenario (docs/MAPS.md, W2).
-42	roncevaux	隆塞斯瓦耶斯關	pass	26	4000	assumed	B6A9B6EBB4B5A5CBAD43B4B5C3F6
+42	roncevaux	隆塞斯瓦耶斯關	pass	1	4000	assumed	B6A9B6EBB4B5A5CBAD43B4B5C3F6
 43	perthus	佩爾蒂斯關	pass	5	4000	assumed	A8D8BAB8B8A6B4B5C3F6
 44	st_bernard	聖伯納德關	pass	24	4000	assumed	B874A742AFC7BC77C3F6
 45	despenaperros	德斯佩尼亞佩羅斯關	pass	2	4000	assumed	BC77B4B5A8D8A5A7A8C8A8D8C3B9B4B5C3F6
-46	brenner	布倫納關	pass	23	4000	assumed	A5ACADDBAFC7C3F6
+46	brindisi	布林迪西	port	21	2000	assumed	A5ACAA4CAD7DA6E8
 47	trajan_gate	圖拉真門	pass	17	4000	assumed	B9CFA9D4AF75AAF9
 48	thermopylae	溫泉關	pass	18	4000	assumed	B7C5AC75C3F6
 49	cilician_gates	奇里乞亞門	pass	16	4000	assumed	A95FA8BDA45EA8C8AAF9

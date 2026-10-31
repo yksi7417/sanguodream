@@ -31,14 +31,42 @@ The places of the major battles of the novel come first.
   are 許昌 for 許, 天水 for 漢陽 and 白帝 for 魚復.
 - Three cities of famous battles replace three quiet seats. 柳城 (the
   battle of 白狼山) replaces 代. 合肥 replaces 廬江, and 建業 replaces 丹陽.
-- Passes: 盧龍塞, 壺關, 祁山, 虎牢關, 潼關, 武關, 陳倉, 陽平關, 劍閣 and
+- Passes: 盧龍塞, 壺關, 井陘, 虎牢關, 潼關, 武關, 陳倉, 陽平關, 劍閣 and
   街亭. Each gate guards its owner city against the city across it. The
-  across column of sites.tsv gives that city.
+  across column of sites.tsv gives that city. See "The gates and their
+  purpose".
 - Ports: the river ports of the great battles, for example 赤壁, 烏林,
   夏口, 濡須口, 樊城, 夷陵 and 柴桑. The fords of the Yellow River are
   白馬津, 延津, 黎陽 and 倉亭.
 - These coast ports keep a real Han name that the novel does not use:
   句章, 東冶, 揭陽 and 鹽瀆. The novel names no port on those coasts.
+
+## The gates and their purpose
+Each gate closes a road that history knew as the only way through the
+mountains. misc/make_world_map.py checks each gate on the finished map. It
+closes the gate hex and finds the land route between the two cities again.
+That route must be 1.5 times longer, or 20 hexes longer, or closed
+(docs/MAPS.md, "The purpose of a gate"). The last column gives the result of
+the map of this pack.
+
+| Gate | Guards, against | The road that it closes in history | Route through the gate, and without it |
+|---|---|---|---|
+| 盧龍塞 Lulong Fort | 北平, against 柳城 | The pass through the Yan mountains from the Hebei plain to Liaoxi. In 207 Cao Cao took his army through it and defeated the Wuhuan at 白狼山. | 55 hexes, no route |
+| 壺關 Hu Pass | 上黨, against 鄴 | The pass of the Taihang mountains from the Hebei plain up to the Shangdang plateau. Shangdang holds the high ground above Ye. | 21 hexes, 67 hexes |
+| 井陘 Jingxing | 晉陽, against 南皮 | One of the eight passes of the Taihang mountains, on the road from Bing province to the Hebei plain. Han Xin won the battle of Jingxing there in 204 BC. | 54 hexes, 82 hexes |
+| 虎牢關 Hulao Pass | 洛陽, against 陳留 | The pass between the Song mountains and the Yellow River, on the road from the eastern plain to Luoyang. In the novel, the allies fight Lü Bu there in 190. | 30 hexes, 114 hexes |
+| 潼關 Tong Pass | 長安, against 洛陽 | The gap between the Qinling mountains and the bend of the Yellow River. It closes the east road into Guanzhong. Cao Cao fought Ma Chao there in 211. | 56 hexes, 211 hexes |
+| 武關 Wu Pass | 長安, against 宛城 | The southeast gate of Guanzhong, on the road from Nanyang through the Qinling mountains. Liu Bang went into Guanzhong through it in 207 BC. | 62 hexes, 89 hexes |
+| 陳倉 Chencang | 長安, against 漢中 | The north end of the road from Hanzhong through the Qinling mountains to the Wei valley. Hao Zhao held it against Zhuge Liang in 228. | 42 hexes, 163 hexes |
+| 陽平關 Yangping Pass | 漢中, against 梓潼 | The pass west of Hanzhong, on the road from Hanzhong to Shu. Cao Cao took Hanzhong from Zhang Lu there in 215. | 39 hexes, 180 hexes |
+| 劍閣 Jiange | 梓潼, against 漢中 | The narrow road through the cliffs of 劍門 on the way from Hanzhong to Chengdu. Jiang Wei held it against Zhong Hui in 263. | 39 hexes, 180 hexes |
+| 街亭 Jieting | 天水, against 長安 | The road from Guanzhong over the Long mountains to Tianshui. Ma Su lost it to Zhang He in 228, and the first northern campaign of Zhuge Liang failed. | 51 hexes, 150 hexes |
+
+The pack left out 祁山 Qishan. In history, Qishan is a fort on the road from
+Hanzhong to Tianshui, and Zhuge Liang went north through it. On the map of
+this pack, the route from Tianshui to Hanzhong does not go through the gate.
+Without the gate, that route has the same length. Thus the gate guarded
+nothing, and 井陘 took its id.
 
 ## The names of the skills, the tactics, the plots and the techniques
 The rule tables are copies of data/medieval_east. The rules of each row stay,

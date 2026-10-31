@@ -119,6 +119,9 @@ ui_draw_settings(ui_state *ui, engine_api *api)
         ui_draw_game_settings(ui, api);
         char label[128];   /* M20: the show of the AI round, a setting of the front end */
         ImGui::Checkbox(ui_label(label, sizeof(label), ui, "settings.ai_show", "ai_show"), &ui->round.show);
+        /* The duel and debate screens, front end settings. Off: only the result line shows. */
+        ImGui::Checkbox(ui_label(label, sizeof(label), ui, "settings.show_duels", "show_duels"), &ui->feel.show_duels);
+        ImGui::Checkbox(ui_label(label, sizeof(label), ui, "settings.show_debates", "show_debates"), &ui->feel.show_debates);
         if (ui->text)
         {
             ui_draw_language_combo(ui);

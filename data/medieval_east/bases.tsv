@@ -1,16 +1,16 @@
 id	key	name_zh	kind	owner_city	durability	status	name_big5
 # Written by misc/make_world_map.py from map/source/sites.tsv. durability: 4000 for a pass and 2000 for a port (assumed).
 # name_big5: the Big5 bytes of name_zh in hex, for the names of the scenario (docs/MAPS.md, W2).
-42	brenner	布倫納關	pass	14	4000	assumed	A5ACADDBAFC7C3F6
+42	cherson	克森尼索	port	31	2000	assumed	A74AB4CBA5A7AFC1
 43	trajan_gate	圖拉真門	pass	26	4000	assumed	B9CFA9D4AF75AAF9
 44	thermopylae	溫泉關	pass	9	4000	assumed	B7C5AC75C3F6
-45	cilician_gates	奇里乞亞門	pass	33	4000	assumed	A95FA8BDA45EA8C8AAF9
+45	tarsus	塔爾蘇斯	port	33	2000	assumed	B6F0BAB8C4ACB4B5
 46	tarvisio	塔爾維西奧關	pass	14	4000	assumed	B6F0BAB8BAFBA6E8B6F8C3F6
-47	shipka	希普卡關	pass	10	4000	assumed	A7C6B4B6A564C3F6
-48	syrian_gates	敘利亞門	pass	34	4000	assumed	B1D4A751A8C8AAF9
+47	sudak	蘇達克	port	31	2000	assumed	C4ACB946A74A
+48	saint_symeon	聖西蒙港	port	34	2000	assumed	B874A6E8BB58B4E4
 49	zigana	齊加納關	pass	32	4000	assumed	BBF4A55BAFC7C3F6
-50	semmering	塞默林關	pass	16	4000	assumed	B6EBC071AA4CC3F6
-51	iron_gates	鐵門關	pass	25	4000	assumed	C54BAAF9C3F6
+50	tyre	提爾	port	40	2000	assumed	B4A3BAB8
+51	christoupolis	克里斯托波利斯	port	8	2000	assumed	A74AA8BDB4B5A6ABAA69A751B4B5
 52	mahdia	馬赫迪耶港	port	22	2000	assumed	B0A8BBAEAD7DAD43B4E4
 53	cagliari	卡利亞里港	port	0	2000	assumed	A564A751A8C8A8BDB4E4
 54	bastia	巴斯蒂亞港	port	20	2000	assumed	A4DAB4B5B8A6A8C8B4E4

@@ -5,6 +5,10 @@
 
 #define FEATURE_WORLD_PACK      HEXDOM_DATA_ROOT "/medieval_europe"
 #define FEATURE_WORLD_MAX_HEXES 80000    /* max_hexes of map/source/region.tsv */
+#define FEATURE_TERRAIN_RIVER   7        /* the ids of data/placeholder/terrain.tsv */
+#define FEATURE_TERRAIN_SEA     8
+#define FEATURE_TERRAIN_PORT    17
+#define FEATURE_PORT_HEIGHT     8        /* a port stands this much above the level of its water (make_world_map.py) */
 
 internal void
 feature_world_map_init(engine_fixture *f, const char *content_folder = FEATURE_WORLD_PACK)
@@ -58,9 +62,10 @@ feature_world_map_tests(test_counts *counts)
                "the engine loads the content and the map of the medieval_europe pack");
     TEST_CHECK(counts, info.width * info.height > 200 * 200 && info.width * info.height <= FEATURE_WORLD_MAX_HEXES,
                "the map is larger than the 200 x 200 map and fits the budget of the terrain mesh");
-    TEST_CHECK(counts, info.cities == 42 && info.gates == 10 && info.ports == 35 && info.city_hexes == 294 && info.port_hexes == 35,
-               "42 cities of 7 hexes, 10 gates and 35 ports, the same counts as the placeholder map");
-    TEST_CHECK(counts, info.gate_hexes == 10 && info.gate_side_cliffs == 20, "the two side hexes of each gate become cliff (F-151)");
+    /* The map left out the Brenner Pass: it had no purpose (docs/MAPS.md, "The purpose of a gate"). A port took its id. */
+    TEST_CHECK(counts, info.cities == 42 && info.gates == 9 && info.ports == 36 && info.city_hexes == 294 && info.port_hexes == 36,
+               "42 cities of 7 hexes, 9 gates and 36 ports: 45 passes and ports, as on the placeholder map");
+    TEST_CHECK(counts, info.gate_hexes == 9 && info.gate_side_cliffs == 18, "the two side hexes of each gate become cliff (F-151)");
     TEST_CHECK(counts, info.slots >= 42 * 10 && info.bandit_sites > 0, "each city has development slots, and the map has bandit sites");
 
     TEST_CHECK(counts, api->load_scenario(e, api->scenario_at(e, 0).file).status == ENGINE_LOAD_OK,
@@ -90,9 +95,36 @@ struct feature_pack_spec
     u32                      factions;
     u32                      width;
     u32                      height;
+    u32                      gates;       /* the gates with a purpose; ports take the other ids of the 45 */
     u32                      city_count;
     feature_pack_city        cities[8];
 };
+
+/* The heights of the water of a map from make_world_map.py (docs/MAPS.md, "The height of the water"). The sea has
+   the height 0, a port stands at the level of its water, and the counts give the river hexes above the level of the sea. */
+internal b32
+feature_water_heights(engine_api *api, u32 *high_rivers)
+{
+    void *e = api->engine;
+    engine_map_info info = api->map_info(e);
+    b32 good = true;
+    *high_rivers = 0;
+    for (u32 row = 0; row < info.height; ++row)
+    {
+        for (u32 col = 0; col < info.width; ++col)
+        {
+            hex_offset offset;
+            offset.col = (s32)col;
+            offset.row = (s32)row;
+            hex_coord hex = hex_from_offset(offset);
+            engine_hex cell = api->hex_at(e, hex.q, hex.r);
+            if (cell.terrain == FEATURE_TERRAIN_SEA && cell.height != 0) good = false;
+            if (cell.terrain == FEATURE_TERRAIN_PORT && cell.height % SIM_MAP_HEIGHT_STEP != FEATURE_PORT_HEIGHT) good = false;
+            if (cell.terrain == FEATURE_TERRAIN_RIVER && cell.height >= SIM_MAP_HEIGHT_STEP) (*high_rivers)++;
+        }
+    }
+    return good;
+}
 
 /* One test for a pack of E8: the counts of the map, the keys of three cities, the scenario and two turns. */
 internal void
@@ -107,9 +139,13 @@ feature_pack_map_tests(test_counts *counts, const feature_pack_spec *spec)
                "the engine loads the content and the map of the pack");
     TEST_CHECK(counts, info.width == spec->width && info.height == spec->height && info.width * info.height <= FEATURE_WORLD_MAX_HEXES,
                "the map has the size that make_world_map.py wrote and fits the budget of the terrain mesh");
-    TEST_CHECK(counts, info.cities == 42 && info.gates == 10 && info.ports == 35 && info.city_hexes == 294 && info.port_hexes == 35,
-               "the map has 42 cities of 7 hexes, 10 gates and 35 ports");
+    TEST_CHECK(counts, info.cities == 42 && info.gates == spec->gates && info.gates + info.ports == 45 && info.city_hexes == 294 &&
+                       info.port_hexes == info.ports && info.gate_hexes == spec->gates,
+               "the map has 42 cities of 7 hexes and 45 passes and ports, with the gates of the pack");
     TEST_CHECK(counts, info.slots >= 42 * 10 && info.bandit_sites > 0, "each city has development slots, and the map has bandit sites");
+    u32 high_rivers = 0;
+    TEST_CHECK(counts, feature_water_heights(api, &high_rivers) && high_rivers > 0,
+               "the sea is at level 0, each port stands at the level of its water, and the rivers in the hills stand higher");
 
     engine_scenario scenario = api->scenario_at(e, 0);
     TEST_CHECK(counts, scenario.kind == ENGINE_SCENARIO_PACK && scenario.available && scenario.year == spec->year && !scenario.pack[0],
@@ -144,13 +180,13 @@ feature_pack_map_tests_all(test_counts *counts)
 {
     static const feature_pack_spec west =
     {
-        HEXDOM_DATA_ROOT "/medieval_west", 1200, 17, 268, 286, 3,
+        HEXDOM_DATA_ROOT "/medieval_west", 1200, 17, 268, 282, 4, 3,
         { { 16, "paris", 0 }, { 30, "rouen", 1 }, { 32, "lille", 15 } }
     };
     /* The new factions of the east have the force ids 11 to 16: Jerusalem, Antioch, Cilicia, Cyprus, Georgia and the caliphate. */
     static const feature_pack_spec east =
     {
-        HEXDOM_DATA_ROOT "/medieval_east", 1200, 17, 366, 217, 8,
+        HEXDOM_DATA_ROOT "/medieval_east", 1200, 17, 366, 217, 4, 8,
         {
             { 34, "antioch", 12 }, { 35, "aleppo", 3 }, { 39, "damascus", 3 }, { 40, "acre", 11 },
             { 38, "baghdad", 16 }, { 33, "sis", 13 }, { 41, "nicosia", 14 }, { 19, "tbilisi", 15 }
@@ -159,7 +195,7 @@ feature_pack_map_tests_all(test_counts *counts)
     /* The original Three Kingdoms pack of 196: Cao Cao holds Xuchang, Lü Bu holds Xiapi, Liu Bei holds Xiaopei, and Liucheng has no owner. */
     static const feature_pack_spec han =
     {
-        HEXDOM_DATA_ROOT "/han_196", 196, 20, 280, 282, 5,
+        HEXDOM_DATA_ROOT "/han_196", 196, 20, 280, 282, 10, 5,
         { { 13, "xuchang", 0 }, { 33, "xiapi", 4 }, { 34, "xiaopei", 5 }, { 21, "chengdu", 12 }, { 2, "liucheng", ENGINE_NO_FACTION } }
     };
     feature_pack_map_tests(counts, &west);
