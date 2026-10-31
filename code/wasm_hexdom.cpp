@@ -55,6 +55,7 @@ struct wasm_state
     memory_arena    renderer_scratch;
     webgl2_renderer renderer;
     u32             font_pixels;
+    char            art_pack[64];   /* the art folder that the renderer uses: wasm_use_art_pack */
     u32             frame_index;
     f64             last_time;
     b32             sync_pending;
@@ -333,6 +334,22 @@ wasm_track_peak(const char *name, u64 used, u64 size, u64 *peak)
     wasm_log(line);
 }
 
+/* The game names the art folder of its pack in game_memory.art_pack, as
+   win32_use_art_pack. When the name changes, the renderer loads the files
+   of the old folder and of the new folder again. */
+internal void
+wasm_use_art_pack(wasm_state *state)
+{
+    if (!state->renderer.ready || strcmp(state->memory.art_pack, state->art_pack) == 0) return;
+    snprintf(state->art_pack, sizeof(state->art_pack), "%s", state->memory.art_pack);
+    char pack_dir[260] = "";
+    if (state->art_pack[0]) snprintf(pack_dir, sizeof(pack_dir), "%s/%s", HEXDOM_DATA_ROOT, state->art_pack);
+    u32 loaded = webgl2_renderer_use_pack(&state->renderer, pack_dir, &state->renderer_scratch);
+    char line[160];
+    snprintf(line, sizeof(line), "platform: art of the pack \"%s\": %u sprites, models or textures loaded again", state->art_pack, loaded);
+    wasm_log(line);
+}
+
 internal void
 wasm_frame(void)
 {
@@ -367,6 +384,7 @@ wasm_frame(void)
     render_commands *commands = render_commands_begin(&state->frame, display.x, display.y);
     input.render = commands;
     GameUpdateAndRender(&state->memory, &input, state->imgui, &state->frame);
+    wasm_use_art_pack(state);
     if (state->memory.quit_requested)   /* M9: 結束遊戲. The page asks the user, then signs out (web/shell.html). */
     {
         EM_ASM({

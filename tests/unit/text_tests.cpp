@@ -90,7 +90,11 @@ global_variable const test_text_file test_text_files[] =
       "force.bmp\tmedieval_europe/arms/france.bmp\n" },
     { "root/odd/pack.tsv",
       "key\tvalue\n"
-      "default_locale\t../en\n" },
+      "default_locale\t../en\n"
+      "art_pack\t../europe\n" },
+    { "root/west/pack.tsv",
+      "key\tvalue\n"
+      "art_pack\teurope\n" },
 };
 
 internal PLATFORM_READ_ENTIRE_FILE(test_text_read_file)
@@ -366,6 +370,15 @@ unit_text_pack_tests(test_counts *counts, memory_arena *arena)
     TEST_CHECK(counts, !text_pack_default_locale(&catalog, "pack", locale, sizeof(locale)) && locale[0] == 0,
                "a pack without pack.tsv has no default locale");
     TEST_CHECK(counts, !text_pack_default_locale(&catalog, "odd", locale, sizeof(locale)), "a default locale with a path is refused");
+
+    char art[TEXT_PACK_SIZE] = "x";
+    TEST_CHECK(counts, text_pack_art(&catalog, "west", art, sizeof(art)) && strcmp(art, "europe") == 0,
+               "art_pack of pack.tsv gives the folder of the art");
+    TEST_CHECK(counts, text_pack_art(&catalog, "europe", art, sizeof(art)) && strcmp(art, "europe") == 0,
+               "a pack without art_pack uses its own folder");
+    TEST_CHECK(counts, text_pack_art(&catalog, "odd", art, sizeof(art)) && strcmp(art, "odd") == 0,
+               "an art_pack with a path is refused, and the pack uses its own folder");
+    TEST_CHECK(counts, !text_pack_art(&catalog, "../odd", art, sizeof(art)) && art[0] == 0, "a pack name with a path is refused");
 
     text_catalog_set_locale(&catalog, "en");
     TEST_CHECK(counts, text_key_name(&catalog, "officer", "philip_ii") == 0, "without a game pack, a key has no name");

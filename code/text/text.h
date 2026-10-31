@@ -172,6 +172,12 @@ internal const char *text_name(text_catalog *catalog, const u8 *bytes, u32 size,
    has no such row or the row is not a valid locale code. */
 internal b32 text_pack_default_locale(text_catalog *catalog, const char *pack, char *out, u32 out_size);
 
+/* The folder of the art of a pack: the row art_pack of data/<pack>/pack.tsv,
+   else the pack itself. The packs of 1200 share the art of medieval_europe.
+   False, and out "", if pack is not a valid folder name. A bad art_pack
+   gives the pack itself. */
+internal b32 text_pack_art(text_catalog *catalog, const char *pack, char *out, u32 out_size);
+
 /* docs/EUROPE.md, E2: the pack of the engine. The next
    text_catalog_set_locale loads names/<locale>.tsv of that pack too. The
    base pack of the catalog has no keyed names. */

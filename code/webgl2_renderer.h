@@ -97,6 +97,7 @@ struct gl_billboard_instance
 struct webgl2_renderer
 {
     char                       data_dir[260];
+    char                       pack_dir[260];   /* the art of the active pack: read before data_dir. Empty: none */
     platform_read_entire_file *read_file;   /* the file reader of the platform */
 
     GLuint  terrain_program;
@@ -295,14 +296,24 @@ gl_make_texture(const u32 *rgba, u32 width, u32 height, b32 mipmaps)
     return texture;
 }
 
-/* Reads a whole file of data_dir into the arena through the file reader
-   of the platform; zero size when absent. */
+/* Reads a whole file into the arena through the file reader of the
+   platform: the file of pack_dir first, then the file of data_dir. Zero
+   size when both are absent. */
 internal u8 *
 gl_read_data_file(webgl2_renderer *r, const char *relative, memory_arena *arena, u64 *size_out)
 {
     char path[520];
-    snprintf(path, sizeof(path), "%s/%s", r->data_dir, relative);
-    read_file_result file = r->read_file(path, arena);
+    read_file_result file = {};
+    if (r->pack_dir[0])
+    {
+        snprintf(path, sizeof(path), "%s/%s", r->pack_dir, relative);
+        file = r->read_file(path, arena);
+    }
+    if (!file.contents)
+    {
+        snprintf(path, sizeof(path), "%s/%s", r->data_dir, relative);
+        file = r->read_file(path, arena);
+    }
     *size_out = file.contents ? file.size : 0;
     return *size_out ? (u8 *)file.contents : 0;
 }
@@ -423,6 +434,150 @@ gl_load_base_model(webgl2_renderer *r, const char *name, memory_arena *arena, gl
     if (!model->texture) gl_delete_mesh(&model->mesh);
 }
 
+/* The material atlas: the file of the pack, or the placeholder. */
+internal void
+gl_load_atlas(webgl2_renderer *r, memory_arena *scratch)
+{
+    u64 scratch_used = scratch->used;
+    r->atlas_texture = gl_load_png_texture(r, "materials.png", scratch);
+    if (!r->atlas_texture)
+    {
+        u32 *atlas = gl_placeholder_atlas(scratch);
+        r->atlas_texture = gl_make_texture(atlas, GL_ATLAS_TILES * GL_ATLAS_TILE_SIZE, GL_ATLAS_TILE_SIZE, false);
+    }
+    scratch->used = scratch_used;
+}
+
+/* Mesh 0: the settlement, from settlement.hxm or the placeholder house. */
+internal void
+gl_load_settlement(webgl2_renderer *r, memory_arena *scratch)
+{
+    u64 scratch_used = scratch->used;
+    if (!gl_load_mesh_file(r, "settlement.hxm", scratch, r->meshes + 0))
+    {
+        gl_placeholder_mesh(RENDER_MESH_SETTLEMENT, scratch, r->meshes + 0);
+    }
+    scratch->used = scratch_used;
+}
+
+/* A sprite, as in d3d11_asset_prepare: the art first, then the
+   placeholder picture, then the placeholder figure. A base without art
+   keeps texture 0, and the renderer draws the mesh of the base. */
+internal void
+gl_load_sprite(webgl2_renderer *r, u32 sprite_id, memory_arena *scratch)
+{
+    u64 scratch_used = scratch->used;
+    gl_sprite *sprite_slot = r->sprites + sprite_id;
+    sprite_slot->texture = 0;
+    sprite_slot->aspect  = 1.0f;
+    if (render_sprite_art_files[sprite_id]) sprite_slot->texture = gl_load_png_texture(r, render_sprite_art_files[sprite_id], scratch, &sprite_slot->aspect);
+    if (sprite_id < RENDER_SPRITE_FIRST_BASE)
+    {
+        if (!sprite_slot->texture) sprite_slot->texture = gl_load_png_texture(r, render_sprite_files[sprite_id], scratch, &sprite_slot->aspect);
+        if (!sprite_slot->texture)
+        {
+            u32 *sprite = gl_placeholder_sprite(scratch);
+            sprite_slot->texture = gl_make_texture(sprite, GL_SPRITE_SIZE, GL_SPRITE_SIZE, false);
+        }
+    }
+    scratch->used = scratch_used;
+}
+
+/* ---- the art of a pack -------------------------------------------------- */
+
+/* True if the folder has the file. An empty folder has no file. */
+internal b32
+gl_pack_has_file(const char *pack_dir, const char *relative)
+{
+    if (!pack_dir[0] || !relative) return false;
+    char path[520];
+    snprintf(path, sizeof(path), "%s/%s", pack_dir, relative);
+    FILE *file = fopen(path, "rb");
+    if (!file) return false;
+    fclose(file);
+    return true;
+}
+
+/* True if the old folder or the new folder has the file. Then the file loads again. */
+internal b32
+gl_pack_changes(const char *old_dir, const char *new_dir, const char *relative)
+{
+    return gl_pack_has_file(old_dir, relative) || gl_pack_has_file(new_dir, relative);
+}
+
+internal b32
+gl_pack_changes_model(const char *old_dir, const char *new_dir, const char *name)
+{
+    if (!name) return false;
+    char mesh_file[260], texture_file[260];
+    snprintf(mesh_file, sizeof(mesh_file), "%s.hxm", name);
+    snprintf(texture_file, sizeof(texture_file), "%s.png", name);
+    return gl_pack_changes(old_dir, new_dir, mesh_file) || gl_pack_changes(old_dir, new_dir, texture_file);
+}
+
+internal void
+gl_delete_model(gl_base_model *model)
+{
+    gl_delete_mesh(&model->mesh);
+    if (model->texture) glDeleteTextures(1, &model->texture);
+    model->texture = 0;
+}
+
+/* Uses the art of another pack folder, or "" for the art of data_dir
+   alone, as d3d11_renderer_use_pack. Only a picture or a model with a file
+   in the old folder or in the new folder loads again. Returns their count. */
+internal u32
+webgl2_renderer_use_pack(webgl2_renderer *r, const char *pack_dir, memory_arena *scratch)
+{
+    if (!pack_dir) pack_dir = "";
+    if (strcmp(r->pack_dir, pack_dir) == 0) return 0;
+    char old_dir[260];
+    snprintf(old_dir, sizeof(old_dir), "%s", r->pack_dir);
+    snprintf(r->pack_dir, sizeof(r->pack_dir), "%s", pack_dir);
+    const char *new_dir = r->pack_dir;
+    u32 loaded = 0;
+    if (gl_pack_changes(old_dir, new_dir, "materials.png"))
+    {
+        if (r->atlas_texture) glDeleteTextures(1, &r->atlas_texture);
+        gl_load_atlas(r, scratch);
+        loaded++;
+    }
+    if (gl_pack_changes(old_dir, new_dir, "settlement.hxm"))
+    {
+        gl_delete_mesh(r->meshes + 0);
+        gl_load_settlement(r, scratch);
+        loaded++;
+    }
+    for (u32 sprite_id = 0; sprite_id < r->sprite_count; ++sprite_id)
+    {
+        b32 changes = gl_pack_changes(old_dir, new_dir, render_sprite_art_files[sprite_id]) ||
+                      (sprite_id < RENDER_SPRITE_FIRST_BASE && gl_pack_changes(old_dir, new_dir, render_sprite_files[sprite_id]));
+        if (!changes) continue;
+        if (r->sprites[sprite_id].texture) glDeleteTextures(1, &r->sprites[sprite_id].texture);
+        gl_load_sprite(r, sprite_id, scratch);
+        loaded++;
+    }
+    for (u32 kind = 0; kind < GL_BASE_KINDS; ++kind)
+    {
+        if (!gl_pack_changes_model(old_dir, new_dir, render_base_model_files[kind])) continue;
+        gl_delete_model(r->base_models + kind);
+        gl_load_base_model(r, render_base_model_files[kind], scratch, r->base_models + kind);
+        loaded++;
+    }
+    for (u32 model_id = 0; model_id < RENDER_MODEL_COUNT; ++model_id)
+    {
+        for (u32 level = 0; level < RENDER_MODEL_LEVELS; ++level)
+        {
+            const char *name = render_model_files[model_id][level];
+            if (!gl_pack_changes_model(old_dir, new_dir, name)) continue;
+            gl_delete_model(r->mesh_models[model_id] + level);
+            gl_load_base_model(r, name, scratch, r->mesh_models[model_id] + level);
+            loaded++;
+        }
+    }
+    return loaded;
+}
+
 /* ---- init --------------------------------------------------------------- */
 
 internal b32
@@ -441,20 +596,11 @@ webgl2_renderer_init(webgl2_renderer *r, platform_read_entire_file *read_file, c
     glGenVertexArrays(1, &r->vertex_array);
     r->constants = gl_make_buffer(GL_UNIFORM_BUFFER, 0, sizeof(gl_frame_constants));
 
-    /* the material atlas: the pack's file, or the placeholder */
-    r->atlas_texture = gl_load_png_texture(r, "materials.png", scratch);
-    if (!r->atlas_texture)
-    {
-        u32 *atlas = gl_placeholder_atlas(scratch);
-        r->atlas_texture = gl_make_texture(atlas, GL_ATLAS_TILES * GL_ATLAS_TILE_SIZE, GL_ATLAS_TILE_SIZE, false);
-    }
+    gl_load_atlas(r, scratch);
 
-    /* mesh 0: the settlement, from settlement.hxm or the placeholder house.
-       The other meshes are the placeholder shapes of the facility slots. */
-    if (!gl_load_mesh_file(r, "settlement.hxm", scratch, r->meshes + 0))
-    {
-        gl_placeholder_mesh(RENDER_MESH_SETTLEMENT, scratch, r->meshes + 0);
-    }
+    /* mesh 0: the settlement. The other meshes are the placeholder shapes
+       of the facility slots. */
+    gl_load_settlement(r, scratch);
     r->mesh_count = 1;
     for (u32 mesh_id = 1; mesh_id < RENDER_MESH_COUNT && mesh_id < GL_MAX_MESHES; ++mesh_id)
     {
@@ -467,18 +613,8 @@ webgl2_renderer_init(webgl2_renderer *r, platform_read_entire_file *read_file, c
        art keeps texture 0, and the renderer draws the mesh of the base. */
     for (u32 sprite_id = 0; sprite_id < RENDER_SPRITE_COUNT && sprite_id < GL_MAX_SPRITES; ++sprite_id)
     {
-        gl_sprite *sprite_slot = r->sprites + sprite_id;
-        sprite_slot->texture = 0;
-        sprite_slot->aspect  = 1.0f;
         r->sprite_count = sprite_id + 1;
-        if (render_sprite_art_files[sprite_id]) sprite_slot->texture = gl_load_png_texture(r, render_sprite_art_files[sprite_id], scratch, &sprite_slot->aspect);
-        if (sprite_id >= RENDER_SPRITE_FIRST_BASE) continue;
-        if (!sprite_slot->texture) sprite_slot->texture = gl_load_png_texture(r, render_sprite_files[sprite_id], scratch, &sprite_slot->aspect);
-        if (!sprite_slot->texture)
-        {
-            u32 *sprite = gl_placeholder_sprite(scratch);
-            sprite_slot->texture = gl_make_texture(sprite, GL_SPRITE_SIZE, GL_SPRITE_SIZE, false);
-        }
+        gl_load_sprite(r, sprite_id, scratch);
     }
 
     /* The 3D models of the base kinds (docs/ASSETS.md, "Base models"). */

@@ -325,6 +325,23 @@ win32_load_frame(void *user)
     win32_present_frame(state->window);
 }
 
+/* The game names the art folder of its pack in game_memory.art_pack. When
+   the name changes, the renderer loads the files of the old folder and of
+   the new folder again (docs/ASSETS.md, "The art of a pack"). current keeps
+   the name that the renderer uses. */
+internal void
+win32_use_art_pack(d3d11_renderer *renderer, memory_arena *scratch, const char *wanted, char *current, u32 current_size)
+{
+    if (!renderer->ready || strcmp(wanted, current) == 0) return;
+    snprintf(current, current_size, "%s", wanted);
+    char pack_dir[MAX_PATH] = "";
+    if (wanted[0]) snprintf(pack_dir, MAX_PATH, "%s\\..\\data\\%s", g_win32.exe_dir, wanted);
+    u32 loaded = d3d11_renderer_use_pack(renderer, pack_dir, scratch);
+    char line[160];
+    snprintf(line, sizeof(line), "platform: art of the pack \"%s\": %u sprites, models or textures loaded again", wanted, loaded);
+    win32_log(line);
+}
+
 /* Loads the splash art, the fonts and the files of the renderer. The workers
    decode, and the main thread keeps the window alive: it pumps the messages,
    uploads and draws the splash with its bar. If no worker starts, the main
@@ -502,6 +519,7 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
     QueryPerformanceCounter(&last_counter);
 
     u32 frame_index = 0;
+    char art_pack[64] = "";   /* the art folder that the renderer uses: win32_use_art_pack */
     u64 peak_permanent = 0, peak_transient = 0, peak_frame = 0;   /* logged at exit (docs/WEB.md, the memory budget) */
     while (win32_pump_messages(&window))
     {
@@ -545,6 +563,7 @@ WinMain(HINSTANCE instance, HINSTANCE previous_instance, LPSTR command_line, int
         {
             game.update_and_render(&memory, &input, imgui, &frame);
             if (memory.quit_requested) PostQuitMessage(0);   /* M9: 結束遊戲 on the title menu */
+            win32_use_art_pack(&renderer, &renderer_scratch, memory.art_pack, art_pack, sizeof(art_pack));
         }
         else
         {

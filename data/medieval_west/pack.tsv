@@ -2,3 +2,5 @@ key	value
 # The settings of the pack for the front end (docs/EUROPE.md, E1).
 # default_locale: the locale of the UI when the game starts the engine of this pack. The player can change it in the Settings panel.
 default_locale	en
+# art_pack: the folder of the art of the pack. The renderer reads a file there first, then in data/placeholder (docs/ASSETS.md).
+art_pack	medieval_europe

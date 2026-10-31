@@ -58,6 +58,10 @@ game_create_engine(game_state *game, game_memory *memory, const char *pack)
     game->api     = engine_make_api(game->backend);
     /* docs/EUROPE.md, E1 and E2: the names of the pack by English key, and its default locale. */
     text_catalog_use_game_pack(&game->text, pack && pack[0] ? pack : HEXDOM_CONTENT_PACK);
+    /* The platform loads the art of this folder before the art of the default pack. */
+    b32 default_pack = !pack || !pack[0] || strcmp(pack, HEXDOM_CONTENT_PACK) == 0;
+    if (default_pack || !text_pack_art(&game->text, pack, memory->art_pack, sizeof(memory->art_pack))) memory->art_pack[0] = 0;
+    if (strcmp(memory->art_pack, HEXDOM_CONTENT_PACK) == 0) memory->art_pack[0] = 0;
 }
 
 /* The UI at the title menu. A new engine starts a new UI too, because the

@@ -503,6 +503,32 @@ text_pack_default_locale(text_catalog *catalog, const char *pack, char *out, u32
     return true;
 }
 
+/* A pack folder name: letters, digits and '_' only, so that it cannot leave the data root. */
+internal b32
+text_is_pack_name(const char *name)
+{
+    u32 length = 0;
+    for (; name[length]; ++length)
+    {
+        char c = name[length];
+        b32 allowed = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+        if (!allowed || length + 1 >= TEXT_PACK_SIZE) return false;
+    }
+    return length > 0;
+}
+
+internal b32
+text_pack_art(text_catalog *catalog, const char *pack, char *out, u32 out_size)
+{
+    if (!out_size) return false;
+    out[0] = 0;
+    if (!catalog || !pack || !text_is_pack_name(pack)) return false;
+    text_table settings = text_catalog_load_pack_table(catalog, pack, "", "pack", "key");
+    const char *art = text_table_find(&settings, "art_pack");
+    text_copy_utf8(art && text_is_pack_name(art) ? art : pack, out, out_size);
+    return true;
+}
+
 internal void
 text_catalog_set_game_pack(text_catalog *catalog, const char *pack)
 {
