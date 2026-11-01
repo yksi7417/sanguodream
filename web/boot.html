@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hexdom</title>
+<!-- The service worker shows this page while the machine of the site starts (web/sw.js). The picture and the
+     icon are the same as in web/shell.html. The page waits for the server, then opens the address again. -->
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #08090c; color: #c8c8c8; font: 14px system-ui, sans-serif; }
+  #boot { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  #picture { position: relative; width: min(100vw, calc(100vh * 16 / 9)); height: min(100vh, calc(100vw * 9 / 16));
+             background: url("/splash.jpg") center / contain no-repeat; }
+  #status { position: absolute; left: 0; right: 0; top: 70%; text-align: center; font-size: clamp(11px, 1.6vh, 15px); }
+  #status::before { content: ""; display: inline-block; width: 1em; height: 1em; margin-right: 0.5em;
+                    vertical-align: -0.15em; box-sizing: border-box; border-radius: 50%;
+                    border: 2px solid #1d2f49; border-top-color: #e6b300; will-change: transform;
+                    animation: hexdom-spin 0.9s linear infinite; }
+  @keyframes hexdom-spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div id="boot"><div id="picture"><div id="status">Starting the server...</div></div></div>
+<script>
+  var TRY_AGAIN_MS = 500;
+
+  async function serverAnswers() {
+    try { return (await fetch("/healthz", { cache: "no-store" })).ok; }
+    catch (error) { return false; }
+  }
+
+  (async function () {
+    while (!await serverAnswers()) {
+      await new Promise(function (resolve) { setTimeout(resolve, TRY_AGAIN_MS); });
+    }
+    // The worker now gives the answer of the server, also if the answer is slow.
+    if (navigator.serviceWorker.controller) navigator.serviceWorker.controller.postMessage("hexdom-server-awake");
+    location.replace(location.href);
+  })();
+</script>
+</body>
+</html>

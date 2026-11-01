@@ -17,6 +17,7 @@ the files of the server, as before.
 import asyncio
 import hashlib
 import os
+import sys
 import time
 
 GAME_FILE_NAMES = ("index.wasm", "index.data")
@@ -27,6 +28,7 @@ BUILDS_PREFIX = "builds/"
 BUILDS_KEPT = 5
 CACHE_CONTROL = "private, max-age=31536000, immutable"
 HASH_CHUNK_BYTES = 1024 * 1024
+BUILD_ID_FILE = "build_id"
 # Tigris can answer 408 to one request. The server tries again after these waits; 0 ends the tries.
 PUBLISH_RETRY_SECONDS = (10, 30, 90, 0)
 
@@ -44,6 +46,24 @@ def build_id_of(root):
     return digest.hexdigest()[:BUILD_ID_DIGITS]
 
 
+def save_build_id(root):
+    """The Dockerfile calls this function, so a start of the server does not read the big files."""
+    with open(os.path.join(root, BUILD_ID_FILE), "w", encoding="ascii") as target:
+        target.write(build_id_of(root))
+
+
+def saved_build_id(root):
+    """The id in the file of save_build_id, or None. A file of the machine stays out of the
+    cache of the system after a stop, so a hash at the start takes seconds on the machine."""
+    if not all(os.path.isfile(os.path.join(root, name)) for name in GAME_FILE_NAMES):
+        return None
+    try:
+        with open(os.path.join(root, BUILD_ID_FILE), encoding="ascii") as source:
+            return source.read().strip() or None
+    except OSError:
+        return None
+
+
 def site_origin():
     """The origin of the pages for the CORS rule, without a request."""
     configured = os.environ.get("PUBLIC_URL", "").rstrip("/")
@@ -56,7 +76,7 @@ def site_origin():
 class GameFiles:
     def __init__(self, root):
         self.root = root
-        self.build = build_id_of(root)
+        self.build = saved_build_id(root) or build_id_of(root)
         self.sizes = {name: os.path.getsize(os.path.join(root, name)) for name in GAME_FILE_NAMES} if self.build else {}
         self.in_bucket = False   # True after the files and the CORS rule are in the bucket
 
@@ -132,3 +152,7 @@ def publish_context(files, storage):
         yield
         task.cancel()
     return context
+
+
+if __name__ == "__main__":
+    save_build_id(sys.argv[1])

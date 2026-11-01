@@ -14,6 +14,9 @@
 !web/http_common.py
 !web/games_api.py
 !web/referee.py
+!web/splash.jpg
+!web/boot.html
+!web/sw.js
 !build/referee.js
 !build/referee.wasm
 !data/placeholder

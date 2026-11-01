@@ -306,6 +306,10 @@ the favicon into the page as data URIs. The page removes its splash
 after the first frame of the game. If the file is absent, the splash
 shows a dark screen with the bar and the hint.
 
+The sign-in page and the boot page of the web site also show web/splash.jpg
+(docs/WEB.md, "The first second of a visit"). The server sends this file
+without a session.
+
 ## Coats of arms (data/medieval_europe/arms)
 The flag of a faction in the game of 1200 shows its coat of arms
 (docs/EUROPE.md, E5).

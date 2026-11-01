@@ -24,6 +24,13 @@
   #splash-fill { width: 0; height: 100%; background: #e6b300; transition: width 0.25s linear; }
   #status { position: absolute; left: 0; right: 0; top: 70%; text-align: center; color: #c8c8c8;
             font-size: clamp(11px, 1.6vh, 15px); }
+  /* The loading icon. The browser moves a transform on another thread, so the icon
+     also moves while the page is busy with the game files. web/boot.html has the same icon. */
+  #status::before { content: ""; display: inline-block; width: 1em; height: 1em; margin-right: 0.5em;
+                    vertical-align: -0.15em; box-sizing: border-box; border-radius: 50%;
+                    border: 2px solid #1d2f49; border-top-color: #e6b300; will-change: transform;
+                    animation: hexdom-spin 0.9s linear infinite; }
+  @keyframes hexdom-spin { to { transform: rotate(360deg); } }
   #live { position: fixed; right: 12px; bottom: 12px; display: none; padding: 6px 12px; border-radius: 6px;
           border: 1px solid #3a3f4b; background: #232731; color: #e8e8e8; font: inherit; cursor: pointer; }
   #live.on { background: #b3261e; border-color: #b3261e; }
@@ -561,7 +568,21 @@
     }
   }
 
-  (async function () {
+  /* The check of the device makes a WebGL2 context, and that can stop the page for a time.
+     Thus the page first paints the splash. A hidden tab paints nothing, so a timer also starts the work. */
+  var PAINT_WAIT_MS = 200;
+  function afterFirstPaint(work) {
+    var started = false;
+    function start() {
+      if (!started) { started = true; work(); }
+    }
+    requestAnimationFrame(function () { setTimeout(start, 0); });
+    setTimeout(start, PAINT_WAIT_MS);
+  }
+
+  afterFirstPaint(async function () {
+    // The next visit gets the splash at once, also when the machine of the site is stopped (web/sw.js).
+    if (!siteAuth.discord && "serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(function () {});
     var problems = deviceProblems();
     if (problems.length) { showRequirements(problems, ""); return; }
     if (siteAuth.discord) {
@@ -569,7 +590,7 @@
       catch (error) { showRequirements(["The sign-in with Discord failed."], String(error)); return; }
     }
     loadGame();
-  })();
+  });
 </script>
 </body>
 </html>

@@ -164,6 +164,9 @@ decompilation of it.
                          web/room_socket.py has the messages of its socket.
                          web/broadcast.py relays the optional YouTube
                          broadcast
+- web/sw.js              the service worker of the site. web/boot.html, its
+                         page, shows the splash while the machine starts
+                         (docs/WEB.md, "The first second of a visit")
 - code/wasm_referee.cpp  the referee of the shared games: a headless engine
                          for node. web/referee.py starts it (docs/MULTIPLAYER.md)
 - code/wasm_test_hooks.h the test hooks of "build_web.bat test-game" for

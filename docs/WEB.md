@@ -107,6 +107,7 @@ The site has no passwords. The server stores no password of a user.
 | web/storage.py | The records of the users and the saves, in an S3 bucket or in a local folder. |
 | web/broadcast.py | The YouTube broadcast, an option. |
 | web/game_files.py | index.wasm and index.data in the bucket, and their presigned addresses for the members |
+| web/sw.js, web/boot.html | The service worker and its boot page: the splash while the machine starts ("The first second of a visit") |
 | web/http_common.py | The keys of the application, the session of the user and the check of the origin, for server.py and games_api.py |
 | web/games_api.py | The routes of the shared games: the lobby, the start image, the snapshots, the invite link and the socket |
 | web/rooms.py | The rooms of the shared games: the seats, the order of the steps, the checksums and the log in the bucket (docs/MULTIPLAYER.md) |
@@ -151,6 +152,46 @@ The rules of the site:
   subset of approximately 25 minutes and the private spec submodule.
 
 To deploy, run `deploy_web.bat`, then open https://sanguodream.fly.dev.
+
+### The first second of a visit
+A visitor sees the splash art and an icon that moves, as early as possible. The
+machine stops after approximately 8 minutes without a visitor. On 2026-11-01
+the log showed a start of 15 s: the VM needed 0.7 s, and the server needed
+the rest. Without a change, the browser shows nothing in that time.
+
+These parts make the wait short or visible:
+
+| Part | Job |
+|---|---|
+| The build id in a file | The Dockerfile runs web/game_files.py, and that script writes /srv/web/build_id. The start of the server reads this file. It does not read 223 MB for a hash. |
+| The start time in the log | The log has the line "server.py: the imports took ...". Read it after a cold start to find the next slow part. |
+| The first paint | web/shell.html paints the splash first, and then makes the WebGL2 context of the device check. A timer also starts the work, because a hidden tab paints nothing. |
+| The loading icon | A CSS animation of a transform moves the icon. The browser moves it on another thread, so the icon also moves while the page is busy with the game files. |
+| The service worker | web/sw.js shows web/boot.html if the server does not give the page in 500 ms. |
+
+The service worker runs after the first visit to the site. A first visit
+during a cold start still shows nothing until the server answers. The flow of
+a later visit has these steps:
+1. The worker asks the server for `/` or `/login` and starts a timer of 500 ms.
+2. If the page comes first, the browser gets that page without a change.
+3. Else, or after an error or a status of 500 or more, the browser gets the boot page.
+4. The boot page shows the same picture and icon. It asks /healthz until the server answers.
+5. The boot page tells the worker that the server is awake, and opens the address again.
+   For the next 30 s, the worker gives each answer of the server, also a slow answer.
+
+The rules of the worker:
+- The worker keeps only web/boot.html and web/splash.jpg. It never keeps a page of a member.
+- The server still decides each page, the sign-in and each redirect.
+- The worker reads only `/`, `/login` and the picture. It does not touch a sign-in callback, a form or the api.
+- The worker removes only the old caches with the name "hexdom-boot-". The game files in "hexdom-game" stay.
+- After a change to web/boot.html, change the number of BOOT_CACHE in web/sw.js.
+- The page of a Discord Activity does not start the worker.
+
+The sign-in page and the pages of the email link show the splash art. The
+server sends web/splash.jpg, web/boot.html and web/sw.js without a session.
+These three files hold no data of the game. The sign-in panel continues the
+card of the art and hides the empty bar. The fractions in web/pages.py come
+from the card in misc/make_splash.py. After a change to the card, change the fractions.
 
 ### The sign-in with an email link
 The email form is the fourth option of the sign-in page. The flow has
@@ -334,8 +375,10 @@ together. index.html and index.js stay on the server. index.html needs the
 sign-in, so a person without a session never sees the page.
 
 #### The start of the server
-1. The server computes the build id. The build id is the first 16 hex
-   digits of the SHA-256 of index.wasm and index.data.
+1. The server reads the build id from the file build_id. The Dockerfile
+   writes this file. Without the file, the server computes the id. The
+   build id is the first 16 hex digits of the SHA-256 of index.wasm and
+   index.data.
 2. The server puts the gzip copy of each file in the bucket at
    `builds/<build id>/<name>`, if the bucket does not have it. Each object
    has its `Content-Type`, `Content-Encoding: gzip` and the Cache-Control
@@ -435,6 +478,13 @@ game_files.spec.js has three tests of the game files:
 - a member gets the build id and the addresses of the server
 - a second load of the page takes the files from the Cache Storage and
   downloads nothing
+
+boot.spec.js has five tests of the first second of a visit:
+- the sign-in page shows the splash art, and the panel hides the empty bar
+- the page shows the splash and the icon that moves, before the game files
+- the page paints before the check of the device
+- the worker shows the boot page while the site does not answer, and then opens the real page
+- the worker does not touch a sign-in or a form
 
 rooms.spec.js has three tests of the rooms of the shared games
 (docs/MULTIPLAYER.md, MP2):

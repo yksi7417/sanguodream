@@ -22,16 +22,34 @@ table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th, td { padding: 8px 10px; border-bottom: 1px solid #2c313d; text-align: left; white-space: nowrap; }
 th { color: #9aa0aa; font-weight: 500; }
 td.number { text-align: right; }
+/* The splash art fills the window (misc/make_splash.py). The panel continues the card of the art:
+   it starts under the line of the card and hides the empty bar. --art is the width of the picture. */
+body.art { display: block; --art: max(100vw, calc(100vh * 16 / 9));
+           background: #08090c url("/splash.jpg") center / cover no-repeat fixed; }
+body.art main { position: absolute; left: 50%; transform: translateX(-50%); box-sizing: border-box;
+                top: calc(50vh + var(--art) * 0.0609); width: min(calc(var(--art) * 0.4703), calc(100vw - 16px));
+                min-height: calc(var(--art) * 0.0805); padding: 16px 24px 8px; background: #0f0f0f;
+                border: 1px solid #3a3a42; border-top: 0; }
+body.art p { margin-bottom: 14px; }
+.signin { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 16px; }
 """
+
+# The service worker shows the splash while the machine of the site starts (web/sw.js).
+START_WORKER = """<script>
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(function () {});
+</script>"""
 
 
 def page(title, body, main_class=""):
+    """A page without a class of its own shows the splash art. The members page has a wide table and no art."""
     attribute = f' class="{main_class}"' if main_class else ""
+    body_attribute = "" if main_class else ' class="art"'
+    worker = "" if main_class else START_WORKER
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{html.escape(title)}</title><style>{STYLE}</style></head>
-<body><main{attribute}>{body}</main></body></html>"""
+<body{body_attribute}><main{attribute}>{body}</main>{worker}</body></html>"""
 
 
 def moment(stamp):
@@ -77,7 +95,8 @@ def login_page(providers, email_on, error=""):
     if not buttons and not form:
         buttons = '<p class="error">No sign-in provider is set up on this server.</p>'
     message = f'<p class="error">{html.escape(error)}</p>' if error else ""
-    return page("hexdom: sign in", f"<h1>hexdom</h1><p>Sign in to play.</p>{message}{buttons}{form}")
+    choices = f'<div class="signin"><div>{buttons}</div>{form}</div>'
+    return page("hexdom: sign in", f"<p>Sign in to play.</p>{message}{choices}")
 
 
 def email_sent_page():

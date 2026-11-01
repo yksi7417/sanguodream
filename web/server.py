@@ -34,6 +34,8 @@ import sys
 import time
 import urllib.parse
 
+PROCESS_START = time.monotonic()   # before the imports: the log shows the time of a cold start
+
 import aiohttp
 from aiohttp import web
 
@@ -361,6 +363,18 @@ async def health(request):
     return web.Response(text="ok")
 
 
+# The files before the sign-in, beside server.py (docs/WEB.md, "The first second of a visit").
+# The names of these files do not change between builds, so the browser asks again for
+# the page and the script. The picture changes rarely.
+PUBLIC_FILES = {"splash.jpg": "public, max-age=86400", "boot.html": "no-cache", "sw.js": "no-cache"}
+SITE_FOLDER = os.path.dirname(os.path.abspath(__file__))
+
+
+async def public_file(request):
+    name = request.path.lstrip("/")
+    return web.FileResponse(os.path.join(SITE_FOLDER, name), headers={"Cache-Control": PUBLIC_FILES[name]})
+
+
 # ---- start -----------------------------------------------------------------
 
 async def open_http(app):
@@ -432,6 +446,7 @@ def make_app(root):
         web.get("/api/games/{gid}/snap/latest", games_api.api_game_snapshot_latest),
         web.put("/api/games/{gid}/desync/{step:[0-9]{1,9}}", games_api.api_game_desync_put),
         web.get("/r/{code}", games_api.invite),
+        *[web.get("/" + name, public_file) for name in PUBLIC_FILES],
         web.get("/", game_file),
         web.get("/{name}", game_file),
     ])
@@ -449,7 +464,11 @@ def make_app(root):
 def main():
     root = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_FOLDER
     port = int(os.environ.get("PORT", DEFAULT_PORT))
-    web.run_app(make_app(root), host="0.0.0.0", port=port, print=None, access_log=None)
+    imported = time.monotonic()
+    app = make_app(root)
+    print(f"server.py: the imports took {imported - PROCESS_START:.1f} s, the setup took {time.monotonic() - imported:.1f} s",
+          flush=True)
+    web.run_app(app, host="0.0.0.0", port=port, print=None, access_log=None)
     return 0
 
 
