@@ -81,8 +81,9 @@ def draw_card(picture):
     draw.text((left + 34, top + 5), "hexdom", font=ImageFont.truetype(LATIN_FONT, 18), fill=TEXT)
 
     centre_x = (left + right) / 2
-    centred_text(draw, centre_x, top + 58, "群雄割據", ImageFont.truetype(CJK_FONT, 84), TEXT)
-    centred_text(draw, centre_x, top + 178, "一九六年  天子東遷", ImageFont.truetype(CJK_FONT, 26), TEXT_DISABLED)
+    # The title of all the packs: the story of China and of Europe is the same.
+    centred_text(draw, centre_x, top + 58, "Warlords", ImageFont.truetype(LATIN_FONT, 84), TEXT)
+    centred_text(draw, centre_x, top + 178, "When the throne falls, the lords fight", ImageFont.truetype(LATIN_FONT, 26), TEXT_DISABLED)
     draw.line((left + 40, top + 236, right - 40, top + 236), fill=(60, 60, 68, 255), width=1)
     draw.rectangle(BAR, fill=PANEL_FRAME)
     return Image.alpha_composite(picture.convert("RGBA"), layer).convert("RGB")
