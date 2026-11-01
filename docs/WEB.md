@@ -217,9 +217,9 @@ After the migration:
 6. In API Keys, make a key with the permission "Sending access". Limit the key to the domain.
 7. Set the two secrets. Replace the values:
    `flyctl secrets set RESEND_API_KEY=re_xxx "EMAIL_FROM=hexdom <sign-in@yourdomain>" -a sanguodream`
-8. Remove the old secrets, if they exist:
+8. Run `deploy_web.bat`.
+9. After the deploy, remove the old secrets. The old server cannot start without them, so do not do this first:
    `flyctl secrets unset HOUSE_PASSWORD SITE_PASSWORD -a sanguodream`
-9. Run `deploy_web.bat`.
 
 Open the sign-in page and ask for a link. The result is an email in less
 than one minute. If no email comes, `flyctl logs -a sanguodream` shows
