@@ -994,6 +994,11 @@ These parts of the plan wait or changed:
 - No test checks the Embedded App SDK. The check in a Discord server
   (step 4) covers it.
 
+## The check by hand
+docs/TRY-MULTIPLAYER.md gives the steps to prove a shared game by hand. It has
+a step that sends one false checksum from the page of a player. That step
+makes a desync in a real browser.
+
 ## The open questions for the user
 | Id | Question | The default of the plan |
 |---|---|---|
