@@ -2,7 +2,6 @@
 // and does not download the game (web/shell.html, deviceProblems).
 const { test, expect } = require("@playwright/test");
 
-const HOUSE_PASSWORD = "house-test";
 
 test.use({ isMobile: true, hasTouch: true, viewport: { width: 390, height: 844 } });
 
@@ -10,10 +9,6 @@ test("a phone sees the requirements page and does not load the game", async ({ p
   const gameFiles = [];
   page.on("request", (request) => { if (/index\.(js|wasm|data)$/.test(request.url())) gameFiles.push(request.url()); });
   await page.goto("/auth/dev/start?name=Phone");
-  if (new URL(page.url()).pathname === "/house") {
-    await page.fill("#house-password", HOUSE_PASSWORD);
-    await page.click("#house-submit");
-  }
   await page.waitForURL((url) => url.pathname === "/");
   await expect(page.locator("#unsupported")).toBeVisible();
   await expect(page.locator("#unsupported-reasons")).toContainText("touch screen");

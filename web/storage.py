@@ -11,6 +11,8 @@ Two backends have the same functions:
 The keys:
 - users/<uid>.json: the record of a user, as JSON.
 - saves/<uid>/<name>: a save file of a user.
+- signin/<hash>.json, emails/<hash>.json: the tokens and the index of the sign-in
+  with an email link (email_link.py).
 - builds/<build id>/<name>: index.wasm and index.data of a build, only in the
   bucket (game_files.py).
 """
@@ -185,6 +187,19 @@ def open_storage():
 async def read_user(storage, uid):
     data = await storage.get(user_key(uid))
     return json.loads(data) if data else None
+
+
+async def all_users(storage):
+    """Give each good record of a user."""
+    users = []
+    for row in await storage.list("users/"):
+        try:
+            record = json.loads(await storage.get("users/" + row["name"]) or b"null")
+        except ValueError:
+            continue
+        if isinstance(record, dict) and "uid" in record:
+            users.append(record)
+    return users
 
 
 async def write_user(storage, user):

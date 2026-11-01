@@ -1,4 +1,4 @@
-"""The HTML pages of the site: the sign-in page, the house password page and the members page."""
+"""The HTML pages of the site: the sign-in page, the pages of the email link and the members page."""
 import html
 import time
 
@@ -42,16 +42,15 @@ def members_page(members):
     """The table of the users for an admin. Each value is escaped, because the user gives the name."""
     rows = []
     for record in members:
-        role = "admin" if record.get("admin") else ("member" if record.get("member") else "no house password")
+        role = "admin" if record.get("admin") else "member"
         cells = [html.escape(str(record.get("name", "?"))), html.escape(str(record.get("provider", "?"))),
                  html.escape(str(record.get("email", "")) or "-"), role]
         row = "".join(f"<td>{cell}</td>" for cell in cells)
         row += f'<td class="number">{int(record.get("saves", 0))}</td>'
         row += f"<td>{moment(record.get('joined'))}</td><td>{moment(record.get('last_login'))}</td>"
         rows.append(f"<tr>{row}</tr>")
-    member_count = sum(1 for record in members if record.get("member"))
     body = f"""<h1>Members</h1>
-<p>{len(members)} users signed in. {member_count} of them typed the house password. The times are UTC.</p>
+<p>{len(members)} users signed in. The times are UTC.</p>
 <div class="table"><table id="members">
 <thead><tr><th>Name</th><th>Sign-in</th><th>Email</th><th>Role</th><th>Saves</th><th>Joined</th><th>Last sign-in</th></tr></thead>
 <tbody>{"".join(rows)}</tbody></table></div>
@@ -66,25 +65,49 @@ def forbidden_page():
     return page("hexdom: members", body)
 
 
-def login_page(providers, error=""):
-    if providers:
-        buttons = "".join(
-            f'<a class="button" id="login-{name}" href="/auth/{name}/start">Sign in with {html.escape(provider.label)}</a>'
-            for name, provider in providers.items()
-        )
-    else:
+def login_page(providers, email_on, error=""):
+    buttons = "".join(
+        f'<a class="button" id="login-{name}" href="/auth/{name}/start">Sign in with {html.escape(provider.label)}</a>'
+        for name, provider in providers.items()
+    )
+    form = """<form method="post" action="/auth/email/request">
+<input type="email" name="email" id="email-address" autocomplete="email" placeholder="you@example.com" required>
+<button type="submit" id="email-submit">Email me a sign-in link</button>
+</form>""" if email_on else ""
+    if not buttons and not form:
         buttons = '<p class="error">No sign-in provider is set up on this server.</p>'
     message = f'<p class="error">{html.escape(error)}</p>' if error else ""
-    return page("hexdom: sign in", f"<h1>hexdom</h1><p>Sign in to play.</p>{message}{buttons}")
+    return page("hexdom: sign in", f"<h1>hexdom</h1><p>Sign in to play.</p>{message}{buttons}{form}")
 
 
-def house_page(name, error=""):
-    message = f'<p class="error">{html.escape(error)}</p>' if error else ""
-    body = f"""<h1>House password</h1>
-<p>Welcome, {html.escape(name)}. Type the house password one time to join.</p>{message}
-<form method="post" action="/house">
-<input type="password" name="password" id="house-password" autocomplete="current-password" autofocus required>
-<button type="submit" id="house-submit">Join</button>
-</form>
-<form method="post" action="/logout"><button type="submit">Sign out</button></form>"""
-    return page("hexdom: house password", body)
+def email_sent_page():
+    """The same page for each address, so that the page does not show if the address is known."""
+    body = """<h1>Look in your email</h1>
+<p id="email-sent">We sent a sign-in link to the address. The link works one time, for 15 minutes.</p>
+<p><a href="/login">Back to the sign-in</a></p>"""
+    return page("hexdom: look in your email", body)
+
+
+def email_limit_page():
+    body = """<h1>Too many requests</h1>
+<p class="error">Too many requests came from this network. Try again in one hour.</p>
+<p><a href="/login">Back to the sign-in</a></p>"""
+    return page("hexdom: too many requests", body)
+
+
+def email_confirm_page(token, address):
+    """A GET of the link shows this page. Only the button uses the token."""
+    body = f"""<h1>Sign in</h1>
+<p>Sign in to hexdom as {html.escape(address)}.</p>
+<form method="post" action="/auth/email/confirm">
+<input type="hidden" name="token" value="{html.escape(token)}">
+<button type="submit" id="email-confirm">Sign in</button>
+</form>"""
+    return page("hexdom: sign in", body)
+
+
+def email_bad_link_page():
+    body = """<h1>This link does not work</h1>
+<p class="error">A link works one time, for 15 minutes.</p>
+<p><a href="/login">Ask for a new link</a></p>"""
+    return page("hexdom: sign in", body)

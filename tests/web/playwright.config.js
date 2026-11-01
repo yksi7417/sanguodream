@@ -1,6 +1,6 @@
 // The Playwright smoke tests of the web game (docs/WEB.md, "The browser tests").
 // Build the test game first: build_web.bat test-game. The config starts web/server.py
-// with the test login, a storage folder and the house password "house-test".
+// with the test login, a storage folder and a file for the email of the sign-in link.
 const path = require("path");
 const { defineConfig } = require("@playwright/test");
 
@@ -42,7 +42,8 @@ module.exports = defineConfig({
     env: {
       PORT: String(port),
       SESSION_SECRET: "playwright-session-secret",
-      HOUSE_PASSWORD: "house-test",
+      RESEND_API_KEY: "",
+      EMAIL_OUTBOX: path.join(repo, "build", "webtest-outbox.txt"),
       AUTH_DEV_LOGIN: "1",
       // The test login gives the email <name>@dev.test (web/auth.py). Tester is an admin.
       ADMIN_EMAILS: "tester@dev.test",

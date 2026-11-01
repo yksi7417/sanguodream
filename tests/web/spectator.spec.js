@@ -1,5 +1,5 @@
 // The test of a spectator (docs/MULTIPLAYER.md, MP7). Two players start a game. A third member
-// of the house opens the game and clicks "Watch". The spectator sees each move of the players,
+// opens the game and clicks "Watch". The spectator sees each move of the players,
 // cannot take a seat while the game runs, and the chat of a player reaches the spectator.
 const { test, expect } = require("@playwright/test");
 const h = require("./hexdom");

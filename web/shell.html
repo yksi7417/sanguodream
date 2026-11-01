@@ -438,7 +438,7 @@
   }
 
   /* ---- The user badge and the sign-out ------------------------------------------------ */
-  var PROVIDER_LABELS = { google: "Google", apple: "Apple", facebook: "Facebook", dev: "the test login" };
+  var PROVIDER_LABELS = { google: "Google", apple: "Apple", facebook: "Facebook", email: "an email link", dev: "the test login" };
 
   function setupUser(me) {
     var badge = document.getElementById("user");
@@ -539,8 +539,7 @@
 <script>
   /* ---- The Discord Activity (docs/MULTIPLAYER.md, MP8) --------------------------------
      The Embedded App SDK gives a code. The server changes it for the Discord access token
-     and a session token of the site. A Discord user who is not a member types the house
-     password one time. The voice channel has one room: the page opens it, or "Play
+     and a session token of the site. The voice channel has one room: the page opens it, or "Play
      online" makes it. The address of the SDK comes from the server: the URL mappings of
      the Discord app must map it (docs/MULTIPLAYER.md, "The status of MP8"). */
   async function discordSignIn() {
@@ -556,32 +555,10 @@
     try { sessionStorage.setItem("hexdom.token", session.token); } catch (error) { /* the token stays in memory */ }
     await sdk.commands.authenticate({ access_token: session.access_token });
     siteAuth.channel = sdk.channelId || null;
-    if (!session.member) await housePassword();
     if (siteAuth.channel) {
       var room = await fetch("api/discord/channel/" + siteAuth.channel).then(function (r) { return r.ok ? r.json() : null; });
       if (room) siteAuth.channelGame = room.gid;
     }
-  }
-
-  function housePassword() {
-    return new Promise(function (resolve) {
-      var box = element("div", undefined, "house");
-      box.style.cssText = "position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#17191f";
-      var input = element("input", undefined, "house-password");
-      input.type = "password";
-      var button = element("button", "Join the house", "house-submit");
-      var note = element("p", "Type the house password one time.");
-      var form = element("form");
-      form.append(note, input, button);
-      box.appendChild(form);
-      document.body.appendChild(box);
-      form.addEventListener("submit", function (event) {
-        event.preventDefault();
-        postJson("api/house", { password: input.value })
-          .then(function () { box.remove(); resolve(); })
-          .catch(function (error) { note.textContent = String(error.message || error); });
-      });
-    });
   }
 
   (async function () {

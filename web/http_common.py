@@ -13,18 +13,18 @@ from aiohttp import web
 
 import auth
 import broadcast
+import email_link
 import game_files
 import rooms
 import storage
 
 KEY_SECRET = web.AppKey("secret", bytes)
-KEY_HOUSE = web.AppKey("house", bytes)
 KEY_ROOT = web.AppKey("root", str)
 KEY_PROVIDERS = web.AppKey("providers", dict)
 KEY_STORAGE = web.AppKey("storage", object)
 KEY_HTTP = web.AppKey("http", aiohttp.ClientSession)
 KEY_BROADCAST = web.AppKey("broadcast", broadcast.Broadcast)
-KEY_FAILURES = web.AppKey("failures", dict)
+KEY_EMAIL = web.AppKey("email", email_link.EmailLinks)
 KEY_ADMINS = web.AppKey("admins", frozenset)
 KEY_GAME_FILES = web.AppKey("game_files", game_files.GameFiles)
 KEY_ROOMS = web.AppKey("rooms", rooms.Rooms)
@@ -82,11 +82,11 @@ def session_token(request, uid):
 
 async def require_member(request):
     user = await current_user(request)
-    if user and user.get("member"):
+    if user:
         return user
     if request.path.startswith("/api/"):
         raise web.HTTPUnauthorized()
-    raise web.HTTPFound("/house" if user else "/login")
+    raise web.HTTPFound("/login")
 
 
 def same_origin(request):

@@ -1,5 +1,5 @@
 # The fly.io site of the web game (docs/WEB.md, "The fly.io site").
-# The secrets (SESSION_SECRET, HOUSE_PASSWORD, the keys of the sign-in
+# The secrets (SESSION_SECRET, RESEND_API_KEY, EMAIL_FROM, the keys of the sign-in
 # providers, of the bucket and of YouTube) are not in this repository.
 app = 'sanguodream'
 primary_region = 'iad'

@@ -2,16 +2,11 @@
 // The config makes "Tester" an admin through ADMIN_EMAILS (playwright.config.js).
 const { test, expect } = require("@playwright/test");
 
-const HOUSE_PASSWORD = "house-test";
 
-// Sign in with the test login as NAME and join the house. The game does not load.
+// Sign in with the test login as NAME. The game does not load.
 async function join(page, name) {
   await page.route("**/index.*", (route) => route.abort());
   await page.goto(`/auth/dev/start?name=${encodeURIComponent(name)}`);
-  if (new URL(page.url()).pathname === "/house") {
-    await page.fill("#house-password", HOUSE_PASSWORD);
-    await page.click("#house-submit");
-  }
   await page.waitForURL((url) => url.pathname === "/");
 }
 

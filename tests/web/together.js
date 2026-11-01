@@ -4,7 +4,6 @@
 const { expect } = require("@playwright/test");
 const h = require("./hexdom");
 
-const HOUSE_PASSWORD = "house-test";
 const TITLE_SELECT_MS = 1500;
 
 async function signInAs(page, name) {
@@ -13,10 +12,6 @@ async function signInAs(page, name) {
     if (/^platform|desync|error/i.test(text) && !/peak memory/.test(text)) console.log(`  [${name}] ${text}`);
   });
   await page.goto(`/auth/dev/start?name=${encodeURIComponent(name)}`);
-  if (new URL(page.url()).pathname === "/house") {
-    await page.fill("#house-password", HOUSE_PASSWORD);
-    await page.click("#house-submit");
-  }
   await page.waitForURL((url) => url.pathname === "/");
 }
 

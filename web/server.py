@@ -3,17 +3,16 @@
 Usage: python -u web/server.py [FOLDER]
 
 The server gives the files of FOLDER (default /srv/web) to a member. A
-member is a user who signed in (auth.py) and typed the house password one
-time. The server also keeps the saves of each member (storage.py), relays
+member is a user who signed in with a provider (auth.py) or with an email
+link (email_link.py). The server also keeps the saves of each member (storage.py), relays
 the steps of the shared games (games_api.py, rooms.py) and, as an option, relays a
 YouTube broadcast (broadcast.py).
 
 The environment variables:
 - SESSION_SECRET: the key of the cookies. The server does not start
   without it.
-- HOUSE_PASSWORD: the shared password of the house. SITE_PASSWORD is the
-  old name, and the server also reads it. The server does not start
-  without one of them.
+- RESEND_API_KEY, EMAIL_FROM: the key of Resend and the sender of the
+  emails. Without them, the sign-in page has no email form.
 - PUBLIC_URL: the address of the site for the providers, for example
   https://sanguodream.fly.dev. On fly.io the default comes from
   FLY_APP_NAME. Locally, the default is the address of the request.
@@ -29,7 +28,6 @@ FILE.gz. The Dockerfile makes these files.
 """
 import asyncio
 import hmac
-import json
 import mimetypes
 import os
 import sys
@@ -41,22 +39,20 @@ from aiohttp import web
 
 import auth
 import broadcast
+import email_link
 import game_files
 import games_api
 import pages
 import referee
 import rooms
 import storage
-from http_common import (KEY_ADMINS, KEY_BROADCAST, KEY_FAILURES, KEY_GAME_FILES, KEY_HOUSE, KEY_HTTP,
+from http_common import (KEY_ADMINS, KEY_BROADCAST, KEY_EMAIL, KEY_GAME_FILES, KEY_HTTP,
                          KEY_PROVIDERS, KEY_ROOMS, KEY_ROOT, KEY_SECRET, KEY_STORAGE, current_user,
                          public_url, read_object, redirect, require_member, same_origin, session_token,
                          set_cookie)
 
 DEFAULT_FOLDER = "/srv/web"
 DEFAULT_PORT = 8080
-FAILED_PASSWORD_DELAY_SECONDS = 1.0
-MAX_FAILED_PASSWORDS = 10
-FAILED_PASSWORD_WINDOW_SECONDS = 3600
 GAME_FILES = ("index.html", "index.js", "index.wasm", "index.data", "shared_game.js")
 # Only the site and Discord can put a page of the site in a frame. The Discord
 # Activity is a frame on discord.com, and its proxy is <client id>.discordsays.com.
@@ -84,10 +80,11 @@ async def security_headers(request, handler):
 
 async def login(request):
     user = await current_user(request)
-    if user and user.get("member"):
+    if user:
         raise web.HTTPFound("/")
     error = request.query.get("error", "")
-    return web.Response(text=pages.login_page(request.app[KEY_PROVIDERS], error), content_type="text/html")
+    page = pages.login_page(request.app[KEY_PROVIDERS], bool(request.app[KEY_EMAIL].sender), error)
+    return web.Response(text=page, content_type="text/html")
 
 
 async def auth_start(request):
@@ -123,7 +120,7 @@ async def auth_callback(request):
         raise web.HTTPFound("/login?error=" + urllib.parse.quote(f"The sign-in with {provider.label} failed."))
 
     user = await sign_in_user(request, provider, subject, name, email, verified)
-    response = redirect("/" if user.get("member") else "/house")
+    response = redirect("/")
     set_cookie(response, request, auth.SESSION_COOKIE, session_token(request, user["uid"]), auth.SESSION_SECONDS)
     response.del_cookie(auth.STATE_COOKIE, path="/")
     return response
@@ -132,9 +129,13 @@ async def auth_callback(request):
 async def sign_in_user(request, provider, subject, name, email, verified):
     """Read or make the record of the user of a provider, and note the sign-in."""
     store = request.app[KEY_STORAGE]
+    links = request.app[KEY_EMAIL]
     uid = auth.user_id(provider.name, subject)
-    user = await storage.read_user(store, uid) or {"uid": uid, "provider": provider.name, "member": False,
-                                                   "joined": int(time.time())}
+    address = email_link.clean_address(email) if verified else ""
+    # A user who came with an email link first has one account, if the provider verified the same address.
+    user = await storage.read_user(store, uid) or (await links.account_of(address) if address else None) or {
+        "uid": uid, "joined": int(time.time())}
+    user["provider"] = provider.name
     # Apple gives the name only at the first sign-in, so an empty name keeps the old one.
     user["name"] = name or user.get("name") or auth.clean_name(email, f"{provider.label} user")
     if email:
@@ -142,8 +143,55 @@ async def sign_in_user(request, provider, subject, name, email, verified):
         user["email_verified"] = verified
     user["last_login"] = int(time.time())
     await storage.write_user(store, user)
+    if address:
+        await links.remember(address, user["uid"])
     print(f"auth: {user['name']} signed in with {provider.name}", flush=True)
     return user
+
+
+async def email_request(request):
+    """The form of the sign-in page. The reply is the same for each good address."""
+    links = request.app[KEY_EMAIL]
+    if not links.sender:
+        raise web.HTTPNotFound()
+    form = await request.post()
+    address = email_link.clean_address(form.get("email"))
+    if not address:
+        page = pages.login_page(request.app[KEY_PROVIDERS], True, "Type a good email address.")
+        return web.Response(text=page, content_type="text/html", status=400)
+    confirm_url = f"{public_url(request)}/auth/email/confirm"
+    if not await links.request(request.app[KEY_HTTP], address, email_link.client_ip(request), confirm_url):
+        return web.Response(text=pages.email_limit_page(), content_type="text/html", status=429)
+    return web.Response(text=pages.email_sent_page(), content_type="text/html")
+
+
+def email_link_page(text, status=200):
+    # The address of the link has the token. The default policy same-origin keeps it from other sites.
+    # The policy no-referrer does not work here: the browser then posts the form with Origin: null.
+    return web.Response(text=text, content_type="text/html", status=status,
+                        headers={"Cache-Control": "no-store"})
+
+
+async def email_confirm_form(request):
+    """A mail scanner opens the link, so this GET does not use the token."""
+    token = request.query.get("token", "")
+    address = await request.app[KEY_EMAIL].peek(token)
+    if not address:
+        return email_link_page(pages.email_bad_link_page(), 400)
+    return email_link_page(pages.email_confirm_page(token, address))
+
+
+async def email_confirm(request):
+    links = request.app[KEY_EMAIL]
+    form = await request.post()
+    address = await links.consume(form.get("token", ""))
+    if not address:
+        return email_link_page(pages.email_bad_link_page(), 400)
+    user = await links.sign_in(address)
+    response = redirect("/")
+    set_cookie(response, request, auth.SESSION_COOKIE, session_token(request, user["uid"]), auth.SESSION_SECONDS)
+    print(f"auth: {user['name']} signed in with an email link", flush=True)
+    return response
 
 
 async def api_discord_token(request):
@@ -161,7 +209,7 @@ async def api_discord_token(request):
         raise web.HTTPUnauthorized(text="the Discord sign-in failed")
     user = await sign_in_user(request, provider, subject, name, email, verified)
     return web.json_response({"access_token": access, "token": session_token(request, user["uid"]),
-                              "member": bool(user.get("member")), "name": user["name"]},
+                              "name": user["name"]},
                              headers={"Cache-Control": "no-store"})
 
 
@@ -177,67 +225,11 @@ async def api_discord_config(request):
     return web.json_response({"client_id": provider.client_id, "sdk": os.environ.get("DISCORD_SDK_URL") or DISCORD_SDK_URL})
 
 
-async def api_house(request):
-    """MP8: the house password through the api, for the page of the Discord Activity."""
-    user = await current_user(request)
-    if not user:
-        raise web.HTTPUnauthorized()
-    if not user.get("member"):
-        body = await read_object(request)
-        failures = request.app[KEY_FAILURES]
-        now = time.time()
-        recent = [moment for moment in failures.get(user["uid"], []) if now - moment < FAILED_PASSWORD_WINDOW_SECONDS]
-        if len(recent) >= MAX_FAILED_PASSWORDS:
-            return web.json_response({"error": "too many wrong passwords"}, status=429)
-        if not hmac.compare_digest(str(body.get("password", "")).encode("utf-8"), request.app[KEY_HOUSE]):
-            failures[user["uid"]] = recent + [now]
-            await asyncio.sleep(FAILED_PASSWORD_DELAY_SECONDS)
-            return web.json_response({"error": "not the house password"}, status=403)
-        failures.pop(user["uid"], None)
-        user["member"] = True
-        await storage.write_user(request.app[KEY_STORAGE], user)
-        print(f"auth: {user['name']} joined the house", flush=True)
-    return web.json_response({"member": True})
-
-
 async def api_session_token(request):
     """MP8: the session token of the member, for a page without the cookie (the
     Activity, and the browser test of the token). Another site cannot read the answer."""
     user = await require_member(request)
     return web.json_response({"token": session_token(request, user["uid"])}, headers={"Cache-Control": "no-store"})
-
-
-async def house_form(request):
-    user = await current_user(request)
-    if not user:
-        raise web.HTTPFound("/login")
-    if user.get("member"):
-        raise web.HTTPFound("/")
-    return web.Response(text=pages.house_page(user["name"]), content_type="text/html")
-
-
-async def house_submit(request):
-    user = await current_user(request)
-    if not user:
-        raise web.HTTPFound("/login")
-    failures = request.app[KEY_FAILURES]
-    now = time.time()
-    recent = [moment for moment in failures.get(user["uid"], []) if now - moment < FAILED_PASSWORD_WINDOW_SECONDS]
-    if len(recent) >= MAX_FAILED_PASSWORDS:
-        page = pages.house_page(user["name"], "Too many wrong passwords. Try again in one hour.")
-        return web.Response(text=page, content_type="text/html", status=429)
-    form = await request.post()
-    typed = str(form.get("password", "")).encode("utf-8")
-    if not hmac.compare_digest(typed, request.app[KEY_HOUSE]):
-        failures[user["uid"]] = recent + [now]
-        await asyncio.sleep(FAILED_PASSWORD_DELAY_SECONDS)
-        page = pages.house_page(user["name"], "That is not the house password.")
-        return web.Response(text=page, content_type="text/html", status=403)
-    failures.pop(user["uid"], None)
-    user["member"] = True
-    await storage.write_user(request.app[KEY_STORAGE], user)
-    print(f"auth: {user['name']} joined the house", flush=True)
-    raise web.HTTPFound("/")
 
 
 async def logout(request):
@@ -290,13 +282,7 @@ async def admin_members(request):
         raise web.HTTPForbidden(text=pages.forbidden_page(), content_type="text/html")
     store = request.app[KEY_STORAGE]
     members = []
-    for row in await store.list("users/"):
-        try:
-            record = json.loads(await store.get("users/" + row["name"]) or b"null")
-        except ValueError:
-            continue
-        if not isinstance(record, dict) or "uid" not in record:
-            continue
+    for record in await storage.all_users(store):
         record["saves"] = len(await store.list(storage.save_prefix(record["uid"])))
         record["admin"] = auth.is_admin(record, request.app[KEY_ADMINS])
         members.append(record)
@@ -383,7 +369,7 @@ async def open_http(app):
     await app[KEY_HTTP].close()
 
 
-SETTING_NAMES = ("SESSION_SECRET", "HOUSE_PASSWORD", "SITE_PASSWORD", "PUBLIC_URL", "GOOGLE_CLIENT_ID",
+SETTING_NAMES = ("SESSION_SECRET", "RESEND_API_KEY", "EMAIL_FROM", "PUBLIC_URL", "GOOGLE_CLIENT_ID",
                  "FACEBOOK_APP_ID", "APPLE_CLIENT_ID", "ADMIN_EMAILS", "BUCKET_NAME", "AWS_ENDPOINT_URL_S3", "YOUTUBE_STREAM_KEY")
 
 
@@ -392,23 +378,22 @@ def make_app(root):
     present = [name for name in SETTING_NAMES if os.environ.get(name)]
     print(f"server.py: settings with a value: {', '.join(present) or 'none'}", flush=True)
     secret = os.environ.get("SESSION_SECRET", "")
-    house = os.environ.get("HOUSE_PASSWORD", "") or os.environ.get("SITE_PASSWORD", "")
-    if not secret or not house:
-        raise SystemExit("server.py: set SESSION_SECRET and HOUSE_PASSWORD (fly secrets set)")
+    if not secret:
+        raise SystemExit("server.py: set SESSION_SECRET (fly secrets set)")
     app = web.Application(middlewares=[security_headers], client_max_size=storage.MAX_SAVE_BYTES + 1024)
     app[KEY_SECRET] = secret.encode("utf-8")
-    app[KEY_HOUSE] = house.encode("utf-8")
     app[KEY_ROOT] = os.path.realpath(root)
     app[KEY_PROVIDERS] = auth.load_providers()
     app[KEY_STORAGE] = storage.open_storage()
     app[KEY_BROADCAST] = broadcast.Broadcast()
-    app[KEY_FAILURES] = {}
+    app[KEY_EMAIL] = email_link.EmailLinks(app[KEY_STORAGE], email_link.load_sender())
     app[KEY_ADMINS] = auth.admin_emails()
     app[KEY_GAME_FILES] = game_files.GameFiles(app[KEY_ROOT])
     script = referee.find_script()   # MP6: the referee decides a desync of two players
     app[KEY_ROOMS] = rooms.Rooms(app[KEY_STORAGE], build=app[KEY_GAME_FILES].build or "",
                                  referee=referee.Referee(script) if script else None)
     app.cleanup_ctx.append(open_http)
+    app.cleanup_ctx.append(email_link.migrate_context(app[KEY_EMAIL]))
     app.cleanup_ctx.append(game_files.publish_context(app[KEY_GAME_FILES], app[KEY_STORAGE]))
     app.cleanup_ctx.append(rooms.flush_context(app[KEY_ROOMS]))
     app.add_routes([
@@ -417,8 +402,9 @@ def make_app(root):
         web.get("/auth/{provider}/start", auth_start),
         web.get("/auth/{provider}/callback", auth_callback),
         web.post("/auth/{provider}/callback", auth_callback),
-        web.get("/house", house_form),
-        web.post("/house", house_submit),
+        web.post("/auth/email/request", email_request),
+        web.get("/auth/email/confirm", email_confirm_form),
+        web.post("/auth/email/confirm", email_confirm),
         web.post("/logout", logout),
         web.get("/admin", admin_members),
         web.get("/api/me", api_me),
@@ -431,7 +417,6 @@ def make_app(root):
         web.get("/api/discord/config", api_discord_config),
         web.post("/api/discord/token", api_discord_token),
         web.get("/api/discord/channel/{channel}", games_api.api_discord_channel),
-        web.post("/api/house", api_house),
         web.get("/api/session-token", api_session_token),
         web.get("/api/games", games_api.api_games),
         web.post("/api/games", games_api.api_games_create),
@@ -453,6 +438,7 @@ def make_app(root):
     print(f"server.py: serving {app[KEY_ROOT]}", flush=True)
     print(f"server.py: providers {', '.join(app[KEY_PROVIDERS]) or 'none'}", flush=True)
     print(f"server.py: storage {app[KEY_STORAGE].description}", flush=True)
+    print(f"server.py: email link {'on' if app[KEY_EMAIL].sender else 'off'}", flush=True)
     print(f"server.py: broadcast {'on' if app[KEY_BROADCAST].enabled else 'off'}", flush=True)
     print(f"server.py: {len(app[KEY_ADMINS])} admin emails", flush=True)
     print(f"server.py: game build {app[KEY_GAME_FILES].build or 'none'}", flush=True)

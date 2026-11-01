@@ -2,18 +2,12 @@
 // The page needs no game for these tests: they use fetch and a WebSocket of the page.
 const { test, expect } = require("@playwright/test");
 
-const HOUSE_PASSWORD = "house-test";
 
-// Sign in with the test provider and join the house. The test does not wait for the game.
+// Sign in with the test provider. The test does not wait for the game.
 async function signInOnly(page) {
   await page.goto("/login");
   await page.click("#login-dev");
-  await page.waitForURL((url) => url.pathname === "/house" || url.pathname === "/");
-  if (new URL(page.url()).pathname === "/house") {
-    await page.fill("#house-password", HOUSE_PASSWORD);
-    await page.click("#house-submit");
-    await page.waitForURL((url) => url.pathname === "/");
-  }
+  await page.waitForURL((url) => url.pathname === "/");
 }
 
 test("the socket of a room refuses a person without a member session", async ({ request }) => {

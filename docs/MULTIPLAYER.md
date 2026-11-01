@@ -152,7 +152,7 @@ server checks the deadlines at each start and at each request.
    `https://sanguodream.fly.dev/r/<code>` and a room code of six
    letters. The code uses no letter that looks like a digit.
 5. A friend opens the link. If the friend is not a member, the sign-in
-   and the house password come first. The server then sends the friend
+   comes first. The server then sends the friend
    back to the room. auth.new_state already keeps a return path.
 6. Each player clicks a free faction to take its seat. The host can also
    set a seat to the AI, or remove a player from a seat.
@@ -424,8 +424,8 @@ The plan for Discord (MP8):
    channel, and each participant takes a seat.
 5. Inside Discord, the voice and the chat of Discord replace the chat of
    MP7. The site outside Discord keeps its own chat.
-6. The house password stays. A Discord user who is not a member types
-   it one time.
+6. The sign-in with Discord is sufficient. The site has no house password
+   (docs/WEB.md).
 
 ## The content and the licence
 The code of hexdom is clean-room. The data of some packs is not:
@@ -945,7 +945,7 @@ and the check in a Discord server wait for the user. These parts exist:
   the Discord access token and a session token of the site. The session
   token has the format of the session cookie and the key SESSION_SECRET.
 - A request with `Authorization: Bearer <session token>` is a request of
-  that user. `POST /api/house` takes the house password as JSON.
+  that user.
 - A socket without the cookie asks for `?token=1`. Its first message is
   the hello with the token. A bad token gets the error "401" and the close
   code 4401.
@@ -960,8 +960,8 @@ and the check in a Discord server wait for the user. These parts exist:
 - One room for each voice channel: the room of "Play online" in an
   Activity records the channel. `GET /api/discord/channel/<id>` gives the
   room, and a second room for a channel gets an error.
-- In an Activity, the page loads the SDK and signs in. A new user types
-  the house password. Then the page opens the room of the voice channel.
+- In an Activity, the page loads the SDK and signs in. Then the page opens
+  the room of the voice channel.
   `GET /api/discord/config` gives the client id and the address of the
   SDK.
 

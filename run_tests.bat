@@ -62,6 +62,12 @@ if errorlevel 1 (
   echo TESTS FAILED
   exit /b 1
 )
+echo === email link ===
+"%HEXDOM_PYTHON%" -I "%ROOT%tests\server\email_link_tests.py"
+if errorlevel 1 (
+  echo TESTS FAILED
+  exit /b 1
+)
 echo === referee ===
 "%HEXDOM_PYTHON%" -I "%ROOT%tests\server\referee_tests.py"
 if errorlevel 1 (

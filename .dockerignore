@@ -3,6 +3,7 @@
 !web/requirements.txt
 !web/server.py
 !web/auth.py
+!web/email_link.py
 !web/storage.py
 !web/pages.py
 !web/broadcast.py

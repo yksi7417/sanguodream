@@ -1,7 +1,7 @@
 @echo off
 REM Builds the web game and deploys it to the fly.io app sanguodream (docs/WEB.md).
 REM Before the first deploy, set the secrets of docs/WEB.md, "The fly.io site": at least
-REM SESSION_SECRET, HOUSE_PASSWORD, one sign-in provider and the bucket of the saves.
+REM SESSION_SECRET, one sign-in provider or the two values of the email link, and the bucket of the saves.
 REM The fly builder makes the image from the Dockerfile. Docker is not necessary on this computer.
 setlocal
 call "%~dp0build_web.bat"

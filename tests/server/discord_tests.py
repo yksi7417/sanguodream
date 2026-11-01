@@ -18,7 +18,6 @@ from aiohttp import ClientSession, WSMsgType, web                     # noqa: E4
 from aiohttp.test_utils import TestClient, TestServer                 # noqa: E402
 
 CLIENT_ID, CLIENT_SECRET = "1234567890", "discord-secret"
-HOUSE = "house-test"
 GOOD_CODE, ACCESS_TOKEN = "good-code", "discord-access"
 DISCORD_USER = {"id": "8001", "username": "liu", "global_name": "Liu Bei", "email": "liu@example.com", "verified": True}
 
@@ -47,7 +46,7 @@ class DiscordTests(unittest.IsolatedAsyncioTestCase):
         await self.fake.start_server()
         self.folder = tempfile.TemporaryDirectory()
         os.environ.update({
-            "SESSION_SECRET": "discord-test-secret", "HOUSE_PASSWORD": HOUSE, "AUTH_DEV_LOGIN": "",
+            "SESSION_SECRET": "discord-test-secret", "AUTH_DEV_LOGIN": "",
             "DISCORD_CLIENT_ID": CLIENT_ID, "DISCORD_CLIENT_SECRET": CLIENT_SECRET,
             "DISCORD_API_BASE": str(self.fake.make_url("")).rstrip("/"),
             "STORAGE_DIR": os.path.join(self.folder.name, "storage"), "FLY_APP_NAME": "", "BUCKET_NAME": "",
@@ -74,10 +73,7 @@ class DiscordTests(unittest.IsolatedAsyncioTestCase):
         return {"Authorization": f"Bearer {token}"}
 
     async def member(self):
-        token = (await self.sign_in())["token"]
-        response = await self.client.post("/api/house", json={"password": HOUSE}, headers=self.bearer(token))
-        self.assertEqual(response.status, 200)
-        return token
+        return (await self.sign_in())["token"]
 
     async def make_room(self, token, channel=None):
         body = {"name": "Voice game", "scenario": "", "pack": "placeholder", "mode": "live", "turn_seconds": 300,
@@ -99,12 +95,7 @@ class DiscordTests(unittest.IsolatedAsyncioTestCase):
     async def test_the_activity_changes_the_code_for_a_session_token(self):
         answer = await self.sign_in()
         self.assertEqual(answer["access_token"], ACCESS_TOKEN)   # the page gives it to the SDK (authenticate)
-        self.assertFalse(answer["member"])
         token = answer["token"]
-        self.assertEqual((await self.client.get("/api/me", headers=self.bearer(token))).status, 401)   # the house password first
-        wrong = await self.client.post("/api/house", json={"password": "wrong"}, headers=self.bearer(token))
-        self.assertEqual(wrong.status, 403)
-        await self.client.post("/api/house", json={"password": HOUSE}, headers=self.bearer(token))
         me = await (await self.client.get("/api/me", headers=self.bearer(token))).json()
         self.assertEqual((me["uid"], me["name"], me["provider"]), (self.auth.user_id("discord", "8001"), "Liu Bei", "discord"))
         bad = await self.client.post("/api/discord/token", json={"code": "bad-code"})

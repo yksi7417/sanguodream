@@ -96,7 +96,7 @@ decompilation of it.
                     build\webtest; then "npm test" in tests\web runs the
                     Playwright smoke tests (docs/WEB.md, "The browser tests")
 - deploy_web.bat    builds the web game and deploys it to the fly.io app
-                    sanguodream, for the members of the house (docs/WEB.md,
+                    sanguodream (docs/WEB.md,
                     "The fly.io site")
 - build\feature_tests.exe [fixtures-dir]   default spec-src\spec\fixtures
 - build\ui_tests.exe [filter]              for example "ui", "e2e",
@@ -151,7 +151,8 @@ decompilation of it.
 - web/server.py          the server of the fly.io site (Dockerfile,
                          fly.toml). web/http_common.py has the parts that
                          its routes share, and web/games_api.py has the
-                         routes of the shared games. web/auth.py signs in the users, and
+                         routes of the shared games. web/auth.py signs in the users with
+                         a provider, and web/email_link.py with an email link.
                          web/storage.py keeps the saves in S3.
                          web/game_files.py serves index.wasm and
                          index.data from the bucket to members.

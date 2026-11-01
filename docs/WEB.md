@@ -89,19 +89,21 @@ The status on 2026-10-27:
 
 ## The fly.io site
 The fly.io app sanguodream serves the web game at https://sanguodream.fly.dev.
-Only the members of the house can play. The pack holds data from the
-original game, so the site must not be public.
+Any person with an account can sign up and play. The owner decided this on
+2026-11-01. A visitor must sign in to get the game files.
 
-A member is a user who did these two steps:
-1. The user signs in with Google, Apple or Facebook.
-2. The user types the house password one time. The server keeps the
-   membership in the record of the user.
+A member is a user who signed in. A user signs in with one of these:
+- Google, Apple, Facebook or Discord.
+- A link in an email ("The sign-in with an email link").
+
+The site has no passwords. The server stores no password of a user.
 
 | File | Job |
 |---|---|
 | web/server.py | The server, with aiohttp. It sends the game files to members, with the .gz copy for a browser that accepts gzip. It also gives the save api. |
-| web/auth.py | The sign-in with Google, Apple and Facebook, the state cookie and the session cookie. |
-| web/pages.py | The sign-in page and the house password page. |
+| web/auth.py | The sign-in with Google, Apple, Facebook and Discord, the state cookie and the session cookie. |
+| web/email_link.py | The sign-in with an email link: the tokens, the limits, the email and the accounts of the addresses. |
+| web/pages.py | The sign-in page, the pages of the email link and the members page. |
 | web/storage.py | The records of the users and the saves, in an S3 bucket or in a local folder. |
 | web/broadcast.py | The YouTube broadcast, an option. |
 | web/game_files.py | index.wasm and index.data in the bucket, and their presigned addresses for the members |
@@ -123,7 +125,7 @@ file of this repository.
 | Secret | Job |
 |---|---|
 | SESSION_SECRET | The key of the cookies: a random text of 64 hex digits. The server does not start without it. |
-| HOUSE_PASSWORD | The shared password of the house. The server also reads the old name SITE_PASSWORD. |
+| RESEND_API_KEY, EMAIL_FROM | The key of Resend and the sender of the emails, for example `hexdom <sign-in@example.com>`. Without them, the sign-in page has no email form. |
 | GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET | The OAuth client of Google. |
 | FACEBOOK_APP_ID, FACEBOOK_APP_SECRET | The app of Facebook Login. |
 | APPLE_CLIENT_ID, APPLE_TEAM_ID, APPLE_KEY_ID, APPLE_PRIVATE_KEY | Sign in with Apple: the Services ID, the team, the key and the text of the .p8 file. |
@@ -138,9 +140,6 @@ provider needs this return address:
 The rules of the site:
 - The session cookie lasts 30 days. The state cookie of a sign-in lasts
   10 minutes.
-- After a wrong house password, the server waits 1 second. After 10 wrong
-  passwords in one hour, the server refuses the user for the rest of the
-  hour.
 - A form post, an upload and the broadcast must come from a page of the
   site. The server refuses a request from another origin.
 - The "dev" provider signs in with a name and no password. It is for the
@@ -153,11 +152,84 @@ The rules of the site:
 
 To deploy, run `deploy_web.bat`, then open https://sanguodream.fly.dev.
 
+### The sign-in with an email link
+The email form is the fourth option of the sign-in page. The flow has
+these steps:
+1. The user types an address.
+2. The server makes a random token and keeps only the SHA-256 of the token,
+   at `signin/<hash>.json`. The server sends the link through Resend.
+3. The link opens a page with a button. A GET of the link does not use the
+   token, because a mail scanner opens links.
+4. The button posts the token. The server deletes the record of the token
+   and gives the session cookie. The cookie is HttpOnly and SameSite=Lax,
+   and it is Secure on the https site.
+
+The rules of the link:
+- A link works one time, for 15 minutes.
+- The tokens stay in the bucket, because the machine stops when nobody uses
+  it. The server deletes old tokens at most one time each hour.
+- An address gets at most 5 emails each hour. After that limit, the reply
+  does not change, and the server sends no email.
+- An IP can send at most 20 requests each hour. After that limit, the server
+  answers 429. The IP comes from the header Fly-Client-IP on fly.io.
+- The limits stay in the memory of the machine, so a restart clears them.
+- The reply is the same for a known address and a new address. It also does
+  not change if Resend refuses the email.
+- The log gets no token and no address. The access log is off. The log has
+  the name of the user, and the default name is the part of the address
+  before the "@". The other players of a room also see the name.
+- The page of the link has `Referrer-Policy: same-origin` and
+  `Cache-Control: no-store`.
+
+### The accounts of the addresses
+An account keeps its uid, and the saves and the seats use the uid.
+`emails/<hash of the address>.json` gives the uid of the account of an address.
+
+The first start of the new server does a one-time migration:
+- The server reads each record in `users/`.
+- A record goes into the index if the provider verified its email, or if
+  the user typed the old house password. The old `member` field shows the second case.
+- If several records have one address, the record with the last sign-in goes
+  into the index. The server copies the saves of the other records into it.
+  It overwrites no save, and the old copies stay.
+- `emails/index-done.json` marks the end of the migration.
+
+After the migration:
+- A user who signs in with the same address gets the old account and the saves.
+- A provider that verified the address finds the account of that address. This
+  also applies to a user who came with an email link first.
+- An email that nobody verified finds no account, and it goes into no index.
+  Facebook does not verify. Another person can type any email at Facebook.
+- An account with no email stays in the bucket with its saves. Its user
+  signs in with the same provider as before. An email link makes a second,
+  new account for that user.
+- An Apple "Hide My Email" account has the relay address. The user keeps
+  the account through Sign in with Apple.
+
+### The setup of Resend
+1. Make an account at https://resend.com.
+2. In Domains, add a domain that you own. You cannot use fly.dev, because
+   you cannot add DNS records to it.
+3. Add the DNS records that Resend shows, at the DNS provider of the domain.
+4. Wait until the domain shows "Verified".
+5. In the settings of the domain, turn off the option that counts the clicks. It
+   changes the link and sends the token through another site.
+6. In API Keys, make a key with the permission "Sending access". Limit the key to the domain.
+7. Set the two secrets. Replace the values:
+   `flyctl secrets set RESEND_API_KEY=re_xxx "EMAIL_FROM=hexdom <sign-in@yourdomain>" -a sanguodream`
+8. Remove the old secrets, if they exist:
+   `flyctl secrets unset HOUSE_PASSWORD SITE_PASSWORD -a sanguodream`
+9. Run `deploy_web.bat`.
+
+Open the sign-in page and ask for a link. The result is an email in less
+than one minute. If no email comes, `flyctl logs -a sanguodream` shows
+"email: the server sent no sign-in link" and the status of Resend.
+
 ### The members page
 An admin opens https://sanguodream.fly.dev/admin. The page shows each user
 who signed in, with these columns:
 - the name, the provider and the email
-- the role: admin, member, or "no house password"
+- the role: admin or member
 - the number of saves on the server
 - the time of the first sign-in and the time of the last sign-in
 
@@ -337,13 +409,17 @@ To check the bucket after a deploy, run
 
 ### The browser tests
 tests/web has seven Playwright smoke tests (smoke.spec.js):
-- a user signs in, joins the house and sees the title menu
+- a user signs in and sees the title menu
 - the title menu loads a save from the server
 - the city list moves the camera between cities
 - a unit moves beside an enemy base and attacks it
 - the system menu goes back to the title
 - the user badge shows the name and signs the user out
 - the quit button of the title asks, then signs the user out
+
+email_link.spec.js signs in with an email link. The config sets
+EMAIL_OUTBOX, so the server writes the link to a file in place of an email.
+The server ignores EMAIL_OUTBOX on fly.io.
 
 device.spec.js emulates a phone. The phone sees the requirements page,
 and the page does not download the game.

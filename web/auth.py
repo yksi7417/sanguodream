@@ -5,8 +5,9 @@ The flow:
    to the provider.
 2. The provider sends the browser back to /auth/<provider>/callback with a
    code. The server gets the identity of the user from the code.
-3. The server gives a signed session cookie. A new user then types the
-   house password one time (server.py).
+3. The server gives a signed session cookie.
+
+The sign-in with an email link is in email_link.py.
 
 A provider is on only if its secrets are set. The "dev" provider signs in
 with a name and no password. It is for the tests on a local computer: it is

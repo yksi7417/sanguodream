@@ -2,7 +2,6 @@
 // ask the test hooks (code/wasm_test_hooks.h) where an item is, and click there.
 const { expect } = require("@playwright/test");
 
-const HOUSE_PASSWORD = "house-test";
 const TITLE_SELECT_MS = 1500;   // the title buttons wait 1 s before they act (UI_TITLE_SELECT_SECONDS)
 
 async function frames(page, count) {
@@ -53,14 +52,14 @@ async function clickHex(page, q, r) {
   await clickAt(page, point.x, point.y);
 }
 
-// Sign in with the test provider, join the house, and wait for the title menu.
+// Sign in with the test provider and wait for the title menu.
 // A user who joined before goes straight to the game.
 async function signIn(page) {
   await enterSite(page);
   await waitForTitle(page);
 }
 
-// Sign in with the test provider and join the house. The game then starts with the splash art.
+// Sign in with the test provider. The game then starts with the splash art.
 async function enterSite(page) {
   page.on("console", (message) => {
     const text = message.text();
@@ -68,12 +67,7 @@ async function enterSite(page) {
   });
   await page.goto("/login");
   await page.click("#login-dev");
-  await page.waitForURL((url) => url.pathname === "/house" || url.pathname === "/");
-  if (new URL(page.url()).pathname === "/house") {
-    await page.fill("#house-password", HOUSE_PASSWORD);
-    await page.click("#house-submit");
-    await page.waitForURL((url) => url.pathname === "/");
-  }
+  await page.waitForURL((url) => url.pathname === "/");
 }
 
 // Wait until the game draws its first frame. The splash art comes before the title menu

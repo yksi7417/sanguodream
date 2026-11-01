@@ -98,7 +98,7 @@ async def api_game_options(request):
 
 
 async def api_game_watch(request):
-    """MP7: a member of the house watches a game that runs."""
+    """MP7: a member watches a game that runs."""
     user = await require_member(request)
     room = await find_room(request)
     async with room.lock:
@@ -205,8 +205,8 @@ async def invite(request):
     """The invite link of a room: a member goes to the game page of the room.
     A visitor signs in first, and the page "/" then sends the visitor back here."""
     user = await current_user(request)
-    if not user or not user.get("member"):
-        response = redirect("/house" if user else "/login")
+    if not user:
+        response = redirect("/login")
         if INVITE_PATH.fullmatch(request.path):
             set_cookie(response, request, NEXT_COOKIE, request.path, NEXT_SECONDS)
         return response
@@ -230,7 +230,7 @@ async def token_hello(request, socket, room):
         hello = {}
     token = hello.get("token") if isinstance(hello, dict) else None
     user = await user_of_token(request.app, token if isinstance(token, str) else "")
-    if user and user.get("member") and room.is_viewer(user["uid"]):
+    if user and room.is_viewer(user["uid"]):
         return user, message.data
     await socket.send_json({"type": "error", "reason": "401"})
     await socket.close(code=TOKEN_CLOSE_CODE, message=b"no member session")

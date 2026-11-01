@@ -84,7 +84,7 @@ Do not copy the private keys of the old PC. Make new ones:
 - Make an SSH key with `ssh-keygen -t ed25519`. Add the public key to
   GitHub with `gh ssh-key add`. Before that, sign in with `gh auth login`.
 - Sign in to fly.io with `flyctl auth login`. The secrets of the site stay
-  on fly.io (SESSION_SECRET, HOUSE_PASSWORD, the sign-in providers, the
+  on fly.io (SESSION_SECRET, RESEND_API_KEY, EMAIL_FROM, the sign-in providers, the
   bucket and the two Discord values). You do not move them.
 - Sign in to Google Drive in the Claude app, for the import of the models.
 

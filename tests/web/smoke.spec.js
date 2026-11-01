@@ -4,7 +4,7 @@
 const { test, expect } = require("@playwright/test");
 const h = require("./hexdom");
 
-test("a user signs in, joins the house and sees the title menu", async ({ page }) => {
+test("a user signs in and sees the title menu", async ({ page }) => {
   await h.signIn(page);
   const me = await page.evaluate(() => fetch("/api/me").then((r) => r.json()));
   expect(me.name).toBe("Tester");
