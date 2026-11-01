@@ -138,6 +138,7 @@ struct text_catalog
     text_table   fallback_pack_story;         /* story/<fallback locale>.tsv of the game pack */
     text_table   pack_arms;                   /* arms/arms.tsv of the game pack: the PNG file of the arms of each faction (E5) */
     b32          native_names;                /* the Names setting: text_key_name gives the native name first */
+    b32          player_locale;               /* the player chose the locale; a new engine of a pack keeps it */
     u32          locale_count;
     text_locale_info locales[TEXT_MAX_LOCALES];   /* from text/locales.tsv, in file order */
     u32          load_count;                  /* increments with each text_catalog_set_locale */
@@ -184,8 +185,9 @@ internal b32 text_pack_art(text_catalog *catalog, const char *pack, char *out, u
 internal void text_catalog_set_game_pack(text_catalog *catalog, const char *pack);
 
 /* A new engine of a pack: the game pack, then the default locale of that
-   pack, or the active locale if the pack names none. The names of the
-   game pack load with the locale. */
+   pack, or the active locale if the pack names none. If player_locale is
+   set, the active locale stays. The names of the game pack load with the
+   locale. */
 internal void text_catalog_use_game_pack(text_catalog *catalog, const char *pack);
 
 /* The name of a record of the game pack by its English key: the row

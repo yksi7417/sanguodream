@@ -5804,6 +5804,40 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
+    /* The request of the player of 2026-10-31: the title menu changes the language with one
+       click. A new engine of a pack with another default locale keeps the choice. */
+    t = IM_REGISTER_TEST(e, "ui", "title_language_buttons_change_the_locale_with_one_click_and_command_nothing");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.ui.show_title = true;
+        ctx->SetRef("###Title");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        IM_CHECK_STR_EQ(v.text.locale, "zh-TW");
+        IM_CHECK(ctx->ItemExists("###title_locale_zh-TW") && ctx->ItemExists("###title_locale_en"));
+        u32 loads = v.text.load_count;
+        ctx->ItemClick("###title_locale_en");
+        ctx->Yield(2);
+        IM_CHECK_STR_EQ(v.text.locale, "en");
+        IM_CHECK_EQ(v.text.load_count, loads + 1);              /* one load for one click */
+        IM_CHECK(v.text.player_locale);
+        IM_CHECK(ctx->ItemExists("###title_load"));             /* the title stays open */
+        ctx->ItemClick("###title_locale_en");                   /* the active locale: no second load */
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.text.load_count, loads + 1);
+        text_catalog_use_game_pack(&v.text, "han_196");
+        IM_CHECK_STR_EQ(v.text.locale, "en");                   /* pack.tsv of han_196 says zh-TW, but the player chose en */
+        text_catalog_use_game_pack(&v.text, HEXDOM_CONTENT_PACK);
+        ctx->ItemClick("###title_locale_zh-TW");
+        ctx->Yield(2);
+        IM_CHECK_STR_EQ(v.text.locale, "zh-TW");
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);  /* the locale is a front end setting */
+        v.text.player_locale = false;
+    };
+
     /* The splash shows the art of the pack before the title menu
        (docs/ASSETS.md, "The splash art"). The HUD and the title stay hidden.
        After UI_SPLASH_SECONDS the splash closes and the title menu opens.

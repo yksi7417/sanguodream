@@ -127,6 +127,11 @@ ui_draw_title(ui_state *ui, engine_api *api)
     ui_center_next_window();   /* the request of the player of 2026-10-20 */
     if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "title.title", "Title"), 0, ImGuiWindowFlags_NoCollapse)) { ImGui::End(); return; }
     bool riding = ui->feel.title_choice != UI_TITLE_NONE;
+    if (!riding)   /* the request of the player of 2026-10-31: the language changes on the first screen */
+    {
+        ui_draw_title_language(ui, 320.0f);
+        ImGui::Separator();
+    }
     ui_title_button(ui, api, "title.load", "title_load", UI_TITLE_LOAD);
     ui_title_button(ui, api, "title.new", "title_new", UI_TITLE_NEW);
     if (!riding)

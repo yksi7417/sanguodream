@@ -9,7 +9,7 @@ internal void
 ui_apply_pending_locale(ui_state *ui)
 {
     if (!ui->pending_locale[0]) return;
-    if (ui->text) text_catalog_set_locale(ui->text, ui->pending_locale);
+    if (ui->text && text_catalog_set_locale(ui->text, ui->pending_locale)) ui->text->player_locale = true;
     ui->pending_locale[0] = 0;
 }
 
@@ -44,6 +44,34 @@ ui_draw_language_combo(ui_state *ui)
             if (selected) ImGui::SetItemDefaultFocus();
         }
         ImGui::EndCombo();
+    }
+}
+
+/* The language row of the title menu: one button for each locale, with the
+   name of the locale in its own language. Thus a player who cannot read the
+   active language can find the other language on the first screen. The
+   button of the active locale has the colour of a pressed button. */
+internal void
+ui_draw_title_language(ui_state *ui, f32 row_width)
+{
+    text_catalog *text = ui->text;
+    if (!text || text->locale_count < 2) return;
+    ImGui::TextUnformatted(text_get(text, "settings.language"));
+    ImGuiStyle &style = ImGui::GetStyle();
+    f32 width = (row_width - style.ItemSpacing.x * (f32)(text->locale_count - 1)) / (f32)text->locale_count;
+    char label[128];
+    for (u32 index = 0; index < text->locale_count; ++index)
+    {
+        text_locale_info *locale = text->locales + index;
+        bool active = strcmp(locale->code, text->locale) == 0;
+        if (index > 0) ImGui::SameLine();
+        if (active) ImGui::PushStyleColor(ImGuiCol_Button, style.Colors[ImGuiCol_ButtonActive]);
+        snprintf(label, sizeof(label), "%s###title_locale_%s", locale->name, locale->code);
+        if (ImGui::Button(label, ImVec2(width, 0)) && !active)
+        {
+            snprintf(ui->pending_locale, sizeof(ui->pending_locale), "%s", locale->code);
+        }
+        if (active) ImGui::PopStyleColor();
     }
 }
 

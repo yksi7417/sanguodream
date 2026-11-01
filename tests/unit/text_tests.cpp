@@ -410,6 +410,11 @@ unit_text_pack_tests(test_counts *counts, memory_arena *arena)
     text_catalog_set_locale(&catalog, "ko");
     text_catalog_use_game_pack(&catalog, "pack");
     TEST_CHECK(counts, strcmp(catalog.locale, "ko") == 0, "a pack without pack.tsv keeps the active locale");
+    text_catalog_set_locale(&catalog, "zh-TW");
+    catalog.player_locale = true;
+    text_catalog_use_game_pack(&catalog, "europe");
+    TEST_CHECK(counts, strcmp(catalog.locale, "zh-TW") == 0, "a pack with a default locale keeps the locale that the player chose");
+    catalog.player_locale = false;
 }
 
 /* data/han_196/README.md: text/<locale>.tsv of the game pack replaces the UI strings of the

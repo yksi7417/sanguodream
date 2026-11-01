@@ -540,7 +540,9 @@ text_catalog_use_game_pack(text_catalog *catalog, const char *pack)
 {
     text_catalog_set_game_pack(catalog, pack);
     char locale[TEXT_LOCALE_SIZE];
-    if (!text_pack_default_locale(catalog, pack, locale, sizeof(locale))) text_copy_utf8(catalog->locale, locale, sizeof(locale));
+    /* The choice of the player is more important than the default of the pack. */
+    if (catalog->player_locale || !text_pack_default_locale(catalog, pack, locale, sizeof(locale)))
+        text_copy_utf8(catalog->locale, locale, sizeof(locale));
     text_catalog_set_locale(catalog, locale);
 }
 
