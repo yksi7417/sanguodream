@@ -873,8 +873,10 @@ These decisions came from MP6:
 - `run_tests.bat --server` also runs tests/server/referee_tests.py. It
   needs `build_web.bat tests`, `run_tests.bat --web` and
   `build_web.bat referee` first.
-- No browser test makes a desync. The UI test, the server tests and the
-  feature tests cover the steps of the recovery.
+- tests/web/desync.spec.js makes a desync in a real browser. The page that
+  does not act sends one false checksum. The referee decides, and that page
+  loads the good state. The UI test, the server tests and the feature tests
+  cover the other steps of the recovery.
 
 ### MP7 The social part
 - The chat in the game (US-040 of docs/requirements/community-wishlist.md).
