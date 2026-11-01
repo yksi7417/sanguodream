@@ -182,7 +182,7 @@ ui_draw_map_combat(ui_state *ui, engine_api *api, ImDrawList *draw, f32 cell, he
         {
             for (u32 col = 0; col < fire.width; ++col)
             {
-                u8 turns = fire.turns[row * fire.width + col];
+                u8 turns = fire.turns[row * fire.width + col] & SIM_FIRE_TURNS_MASK;
                 if (!turns) continue;
                 hex_offset o;
                 o.col = (s32)col;

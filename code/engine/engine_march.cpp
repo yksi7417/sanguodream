@@ -224,6 +224,7 @@ engine_api_unit_at(void *opaque, u32 unit_id)
     result.values      = engine_values_view(sim_unit_values_of(sim, unit->force_id, unit->unit_type, unit->officers));
     result.state       = unit->state;
     result.state_turns = unit->state_turns;
+    result.fire_immune = sim_unit_has_trait(sim, unit->officers, TRAIT_FIRE_IMMUNE);
     result.ship_type   = unit->has_ship ? unit->ship_type : (u8)ENGINE_NO_UNIT_TYPE;
     result.effective_type = sim_effective_type(sim, unit);
     result.order        = unit->order;

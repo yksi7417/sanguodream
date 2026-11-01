@@ -233,6 +233,9 @@ engine_load_content(engine *e, const char *folder)
     b32 has_armaments = engine_read_table(e, folder, "movement_costs.tsv", &armaments);
     tsv_table save_types = {};  /* M11: save_types.tsv is optional; without it a save puts nothing on the map */
     b32 has_save_types = engine_read_table(e, folder, "save_types.tsv", &save_types);
+    tsv_table bandit_regions = {};  /* bandit_regions.tsv is optional; without it a bandit friend skill works in each city */
+    b32 has_bandit_regions = engine_read_table(e, folder, "bandit_regions.tsv", &bandit_regions);
+    tsv_table plot_skills = {};
     tsv_table authorities = {};  /* E6: authorities.tsv is optional; without it the pack has no authority */
     b32 has_authorities = engine_read_table(e, folder, "authorities.tsv", &authorities);
     if (!engine_read_table(e, folder, "facilities.tsv", &facilities))      status->detail = "facilities.tsv not found";
@@ -247,6 +250,7 @@ engine_load_content(engine *e, const char *folder)
     else if (!engine_read_table(e, folder, "plots.tsv", &plots))           status->detail = "plots.tsv not found";
     else if (!engine_read_table(e, folder, "buildings.tsv", &buildings))   status->detail = "buildings.tsv not found";
     else if (!engine_read_table(e, folder, "critical_skills.tsv", &criticals)) status->detail = "critical_skills.tsv not found";
+    else if (!engine_read_table(e, folder, "plot_skills.tsv", &plot_skills)) status->detail = "plot_skills.tsv not found";
     else if (!engine_read_table(e, folder, "skills.tsv", &skills))         status->detail = "skills.tsv not found";
     else if (!engine_read_table(e, folder, "ranks.tsv", &ranks))           status->detail = "ranks.tsv not found";
     else if (!engine_read_table(e, folder, "posts.tsv", &posts))           status->detail = "posts.tsv not found";
@@ -272,6 +276,8 @@ engine_load_content(engine *e, const char *folder)
     else if (!content_load_buildings(content, &buildings, &bad_row))      status->detail = "buildings.tsv has a bad row";
     else if (has_save_types && !content_load_save_types(content, &save_types, &bad_row)) status->detail = "save_types.tsv has a bad row";
     else if (!content_load_criticals(content, &criticals, &bad_row))      status->detail = "critical_skills.tsv has a bad row";
+    else if (!content_load_plot_skills(content, &plot_skills, &bad_row))  status->detail = "plot_skills.tsv has a bad row";
+    else if (has_bandit_regions && !content_load_bandit_friends(content, &bandit_regions, &bad_row)) status->detail = "bandit_regions.tsv has a bad row";
     else if (!content_load_skills(content, &skills, &bad_row))            status->detail = "skills.tsv has a bad row";
     else if (!content_load_ranks(content, &ranks, &bad_row))              status->detail = "ranks.tsv has a bad row";
     else if (!content_load_posts(content, &posts, &bad_row))              status->detail = "posts.tsv has a bad row";

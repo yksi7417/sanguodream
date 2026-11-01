@@ -94,7 +94,7 @@ engine_api_skill_kind_at(void *opaque, u32 index)
     skill_kind *kind = content->skills + index;
     result.number   = kind->number;
     memcpy(result.key, kind->key, sizeof(result.key));
-    memcpy(result.effect, kind->effect, sizeof(result.effect));
+    result.traits   = kind->traits;
     result.category = kind->category;
     result.hooked   = kind->hooked;
     return result;

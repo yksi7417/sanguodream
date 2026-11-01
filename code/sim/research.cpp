@@ -131,7 +131,7 @@ sim_check_research(sim_state *sim, sim_research_order *order)
     sim_rules *rules = &sim->content.rules;
     if (sim->turns.action_points[force] < rules->ap_research) return sim_refuse(check, SIM_REFUSAL_NO_ACTION_POINTS);
     if (sim->technique_points[force] < kind->points)    return sim_refuse(check, SIM_REFUSAL_NO_TECHNIQUE_POINTS);
-    u32 gold = sim_research_gold(kind->gold, sim_order_has_skill(sim, order->officers, rules->skill_teaching), rules);
+    u32 gold = sim_research_gold(kind->gold, sim_order_has_trait(sim, order->officers, TRAIT_CHEAP_RESEARCH), rules);
     if (city->gold < gold)                              return sim_refuse(check, SIM_REFUSAL_NO_GOLD);
 
     check.gold          = gold;

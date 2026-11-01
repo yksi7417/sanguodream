@@ -1,0 +1,24 @@
+city	skill	name_zh
+# The cities where a bandit friend skill (trait bandit_friend) stops the bandits. A pack without this table: the skill stops the bandits in each city.
+# The regions are assumed from geography (skills.md #92 to #95, Q-054): 92 north-east, 93 north-west, 94 south-east, 95 south-west.
+0	92	親烏
+1	92	親烏
+2	92	親烏
+3	92	親烏
+5	92	親烏
+17	93	親羌
+19	93	親羌
+20	93	親羌
+21	93	親羌
+22	94	親越
+23	94	親越
+24	94	親越
+25	94	親越
+26	94	親越
+32	95	親蠻
+33	95	親蠻
+34	95	親蠻
+38	95	親蠻
+39	95	親蠻
+40	95	親蠻
+41	95	親蠻

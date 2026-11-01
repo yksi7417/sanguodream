@@ -105,8 +105,8 @@ unit_critical_table_tests(test_counts *counts, memory_arena *arena)
                        content.criticals[1].aptitude == OFFICER_APTITUDE_CAVALRY && content.criticals[1].condition == CRITICAL_MOUNTED,
                "the critical skill table parses: the skill, the action, the class and the condition");
     tsv_table bad = {};
-    char *bad_text = content_test_text(arena, UNIT_CRITICAL_HEADER "0\t101\tx\tboth\tany\talways\tx\n");
-    TEST_CHECK(counts, tsv_parse(bad_text, arena, &bad) && !content_load_criticals(&content, &bad, &bad_row), "a skill number above 100 is a bad row");
+    char *bad_text = content_test_text(arena, UNIT_CRITICAL_HEADER "0\t201\tx\tboth\tany\talways\tx\n");
+    TEST_CHECK(counts, tsv_parse(bad_text, arena, &bad) && !content_load_criticals(&content, &bad, &bad_row), "a skill number above the capacity of skills.tsv is a bad row");
 }
 
 /* A rule of a content pack: every hit takes 7 soldiers. */

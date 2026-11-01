@@ -240,14 +240,14 @@ sim_check_city_officers(sim_state *sim, city_component *city, const u16 *officer
     return SIM_REFUSAL_NONE;
 }
 
-/* True if an officer of the order has the skill (domestic skills apply when
+/* True if an officer of the order has the trait (domestic skills apply when
    the officer does the command; skills.md). */
 internal b32
-sim_order_has_skill(sim_state *sim, const u16 *officers, u32 skill)
+sim_order_has_trait(sim_state *sim, const u16 *officers, skill_trait trait)
 {
     for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place)
     {
-        if (sim_officer_has_skill(sim_find_officer(sim, officers[place]), skill)) return true;
+        if (sim_officer_has_trait(sim, sim_find_officer(sim, officers[place]), trait)) return true;
     }
     return false;
 }
@@ -326,7 +326,7 @@ sim_check_conscript(sim_state *sim, city_component *city, sim_city_order *order,
     check.slot          = (u8)slot;
     check.value_before  = city->troops;
     u32 soldiers = sim_conscript_soldiers(charm, level, city->public_order, sim_enemy_near(sim, city), rules);
-    if (sim_order_has_skill(sim, order->officers, rules->skill_fame) && rules->skill_fame_percent) soldiers = sim_percent_of(soldiers, rules->skill_fame_percent);   /* 名聲 #80 */
+    if (sim_order_has_trait(sim, order->officers, TRAIT_MORE_SOLDIERS) && rules->skill_fame_percent) soldiers = sim_percent_of(soldiers, rules->skill_fame_percent);   /* 名聲 #80 */
     check.value_after   = sim_add_within(city->troops, soldiers, cap);
     check.quantity      = check.value_after - check.value_before;
     return check;
@@ -426,15 +426,15 @@ sim_check_produce(sim_state *sim, city_component *city, sim_city_order *order, s
     check.value_before  = stock;
     if (weapon->max_days == 0)
     {
-        u32 skill = weapon->facility == FACILITY_EFFECT_HORSES ? rules->skill_breeding : rules->skill_capable;
+        skill_trait trait = weapon->facility == FACILITY_EFFECT_HORSES ? TRAIT_MORE_HORSES : TRAIT_MORE_WEAPONS;
         u32 level = sim->sites[city->city_id].slots[slot].level;
         if (rules->produce_base_quantity) intellect = sim_command_ability_sum(sim, order->officers, SIM_ABILITY_INTELLECT);   /* the first in full, the others at half */
-        check.quantity = sim_produce_quantity(intellect, level, sim_order_has_skill(sim, order->officers, skill), rules);
+        check.quantity = sim_produce_quantity(intellect, level, sim_order_has_trait(sim, order->officers, trait), rules);
     }
     else
     {
-        u32 skill = weapon->facility == FACILITY_EFFECT_SHIPS ? rules->skill_shipbuilding : rules->skill_invention;
-        check.days     = sim_produce_days(intellect, weapon->min_days, weapon->max_days, sim_order_has_skill(sim, order->officers, skill), rules);
+        skill_trait trait = weapon->facility == FACILITY_EFFECT_SHIPS ? TRAIT_FAST_SHIPS : TRAIT_FAST_SIEGE;
+        check.days     = sim_produce_days(intellect, weapon->min_days, weapon->max_days, sim_order_has_trait(sim, order->officers, trait), rules);
         /* A drill ground (鍊兵所, PK) shortens ships (manual p.29; assumed amount, Q-164). */
         if (weapon->facility == FACILITY_EFFECT_SHIPS && rules->drill_ship_period_percent &&
             sim_city_has_built(sim, city->city_id, FACILITY_EFFECT_DRILL))

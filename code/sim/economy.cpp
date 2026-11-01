@@ -119,13 +119,36 @@ sim_order_percent(u32 public_order, sim_rules *rules)
     return floor + (100 - floor) * order / rules->order_max;
 }
 
-/* True if the officer has the skill. The rules name a skill by its number
-   in skills.md (1 to 100), and 0 names no skill. The save stores the
-   number minus 1, and 255 for no skill (assumed, Q-159). */
+/* True if the officer has the skill. A table names a skill by its number
+   in skills.tsv, and 0 names no skill. The save stores the number minus 1,
+   and 255 for no skill (assumed, Q-159). */
 internal b32
 sim_officer_has_skill(officer_component *officer, u32 skill)
 {
-    return officer && skill >= 1 && skill <= 100 && officer->skill_number != 255 && (u32)officer->skill_number + 1 == skill;
+    return officer && skill >= 1 && skill <= CONTENT_SKILL_CAPACITY && officer->skill_number != 255 && (u32)officer->skill_number + 1 == skill;
+}
+
+/* True if the skill of the officer has the trait. The code asks for a trait,
+   so each pack can give the trait to any skill (docs/SKILLS.md). */
+internal b32
+sim_officer_has_trait(sim_state *sim, officer_component *officer, skill_trait trait)
+{
+    return officer && officer->skill_number < CONTENT_SKILL_CAPACITY && (sim->content.skills[officer->skill_number].traits & content_trait_bit(trait));
+}
+
+/* True if an active officer of the owner with the trait is in the city. */
+internal b32
+sim_city_has_trait(sim_state *sim, u8 city_id, skill_trait trait)
+{
+    city_component *city = sim_find_city(sim, city_id);
+    if (!city || city->owner_force_id == SIM_NO_FORCE) return false;
+    for (u32 index = 0; index < sim->officers.count; ++index)
+    {
+        officer_component *officer = sim->officers.data + index;
+        if (sim_officer_is_active(officer) && officer->force_id == city->owner_force_id &&
+            officer->current_position == city_id && sim_officer_has_trait(sim, officer, trait)) return true;
+    }
+    return false;
 }
 
 /* True if an active officer of the owner with the skill is in the city.
@@ -185,8 +208,8 @@ sim_city_forecast(sim_state *sim, u8 city_id)
     forecast.gold_base           = rules->city_gold_income;
     forecast.gold_facilities     = sim_city_income(sim, city_id, FACILITY_EFFECT_GOLD, 0);
     forecast.order_percent       = sim_order_percent(city->public_order, rules);
-    forecast.gold_skill_percent  = sim_city_has_skill(sim, city_id, rules->skill_rich) ? skill_percent : 100;
-    forecast.gold_every_turn     = sim_city_has_skill(sim, city_id, rules->skill_tax);
+    forecast.gold_skill_percent  = sim_city_has_trait(sim, city_id, TRAIT_GOLD_INCOME) ? skill_percent : 100;
+    forecast.gold_every_turn     = sim_city_has_trait(sim, city_id, TRAIT_GOLD_EVERY_TURN);
     u32 gold = sim_percent_of(sim_percent_of(forecast.gold_base + forecast.gold_facilities, forecast.order_percent),
                               forecast.gold_skill_percent);
     forecast.gold_bases   = sim_city_base_gold(sim, city_id);
@@ -196,8 +219,8 @@ sim_city_forecast(sim_state *sim, u8 city_id)
 
     forecast.grain_base          = rules->city_grain_income;
     forecast.grain_facilities    = sim_city_income(sim, city_id, FACILITY_EFFECT_GRAIN, 0);
-    forecast.grain_skill_percent = sim_city_has_skill(sim, city_id, rules->skill_rice) ? skill_percent : 100;
-    forecast.grain_every_month   = sim_city_has_skill(sim, city_id, rules->skill_levy);
+    forecast.grain_skill_percent = sim_city_has_trait(sim, city_id, TRAIT_GRAIN_INCOME) ? skill_percent : 100;
+    forecast.grain_every_month   = sim_city_has_trait(sim, city_id, TRAIT_GRAIN_EVERY_MONTH);
     u32 grain = sim_percent_of(sim_percent_of(forecast.grain_base + forecast.grain_facilities, forecast.order_percent),
                                forecast.grain_skill_percent);
     forecast.grain_payment = forecast.grain_every_month ? grain / 2 : grain;

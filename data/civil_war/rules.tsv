@@ -352,3 +352,11 @@ experience.tactic_war	3	observed	fixtures/battle-merit.tsv
 experience.destroy_leadership	3	observed	gap2-answers-2026-10-22.md section 7: a destroy gives 3 leadership experience
 experience.hit_leadership	1	observed	gap2-answers-2026-10-22.md section 7: the officers of the target gain 1 leadership experience
 technique.drill_ground_turn	15	observed	calendar-and-turn.md: 15 technique points for each drill ground at each turn start (hypothesis of the run 2026-10-22)
+skill.fire_power_percent	200	documented	manual, 火神: two times the fire damage. Trait fire_power.
+skill.chance_percent	50	documented	skills.md: the 50 percent of 連戰, 急襲, 強襲, 掎角, 猛者, 不屈 and 金剛.
+skill.morale_gain	10	assumed	Q-234: the morale of 昂揚 (a destroyed unit) and 怒髮 (a tactic hit).
+skill.few_soldiers	3000	documented	manual, 不屈: under 3000 soldiers. The clone reads the soldiers now, not at the sortie.
+skill.weak_attack	500	assumed	Q-234: 金剛 can stop an attack with less damage than this.
+skill.support_percent	30	assumed	Q-234: the damage of a support attack of 輔佐, in percent of an attack.
+plot.critical_morale	10	assumed	Steam guide on the ambush: a critical plot takes this more morale from the target.
+fire.seed_confuse_chance	50	assumed	Q-234: the chance that a large 業火種 confuses a unit (manual p.34: it can confuse).

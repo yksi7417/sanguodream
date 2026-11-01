@@ -459,7 +459,7 @@ sim_resolve_diplomacy(sim_state *sim, sim_mission *mission, sim_event_sink *even
         city_component *target = sim_find_city(sim, order->target_city);
         if (!target || target->owner_force_id != force) return;
     }
-    b32 debater = sim_officer_has_skill(envoy, sim->content.rules.skill_debater) &&
+    b32 debater = sim_officer_has_trait(sim, envoy, TRAIT_DEBATE_DIPLOMACY) &&
                   (order->kind == SIM_DIPLOMACY_ALLIANCE || order->kind == SIM_DIPLOMACY_CEASEFIRE || order->kind == SIM_DIPLOMACY_EXCHANGE);
     u16 their_ruler = sim_force_ruler(sim, order->force);
     if (debater && their_ruler != SIM_NO_OFFICER && force < SIM_FORCE_CAPACITY && sim->turns.human[force] && !sim_busy(sim))

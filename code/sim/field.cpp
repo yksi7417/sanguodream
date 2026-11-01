@@ -11,13 +11,10 @@
 internal void
 sim_set_unit_state(sim_state *sim, u32 unit_id, sim_unit_state state, u32 turns, u32 cause, sim_event_sink *events)
 {
-    sim_rules *rules = &sim->content.rules;
     sim_unit *unit = sim->units + unit_id;
     if (!unit->alive) return;
-    if (state == UNIT_STATE_CONFUSED && (sim_unit_has_skill(sim, unit->officers, rules->skill_calm) ||
-                                         sim_unit_has_skill(sim, unit->officers, rules->skill_mirror))) return;
-    if (state == UNIT_STATE_FALSE_REPORT && (sim_unit_has_skill(sim, unit->officers, rules->skill_discipline) ||
-                                             sim_unit_has_skill(sim, unit->officers, rules->skill_mirror))) return;
+    if (state == UNIT_STATE_CONFUSED && sim_unit_has_trait(sim, unit->officers, TRAIT_NO_CONFUSION)) return;
+    if (state == UNIT_STATE_FALSE_REPORT && sim_unit_has_trait(sim, unit->officers, TRAIT_NO_FALSE_REPORT)) return;
     unit->state       = (u8)state;
     unit->state_turns = (u8)(turns < 255 ? turns : 255);
     sim_emit_unit(sim, SIM_EVENT_UNIT_STATE, unit_id, SIM_NO_CITY, (s32)state, false, cause, events);
@@ -40,17 +37,24 @@ sim_fire_turns(sim_state *sim, b32 from_attack)
 
 /* A hex keeps a count of fire turns, 0 to 7 (F-149). A fire stays only on
    a burnable terrain (the 12 terrains of terrain-and-map.md). On any other
-   terrain (河 and 海 too) a fire starts only on a hex with a unit. */
+   terrain (河 and 海 too) a fire starts only on a hex with a unit. A fire
+   never starts on the hex of a unit with the trait fire_immune. A strong
+   fire comes from a unit with the trait fire_power. */
 internal void
-sim_start_fire(sim_state *sim, hex_coord hex, u32 turns, u32 cause, sim_event_sink *events)
+sim_start_fire(sim_state *sim, hex_coord hex, u32 turns, b32 strong, u32 cause, sim_event_sink *events)
 {
     terrain_kind *terrain = sim_terrain_at(sim, hex);
     if (!terrain || !sim->fire || !turns) return;
-    if (!terrain->burnable && sim_unit_at(sim, hex) == SIM_NO_UNIT) return;
+    u32 occupant = sim_unit_at(sim, hex);
+    if (!terrain->burnable && occupant == SIM_NO_UNIT) return;
+    if (occupant != SIM_NO_UNIT && sim_unit_has_trait(sim, sim->units[occupant].officers, TRAIT_FIRE_IMMUNE)) return;
     if (turns > SIM_FIRE_MAX_TURNS) turns = SIM_FIRE_MAX_TURNS;
     u32 cell = hex_map_index(&sim->map, hex);
-    if (sim->fire[cell] >= turns) return;
-    sim->fire[cell] = (u8)turns;
+    u32 now = sim->fire[cell] & SIM_FIRE_TURNS_MASK;
+    b32 now_strong = (sim->fire[cell] & SIM_FIRE_STRONG) != 0;
+    if (now >= turns && (now_strong || !strong)) return;
+    if (now > turns) turns = now;
+    sim->fire[cell] = (u8)(turns | (strong || now_strong ? SIM_FIRE_STRONG : 0));
     sim_emit_cell(sim, SIM_EVENT_FIRE_STARTED, cell, (s32)turns, true, cause, events);
 }
 
@@ -60,15 +64,23 @@ sim_hex_burns(sim_state *sim, hex_coord hex)
     return sim->fire && hex_map_contains(&sim->map, hex) && sim->fire[hex_map_index(&sim->map, hex)] > 0;
 }
 
-/* The soldiers that fire takes from a unit: 藤甲 doubles it, 火神 stops it. */
+/* The damage of a fire on a hex: a strong fire takes more. */
+internal u32
+sim_fire_percent(sim_state *sim, hex_coord hex, u32 percent)
+{
+    if (!(sim->fire[hex_map_index(&sim->map, hex)] & SIM_FIRE_STRONG)) return percent;
+    return sim_percent_of(percent, sim->content.rules.skill_fire_power_percent);
+}
+
+/* The soldiers that fire takes from a unit: the trait rattan doubles it, and
+   the trait fire_immune stops it. */
 internal void
 sim_burn_unit(sim_state *sim, u32 unit_id, u32 percent, u32 cause, sim_event_sink *events)
 {
-    sim_rules *rules = &sim->content.rules;
     sim_unit *unit = sim->units + unit_id;
-    if (!unit->alive || sim_unit_has_skill(sim, unit->officers, rules->skill_fire_god)) return;
+    if (!unit->alive || sim_unit_has_trait(sim, unit->officers, TRAIT_FIRE_IMMUNE)) return;
     u32 loss = sim_percent_of(unit->soldiers, percent);
-    if (sim_unit_has_skill(sim, unit->officers, rules->skill_rattan)) loss *= 2;
+    if (sim_unit_has_trait(sim, unit->officers, TRAIT_RATTAN)) loss *= 2;
     if (!loss && unit->soldiers) loss = 1;
     sim_hurt_unit(sim, unit_id, loss, SIM_NO_UNIT, false, cause, events);
 }
@@ -171,6 +183,7 @@ sim_check_build(sim_state *sim, sim_command_kind kind, sim_unit_order *order)
     if (hex_distance(unit->hex, order->to) != 1) return sim_refuse(check, SIM_REFUSAL_NO_TARGET);
     sim_unit_values values = sim_unit_values_of(sim, unit->force_id, unit->unit_type, unit->officers);
     u32 work = values.build * sim->content.rules.build_durability_per_build;
+    if (sim_unit_has_trait(sim, unit->officers, TRAIT_FAST_BUILD)) work *= 2;   /* 築城 #78: two times as fast */
     if (kind == SIM_COMMAND_BUILD)
     {
         if (order->kind >= sim->content.building_count || !sim_building_available(sim, unit->force_id, order->kind))
@@ -247,9 +260,10 @@ sim_build(sim_state *sim, sim_command command, sim_event_sink *events)
    terrain-and-map.md): a seed burns the hexes around it, a ball rolls 3
    hexes, a fire ship burns on water, a dike floods its city, a rockfall
    falls on the hexes around it. A natural trap stays and recovers; the
-   other traps are gone. */
+   other traps are gone. A unit with the trait fire_power makes a fire trap
+   strong when it lights the trap. */
 internal void
-sim_trigger_trap(sim_state *sim, u32 building_id, u32 direction, u32 cause, sim_event_sink *events)
+sim_trigger_trap(sim_state *sim, u32 building_id, u32 direction, b32 strong, u32 cause, sim_event_sink *events)
 {
     sim_building *building = sim->buildings + building_id;
     building_kind *kind = sim->content.buildings + building->kind;
@@ -281,11 +295,17 @@ sim_trigger_trap(sim_state *sim, u32 building_id, u32 direction, u32 cause, sim_
         if (unit_id != SIM_NO_UNIT)
         {
             u32 loss = kind->type == BUILDING_DIKE ? sim->units[unit_id].soldiers : kind->value;
+            if (strong && kind->type != BUILDING_DIKE && kind->type != BUILDING_ROCKFALL) loss = sim_percent_of(loss, sim->content.rules.skill_fire_power_percent);
+            if (kind->type == BUILDING_ROCKFALL && sim_unit_has_trait(sim, sim->units[unit_id].officers, TRAIT_ROCKFALL_GUARD)) loss /= 2;   /* 踏破 #7 (the amount is assumed, Q-234) */
             sim_hurt_unit(sim, unit_id, loss, SIM_NO_UNIT, false, cause, events);
-            /* 業火種 can confuse the units in its range (manual p.34). */
-            if (kind->type == BUILDING_SEED && kind->range_max > 1) sim_set_unit_state(sim, unit_id, UNIT_STATE_CONFUSED, 2, cause, events);
+            /* 業火種 can confuse the units in its range (manual p.34). Confusion
+               and fire are independent: each unit rolls for it. */
+            if (kind->type == BUILDING_SEED && kind->range_max > 1 && sim_random_below(sim, 100) < sim->content.rules.fire_seed_confuse_chance)
+            {
+                sim_set_unit_state(sim, unit_id, UNIT_STATE_CONFUSED, 2, cause, events);
+            }
         }
-        if (kind->type != BUILDING_DIKE && kind->type != BUILDING_ROCKFALL) sim_start_fire(sim, cells[index], sim_fire_turns(sim, false), cause, events);
+        if (kind->type != BUILDING_DIKE && kind->type != BUILDING_ROCKFALL) sim_start_fire(sim, cells[index], sim_fire_turns(sim, false), strong, cause, events);
     }
     if (kind->type == BUILDING_DIKE && building->city_id != SIM_NO_CITY)
     {
@@ -310,22 +330,70 @@ sim_plot(sim_state *sim, u32 plot)
     return plot < sim->content.plot_count ? sim->content.plots + plot : 0;
 }
 
+/* True if the row of plot_skills.tsv holds for this unit, plot and target. */
+internal b32
+sim_plot_skill_holds(sim_state *sim, sim_unit *unit, u32 plot_row, u32 target_id, plot_skill *rule)
+{
+    if (rule->plot != CONTENT_ANY_PLOT && rule->plot != plot_row) return false;
+    if (!sim_unit_has_skill(sim, unit->officers, rule->skill)) return false;
+    if (rule->condition == PLOT_SKILL_ALWAYS) return true;
+    if (target_id == SIM_NO_UNIT) return false;
+    sim_unit *target = sim->units + target_id;
+    u32 mine = sim_battle_values(sim, unit).intellect, theirs = sim_battle_values(sim, target).intellect;
+    switch (rule->condition)
+    {
+        case PLOT_SKILL_LOWER_INTELLECT:  return theirs < mine;
+        case PLOT_SKILL_HIGHER_INTELLECT: return theirs > mine;
+        case PLOT_SKILL_NO_FEMALE:
+            for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place)
+            {
+                officer_component *officer = sim_find_officer(sim, target->officers[place]);
+                if (officer && officer->female) return false;
+            }
+            return true;
+        default: return false;
+    }
+}
+
+internal b32
+sim_plot_has_outcome(sim_state *sim, sim_unit *unit, u32 plot_row, u32 target_id, plot_skill_outcome outcome)
+{
+    for (u32 index = 0; index < sim->content.plot_skill_count; ++index)
+    {
+        plot_skill *rule = sim->content.plot_skills + index;
+        if (rule->outcome == outcome && sim_plot_skill_holds(sim, unit, plot_row, target_id, rule)) return true;
+    }
+    return false;
+}
+
 /* The chance of a plot (Q-173): plot.base_success plus the difference of
-   intellect, 5 to 95. 虛實 and 神算 always succeed against a lower
-   intellect; 洞察 always sees through. */
+   intellect, 5 to 95. The traits of the target come first: fire_immune stops
+   a fire, see_through_all stops each plot, and see_through_lower stops a plot
+   from a lower intellect. Then fire_sure and the rows of plot_skills.tsv. */
 internal u32
-sim_plot_chance(sim_state *sim, sim_unit *unit, u32 target_id)
+sim_plot_chance(sim_state *sim, sim_unit *unit, u32 plot_row, u32 target_id)
 {
     sim_rules *rules = &sim->content.rules;
     if (target_id == SIM_NO_UNIT) return 100;
     sim_unit *target = sim->units + target_id;
     if (target->force_id == unit->force_id) return 100;
-    if (sim_unit_has_skill(sim, target->officers, rules->skill_insight)) return 0;
+    b32 fire = sim->content.plots[plot_row].effect == PLOT_FIRE;
     u32 mine = sim_battle_values(sim, unit).intellect, theirs = sim_battle_values(sim, target).intellect;
-    if (mine > theirs && (sim_unit_has_skill(sim, unit->officers, rules->skill_feint) ||
-                          sim_unit_has_skill(sim, unit->officers, rules->skill_strategist))) return 100;
+    if (fire && sim_unit_has_trait(sim, target->officers, TRAIT_FIRE_IMMUNE)) return 0;
+    if (sim_unit_has_trait(sim, target->officers, TRAIT_SEE_THROUGH_ALL)) return 0;
+    if (mine < theirs && sim_unit_has_trait(sim, target->officers, TRAIT_SEE_THROUGH_LOWER)) return 0;
+    if (fire && sim_unit_has_trait(sim, unit->officers, TRAIT_FIRE_SURE)) return 100;
+    if (sim_plot_has_outcome(sim, unit, plot_row, target_id, PLOT_SKILL_SURE)) return 100;
     s32 chance = (s32)rules->plot_base_success + (s32)mine - (s32)theirs;
+    if (sim_plot_has_outcome(sim, unit, plot_row, target_id, PLOT_SKILL_DOUBLE)) chance *= 2;
     return (u32)(chance < 5 ? 5 : (chance > 95 ? 95 : chance));
+}
+
+/* The morale of a plot: the trait plot_thrift takes 1 from it (百出 #65). */
+internal u32
+sim_plot_morale(sim_state *sim, sim_unit *unit, plot_kind *plot)
+{
+    return plot->morale && sim_unit_has_trait(sim, unit->officers, TRAIT_PLOT_THRIFT) ? plot->morale - 1 : plot->morale;
 }
 
 internal sim_check
@@ -341,12 +409,12 @@ sim_check_plot(sim_state *sim, sim_unit_order *order)
     if (!sim->settings.strong_plots && (plot->effect == PLOT_SORCERY || plot->effect == PLOT_LIGHTNING)) return sim_refuse(check, SIM_REFUSAL_NO_APTITUDE);   /* M9: 落雷・妖術 off */
     if (plot->needs_skill && !sim_unit_has_skill(sim, unit->officers, plot->needs_skill) &&
         !(plot->needs_skill_2 && sim_unit_has_skill(sim, unit->officers, plot->needs_skill_2))) return sim_refuse(check, SIM_REFUSAL_NO_APTITUDE);
-    if (unit->morale < plot->morale) return sim_refuse(check, SIM_REFUSAL_NO_MORALE);
+    if (unit->morale < sim_plot_morale(sim, unit, plot)) return sim_refuse(check, SIM_REFUSAL_NO_MORALE);
     if (plot->from_terrain != CONTENT_NO_TERRAIN && sim->map.kind[hex_map_index(&sim->map, unit->hex)] != plot->from_terrain)
     {
         return sim_refuse(check, SIM_REFUSAL_BAD_TERRAIN);
     }
-    u32 range = plot->range + (sim_unit_has_skill(sim, unit->officers, sim->content.rules.skill_long_plot) ? 1 : 0);
+    u32 range = plot->range + (sim_unit_has_trait(sim, unit->officers, TRAIT_PLOT_RANGE) ? 1 : 0);
     if (plot->effect == PLOT_FIRE) range += sim_technique_effect_value(sim, unit->force_id, TECHNIQUE_EFFECT_FIRE_RANGE) ? 2 : 0;
     u32 distance = (u32)hex_distance(unit->hex, order->to);
     if (distance > range || (plot->target != PLOT_TARGET_HEX && distance == 0)) return sim_refuse(check, SIM_REFUSAL_NO_TARGET);
@@ -357,8 +425,8 @@ sim_check_plot(sim_state *sim, sim_unit_order *order)
     }
     if (plot->target == PLOT_TARGET_OWN && (other == SIM_NO_UNIT || sim->units[other].force_id != unit->force_id)) return sim_refuse(check, SIM_REFUSAL_NO_TARGET);
     if (plot->target == PLOT_TARGET_HEX && !hex_map_contains(&sim->map, order->to)) return sim_refuse(check, SIM_REFUSAL_NO_TARGET);
-    check.action_points = plot->morale;
-    check.quantity      = plot->effect == PLOT_EXTINGUISH || plot->effect == PLOT_CALM ? 100 : sim_plot_chance(sim, unit, other);
+    check.action_points = sim_plot_morale(sim, unit, plot);
+    check.quantity      = plot->effect == PLOT_EXTINGUISH || plot->effect == PLOT_CALM ? 100 : sim_plot_chance(sim, unit, order->kind, other);
     check.assumed       = true;
     return check;
 }
@@ -377,66 +445,42 @@ sim_splash_units(sim_state *sim, u8 force, hex_coord hex, b32 own_too, u32 *ids)
     return count;
 }
 
+/* The effect of a plot on one hex or one target. A critical plot lasts
+   longer as a fire, does more damage, or takes more morale. 連環 and 反計
+   use this function for their other targets. */
 internal void
-sim_use_plot(sim_state *sim, sim_command command, sim_event_sink *events)
+sim_plot_strike(sim_state *sim, u32 caster_id, plot_kind *plot, hex_coord hex, u32 target, b32 critical, u32 cause, sim_event_sink *events)
 {
-    sim_unit_order *order = &command.unit;
-    sim_check check = sim_check_plot(sim, order);
-    if (check.refusal != SIM_REFUSAL_NONE) return;
     sim_rules *rules = &sim->content.rules;
-    sim_unit *unit = sim->units + order->unit;
-    plot_kind *plot = sim_plot(sim, order->kind);
-    unit->acted_turn = sim->turn + 1;
-    sim_change_morale(sim, order->unit, -(s32)plot->morale, command.id, events);
-    b32 success = check.quantity >= 100 || (check.quantity && sim_random_below(sim, 100) < check.quantity);
-    sim_emit_unit(sim, SIM_EVENT_PLOT_USED, order->unit, SIM_NO_CITY, success ? 1 : 0, true, command.id, events);
-    if (!success) return;
-    u32 target = sim_unit_at(sim, order->to);
-    u32 ids[SIM_UNIT_CAPACITY];
+    sim_unit *caster = sim->units + caster_id;
     switch (plot->effect)
     {
         case PLOT_FIRE:
-            sim_start_fire(sim, order->to, sim_fire_turns(sim, false), command.id, events);
-            if (sim_building_at(sim, order->to) != SIM_NO_BUILDING)
+        {
+            b32 strong = sim_unit_has_trait(sim, caster->officers, TRAIT_FIRE_POWER);
+            sim_start_fire(sim, hex, critical ? SIM_FIRE_MAX_TURNS : sim_fire_turns(sim, false), strong, cause, events);
+            u32 building = sim_building_at(sim, hex);
+            if (building != SIM_NO_BUILDING && sim_building_is_trap(sim->content.buildings + sim->buildings[building].kind))
             {
-                u32 building = sim_building_at(sim, order->to);
-                if (sim_building_is_trap(sim->content.buildings + sim->buildings[building].kind))
-                {
-                    sim_trigger_trap(sim, building, sim_direction_toward(unit->hex, order->to), command.id, events);
-                }
+                sim_trigger_trap(sim, building, sim_direction_toward(caster->hex, hex), strong, cause, events);
             }
             break;
-        case PLOT_EXTINGUISH:
-            for (u32 d = 0; d <= HEX_DIRECTION_COUNT; ++d)
-            {
-                hex_coord hex = d < HEX_DIRECTION_COUNT ? hex_neighbor(order->to, d) : order->to;
-                if (!sim_hex_burns(sim, hex)) continue;
-                u32 cell = hex_map_index(&sim->map, hex);
-                sim->fire[cell] = 0;
-                sim_emit_cell(sim, SIM_EVENT_FIRE_ENDED, cell, 0, false, command.id, events);
-            }
-            break;
+        }
         case PLOT_FALSE_REPORT:
-            sim_set_unit_state(sim, target, UNIT_STATE_FALSE_REPORT, plot->turns, command.id, events);
+            sim_set_unit_state(sim, target, UNIT_STATE_FALSE_REPORT, plot->turns, cause, events);
+            if (critical) sim_change_morale(sim, target, -(s32)rules->plot_critical_morale, cause, events);
             break;
         case PLOT_CONFUSE:
-            sim_set_unit_state(sim, target, UNIT_STATE_CONFUSED, plot->turns, command.id, events);
-            break;
-        case PLOT_CALM:
-            if (sim->units[target].state != UNIT_STATE_NONE)
-            {
-                sim->units[target].state = UNIT_STATE_NONE;
-                sim->units[target].state_turns = 0;
-                sim_emit_unit(sim, SIM_EVENT_UNIT_STATE, target, SIM_NO_CITY, 0, false, command.id, events);
-            }
+            sim_set_unit_state(sim, target, UNIT_STATE_CONFUSED, plot->turns, cause, events);
+            if (critical) sim_change_morale(sim, target, -(s32)rules->plot_critical_morale, cause, events);
             break;
         case PLOT_AMBUSH:
         {
             /* The intellect is the attack; no counterattack (manual p.17). */
-            sim_unit_values mine = sim_battle_values(sim, unit), theirs = sim_battle_values(sim, sim->units + target);
+            sim_unit_values mine = sim_battle_values(sim, caster), theirs = sim_battle_values(sim, sim->units + target);
             u32 percent = rules->combat_ambush_percent;
-            if (sim_unit_has_skill(sim, unit->officers, rules->skill_ambush_critical)) percent = sim_percent_of(percent, rules->combat_critical_percent);
-            sim_hurt_unit(sim, target, sim_combat_damage(sim, unit->soldiers, mine.intellect, theirs.defence, percent), order->unit, false, command.id, events);
+            if (critical) percent = sim_percent_of(percent, rules->combat_critical_percent);
+            sim_hurt_unit(sim, target, sim_combat_damage(sim, caster->soldiers, mine.intellect, theirs.defence, percent), caster_id, false, cause, events);
             break;
         }
         case PLOT_INFIGHTING:
@@ -453,32 +497,101 @@ sim_use_plot(sim_state *sim, sim_command command, sim_event_sink *events)
             if (best != SIM_NO_UNIT)
             {
                 sim_unit_values a = sim_battle_values(sim, victim), b = sim_battle_values(sim, sim->units + best);
-                sim_hurt_unit(sim, best, sim_combat_damage(sim, victim->soldiers, a.attack, b.defence, 100), target, false, command.id, events);
+                u32 percent = critical ? rules->combat_critical_percent : 100;
+                sim_hurt_unit(sim, best, sim_combat_damage(sim, victim->soldiers, a.attack, b.defence, percent), target, false, cause, events);
             }
             break;
         }
+        default:
+            break;
+    }
+}
+
+internal void
+sim_use_plot(sim_state *sim, sim_command command, sim_event_sink *events)
+{
+    sim_unit_order *order = &command.unit;
+    sim_check check = sim_check_plot(sim, order);
+    if (check.refusal != SIM_REFUSAL_NONE) return;
+    sim_rules *rules = &sim->content.rules;
+    sim_unit *unit = sim->units + order->unit;
+    plot_kind *plot = sim_plot(sim, order->kind);
+    unit->acted_turn = sim->turn + 1;
+    sim_change_morale(sim, order->unit, -(s32)check.action_points, command.id, events);
+    b32 success = check.quantity >= 100 || (check.quantity && sim_random_below(sim, 100) < check.quantity);
+    sim_emit_unit(sim, SIM_EVENT_PLOT_USED, order->unit, SIM_NO_CITY, success ? 1 : 0, true, command.id, events);
+    if (!success) return;
+    u32 target = sim_unit_at(sim, order->to);
+    u32 ids[SIM_UNIT_CAPACITY];
+    b32 harm = plot->effect != PLOT_EXTINGUISH && plot->effect != PLOT_CALM;
+    b32 critical = harm && sim_plot_has_outcome(sim, unit, order->kind, target, PLOT_SKILL_CRITICAL);
+    if (critical) sim_emit_unit(sim, SIM_EVENT_CRITICAL_HIT, order->unit, SIM_NO_CITY, 0, false, command.id, events);
+    switch (plot->effect)
+    {
+        case PLOT_EXTINGUISH:
+            for (u32 d = 0; d <= HEX_DIRECTION_COUNT; ++d)
+            {
+                hex_coord hex = d < HEX_DIRECTION_COUNT ? hex_neighbor(order->to, d) : order->to;
+                if (!sim_hex_burns(sim, hex)) continue;
+                u32 cell = hex_map_index(&sim->map, hex);
+                sim->fire[cell] = 0;
+                sim_emit_cell(sim, SIM_EVENT_FIRE_ENDED, cell, 0, false, command.id, events);
+            }
+            return;
+        case PLOT_CALM:
+            if (sim->units[target].state != UNIT_STATE_NONE)
+            {
+                sim->units[target].state = UNIT_STATE_NONE;
+                sim->units[target].state_turns = 0;
+                sim_emit_unit(sim, SIM_EVENT_UNIT_STATE, target, SIM_NO_CITY, 0, false, command.id, events);
+            }
+            return;
         case PLOT_SORCERY:
         {
             u32 count = sim_splash_units(sim, unit->force_id, order->to, false, ids);
-            for (u32 index = 0; index < count; ++index) sim_set_unit_state(sim, ids[index], UNIT_STATE_CONFUSED, plot->turns, command.id, events);
-            break;
+            for (u32 index = 0; index < count; ++index)
+            {
+                sim_set_unit_state(sim, ids[index], UNIT_STATE_CONFUSED, plot->turns, command.id, events);
+                if (critical) sim_change_morale(sim, ids[index], -(s32)rules->plot_critical_morale, command.id, events);
+            }
+            return;
         }
         case PLOT_LIGHTNING:
         {
             u32 count = sim_splash_units(sim, unit->force_id, order->to, true, ids);
             sim_unit_values mine = sim_battle_values(sim, unit);
+            u32 percent = critical ? sim_percent_of(rules->combat_lightning_percent, rules->combat_critical_percent) : rules->combat_lightning_percent;
             for (u32 index = 0; index < count; ++index)
             {
                 sim_unit_values theirs = sim_battle_values(sim, sim->units + ids[index]);
-                sim_hurt_unit(sim, ids[index], sim_combat_damage(sim, unit->soldiers, mine.intellect, theirs.defence, rules->combat_lightning_percent),
+                sim_hurt_unit(sim, ids[index], sim_combat_damage(sim, unit->soldiers, mine.intellect, theirs.defence, percent),
                               order->unit, false, command.id, events);
             }
-            sim_start_fire(sim, order->to, sim_fire_turns(sim, false), command.id, events);
-            for (u32 d = 0; d < HEX_DIRECTION_COUNT; ++d) sim_start_fire(sim, hex_neighbor(order->to, d), sim_fire_turns(sim, false), command.id, events);
-            break;
+            b32 strong = sim_unit_has_trait(sim, unit->officers, TRAIT_FIRE_POWER);
+            sim_start_fire(sim, order->to, sim_fire_turns(sim, false), strong, command.id, events);
+            for (u32 d = 0; d < HEX_DIRECTION_COUNT; ++d) sim_start_fire(sim, hex_neighbor(order->to, d), sim_fire_turns(sim, false), strong, command.id, events);
+            return;
         }
         default:
             break;
+    }
+    sim_plot_strike(sim, order->unit, plot, order->to, target, critical, command.id, events);
+    /* 連環 #67: the plot also hits the enemy units next to the target. */
+    if (unit->alive && sim_unit_has_trait(sim, unit->officers, TRAIT_PLOT_CHAIN))
+    {
+        for (u32 d = 0; d < HEX_DIRECTION_COUNT; ++d)
+        {
+            hex_coord hex = hex_neighbor(order->to, d);
+            u32 other = sim_unit_at(sim, hex);
+            if (other == SIM_NO_UNIT || !sim_at_war(sim, unit->force_id, sim->units[other].force_id)) continue;
+            sim_plot_strike(sim, order->unit, plot, hex, other, critical, command.id, events);
+        }
+    }
+    /* 反計 #69: the same plot goes back to the unit that used it. */
+    if (target != SIM_NO_UNIT && unit->alive && sim->units[target].alive && sim_at_war(sim, unit->force_id, sim->units[target].force_id) &&
+        sim_unit_has_trait(sim, sim->units[target].officers, TRAIT_PLOT_RETURN))
+    {
+        sim_plot_strike(sim, target, plot, unit->hex, order->unit, false, command.id, events);
     }
 }
 
@@ -587,14 +700,17 @@ sim_run_fire(sim_state *sim, u32 cause, sim_event_sink *events)
     sim_rules *rules = &sim->content.rules;
     for (u32 index = 0; index < sim->unit_count; ++index)
     {
-        if (sim->units[index].alive && sim_hex_burns(sim, sim->units[index].hex)) sim_burn_unit(sim, index, rules->fire_damage_percent, cause, events);
+        if (sim->units[index].alive && sim_hex_burns(sim, sim->units[index].hex))
+        {
+            sim_burn_unit(sim, index, sim_fire_percent(sim, sim->units[index].hex, rules->fire_damage_percent), cause, events);
+        }
     }
     for (u32 index = 0; index < sim->building_count; ++index)
     {
         sim_building *building = sim->buildings + index;
         if (building->alive && sim_hex_burns(sim, building->hex) && !sim->content.buildings[building->kind].natural)
         {
-            sim_hurt_building(sim, index, rules->fire_building_damage, 0, cause, events);
+            sim_hurt_building(sim, index, sim_fire_percent(sim, building->hex, rules->fire_building_damage), 0, cause, events);
         }
     }
     /* Each turn the count goes down by 1; at 0 the fire stops. On an empty
@@ -605,7 +721,11 @@ sim_run_fire(sim_state *sim, u32 cause, sim_event_sink *events)
         hex_coord hex = hex_map_coord(&sim->map, cell);
         terrain_kind *terrain = sim_terrain_at(sim, hex);
         if (terrain && !terrain->burnable && sim_unit_at(sim, hex) == SIM_NO_UNIT) sim->fire[cell] = 0;
-        else                                                                       sim->fire[cell]--;
+        else
+        {
+            u32 turns = (sim->fire[cell] & SIM_FIRE_TURNS_MASK) - 1;
+            sim->fire[cell] = turns ? (u8)(turns | (sim->fire[cell] & SIM_FIRE_STRONG)) : (u8)0;
+        }
         if (!sim->fire[cell]) sim_emit_cell(sim, SIM_EVENT_FIRE_ENDED, cell, 0, false, cause, events);
     }
 }
@@ -654,7 +774,11 @@ sim_run_buildings(sim_state *sim, u32 cause, sim_event_sink *events)
                 sim_hurt_unit(sim, unit_id, kind->value, SIM_NO_UNIT, false, cause, events);
                 break;   /* one shot each turn */
             }
-            if (kind->type == BUILDING_MUSIC && !enemy) sim_change_morale(sim, unit_id, (s32)kind->value, cause, events);
+            if (kind->type == BUILDING_MUSIC && !enemy)
+            {
+                u32 morale = kind->value * (sim_unit_has_trait(sim, unit->officers, TRAIT_MUSIC_DOUBLE) ? 2 : 1);   /* 詩想 #77 */
+                sim_change_morale(sim, unit_id, (s32)morale, cause, events);
+            }
             if (kind->type == BUILDING_MAZE && enemy && sim_random_below(sim, 100) < rules->maze_confuse_chance)
             {
                 sim_set_unit_state(sim, unit_id, UNIT_STATE_CONFUSED, 1, cause, events);
@@ -664,7 +788,7 @@ sim_run_buildings(sim_state *sim, u32 cause, sim_event_sink *events)
     for (u32 unit_id = 0; unit_id < sim->unit_count; ++unit_id)
     {
         sim_unit *unit = sim->units + unit_id;
-        if (unit->alive && sim_unit_has_skill(sim, unit->officers, rules->skill_music)) sim_change_morale(sim, unit_id, 5, cause, events);
+        if (unit->alive && sim_unit_has_trait(sim, unit->officers, TRAIT_MUSIC)) sim_change_morale(sim, unit_id, 5, cause, events);
     }
 }
 

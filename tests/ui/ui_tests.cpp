@@ -5497,7 +5497,7 @@ register_ui_tests(ImGuiTestEngine *e)
         hex_offset land_cell = hex_to_offset(land);
         v.recorder.fire_cell = (u8)(land_cell.row * 8 + land_cell.col);
         count = ui_scene_effects(&v.api, effects, ArrayCount(effects));
-        IM_CHECK(has(UI_EFFECT_FIRE_HEX, land, 0) && has(UI_EFFECT_DIZZY, land, 1) && !has(UI_EFFECT_FIRE_UNIT, land, 1));
+        IM_CHECK(has(UI_EFFECT_FIRE_HEX, land, 0) && !has(UI_EFFECT_DIZZY, land, 1) && !has(UI_EFFECT_FIRE_UNIT, land, 1));   /* fire and confusion are independent */
 
         v.recorder.unit_shift = 2;          /* unit 0 at (3, 2): column 3 does not burn without a unit */
         hex_coord water = hex_make(3, 2);
@@ -5505,7 +5505,12 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(water_cell.col, 3);
         v.recorder.fire_cell = (u8)(water_cell.row * 8 + water_cell.col);
         count = ui_scene_effects(&v.api, effects, ArrayCount(effects));
-        IM_CHECK(has(UI_EFFECT_FIRE_UNIT, water, 0) && has(UI_EFFECT_DIZZY, water, 0) && !has(UI_EFFECT_FIRE_HEX, water, 0));
+        IM_CHECK(has(UI_EFFECT_FIRE_UNIT, water, 0) && !has(UI_EFFECT_DIZZY, water, 0) && !has(UI_EFFECT_FIRE_HEX, water, 0));
+
+        v.recorder.unit0_fire_immune = true;   /* 火神: no flames on the ship and none on the hex */
+        count = ui_scene_effects(&v.api, effects, ArrayCount(effects));
+        IM_CHECK(!has(UI_EFFECT_FIRE_UNIT, water, 0) && !has(UI_EFFECT_FIRE_HEX, water, 0) && !has(UI_EFFECT_DIZZY, water, 0));
+        v.recorder.unit0_fire_immune = false;
 
         v.recorder.unit_shift  = 0;
         v.recorder.fire_cell   = 0;         /* cell 9: no unit stands there */

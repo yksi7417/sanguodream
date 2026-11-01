@@ -1,0 +1,18 @@
+id	skill	name_zh	plot	condition	outcome	status
+# han_196: the column name_zh has the new names of text/zh-TW.tsv of this pack. The rules of the rows are the rules of data/placeholder.
+# The skills that change a plot (skills.md, "Plots"). One row for each rule. A skill can have many rows, and a pack can add rows for any skill.
+# skill: the number in skills.tsv. plot: a key of plots.tsv, or any.
+# condition: always, lower_intellect (the target has lower intellect), higher_intellect (the target has higher intellect), no_female (the target unit has no female officer).
+# outcome: sure (the plot always succeeds), critical (a successful plot has the larger effect), double (two times the chance).
+0	53	設伏	ambush	always	critical	documented
+1	54	縱火	fire	lower_intellect	critical	documented
+2	55	讒言	false_report	lower_intellect	critical	documented
+3	56	權變	confusion	lower_intellect	critical	documented
+4	57	狡計	infighting	lower_intellect	critical	documented
+5	58	佯動	any	lower_intellect	sure	documented
+6	59	奇策	any	lower_intellect	critical	documented
+7	60	密策	false_report	higher_intellect	critical	documented
+8	64	天機	any	lower_intellect	sure	documented
+9	64	天機	any	lower_intellect	critical	documented
+10	68	遠慮	any	always	critical	documented
+11	70	絕色	any	no_female	double	documented

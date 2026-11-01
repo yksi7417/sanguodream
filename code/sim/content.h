@@ -430,7 +430,10 @@ struct disaster_kind
 
 /* ---- M7: skills, posts, ranks and items --------------------------------- */
 
-#define CONTENT_SKILL_COUNT     100   /* skills.md: the numbers 1 to 100 */
+#define CONTENT_SKILL_CAPACITY  200   /* the rows of skills.tsv: 1 to 100 are the skills of skills.md, and a pack can add more */
+#define CONTENT_PLOT_SKILL_CAPACITY    64
+#define CONTENT_BANDIT_FRIEND_CAPACITY 128
+#define CONTENT_ANY_PLOT        0xFFFFFFFFu
 #define CONTENT_POST_CAPACITY   96
 #define CONTENT_RANK_CAPACITY   16
 #define CONTENT_ITEM_CAPACITY   32
@@ -438,19 +441,67 @@ struct disaster_kind
 #define CONTENT_NO_ITEM_KIND    0xFF
 #define CONTENT_BIG5_NAME_SIZE  16    /* the Big5 bytes of an item name in items.tsv */
 
-/* One row of skills.tsv: a skill of skills.md. The column applies is
-   "rule" (the loader writes the number into the rule field
-   "skill.<effect>"), "table" (another table of the pack names the number:
-   critical_skills.tsv, terrain.tsv, plots.tsv, disasters.tsv) or "none"
-   (no effect yet). hooked is true for rule and table. */
+/* A trait is one behaviour of the code. The code asks for a trait and never
+   for a skill. A row of skills.tsv names its traits, so a pack can give each
+   behaviour to any skill, and any officer can have the skill (docs/SKILLS.md).
+   X(name of the enum, key in skills.tsv). */
+#define SKILL_TRAITS(X) \
+    X(ZOC_LAND, zoc_land) X(ZOC_WATER, zoc_water) X(MOVE_LAND, move_land) X(MOVE_CAVALRY, move_cavalry) X(MOVE_WATER, move_water) \
+    X(MOVE_TRANSPORT, move_transport) X(ROCKFALL_GUARD, rockfall_guard) \
+    X(MORALE_HIT_SMALL, morale_hit_small) X(MORALE_HIT_LARGE, morale_hit_large) X(MORALE_ON_DESTROY, morale_on_destroy) \
+    X(DOUBLE_ATTACK, double_attack) X(NO_COUNTER_LAND, no_counter_land) X(NO_COUNTER_WATER, no_counter_water) \
+    X(JOINT_CONFUSE, joint_confuse) X(CAPTURE_ALL, capture_all) X(DOUBLE_TECHNIQUE, double_technique) X(PLUNDER_ITEMS, plunder_items) \
+    X(HEART_ATTACK, heart_attack) X(SIEGE_RANGE, siege_range) X(MOUNTED_ARCHERY, mounted_archery) X(AIDE, aide) \
+    X(CAVALRY_CONFUSE, cavalry_confuse) X(FOREST_ARROWS, forest_arrows) X(PUSH_INJURES, push_injures) \
+    X(LAST_STAND, last_stand) X(WEAK_GUARD, weak_guard) X(JOINT_GUARD, joint_guard) X(HIT_MORALE, hit_morale) X(RATTAN, rattan) \
+    X(FORTUNE, fortune) X(NO_CAPTURE, no_capture) X(GUARD, guard) \
+    X(SEE_THROUGH_LOWER, see_through_lower) X(SEE_THROUGH_ALL, see_through_all) X(PLOT_THRIFT, plot_thrift) X(PLOT_RANGE, plot_range) \
+    X(PLOT_CHAIN, plot_chain) X(PLOT_RETURN, plot_return) \
+    X(FIRE_IMMUNE, fire_immune) X(FIRE_POWER, fire_power) X(FIRE_SURE, fire_sure) \
+    X(NO_FALSE_REPORT, no_false_report) X(NO_CONFUSION, no_confusion) X(MUSIC, music) X(MUSIC_DOUBLE, music_double) \
+    X(FAST_BUILD, fast_build) X(BASE_NO_GRAIN, base_no_grain) \
+    X(MORE_SOLDIERS, more_soldiers) X(MORE_WEAPONS, more_weapons) X(MORE_HORSES, more_horses) X(FAST_SIEGE, fast_siege) \
+    X(FAST_SHIPS, fast_ships) X(CHEAP_RESEARCH, cheap_research) X(SURE_SEARCH, sure_search) X(DEBATE_DIPLOMACY, debate_diplomacy) \
+    X(GOLD_INCOME, gold_income) X(GRAIN_INCOME, grain_income) X(GOLD_EVERY_TURN, gold_every_turn) X(GRAIN_EVERY_MONTH, grain_every_month) \
+    X(BANDIT_FRIEND, bandit_friend) X(LOYAL_CITY, loyal_city) X(MARRIAGE_BONUS, marriage_bonus)
+
+#define SKILL_TRAIT_ENUM(name, key) TRAIT_##name,
+enum skill_trait { SKILL_TRAITS(SKILL_TRAIT_ENUM) TRAIT_COUNT };
+#undef SKILL_TRAIT_ENUM
+static_assert(TRAIT_COUNT <= 64, "skill_kind.traits has 64 bits");
+
+#define content_trait_bit(trait) ((u64)1 << (trait))
+
+/* One row of skills.tsv. traits has a bit for each skill_trait of the row.
+   hooked is true if the row has a trait or if another table names its number:
+   critical_skills.tsv, plot_skills.tsv, plots.tsv, terrain.tsv or disasters.tsv. */
 struct skill_kind
 {
-    u8   number;                      /* 1 .. 100 */
-    u8   file_id;                     /* 0 .. 99: the skill byte of a scenario or save record (officer +124) */
+    u8   number;                      /* 1 .. the rows of the table */
+    u8   file_id;                     /* the skill byte of a scenario or save record (officer +124) */
     char key[CONTENT_KEY_SIZE];
-    char effect[CONTENT_KEY_SIZE];
+    u64  traits;
     u8   category;                    /* skill_category */
     b32  hooked;
+};
+
+/* One row of plot_skills.tsv: a skill changes a plot, when the condition holds. */
+enum plot_skill_condition { PLOT_SKILL_ALWAYS, PLOT_SKILL_LOWER_INTELLECT, PLOT_SKILL_HIGHER_INTELLECT, PLOT_SKILL_NO_FEMALE, PLOT_SKILL_CONDITION_COUNT };
+enum plot_skill_outcome   { PLOT_SKILL_SURE, PLOT_SKILL_CRITICAL, PLOT_SKILL_DOUBLE, PLOT_SKILL_OUTCOME_COUNT };
+
+struct plot_skill
+{
+    u32                  skill;       /* the number in skills.tsv */
+    u32                  plot;        /* the row of plots.tsv; CONTENT_ANY_PLOT */
+    plot_skill_condition condition;
+    plot_skill_outcome   outcome;
+};
+
+/* One row of bandit_regions.tsv: the skill stops the bandits in the city. */
+struct bandit_friend
+{
+    u8  city;
+    u32 skill;
 };
 
 enum skill_category
@@ -689,14 +740,6 @@ struct sim_rules
     u32 level2_percent;
     u32 level3_percent;
     u32 skill_income_percent;
-    u32 skill_rich;
-    u32 skill_rice;
-    u32 skill_tax;
-    u32 skill_levy;
-    u32 skill_capable;
-    u32 skill_breeding;
-    u32 skill_invention;
-    u32 skill_shipbuilding;
     /* The technique points by action (G2-014; rules.tsv technique.*). */
     u32 technique_patrol, technique_train, technique_conscript_min, technique_conscript_max, technique_conscript_soldiers;
     u32 technique_develop, technique_merchant, technique_produce_weapon, technique_produce_siege, technique_produce_ship;
@@ -743,7 +786,6 @@ struct sim_rules
     u32 research_full_ability;
     u32 research_personnel_percent;
     u32 research_teaching_percent;
-    u32 skill_teaching;
     u32 tally_action_points;
     u32 military_office_ap_percent;
     u32 drill_ship_period_percent;
@@ -756,11 +798,6 @@ struct sim_rules
     u32 grade_percent[GRADE_COUNT];     /* GRADE_NONE stays 0 */
     u32 aptitude_percent[4];            /* C, B, A, S: the save values 0..3 */
     u32 move_bonus;
-    u32 skill_ignore_zoc;
-    u32 skill_escape;
-    u32 skill_forced_march;
-    u32 skill_long_drive;
-    u32 skill_haul;
     /* M6: combat, plots, buildings and siege */
     u32 combat_damage_percent, combat_min_damage, combat_counter_percent, combat_triangle_percent;
     u32 combat_tactic_fail_percent;   /* the damage of a failed tactic, as a percent of a normal attack (assumed: the player, 2026-10-24) */
@@ -778,14 +815,11 @@ struct sim_rules
     u32 rockfall_return_percent;   /* M10 */
     u32 build_durability_per_build;
     u32 siege_blockade_loss, siege_recovery, siege_default_durability, siege_capture_technique;
-    u32 skill_capture, skill_escape_capture, skill_fortune, skill_subtle, skill_fire_god, skill_rattan;
-    u32 skill_insight, skill_strategist, skill_feint, skill_calm, skill_mirror, skill_discipline, skill_music;
     u32 combat_collision_percent, combat_ambush_percent, combat_lightning_percent, combat_technique_percent;
     u32 maze_confuse_chance, camp_recover_chance, natural_recovery, loot_percent, ap_dismantle, dismantle_technique;
     u32 confusion_recover_floor, confusion_recover_cap;     /* the recovery from 混亂 each turn (assumed, Q-218) */
     u32 panic_soldiers, panic_ratio, panic_chance;          /* a small unit next to a large enemy confuses itself (assumed, Q-218) */
     u32 siege_ladder_percent, siege_defence_percent, siege_wall_percent;
-    u32 skill_ambush_critical, skill_long_plot, skill_surprise, skill_sweep, skill_awe, skill_archer;
     /* M7: officers, personnel, posts, duel, debate, diplomacy, faction plots */
     u32 ap_search, ap_recruit, ap_reward, ap_give_item, ap_diplomacy, ap_faction_plot;
     u32 ap_move_officers, ap_summon;   /* 移動, 召喚 (travel.cpp) */
@@ -812,9 +846,9 @@ struct sim_rules
     u32 alliance_gold, alliance_base, break_loss, break_technique, ceasefire_base, ceasefire_month_cost;
     u32 surrender_base, exchange_base, aid_base, aid_turns, aid_soldiers;
     u32 faction_plot_gold, two_tigers_base, two_tigers_loss, drive_tiger_base, rumour_base, rumour_order_loss, rumour_loyalty_loss;
-    u32 skill_search, skill_debater, skill_benevolence, skill_wife_help, skill_guard, skill_fame, skill_fame_percent;
-    u32 skill_morale_up, skill_double_attack, skill_heart_attack, skill_unyielding, skill_diamond, skill_iron_wall, skill_fury;
-    u32 skill_plot_thrift, skill_heart_attack_percent, seal_technique;
+    u32 skill_fame_percent, skill_heart_attack_percent, seal_technique;
+    u32 skill_fire_power_percent, skill_chance_percent, skill_morale_gain, skill_few_soldiers, skill_weak_attack, skill_support_percent;
+    u32 plot_critical_morale, fire_seed_confuse_chance;
     /* M8: bases, corps, council, emperor, events, AI */
     u32 base_gold, base_troop_cap, base_caps_percent, base_start_troops;
     u32 corps_commands, council_officers, adviser_intellect, advice_per_intellect;
@@ -859,9 +893,13 @@ struct sim_content
     u32            building_count;
     critical_skill criticals[CONTENT_CRITICAL_CAPACITY];
     u32            critical_count;
-    skill_kind     skills[CONTENT_SKILL_COUNT];
+    plot_skill     plot_skills[CONTENT_PLOT_SKILL_CAPACITY];
+    u32            plot_skill_count;
+    bandit_friend  bandit_friends[CONTENT_BANDIT_FRIEND_CAPACITY];
+    u32            bandit_friend_count;
+    skill_kind     skills[CONTENT_SKILL_CAPACITY];
     u32            skill_count;
-    u8             skill_of_file_id[CONTENT_SKILL_COUNT];   /* the number - 1 for each file id; OFFICER_SKILL_NONE if no row */
+    u8             skill_of_file_id[CONTENT_SKILL_CAPACITY];   /* the number - 1 for each file id; OFFICER_SKILL_NONE if no row */
     post_kind      posts[CONTENT_POST_CAPACITY];
     u32            post_count;
     rank_kind      ranks[CONTENT_RANK_CAPACITY];
@@ -907,7 +945,9 @@ internal b32 content_load_tactics(sim_content *content, tsv_table *table, u32 *b
 internal b32 content_load_plots(sim_content *content, tsv_table *table, u32 *bad_row);       /* after the unit types and the terrain */
 internal b32 content_load_buildings(sim_content *content, tsv_table *table, u32 *bad_row);   /* after the techniques */
 internal b32 content_load_criticals(sim_content *content, tsv_table *table, u32 *bad_row);
-internal b32 content_load_skills(sim_content *content, tsv_table *table, u32 *bad_row);   /* after the rules: it sets the skill.* rules */
+internal b32 content_load_plot_skills(sim_content *content, tsv_table *table, u32 *bad_row);     /* after the plots */
+internal b32 content_load_bandit_friends(sim_content *content, tsv_table *table, u32 *bad_row);
+internal b32 content_load_skills(sim_content *content, tsv_table *table, u32 *bad_row);   /* after the tables that name a skill: hooked looks at them */
 internal u8  content_skill_of_file_id(const sim_content *content, u8 file_id);           /* the skill byte of a record -> the number - 1 */
 internal b32 content_load_ranks(sim_content *content, tsv_table *table, u32 *bad_row);
 internal b32 content_load_posts(sim_content *content, tsv_table *table, u32 *bad_row);    /* after the ranks */

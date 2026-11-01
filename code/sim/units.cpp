@@ -156,6 +156,17 @@ sim_unit_has_skill(sim_state *sim, const u16 *officers, u32 skill)
     return false;
 }
 
+/* True if an officer of the unit has a skill with the trait. */
+internal b32
+sim_unit_has_trait(sim_state *sim, const u16 *officers, skill_trait trait)
+{
+    for (u32 place = 0; place < SIM_COMMAND_OFFICERS; ++place)
+    {
+        if (sim_officer_has_trait(sim, sim_find_officer(sim, officers[place]), trait)) return true;
+    }
+    return false;
+}
+
 /* ASSUMED (Q-169): each technique or skill that raises the movement adds
    move.bonus. The class movement is observed (22, 28, 18). */
 internal u32
@@ -177,9 +188,10 @@ sim_unit_move(sim_state *sim, u8 force, const u16 *officers, unit_type_kind *typ
     if (tech_class == CONTENT_CLASS_CAVALRY && sim_has_technique_effect(sim, force, TECHNIQUE_EFFECT_MOVEMENT, CONTENT_CLASS_CAVALRY)) move += bonus;
     if (tech_class == CONTENT_CLASS_SIEGE && sim_has_technique_effect(sim, force, TECHNIQUE_EFFECT_SIEGE_SPEED, CONTENT_CLASS_SIEGE)) move += bonus;
     if (type->transport && sim_has_technique_effect(sim, force, TECHNIQUE_EFFECT_TRANSPORT_SPEED, CONTENT_CLASS_NONE)) move += bonus;
-    if (type->movement != MOVEMENT_NAVY && sim_unit_has_skill(sim, officers, rules->skill_forced_march)) move += bonus;
-    if (type->movement == MOVEMENT_CAVALRY && sim_unit_has_skill(sim, officers, rules->skill_long_drive)) move += bonus;
-    if (type->transport && sim_unit_has_skill(sim, officers, rules->skill_haul)) move += bonus;
+    if (type->movement != MOVEMENT_NAVY && sim_unit_has_trait(sim, officers, TRAIT_MOVE_LAND)) move += bonus;
+    if (type->movement == MOVEMENT_CAVALRY && sim_unit_has_trait(sim, officers, TRAIT_MOVE_CAVALRY)) move += bonus;
+    if (type->transport && sim_unit_has_trait(sim, officers, TRAIT_MOVE_TRANSPORT)) move += bonus;
+    if (type->movement == MOVEMENT_NAVY && sim_unit_has_trait(sim, officers, TRAIT_MOVE_WATER)) move += bonus;
     return move;
 }
 
@@ -226,7 +238,7 @@ sim_unit_values_of(sim_state *sim, u8 force, u8 unit_type, const u16 *officers)
     values.build = rules->build_percent ? rules->build_base + politics * rules->build_percent / 100 : politics;
     values.move  = sim_unit_move(sim, force, officers, type);
     values.ignores_zoc = type->movement != MOVEMENT_SIEGE && type->movement != MOVEMENT_NAVY &&
-                         (sim_unit_has_skill(sim, officers, rules->skill_ignore_zoc) || sim_unit_has_skill(sim, officers, rules->skill_escape));
+                         sim_unit_has_trait(sim, officers, TRAIT_ZOC_LAND);
     return values;
 }
 
@@ -316,7 +328,8 @@ sim_entry_cost_of(sim_state *sim, u8 force, movement_class movement, u8 unit_typ
     }
     /* F-148: to enter a burning hex costs fire.cost_multiplier (4) times the
        cost of the table; a pack without the rule adds fire.extra_cost. */
-    if (sim_hex_burns(sim, hex))
+    b32 fire_free = self < sim->unit_count && sim_unit_has_trait(sim, sim->units[self].officers, TRAIT_FIRE_IMMUNE);
+    if (sim_hex_burns(sim, hex) && !fire_free)
     {
         u32 multiplier = sim->content.rules.fire_cost_multiplier;
         cost = cost * (multiplier ? multiplier : 1) + sim->content.rules.fire_extra_cost;
@@ -422,6 +435,10 @@ sim_unit_search(sim_state *sim, u32 unit_id, memory_arena *scratch, b32 plan, he
     open.count   = 0;
     if (!hex_map_contains(&sim->map, unit->hex)) return reach;
 
+    /* 操舵 #6 and 推進 #5: a land unit that starts on water sails. */
+    b32 water_free = sim_unit_has_trait(sim, unit->officers, TRAIT_ZOC_WATER);
+    u32 move = values.move;
+    if (type->movement != MOVEMENT_NAVY && sim_hex_is_water(sim, unit->hex) && sim_unit_has_trait(sim, unit->officers, TRAIT_MOVE_WATER)) move += sim->content.rules.move_bonus;
     u32 start = hex_map_index(&sim->map, unit->hex);
     best[start] = 0;
     hex_heap_push(&open, 0, start);
@@ -441,7 +458,8 @@ sim_unit_search(sim_state *sim, u32 unit_id, memory_arena *scratch, b32 plan, he
         /* A unit stops next to an enemy and in an own city. */
         if (!plan && current.index != start)
         {
-            if (!values.ignores_zoc && sim_in_enemy_zone(sim, unit->force_id, here, unit_id)) continue;
+            b32 free_of_zone = sim_hex_is_water(sim, here) ? water_free : values.ignores_zoc;
+            if (!free_of_zone && sim_in_enemy_zone(sim, unit->force_id, here, unit_id)) continue;
             if (sim_city_at(sim, here) != SIM_NO_CITY) continue;
             if (sim_base_at(sim, here) != SIM_NO_BASE) continue;   /* M10: an own port or pass (assumed) */
         }
@@ -454,7 +472,7 @@ sim_unit_search(sim_state *sim, u32 unit_id, memory_arena *scratch, b32 plan, he
             if (!cost) continue;
             u32 next_index = hex_map_index(&sim->map, next);
             u32 total = current.cost + cost;
-            if ((!plan && total > values.move) || total >= best[next_index] || slot[next_index] != U32_MAX) continue;
+            if ((!plan && total > move) || total >= best[next_index] || slot[next_index] != U32_MAX) continue;
             best[next_index]   = total;
             parent[next_index] = current.index;
             hex_heap_push(&open, total, next_index);
@@ -1169,6 +1187,16 @@ sim_run_units_turn(sim_state *sim, u32 cause, sim_event_sink *events)
     {
         sim_unit *unit = sim->units + unit_id;
         if (!unit->alive || !unit->soldiers || unit->grain_unknown) continue;
+        /* 屯田 #79: next to an own port or pass, the soldiers use no grain (the distance is assumed, Q-234). */
+        if (sim_unit_has_trait(sim, unit->officers, TRAIT_BASE_NO_GRAIN))
+        {
+            b32 at_base = false;
+            for (u32 base = 0; base < sim->content.base_count && !at_base; ++base)
+            {
+                at_base = sim->bases[base].exists && sim->bases[base].force == unit->force_id && hex_distance(sim->bases[base].hex, unit->hex) <= 1;
+            }
+            if (at_base) continue;
+        }
         u32 needed = unit->soldiers / rules->unit_grain_soldiers;
         u32 eaten  = needed < unit->grain ? needed : unit->grain;
         unit->grain -= eaten;

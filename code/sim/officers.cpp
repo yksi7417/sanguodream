@@ -499,7 +499,7 @@ sim_monthly_loyalty_loss(sim_state *sim, officer_component *officer, officer_com
     s32 loss = (s32)rules->loyalty_monthly + ((s32)officer->ambition - 2) * (s32)rules->loyalty_ambition -
                ((s32)officer->justice - 2) * (s32)rules->loyalty_ambition;
     if (sim_has_technique_effect(sim, officer->force_id, TECHNIQUE_EFFECT_LOYALTY_KEEP, CONTENT_CLASS_NONE)) loss /= 2;
-    if (officer->current_position < SAVE_CITY_COUNT && sim_city_has_skill(sim, (u8)officer->current_position, rules->skill_benevolence)) loss /= 2;
+    if (officer->current_position < SAVE_CITY_COUNT && sim_city_has_trait(sim, (u8)officer->current_position, TRAIT_LOYAL_CITY)) loss /= 2;
     return loss > 0 ? (u32)loss : 0;
 }
 
@@ -701,7 +701,7 @@ sim_search_chance(sim_state *sim, city_component *city, officer_component *searc
 {
     sim_rules *rules = &sim->content.rules;
     if (!sim_search_target(sim, city)) return 0;
-    if (sim_officer_has_skill(searcher, rules->skill_search)) return 100;
+    if (sim_officer_has_trait(sim, searcher, TRAIT_SURE_SEARCH)) return 100;
     u32 chance = rules->search_base + searcher->politics * rules->search_politics_percent / 100;
     return chance > 100 ? 100 : chance;
 }
@@ -1036,7 +1036,7 @@ sim_matchmake(sim_state *sim, u8 force, sim_court_order *order, u32 cause, sim_e
     b->spouse = a->officer_id;
     sim_emit_officer(sim, SIM_EVENT_MARRIED, a, 0, b->officer_id, false, cause, events);
     /* 內助 #100: both officers gain 1 in each ability (Steam guide, skills.md). */
-    if (sim_officer_has_skill(a, rules->skill_wife_help) || sim_officer_has_skill(b, rules->skill_wife_help))
+    if (sim_officer_has_trait(sim, a, TRAIT_MARRIAGE_BONUS) || sim_officer_has_trait(sim, b, TRAIT_MARRIAGE_BONUS))
     {
         officer_component *pair[2] = { a, b };
         for (u32 side = 0; side < 2; ++side)

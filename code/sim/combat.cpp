@@ -257,7 +257,10 @@ sim_is_critical(sim_state *sim, sim_unit *attacker, u32 action, sim_target *targ
 /* ---- damage to a unit, its destruction and the captives ------------------------ */
 
 internal void sim_set_unit_state(sim_state *sim, u32 unit_id, sim_unit_state state, u32 turns, u32 cause, sim_event_sink *events);   /* field.cpp */
-internal void sim_trigger_trap(sim_state *sim, u32 building_id, u32 direction, u32 cause, sim_event_sink *events);                  /* field.cpp */
+internal void sim_trigger_trap(sim_state *sim, u32 building_id, u32 direction, b32 strong, u32 cause, sim_event_sink *events);      /* field.cpp */
+internal void sim_wound_officer(sim_state *sim, officer_component *officer, u32 cause, sim_event_sink *events);                     /* duel.cpp */
+internal void sim_emit_officer(sim_state *sim, sim_event_kind kind, officer_component *officer, s32 delta, u32 detail, b32 assumed, u32 cause,
+                               sim_event_sink *events);                                                                              /* officers.cpp */
 /* sim_start_fire and sim_fire_turns: sim.h (field.cpp) */
 
 internal void
@@ -302,9 +305,21 @@ sim_capture_officers(sim_state *sim, u32 unit_id, u32 captor_id, b32 halberd_tac
         officer_component *officer = sim_find_officer(sim, unit->officers[place]);
         if (!officer) continue;
         u32 chance = rules->combat_capture_percent + (halberd_tactic ? rules->combat_halberd_capture : 0);
-        if (captor && sim_unit_has_skill(sim, captor->officers, rules->skill_capture)) chance = 100;
-        if (sim_officer_has_skill(officer, rules->skill_fortune) || sim_officer_has_skill(officer, rules->skill_escape_capture)) chance = 0;
+        if (captor && sim_unit_has_trait(sim, captor->officers, TRAIT_CAPTURE_ALL)) chance = 100;
+        if (sim_officer_has_trait(sim, officer, TRAIT_FORTUNE) || sim_officer_has_trait(sim, officer, TRAIT_NO_CAPTURE)) chance = 0;
         b32 captured = captor && chance && sim_random_below(sim, 100) < chance;
+        /* 強奪 #21: the items of the officers of a destroyed unit go to the city of the unit that destroyed it. */
+        if (captor && sim_unit_has_trait(sim, captor->officers, TRAIT_PLUNDER_ITEMS))
+        {
+            for (u32 index = 0; index < SAVE_ITEM_COUNT; ++index)
+            {
+                sim_item *item = sim->items + index;
+                if (!item->exists || item->owner != officer->officer_id) continue;
+                item->owner = SIM_NO_OFFICER;
+                item->city  = sim_unit_home_city(sim, captor);
+                sim_emit_officer(sim, SIM_EVENT_ITEM_TAKEN, officer, 0, index, false, cause, events);
+            }
+        }
         sim_event event = sim_event_make(sim, captured ? SIM_EVENT_OFFICER_CAPTURED : SIM_EVENT_OFFICER_ESCAPED, cause);
         event.subject = sim_officer_entity(sim, officer->officer_id);
         if (captured)
@@ -347,7 +362,7 @@ sim_destroy_unit(sim_state *sim, u32 unit_id, u32 captor_id, b32 halberd_tactic,
     if (captor_id < sim->unit_count && rules->combat_destroy_technique)
     {
         sim_unit *captor = sim->units + captor_id;
-        u32 points = rules->combat_destroy_technique * (sim_unit_has_skill(sim, captor->officers, rules->skill_subtle) ? 2 : 1);
+        u32 points = rules->combat_destroy_technique * (sim_unit_has_trait(sim, captor->officers, TRAIT_DOUBLE_TECHNIQUE) ? 2 : 1);
         sim->technique_points[captor->force_id] += points;
         sim_event gained = sim_event_make(sim, SIM_EVENT_TECHNIQUE_GAINED, cause);
         gained.faction = captor->force_id;
@@ -474,7 +489,7 @@ sim_hurt_building(sim_state *sim, u32 building_id, u32 amount, u32 direction, u3
     building_type type = sim->content.buildings[building->kind].type;
     if (type == BUILDING_SEED || type == BUILDING_BALL || type == BUILDING_SHIP || type == BUILDING_DIKE || type == BUILDING_ROCKFALL)
     {
-        sim_trigger_trap(sim, building_id, direction, cause, events);
+        sim_trigger_trap(sim, building_id, direction, false, cause, events);
         return;
     }
     building->alive = false;
@@ -532,10 +547,11 @@ sim_attack_range(sim_state *sim, sim_unit *unit)
     u32 range = type->range;
     if (type->aptitude == OFFICER_APTITUDE_CAVALRY &&
         (sim_has_technique_effect(sim, unit->force_id, TECHNIQUE_EFFECT_MOUNTED_ARCHERY, CONTENT_CLASS_CAVALRY) ||
-         sim_unit_has_skill(sim, unit->officers, 25)))
+         sim_unit_has_trait(sim, unit->officers, TRAIT_MOUNTED_ARCHERY)))
     {
         range = 2;
     }
+    if (type->aptitude == OFFICER_APTITUDE_SIEGE && range > 1 && sim_unit_has_trait(sim, unit->officers, TRAIT_SIEGE_RANGE)) range++;   /* 射程 #24 */
     if (type->aptitude == OFFICER_APTITUDE_CROSSBOW)
     {
         range += sim_technique_effect_value(sim, unit->force_id, TECHNIQUE_EFFECT_RANGE);
@@ -554,7 +570,7 @@ sim_check_attack_target(sim_state *sim, sim_unit *unit, hex_coord hex, sim_targe
     if (!sim_target_any(target)) return SIM_REFUSAL_NO_TARGET;
     terrain_kind *terrain = sim_terrain_at(sim, hex);
     /* No arrow attack into a forest, unless 騎射 cavalry or 射手 (manual p.17). */
-    if (distance > 1 && terrain && strcmp(terrain->key, "forest") == 0 && !sim_unit_has_skill(sim, unit->officers, sim->content.rules.skill_archer) &&
+    if (distance > 1 && terrain && strcmp(terrain->key, "forest") == 0 && !sim_unit_has_trait(sim, unit->officers, TRAIT_FOREST_ARROWS) &&
         type->aptitude != OFFICER_APTITUDE_CAVALRY)
     {
         return SIM_REFUSAL_BAD_TERRAIN;
@@ -564,10 +580,11 @@ sim_check_attack_target(sim_state *sim, sim_unit *unit, hex_coord hex, sim_targe
 
 /* One strike of a unit on the target of a hex: the damage, the morale of
    the target, and the counterattack. Returns the soldiers that the target
-   lost. percent carries the multipliers of a tactic (100 for an attack). */
+   lost. percent carries the multipliers of a tactic (100 for an attack).
+   fire is true for a tactic of fire: the traits of fire apply to it. */
 internal u32
 sim_strike(sim_state *sim, u32 attacker_id, hex_coord hex, sim_target *target, u32 percent, u32 action, b32 counter_allowed,
-           b32 halberd_tactic, u32 cause, sim_event_sink *events)
+           b32 halberd_tactic, b32 fire, u32 cause, sim_event_sink *events)
 {
     sim_rules *rules = &sim->content.rules;
     sim_unit *attacker = sim->units + attacker_id;
@@ -576,6 +593,8 @@ sim_strike(sim_state *sim, u32 attacker_id, hex_coord hex, sim_target *target, u
     u32 bonus = 100 + sim_building_bonus(sim, attacker->force_id, attacker->hex, BUILDING_DRUM) +
                 sim_building_bonus(sim, attacker->force_id, attacker->hex, BUILDING_MAZE);
     percent = (u32)((u64)percent * bonus / 100);
+    if (fire && target->unit != SIM_NO_UNIT && sim_unit_has_trait(sim, sim->units[target->unit].officers, TRAIT_FIRE_IMMUNE)) return 0;
+    if (fire && sim_unit_has_trait(sim, attacker->officers, TRAIT_FIRE_POWER)) percent = sim_percent_of(percent, rules->skill_fire_power_percent);
     if (sim_is_critical(sim, attacker, action, target, distance))
     {
         percent = sim_percent_of(percent, rules->combat_critical_percent);
@@ -587,7 +606,7 @@ sim_strike(sim_state *sim, u32 attacker_id, hex_coord hex, sim_target *target, u
         sim_unit_values defence = sim_battle_values(sim, defender);
         u32 reduce = sim_building_bonus(sim, defender->force_id, defender->hex, BUILDING_CAMP);
         u32 final_percent = (u32)((u64)percent * (100 - (reduce < 100 ? reduce : 99)) / 100);
-        if (sim_unit_has_skill(sim, defender->officers, rules->skill_rattan)) final_percent /= 2;
+        if (sim_unit_has_trait(sim, defender->officers, TRAIT_RATTAN)) final_percent = fire ? final_percent * 2 : final_percent / 2;
         u32 damage = sim_combat_damage(sim, attacker->soldiers, values.attack, defence.defence, final_percent);
         /* 箭盾 and 大盾: 30 percent of the halberd's chance to block (documented). */
         unit_type_kind *defender_type = sim_unit_type(sim, sim_effective_type(sim, defender));
@@ -596,25 +615,49 @@ sim_strike(sim_state *sim, u32 attacker_id, hex_coord hex, sim_target *target, u
             u32 block = sim_technique_effect_value(sim, defender->force_id, distance > 1 ? TECHNIQUE_EFFECT_ARROW_BLOCK : TECHNIQUE_EFFECT_ATTACK_BLOCK);
             if (block && sim_random_below(sim, 100) < block) damage = 0;
         }
+        /* 不屈 #45 and 金剛 #46: half the time the attack does nothing. */
+        if (defender->soldiers < rules->skill_few_soldiers && sim_unit_has_trait(sim, defender->officers, TRAIT_LAST_STAND) &&
+            sim_random_below(sim, 100) < rules->skill_chance_percent) damage = 0;
+        if (damage && damage < rules->skill_weak_attack && sim_unit_has_trait(sim, defender->officers, TRAIT_WEAK_GUARD) &&
+            sim_random_below(sim, 100) < rules->skill_chance_percent) damage = 0;
         u32 before = defender->soldiers;
         sim_hurt_unit(sim, target->unit, damage, attacker_id, halberd_tactic, cause, events);
         u32 lost = before - (defender->alive ? defender->soldiers : 0);
+        /* 心攻 #22: a part of the soldiers that the target lost join the unit. */
+        if (attacker->alive && lost && sim_unit_has_trait(sim, attacker->officers, TRAIT_HEART_ATTACK))
+        {
+            u32 cap = sim_unit_soldier_cap(sim, attacker->force_id);
+            u32 joined = sim_percent_of(lost, rules->skill_heart_attack_percent);
+            if (attacker->soldiers + joined > cap) joined = attacker->soldiers < cap ? cap - attacker->soldiers : 0;
+            attacker->soldiers += joined;
+            if (joined) sim_emit_unit(sim, SIM_EVENT_UNIT_SUPPLIED, attacker_id, SIM_NO_CITY, (s32)joined, true, cause, events);
+        }
+        /* 昂揚 #12: the morale rises when the unit destroys its target. */
+        if (attacker->alive && !defender->alive && sim_unit_has_trait(sim, attacker->officers, TRAIT_MORALE_ON_DESTROY))
+        {
+            sim_change_morale(sim, attacker_id, (s32)rules->skill_morale_gain, cause, events);
+        }
         if (defender->alive)
         {
             u32 hit = rules->combat_morale_hit;
-            if (sim_unit_has_skill(sim, attacker->officers, rules->skill_sweep)) hit += rules->combat_morale_hit;
-            if (sim_unit_has_skill(sim, attacker->officers, rules->skill_awe))   hit += 2 * rules->combat_morale_hit;
+            if (sim_unit_has_trait(sim, attacker->officers, TRAIT_MORALE_HIT_SMALL)) hit += rules->combat_morale_hit;
+            if (sim_unit_has_trait(sim, attacker->officers, TRAIT_MORALE_HIT_LARGE))   hit += 2 * rules->combat_morale_hit;
             sim_change_morale(sim, target->unit, -(s32)hit, cause, events);
+            /* 怒髮 #48: the morale rises when an enemy tactic hits the unit. */
+            if (action == CRITICAL_TACTIC && sim_unit_has_trait(sim, defender->officers, TRAIT_HIT_MORALE))
+            {
+                sim_change_morale(sim, target->unit, (s32)rules->skill_morale_gain, cause, events);
+            }
         }
         /* The counterattack: melee only, not by siege weapons; 還射 lets
-           crossbows answer arrows; 急襲 avoids it half the time on land. */
+           crossbows answer arrows; 急襲 on land and 強襲 on water avoid it half the time. */
         b32 answers = defender->alive && defender->state == UNIT_STATE_NONE && defender_type && defender_type->counterattack;
         if (distance > 1) answers = answers && defender_type->aptitude == OFFICER_APTITUDE_CROSSBOW &&
                                     sim_has_technique_effect(sim, defender->force_id, TECHNIQUE_EFFECT_COUNTER_ARROW, CONTENT_CLASS_CROSSBOW);
         if (answers && counter_allowed && attacker->alive)
         {
-            if (sim_unit_has_skill(sim, attacker->officers, rules->skill_surprise) && !sim_hex_is_water(sim, attacker->hex) &&
-                sim_random_below(sim, 100) < 50) return lost;
+            skill_trait dodge = sim_hex_is_water(sim, attacker->hex) ? TRAIT_NO_COUNTER_WATER : TRAIT_NO_COUNTER_LAND;
+            if (sim_unit_has_trait(sim, attacker->officers, dodge) && sim_random_below(sim, 100) < rules->skill_chance_percent) return lost;
             u32 counter = sim_combat_damage(sim, defender->soldiers, defence.attack, values.defence, rules->combat_counter_percent);
             sim_emit_unit(sim, SIM_EVENT_COUNTERATTACK, target->unit, SIM_NO_CITY, 0, false, cause, events);
             sim_hurt_unit(sim, attacker_id, counter, target->unit, false, cause, events);
@@ -726,6 +769,30 @@ sim_reward_battle(sim_state *sim, u32 attacker_id, u32 target_id, b32 arrow, b32
     }
 }
 
+/* 輔佐 #26: after an attack, the own units next to the target also strike
+   it, if one of the two units has the trait aide. They keep their turn, and
+   the target does not answer them. Two commanders with a dislike do not
+   help each other. The support attack without the trait waits for the rule
+   of the relations (Q-234). */
+internal void
+sim_aide_attacks(sim_state *sim, u32 attacker_id, hex_coord hex, u32 cause, sim_event_sink *events)
+{
+    sim_unit *attacker = sim->units + attacker_id;
+    b32 own_aide = sim_unit_has_trait(sim, attacker->officers, TRAIT_AIDE);
+    for (u32 index = 0; index < sim->unit_count; ++index)
+    {
+        sim_unit *other = sim->units + index;
+        if (index == attacker_id || !other->alive || other->force_id != attacker->force_id || other->state != UNIT_STATE_NONE) continue;
+        if (hex_distance(other->hex, hex) != 1) continue;
+        if (!own_aide && !sim_unit_has_trait(sim, other->officers, TRAIT_AIDE)) continue;
+        u16 pair[SIM_COMMAND_OFFICERS] = { attacker->officers[0], other->officers[0], SIM_NO_OFFICER };
+        if (sim_unit_has_dislike(sim, pair)) continue;
+        sim_target target = sim_target_at(sim, other->force_id, hex);
+        if (target.unit == SIM_NO_UNIT) return;
+        sim_strike(sim, index, hex, &target, sim->content.rules.skill_support_percent, CRITICAL_ATTACK, false, false, false, cause, events);
+    }
+}
+
 internal void
 sim_attack(sim_state *sim, sim_command command, sim_event_sink *events)
 {
@@ -736,8 +803,18 @@ sim_attack(sim_state *sim, sim_command command, sim_event_sink *events)
     unit->acted_turn = sim->turn + 1;
     u32 target_unit = target.unit;
     b32 arrow = hex_distance(unit->hex, order->to) > 1;
-    sim_strike(sim, order->unit, order->to, &target, 100, CRITICAL_ATTACK, true, false, command.id, events);
+    sim_strike(sim, order->unit, order->to, &target, 100, CRITICAL_ATTACK, true, false, false, command.id, events);
+    /* 連戰 #13: half the time the unit attacks a second time. */
+    if (unit->alive && sim_unit_has_trait(sim, unit->officers, TRAIT_DOUBLE_ATTACK))
+    {
+        sim_target again = sim_target_at(sim, unit->force_id, order->to);
+        if (sim_target_any(&again) && sim_random_below(sim, 100) < sim->content.rules.skill_chance_percent)
+        {
+            sim_strike(sim, order->unit, order->to, &again, 100, CRITICAL_ATTACK, true, false, false, command.id, events);
+        }
+    }
     sim_reward_battle(sim, order->unit, target_unit, arrow, false, target_unit != SIM_NO_UNIT && !sim->units[target_unit].alive, command.id, events);
+    if (unit->alive) sim_aide_attacks(sim, order->unit, order->to, command.id, events);
 }
 
 /* The units of the force that can join an attack on the hex now: the
@@ -780,17 +857,27 @@ sim_joint_attack(sim_state *sim, sim_command command, sim_event_sink *events)
     if (sim_check_joint_attack(sim, order).refusal != SIM_REFUSAL_NONE) return;
     u32 ids[SIM_UNIT_CAPACITY];
     u32 count = sim_joint_partners(sim, sim->units[order->unit].force_id, order->to, ids, SIM_UNIT_CAPACITY);
+    b32 pincer = false;
     for (u32 index = 0; index < count; ++index)
     {
         sim_unit *unit = sim->units + ids[index];
         if (!unit->alive) continue;
+        pincer |= sim_unit_has_trait(sim, unit->officers, TRAIT_JOINT_CONFUSE);
         sim_target target = sim_target_at(sim, unit->force_id, order->to);
         if (!sim_target_any(&target)) break;   /* the target is gone: the units after it keep their turn */
         unit->acted_turn = sim->turn + 1;
         u32 target_unit = target.unit;
         b32 arrow = hex_distance(unit->hex, order->to) > 1;
-        sim_strike(sim, ids[index], order->to, &target, 100, CRITICAL_ATTACK, false, false, command.id, events);
+        /* 鐵壁 #47: a joint attack counts as a normal attack, so the target answers. */
+        b32 answers = target_unit != SIM_NO_UNIT && sim_unit_has_trait(sim, sim->units[target_unit].officers, TRAIT_JOINT_GUARD);
+        sim_strike(sim, ids[index], order->to, &target, 100, CRITICAL_ATTACK, answers, false, false, command.id, events);
         sim_reward_battle(sim, ids[index], target_unit, arrow, false, target_unit != SIM_NO_UNIT && !sim->units[target_unit].alive, command.id, events);
+    }
+    /* 掎角 #18: a joint attack can confuse the target. */
+    u32 survivor = sim_unit_at(sim, order->to);
+    if (pincer && survivor != SIM_NO_UNIT && sim_random_below(sim, 100) < sim->content.rules.skill_chance_percent)
+    {
+        sim_set_unit_state(sim, survivor, UNIT_STATE_CONFUSED, 2, command.id, events);
     }
 }
 
@@ -837,7 +924,9 @@ sim_check_tactic(sim_state *sim, sim_unit_order *order)
     terrain_kind *terrain = sim_terrain_at(sim, unit->hex);
     if (terrain && !(terrain->tactics & sim_tactic_bit(type))) return sim_refuse(check, SIM_REFUSAL_BAD_TERRAIN);
     u32 distance = (u32)hex_distance(unit->hex, order->to);
-    if (distance < tactic->range_min || distance > tactic->range_max) return sim_refuse(check, SIM_REFUSAL_NO_TARGET);
+    u32 range_max = tactic->range_max;
+    if (type->aptitude == OFFICER_APTITUDE_SIEGE && range_max > 1 && sim_unit_has_trait(sim, unit->officers, TRAIT_SIEGE_RANGE)) range_max++;   /* 射程 #24 */
+    if (distance < tactic->range_min || distance > range_max) return sim_refuse(check, SIM_REFUSAL_NO_TARGET);
     sim_target target = sim_target_at(sim, unit->force_id, order->to);
     b32 unit_ok = target.unit != SIM_NO_UNIT && (tactic->targets & (sim_hex_is_water(sim, order->to) ? (TARGET_SHIPS | TARGET_UNITS) : TARGET_UNITS));
     if (target.unit != SIM_NO_UNIT && !sim_hex_is_water(sim, order->to) && !(tactic->targets & TARGET_UNITS)) unit_ok = false;
@@ -847,7 +936,8 @@ sim_check_tactic(sim_state *sim, sim_unit_order *order)
     check.action_points = tactic->morale;      /* the morale of the tactic */
     check.assumed       = true;
     u32 chance = 100;
-    if (!tactic->always_success)
+    b32 sure_fire = tactic->effect == TACTIC_FIRE && sim_unit_has_trait(sim, unit->officers, TRAIT_FIRE_SURE);
+    if (!tactic->always_success && !sure_fire)
     {
         s32 percent = (s32)sim->content.rules.combat_tactic_success;
         if (target.unit != SIM_NO_UNIT) percent += ((s32)values.intellect - (s32)sim_battle_values(sim, sim->units + target.unit).intellect) / 2;
@@ -923,7 +1013,7 @@ sim_push_unit(sim_state *sim, u32 unit_id, u32 direction, u32 hexes, u32 cause, 
         if (building != SIM_NO_BUILDING)
         {
             building_type type = sim->content.buildings[sim->buildings[building].kind].type;
-            if (type == BUILDING_SEED || type == BUILDING_BALL || type == BUILDING_SHIP) sim_trigger_trap(sim, building, direction, cause, events);
+            if (type == BUILDING_SEED || type == BUILDING_BALL || type == BUILDING_SHIP) sim_trigger_trap(sim, building, direction, false, cause, events);
             else sim_hurt_building(sim, building, sim_percent_of(unit->soldiers, sim->content.rules.combat_collision_percent), direction, cause, events);
             sim_hurt_unit(sim, unit_id, sim_percent_of(unit->soldiers, sim->content.rules.combat_collision_percent), SIM_NO_UNIT, false, cause, events);
             break;
@@ -943,6 +1033,18 @@ sim_push_unit(sim_state *sim, u32 unit_id, u32 direction, u32 hexes, u32 cause, 
     if (moved) sim_emit_unit(sim, SIM_EVENT_UNIT_PUSHED, unit_id, SIM_NO_CITY, (s32)moved, false, cause, events);
 }
 
+/* 猛者 #44: a tactic that moves an enemy unit can injure its commander. */
+internal void
+sim_push_injury(sim_state *sim, u32 unit_id, u32 target_id, u32 cause, sim_event_sink *events)
+{
+    if (target_id == SIM_NO_UNIT || !sim->units[target_id].alive) return;
+    if (!sim_unit_has_trait(sim, sim->units[unit_id].officers, TRAIT_PUSH_INJURES)) return;
+    if (sim_random_below(sim, 100) < sim->content.rules.skill_chance_percent)
+    {
+        sim_wound_officer(sim, sim_find_officer(sim, sim->units[target_id].officers[0]), cause, events);
+    }
+}
+
 /* The effect of a tactic that succeeds, on its first target. */
 internal void
 sim_tactic_effect(sim_state *sim, u32 unit_id, tactic_kind *tactic, hex_coord to, u32 target_id, u32 cause, sim_event_sink *events)
@@ -954,6 +1056,7 @@ sim_tactic_effect(sim_state *sim, u32 unit_id, tactic_kind *tactic, hex_coord to
     {
         case TACTIC_KNOCK:
             if (target_alive) sim_push_unit(sim, target_id, direction, tactic->value, cause, events);
+            sim_push_injury(sim, unit_id, target_id, cause, events);
             break;
         case TACTIC_ADVANCE:
         {
@@ -964,6 +1067,7 @@ sim_tactic_effect(sim_state *sim, u32 unit_id, tactic_kind *tactic, hex_coord to
                 unit->hex = before;
                 sim_emit_unit(sim, SIM_EVENT_UNIT_PUSHED, unit_id, SIM_NO_CITY, 1, false, cause, events);
             }
+            sim_push_injury(sim, unit_id, target_id, cause, events);
             break;
         }
         case TACTIC_PULL:
@@ -976,6 +1080,7 @@ sim_tactic_effect(sim_state *sim, u32 unit_id, tactic_kind *tactic, hex_coord to
                 sim->units[target_id].hex = old;
                 sim_emit_unit(sim, SIM_EVENT_UNIT_PUSHED, target_id, SIM_NO_CITY, 1, false, cause, events);
             }
+            sim_push_injury(sim, unit_id, target_id, cause, events);
             break;
         }
         case TACTIC_PASS:
@@ -992,7 +1097,7 @@ sim_tactic_effect(sim_state *sim, u32 unit_id, tactic_kind *tactic, hex_coord to
             if (target_alive) sim_set_unit_state(sim, target_id, UNIT_STATE_CONFUSED, tactic->value, cause, events);
             break;
         case TACTIC_FIRE:
-            sim_start_fire(sim, to, sim_fire_turns(sim, true), cause, events);   /* a fire from an attack: 1 to 3 turns */
+            sim_start_fire(sim, to, sim_fire_turns(sim, true), sim_unit_has_trait(sim, unit->officers, TRAIT_FIRE_POWER), cause, events);   /* a fire from an attack: 1 to 3 turns */
             break;
         default:
             break;
@@ -1050,7 +1155,8 @@ sim_use_tactic(sim_state *sim, sim_command command, sim_event_sink *events)
             if (success && other && sim_class_beats(type->aptitude, other->aptitude)) unit_percent = sim_percent_of(unit_percent, rules->combat_triangle_percent);
             sim_target only_unit = target;
             only_unit.building = SIM_NO_BUILDING; only_unit.city = SIM_NO_CITY; only_unit.slot_city = SIM_NO_CITY; only_unit.base = SIM_NO_BASE;
-            sim_strike(sim, order->unit, cells[index], &only_unit, unit_percent, success ? CRITICAL_TACTIC : CRITICAL_ATTACK, !success, halberd, command.id, events);
+            sim_strike(sim, order->unit, cells[index], &only_unit, unit_percent, success ? CRITICAL_TACTIC : CRITICAL_ATTACK, !success, halberd,
+                       success && tactic->effect == TACTIC_FIRE, command.id, events);
         }
         else if (index == 0 && (tactic->targets & TARGET_BUILDINGS) && sim_target_any(&target))
         {
@@ -1082,6 +1188,13 @@ sim_use_tactic(sim_state *sim, sim_command command, sim_event_sink *events)
         }
     }
     if (success && unit->alive) sim_tactic_effect(sim, order->unit, tactic, order->to, first_unit, command.id, events);
+    /* 疾走 #42: a cavalry tactic always confuses a target with a lower force. */
+    if (success && unit->alive && first_unit != SIM_NO_UNIT && sim->units[first_unit].alive && type->aptitude == OFFICER_APTITUDE_CAVALRY &&
+        sim_unit_has_trait(sim, unit->officers, TRAIT_CAVALRY_CONFUSE) &&
+        sim_commander_force(sim, sim->units + first_unit) < sim_commander_force(sim, unit))
+    {
+        sim_set_unit_state(sim, first_unit, UNIT_STATE_CONFUSED, 2, command.id, events);
+    }
     b32 arrow = hex_distance(unit->hex, order->to) > 1;
     sim_reward_battle(sim, order->unit, first_unit, arrow && !success, success, first_unit != SIM_NO_UNIT && !sim->units[first_unit].alive, command.id, events);
 }

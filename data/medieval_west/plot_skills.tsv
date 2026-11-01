@@ -1,0 +1,17 @@
+id	skill	name_zh	plot	condition	outcome	status
+# The skills that change a plot (skills.md, "Plots"). One row for each rule. A skill can have many rows, and a pack can add rows for any skill.
+# skill: the number in skills.tsv. plot: a key of plots.tsv, or any.
+# condition: always, lower_intellect (the target has lower intellect), higher_intellect (the target has higher intellect), no_female (the target unit has no female officer).
+# outcome: sure (the plot always succeeds), critical (a successful plot has the larger effect), double (two times the chance).
+0	53	待伏	ambush	always	critical	documented
+1	54	火攻	fire	lower_intellect	critical	documented
+2	55	言毒	false_report	lower_intellect	critical	documented
+3	56	機略	confusion	lower_intellect	critical	documented
+4	57	詭計	infighting	lower_intellect	critical	documented
+5	58	虛實	any	lower_intellect	sure	documented
+6	59	妙計	any	lower_intellect	critical	documented
+7	60	秘計	false_report	higher_intellect	critical	documented
+8	64	神算	any	lower_intellect	sure	documented
+9	64	神算	any	lower_intellect	critical	documented
+10	68	深謀	any	always	critical	documented
+11	70	傾國	any	no_female	double	documented

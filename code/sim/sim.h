@@ -904,6 +904,8 @@ struct sim_city_site
 #define SIM_MAP_HEIGHT_STEP    16      /* the level of the renderer is the height / 16 */
 #define SIM_MAP_BANDIT_CANDIDATES 10   /* terrain-and-map.md: up to 10 bandit sites for each city */
 #define SIM_FIRE_MAX_TURNS     7       /* terrain-and-map.md: the fire count of a hex is 0 to 7 */
+#define SIM_FIRE_TURNS_MASK    0x0F    /* the byte of a hex in sim_state.fire: the count */
+#define SIM_FIRE_STRONG        0x80    /* the byte of a hex in sim_state.fire: a unit with the trait fire_power lit it */
 
 enum sim_map_base_type { MAP_BASE_NONE, MAP_BASE_CITY, MAP_BASE_GATE, MAP_BASE_PORT };
 
@@ -1469,6 +1471,7 @@ internal u32                 sim_level_percent(u32 level, sim_rules *rules);
 internal u32                 sim_facility_output(u32 value, u32 level, b32 adjacent_bonus, sim_rules *rules);
 internal u32                 sim_order_percent(u32 public_order, sim_rules *rules);
 internal b32                 sim_city_has_skill(sim_state *sim, u8 city_id, u32 skill);
+internal b32                 sim_city_has_trait(sim_state *sim, u8 city_id, skill_trait trait);
 internal sim_income_forecast sim_city_forecast(sim_state *sim, u8 city_id);
 internal u32                 sim_city_salaries(sim_state *sim, city_component *city);
 internal u32                 sim_city_soldier_cap(sim_state *sim, u8 city_id);
@@ -1547,7 +1550,9 @@ internal void        sim_run_disasters_turn(sim_state *sim, u32 cause, sim_event
 /* units.cpp: units, the move range, the zone of control, sortie,
    transport, move, wait, retreat and supply (military-units-and-tactics.md,
    terrain-and-map.md) */
-internal b32              sim_officer_has_skill(officer_component *officer, u32 skill);   /* economy.cpp; skills.md numbers */
+internal b32              sim_officer_has_skill(officer_component *officer, u32 skill);   /* economy.cpp; the numbers of skills.tsv */
+internal b32              sim_officer_has_trait(sim_state *sim, officer_component *officer, skill_trait trait);   /* economy.cpp */
+internal b32              sim_unit_has_trait(sim_state *sim, const u16 *officers, skill_trait trait);
 internal sim_unit        *sim_find_unit(sim_state *sim, u32 unit_id);
 internal u32              sim_unit_at(sim_state *sim, hex_coord hex);          /* SIM_NO_UNIT if none */
 internal u8               sim_city_at(sim_state *sim, hex_coord hex);          /* SIM_NO_CITY if none */
@@ -1623,7 +1628,7 @@ internal void      sim_run_field_turn(sim_state *sim, u32 cause, sim_event_sink 
 internal b32       sim_building_available(sim_state *sim, u8 force, u32 kind_id);
 internal b32       sim_can_place(sim_state *sim, building_kind *kind, hex_coord hex);
 internal u32       sim_fire_turns(sim_state *sim, b32 from_attack);   /* M10: a random count of fire turns */
-internal void      sim_start_fire(sim_state *sim, hex_coord hex, u32 turns, u32 cause, sim_event_sink *events);
+internal void      sim_start_fire(sim_state *sim, hex_coord hex, u32 turns, b32 strong, u32 cause, sim_event_sink *events);
 
 /* map.cpp: the real map of the content pack (M10, formats/map-data.md) */
 struct sim_map_load_result

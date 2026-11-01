@@ -161,7 +161,7 @@ unit_reach_tests(test_counts *counts, memory_arena *arena)
     TEST_CHECK(counts, sim_reach_find(&reach, enemy_hex) == U32_MAX, "the hex of another unit is not in the range");
 
     sim->officers.data[0].skill_number = 0;   /* 飛將, skills.md #1 */
-    sim->content.rules.skill_ignore_zoc = 1;
+    sim->content.skills[0].traits = content_trait_bit(TRAIT_ZOC_LAND);
     arena_reset(&sim->scratch);
     reach = sim_unit_reach(sim, 0, &sim->scratch);
     beyond = sim_reach_find(&reach, east3);

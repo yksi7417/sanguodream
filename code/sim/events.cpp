@@ -375,7 +375,7 @@ sim_event_relic(sim_state *sim, event_kind *kind, sim_event_context *ctx, b32 te
         sim_ruin_reward(sim, commander, sim->turns.date.month, kind->p[2], cause, events);
         return true;
     }
-    u32 hooked[CONTENT_SKILL_COUNT], count = 0;
+    u32 hooked[CONTENT_SKILL_CAPACITY], count = 0;
     for (u32 index = 0; index < sim->content.skill_count; ++index)
     {
         skill_kind *skill = sim->content.skills + index;

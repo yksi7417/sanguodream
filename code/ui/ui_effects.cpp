@@ -2,10 +2,11 @@
    burns, and a spiral that turns over the head of a unit that is dizzy.
    - A fire stays with its hex. A land unit that leaves the hex leaves the
      flames there.
-   - A unit on a hex that burns is dizzy. The spiral goes with the unit.
    - A ship carries its fire: water does not burn without a unit
      (terrain.burnable, F-149), so the flames go with the ship.
-   - A confused unit (混亂) is dizzy too.
+   - Only a confused unit (混亂) is dizzy. The spiral goes with the unit.
+     Fire and confusion are independent (the player, 2026-11-01).
+   - A unit with the trait fire_immune shows no flames on its hex.
    The effects ask the engine for the fire, the terrain and the units, and
    command nothing. Included by ui.cpp after ui_locate.cpp. */
 
@@ -60,12 +61,9 @@ ui_scene_effects(engine_api *api, ui_effect *out, u32 capacity)
         if (unit.id == ENGINE_NO_UNIT) continue;
         hex_coord hex = hex_make(unit.q, unit.r);
         b32 on_fire = ui_effect_burns(fire, hex);
-        if (on_fire && !ui_effect_burnable(api, view, hex) && count < capacity)
-        {
-            out[count++] = { (u8)UI_EFFECT_FIRE_UNIT, hex, unit.id };
-            if (ship_count < UI_EFFECT_SHIP_CAPACITY) ships[ship_count++] = hex;
-        }
-        if ((on_fire || unit.state == UNIT_STATE_CONFUSED) && count < capacity) out[count++] = { (u8)UI_EFFECT_DIZZY, hex, unit.id };
+        if (on_fire && !unit.fire_immune && !ui_effect_burnable(api, view, hex) && count < capacity) out[count++] = { (u8)UI_EFFECT_FIRE_UNIT, hex, unit.id };
+        if (on_fire && (unit.fire_immune || !ui_effect_burnable(api, view, hex)) && ship_count < UI_EFFECT_SHIP_CAPACITY) ships[ship_count++] = hex;
+        if (unit.state == UNIT_STATE_CONFUSED && count < capacity) out[count++] = { (u8)UI_EFFECT_DIZZY, hex, unit.id };
     }
     for (u32 row = 0; fire.turns && row < fire.height; ++row)
     {

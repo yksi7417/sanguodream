@@ -131,7 +131,7 @@ engine_api_hex_at(void *opaque, s32 q, s32 r)
     u32 cell = hex_map_index(&sim->map, hex);
     result.on_map     = true;
     result.terrain    = sim->map.kind[cell];
-    result.fire_turns = sim->fire ? sim->fire[cell] : 0;
+    result.fire_turns = sim->fire ? sim->fire[cell] & SIM_FIRE_TURNS_MASK : 0;
     result.city_id    = sim_city_at(sim, hex);
     u32 base = sim_base_at(sim, hex);
     if (base != SIM_NO_BASE) result.base_id = sim->content.bases[base].id;
@@ -226,7 +226,7 @@ engine_api_start_fire(void *opaque, s32 q, s32 r, u32 turns)
     if (!hex_map_contains(&e->sim->map, hex)) return;
     arena_reset(&e->scratch);
     sim_event_sink sink = sim_sink_from_arena(&e->scratch, ENGINE_SINK_CAPACITY);   /* the events go nowhere: a test command */
-    sim_start_fire(e->sim, hex, turns, 0, &sink);
+    sim_start_fire(e->sim, hex, turns, false, 0, &sink);
 }
 
 /* M21: the region of each hex and the city of each region. Without the

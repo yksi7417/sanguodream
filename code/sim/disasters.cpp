@@ -16,6 +16,30 @@ sim_disaster_month(disaster_kind *kind, u32 month)
     return month >= 1 && month <= 12 && ((kind->month_mask >> month) & 1);
 }
 
+/* 親烏, 親羌, 親越 and 親蠻 (#92 to #95): an officer with the trait
+   bandit_friend stops the bandits in a city of its region. bandit_regions.tsv
+   gives the regions. A pack without the table has no regions, so the skill
+   works in each city. */
+internal b32
+sim_city_bandit_friend(sim_state *sim, u8 city_id)
+{
+    city_component *city = sim_find_city(sim, city_id);
+    if (!city) return false;
+    for (u32 index = 0; index < sim->officers.count; ++index)
+    {
+        officer_component *officer = sim->officers.data + index;
+        if (!sim_officer_is_active(officer) || officer->force_id != city->owner_force_id || officer->current_position != city_id ||
+            !sim_officer_has_trait(sim, officer, TRAIT_BANDIT_FRIEND)) continue;
+        if (!sim->content.bandit_friend_count) return true;
+        for (u32 row = 0; row < sim->content.bandit_friend_count; ++row)
+        {
+            bandit_friend *friend_row = sim->content.bandit_friends + row;
+            if (friend_row->city == city_id && sim_officer_has_skill(officer, friend_row->skill)) return true;
+        }
+    }
+    return false;
+}
+
 /* The chance in percent: skill_chance_percent of it when an officer with
    the skill of the row is in the city (祈願 doubles the harvest, 威壓
    halves the bandits). */
@@ -133,6 +157,7 @@ sim_roll_disasters(sim_state *sim, u32 month, u32 cause, sim_event_sink *events)
             if (!sim_disaster_month(kind, month) || sim_disaster_active(city, disaster)) continue;
             if (kind->low_order_only && city->public_order >= rules->order_bandit_threshold) continue;
             if (kind->skill_block && sim_city_has_skill(sim, city->city_id, kind->skill_block)) continue;
+            if (kind->low_order_only && sim_city_bandit_friend(sim, city->city_id)) continue;
             u32 chance = sim_disaster_chance(kind, kind->skill_chance && sim_city_has_skill(sim, city->city_id, kind->skill_chance));
             if (chance && sim_random_below(sim, 100) < chance) sim_start_disaster(sim, city, disaster, cause, events);
         }

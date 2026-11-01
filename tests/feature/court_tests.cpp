@@ -91,7 +91,13 @@ feature_court_table_tests(test_counts *counts, feature_city_setup *setup)
                        status.item_count >= 16,
                "skills.tsv has the 100 skills, posts.tsv the 80 posts and ranks.tsv the 10 ranks of the spec");
     engine_skill_kind capture = api->skill_kind_at(e, 18);
-    TEST_CHECK(counts, capture.number == 19 && capture.hooked && strcmp(capture.effect, "capture") == 0, "捕縛 #19 drives the capture rule");
+    TEST_CHECK(counts, capture.number == 19 && capture.hooked && (capture.traits & content_trait_bit(TRAIT_CAPTURE_ALL)), "捕縛 #19 has the trait capture_all");
+    engine_skill_kind fire_god = api->skill_kind_at(e, 62);
+    u64 fire_traits = content_trait_bit(TRAIT_FIRE_IMMUNE) | content_trait_bit(TRAIT_FIRE_POWER) | content_trait_bit(TRAIT_FIRE_SURE);
+    TEST_CHECK(counts, fire_god.number == 63 && fire_god.traits == fire_traits, "火神 #63 has three traits: fire_immune, fire_power and fire_sure");
+    b32 all_hooked = true;
+    for (u32 index = 0; index < api->skill_kind_count(e); ++index) all_hooked = all_hooked && api->skill_kind_at(e, index).hooked;
+    TEST_CHECK(counts, all_hooked, "each skill of the pack has a behaviour: a trait, or a row in a table");
     u16 ruler = api->force_ruler(e, setup->force);
     engine_officer_detail ruler_detail = api->officer_detail(e, ruler);
     u8 rank = api->faction_rank(e, setup->force);

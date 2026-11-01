@@ -39,13 +39,10 @@ The liked and disliked officers come from the save. The editor command
 `set_officer` changes the assumed fields.
 
 ## The tables
-- skills.tsv has one row for each skill number 1 to 100. The column
-  applies says how the engine uses the skill:
-  - "rule": the loader writes the number into the rule field
-    skill.<effect>;
-  - "table": another table names the number;
-  - "none": no effect yet.
-  The skill numbers left rules.tsv for this table.
+- skills.tsv has one row for each skill. The numbers 1 to 100 are the
+  skills of the spec, and a pack can add rows. The column traits names
+  the behaviours of the code. Another table can name the number too.
+  docs/SKILLS.md has the list of the traits and the tables.
 - ranks.tsv has the ten ranks of a ruler: the soldiers and the cities.
 - posts.tsv has the 80 posts of the guide book: merit, soldiers, the
   ability and its bonus, and the lowest rank that allows the post. The

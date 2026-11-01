@@ -517,6 +517,7 @@ struct engine_unit
     engine_unit_values values;
     u8  state;              /* M6: sim_unit_state */
     u8  state_turns;
+    b32 fire_immune;        /* a skill of its officers has the trait fire_immune: no fire on the unit */
     u32 grain_turns;        /* M12: the turns that the grain lasts at the rate of grain.soldiers (the supply icon) */
     u8  ship_type;          /* the ship class of a unit of a save (record +41); ENGINE_NO_UNIT_TYPE = the ship row of unit_type */
     u8  effective_type;     /* U-003: the class that the unit fights with on its hex now. On water a land unit is its ship. The tactics follow it. */
@@ -602,6 +603,7 @@ struct engine_building
 };
 
 /* The turns of fire of each cell, row-major by offset. The engine owns it. */
+/* The byte of a hex: the turns of the fire in the low bits, and SIM_FIRE_STRONG for a strong fire. 0 = no fire. */
 struct engine_fire_view
 {
     u32       width, height;
@@ -917,7 +919,7 @@ struct engine_skill_kind
 {
     u8   number;                    /* 1 .. 100; 0 for an index out of range */
     char key[CONTENT_KEY_SIZE];     /* the text id is "skill.<key>" */
-    char effect[CONTENT_KEY_SIZE];
+    u64  traits;                    /* a bit for each skill_trait (content_trait_bit) */
     u8   category;                  /* skill_category */
     b32  hooked;                    /* the engine applies it */
 };

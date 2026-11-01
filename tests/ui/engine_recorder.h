@@ -311,6 +311,7 @@ struct engine_recorder
     u8            fire[64];           /* the fire_view answer: one burning cell */
     u8            fire_cell;          /* the burning cell; 0: cell 9 */
     u8            unit0_state;        /* the sim_unit_state of unit 0 */
+    b32           unit0_fire_immune;  /* the trait fire_immune on unit 0 */
     b32           duel_active;        /* M7: the duel_view and debate_view answers */
     b32           debate_active;
     b32           debate_finished;    /* the debate_view answer; SIM_DEBATE_AUTO sets it */
@@ -1166,6 +1167,7 @@ internal engine_unit recorder_unit_at(void *o, u32 unit_id)
     unit.ship_type   = ENGINE_NO_UNIT_TYPE;
     unit.effective_type = unit_id == 0 && r->unit0_effective_type ? r->unit0_effective_type : unit.unit_type;
     unit.state       = unit_id == 0 ? r->unit0_state : 0;
+    unit.fire_immune = unit_id == 0 && r->unit0_fire_immune;
     unit.acted       = r->units_acted;
     unit.order       = r->unit_order;
     unit.order_target = ENGINE_NO_UNIT;

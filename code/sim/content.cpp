@@ -266,14 +266,10 @@ global_variable content_rule_field content_rule_fields[] = {
     CONTENT_RULE("level.2_percent",       level2_percent),
     CONTENT_RULE("level.3_percent",       level3_percent),
     CONTENT_RULE("skill.income_percent",  skill_income_percent),
-    CONTENT_RULE("skill.rich",            skill_rich),
-    CONTENT_RULE("skill.rice",            skill_rice),
-    CONTENT_RULE("skill.tax",             skill_tax),
-    CONTENT_RULE("skill.levy",            skill_levy),
-    CONTENT_RULE("skill.capable",         skill_capable),
-    CONTENT_RULE("skill.breeding",        skill_breeding),
-    CONTENT_RULE("skill.invention",       skill_invention),
-    CONTENT_RULE("skill.shipbuilding",    skill_shipbuilding),
+    CONTENT_RULE("skill.fire_power_percent", skill_fire_power_percent), CONTENT_RULE("skill.chance_percent", skill_chance_percent),
+    CONTENT_RULE("skill.morale_gain", skill_morale_gain), CONTENT_RULE("skill.few_soldiers", skill_few_soldiers),
+    CONTENT_RULE("skill.weak_attack", skill_weak_attack), CONTENT_RULE("skill.support_percent", skill_support_percent),
+    CONTENT_RULE("plot.critical_morale", plot_critical_morale), CONTENT_RULE("fire.seed_confuse_chance", fire_seed_confuse_chance),
     CONTENT_RULE("technique.patrol", technique_patrol), CONTENT_RULE("technique.train", technique_train),
     CONTENT_RULE("technique.conscript_min", technique_conscript_min), CONTENT_RULE("technique.conscript_max", technique_conscript_max),
     CONTENT_RULE("technique.conscript_soldiers", technique_conscript_soldiers), CONTENT_RULE("technique.develop", technique_develop),
@@ -323,7 +319,6 @@ global_variable content_rule_field content_rule_fields[] = {
     CONTENT_RULE("research.full_ability", research_full_ability),
     CONTENT_RULE("research.personnel_percent", research_personnel_percent),
     CONTENT_RULE("research.teaching_percent",  research_teaching_percent),
-    CONTENT_RULE("skill.teaching",        skill_teaching),
     CONTENT_RULE("tally.action_points",   tally_action_points),
     CONTENT_RULE("military_office.ap_percent", military_office_ap_percent),
     CONTENT_RULE("drill.ship_period_percent",  drill_ship_period_percent),
@@ -343,11 +338,6 @@ global_variable content_rule_field content_rule_fields[] = {
     CONTENT_RULE("aptitude.a",            aptitude_percent[2]),
     CONTENT_RULE("aptitude.s",            aptitude_percent[3]),
     CONTENT_RULE("move.bonus",            move_bonus),
-    CONTENT_RULE("skill.ignore_zoc",      skill_ignore_zoc),
-    CONTENT_RULE("skill.escape",          skill_escape),
-    CONTENT_RULE("skill.forced_march",    skill_forced_march),
-    CONTENT_RULE("skill.long_drive",      skill_long_drive),
-    CONTENT_RULE("skill.haul",            skill_haul),
     CONTENT_RULE("combat.damage_percent", combat_damage_percent),
     CONTENT_RULE("combat.min_damage",     combat_min_damage),
     CONTENT_RULE("combat.counter_percent", combat_counter_percent),
@@ -382,19 +372,6 @@ global_variable content_rule_field content_rule_fields[] = {
     CONTENT_RULE("siege.blockade_loss",   siege_blockade_loss),
     CONTENT_RULE("siege.recovery",        siege_recovery),
     CONTENT_RULE("siege.default_durability", siege_default_durability),
-    CONTENT_RULE("skill.capture",         skill_capture),
-    CONTENT_RULE("skill.escape_capture",  skill_escape_capture),
-    CONTENT_RULE("skill.fortune",         skill_fortune),
-    CONTENT_RULE("skill.subtle",          skill_subtle),
-    CONTENT_RULE("skill.fire_god",        skill_fire_god),
-    CONTENT_RULE("skill.rattan",          skill_rattan),
-    CONTENT_RULE("skill.insight",         skill_insight),
-    CONTENT_RULE("skill.strategist",      skill_strategist),
-    CONTENT_RULE("skill.feint",           skill_feint),
-    CONTENT_RULE("skill.calm",            skill_calm),
-    CONTENT_RULE("skill.mirror",          skill_mirror),
-    CONTENT_RULE("skill.discipline",      skill_discipline),
-    CONTENT_RULE("skill.music",           skill_music),
     CONTENT_RULE("combat.collision_percent", combat_collision_percent),
     CONTENT_RULE("combat.technique_percent", combat_technique_percent),
     CONTENT_RULE("combat.ambush_percent", combat_ambush_percent),
@@ -413,12 +390,6 @@ global_variable content_rule_field content_rule_fields[] = {
     CONTENT_RULE("siege.ladder_percent",  siege_ladder_percent),
     CONTENT_RULE("siege.defence_percent", siege_defence_percent),
     CONTENT_RULE("siege.wall_percent",    siege_wall_percent),
-    CONTENT_RULE("skill.ambush_critical", skill_ambush_critical),
-    CONTENT_RULE("skill.long_plot",       skill_long_plot),
-    CONTENT_RULE("skill.surprise",        skill_surprise),
-    CONTENT_RULE("skill.sweep",           skill_sweep),
-    CONTENT_RULE("skill.awe",             skill_awe),
-    CONTENT_RULE("skill.archer",          skill_archer),
     /* M7 */
     CONTENT_RULE("ap.search", ap_search), CONTENT_RULE("ap.recruit", ap_recruit), CONTENT_RULE("ap.reward", ap_reward),
     CONTENT_RULE("ap.move", ap_move_officers), CONTENT_RULE("ap.summon", ap_summon),
@@ -478,13 +449,8 @@ global_variable content_rule_field content_rule_fields[] = {
     CONTENT_RULE("two_tigers.loss", two_tigers_loss), CONTENT_RULE("drive_tiger.base", drive_tiger_base),
     CONTENT_RULE("rumour.base", rumour_base), CONTENT_RULE("rumour.order_loss", rumour_order_loss),
     CONTENT_RULE("rumour.loyalty_loss", rumour_loyalty_loss),
-    CONTENT_RULE("skill.search", skill_search), CONTENT_RULE("skill.debater", skill_debater),
-    CONTENT_RULE("skill.benevolence", skill_benevolence), CONTENT_RULE("skill.wife_help", skill_wife_help),
-    CONTENT_RULE("skill.guard", skill_guard), CONTENT_RULE("skill.fame", skill_fame), CONTENT_RULE("skill.fame_percent", skill_fame_percent),
-    CONTENT_RULE("skill.morale_up", skill_morale_up), CONTENT_RULE("skill.double_attack", skill_double_attack),
-    CONTENT_RULE("skill.heart_attack", skill_heart_attack), CONTENT_RULE("skill.unyielding", skill_unyielding),
-    CONTENT_RULE("skill.diamond", skill_diamond), CONTENT_RULE("skill.iron_wall", skill_iron_wall), CONTENT_RULE("skill.fury", skill_fury),
-    CONTENT_RULE("skill.plot_thrift", skill_plot_thrift), CONTENT_RULE("skill.heart_attack_percent", skill_heart_attack_percent), CONTENT_RULE("item.seal_technique", seal_technique),
+    CONTENT_RULE("skill.fame_percent", skill_fame_percent),
+    CONTENT_RULE("skill.heart_attack_percent", skill_heart_attack_percent), CONTENT_RULE("item.seal_technique", seal_technique),
     /* M8 */
     CONTENT_RULE("base.gold", base_gold), CONTENT_RULE("base.troop_cap", base_troop_cap), CONTENT_RULE("base.caps_percent", base_caps_percent),
     CONTENT_RULE("base.start_troops", base_start_troops), CONTENT_RULE("corps.commands", corps_commands), CONTENT_RULE("council.officers", council_officers),
@@ -816,7 +782,7 @@ content_parse_terrain(sim_content *content, tsv_table *table, u32 row, terrain_k
     }
     if (!tsv_cell_u32(table, row, "loss_percent", &kind->loss_percent) || !tsv_cell_u32(table, row, "loss_waiver_skill", &kind->loss_waiver_skill) ||
         !tsv_cell_u32(table, row, "tile", &tile) || !tsv_cell_u32(table, row, "level", &level) || kind->loss_percent > 100 ||
-        kind->loss_waiver_skill > 100 || tile > 255 || level > 255)
+        kind->loss_waiver_skill > CONTENT_SKILL_CAPACITY || tile > 255 || level > 255)
     {
         return false;
     }
@@ -1261,7 +1227,7 @@ content_load_criticals(sim_content *content, tsv_table *table, u32 *bad_row)
             if (kind.aptitude == ArrayCount(content_aptitude_names)) kind.aptitude = 0xFFFFFFFFu;
         }
         if (!tsv_cell_u32(table, row, "id", &id) || id != row || !tsv_cell_u32(table, row, "skill", &kind.skill) || kind.skill < 1 ||
-            kind.skill > 100 || !kind.action || kind.condition == CRITICAL_CONDITION_COUNT || kind.aptitude == 0xFFFFFFFFu)
+            kind.skill > CONTENT_SKILL_CAPACITY || !kind.action || kind.condition == CRITICAL_CONDITION_COUNT || kind.aptitude == 0xFFFFFFFFu)
         {
             *bad_row = row;
             content->critical_count = 0;
@@ -1283,37 +1249,72 @@ global_variable const char *content_item_type_names[ITEM_TYPE_COUNT] = {
 };
 global_variable const char *content_polearm_names[POLEARM_COUNT] = { "plain", "sky_halberd", "snake_spear", "dragon_blade" };
 
-/* One row of skills.tsv for each number 1 to 100, in order. A hooked skill
-   names the rule hook "skill.<effect>"; the loader writes its number there.
-   The column file_id is the skill byte of a scenario or save record. The
-   order of the file is not the order of skills.md, so each row names its
-   file id, and no two rows have the same one. */
+#define SKILL_TRAIT_NAME(name, key) #key,
+global_variable const char *content_trait_names[TRAIT_COUNT] = { SKILL_TRAITS(SKILL_TRAIT_NAME) };
+#undef SKILL_TRAIT_NAME
+
+/* The bits of a list of trait keys with | between them; - is no trait.
+   Returns false for a key that is not a trait. */
+internal b32
+content_parse_traits(const char *text, u64 *traits)
+{
+    *traits = 0;
+    if (strcmp(text, "-") == 0) return true;
+    for (const char *at = text; ; )
+    {
+        const char *end = strchr(at, '|');
+        size_t length = end ? (size_t)(end - at) : strlen(at);
+        u32 trait = TRAIT_COUNT;
+        for (u32 index = 0; index < TRAIT_COUNT && trait == TRAIT_COUNT; ++index)
+        {
+            if (strlen(content_trait_names[index]) == length && memcmp(content_trait_names[index], at, length) == 0) trait = index;
+        }
+        if (trait == TRAIT_COUNT) return false;
+        *traits |= content_trait_bit(trait);
+        if (!end) return true;
+        at = end + 1;
+    }
+}
+
+/* True if a table of the pack gives a behaviour to the skill number. */
+internal b32
+content_skill_in_a_table(sim_content *content, u32 number)
+{
+    for (u32 index = 0; index < content->critical_count; ++index)   if (content->criticals[index].skill == number) return true;
+    for (u32 index = 0; index < content->plot_skill_count; ++index) if (content->plot_skills[index].skill == number) return true;
+    for (u32 index = 0; index < content->plot_count; ++index)
+    {
+        if (content->plots[index].needs_skill == number || content->plots[index].needs_skill_2 == number) return true;
+    }
+    for (u32 index = 0; index < content->terrain_count; ++index)    if (content->terrains[index].loss_waiver_skill == number) return true;
+    for (u32 index = 0; index < content->disaster_count; ++index)
+    {
+        if (content->disasters[index].skill_block == number || content->disasters[index].skill_chance == number) return true;
+    }
+    return false;
+}
+
+/* One row of skills.tsv for each number, in order: 1 to 100 are the skills of
+   skills.md, and a pack can add rows after them. The column traits names the
+   behaviours of the code. The column file_id is the skill byte of a scenario
+   or save record. The order of the file is not the order of skills.md, so
+   each row names its file id, and no two rows have the same one. */
 internal b32
 content_load_skills(sim_content *content, tsv_table *table, u32 *bad_row)
 {
     content->skill_count = 0;
     memset(content->skill_of_file_id, OFFICER_SKILL_NONE, sizeof(content->skill_of_file_id));
-    if (table->row_count != CONTENT_SKILL_COUNT) { *bad_row = table->row_count; return false; }
+    if (table->row_count == 0 || table->row_count > CONTENT_SKILL_CAPACITY) { *bad_row = table->row_count; return false; }
     for (u32 row = 0; row < table->row_count; ++row)
     {
         skill_kind kind = {};
         u32 number = 0, file_id = 0;
-        const char *key = tsv_cell(table, row, "key"), *effect = tsv_cell(table, row, "effect");
+        const char *key = tsv_cell(table, row, "key");
         kind.category = (u8)content_find_name(content_skill_category_names, SKILL_CATEGORY_COUNT, tsv_cell(table, row, "category"));
-        const char *applies = tsv_cell(table, row, "applies");
-        b32 by_rule = strcmp(applies, "rule") == 0;
-        kind.hooked   = by_rule || strcmp(applies, "table") == 0;
         b32 bad = !tsv_cell_u32(table, row, "number", &number) || number != row + 1 || !key[0] || strlen(key) >= CONTENT_KEY_SIZE ||
-                  strlen(effect) >= CONTENT_KEY_SIZE || kind.category == SKILL_CATEGORY_COUNT ||
-                  (!kind.hooked && strcmp(applies, "none") != 0) ||
-                  !tsv_cell_u32(table, row, "file_id", &file_id) || file_id >= CONTENT_SKILL_COUNT ||
+                  kind.category == SKILL_CATEGORY_COUNT || !content_parse_traits(tsv_cell(table, row, "traits"), &kind.traits) ||
+                  !tsv_cell_u32(table, row, "file_id", &file_id) || file_id >= CONTENT_SKILL_CAPACITY ||
                   content->skill_of_file_id[file_id] != OFFICER_SKILL_NONE;
-        if (!bad && by_rule)
-        {
-            char rule[CONTENT_KEY_SIZE + 8] = "skill.";
-            memcpy(rule + 6, effect, strlen(effect) + 1);
-            bad = !content_set_rule(&content->rules, rule, number);
-        }
         if (bad)
         {
             *bad_row = row;
@@ -1323,11 +1324,70 @@ content_load_skills(sim_content *content, tsv_table *table, u32 *bad_row)
         }
         kind.number  = (u8)number;
         kind.file_id = (u8)file_id;
+        kind.hooked  = kind.traits != 0 || content_skill_in_a_table(content, number);
         memcpy(kind.key, key, strlen(key) + 1);
-        memcpy(kind.effect, effect, strlen(effect) + 1);
         content->skills[row] = kind;
         content->skill_count = row + 1;
         content->skill_of_file_id[file_id] = (u8)row;   /* the sim keeps the number - 1 */
+    }
+    return true;
+}
+
+global_variable const char *content_plot_skill_condition_names[PLOT_SKILL_CONDITION_COUNT] = { "always", "lower_intellect", "higher_intellect", "no_female" };
+global_variable const char *content_plot_skill_outcome_names[PLOT_SKILL_OUTCOME_COUNT]     = { "sure", "critical", "double" };
+
+/* plot_skills.tsv: the column plot is a key of plots.tsv or "any". */
+internal b32
+content_load_plot_skills(sim_content *content, tsv_table *table, u32 *bad_row)
+{
+    content->plot_skill_count = 0;
+    if (table->row_count > CONTENT_PLOT_SKILL_CAPACITY) { *bad_row = CONTENT_PLOT_SKILL_CAPACITY; return false; }
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        plot_skill kind = {};
+        u32 id = 0;
+        const char *plot = tsv_cell(table, row, "plot");
+        kind.plot = strcmp(plot, "any") == 0 ? CONTENT_ANY_PLOT : content->plot_count;
+        for (u32 index = 0; index < content->plot_count && kind.plot == content->plot_count; ++index)
+        {
+            if (strcmp(content->plots[index].key, plot) == 0) kind.plot = index;
+        }
+        kind.condition = (plot_skill_condition)content_find_name(content_plot_skill_condition_names, PLOT_SKILL_CONDITION_COUNT, tsv_cell(table, row, "condition"));
+        kind.outcome   = (plot_skill_outcome)content_find_name(content_plot_skill_outcome_names, PLOT_SKILL_OUTCOME_COUNT, tsv_cell(table, row, "outcome"));
+        if (!tsv_cell_u32(table, row, "id", &id) || id != row || !tsv_cell_u32(table, row, "skill", &kind.skill) || kind.skill < 1 ||
+            kind.skill > CONTENT_SKILL_CAPACITY || kind.plot == content->plot_count || kind.condition == PLOT_SKILL_CONDITION_COUNT ||
+            kind.outcome == PLOT_SKILL_OUTCOME_COUNT)
+        {
+            *bad_row = row;
+            content->plot_skill_count = 0;
+            return false;
+        }
+        content->plot_skills[row] = kind;
+        content->plot_skill_count = row + 1;
+    }
+    return true;
+}
+
+/* bandit_regions.tsv is optional. */
+internal b32
+content_load_bandit_friends(sim_content *content, tsv_table *table, u32 *bad_row)
+{
+    content->bandit_friend_count = 0;
+    if (table->row_count > CONTENT_BANDIT_FRIEND_CAPACITY) { *bad_row = CONTENT_BANDIT_FRIEND_CAPACITY; return false; }
+    for (u32 row = 0; row < table->row_count; ++row)
+    {
+        bandit_friend kind = {};
+        u32 city = 0;
+        if (!tsv_cell_u32(table, row, "city", &city) || city > 255 || !tsv_cell_u32(table, row, "skill", &kind.skill) || kind.skill < 1 ||
+            kind.skill > CONTENT_SKILL_CAPACITY)
+        {
+            *bad_row = row;
+            content->bandit_friend_count = 0;
+            return false;
+        }
+        kind.city = (u8)city;
+        content->bandit_friends[row] = kind;
+        content->bandit_friend_count = row + 1;
     }
     return true;
 }
@@ -1339,8 +1399,8 @@ internal u8
 content_skill_of_file_id(const sim_content *content, u8 file_id)
 {
     if (file_id == OFFICER_SKILL_NONE) return OFFICER_SKILL_NONE;
-    if (content->skill_count != CONTENT_SKILL_COUNT) return file_id;
-    return file_id < CONTENT_SKILL_COUNT ? content->skill_of_file_id[file_id] : (u8)OFFICER_SKILL_NONE;
+    if (!content->skill_count) return file_id;
+    return file_id < CONTENT_SKILL_CAPACITY ? content->skill_of_file_id[file_id] : (u8)OFFICER_SKILL_NONE;
 }
 
 internal b32

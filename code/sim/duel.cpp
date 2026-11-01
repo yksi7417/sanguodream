@@ -169,11 +169,11 @@ internal void
 sim_wound_officer(sim_state *sim, officer_component *officer, u32 cause, sim_event_sink *events)
 {
     sim_rules *rules = &sim->content.rules;
-    if (!officer || sim_officer_has_skill(officer, rules->skill_fortune) || officer->health >= HEALTH_NEAR_DEATH) return;
+    if (!officer || sim_officer_has_trait(sim, officer, TRAIT_FORTUNE) || officer->health >= HEALTH_NEAR_DEATH) return;
     if (officer->current_position >= SIM_UNIT_POSITION_BASE)
     {
         sim_unit *unit = sim_find_unit(sim, officer->current_position - SIM_UNIT_POSITION_BASE);
-        if (unit && sim_unit_has_skill(sim, unit->officers, rules->skill_guard)) return;
+        if (unit && sim_unit_has_trait(sim, unit->officers, TRAIT_GUARD)) return;
     }
     officer->health++;
     officer->health_turns = (u8)rules->wound_turns;
@@ -397,8 +397,8 @@ sim_duel_finish(sim_state *sim, u8 winner, u8 result, u32 cause, sim_event_sink 
             sim_emit_unit(sim, SIM_EVENT_UNIT_DAMAGED, losing->unit, SIM_NO_CITY, -(s32)lost, false, cause, events);
         }
     }
-    b32 safe = !loser || result == DUEL_RESULT_RETREAT || sim_officer_has_skill(loser, rules->skill_fortune) ||
-               (loser_unit && sim_unit_has_skill(sim, loser_unit->officers, rules->skill_guard));
+    b32 safe = !loser || result == DUEL_RESULT_RETREAT || sim_officer_has_trait(sim, loser, TRAIT_FORTUNE) ||
+               (loser_unit && sim_unit_has_trait(sim, loser_unit->officers, TRAIT_GUARD));
     if (safe || sim_random_below(sim, 100) >= rules->duel_capture_percent) return;
     sim_unit *victor_unit = sim_find_unit(sim, duel->side[winner].unit);
     /* G3-002: the items of the loser go to the force of the winner (甘寧的道具落入馬騰軍手中). */

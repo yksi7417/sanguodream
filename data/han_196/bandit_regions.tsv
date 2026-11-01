@@ -1,0 +1,24 @@
+city	skill	name_zh
+# han_196: the column name_zh has the new names of text/zh-TW.tsv of this pack. The rules of the rows are the rules of data/placeholder.
+# The cities where a bandit friend skill (trait bandit_friend) stops the bandits. A pack without this table: the skill stops the bandits in each city.
+# The regions are assumed from geography (skills.md #92 to #95, Q-054): 92 north-east, 93 north-west, 94 south-east, 95 south-west.
+0	92	和烏
+1	92	和烏
+2	92	和烏
+3	92	和烏
+5	92	和烏
+15	93	和羌
+16	93	和羌
+17	93	和羌
+18	93	和羌
+36	94	和越
+37	94	和越
+38	94	和越
+39	94	和越
+40	94	和越
+21	95	和蠻
+22	95	和蠻
+27	95	和蠻
+29	95	和蠻
+30	95	和蠻
+41	95	和蠻

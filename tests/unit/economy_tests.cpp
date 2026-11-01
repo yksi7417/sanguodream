@@ -37,10 +37,6 @@ unit_economy_rules(void)
     rules.city_grain_income            = 500;
     rules.officer_salary               = 10;
     rules.grain_soldiers               = 100;
-    rules.skill_rich  = 88;   /* skills.md numbers; the save stores the number minus 1 */
-    rules.skill_rice  = 89;
-    rules.skill_tax   = 90;
-    rules.skill_levy  = 91;
     return rules;
 }
 
@@ -194,6 +190,10 @@ unit_economy_forecast_tests(test_counts *counts, memory_arena *arena)
                "public order 60 gives 80 percent of the income (assumed rule)");
     sim->cities.data[0].public_order = 100;
 
+    sim->content.skills[87].traits = content_trait_bit(TRAIT_GOLD_INCOME);       /* the save stores the number minus 1 */
+    sim->content.skills[88].traits = content_trait_bit(TRAIT_GRAIN_INCOME);
+    sim->content.skills[89].traits = content_trait_bit(TRAIT_GOLD_EVERY_TURN);
+    sim->content.skills[90].traits = content_trait_bit(TRAIT_GRAIN_EVERY_MONTH);
     sim->officers.data[0].skill_number = 87;   /* 富豪, skills.md #88 (assumed: the save number is # - 1) */
     forecast = sim_city_forecast(sim, 0);
     TEST_CHECK(counts, forecast.gold_skill_percent == 150 && forecast.gold_month == 225 && forecast.grain_season == 750,
