@@ -500,9 +500,13 @@ seat, and the host starts the game. Each player ends a turn of a faction.
 After each step, the two pages have the same steps and the same checksum.
 
 desync.spec.js has one test of a desync (docs/MULTIPLAYER.md, MP6). The page
-that does not act sends one false checksum. The test checks that the page loads
-the good state, that the checksums agree, and that the game goes on. It needs
-build/referee.js.
+that does not act sends one false checksum. The test checks these results:
+- The page loads the good state.
+- The server keeps the state images of the two players.
+- The checksums agree.
+- The game goes on.
+
+The test needs build/referee.js.
 
 To run them:
 1. Run `build_web.bat test-game`. It writes build/webtest: the game with

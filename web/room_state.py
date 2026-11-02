@@ -276,6 +276,7 @@ class Room:
         if first != (checksum, acting):
             self.record["state"] = "desync"
             self.record["desync_step"] = step
+            self.record["last_desync"] = step
             return "desync"
         last = step == len(self.steps) - 1   # a late report of the start state (a page that joins again) is not the last
         authors = (self.record["host"],) if step == START_STEP else (self.last_author, self.record["host"])

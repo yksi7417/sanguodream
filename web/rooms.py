@@ -228,10 +228,11 @@ class Rooms:
     # ---- the recovery from a desync (MP6) ----
 
     async def put_desync_image(self, room, user, step, data):
-        """The image of the state of a player after the step of a desync, for the developer."""
+        """The image of the state of a player after the step of a desync, for the developer.
+        The room can decide before the image comes, so the last desync of the room stays valid."""
         if not room.is_member(user["uid"]):
             raise RoomError("no seat in this game")
-        if room.record["state"] != "desync" or step != room.record.get("desync_step"):
+        if step != room.record.get("last_desync"):
             raise RoomError("no desync at this step")
         if not data or len(data) > MAX_START_IMAGE_BYTES:
             raise RoomError("bad state image")

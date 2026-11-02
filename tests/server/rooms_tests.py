@@ -665,6 +665,24 @@ class RoomsTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(rooms.RoomError):
             await self.rooms.put_desync_image(room, OTHER, 0, b"image")
 
+    async def test_a_state_image_can_come_after_the_room_decided(self):
+        async def referee(record, first_step, image, steps):
+            return ["1" * 16 for _ in steps]
+
+        self.rooms = rooms.Rooms(self.store, clock=self.clock, referee=referee)
+        room, host, guest = await self.started_room()
+        await self.steps_with_reports(room, host, 1)
+        await self.report(room, guest, 0, FORCE_HOST, "2" * 16)
+        self.assertEqual(room.record["state"], "running")                    # the referee decided before the images came
+        await self.rooms.put_desync_image(room, HOST, 0, b"good")
+        await self.rooms.put_desync_image(room, GUEST, 0, b"bad")
+        self.assertEqual(await self.store.get(f"games/{room.gid}/desync/00000000-{HOST['uid']}.hxs"), b"good")
+        self.assertEqual(await self.store.get(f"games/{room.gid}/desync/00000000-{GUEST['uid']}.hxs"), b"bad")
+        with self.assertRaises(rooms.RoomError):
+            await self.rooms.put_desync_image(room, GUEST, 1, b"image")      # no desync at this step
+        with self.assertRaises(rooms.RoomError):
+            await self.rooms.put_desync_image(room, OTHER, 0, b"image")      # no seat in this game
+
     async def test_a_snapshot_of_the_bad_state_goes_away(self):
         room, (host, guest, other) = await self.three_players()
         await self.steps_with_reports(room, host, 1)

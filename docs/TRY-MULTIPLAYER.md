@@ -64,7 +64,7 @@ These tests cover these flows:
 | resume.spec.js | Two players stop a game. On the next day, they continue from the same step. |
 | spectator.spec.js | A spectator sees the moves and cannot take a seat or give a command. |
 | token.spec.js | A page with a token in place of a cookie joins a room. Discord uses this path. |
-| desync.spec.js | One false checksum stops the game. The referee decides, and the page loads the good state. |
+| desync.spec.js | One false checksum stops the game. The referee decides, the page loads the good state, and the server keeps the two state images. |
 
 ## Part B. Two windows on this PC
 

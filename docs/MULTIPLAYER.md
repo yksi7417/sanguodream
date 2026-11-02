@@ -843,7 +843,9 @@ MP6 is complete. These parts exist:
 - web/rooms.py keeps each report of each step. When a report differs, the
   game stops, and each page gets the message desync. Each page then sends
   the image of its state: `PUT /api/games/<gid>/desync/<step>`. The server
-  keeps it at `games/<gid>/desync/<step>-<uid>.hxs`.
+  keeps it at `games/<gid>/desync/<step>-<uid>.hxs`. The referee can decide
+  before the image comes. The server thus accepts an image for the last
+  desync of the room (`last_desync`) also after the decision.
 - The room decides after the reports of all members with a socket. With
   three reports or more, a strict majority wins. Else the referee decides.
 - The referee is code/wasm_referee.cpp: a headless engine for node.

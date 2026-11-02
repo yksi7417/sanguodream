@@ -71,6 +71,7 @@ Module.hexdomNetSend = function (kind, step, low, high, acting, bytes, text, pac
   else if (kind === NET.STATE_IMAGE) {
     // MP6: the image of the state after the step of a desync, for the developer.
     fetch("api/games/" + net.gid + "/desync/" + step, { method: "PUT", body: bytes })
+      .then(function (response) { if (!response.ok) console.log("platform: room: the server refused the state image: " + response.status); })
       .catch(function (error) { console.log("platform: room: the state image did not upload: " + error); });
   }
   else if (kind === NET.CHECKSUM) sendJson({ type: "checksum", step: step, checksum: hexChecksum(low, high), acting: acting });
