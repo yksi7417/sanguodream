@@ -742,6 +742,12 @@ struct ui_state
         bool show_chat;
         bool chat_send;          /* the next frame sends chat_text to the page */
         char chat_text[UI_NET_CHAT_SIZE];
+        /* MP9: the invite panel. A spectator can take a free seat in it. */
+        char invite_link[128];
+        bool late_join;
+        bool show_invite;
+        bool take_seat;          /* the next frame sends take_seat_force to the page */
+        u8   take_seat_force;
     } net;
 };
 

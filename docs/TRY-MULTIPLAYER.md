@@ -24,7 +24,7 @@ The author ran these checks on 2026-11-01, on build 410 of the test game.
 | Check | Result |
 |---|---|
 | `run_tests.bat --server` | All pass |
-| 9 browser tests of part A | 9 passed, in 4.9 min. These tests include B9 and B10 as scripts. |
+| 10 browser tests of part A | 10 passed, in 6.6 min. These tests include B9 and B10 as scripts. |
 | B3, the start | Same steps (0), same checksum |
 | B4, a move with real clicks | Same steps (2), same checksum |
 | B5, the chat | The line reached the page of the guest |
@@ -47,10 +47,10 @@ The result is `ALL PASS` at the end.
 2. Run the tests of the browser. Each test starts two or three browser sessions.
 
 ```powershell
-Set-Location tests\web; npm test -- multiplayer rooms resume absence spectator token desync; Set-Location ..\..
+Set-Location tests\web; npm test -- multiplayer rooms resume absence spectator token desync late_join; Set-Location ..\..
 ```
 
-The result is `9 passed`.
+The result is `10 passed`.
 
 If a command cannot find a file, build the file first. See "The builds" at the end of this guide.
 
@@ -62,7 +62,8 @@ These tests cover these flows:
 | rooms.spec.js | The socket refuses a person without a session, and a page of another site. |
 | absence.spec.js | The AI takes the faction of an absent player. The player comes back and gets it again. |
 | resume.spec.js | Two players stop a game. On the next day, they continue from the same step. |
-| spectator.spec.js | A spectator sees the moves and cannot take a seat or give a command. |
+| spectator.spec.js | A spectator sees the moves and gives no command. If the host refuses a late player, the spectator cannot take a seat. |
+| late_join.spec.js | A member and a spectator take free seats after the start and play. Each page keeps the same state. |
 | token.spec.js | A page with a token in place of a cookie joins a room. Discord uses this path. |
 | desync.spec.js | One false checksum stops the game. The referee decides, the page loads the good state, and the server keeps the two state images. |
 
@@ -290,7 +291,7 @@ Fill this table. A row passes only if you saw the result yourself.
 | Row | Check | Pass or fail | Notes |
 |---|---|---|---|
 | A1 | The server tests give `ALL PASS` | | |
-| A2 | The browser tests give `9 passed` | | |
+| A2 | The browser tests give `10 passed` | | |
 | B3 | The start: same steps, same checksum | | |
 | B4 | A move shows in the other window: same checksum | | |
 | B5 | The chat reaches the other window | | |

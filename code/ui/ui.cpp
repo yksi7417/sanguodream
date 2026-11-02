@@ -734,6 +734,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     ui_draw_status_bar(ui, api);        /* M11: the terrain, the coordinates and what can stand on the hex under the mouse */
     ui_draw_net_banner(ui, api);        /* MP3: whose turn it is in a shared game */
     ui_draw_net_chat(ui);               /* MP7: the chat of a shared game */
+    ui_draw_net_invite(ui, api);        /* MP9: the invite link and the free seats */
     ui_draw_splash(ui, frame->dt_seconds);   /* the splash art: on top of everything before the title menu */
     ui_scene_push(ui, api, frame);
     ui_net_end_frame(ui, api, frame);   /* MP3: the steps of the local seat go to the page */

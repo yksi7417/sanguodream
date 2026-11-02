@@ -128,6 +128,8 @@ enum platform_net_kind
     PLATFORM_NET_OPEN_ROOM, /* MP5, to the page. text: the room code of the title menu */
     PLATFORM_NET_STATE_IMAGE, /* MP6, to the page. data: the image of the state after the step of a desync */
     PLATFORM_NET_CHAT,      /* MP7. To the page, text: a line of the player. From the page, text: "name<TAB>line" */
+    PLATFORM_NET_ROOM_INFO, /* MP9, from the page. text: the invite link. step: 1 if a player can join after the start */
+    PLATFORM_NET_TAKE_SEAT, /* MP9, to the page. step: the faction of a free seat */
     PLATFORM_NET_KIND_COUNT
 };
 

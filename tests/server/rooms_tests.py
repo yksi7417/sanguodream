@@ -143,8 +143,9 @@ class RoomsTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(rooms.RoomError):
             await self.rooms.start(room, GUEST)
         await self.rooms.start(room, HOST)
+        room.record["late_join"] = False
         with self.assertRaises(rooms.RoomError):
-            await self.rooms.take_seat(room, GUEST, FORCE_GUEST)
+            await self.rooms.take_seat(room, GUEST, FORCE_GUEST)             # the host allows no late player
 
     async def test_the_welcome_names_the_seat_and_the_presence_follows(self):
         room, host, guest = await self.started_room()
@@ -497,6 +498,84 @@ class RoomsTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(room.steps), 4)                                 # one give-back, not two
         self.assertEqual(again.socket.binaries, [])
 
+    async def test_a_hello_does_not_take_the_number_of_a_step_of_the_host_for_the_ai(self):
+        room, host, guest = await self.started_room(acting=FORCE_AI)
+        room.seat_of(GUEST["uid"])["ai"] = True
+        await self.connect(room, GUEST)
+        self.assertEqual(len(room.steps), 0)                                 # the host still sends steps for the AI
+        self.assertIsNone(await self.send(room, host, socket_step(0, FORCE_AI, command=SIM_COMMAND_END_TURN)))
+        self.assertTrue(room.seat_of(GUEST["uid"])["ai"])
+        await self.report(room, host, 0, FORCE_HOST, "1" * 16)               # a faction with a player acts: no burst comes now
+        self.assertEqual(room.steps[1][1], rooms.STEP_HUMAN)
+        self.assertFalse(room.seat_of(GUEST["uid"])["ai"])
+        self.assertIsNone(await self.send(room, host, socket_step(2, FORCE_HOST)))
+
+    async def test_the_faction_goes_to_a_player_if_the_host_has_no_socket(self):
+        room, host, guest = await self.started_room(acting=FORCE_AI)
+        room.seat_of(GUEST["uid"])["ai"] = True
+        room.peers.discard(host)
+        await self.connect(room, GUEST)
+        self.assertEqual(room.steps[0][1], rooms.STEP_HUMAN)                 # nobody can send a step for the AI
+
+    # ---- MP9: a player joins a game that runs ----
+
+    async def test_a_member_takes_a_free_seat_after_the_start(self):
+        room, host, guest = await self.started_room()
+        self.assertEqual(room.record["start_humans"], [FORCE_HOST, FORCE_GUEST])
+        await self.rooms.take_seat(room, OTHER, FORCE_AI)
+        seat = room.seat_of(OTHER["uid"])
+        self.assertEqual((seat["force"], seat["user"], seat["ai"]), (FORCE_AI, "Other", True))
+        self.assertEqual(len(room.steps), 0)                                 # the faction changes after the hello of the player
+        self.assertEqual(room.record["start_humans"], [FORCE_HOST, FORCE_GUEST])
+        self.assertEqual([item["name"] for item in await self.store.list(rooms.member_prefix(OTHER["uid"]))], [room.gid])
+        other = await self.connect(room, OTHER)
+        self.assertEqual(room.steps[0], bytes([1, rooms.STEP_HUMAN, FORCE_AI, FORCE_HOST]) + struct.pack("<I", 1))
+        self.assertFalse(seat["ai"])
+        self.assertEqual(self.welcome(other)["seat"], FORCE_AI)
+        presence = [m for m in host.socket.texts if m["type"] == "presence"][-1]
+        self.assertIn({"force": FORCE_AI, "user": "Other"}, presence["players"])
+
+    def welcome(self, peer):
+        return next(m for m in peer.socket.texts if m["type"] == "welcome")
+
+    async def test_a_late_seat_has_limits(self):
+        room, host, guest = await self.started_room()
+        stranger = {"uid": "d" * 24, "name": "Stranger"}
+        with self.assertRaisesRegex(rooms.RoomError, "the seat is taken"):
+            await self.rooms.take_seat(room, OTHER, FORCE_GUEST)
+        with self.assertRaisesRegex(rooms.RoomError, "you have a seat"):
+            await self.rooms.take_seat(room, GUEST, FORCE_AI)
+        with self.assertRaisesRegex(rooms.RoomError, "the game started"):
+            await self.rooms.take_seat(room, GUEST, None)                    # a player cannot leave the seat in a game
+        room.record["state"] = "desync"
+        with self.assertRaisesRegex(rooms.RoomError, "desync"):
+            await self.rooms.take_seat(room, OTHER, FORCE_AI)
+        room.record["state"] = "running"
+        room.record["late_join"] = False
+        with self.assertRaisesRegex(rooms.RoomError, "the game started"):
+            await self.rooms.take_seat(room, stranger, FORCE_AI)
+
+    async def test_the_host_sets_the_option_of_a_late_join(self):
+        room = await self.make_room()
+        self.assertTrue(room.record["late_join"])
+        await self.rooms.set_options(room, HOST, {"mode": "live", "turn_seconds": 300, "pause_absent": False, "late_join": False})
+        self.assertFalse(room.record["late_join"])
+        with self.assertRaises(rooms.RoomError):
+            await self.rooms.set_options(room, HOST, {"mode": "live", "turn_seconds": 300, "pause_absent": False, "late_join": 1})
+
+    async def test_a_spectator_takes_a_free_seat(self):
+        room, host, guest = await self.started_room()
+        await self.rooms.watch(room, OTHER)
+        await self.rooms.take_seat(room, OTHER, FORCE_AI)
+        self.assertNotIn(OTHER["uid"], room.record["watchers"])
+        self.assertTrue(room.is_member(OTHER["uid"]))
+
+    async def test_an_old_room_without_the_option_keeps_the_seats(self):
+        room, host, guest = await self.started_room()
+        del room.record["late_join"]
+        with self.assertRaisesRegex(rooms.RoomError, "the game started"):
+            await self.rooms.take_seat(room, OTHER, FORCE_AI)
+
     async def test_the_ai_does_not_take_the_faction_of_a_player_with_a_connection(self):
         room, host, guest = await self.started_room(acting=FORCE_GUEST)
         await self.end_guest_turn_by_time(room, host, guest)
@@ -700,8 +779,6 @@ class RoomsTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_a_spectator_gets_the_steps_and_gives_no_command(self):
         room, host, guest = await self.started_room()
-        with self.assertRaises(rooms.RoomError):
-            await self.rooms.take_seat(room, OTHER, FORCE_AI)                # no seat while the game runs
         await self.rooms.watch(room, OTHER)
         self.assertTrue(room.is_viewer(OTHER["uid"]))
         self.assertFalse(room.is_member(OTHER["uid"]))

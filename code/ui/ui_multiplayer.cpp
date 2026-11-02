@@ -209,6 +209,10 @@ ui_net_begin_frame(ui_state *ui, engine_api *api, ui_frame_info *frame)
             case PLATFORM_NET_ERROR:  snprintf(ui->net.error, sizeof(ui->net.error), "%s", event.text ? event.text : ""); break;
             case PLATFORM_NET_TIMER:  ui_net_timer(ui, &event);                  break;
             case PLATFORM_NET_CHAT:   ui_net_chat_line(ui, event.text);          break;
+            case PLATFORM_NET_ROOM_INFO:
+                snprintf(ui->net.invite_link, sizeof(ui->net.invite_link), "%s", event.text ? event.text : "");
+                ui->net.late_join = event.step != 0;
+                break;
             case PLATFORM_NET_PACK:
                 if (ui_net_use_pack(ui, api, &event)) return;
                 break;
@@ -308,6 +312,14 @@ ui_net_end_frame(ui_state *ui, engine_api *api, ui_frame_info *frame)
         if (ui->net.chat_text[0]) ui_net_send(frame, &chat);
         ui->net.chat_text[0] = 0;
     }
+    if (ui->net.take_seat)
+    {
+        ui->net.take_seat = false;
+        platform_net_event seat = {};
+        seat.kind = PLATFORM_NET_TAKE_SEAT;
+        seat.step = ui->net.take_seat_force;
+        ui_net_send(frame, &seat);
+    }
     if (!ui->net.joined) return;
     u8 bytes[ENGINE_STEP_WIRE_CAPACITY];
     for (;;)
@@ -371,6 +383,35 @@ ui_draw_net_chat(ui_state *ui)
     ImGui::End();
 }
 
+/* MP9: the invite panel of a shared game. It shows the link and the free seats. A
+   person without a seat can take a free seat: the page asks the server and loads again. */
+internal void
+ui_draw_net_invite(ui_state *ui, engine_api *api)
+{
+    if (!ui->net.show_invite || !ui->net.joined) return;
+    char title[128], label[96], name[UI_NET_NAME_SIZE], row[UI_NET_NAME_SIZE + 96];
+    ImGui::SetNextWindowSize(ImVec2(420, 220), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "net.invite", "NetInvite"), &ui->net.show_invite)) { ImGui::End(); return; }
+    ImGui::TextUnformatted(text_get(ui->text, "net.invite_link"));
+    ImGui::SetNextItemWidth(-1.0f);
+    ImGui::InputText("###invite_link", ui->net.invite_link, sizeof(ui->net.invite_link), ImGuiInputTextFlags_ReadOnly);
+    b32 can_take = ui->net.late_join && api->multiplayer_info(api->engine).local_force == ENGINE_NO_FACTION;
+    for (u32 index = 0; index < ui->net.seat_count; ++index)
+    {
+        if (ui->net.seat_player[index][0]) continue;
+        u8 force = ui->net.seat_force[index];
+        ui_force_text(ui, api, force, name, sizeof(name));
+        if (!can_take) { ImGui::TextUnformatted(name); continue; }
+        snprintf(row, sizeof(row), "%s: %s###take_seat%u", name, text_get(ui->text, "net.take_seat"), (u32)force);
+        if (ImGui::Button(row))
+        {
+            ui->net.take_seat       = true;
+            ui->net.take_seat_force = force;
+        }
+    }
+    ImGui::End();
+}
+
 /* The banner of a shared game: whose turn it is, the wait of the host, a
    desync and the last error. */
 internal void
@@ -412,6 +453,10 @@ ui_draw_net_banner(ui_state *ui, engine_api *api)
             ui->net.show_chat   = !ui->net.show_chat;
             ui->net.chat_unread = 0;
         }
+        /* MP9: the invite link and the free seats. */
+        ImGui::SameLine();
+        snprintf(line, sizeof(line), "%s###net_invite", text_get(ui->text, "net.invite"));
+        if (ImGui::SmallButton(line)) ui->net.show_invite = !ui->net.show_invite;
     }
     if (ui->net.error[0]) ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.4f, 1.0f), "%s", ui->net.error);
     ImGui::End();

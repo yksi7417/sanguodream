@@ -201,6 +201,17 @@ class Room:
         """The seat of the faction if a player has it, else None."""
         return next((seat for seat in self.record["seats"] if seat["force"] == force and seat.get("uid")), None)
 
+    def no_steps_of_the_ai(self):
+        """True if the host cannot have steps for the AI on the way. After a faction with a
+        player ends its turn, the host sends the steps of the factions of the AI in a burst."""
+        if not any(peer.uid == self.record["host"] for peer in self.peers):
+            return True
+        acting = self.record["acting"]
+        if acting == NO_FACTION:
+            return self.last_author == SERVER   # the server refuses each step until a report names a faction
+        seat = self.player_seat(acting)
+        return bool(seat and not seat.get("ai"))
+
     def public(self):
         """The room for the pages. The uids of the players stay on the server."""
         record = {key: value for key, value in self.record.items() if key not in ("host", "deadline")}

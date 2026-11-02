@@ -3,11 +3,14 @@
 // cannot take a seat while the game runs, and the chat of a player reaches the spectator.
 const { test, expect } = require("@playwright/test");
 const h = require("./hexdom");
-const { signInAs, bothAgree, startTogether } = require("./together");
+const { signInAs, bothAgree, startTogether, room } = require("./together");
 
 test("a spectator sees the moves and cannot take a seat while the game runs", async ({ browser }) => {
   test.setTimeout(420_000);
-  const { host, guest, forces, gid } = await startTogether(browser);
+  const { host, guest, forces, gid } = await startTogether(browser, async (page, id) => {
+    await page.evaluate(() => setRoomOptions({ mode: "live", turn_seconds: 300, pause_absent: false, late_join: false }));
+    await expect.poll(async () => (await room(page, id)).late_join).toBe(false);
+  });
   const watcher = await (await browser.newContext()).newPage();
   await signInAs(watcher, "Watcher");
   await watcher.goto(`/?game=${gid}`);

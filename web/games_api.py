@@ -66,6 +66,7 @@ async def api_game(request):
     data = room.public()
     data["you_host"] = user["uid"] == room.record["host"]   # the lobby shows the options of the host
     data["you_viewer"] = room.is_viewer(user["uid"])        # MP7: the page opens the socket, or it offers "Watch"
+    data["you_seat"] = room.seat_of(user["uid"]) is not None   # MP9: a person without a seat can take a free seat
     return web.json_response(data, headers={"Cache-Control": "no-store"})
 
 

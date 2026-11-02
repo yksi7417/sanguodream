@@ -39,7 +39,7 @@ async function showMyGames() {
      image and the seats to the game (join), then each step of the socket.
    The page shows names with textContent, never as HTML. */
 var NET = { HOST: 1, STEP: 2, CHECKSUM: 3, JOIN: 4, SEATS: 5, DESYNC: 6, ERROR: 7, TIMER: 8, PACK: 9, SNAPSHOT: 10,
-            OPEN_ROOM: 11, STATE_IMAGE: 12, CHAT: 13 };
+            OPEN_ROOM: 11, STATE_IMAGE: 12, CHAT: 13, ROOM_INFO: 14, TAKE_SEAT: 15 };
 var NET_POLL_MS = 2000;
 var RECONNECT_SECONDS = [1, 2, 4, 8, 15];   // after a lost connection; then each 15 seconds (MP4)
 var TURN_CHOICES = { live: [120, 180, 300, 600], correspondence: [12 * 3600, 24 * 3600, 48 * 3600, 72 * 3600] };
@@ -68,6 +68,7 @@ Module.hexdomNetSend = function (kind, step, low, high, acting, bytes, text, pac
   else if (kind === NET.SNAPSHOT) putSnapshot(step, hexChecksum(low, high), bytes, 0);
   else if (kind === NET.OPEN_ROOM && /^[A-Z]{6}$/.test(text)) location.href = "/r/" + text;
   else if (kind === NET.CHAT) sendJson({ type: "chat", text: text });   // MP7: the server cleans the line
+  else if (kind === NET.TAKE_SEAT) takeLateSeat(step);
   else if (kind === NET.STATE_IMAGE) {
     // MP6: the image of the state after the step of a desync, for the developer.
     fetch("api/games/" + net.gid + "/desync/" + step, { method: "PUT", body: bytes })
@@ -169,11 +170,8 @@ function drawRoom() {
   var room = net.room, panel = roomPanel();
   panel.replaceChildren();
   panel.appendChild(element("h2", room.name));
-  if (room.state === "open") {
-    var link = location.origin + "/r/" + room.code;
-    panel.appendChild(element("p", "Invite link: " + link, "room-link"));
-    panel.appendChild(element("p", "Room code: " + room.code, "room-code"));
-  }
+  panel.appendChild(element("p", "Invite link: " + inviteLink(room), "room-link"));
+  panel.appendChild(element("p", "Room code: " + room.code, "room-code"));
   if (room.state === "open" && room.you_host) panel.appendChild(roomOptions(room));
   var list = element("ul");
   room.seats.forEach(function (seat) {
@@ -188,6 +186,13 @@ function drawRoom() {
           .then(refreshRoom).catch(function (error) { roomStatus(String(error.message || error)); });
       });
       item.appendChild(take);
+    }
+    else if (room.state === "running" && room.late_join && !seat.user && !room.you_seat) {
+      // MP9: a free seat after the start.
+      var late = element("button", "Take", "seat-" + seat.force);
+      late.type = "button";
+      late.addEventListener("click", function () { takeLateSeat(seat.force); });
+      item.appendChild(late);
     }
     list.appendChild(item);
   });
@@ -214,6 +219,21 @@ function drawRoom() {
   }
   panel.appendChild(element("p", "", "room-status"));
   panel.style.display = net.joined ? "none" : "block";
+}
+
+function inviteLink(room) {
+  return location.origin + "/r/" + room.code;
+}
+
+// MP9: a free seat after the start. The page loads again, and the join gives the local seat.
+function takeLateSeat(force) {
+  postJson("api/games/" + net.gid + "/seat", { force: force })
+    .then(function () { location.reload(); })
+    .catch(function (error) {
+      var reason = String(error.message || error);
+      roomStatus(reason);
+      netPush(NET.ERROR, 0, 0, false, null, reason);
+    });
 }
 
 // The options of the room before the start (MP4). Only the host can change them:
@@ -246,8 +266,13 @@ function roomOptions(room) {
   watch.checked = room.spectators !== false;
   var watchLabel = element("label", " Spectators can watch");
   watchLabel.prepend(watch);
+  var late = element("input", undefined, "room-late-join");   // MP9: the host decides (Q-17)
+  late.type = "checkbox";
+  late.checked = room.late_join !== false;
+  var lateLabel = element("label", " Players can join after the start");
+  lateLabel.prepend(late);
   function send(changed) {
-    var body = { mode: mode.value, turn_seconds: parseInt(turn.value, 10), pause_absent: pause.checked, spectators: watch.checked };
+    var body = { mode: mode.value, turn_seconds: parseInt(turn.value, 10), pause_absent: pause.checked, spectators: watch.checked, late_join: late.checked };
     if (changed === "mode") body.turn_seconds = TURN_CHOICES[mode.value][2];
     setRoomOptions(body);
   }
@@ -255,7 +280,8 @@ function roomOptions(room) {
   turn.addEventListener("change", function () { send("turn"); });
   pause.addEventListener("change", function () { send("pause"); });
   watch.addEventListener("change", function () { send("spectators"); });
-  box.append("A faction turn: ", mode, " ", turn, " ", label, " ", watchLabel);
+  late.addEventListener("change", function () { send("late_join"); });
+  box.append("A faction turn: ", mode, " ", turn, " ", label, " ", watchLabel, " ", lateLabel);
   return box;
 }
 
@@ -266,10 +292,19 @@ function setRoomOptions(body) {
 
 function seatsText(withOnline) {
   return net.room.seats.map(function (seat) {
-    var line = seat.force + "\t" + (seat.user || "");
+    // MP9: the join makes each named faction human in the start image. A later seat comes with a step of the log.
+    var atStart = withOnline || !net.room.start_humans || net.room.start_humans.indexOf(seat.force) >= 0;
+    var line = seat.force + "\t" + (atStart && seat.user ? seat.user : "");
     if (withOnline) line += "\t" + (net.online.indexOf(seat.force) >= 0 ? 1 : 0);
     return line;
   }).join("\n");
+}
+
+// MP9: the names of the seats change after the start.
+function readPlayers(players) {
+  (players || []).forEach(function (player) {
+    net.room.seats.forEach(function (seat) { if (seat.force === player.force) seat.user = player.user; });
+  });
 }
 
 // The hello gives the last step of the page: after a lost connection, the server sends
@@ -297,12 +332,13 @@ function connectRoom() {
     }
     var message = JSON.parse(event.data);
     if (message.type === "welcome") welcomeRoom(message);
-    else if (message.type === "presence") { net.online = message.seats; netPush(NET.SEATS, 0, 0, false, null, seatsText(true)); }
+    else if (message.type === "presence") { net.online = message.seats; readPlayers(message.players); netPush(NET.SEATS, 0, 0, false, null, seatsText(true)); }
     else if (message.type === "timer") { netPush(NET.TIMER, message.seconds === null ? -1 : message.seconds, 0, false, null, ""); markYourTurn(message.acting); }
     else if (message.type === "chat") netPush(NET.CHAT, 0, 0, false, null, message.name + "\t" + message.text);
     else if (message.type === "desync") netPush(NET.DESYNC, message.step, 0, false, null, "");
     else if (message.type === "desync_end") netPush(NET.DESYNC, -1, 0, false, null, "");
     else if (message.type === "reload") loadGoodState(message.step);
+    else if (message.type === "error" && message.reason === "old step") loadGoodState(net.lastStep);   // a step of the server took the number
     else if (message.type === "error") { roomStatus(message.reason); netPush(NET.ERROR, 0, 0, false, null, message.reason); }
   };
   socket.onclose = function () {
@@ -361,6 +397,7 @@ function joinRoom(welcome) {
   // MP7: the last lines of the chat of the room follow the join.
   var history = (net.room.chat || []).map(function (line) { return [NET.CHAT, 0, 0, false, null, line.name + "\t" + line.text]; });
   net.early.unshift.apply(net.early, [[NET.JOIN, net.joinStep, seat, welcome.host, net.image, seatsText(false)]].concat(history));
+  net.early.push([NET.ROOM_INFO, net.room.late_join ? 1 : 0, 0, false, null, inviteLink(net.room)]);
   net.image = null;
   if (net.room.pack) net.early.unshift([NET.PACK, 0, 0, false, null, net.room.pack]);
   net.joined = true;

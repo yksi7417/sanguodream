@@ -1102,6 +1102,9 @@ net.room_code	房間代碼
 net.join_room	加入
 net.chat	聊天
 net.chat_send	送出
+net.invite	邀請
+net.invite_link	邀請連結
+net.take_seat	加入此席位
 settings.font_size	字型大小
 menu.units	部隊一覽
 units.title	部隊一覽

@@ -508,6 +508,10 @@ that does not act sends one false checksum. The test checks these results:
 
 The test needs build/referee.js.
 
+late_join.spec.js has one test of a late player (docs/MULTIPLAYER.md, MP9).
+A member and a spectator take free seats after the start. The test checks that
+all pages keep the same state, also a page that replays the log.
+
 To run them:
 1. Run `build_web.bat test-game`. It writes build/webtest: the game with
    the test hooks of code/wasm_test_hooks.h.

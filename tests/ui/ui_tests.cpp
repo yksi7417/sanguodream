@@ -4829,6 +4829,67 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
+    /* MP9: a spectator takes a free seat in the invite panel. It is no game command. */
+    t = IM_REGISTER_TEST(e, "ui", "net_invite_takes_a_free_seat_through_the_platform_and_no_command");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_test_net_reset();
+        v.frame.net_send = ui_test_net_send;
+        v.frame.net_poll = ui_test_net_poll;
+        v.recorder.multiplayer.shared = true;
+        v.recorder.multiplayer.local_force = ENGINE_NO_FACTION;
+        v.ui.net.joined = true;
+        platform_net_event seats = {};
+        seats.kind = PLATFORM_NET_SEATS;
+        seats.text = "1\tHost\t1\n3\t\t0\n";
+        ui_test_net_queue(seats);
+        platform_net_event info = {};
+        info.kind = PLATFORM_NET_ROOM_INFO;
+        info.step = 1;
+        info.text = "https://example.test/r/ABCDEF";
+        ui_test_net_queue(info);
+        ctx->Yield(2);
+        IM_CHECK_STR_EQ(v.ui.net.invite_link, "https://example.test/r/ABCDEF");
+        ctx->ItemClick("//###NetBanner/###net_invite");
+        ctx->Yield(2);
+        IM_CHECK(v.ui.net.show_invite);
+        IM_CHECK(ctx->ItemInfo("//###NetInvite/###take_seat1", ImGuiTestOpFlags_NoError).ID == 0);   /* the seat of a player is not free */
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("//###NetInvite/###take_seat3");
+        ctx->Yield(2);
+        IM_CHECK_EQ(g_ui_test_net.sent_count, 1u);
+        IM_CHECK(g_ui_test_net.sent[0].kind == PLATFORM_NET_TAKE_SEAT);
+        IM_CHECK_EQ(g_ui_test_net.sent[0].step, 3);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* MP9: a player with a seat sees the link and takes no other seat. */
+    t = IM_REGISTER_TEST(e, "ui", "net_invite_gives_a_player_no_second_seat");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_test_net_reset();
+        v.frame.net_send = ui_test_net_send;
+        v.frame.net_poll = ui_test_net_poll;
+        v.recorder.multiplayer.shared = true;
+        v.recorder.multiplayer.local_force = 1;
+        v.ui.net.joined = true;
+        v.ui.net.late_join = true;
+        v.ui.net.show_invite = true;
+        platform_net_event seats = {};
+        seats.kind = PLATFORM_NET_SEATS;
+        seats.text = "1\tHost\t1\n3\t\t0\n";
+        ui_test_net_queue(seats);
+        ctx->Yield(2);
+        IM_CHECK(ctx->ItemInfo("//###NetInvite/###take_seat3", ImGuiTestOpFlags_NoError).ID == 0);
+        IM_CHECK(ctx->ItemInfo("//###NetInvite/###invite_link", ImGuiTestOpFlags_NoError).ID != 0);
+    };
+
     /* MP5: a room code on the title menu opens the room. It is no game command. */
     t = IM_REGISTER_TEST(e, "ui", "title_menu_room_code_opens_the_room");
     t->SetVarsDataType<ui_test_vars>();

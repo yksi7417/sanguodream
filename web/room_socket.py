@@ -82,7 +82,8 @@ async def send_presence(room):
     """The factions of the seats with a socket, and the host."""
     online = {peer.uid for peer in room.peers}
     seats = sorted(seat["force"] for seat in room.record["seats"] if seat.get("uid") in online)
-    await broadcast_json(room, {"type": "presence", "seats": seats, "host": room.record["host"] in online})
+    players = [{"force": seat["force"], "user": seat["user"]} for seat in room.record["seats"] if seat.get("user")]
+    await broadcast_json(room, {"type": "presence", "seats": seats, "host": room.record["host"] in online, "players": players})
 
 
 async def on_hello(rooms, room, peer, message):
@@ -102,7 +103,7 @@ async def on_hello(rooms, room, peer, message):
     if not peer.build_ok:
         await peer.send_json({"type": "error", "reason": "old build"})
     else:
-        await rooms.give_back(room, peer.uid)
+        await rooms.give_factions_back(room)
     await send_presence(room)
     await rooms.expire(room)   # the pause can end
     if room.record["state"] == "running":
@@ -137,6 +138,7 @@ async def on_checksum(rooms, room, peer, message):
         await broadcast_json(room, {"type": "desync", "step": room.record["desync_step"]})
     if result in ("desync", "judge"):
         await rooms.judge(room)   # MP6: the majority or the referee decides after the last report
+    await rooms.give_factions_back(room)   # a report can name a faction with a player: the burst is over
 
 
 async def on_chat(rooms, room, peer, message):

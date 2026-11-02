@@ -446,6 +446,44 @@ feature_mp_server_steps_tests(test_counts *counts)
 
 /* MP5: a snapshot of the live game, then the log after it. Engine C joins
    late: it loads the snapshot of A and applies only the steps after it. */
+/* MP9: a faction of the AI in the start image goes to a late player with a step
+   of the server. The faction then acts in the turn order, and the player is the author. */
+internal void
+feature_mp_late_seat_tests(test_counts *counts)
+{
+    feature_mp_pair pair;
+    feature_mp_pair_init(&pair);
+    engine_api *a = &pair.a.api, *b = &pair.b.api;
+    void *ea = a->engine, *eb = b->engine;
+    u8 other_city  = feature_mp_other_city(a, pair.force);
+    u8 other_force = a->city_at(ea, other_city).owner_force_id;
+    engine_settings settings = a->settings(ea);
+    settings.ai = true;
+    a->set_settings(ea, settings);
+    b->set_settings(eb, settings);
+    a->multiplayer_begin(ea, pair.force, true);
+    b->multiplayer_begin(eb, other_force, false);
+    TEST_CHECK(counts, !feature_mp_is_human(a, other_force) && !feature_mp_is_human(b, other_force),
+               "the faction of the late player is a faction of the AI at the start");
+    TEST_CHECK(counts, a->end_turn(ea) != 0, "the player of the start ends a faction turn");
+    feature_mp_relay(&pair);
+    TEST_CHECK(counts, pair.agreed && pair.applied, "the checksums agree after that step");
+    TEST_CHECK(counts, feature_mp_server_apply(&pair, ENGINE_STEP_HUMAN, other_force, 1) &&
+                       feature_mp_is_human(a, other_force) && feature_mp_is_human(b, other_force),
+               "the step of the server gives the faction to the late player on both engines");
+    feature_mp_until_turn_of(&pair, other_force);
+    TEST_CHECK(counts, a->whose_turn(ea) == other_force && b->whose_turn(eb) == other_force && pair.agreed,
+               "the faction of the late player acts in the turn order, and the checksums agree");
+    TEST_CHECK(counts, b->multiplayer_info(eb).local_acts && !a->multiplayer_info(ea).local_acts,
+               "the late player is the author, and the host cannot act for the faction");
+    TEST_CHECK(counts, b->end_turn(eb) != 0, "the late player ends the faction turn");
+    feature_mp_relay(&pair);
+    TEST_CHECK(counts, pair.agreed && pair.applied && a->state_checksum(ea) == b->state_checksum(eb),
+               "the step of the late player applies on the other engine with the same checksum");
+    engine_fixture_destroy(&pair.a);
+    engine_fixture_destroy(&pair.b);
+}
+
 internal void
 feature_mp_snapshot_tests(test_counts *counts)
 {
@@ -679,6 +717,7 @@ feature_multiplayer_tests(test_counts *counts)
     feature_mp_lock_tests(counts);
     feature_mp_bytes_tests(counts);
     feature_mp_server_steps_tests(counts);
+    feature_mp_late_seat_tests(counts);
     feature_mp_snapshot_tests(counts);
     feature_mp_desync_tests(counts);
     feature_mp_referee_fixture_tests(counts);

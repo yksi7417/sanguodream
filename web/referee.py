@@ -69,14 +69,17 @@ async def run(script, data):
 
 class Referee:
     """The callable of rooms.Rooms: referee(record, first_step, image, steps) gives the
-    checksum after each step. The human factions of a start image are the seats with a
-    player: the seats do not change after the start."""
+    checksum after each step. The human factions of a start image are the factions with a
+    player at the start. A later seat comes with a step of the log (MP9). A room from
+    before MP9 has no list, and its seats did not change after the start."""
 
     def __init__(self, script):
         self.script = script
 
     async def __call__(self, record, first_step, image, steps):
-        humans = [seat["force"] for seat in record["seats"] if seat.get("uid")]
+        humans = record.get("start_humans")
+        if humans is None:
+            humans = [seat["force"] for seat in record["seats"] if seat.get("uid")]
         options = record.get("referee", {})   # only the tests set it: the map and the ledger of the feature tests
         data = payload(record["pack"], first_step, image, steps, humans,
                        options.get("flags", 0), options.get("ledger", 0))

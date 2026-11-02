@@ -79,6 +79,7 @@ class Rooms:
             "turn_seconds": turn_seconds,
             "pause_absent": False,
             "spectators": True,
+            "late_join": True,
             "deadline": None,
             "paused": False,
             "missed": {},
@@ -325,7 +326,8 @@ class Rooms:
     async def take_seat(self, room, user, force):
         """The user takes the seat of the faction, or leaves the seats with force None."""
         if room.record["state"] != "open":
-            raise RoomError("the game started")
+            await self.take_late_seat(room, user, force)
+            return
         seat = None
         if force is not None:
             if not is_int(force):
@@ -348,6 +350,29 @@ class Rooms:
             await self.store.delete(member_prefix(user["uid"]) + room.gid)   # the game leaves the list of the member
         await self.save(room)
 
+    async def take_late_seat(self, room, user, force):
+        """MP9: a member takes a free seat of a game that runs. The AI keeps the faction
+        until the hello of the player (give_factions_back)."""
+        record = room.record
+        if record["state"] == "desync":
+            raise RoomError("desync")
+        if record["state"] != "running" or force is None or not record.get("late_join"):
+            raise RoomError("the game started")
+        seat = next((s for s in record["seats"] if s["force"] == force), None) if is_int(force) else None
+        if seat is None:
+            raise RoomError("no such seat")
+        if room.seat_of(user["uid"]):
+            raise RoomError("you have a seat")
+        if seat.get("uid"):
+            raise RoomError("the seat is taken")
+        if sum(1 for s in record["seats"] if s.get("uid")) >= MAX_SEATS:
+            raise RoomError("the room is full")
+        seat.update(uid=user["uid"], user=clean_text(user["name"], MAX_NAME_CHARS), ai=True)
+        if user["uid"] in record.get("watchers", []):
+            record["watchers"].remove(user["uid"])
+        await self.store.put(member_prefix(user["uid"]) + room.gid, b"")
+        await self.save(room)
+
     async def set_options(self, room, user, options):
         """The host sets the mode, the time of a turn and the pause option before the start."""
         if user["uid"] != room.record["host"]:
@@ -356,10 +381,11 @@ class Rooms:
             raise RoomError("the game started")
         mode, turn_seconds, pause = options.get("mode"), options.get("turn_seconds"), options.get("pause_absent")
         spectators = options.get("spectators", room.record.get("spectators", True))
+        late_join = options.get("late_join", room.record.get("late_join", True))
         check_options(mode, turn_seconds)
-        if not isinstance(pause, bool) or not isinstance(spectators, bool):
+        if not isinstance(pause, bool) or not isinstance(spectators, bool) or not isinstance(late_join, bool):
             raise RoomError("bad option")
-        room.record.update(mode=mode, turn_seconds=turn_seconds, pause_absent=pause, spectators=spectators)
+        room.record.update(mode=mode, turn_seconds=turn_seconds, pause_absent=pause, spectators=spectators, late_join=late_join)
         await self.save(room)
 
     async def watch(self, room, user):
@@ -455,15 +481,19 @@ class Rooms:
         await self.flush(room)
         await broadcast_json(room, self.timer_message(room))
 
-    async def give_back(self, room, uid):
-        """The player of a seat of the AI connects again: the faction goes back to the player."""
-        seat = room.seat_of(uid)
-        if room.record["state"] != "running" or not seat or not seat.get("ai"):
+    async def give_factions_back(self, room):
+        """Each seat of the AI with its player online goes to the player. A server step takes the
+        next number, so it waits while the host can have steps for the AI on the way."""
+        if room.record["state"] != "running" or not room.no_steps_of_the_ai():
             return
-        await self.server_step(room, STEP_HUMAN, seat["force"], 1)
-        seat["ai"] = False
-        room.record.setdefault("missed", {})[str(seat["force"])] = 0
-        await self.flush(room)
+        online = {peer.uid for peer in room.peers if peer.welcomed and peer.build_ok}
+        seats = [seat for seat in room.record["seats"] if seat.get("ai") and seat.get("uid") in online]
+        for seat in seats:
+            await self.server_step(room, STEP_HUMAN, seat["force"], 1)
+            seat["ai"] = False
+            room.record.setdefault("missed", {})[str(seat["force"])] = 0
+        if seats:
+            await self.flush(room)
 
     async def expire_all(self):
         for room in list(self.rooms.values()):
@@ -481,4 +511,6 @@ class Rooms:
             raise RoomError("no player has a seat")
         room.record["state"] = "running"
         room.record["started"] = int(time.time())
+        # MP9: the start image makes these factions human. A later seat comes with a step of the log.
+        room.record["start_humans"] = [seat["force"] for seat in room.record["seats"] if seat.get("uid")]
         await self.save(room)

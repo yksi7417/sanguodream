@@ -39,7 +39,8 @@ async function bothAgree(host, guest) {
 // The host chooses two rulers and clicks "Play online". The guest opens the invite link
 // and takes a seat. The hook beforeStart(host, gid) can set the options of the room.
 // Then the host starts the game. The reply has the pages, the forces and the game id.
-async function startTogether(browser, beforeStart) {
+// With rulerCount above 2, the other rulers are free seats (MP9).
+async function startTogether(browser, beforeStart, rulerCount = 2) {
   const hostContext = await browser.newContext();
   const guestContext = await browser.newContext();
   const host = await hostContext.newPage();
@@ -51,8 +52,8 @@ async function startTogether(browser, beforeStart) {
   await host.waitForTimeout(TITLE_SELECT_MS);
   await h.clickItem(host, "sc0");
   const rulers = JSON.parse(await h.call(host, "wasm_test_item_ids", "string", ["string"], ["ruler"]));
-  expect(rulers.length).toBeGreaterThanOrEqual(2);
-  const forces = rulers.slice(0, 2).map((id) => Number(id.slice("ruler".length)));
+  expect(rulers.length).toBeGreaterThanOrEqual(rulerCount);
+  const forces = rulers.slice(0, rulerCount).map((id) => Number(id.slice("ruler".length)));
   for (const force of forces) await h.clickItem(host, `ruler${force}`);
   await h.clickItem(host, "rulers_ok");
   await h.clickItem(host, "start_online");

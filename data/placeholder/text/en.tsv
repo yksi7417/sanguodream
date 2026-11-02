@@ -1104,6 +1104,9 @@ net.room_code	Room code	MP5: the field of the title menu for the code of a share
 net.join_room	Join	MP5: the button that opens the room of the code
 net.chat	Chat	MP7: the chat panel of a shared game and its button in the banner
 net.chat_send	Send	MP7: the button that sends a line of the chat
+net.invite	Invite	MP9: the invite panel of a shared game and its button in the banner
+net.invite_link	Invite link	MP9: the label over the link in the invite panel
+net.take_seat	Take this seat	MP9: the button of a free seat in the invite panel
 settings.font_size	Font size	slider, pixels
 menu.units	Units	menu item and panel: the list of the units
 units.title	Units	title of the Units panel

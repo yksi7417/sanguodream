@@ -67,6 +67,16 @@ class RefereeTests(unittest.TestCase):
         output = asyncio.run(referee.run(SCRIPT, data))
         self.assertEqual(output.split(), open(EXPECTED, encoding="ascii").read().split())
 
+    def test_a_late_seat_does_not_change_the_humans_of_the_start_image(self):
+        data, parts = read_fixture()
+        free = next(force for force in range(64) if force not in parts["humans"])
+        record = {"pack": parts["pack"], "start_humans": parts["humans"],
+                  "seats": [{"force": force, "uid": "a" * 24} for force in parts["humans"] + [free]],
+                  "referee": {"flags": parts["flags"], "ledger": parts["ledger"]}}
+        checksums = asyncio.run(referee.Referee(SCRIPT)(record, 0, parts["image"], parts["steps"]))
+        expected = [line.split()[1] for line in open(EXPECTED, encoding="ascii").read().splitlines()[:-1]]
+        self.assertEqual(checksums, expected)
+
     def test_the_referee_of_the_rooms_gives_the_checksum_after_each_step(self):
         data, parts = read_fixture()
         record = {"pack": parts["pack"], "seats": [{"force": force, "uid": "a" * 24} for force in parts["humans"]],
