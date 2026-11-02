@@ -998,6 +998,84 @@ These parts of the plan wait or changed:
 - No test checks the Embedded App SDK. The check in a Discord server
   (step 4) covers it.
 
+### MP9 A player joins a game that runs (the plan)
+This milestone lets a person take a free seat after the start. A free seat
+is a seat that had no player, so the computer commands its faction. The work
+did not start. The defaults of Q-17 to Q-20 apply until the user changes them.
+
+The present state:
+- `take_seat` in web/rooms.py refuses each request after the start.
+- The page shows the invite link only before the start. The page hides the
+  room panel during a game, so a player cannot see the link in the game.
+- `give_back` in web/rooms.py already gives a faction from the AI to a player
+  on the hello. The new seat uses the same step, STEP_HUMAN.
+
+These rules apply:
+1. A member with the link can take a free seat if the host allows it.
+2. A spectator can take a free seat too. The server then removes the spectator
+   from the list of watchers.
+3. The seat of a player who is absent is not free. The player can come back.
+4. The server refuses a seat during a desync.
+5. The faction changes before its next faction turn, not in a turn.
+
+#### The assumptions that must change
+Two parts of the code assume that the seats do not change after the start:
+- `ui_net_join` makes the faction of each seat with a player human in the
+  start image. A late player then has a human faction from step 0 on a page
+  that replays the log. The other pages had an AI faction, so a desync follows.
+- `Referee.__call__` in web/referee.py has the same assumption. The referee then
+  gives a wrong checksum for each desync after the late join.
+
+The fix is one list: `start_humans`, the factions with a player at the start.
+`start` writes the list, and it does not change after that. The referee uses the
+list. seatsText(false) in web/shared_game.js gives a name only for these
+factions, so the C++ join needs no change. If an old room has no list, the code
+uses the seats, because a late join cannot have occurred in that room.
+
+#### The time of the change of the faction
+The server must not put a step between the step of a player and its
+number. `server_step` takes the next number. A step of the actor that is on its
+way then gets the error "old step". The engine of the actor has already applied
+that step, so the page can stop with an error. `give_back` can have this race
+now. I read this in the code, and the first step of the work proves it.
+
+The fix is a queue of the factions that wait for STEP_HUMAN. The server sends
+these steps directly after an end of a faction turn, in the same lock and before
+the next actor can act. `give_back` uses the queue too.
+
+#### The steps of the work
+1. Server test: prove the race of `give_back` with a step that is on its way.
+2. Server: add `start_humans`, the host option `late_join`, the new rules of
+   `take_seat`, and the queue. The hello of the late player gives the faction,
+   because the seat has the uid and `ai` is true.
+3. Referee test: a desync after a late join gives the correct checksum.
+4. Server: the message presence also gives the names of the seats. The other
+   pages then show the name of the new player.
+5. Page: the room panel shows the link and a "Take" button for each free seat
+   after the start. The page loads again after the click, and the join gives
+   the new local seat.
+6. UI: a panel in the game shows the invite link and the free seats. New events
+   of the platform carry the link and the request for a seat. This is the only
+   C++ change.
+7. Documents: update this section, "A spectator cannot take a seat", and
+   docs/TRY-MULTIPLAYER.md.
+
+The tests:
+- Server: each rule above, and the checksum reports of a late player.
+- Feature: STEP_HUMAN after an end of a faction turn gives the same checksum on
+  two engines. The test also uses the faction of the new player as the next
+  faction.
+- UI: the panel gives the expected request, and it commands nothing else.
+- Browser: `late_join.spec.js`. A third member joins a game after the start and
+  ends a faction turn, and all three pages agree. A fourth page then replays the log
+  from the start image and gets the same checksum. A spectator takes a seat.
+- Browser: spectator.spec.js changes. A spectator gets 409 only if the host
+  refuses a late join.
+
+The limits of this plan:
+- A host cannot free the seat of an absent player. This stays for a later step.
+- A late player can see the hidden state that a spectator can see (Q-3).
+
 ## The check by hand
 docs/TRY-MULTIPLAYER.md gives the steps to prove a shared game by hand. It has
 a step that sends one false checksum from the page of a player. That step
@@ -1022,3 +1100,7 @@ makes a desync in a real browser.
 | Q-14 | Do you want a public release? It needs an original Three Kingdoms pack and a new name. | No. The site stays for members until a lawyer agrees. |
 | Q-15 | If the cost grows, which way to pay for the site do you prefer? | Donations first |
 | Q-16 | Which new rules can the host of a room set, for example a limit on the alliances? Each rule needs a rule in the sim. | None. The rules of a room are the settings of the game (MP7). |
+| Q-17 | Can a person take a free seat after the start, and does the host decide? | Yes. The host has an option before the start, and the option is on. |
+| Q-18 | Must the host approve each late player? | No. The link and the option are sufficient. |
+| Q-19 | Can a spectator become a player, after the spectator saw the game? | Yes, for the house of friends (Q-3) |
+| Q-20 | Can the host give the seat of an absent player to another person? | Not in MP9 |
