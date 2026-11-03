@@ -1,16 +1,12 @@
 /* M17: the feel of the first hour (ui/title-and-load.md, ui/screen-flow.md,
-   ui/main-map.md "Message window"). Four parts:
-   - the rider of the title menu: after a click the other buttons hide, and
-     the screen opens after UI_TITLE_SELECT_SECONDS;
-   - the load transition: a dark screen with no controls for
-     UI_LOAD_TRANSITION_SECONDS after a load;
+   ui/main-map.md "Message window"). Two parts:
    - the turn of the other factions: after 進行 the UI ends their turns
      until a player acts again;
    - the message window: at the start of a turn of a player, the period
      heading and the reports of the turn show one at a time. A left click
      advances.
-   The sim stays instant. Only the front end waits. With original_timing
-   off, the title and the load act at once, as in M9 to M16. */
+   The request of the player of 2026-11-03: the title and the load act at
+   once. They have no artificial wait. */
 
 internal void ui_event_subject_text(ui_state *ui, engine_api *api, u32 entity, char *out, u32 out_size);
 /* ui_report.cpp (M18): the words of an event and the value after it. */
@@ -27,18 +23,6 @@ ui_feel_messages_open(ui_state *ui)
     return ui->feel.message_shown < ui->feel.message_count;
 }
 
-internal bool
-ui_feel_in_transition(ui_state *ui)
-{
-    return ui->feel.transition_seconds > 0.0f;
-}
-
-internal void
-ui_feel_begin_transition(ui_state *ui)
-{
-    if (ui->feel.original_timing) ui->feel.transition_seconds = UI_LOAD_TRANSITION_SECONDS;
-}
-
 /* A new game or a load: the next turn start of a player shows its messages. */
 internal void
 ui_feel_reset_turn(ui_state *ui)
@@ -47,16 +31,6 @@ ui_feel_reset_turn(ui_state *ui)
     ui->feel.ledger_mark   = 0;
     ui->feel.message_count = 0;
     ui->feel.message_shown = 0;
-}
-
-/* The title button acts at once, or after the rider when the original
-   timing is on. A click during the rider does nothing. */
-internal void
-ui_feel_choose_title(ui_state *ui, u32 choice)
-{
-    if (ui->feel.title_choice != UI_TITLE_NONE) return;
-    ui->feel.title_choice  = choice;
-    ui->feel.title_seconds = 0.0f;
 }
 
 /* The kinds of the ledger that keep the books of a turn. They give no message. */
@@ -277,28 +251,10 @@ ui_feel_turn_start(ui_state *ui, engine_api *api)
     ui->feel.ledger_mark   = api->ledger_count(e);
 }
 
-internal void ui_title_open(ui_state *ui, engine_api *api, u32 choice);
-
 /* Each frame, before the panels. */
 internal void
 ui_feel_update(ui_state *ui, engine_api *api, f32 dt_seconds, bool in_game)
 {
-    if (ui->feel.title_choice != UI_TITLE_NONE)
-    {
-        ui->feel.title_seconds += dt_seconds;
-        if (ui->feel.title_seconds >= UI_TITLE_SELECT_SECONDS)
-        {
-            u32 choice = ui->feel.title_choice;
-            ui->feel.title_choice = UI_TITLE_NONE;
-            ui_title_open(ui, api, choice);
-        }
-    }
-    if (ui_feel_in_transition(ui))
-    {
-        ui->feel.transition_seconds -= dt_seconds;
-        if (ui->context.kind != UI_CONTEXT_NONE) ui_context_close(ui);   /* no controls */
-        return;
-    }
     if (!ui->hud_mode || !in_game || !ui->feel.turn_messages) return;
     ui_feel_turn_start(ui, api);
     /* screen-flow.md, rule 2: a left click anywhere advances a message. */
@@ -399,21 +355,4 @@ ui_draw_messages(ui_state *ui, engine_api *api)
             ui->feel.message_shown++;
     }
     ImGui::End();
-}
-
-/* title-and-load.md: a dark landscape with no controls while a save loads. */
-internal void
-ui_draw_load_transition(ui_state *ui)
-{
-    if (!ui_feel_in_transition(ui)) return;
-    ImVec2 display = ImGui::GetIO().DisplaySize;
-    ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(display, ImGuiCond_Always);
-    ImGui::SetNextWindowBgAlpha(1.0f);
-    ImGui::SetNextWindowFocus();
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.04f, 0.05f, 0.07f, 1.0f));
-    ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings;
-    ImGui::Begin("###LoadTransition", 0, flags);
-    ImGui::End();
-    ImGui::PopStyleColor();
 }

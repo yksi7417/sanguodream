@@ -896,8 +896,6 @@ menu.abilities	能力表
 title.title	hexdom
 title.load	載入進度
 title.new	重新開始新遊戲
-title.tutorial	遊戲教學
-title.battle	決戰稱霸模式
 title.options	項目
 title.quit	結束遊戲
 scenarios.title	劇本
@@ -993,10 +991,6 @@ editor.apply_city	套用到都市
 editor.unit_soldiers	部隊兵力
 editor.unit_morale	部隊氣力
 editor.apply_unit	套用到部隊
-battles.title	決戰稱霸模式
-battles.open	開放
-battles.locked	未開放
-battles.unavailable	無塵室沒有這場戰役的資料。
 battle.hefei	合肥之戰
 battle.nanjun	南郡之戰
 battle.chibi	赤壁之戰

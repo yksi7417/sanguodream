@@ -96,10 +96,7 @@ internal void
 ui_officer_name(ui_state *ui, engine_officer *officer, char *out, u32 out_size)
 {
     if (ui_key_name(ui, "officer", officer->key, out, out_size)) return;
-    char family[UI_NAME_SIZE], given[UI_NAME_SIZE];
-    text_name(ui->text, officer->family_name, sizeof(officer->family_name), family, sizeof(family));
-    text_name(ui->text, officer->given_name, sizeof(officer->given_name), given, sizeof(given));
-    snprintf(out, out_size, "%s%s", family, given);
+    text_person_name(ui->text, officer->family_name, sizeof(officer->family_name), officer->given_name, sizeof(officer->given_name), out, out_size);
 }
 
 /* The texture of the portrait of an officer, or 0. The picture with the
@@ -291,6 +288,12 @@ ui_draw_officer_row(ui_state *ui, engine_api *api, engine_officer *officer)
     /* A name by English key is one whole name: it fills the family column. */
     char keyed[UI_NAME_SIZE * 2];
     b32 has_key = ui_key_name(ui, "officer", officer->key, keyed, sizeof(keyed));
+    const char *whole = text_whole_name(ui->text, officer->family_name, sizeof(officer->family_name), officer->given_name, sizeof(officer->given_name));
+    if (!has_key && whole)
+    {
+        text_copy_utf8(whole, keyed, sizeof(keyed));
+        has_key = true;
+    }
     ImGui::TableNextColumn(); ui_name_cell(ui, officer->family_name, sizeof(officer->family_name), has_key ? keyed : 0);
     ImGui::TableNextColumn(); ui_name_cell(ui, officer->given_name, sizeof(officer->given_name), has_key ? "" : 0);
     ImGui::TableNextColumn(); ui_code_cell(ui, api, UI_CODE_FORCE, officer->force_id, UI_NO_ID_8);
@@ -313,8 +316,10 @@ ui_officer_row_cells(ui_state *ui, engine_api *api, void *user, u32 source, ui_s
     engine_officer officer = api->officer_at(api->engine, source);
     char name[UI_NAME_SIZE * 2], text[48];
     ui_key_number(cells + 0, officer.officer_id);
-    if (ui_key_name(ui, "officer", officer.key, name, sizeof(name)))
+    const char *whole = text_whole_name(ui->text, officer.family_name, sizeof(officer.family_name), officer.given_name, sizeof(officer.given_name));
+    if (ui_key_name(ui, "officer", officer.key, name, sizeof(name)) || whole)
     {
+        if (!text_key_name(ui->text, "officer", officer.key)) text_copy_utf8(whole, name, sizeof(name));
         ui_key_text(cells + 1, name);
         ui_key_text(cells + 2, "");
     }

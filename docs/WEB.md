@@ -95,8 +95,14 @@ Any person with an account can sign up and play. The owner decided this on
 A member is a user who signed in. A user signs in with one of these:
 - Google, Apple, Facebook or Discord.
 - A link in an email ("The sign-in with an email link").
+- The tester address tester@cccsoftwares.com. The email form signs in this
+  address at once, with no link.
 
 The site has no passwords. The server stores no password of a user.
+
+WARNING: Each person who types the tester address gets the same account.
+Thus the account holds no private data. It is never an admin, because
+nobody verified its email.
 
 | File | Job |
 |---|---|

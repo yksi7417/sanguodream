@@ -262,13 +262,14 @@ ui_grain_colour(u32 grain_turns)
 #define UI_FLAG_LIGHT_LUMA      150     /* a colour this light or lighter gets a dark character */
 #define UI_FLAG_NAME_SIZE       16      /* two Chinese characters in UTF-8, with the NUL */
 #define UI_FLAG_ARMS_SCALE      1.5f    /* the width of a coat of arms on the flag, in character sizes (E5) */
+#define UI_FLAG_WORD_SCALE      1.0f    /* a Latin family name on the flag, in font sizes */
 
 /* The family name of the ruler of a faction, in UTF-8. A corps of a save
    has no ruler, so then the leader of corps 1 names it, as in
-   ui_force_text. The flag shows the Chinese characters in each locale,
-   from the Big5 bytes, as the portraits do. "" if the faction has no leader. */
+   ui_force_text. The flag follows the locale. A name by English key gives
+   its first word. "" if the faction has no leader. */
 internal void
-ui_force_family_name(engine_api *api, u8 force_id, char *out, u32 out_size)
+ui_force_family_name(ui_state *ui, engine_api *api, u8 force_id, char *out, u32 out_size)
 {
     out[0] = 0;
     if (force_id == ENGINE_NO_FACTION) return;
@@ -281,7 +282,15 @@ ui_force_family_name(engine_api *api, u8 force_id, char *out, u32 out_size)
     if (ruler == ENGINE_NO_OFFICER) return;
     engine_officer officer = api->officer_by_id(api->engine, ruler);
     if (officer.officer_id == ENGINE_NO_OFFICER) return;
-    text_decode_big5_into(officer.family_name, sizeof(officer.family_name), out, out_size);
+    const char *keyed = text_key_name(ui->text, "officer", officer.key);
+    if (!keyed)
+    {
+        text_name(ui->text, officer.family_name, sizeof(officer.family_name), out, out_size);
+        return;
+    }
+    u32 used = 0;
+    while (keyed[used] && keyed[used] != ' ' && used + 1 < out_size) { out[used] = keyed[used]; ++used; }
+    out[used] = 0;
 }
 
 /* The colour of the character on a flag: dark on a light flag, white on a
@@ -338,8 +347,9 @@ ui_draw_arms_icon(ui_state *ui, engine_api *api, u8 force_id)
 
 /* The flag of a unit: a banner with a swallowtail in the colour of the
    faction. It shows the coat of arms of the faction (E5). A faction without
-   arms shows the family name of the ruler in large characters, one under
-   the other: 曹, 孫, 劉 or 公孫. A pole holds it at its left edge. right and
+   arms shows the family name of the ruler. Chinese characters are large
+   and stand one under the other: 曹, 孫, 劉 or 公孫. A Latin name is one
+   word: Cao or Gongsun. A pole holds the flag at its left edge. right and
    bottom are the corner of the flag next to the plate. The flag asks the
    engine for the ruler, the key and the colour, and commands nothing. */
 internal void
@@ -347,17 +357,22 @@ ui_draw_unit_flag(ui_state *ui, engine_api *api, ImDrawList *draw, f32 right, f3
 {
     platform_picture arms = ui_force_arms(ui, api, force_id);
     char family[UI_FLAG_NAME_SIZE] = {};
-    if (!arms.texture) ui_force_family_name(api, force_id, family, sizeof(family));
+    if (!arms.texture) ui_force_family_name(ui, api, force_id, family, sizeof(family));
+    b32 latin = family[0] && (u8)family[0] < 0x80;
     char characters[2][UI_FLAG_NAME_SIZE] = {};
-    ui_first_character(family, characters[0], sizeof(characters[0]));
-    ui_first_character(family + strlen(characters[0]), characters[1], sizeof(characters[1]));
+    if (latin) snprintf(characters[0], sizeof(characters[0]), "%s", family);
+    else
+    {
+        ui_first_character(family, characters[0], sizeof(characters[0]));
+        ui_first_character(family + strlen(characters[0]), characters[1], sizeof(characters[1]));
+    }
     u32 lines = characters[1][0] ? 2 : 1;
 
     ImFont *font = ImGui::GetFont();
-    f32 size = ImGui::GetFontSize() * UI_FLAG_CHARACTER_SCALE;
+    f32 size = ImGui::GetFontSize() * (latin ? UI_FLAG_WORD_SCALE : UI_FLAG_CHARACTER_SCALE);
     f32 pad = size * UI_FLAG_PAD_SCALE, tail = size * UI_FLAG_TAIL_SCALE;
     f32 arms_width = size * UI_FLAG_ARMS_SCALE, arms_height = arms_width * (arms.aspect > 0.0f ? arms.aspect : 1.0f);
-    f32 content_width  = arms.texture ? arms_width : size;
+    f32 content_width  = arms.texture ? arms_width : (latin ? font->CalcTextSizeA(size, FLT_MAX, 0.0f, family).x : size);
     f32 content_height = arms.texture ? arms_height : size * (f32)lines;
     f32 width = content_width + pad * 2.0f, height = content_height + pad * 2.0f + tail;
     f32 left = right - width, top = bottom - height, body_bottom = bottom - tail, middle = (left + right) * 0.5f;

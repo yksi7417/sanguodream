@@ -744,22 +744,20 @@ messages and no list of the reports. Thus M17 builds the times and the
 windows that the spec observed. The demo is "demo/m17_first_hour".
 
 - UI (code/ui/ui_feel.cpp):
-  - the rider of the title: after a click, only the chosen button stays.
-    The screen opens after 1 s, and a second click does nothing;
-  - the load transition: a dark screen with no controls for 4 s after a
-    load;
+  - the player removed the rider of the title and the load transition on
+    2026-11-03. The title and the load act at once;
   - the message window at the bottom centre: at the start of a turn of
     a player, the period heading and the reports of the turn. A left
     click advances. The list panel hides while the window shows;
   - after 進行, the UI ends the turns of the AI factions until a player
     acts. Before M17 the game mode stopped at the turn of the first AI
     faction.
-- API: none new. The two flags ui.feel.original_timing and
-  ui.feel.turn_messages are off in ui_init. The game exe turns them on.
-  Thus the tests and the demos of M0 to M16 do not change.
+- API: none new. The flag ui.feel.turn_messages is off in ui_init. The
+  game exe turns it on. Thus the tests and the demos of M0 to M16 do not
+  change.
 - Tests:
-  - ui: the rider, the load transition, the order of the messages and
-    the click that advances, and the messages after 進行;
+  - ui: the order of the messages and the click that advances, and the
+    messages after 進行;
   - e2e: the first hour from the title through 群雄割據 and seven turn
     starts, with a frame limit on each wait;
   - demo: "demo/m17_first_hour". The player marches from the capital to

@@ -2,8 +2,6 @@
 // ask the test hooks (code/wasm_test_hooks.h) where an item is, and click there.
 const { expect } = require("@playwright/test");
 
-const TITLE_SELECT_MS = 1500;   // the title buttons wait 1 s before they act (UI_TITLE_SELECT_SECONDS)
-
 async function frames(page, count) {
   await page.evaluate(async (n) => {
     for (let i = 0; i < n; i++) await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -97,11 +95,8 @@ async function waitForTitle(page) {
 // Load the save of slot 1 from the title menu, and wait for the map.
 async function loadFirstSave(page) {
   await clickItem(page, "title_load");
-  await page.waitForTimeout(TITLE_SELECT_MS);
   await clickItem(page, "slot0");
-  // The load transition covers the screen for 4 s, then the list of the HUD shows.
   await expect.poll(() => item(page, "hud_bases"), { timeout: 90_000 }).not.toBeNull();
-  await expect.poll(() => windowShown(page, "LoadTransition")).toBe(false);
 }
 
 module.exports = { frames, call, item, windowShown, gameState, clickAt, clickItem, clickHex, signIn, enterSite, waitForGame,

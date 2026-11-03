@@ -34,6 +34,8 @@ LIMIT_WINDOW_SECONDS = 3600
 MAX_ADDRESS_LENGTH = 254
 ADDRESS = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 INDEX_DONE_KEY = "emails/index-done.json"
+# The account for the testers. This address signs in with no link, so nobody proves it.
+TESTER_ADDRESS = "tester@cccsoftwares.com"
 
 
 class EmailError(Exception):
@@ -198,13 +200,13 @@ class EmailLinks:
         if await self.store.get(key) is None:
             await self.store.put(key, json.dumps({"uid": uid}).encode("utf-8"))
 
-    async def sign_in(self, address):
-        """Give the record of the account of an address that the user proved with the link."""
+    async def sign_in(self, address, verified=True):
+        """Give the record of the account of an address. The user proved it with the link, or verified is False."""
         user = await self.account_of(address)
         if not user:
             uid = auth.user_id("email", address)
             user = {"uid": uid, "name": auth.clean_name(address.split("@")[0], "Player"), "joined": int(time.time())}
-        user.update({"provider": "email", "email": address, "email_verified": True, "last_login": int(time.time())})
+        user.update({"provider": "email", "email": address, "email_verified": verified, "last_login": int(time.time())})
         await storage.write_user(self.store, user)
         await self.remember(address, user["uid"])
         return user

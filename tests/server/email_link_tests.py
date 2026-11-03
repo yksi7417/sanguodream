@@ -16,6 +16,7 @@ import sys
 import tempfile
 import time
 import unittest
+import unittest.mock
 import urllib.parse
 
 sys.dont_write_bytecode = True   # no __pycache__ in web/
@@ -308,6 +309,30 @@ class TheAccounts(EmailLinkTestCase):
         self.assertEqual(me["provider"], "email")
         again = await self.sign_in()
         self.assertEqual(again["uid"], me["uid"])
+
+    async def test_the_tester_address_signs_in_at_once_with_no_email(self):
+        await self.start()
+        response = await self.request_link(" Tester@CCCsoftwares.com ")
+        self.assertEqual(response.status, 302)
+        self.assertEqual(response.headers["Location"], "/")
+        self.assertEqual(self.mails, [])
+        me = await (await self.client.get("/api/me")).json()
+        self.assertEqual(me["uid"], self.auth.user_id("email", "tester@cccsoftwares.com"))
+        self.assertEqual(me["name"], "tester")
+
+    async def test_another_address_of_the_tester_domain_still_needs_the_link(self):
+        await self.start()
+        response = await self.request_link("other@cccsoftwares.com")
+        self.assertEqual(response.status, 200)
+        self.assertEqual(len(self.mails), 1)
+        self.assertEqual((await self.client.get("/api/me")).status, 401)
+
+    async def test_the_tester_address_is_not_an_admin_even_in_admin_emails(self):
+        with unittest.mock.patch.dict(os.environ, {"ADMIN_EMAILS": "tester@cccsoftwares.com"}):
+            await self.start()
+        await self.request_link("tester@cccsoftwares.com")
+        self.assertFalse((await (await self.client.get("/api/me")).json())["admin"])
+        self.assertNotEqual((await self.client.get("/admin")).status, 200)
 
     async def test_the_address_in_admin_emails_makes_an_admin(self):
         await self.start()

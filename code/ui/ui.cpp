@@ -189,7 +189,7 @@ ui_init(ui_state *ui, text_catalog *text)
     ui->show_story = false;
     ui->story.page = 0;
     ui->show_topbar = ui->show_history = ui->show_saveload = ui->show_options = false;
-    ui->show_new_officer = ui->show_editor = ui->show_battles = ui->show_abilities = ui->show_info = false;
+    ui->show_new_officer = ui->show_editor = ui->show_abilities = ui->show_info = false;
     ui->quit_requested = false;
     ui->hud_mode          = false;   /* the debug layout; a game start turns on the game mode */
     ui->show_debug_panels = false;
@@ -641,8 +641,8 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->hud_mode && ImGui::IsKeyPressed(ImGuiKey_F12, false)) ui->show_debug_panels = !ui->show_debug_panels;
     bool tools = !ui->hud_mode || ui->show_debug_panels;
     bool in_game = !ui->show_splash && !ui->show_title && !ui->show_scenarios && !ui->show_rulers && !ui->show_start_settings;
-    ui_feel_update(ui, api, frame->dt_seconds, in_game && !ui->replay.viewing);   /* M17: the rider, the load transition and the turn start */
-    bool hud_ready = ui->hud_mode && in_game && !ui_feel_in_transition(ui);
+    ui_feel_update(ui, api, frame->dt_seconds, in_game && !ui->replay.viewing);   /* M17: the turn start */
+    bool hud_ready = ui->hud_mode && in_game;
     /* A replay view shows a past step: the feedback of the turn waits, so
        that the log and the messages do not read the past events again. */
     bool live = in_game && !ui->replay.viewing;
@@ -679,7 +679,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (ui->show_unit)       ui_draw_unit_panel(ui, api);
     if (ui->show_unit_menu)  ui_draw_unit_menu(ui, api);
     if (ui->units.target_kind != UI_TARGET_NONE) ui_draw_unit_target_menu(ui, api);   /* G2-052, G2-058 */
-    if (ui->show_minimap && !ui_feel_in_transition(ui) && !panels_hidden) ui_draw_minimap(ui, api);
+    if (ui->show_minimap && !panels_hidden) ui_draw_minimap(ui, api);
     if (ui->show_units)      ui_draw_units_panel(ui, api);   /* M11 */
     ui_draw_hex_info_box(ui, api);                           /* M11: opens after a pick in the scene */
     if (ui->show_actions)    ui_draw_actions(ui, api);
@@ -700,7 +700,6 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     ui_draw_event_dialog(ui, api);   /* opens while an event waits for a choice */
     ui_draw_game_screens(ui, api);   /* M9: the title, the scenario list, the top bar and the other game screens */
     ui_draw_messages(ui, api);       /* M17: the reports at the start of a turn */
-    ui_draw_load_transition(ui);     /* M17: on top of everything while a save loads */
     for (u32 kind = 0; kind < UI_COMMAND_COUNT; ++kind)
     {
         if (ui->show_command[kind]) ui_draw_city_command(ui, api, kind);

@@ -40,7 +40,9 @@ global_variable const test_text_file test_text_files[] =
       "status.0\t" TEST_UTF8_RULER "\r\n" },
     { "root/pack/names/en.tsv",
       "key\ttext\n"
-      "B1E4\tCao\n" },
+      "B1E4\tCao\n"
+      "AB40\tMeng\n"
+      "A7D3A5AD\tWhole Name\n" },
     { "root/europe/pack.tsv",
       "key\tvalue\n"
       "# the settings of the pack\n"
@@ -395,6 +397,15 @@ unit_text_pack_tests(test_counts *counts, memory_arena *arena)
     const u8 family[4] = { 0xB1, 0xE4, 0x00, 0x00 };
     TEST_CHECK(counts, strcmp(text_name(&catalog, family, sizeof(family), out, sizeof(out)), "Cao") == 0,
                "the names of the base pack by Big5 key stay");
+    const u8 given[4] = { 0xAB, 0x40, 0x00, 0x00 };
+    TEST_CHECK(counts, strcmp(text_person_name(&catalog, family, sizeof(family), given, sizeof(given), out, sizeof(out)), "Cao Meng") == 0,
+               "en: a space stands between the two Latin parts of a name");
+    const u8 whole_family[4] = { 0xA7, 0xD3, 0x00, 0x00 }, whole_given[4] = { 0xA5, 0xAD, 0x00, 0x00 };
+    TEST_CHECK(counts, strcmp(text_person_name(&catalog, whole_family, sizeof(whole_family), whole_given, sizeof(whole_given), out, sizeof(out)), "Whole Name") == 0,
+               "en: the row of the whole name comes before the parts");
+    const u8 no_given[4] = {};
+    TEST_CHECK(counts, strcmp(text_person_name(&catalog, family, sizeof(family), no_given, sizeof(no_given), out, sizeof(out)), "Cao") == 0,
+               "en: a name with one part gets no space");
 
     text_catalog_set_locale(&catalog, "zh-TW");
     TEST_CHECK(counts, text_key_name(&catalog, "officer", "philip_ii") == 0,

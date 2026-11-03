@@ -83,24 +83,18 @@ ui_title_open(ui_state *ui, engine_api *api, u32 choice)
     {
         case UI_TITLE_LOAD:    ui_open_saveload(ui, api, false); break;
         case UI_TITLE_NEW:     ui->show_scenarios = true;        break;
-        case UI_TITLE_BATTLE:  ui->show_battles = true;          break;
         case UI_TITLE_OPTIONS: ui->show_options = true;          break;
         case UI_TITLE_QUIT:    ui->quit_requested = true;        break;
         default: break;
     }
 }
 
-/* One button of the title. While the rider runs (M17), only the chosen
-   button shows, and a click on it does nothing. */
+/* One button of the title. A click opens the screen at once. */
 internal void
 ui_title_button(ui_state *ui, engine_api *api, const char *text_id, const char *key, u32 choice)
 {
-    if (ui->feel.title_choice != UI_TITLE_NONE && ui->feel.title_choice != choice) return;
     char label[96];
-    if (!ImGui::Button(ui_label(label, sizeof(label), ui, text_id, key), ImVec2(320, 0))) return;
-    if (ui->feel.title_choice != UI_TITLE_NONE) return;
-    if (ui->feel.original_timing) ui_feel_choose_title(ui, choice);
-    else                          ui_title_open(ui, api, choice);
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, text_id, key), ImVec2(320, 0))) ui_title_open(ui, api, choice);
 }
 
 /* The version and the number of the build (code/version.h), for the title and
@@ -122,30 +116,17 @@ internal void ui_draw_title_room_code(ui_state *ui);   /* ui_multiplayer.cpp */
 internal void
 ui_draw_title(ui_state *ui, engine_api *api)
 {
-    char title[128], label[96];
+    char title[128];
     ImGui::SetNextWindowSize(ImVec2(360, 330), ImGuiCond_FirstUseEver);
     ui_center_next_window();   /* the request of the player of 2026-10-20 */
     if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "title.title", "Title"), 0, ImGuiWindowFlags_NoCollapse)) { ImGui::End(); return; }
-    bool riding = ui->feel.title_choice != UI_TITLE_NONE;
-    if (!riding)   /* the request of the player of 2026-10-31: the language changes on the first screen */
-    {
-        ui_draw_title_language(ui, 320.0f);
-        ImGui::Separator();
-    }
+    ui_draw_title_language(ui, 320.0f);   /* the request of the player of 2026-10-31: the language changes on the first screen */
+    ImGui::Separator();
     ui_title_button(ui, api, "title.load", "title_load", UI_TITLE_LOAD);
     ui_title_button(ui, api, "title.new", "title_new", UI_TITLE_NEW);
-    if (!riding)
-    {
-        ImGui::BeginDisabled();
-        ImGui::Button(ui_label(label, sizeof(label), ui, "title.tutorial", "title_tutorial"), ImVec2(320, 0));   /* the tutorial scenario is not in the spec */
-        ImGui::EndDisabled();
-    }
-    ui_title_button(ui, api, "title.battle", "title_battle", UI_TITLE_BATTLE);
     ui_title_button(ui, api, "title.options", "title_options", UI_TITLE_OPTIONS);
     ui_title_button(ui, api, "title.quit", "title_quit", UI_TITLE_QUIT);
-    if (!riding) ui_draw_title_room_code(ui);   /* MP5: join a shared game with its room code (ui_multiplayer.cpp) */
-    if (riding)   /* placeholder art for the rider: the bar fills in UI_TITLE_SELECT_SECONDS */
-        ImGui::ProgressBar(ui->feel.title_seconds / UI_TITLE_SELECT_SECONDS, ImVec2(320, 0), "");
+    ui_draw_title_room_code(ui);   /* MP5: join a shared game with its room code (ui_multiplayer.cpp) */
     ImGui::Separator();
     ui_draw_version(ui, "title_version");
     ImGui::End();
@@ -198,7 +179,6 @@ ui_load_slot(ui_state *ui, engine_api *api, u32 slot)
     ui->show_saveload = false;
     ui_enter_game(ui);
     ui->feel.loaded_game = true;   /* G3-023: 劉表，可終於輪到你了啊。 and an empty log */
-    ui_feel_begin_transition(ui);
 }
 
 /* After the engine started again with another pack: load the scenario or
@@ -602,11 +582,7 @@ ui_draw_new_officer(ui_state *ui, engine_api *api)
     if (ui->game.ancient != SIM_NO_ANCIENT)
     {
         engine_ancient row = api->ancient_at(e, ui->game.ancient);
-        u8 full[OFFICER_FAMILY_NAME_SIZE + OFFICER_GIVEN_NAME_SIZE] = {};
-        u32 used = 0;
-        for (u32 at = 0; at < OFFICER_FAMILY_NAME_SIZE && row.family_name[at]; ++at) full[used++] = row.family_name[at];
-        for (u32 at = 0; at < OFFICER_GIVEN_NAME_SIZE && row.given_name[at]; ++at) full[used++] = row.given_name[at];
-        text_name(ui->text, full, used, ancient, sizeof(ancient));
+        text_person_name(ui->text, row.family_name, sizeof(row.family_name), row.given_name, sizeof(row.given_name), ancient, sizeof(ancient));
     }
     if (ImGui::BeginCombo(ui_label(label, sizeof(label), ui, "newcomer.ancient", "ancient"), ancient))
     {
@@ -614,12 +590,8 @@ ui_draw_new_officer(ui_state *ui, engine_api *api)
         for (u32 index = 0; index < api->ancient_count(e); ++index)
         {
             engine_ancient row = api->ancient_at(e, index);
-            u8 full[OFFICER_FAMILY_NAME_SIZE + OFFICER_GIVEN_NAME_SIZE] = {};
-            u32 used = 0;
-            for (u32 at = 0; at < OFFICER_FAMILY_NAME_SIZE && row.family_name[at]; ++at) full[used++] = row.family_name[at];
-            for (u32 at = 0; at < OFFICER_GIVEN_NAME_SIZE && row.given_name[at]; ++at) full[used++] = row.given_name[at];
             char name[UI_NAME_SIZE * 2], item[128];
-            text_name(ui->text, full, used, name, sizeof(name));
+            text_person_name(ui->text, row.family_name, sizeof(row.family_name), row.given_name, sizeof(row.given_name), name, sizeof(name));
             snprintf(item, sizeof(item), "%s###a%u", name, index);
             if (ImGui::Selectable(item, ui->game.ancient == index)) ui->game.ancient = (u8)index;
         }
@@ -702,30 +674,6 @@ ui_draw_editor(ui_state *ui, engine_api *api)
         api->set_unit(e, ui->units.selected, (u32)Maximum(ui->game.editor_unit_soldiers, 0), (u32)Maximum(ui->game.editor_unit_morale, 0));
     }
     ImGui::EndDisabled();
-    ImGui::End();
-}
-
-/* ---- 決戰稱霸 (F-135) ------------------------------------------------------------------------ */
-
-internal void
-ui_draw_battles(ui_state *ui, engine_api *api)
-{
-    char title[128];
-    ImGui::SetNextWindowSize(ImVec2(360, 260), ImGuiCond_FirstUseEver);
-    ui_center_next_window();   /* the request of the player of 2026-10-20 */
-    if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "battles.title", "Battles"), &ui->show_battles)) { ImGui::End(); return; }
-    void *e = api->engine;
-    for (u32 index = 0; index < api->battle_count(e); ++index)
-    {
-        engine_battle battle = api->battle_at(e, index);
-        char row[160];
-        snprintf(row, sizeof(row), "%s  [%s]###battle%u", ui_text_with_key(ui, "battle", battle.key),
-                 text_get(ui->text, battle.open_at_start ? "battles.open" : "battles.locked"), index);
-        ImGui::BeginDisabled(!battle.playable);
-        ImGui::Button(row, ImVec2(320, 0));
-        ImGui::EndDisabled();
-        if (!battle.playable && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("%s", text_get(ui->text, "battles.unavailable"));
-    }
     ImGui::End();
 }
 
@@ -841,7 +789,6 @@ ui_draw_game_screens(ui_state *ui, engine_api *api)
     if (ui->show_options)        ui_draw_options(ui, api);
     if (ui->show_new_officer)    ui_draw_new_officer(ui, api);
     if (ui->show_editor)         ui_draw_editor(ui, api);
-    if (ui->show_battles)        ui_draw_battles(ui, api);
     if (ui->show_abilities)      ui_draw_abilities(ui, api);
     if (ui->show_info && ui->hud_mode) ui_draw_info_menu(ui, api);   /* M21: the column of 14 buttons */
     else if (ui->show_info)            ui_draw_info(ui, api);        /* the debug layout */

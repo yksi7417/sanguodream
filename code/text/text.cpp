@@ -749,6 +749,44 @@ text_name(text_catalog *catalog, const u8 *bytes, u32 size, char *out, u32 out_s
     return out;
 }
 
+internal const char *
+text_whole_name(text_catalog *catalog, const u8 *family, u32 family_size, const u8 *given, u32 given_size)
+{
+    if (!catalog) return 0;
+    u8 whole[64];
+    u32 used = 0;
+    for (u32 at = 0; at < family_size && family[at] && used < sizeof(whole); ++at) whole[used++] = family[at];
+    for (u32 at = 0; at < given_size && given[at] && used < sizeof(whole); ++at) whole[used++] = given[at];
+    char key[2 * sizeof(whole) + 1];
+    if (!text_name_key(whole, used, key, sizeof(key))) return 0;
+    return text_table_find(&catalog->names, key);
+}
+
+internal const char *
+text_person_name(text_catalog *catalog, const u8 *family, u32 family_size, const u8 *given, u32 given_size, char *out, u32 out_size)
+{
+    if (!out_size) return out;
+    out[0] = 0;
+    const char *whole = text_whole_name(catalog, family, family_size, given, given_size);
+    if (whole)
+    {
+        text_copy_utf8(whole, out, out_size);
+        return out;
+    }
+    char first[128], second[128];
+    text_name(catalog, family, family_size, first, sizeof(first));
+    text_name(catalog, given, given_size, second, sizeof(second));
+    b32 latin = first[0] && (u8)first[0] < 0x80 && second[0];
+    u32 used = text_copy_utf8(first, out, out_size);
+    if (latin && used + 1 < out_size)
+    {
+        out[used++] = ' ';
+        out[used] = 0;
+    }
+    text_copy_utf8(second, out + used, out_size - used);
+    return out;
+}
+
 /* M9: the Big5 bytes of a UTF-8 text, for a name that a player types (新武將).
    Each code point is found by a search of the Big5 table. Returns the byte
    count, or 0 if a character has no Big5 code or out is too small. */

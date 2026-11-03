@@ -389,7 +389,7 @@ internal void
 ui_draw_net_invite(ui_state *ui, engine_api *api)
 {
     if (!ui->net.show_invite || !ui->net.joined) return;
-    char title[128], label[96], name[UI_NET_NAME_SIZE], row[UI_NET_NAME_SIZE + 96];
+    char title[128], name[UI_NET_NAME_SIZE], row[UI_NET_NAME_SIZE + 96];
     ImGui::SetNextWindowSize(ImVec2(420, 220), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "net.invite", "NetInvite"), &ui->net.show_invite)) { ImGui::End(); return; }
     ImGui::TextUnformatted(text_get(ui->text, "net.invite_link"));

@@ -915,8 +915,6 @@ title.title	hexdom	the title menu
 splash.hint	Click or press a key	the hint at the bottom of the splash art
 title.load	Load game	載入進度
 title.new	New game	重新開始新遊戲
-title.tutorial	Tutorial	遊戲教學; not in the clean room
-title.battle	Battle mode	決戰稱霸模式
 title.options	Options	項目: new officers, editor, settings
 title.quit	Quit	結束遊戲
 scenarios.title	Scenarios	劇本
@@ -1023,10 +1021,6 @@ editor.apply_city	Apply to the city	the city fields
 editor.unit_soldiers	Unit soldiers	部隊兵力
 editor.unit_morale	Unit morale	部隊氣力
 editor.apply_unit	Apply to the unit	the unit fields
-battles.title	Battle mode	決戰稱霸模式
-battles.open	open	open at the start
-battles.locked	locked	a clear opens it
-battles.unavailable	The clean room has no data of this battle.	tooltip
 battle.hefei	Battle of Hefei	合肥之戰
 battle.nanjun	Battle of Nanjun	南郡之戰
 battle.chibi	Battle of Red Cliffs	赤壁之戰

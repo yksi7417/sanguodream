@@ -1044,7 +1044,7 @@ register_ui_tests(ImGuiTestEngine *e)
         v.recorder.pending_active = true;
         v.ui.show_title = v.ui.show_scenarios = v.ui.show_rulers = v.ui.show_start_settings = true;   /* M9 */
         v.ui.show_topbar = v.ui.show_history = v.ui.show_saveload = v.ui.show_options = true;
-        v.ui.show_new_officer = v.ui.show_editor = v.ui.show_battles = v.ui.show_abilities = v.ui.show_info = true;
+        v.ui.show_new_officer = v.ui.show_editor = v.ui.show_abilities = v.ui.show_info = true;
         v.ui.game.chosen = 1;
         v.ui.game.ancient = 0;
         v.ui.units.selected      = 0;
@@ -4277,7 +4277,7 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 3u);
     };
 
-    t = IM_REGISTER_TEST(e, "ui", "battle_list_and_info_screen_read_and_command_nothing");
+    t = IM_REGISTER_TEST(e, "ui", "info_screen_reads_and_commands_nothing");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;
     t->TestFunc = [](ImGuiTestContext *ctx)
@@ -4285,14 +4285,10 @@ register_ui_tests(ImGuiTestEngine *e)
         ui_test_vars &v = ctx->GetVars<ui_test_vars>();
         v.recorder.officer_count = 3;
         v.recorder.city_count    = 2;
-        v.ui.show_battles        = true;
         v.ui.show_info           = true;
         v.ui.show_options        = true;
         recorder_reset(&v.recorder);
         ctx->Yield(2);
-        ctx->SetRef("###Battles");
-        IM_CHECK((ctx->ItemInfo("###battle0").ItemFlags & ImGuiItemFlags_Disabled) != 0);   /* no battle data in the clean room */
-        IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_BATTLE_AT), 2u);
         IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_FACTION_RANK), 1u);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
         ctx->SetRef("###Options");
@@ -5416,9 +5412,9 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_GE(recorder_count_arg(&v.recorder, RECORDER_FACTION_COLOUR, 1), 1u);     /* the colour of force 1 */
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
         char family[UI_FLAG_NAME_SIZE];
-        ui_force_family_name(&v.api, 1, family, sizeof(family));
+        ui_force_family_name(&v.ui, &v.api, 1, family, sizeof(family));
         IM_CHECK(family[0] != 0);                                                           /* the Big5 bytes B1 40 of officer 100 */
-        ui_force_family_name(&v.api, 3, family, sizeof(family));
+        ui_force_family_name(&v.ui, &v.api, 3, family, sizeof(family));
         IM_CHECK(family[0] == 0);                                                           /* force 3 has no ruler and no leader */
         ImU32 ink = 0, outline = 0;
         ui_flag_ink(IM_COL32(240, 230, 160, 255), &ink, &outline);
@@ -5841,10 +5837,9 @@ register_ui_tests(ImGuiTestEngine *e)
 
     /* ---- M17: the feel of the first hour ----------------------------------- */
 
-    /* title-and-load.md: after a click, the other five buttons disappear.
-       The rider runs approximately 1 s, then the screen opens. A second
-       click during the rider has no visible effect. */
-    t = IM_REGISTER_TEST(e, "ui", "title_click_hides_the_other_buttons_and_opens_after_the_rider");
+    /* The request of the player of 2026-11-03: a title button opens its screen
+       at once, and the menu has no tutorial and no battle mode. */
+    t = IM_REGISTER_TEST(e, "ui", "title_click_opens_at_once_and_the_menu_has_no_tutorial_and_no_battle_mode");
     t->SetVarsDataType<ui_test_vars>();
     t->GuiFunc  = ui_test_gui;
     t->TestFunc = [](ImGuiTestContext *ctx)
@@ -5853,20 +5848,17 @@ register_ui_tests(ImGuiTestEngine *e)
         v.recorder.officer_count = 3;
         v.recorder.city_count    = 2;
         v.ui.show_title          = true;
-        v.ui.feel.original_timing = true;
         ctx->SetRef("###Title");
         ctx->Yield(2);
         recorder_reset(&v.recorder);
+        IM_CHECK(!ctx->ItemExists("###title_tutorial") && !ctx->ItemExists("###title_battle"));
         ctx->ItemClick("###title_new");
-        ctx->Yield();
-        IM_CHECK(!v.ui.show_scenarios && v.ui.feel.title_choice == UI_TITLE_NEW);
-        IM_CHECK(ctx->ItemExists("###title_new"));
-        IM_CHECK(!ctx->ItemExists("###title_load") && !ctx->ItemExists("###title_battle") && !ctx->ItemExists("###title_quit"));
-        ctx->ItemClick("###title_new");                        /* the second click */
-        IM_CHECK(!v.ui.show_scenarios && v.ui.feel.title_choice == UI_TITLE_NEW);
-        ctx->Yield((int)(UI_TITLE_SELECT_SECONDS * 60.0f) + 10);
-        IM_CHECK(v.ui.show_scenarios && v.ui.feel.title_choice == UI_TITLE_NONE);
-        IM_CHECK(ctx->ItemExists("###title_load"));            /* the title is whole again under the new screen */
+        IM_CHECK(v.ui.show_scenarios);
+        IM_CHECK(ctx->ItemExists("###title_load") && ctx->ItemExists("###title_quit"));   /* the other buttons stay */
+        ctx->ItemClick("###title_options");
+        IM_CHECK(v.ui.show_options);
+        ctx->ItemClick("###title_load");
+        IM_CHECK(v.ui.show_saveload);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
@@ -6006,36 +5998,6 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK(!v.ui.show_splash && !v.ui.show_title);
         ImGuiWindow *splash = ImGui::FindWindowByName("###Splash");
         IM_CHECK(splash == 0 || !splash->Active);   /* the splash window does not draw */
-        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
-    };
-
-    /* title-and-load.md: the load shows a dark landscape with no controls
-       for approximately 4 s. Then the main map opens. */
-    t = IM_REGISTER_TEST(e, "ui", "load_transition_hides_the_map_and_takes_no_input");
-    t->SetVarsDataType<ui_test_vars>();
-    t->GuiFunc  = ui_test_gui;
-    t->TestFunc = [](ImGuiTestContext *ctx)
-    {
-        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
-        v.recorder.officer_count = 3;
-        v.recorder.city_count    = 2;
-        v.ui.feel.original_timing = true;
-        ui_enter_game(&v.ui);
-        ui_feel_begin_transition(&v.ui);
-        ctx->Yield(2);
-        recorder_reset(&v.recorder);
-        ImGuiWindow *dark = ctx->WindowInfo("//###LoadTransition", ImGuiTestOpFlags_NoError).Window;
-        ImGuiWindow *hud  = ctx->WindowInfo("//###HUD", ImGuiTestOpFlags_NoError).Window;
-        IM_CHECK(dark != 0 && dark->Active);
-        IM_CHECK(hud == 0 || !hud->Active);
-        ui_context_open(&v.ui, &v.api, UI_CONTEXT_MAP_MENU, 400.0f, 300.0f);   /* a right click on the map */
-        ctx->Yield(2);
-        IM_CHECK_EQ(v.ui.context.kind, (u8)UI_CONTEXT_NONE);
-        ctx->Yield((int)(UI_LOAD_TRANSITION_SECONDS * 60.0f) + 10);
-        dark = ctx->WindowInfo("//###LoadTransition", ImGuiTestOpFlags_NoError).Window;
-        hud  = ctx->WindowInfo("//###HUD", ImGuiTestOpFlags_NoError).Window;
-        IM_CHECK(dark == 0 || !dark->Active);
-        IM_CHECK(hud != 0 && hud->Active);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
@@ -6837,6 +6799,34 @@ register_ui_tests(ImGuiTestEngine *e)
             if (strstr(name, needle)) bad_names++;
         }
         IM_CHECK_EQ(bad_names, 0u);
+        /* The request of the player of 2026-11-03: English shows no Chinese name. A byte from 0xE0 up starts a CJK character. */
+        text_catalog_set_locale(&v.text, "en");
+        char full[128];
+        u32 chinese_names = 0;
+        auto has_chinese = [](const char *text) { for (; *text; ++text) { if ((u8)*text >= 0xE0) return true; } return false; };
+        for (u32 index = 0; index < v.api.officer_count(v.api.engine); ++index)
+        {
+            engine_officer officer = v.api.officer_at(v.api.engine, index);
+            ui_officer_name(&v.ui, &officer, full, sizeof(full));
+            if (has_chinese(full)) { chinese_names++; ctx->LogError("officer %u", officer.officer_id); }
+        }
+        for (u32 location = 0; location < 87; ++location)
+        {
+            ui_location_text(&v.ui, &v.api, (u16)location, full, sizeof(full));
+            if (has_chinese(full)) { chinese_names++; ctx->LogError("location %u", location); }
+        }
+        for (u32 index = 0; index < v.api.item_count(v.api.engine); ++index)
+        {
+            engine_item held = v.api.item_at(v.api.engine, index);
+            text_name(&v.text, held.name, sizeof(held.name), full, sizeof(full));
+            if (has_chinese(full)) { chinese_names++; ctx->LogError("item %u", index); }
+        }
+        IM_CHECK_EQ(chinese_names, 0u);
+        engine_officer first_officer = v.api.officer_by_id(v.api.engine, 0);
+        ui_force_family_name(&v.ui, &v.api, 0, name, sizeof(name));   /* the flag of force 0 is a Latin word */
+        IM_CHECK(!has_chinese(name) && name[0] != 0);
+        ui_officer_name(&v.ui, &first_officer, full, sizeof(full));
+        IM_CHECK_STR_EQ(full, "Ahuinan");   /* officer 0: a row of the whole name */
         /* G2-010: the user-defined code FA45, the given name of the officer 249, reads as its glyph through names/zh-TW.tsv. */
         text_catalog_set_locale(&v.text, "zh-TW");
         const u8 jun[5] = { 0xFA, 0x45, 0, 0, 0 };
@@ -6858,7 +6848,6 @@ register_ui_tests(ImGuiTestEngine *e)
         engine_api *api = &v.api;
         void *e = api->engine;
         v.ui.show_title           = true;
-        v.ui.feel.original_timing = true;
         v.ui.feel.turn_messages   = true;
         ctx->Yield(2);
         ctx->SetRef("//###Title");

@@ -168,6 +168,16 @@ internal const char *text_get(text_catalog *catalog, const char *id);
    (zh-TW). Returns out. An empty name gives "". */
 internal const char *text_name(text_catalog *catalog, const u8 *bytes, u32 size, char *out, u32 out_size);
 
+/* The row of names/<locale>.tsv for the family bytes and the given bytes
+   together, for a name that does not read as two parts ("Lady Zhen").
+   0 if no row has that key. */
+internal const char *text_whole_name(text_catalog *catalog, const u8 *family, u32 family_size, const u8 *given, u32 given_size);
+
+/* The display name of a person, in out: the whole name, else the family name
+   and the given name. A family name in the Latin script gets a space after
+   it, and a Chinese family name does not. Returns out. */
+internal const char *text_person_name(text_catalog *catalog, const u8 *family, u32 family_size, const u8 *given, u32 given_size, char *out, u32 out_size);
+
 /* docs/EUROPE.md, E1: the default locale of a pack, from the row
    default_locale of data/<pack>/pack.tsv. False, and out "", if the pack
    has no such row or the row is not a valid locale code. */

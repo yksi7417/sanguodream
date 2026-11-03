@@ -1,20 +1,1030 @@
 key	text	note
 # Names in English, keyed by the Big5 bytes of one name field as upper-case hex.
-# A family name, a given name and a city name each have their own row.
+# A family name, a given name, a city, a pass, a port, a province and an item each have their own row.
 # These rows are historical names in pinyin, written for the placeholder pack.
 # A name without a row shows its decoded Big5 bytes (zh-TW).
-B1E4	Cao	family name
-BC42	Liu	family name
-AE5D	Sun	family name
-C3F6	Guan	family name
-B169	Zhang	family name
-BDD1B8AF	Zhuge	family name
-A571B0A8	Sima	family name
-B04B	Yuan	family name
-ACA5B6A7	Luoyang	city
-AAF8A677	Chang'an	city
-A6A8B3A3	Chengdu	city
-ABD8B77E	Jianye	city
-B35CA9F7	Xuchang	city
-C1B8B6A7	Xiangyang	city
-FA45	Jun	the given name of Zhu Jun (officer 249): a user-defined Big5 code of the scenario (G2-010)
+AAFCB77C	Ahui	阿會 family
+B3E4	Nan	喃 given
+ADB3	Wei	韋 family,given
+AC4C	Zhao	昭 given
+A5EC	Yi	伊 family
+C479	Ji	籍 given
+A4A8	Yin	尹 family
+BDE0	Shang	賞 given
+A46AA5D8	Damu	大目 given
+C071	Mo	默 given
+A45F	Yu	于 family
+B854	Jin	禁 given
+B8E0	Quan	詮 given
+BDC3	Wei	衛 family,given
+F6F0	Guan	瓘 given
+B04B	Yuan	袁 family
+BFF2	Yi	遺 given
+AD4E	Yin	胤 given
+C046	Yan	閻 family
+A674	Yu	宇 given
+B541	Huan	渙 given
+BAB3	Xi	熙 given
+A6E6	Xing	行 given
+AC58	Rou	柔 given
+B34E	Shu	術 given
+A97C	Shang	尚 given
+B2D0	Shao	紹 given
+B648	Xiang	象 given
+C3D3	Tan	譚 family,given
+AE45	Pu	圃 given
+EFFA	Yao	燿 given
+A4FD	Wang	王 family
+ABC2	Wei	威 given
+B2A7	Yi	異 given
+A4B9	Yun	允 given
+B0F2	Ji	基 given
+E0E0	Qi	頎 given
+A64A	Kuang	匡 given
+B77E	Ye	業 given
+B867	Jing	經 given
+A5EA	Kang	伉 given
+B4FD	Hun	渾 given
+DF54	Can	粲 given
+ADD7	Xiu	修 given
+A6A5	Rong	戎 given
+B5C2	Su	肅 given
+C0E0	Jun	濬 given
+B2BB	Xiang	祥 given
+B0CF	Ou	區 family
+AC50	Xing	星 given
+C2F9	Shuang	雙 given
+A9BE	Zhong	忠 given
+CEEB	Chang	昶 given
+C3FC	Tao	韜 given
+B1AC	Dun	惇 given
+A5AD	Ping	平 given
+A86A	Fu	甫 given
+AAF9	Men	門 given
+D5E6	Ling	淩 given
+B2D6	Lei	累 given
+AED4	Lang	朗 given
+B7C5	Wen	溫 family,given
+ABEC	Hui	恢 given
+A6F3	He	何 family,given
+AECB	Yan	晏 given
+E3C7	Kuai	蒯 family
+B656	Yue	越 given
+A87D	Liang	良 given
+B8EB	Jia	賈 family
+B5D8	Hua	華 family,given
+F2F2	He	覈 given
+B666	Kui	逵 given
+BBF6	Yi	儀 given
+DDF5	Xin	歆 given
+E048	Xu	詡 given
+B3A2	Guo	郭 family
+ABB3	Yi	奕 given
+B4A9	Yuan	援 given
+B9C5	Jia	嘉 given
+B66B	E	鄂 family
+B7D8	Huan	煥 given
+C9FA	Si	汜 given
+BCD6	Yue	樂 family
+B44E	Jiu	就 given
+C04E	Huo	霍 family
+AE6D	Jun	峻 given
+B071	Hao	郝 family
+B669	Jin	進 given
+E36A	Chen	綝 given
+B9CF	Tu	圖 given
+B0A8	Ma	馬 family,given
+B5DE	Meng	萌 given
+A7F1A4A7	Youzhi	攸之 given
+A47C	Yi	弋 given
+B261	Huai	淮 given
+AE4CAB4A	Xiahou	夏侯 family
+B257	Yuan	淵 given
+AEA6	En	恩 given
+A94D	He	和 given
+B466	Hui	惠 given
+A5C8	Xuan	玄 given
+BC77	De	德 given
+C551	Ba	霸 given
+DDD5	Mao	楙 given
+A54FA46B	Lingnü	令女 given
+A552	Chong	充 given
+B4D3	Zhi	植 given
+B650	He	賀 family
+BBF4	Qi	齊 given
+BD64	Fan	範 given
+AAE1	Hua	花 family
+F6A5	Man	鬘 given
+B6AF	Xiong	雄 given
+C3F6	Guan	關 family
+C255	Yi	彝 given
+C1FA	Han	韓 family
+A6D0	Yu	羽 given
+AED9	Huan	桓 family,given
+B6A5	Jie	階 given
+BADE	Guan	管 family
+A5E8	Hai	亥 given
+C960A543	Guanqiu	毌丘 family
+BBFC	Jian	儉 given
+A871	Xiu	秀 given
+A86C	Dian	甸 given
+B2F7A46C	Juzi	莒子 given
+AF45	Hao	浩 given
+BFB3	Xing	興 given
+AFC1	Suo	索 given
+B945	Sui	遂 given
+B743	Song	嵩 given
+B974	Jing	靖 given
+BEE6	Xian	暹 given
+F545	Kan	闞 family
+BF41	Ze	澤 given
+B2CE	Tong	統 given
+B7ED	Dang	當 given
+A5CC	Gan	甘 family
+B9E7	Ning	寧 given
+C34C	Fu	馥 given
+C2B2	Jian	簡 family
+B96C	Yong	雍 family,given
+C343	Yan	顏 family,given
+C351	Wei	魏 family
+A9B5	Yan	延 given
+C454	Qu	麴 family
+B871	Yi	義 given
+C0B8	Xi	戲 family
+A7D3A47E	Zhicai	志才 given
+C4F2	Xu	續 given
+C2E4	Miao	邈 given
+BFD8	Feng	諷 given
+A7F1	You	攸 given
+A4FB	Niu	牛 family
+AAF7	Jin	金 family,given
+A543	Qiu	丘 family,given
+ABD8	Jian	建 given
+BBB2	Fu	輔 given
+A5BB	Ben	本 given
+A975	Ji	季 family
+ABB8	Jiang	姜 family
+BAFB	Wei	維 given
+BE64	Gong	鞏 family
+A7D3	Zhi	志 given
+BEF4	Qiao	橋 family
+EB42	Rui	蕤 given
+C5C7	Gong	龔 family
+B3A3	Du	都 given
+B7E8	Mao	瑁 given
+B35C	Xu	許 family
+B05E	Gong	貢 given
+BB75	Chu	褚 given
+ACF6	Ji	紀 family,given
+C646	Ling	靈 family,given
+E2FC	Yi	禕 given
+AAF7C0F4	Jinhuan	金環 family
+A454B5B2	Sanjie	三結 given
+B1DB	Xuan	旋 given
+B8B7	Yu	虞 family,given
+C2BD	Fan	翻 given
+A8B7	Xing	邢 family
+B944BA61	Daorong	道榮 given
+D3FD	Xi	郤 family
+A5BF	Zheng	正 given
+C459	Yan	嚴 family,given
+B26F	Qian	牽 family
+A5B0	Hong	弘 given
+BAF5	Gang	綱 given
+DAAD	Jun	畯 given
+A9DB	Zhao	招 given
+AC46	Zheng	政 given
+A5D5AAEA	Baihu	白虎 given
+C1D6	Yu	輿 given
+A764	Wu	吳 city,family
+C574	Yi	懿 given
+B6C0	Huang	黃 family
+BB5C	Gai	蓋 given
+B0AA	Gao	高 family
+B746	Gan	幹 given
+A4EBAD5E	Yueying	月英 given
+C576	Quan	權 given
+B571	Hao	皓 given
+B6B6	Shun	順 given
+B5BE	Xiang	翔 given
+AA40	Sheng	昇 given
+B152	Chong	崇 given
+AB4A	Hou	侯 family
+A6A8	Cheng	成 family,given
+BFEF	Xuan	選 given
+AFAA	Zu	祖 family,given
+A4BDAE5D	Gongsun	公孫 family
+AEA5	Gong	恭 given
+B164	Kang	康 given
+C5D0	Zan	瓚 given
+ABD7	Du	度 given
+A4D5	Kong	孔 family
+FA40	Zhou	<FA40> given
+A977	Ding	定 given
+B0AAB0F3	Gaotang	高堂 family
+B6A9	Long	隆 given
+A84B	Pei	沛 given
+ACD3A86A	Huangfu	皇甫 family
+BFC4	Rong	融 given
+C4FD	Lan	覽 given
+A5EE	Wu	伍 family
+A5A8	Ju	巨 given
+B0EA	Guo	國 family
+B4BA	Jing	景 given
+A75E	Wu	吾 family
+ABDB	Yan	彥 given
+B0EAA4D3	Guotai	國太 given
+AD4A	Hu	胡 family
+C0D9	Ji	濟 given
+BDE8	Zhi	質 given
+A8AEA8E0	Che'er	車兒 given
+BFED	Zun	遵 given
+DC48	Zhen	軫 given
+C555	Gu	顧 family
+A461	Wu	兀 family
+ACF0B0A9	Tugu	突骨 given
+AF5A	Ban	班 given
+BEC4	Fen	奮 given
+C4F5	Lan	蘭 given
+AF50	Lie	烈 given
+B15A	Cui	崔 family
+DA7C	Yan	琰 given
+BDB2	Cai	蔡 family
+A4F3	Shi	氏 given
+A4A4	Zhong	中 given
+AA4C	Lin	林 given
+A5AA	Zuo	左 family
+B2C8	Ze	笮 family
+AC49	Shi	施 family
+AED2	Shuo	朔 given
+AE76	Shi	師 family,given
+C4A1	Zuan	纂 given
+A571B0A8	Sima	司馬 family
+AAA2	Yan	炎 given
+A7B7	Fu	孚 given
+B1E6	Wang	望 given
+C1C2	Xie	謝 family
+B1DC	Jing	旌 given
+A8AE	Che	車 family
+AB60	Zhou	冑 given
+A846	Sha	沙 family
+BCAFAC5F	Moke	摩柯 given
+A6B6	Zhu	朱 family
+A950	Zhou	周 family,given
+A9FD	Xin	昕 given
+A9F9	Ang	昂 given
+A6AE	Zhi	旨 given
+ADDC	Cang	倉 given
+AEF5	Tai	泰 given
+A67B	Zhou	州 family
+E8DB	Fang	魴 given
+B7EC	Yu	瑜 given
+BEDA	Ju	據 given
+AFAC	Zhu	祝 family
+FA45	Jun	<FA45> given
+B54D	Ran	然 given
+AA76	Zhi	治 given
+BDC7	Bao	褒 given
+AFFB	Xun	荀 family
+D17B	Yu	彧 given
+B245A45F	Chunyu	淳于 family
+C3A3	Qiong	瓊 given
+F3AA	Yi	顗 given
+B1E5	Xu	勗 given
+BFDB	Chen	諶 given
+B54A	Jiao	焦 family
+C1E9	Zhong	鍾 family
+B7B6	Yu	毓 given
+BDB1	Jiang	蔣 family
+DA7B	Wan	琬 given
+B77C	Hui	會 given
+B871B4EB	Yiqu	義渠 given
+A470	Xiao	小 family
+B3EC	Qiao	喬 given
+B4DC	Qin	欽 given
+C3D7	Qiao	譙 family
+B5CE	Shu	舒 given
+C4B2	Chu	觸 given
+A656	Xiang	向 family
+C364	Chong	寵 given
+AAF2	Shao	邵 family
+AEAD	Ti	悌 given
+D979	Bin	斌 given
+EDD9	Yao	繇 given
+C1E9C2F7	Zhongli	鍾離 family
+AAAA	Mu	牧 given
+AE7D	Xu	徐 family
+BA61	Rong	榮 given
+BDD1B8AF	Zhuge	諸葛 family
+ABF1	Ke	恪 given
+BD40	Jin	瑾 given
+A7A1	Jun	均 given
+BAFC	Xu	緒 given
+E8B0	Jing	靚 given
+C2A4	Zhan	瞻 given
+BDCF	Dan	誕 given
+AB47	Liang	亮 given
+AECC	Huang	晃 given
+B166	Shu	庶 given
+B2B1	Sheng	盛 family,given
+A848	Shen	沈 family
+BCFC	Ying	瑩 given
+A5D3	Shen	申 family
+A8AF	Xin	辛 family
+BECBAD5E	Xianying	憲英 given
+A7C2	Cen	岑 family
+A9FC	Hun	昏 given
+BAC2	Zhen	甄 family
+B4AF	Chang	敞 given
+AFD4	Dan	耽 given
+BC66	Shen	審 family
+B074	Pei	配 given
+CF69	Pi	毘 given
+B5FB	Ping	評 given
+AFB3	Qin	秦 family
+CC57	Mi	宓 given
+D6AA	Sui	眭 family
+A4B8B669	Yuanjin	元進 given
+A954	Gu	固 given
+B951	Zou	鄒 family
+A4A6	Dan	丹 given
+A979	Yi	宜 given
+A4BDAD5E	Gongying	公英 given
+B0D2	Man	曼 given
+A5DB	Shi	石 family
+AD63	Bao	苞 given
+C1A7	Xue	薛 family
+D2B7	Xu	珝 given
+BAEE	Zong	綜 given
+A5FE	Quan	全 family
+E97D	Yi	懌 given
+B3E6	Shan	單 family
+DA7A	Cong	琮 given
+BADD	Duan	端 given
+B1E4	Cao	曹 family
+E8FB	Rui	叡 given
+ABB7	Huan	奐 given
+BFAA	Xi	羲 given
+A5F0	Xiu	休 given
+B056	Xun	訓 given
+A7BA	Song	宋 family
+BECB	Xian	憲 given
+C1BE	Qian	謙 given
+AC78	Hong	洪 given
+AFC2	Chun	純 given
+B9FC	Zhang	彰 given
+AF75	Zhen	真 given
+A4AF	Ren	仁 given
+A9CA	Xing	性 given
+BEDE	Cao	操 given
+B26E	Shuang	爽 given
+A852	Chong	沖 given
+BB4E	Zang	臧 family
+A541	Pi	丕 given
+B05C	Bao	豹 given
+AADA	Fang	芳 given
+BBEC	Mao	髦 given
+BAB5	Xiong	熊 given
+AA71	Ju	沮 family
+C35B	Hu	鵠 given
+B1C2	Shou	授 given
+C4AC	Su	蘇 family
+ADB8	Fei	飛 given
+AD5A	Mao	茂 given
+A5D1	You	由 given
+AE5D	Sun	孫 family
+C65B	Guan	觀 given
+BEAC	Ji	冀 given
+B0ED	Jian	堅 given
+B0AE	Qian	乾 given
+B2AE	Jiao	皎 given
+B5A6	Ce	策 given
+BBE0	Shao	韶 given
+A97CADBB	Shangxiang	尚香 given
+BE5F	Zhen	震 given
+C052	Jing	靜 given
+A5F2	Zhong	仲 given
+B56E	Deng	登 given
+D6F6	Yi	翊 given
+C2A7	Li	禮 given
+BE7CAF5A	Luban	魯班 given
+A46A	Da	大 family
+A4D3A576	Taishi	太史 family
+A8C9	Xiang	享 given
+B74F	Ci	慈 given
+B161A8D3	Dailai	帶來 family
+AC7DA544	Dongzhu	洞主 given
+C0B9	Dai	戴 family
+B3AE	Ling	陵 given
+A6B7ABE4	Duosi	朵思 family
+A46AA4FD	Dawang	大王 given
+B169	Zhang	張 family
+BBAF	Zhao	趙 family
+B6B3	Yun	雲 given
+AD5E	Ying	英 family,given
+BF50	Yan	燕 given
+BEEE	Heng	橫 given
+F16D	Kai	闓 given
+A8A4	Jue	角 given
+AC4A	Ji	既 given
+B279	Qiu	球 given
+ECDA	Yi	嶷 given
+BEB1	Xun	勳 given
+AAEA	Hu	虎 given
+D354	Hong	紘 given
+ADA8	He	郃 given
+BC73	Guang	廣 given
+C2B8	Xiu	繡 given
+BD72	Ji	緝 given
+AC4BB5D8	Chunhua	春華 given
+AA51	Song	松 given
+A9D3	Cheng	承 given
+A5F4	Ren	任 given
+B649	Diao	貂 family
+C2CD	Chan	蟬 given
+AF53	Te	特 given
+AB6E	Nan	南 family,given
+A5AC	Bu	布 given
+C45F	Bao	寶 given
+B0D2A6A8	Mancheng	曼成 given
+B7A8	Yang	楊 family,given
+C16C	Yi	翼 given
+BFF1	Liao	遼 given
+B1E7	Liang	梁 family,given
+BE7C	Lu	魯 family,given
+B3AF	Chen	陳 family
+C0B3	Ying	應 given
+AE63	Gong	宮 given
+C142	Jiao	矯 given
+B873	Qun	群 given
+AF5E	Gui	珪 given
+C4CA	Qian	騫 given
+B9D8	Shou	壽 given
+A6A1	Shi	式 given
+A8EC	Dao	到 given
+AAED	Biao	表 given
+AA5A	Wu	武 family,given
+B559	Lin	琳 given
+B57B	Cheng	程 family
+AC52	Yu	昱 given
+BBB7A7D3	Yuanzhi	遠志 given
+A442	Ding	丁 family
+BBC8	Yin	銀 given
+ADEC	Yuan	原 given
+B4B6	Pu	普 given
+AAC3	Bing	秉 given
+A95E	Feng	奉 given
+ABCA	Feng	封 given
+A8E5	Dian	典 family,given
+A5D0	Tian	田 family
+B7A2	Kai	楷 given
+C3A5	Chou	疇 given
+C2D7	Feng	豐 given
+BAA1	Man	滿 family,given
+A4A9	Yu	予 given
+BCF0	Teng	滕 family
+B8B3	Dong	董 family
+BE48	Deng	鄧 family
+A6E3	Ai	艾 given
+C4D2	Dang	黨 family,given
+B3D6	Jue	厥 given
+B3B3	Tao	陶 family
+BDE5	Xian	賢 given
+AADB	Zhi	芝 given
+ADF0	Tang	唐 family
+AB74	Zi	咨 given
+C5A7	Xi	襲 given
+B2E7	Xiu	脩 given
+A8F4	Zhuo	卓 given
+B4C2	Chao	朝 given
+B2FEA8BA	Tuna	荼那 given
+B16C	Bin	彬 given
+CCC9	Min	旻 given
+A7F9	Du	杜 family
+BD42	Ji	畿 given
+B977	Yu	預 given
+DAAC	Ning	甯 family
+C048	Sui	隨 given
+BB70	Pei	裴 family
+A4B8B2D0	Yuanshao	元紹 given
+B6B3F1B3	Yunlu	雲騄 given
+AAB1	Wan	玩 given
+B676	Jun	鈞 given
+AA69	Bo	波 family
+A47E	Cai	才 given
+EEA2	Su	謖 given
+A9A7	Dai	岱 given
+B657	Chao	超 given
+C54B	Tie	鐵 given
+C4CB	Teng	騰 given
+B855	Wan	萬 family
+BCD4	Fan	樊 family
+BCEF	Pan	潘 family
+BCFD	Zhang	璋 given
+B859	Chou	稠 given
+AFE0	Neng	能 given
+BBF1	Feng	鳳 given
+B64F	Fei	費 family
+A8F5	Bei	卑 family
+AD6C	Yan	衍 given
+B8D6	Shi	詩 given
+C153	Mi	糜 family
+AAC7	Zhu	竺 given
+C4A3	Yao	耀 given
+A677B0EA	Anguo	安國 given
+B6BE	Feng	馮 family
+B2DF	Xi	習 given
+B3C5	Fu	傅 family
+E14C	Gu	嘏 given
+B3C5A468	Fushi	傅士 family
+DCC2	Qian	僉 given
+B453	Xun	巽 given
+A7CD	Tong	彤 given
+A4E5	Wen	文 family
+C06D	Yang	鴦 given
+C1E0	Chou	醜 given
+B875	Pin	聘 given
+A4CB	Bian	卞 family
+B3DF	Xi	喜 given
+A4E8	Fang	方 family
+AEAE	Yue	悅 given
+C365	Pang	龐 family
+A6A3	Mang	忙 family
+A4FAAAF8	Yachang	牙長 given
+B37B	Feng	逢 family
+C06A	Bao	鮑 family
+A454AE51	Sanniang	三娘 given
+AB48	Xin	信 given
+AA6B	Fa	法 family
+A842	Bu	步 family
+A8F3	Xie	協 given
+BF70	Mu	穆 family
+C0E4B6A7	Puyang	濮陽 city,family
+A4ECB3C0	Mulu	木鹿 family
+F563	Zhi	騭 given
+C4C4	Chan	闡 given
+A4F2	Mao	毛 family
+CD6B	Jie	玠 given
+A973	Meng	孟 family
+C0F2	Huo	獲 given
+A976	Zong	宗 given
+B946	Da	達 given
+C075	You	優 given
+AB5C	Yu	俞 family
+AF41	She	涉 given
+C368	Huai	懷 given
+AA59	Xin	欣 given
+A6CF	Yang	羊 family
+D2E9	Hu	祜 given
+ACEE	Qiu	秋 given
+AFAE	Zuo	祚 given
+BB46	Zhao	肇 given
+AC66	Bo	柏 given
+AAFA	Fu	阜 given
+BE57	Feng	鋒 given
+B970	Lei	雷 family
+BBC9	Tong	銅 given
+C1A1	Bo	薄 given
+C064	Luo	駱 family
+C3B9	Luo	羅 family
+A7F5	Li	李 family
+D852	Jue	傕 given
+B3B0	Lu	陸 family
+B3CD	Kai	凱 given
+A7DC	Kang	抗 given
+C15A	Ji	績 given
+BBB9	Xun	遜 given
+BEA7	Ru	儒 given
+B3D3	Sheng	勝 given
+B3F4	Kan	堪 given
+B371	Tong	通 given
+BC42	Liu	劉 family
+B26A	Yan	焉 given
+FA41	Gui	<FA41> given
+B561	Qi	琦 given
+AF64	Liu	留 family
+C3D9	Zan	贊 given
+B460	Xun	循 given
+CA6F	Shao	劭 given
+A5E0	Cheng	丞 given
+C27B	Xuan	璿 given
+C149	Shan	禪 given
+A4DA	Ba	巴 given
+BD59	Pan	磐 given
+B3C6	Bei	備 given
+B940	Pi	辟 given
+BEE7	Ye	曄 given
+B2A4	Lüe	略 given
+A766	Lü	呂 family
+ABC2BF58	Weihuang	威璜 given
+B9F9	Liao	廖 family
+A4C6	Hua	化 given
+ADE2	Ling	凌 family
+A5DF	Li	立 given
+B040	Qian	虔 given
+C36D	Kuang	曠 given
+BB58	Meng	蒙 family,given
+ACC2BAF6	Lingqi	玲綺 given
+ADDB	Lun	倫 family
+AABD	Zhi	直 given
+A74E	Leng	冷 family
+B0FA	Lou	婁 family
+A663	Gui	圭 given
+BCD3	Lou	樓 family
+B251	Shu	淑 given
+BF63	Lu	盧 family
+A576B9EA	Historic	史實 family
+A2AFA2B0	01	０１ given
+A2AFA2B1	02	０２ given
+A2AFA2B2	03	０３ given
+A2AFA2B3	04	０４ given
+A2AFA2B4	05	０５ given
+A2AFA2B5	06	０６ given
+A2AFA2B6	07	０７ given
+A2AFA2B7	08	０８ given
+A2AFA2B8	09	０９ given
+A2B0A2AF	10	１０ given
+A2B0A2B0	11	１１ given
+A2B0A2B1	12	１２ given
+A2B0A2B2	13	１３ given
+A2B0A2B3	14	１４ given
+A2B0A2B4	15	１５ given
+A2B0A2B5	16	１６ given
+A2B0A2B6	17	１７ given
+A2B0A2B7	18	１８ given
+A2B0A2B8	19	１９ given
+A2B1A2AF	20	２０ given
+A2B1A2B0	21	２１ given
+A2B1A2B1	22	２２ given
+A2B1A2B2	23	２３ given
+A2B1A2B3	24	２４ given
+A2B1A2B4	25	２５ given
+A2B1A2B5	26	２６ given
+A2B1A2B6	27	２７ given
+A2B1A2B7	28	２８ given
+A2B1A2B8	29	２９ given
+ABD2	Di	帝 given
+A4D6	Shao	少 family
+C46D	Xian	獻 family
+A64E	Ji	吉 given
+A6EF	Tuo	佗 given
+E078	Lu	輅 given
+C0B2	Hui	徽 given
+F2A5	Mi	禰 family
+BFC5	Heng	衡 given
+A9D3ABDB	Chengyan	承彥 given
+A55F	Bei	北 family
+A4E6	Dou	斗 given
+B573	Dao	盜 family
+B8E9	Zei	賊 family,given
+A978	Guan	官 given
+A468	Shi	士 family
+A74C	Bing	兵 given
+A86B	Man	男 whole name
+A46B	Woman	女 whole name
+A6D1	Lao	老 family
+A448	Ren	人 given
+ABC4	Hai	孩 given
+AF51A459	Wuwan	烏丸 family
+C059A5D8	Toumu	頭目 given
+AA5AB14E	General	武將 whole name
+AACAB1DA	Qiangzu	羌族 family
+A473B656	Shanyue	山越 family
+AB6EC65A	Nanman	南蠻 family
+C5FD	Rang	讓 given
+EEBF	Jian	蹇 family
+BAD3	Shuo	碩 given
+C0A6	Ying	嬰 family
+A8E0	Er	兒 given
+B6C7	Chuan	傳 family
+A54F	Ling	令 given
+C576B6D5	Quanshi	權勢 family
+AACC	Zhe	者 given
+C2E5	Yi	醫 family
+A5CD	Sheng	生 given
+A4D1A4E5	Tianwen	天文 family
+ACD3	Huang	皇 family
+A65A	Hou	后 given
+AFCE	Weng	翁 given
+B143B143	Popo	婆婆 given
+A550	Xian	仙 family
+B463	E	惡 family
+A6DA	Chen	臣 given
+ABC6	Huan	宦 family
+A8CF	Shi	使 family
+B14E	Jiang	將 given
+B6C0A479	Huangjin	黃巾 family
+AA5AC3C0	Wuyi	武藝 family
+B941	Nong	農 family
+A5C1	Min	民 given
+B0D3	Shang	商 family
+B3D2B0CA	Laodong	勞動 family
+A67EBBB4	Nianqing	年輕 family
+A5ADA5C1	Pingmin	平民 family
+A968AE51	Guniang	姑娘 given
+B5A3	Tong	童 given
+B449	Fu	富 family
+C2BE	Zhi	職 family
+B0BD	Tou	偷 given
+AEC8	Lü	旅 family
+B073AE61	Jiujia	酒家 family
+ABC8B4CC	Kezhan	客棧 family
+BAAE	Yu	漁 family
+A4D2	Fu	夫 given
+BEC7	Xue	學 family
+A8C6	Event	事 family
+A2B5A2B3	64	６４ given
+A2B5A2B4	65	６５ given
+A2B5A2B5	66	６６ given
+A2B5A2B6	67	６７ given
+A2B5A2B7	68	６８ given
+A2B5A2B8	69	６９ given
+A2B6A2AF	70	７０ given
+A2B6A2B0	71	７１ given
+A2B6A2B1	72	７２ given
+A2B6A2B2	73	７３ given
+A2B6A2B3	74	７４ given
+A2B6A2B4	75	７５ given
+A2B6A2B5	76	７６ given
+A2B6A2B6	77	７７ given
+A2B6A2B7	78	７８ given
+A2B6A2B8	79	７９ given
+A2B7A2AF	80	８０ given
+A2B7A2B0	81	８１ given
+A2B7A2B1	82	８２ given
+A2B7A2B2	83	８３ given
+A2B7A2B3	84	８４ given
+A2B7A2B4	85	８５ given
+A2B7A2B5	86	８６ given
+A2B7A2B6	87	８７ given
+A2B7A2B7	88	８８ given
+A2B7A2B8	89	８９ given
+A2B8A2AF	90	９０ given
+A2B8A2B0	91	９１ given
+A2B8A2B1	92	９２ given
+A2B8A2B2	93	９３ given
+A2B8A2B3	94	９４ given
+A2B8A2B4	95	９５ given
+A2B8A2B5	96	９６ given
+A2B8A2B6	97	９７ given
+A2B8A2B7	98	９８ given
+A2B8A2B8	99	９９ given
+A2CFA2AF	A0	Ａ０ given
+C2C1	Bin	臏 given
+BCDD	Yi	毅 given
+C4A9	Lin	藺 family
+ACDBA670	Xiangru	相如 given
+A5D5	Bai	白 family
+B05F	Qi	起 given
+C4B9	Ying	贏 family
+B4B5	Si	斯 given
+E6F9	Jian	翦 given
+ABEF	Tian	恬 given
+B6B5	Xiang	項 family
+AD53	Fan	范 family
+BC57	Zeng	增 given
+A8B9	Bang	邦 given
+B45E	Peng	彭 family
+A568AF66	Qubing	去病 given
+A46AB2B4	Dayan	大眼 given
+BC79A4A7	Qingzhi	慶之 given
+AAF8AEA5	Changgong	長恭 given
+B6D6	Ji	勣 given
+B14CBFF0	Yuchi	尉遲 family
+A9A8	Yue	岳 family
+A87DA5C9	Liangyu	良玉 given
+BE47	Zheng	鄭 family
+A6A8A55C	Chenggong	成功 given
+A669A75E	Yiwu	夷吾 given
+A8FBA4FA	Shuya	叔牙 given
+BFBD	Xiao	蕭 family
+A56AA54E	Ancient	古代 family
+A2B2A2B2	33	３３ given
+A2B2A2B3	34	３４ given
+A2B2A2B4	35	３５ given
+A2B2A2B5	36	３６ given
+A2B2A2B6	37	３７ given
+A2B2A2B7	38	３８ given
+A2B2A2B8	39	３９ given
+A2B3A2AF	40	４０ given
+A2B3A2B0	41	４１ given
+A2B3A2B1	42	４２ given
+A2B3A2B2	43	４３ given
+A2B3A2B3	44	４４ given
+A2B3A2B4	45	４５ given
+A2B3A2B5	46	４６ given
+A2B3A2B6	47	４７ given
+A2B3A2B7	48	４８ given
+A2B3A2B8	49	４９ given
+A2B4A2AF	50	５０ given
+C1B8A5AD	Xiangping	襄平 city
+A55FA5AD	Beiping	北平 city
+C1AA	Ji	薊 city
+AB6EA5D6	Nanpi	南皮 city
+A5ADADEC	Pingyuan	平原 city
+AECAB6A7	Jinyang	晉陽 city
+BFF3	Ye	鄴 city
+A55FAEFC	Beihai	北海 city
+A455CDD6	Xiapi	下邳 city
+A470A84B	Xiaopei	小沛 city
+B9D8AC4B	Shouchun	壽春 city
+B3AFAF64	Chenliu	陳留 city
+B35CA9F7	Xuchang	許昌 city
+A6BCAB6E	Runan	汝南 city
+ACA5B6A7	Luoyang	洛陽 city
+A97B	Wan	宛 city
+AAF8A677	Chang'an	長安 city
+A457B165	Shangyong	上庸 city
+A677A977	Anding	安定 city
+A4D1A4F4	Tianshui	天水 city
+AA5AABC2	Wuwei	武威 city
+ABD8B77E	Jianye	建業 city
+B77CBD5D	Kuaiji	會稽 city
+C366A6BF	Lujiang	廬江 city
+AEE3AEE1	Chaisang	柴桑 city
+A6BFAE4C	Jiangxia	江夏 city
+B773B3A5	Xinye	新野 city
+C1B8B6A7	Xiangyang	襄陽 city
+A6BFB3AE	Jiangling	江陵 city
+AAF8A846	Changsha	長沙 city
+AA5AB3AE	Wuling	武陵 city
+AEDBB6A7	Guiyang	桂陽 city
+B973B3AE	Lingling	零陵 city
+A5C3A677	Yong'an	永安 city
+BA7EA4A4	Hanzhong	漢中 city
+B1EABCE0	Zitong	梓潼 city
+A6BFA67B	Jiangzhou	江州 city
+A6A8B3A3	Chengdu	成都 city
+ABD8B9E7	Jianning	建寧 city
+B6B3AB6E	Yunnan	雲南 city
+B3FDC3F6	Hu Pass	壺關 base
+AAEAA863C3F6	Hulao Pass	虎牢關 base
+BCE0C3F6	Tong Pass	潼關 base
+A8E7A8A6C3F6	Hangu Pass	函谷關 base
+AA5AC3F6	Wu Pass	武關 base
+B6A7A5ADC3F6	Yangping Pass	陽平關 base
+BC43BBD5	Jiange	劍閣 base
+B8B5B5DEC3F6	Jiameng Pass	葭萌關 base
+B265A4F4C3F6	Fushui Pass	涪水關 base
+BAF8A6CBC3F6	Mianzhu Pass	綿竹關 base
+A677A5ADB4E4	Anping Port	安平港 base
+B0AAADF0B4E4	Gaotang Port	高唐港 base
+A6E8AA65B4E4	Xihe Port	西河港 base
+A5D5B0A8B4E4	Baima Port	白馬港 base
+A9F7B6A7B4E4	Changyang Port	昌陽港 base
+C17BC0D9B4E4	Linji Port	臨濟港 base
+AEFCB3AEB4E4	Hailing Port	海陵港 base
+A6BFB3A3B4E4	Jiangdu Port	江都港 base
+C0E1B6B7B4E4	Ruxu Port	濡須港 base
+B979A543B4E4	Dunqiu Port	頓丘港 base
+A978B4E7B4E4	Guandu Port	官渡港 base
+A973AC7AB4E4	Mengjin Port	孟津港 base
+B8D1BFA4B4E4	Xiexian Port	解縣港 base
+B773C2D7B4E4	Xinfeng Port	新豐港 base
+AE4CB6A7B4E4	Xiayang Port	夏陽港 base
+A9D0B3AEB4E4	Fangling Port	房陵港 base
+BFBEB4F2B4E4	Wuhu Port	蕪湖港 base
+AAEAAA4CB4E4	Hulin Port	虎林港 base
+A6B1AAFCB4E4	Qua Port	曲阿港 base
+A579B3B9B4E4	Gouzhang Port	句章港 base
+B570A466B4E4	Wankou Port	皖口港 base
+A445A6BFB4E4	Jiujiang Port	九江港 base
+B3B0A466B4E4	Lukou Port	陸口港 base
+BE49B6A7B4E4	Poyang Port	鄱陽港 base
+BF63B3AEB4E4	Luling Port	盧陵港 base
+AE4CA466B4E4	Xiakou Port	夏口港 base
+B4F2B6A7B4E4	Huyang Port	湖陽港 base
+A4A4C366B4E4	Zhonglu Port	中廬港 base
+AF51AA4CB4E4	Wulin Port	烏林港 base
+BA7EAC7AB4E4	Hanjin Port	漢津港 base
+A6BFAC7AB4E4	Jiangjin Port	江津港 base
+C3B9BFA4B4E4	Luoxian Port	羅縣港 base
+AC7DAE78B4E4	Dongting Port	洞庭港 base
+A4BDA677B4E4	Gongan Port	公安港 base
+A7C5BFA4B4E4	Wuxian Port	巫縣港 base
+B573B8E9	Bandit	盜賊 whole name
+A4E5A978	Official	文官 whole name
+A468A74C	Soldier	士兵 whole name
+A6D1A448	Elder	老人 whole name
+A470ABC4	Child	小孩 whole name
+AF51A459C059A5D8	Wuhuan Chief	烏丸頭目 whole name
+AF51A459AA5AB14E	Wuhuan General	烏丸武將 whole name
+AACAB1DAC059A5D8	Qiang Chief	羌族頭目 whole name
+AACAB1DAAA5AB14E	Qiang General	羌族武將 whole name
+A473B656C059A5D8	Shanyue Chief	山越頭目 whole name
+A473B656AA5AB14E	Shanyue General	山越武將 whole name
+AB6EC65AC059A5D8	Nanman Chief	南蠻頭目 whole name
+AB6EC65AAA5AB14E	Nanman General	南蠻武將 whole name
+C0A6A8E0	Baby	嬰兒 whole name
+B6C7A54F	Herald	傳令 whole name
+C576B6D5AACC	Noble	權勢者 whole name
+C2E5A5CD	Doctor	醫生 whole name
+A4D1A4E5A978	Astronomer	天文官 whole name
+ACD3A65A	Empress	皇后 whole name
+A6D1AFCE	Old Man	老翁 whole name
+A6D1B143B143	Old Woman	老婆婆 whole name
+A550A448	Sage	仙人 whole name
+B463A6DA	Evil Minister	惡臣 whole name
+ABC6A978	Eunuch	宦官 whole name
+A8CFAACC	Envoy	使者 whole name
+BDC3A74C	Guard	衛兵 whole name
+B8E9B14E	Bandit General	賊將 whole name
+B6C0A479C4D2	Yellow Turban	黃巾黨 whole name
+AA5AC3C0AACC	Martial Artist	武藝者 whole name
+B941A5C1	Farmer	農民 whole name
+B0D3A448	Merchant	商人 whole name
+B3D2B0CAAACC	Laborer	勞動者 whole name
+A67EBBB4A448	Young Man	年輕人 whole name
+A5ADA5C1A968AE51	Village Girl	平民姑娘 whole name
+A86BB5A3	Boy	男童 whole name
+A46BB5A3	Girl	女童 whole name
+B449AFCE	Rich Man	富翁 whole name
+C2BEA448	Craftsman	職人 whole name
+A470B0BD	Thief	小偷 whole name
+AEC8A448	Traveler	旅人 whole name
+B073AE61A968AE51	Tavern Girl	酒家姑娘 whole name
+ABC8B4CCA968AE51	Inn Girl	客棧姑娘 whole name
+BAAEA4D2	Fisherman	漁夫 whole name
+BEC7AACC	Scholar	學者 whole name
+C646ABD2	Emperor Ling	靈帝 whole name
+A4D6ABD2	Emperor Shao	少帝 whole name
+C46DABD2	Emperor Xian	獻帝 whole name
+A55FA4E6	Beidou	北斗 whole name
+AB6EA4E6	Nandou	南斗 whole name
+AAFCB77CB3E4	Ahuinan	阿會喃 whole name
+A461ACF0B0A9	Wutugu	兀突骨 whole name
+A846BCAFAC5F	Shamoke	沙摩柯 whole name
+B161A8D3AC7DA544	Dailai Dongzhu	帶來洞主 whole name
+A6B7ABE4A46AA4FD	King Duosi	朵思大王 whole name
+A4ECB3C0A46AA4FD	King Mulu	木鹿大王 whole name
+B8B3B2FEA8BA	Dong Tuna	董荼那 whole name
+A6A3A4FAAAF8	Mangyachang	忙牙長 whole name
+AAF7C0F4A454B5B2	Jinhuan Sanjie	金環三結 whole name
+BDB2A4F3	Lady Cai	蔡氏 whole name
+BAC2A4F3	Lady Zhen	甄氏 whole name
+AE7DA4F3	Lady Xu	徐氏 whole name
+B951A4F3	Lady Zou	鄒氏 whole name
+AE5DA4F3	Lady Sun	孫氏 whole name
+BCD4A4F3	Lady Fan	樊氏 whole name
+C153A4F3	Lady Mi	糜氏 whole name
+A4CBA4F3	Lady Bian	卞氏 whole name
+BC42A4F3	Lady Liu	劉氏 whole name
+A764B0EAA4D3	Lady Wu	吳國太 whole name
+AFACBFC4	Lady Zhurong	祝融 whole name
+BCD6E36A	Yue Lin	樂綝 whole name
+B649C2CD	Diaochan	貂蟬 whole name
+AC79AC50C2F1	Meteor Hammer	流星鎚 item
+ADB8A44D	Throwing Knife	飛刀 item
+B575B475	Short Halberd	短戟 item
+A4E2B475	Hand Halberd	手戟 item
+C54BC2EA	Iron Chain	鐵鎖 item
+BE69A5D1B0F2A47D	Yang Youji's Bow	養由基弓 item
+A7F5BC73A47D	Li Guang's Bow	李廣弓 item
+C0C8A47D	Sandalwood Bow	檀弓 item
+AA46AD4AADB8A47D	Donghu Flying Bow	東胡飛弓 item
+B8E7A47D	Mo Bow	貊弓 item
+A74CAA6BA447A451A57CBD67	Art of War in 24 Chapters	兵法二十四篇 item
+A4BBC3FC	Six Secret Teachings	六韜 item
+A454B2A4	Three Strategies	三略 item
+A764A46C	Wuzi	吳子 item
+B14CC2B7A46C	Wei Liaozi	尉繚子 item
+BED4B0EAB5A6	Warring States Strategies	戰國策 item
+A571B0A8AA6B	Sima Fa	司馬法 item
+BEA5A46C	Mozi	墨子 item
+A4D3A5ADAD6EB34E	Book of Peace	太平要術 item
+B944A8E3	Item	道具 item
+ABD5A67B	Youzhou	幽州 province
+BEACA67B	Jizhou	冀州 province
+AB43AE7D	Qingxu	青徐 province
+AB5EA4A9	Yanyu	兗予 province
+A571C1F5	Sili	司隸 province
+A8CAA5FC	Jingzhao	京兆 province
+B244A67B	Liangzhou	涼州 province
+B4ADA67B	Yangzhou	揚州 province
+AFF0A55F	North Jing	荊北 province
+AFF0AB6E	South Jing	荊南 province
+AF71A67B	Yizhou	益州 province
+AB6EA4A4	Nanzhong	南中 province
+AA65A55F	Hebei	河北 province
+A473	Shan	山 extra
+A8AAA8DFB0A8	Red Hare	赤兔馬 item
+AABABF63	Dilu	的盧 item
+A4F6B6C0ADB8B971	Yellow lightning	爪黃飛電 item
+B5B4BC76	Shadow	絕影 item
+A46AA97BB0A8	Ferghana horse	大宛馬 item
+A443AC50C45FA44D	Seven star sword	七星寶刀 item
+ADCAA4D1BC43	Yitian sword	倚天劍 item
+AB43B3AABC43	Qinggang sword	青釭劍 item
+BBDBB6AFA440B9EFBC43	Twin swords	雌雄一對劍 item
+A4E8A4D1B565B475	Sky piercer	方天畫戟 item
+AB43C073B0B3A4EBA44D	Green dragon blade	青龍偃月刀 item
+B344A5D9	Serpent spear	蛇矛 item
+AE5DA46CA74CAA6B	Art of war	孫子兵法 item
+A973BC77B773AED1	Mengde new book	孟德新書 item
+A5C9C3A2	Imperial seal	玉璽 item
+BBC9B3B6	Bronze bird	銅雀 item
+AB43	Qing	青 ancient
+B747	Lian	廉 ancient
+BBE1	Po	頗 ancient
+A46CAD45	Zixu	子胥 ancient
+A6E8	Xi	西 ancient

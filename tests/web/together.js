@@ -4,8 +4,6 @@
 const { expect } = require("@playwright/test");
 const h = require("./hexdom");
 
-const TITLE_SELECT_MS = 1500;
-
 async function signInAs(page, name) {
   page.on("console", (message) => {
     const text = message.text();
@@ -49,7 +47,6 @@ async function startTogether(browser, beforeStart, rulerCount = 2) {
   await signInAs(host, "Tester");
   await h.waitForTitle(host);
   await h.clickItem(host, "title_new");
-  await host.waitForTimeout(TITLE_SELECT_MS);
   await h.clickItem(host, "sc0");
   const rulers = JSON.parse(await h.call(host, "wasm_test_item_ids", "string", ["string"], ["ruler"]));
   expect(rulers.length).toBeGreaterThanOrEqual(rulerCount);

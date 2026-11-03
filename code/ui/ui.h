@@ -51,11 +51,7 @@ enum ui_target_kind { UI_TARGET_NONE, UI_TARGET_ENEMY, UI_TARGET_FOLLOW, UI_TARG
 /* The tabs of the list panel of the HUD (main-map.md, "List panel"). */
 enum ui_hud_tab { UI_HUD_TAB_BASES, UI_HUD_TAB_OFFICERS, UI_HUD_TAB_UNITS, UI_HUD_TAB_COUNT };
 
-/* M17: the times of the first screens (ui/title-and-load.md). The capture
-   gives "approximately" for both. */
-#define UI_TITLE_SELECT_SECONDS    1.0f   /* the rider after a click on a title button */
-#define UI_LOAD_TRANSITION_SECONDS 4.0f   /* the dark landscape while a save loads */
-#define UI_SPLASH_SECONDS          3.0f   /* the splash art before the title menu; a click or a key closes it before */
+#define UI_SPLASH_SECONDS         3.0f   /* the splash art before the title menu; a click or a key closes it before */
 #define UI_SPLASH_LONGEST_STEP     0.1f   /* one frame adds at most this time to the splash, also the long frame after the start */
 #define UI_MESSAGE_CAPACITY        32     /* the messages of one turn start; the log keeps the rest */
 #define UI_CAPTIVE_QUEUE           16            /* the captives of one battle that wait for the dialog 俘虜處置 */
@@ -103,7 +99,6 @@ enum ui_title_choice
     UI_TITLE_NONE,
     UI_TITLE_LOAD,
     UI_TITLE_NEW,
-    UI_TITLE_BATTLE,
     UI_TITLE_OPTIONS,
     UI_TITLE_QUIT
 };
@@ -447,7 +442,6 @@ struct ui_state
     bool show_options;
     bool show_new_officer;
     bool show_editor;
-    bool show_battles;
     bool show_abilities;
     bool show_info;
     bool show_help;              /* M22: the help window of the "?" button */
@@ -478,17 +472,12 @@ struct ui_state
         bool                  has_result;
         engine_install_result result;                     /* the answer of the last Set or Clear */
     } content;
-    /* M17: the feel of the first hour. With original_timing off, each
-       screen opens at once, as in M9 to M16. With turn_messages off, no
-       message window opens. The game exe turns both on. */
+    /* M17: the feel of the first hour. With turn_messages off, no message
+       window opens. The game exe turns it on. */
     struct
     {
-        bool original_timing;
         bool turn_messages;
-        u32  title_choice;        /* ui_title_choice: the clicked button while the rider runs */
-        f32  title_seconds;       /* the time since the click */
-        f32  transition_seconds;  /* above 0: the load transition shows for this time */
-        bool seen_turn;           /* turn and force hold the last turn start of a player */
+        bool seen_turn;          /* turn and force hold the last turn start of a player */
         u32  turn;
         u8   force;
         u32  ledger_mark;         /* the ledger count at the last turn start */

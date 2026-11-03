@@ -1518,11 +1518,10 @@ demo_m9_playable(ImGuiTestContext *ctx)
     demo_m9_layout(v);
     ctx->SleepStandard();
 
-    /* 情報 and 決戰稱霸. */
+    /* 情報. */
     ctx->SetRef("###TopBar");
     ctx->ItemClick("###open_info");
     IM_CHECK(v.ui.show_info);
-    v.ui.show_battles = true;
     ctx->Yield(2);
     IM_CHECK(api->battle_count(e) == 5);
     ctx->SleepStandard();
@@ -1532,7 +1531,6 @@ demo_m9_playable(ImGuiTestContext *ctx)
     IM_CHECK(demo_screenshot_panel(ctx, milestone, "###TopBar", "topbar"));
     IM_CHECK(demo_screenshot_panel(ctx, milestone, "###History", "history"));
     IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Info", "info"));
-    IM_CHECK(demo_screenshot_panel(ctx, milestone, "###Battles", "battles"));
     v.ui.show_abilities = v.ui.show_new_officer = true;
     ui_open_saveload(&v.ui, api, true);
     v.ui.show_title = v.ui.show_scenarios = v.ui.show_start_settings = true;
@@ -2734,8 +2732,7 @@ demo_steps_at(u32 *steps, u32 width, u32 height, hex_coord hex)
     return steps[(u32)cell.row * width + (u32)cell.col];
 }
 
-/* M17 (tutorial 30): the first hour on the real map with the original
-   timing. 重新開始新遊戲 waits for the rider. 群雄割據 with the faction of
+/* M17 (tutorial 30): the first hour on the real map. 群雄割據 with the faction of
    the most cities, then the settings. The first turn shows its messages,
    and each click advances one. Then 進行 of the map menu turn by turn.
    In the fourth turn the player sends a unit against the nearest rival
@@ -2751,18 +2748,15 @@ demo_m17_first_hour(ImGuiTestContext *ctx)
     engine_api *api = &v.api;
     void *e = api->engine;
     IM_CHECK(api->map_info(e).real_map);
-    v.ui.feel.original_timing = true;
     v.ui.feel.turn_messages   = true;
     IM_CHECK(demo_begin_video(ctx, milestone));
 
-    /* 標題: the rider, then the scenario list. */
+    /* 標題, then the scenario list. */
     v.ui.show_title = true;
     ctx->Yield(2);
     ctx->SetRef("//###Title");
     ctx->SleepStandard();
     ctx->ItemClick("###title_new");
-    IM_CHECK(!ctx->ItemExists("###title_load"));
-    for (u32 frame = 0; frame < 600 && !v.ui.show_scenarios; ++frame) ctx->Yield();
     IM_CHECK(v.ui.show_scenarios);
     ctx->SetRef("//###Scenarios");
     ctx->ItemClick("###sc1");
