@@ -117,6 +117,8 @@ test("a new game of 1200 starts the engine again with the map of Europe", async 
 test("the quit button of the title asks, then signs the user out", async ({ page }) => {
   await h.signIn(page);
   page.once("dialog", (dialog) => dialog.accept());
-  await h.clickItem(page, "title_quit");
-  await page.waitForURL((url) => url.pathname === "/login", { timeout: 30_000 });
+  // The button acts at once, so the page can leave during the last frames of the click.
+  const signedOut = page.waitForURL((url) => url.pathname === "/login", { timeout: 30_000 });
+  await h.clickItem(page, "title_quit").catch(() => {});
+  await signedOut;
 });

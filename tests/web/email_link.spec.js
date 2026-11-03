@@ -37,6 +37,18 @@ test("a click on the link and on the button signs the user in", async ({ page })
   expect(cookie.sameSite).toBe("Lax");
 });
 
+test("the tester address signs in with no link", async ({ page }) => {
+  fs.rmSync(OUTBOX, { force: true });
+  await page.goto("/login");
+  await page.fill("#email-address", "tester@cccsoftwares.com");
+  await page.click("#email-submit");
+  await page.waitForURL((url) => url.pathname === "/");
+  const me = await (await page.request.get("/api/me")).json();
+  expect(me.name).toBe("tester");
+  expect(me.admin).toBe(false);
+  expect(fs.existsSync(OUTBOX)).toBe(false);
+});
+
 test("the link works one time", async ({ page, browser }) => {
   const link = await askForLink(page, "oncetester@example.com");
   await page.goto(link);
