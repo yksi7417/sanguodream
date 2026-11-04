@@ -1,0 +1,16 @@
+file	prompt	model	date	source	note
+# The provenance of each sprite of this folder (docs/ASSETS.md, "The art of a pack"). misc/art_import.py cut the front view of each sheet.
+banner.png	eu-banner	image model of the owner	2026-11-03	Drive folder "Europe - Map Art", eu-banner.jpg	the front view of the sheet
+battle_ship.png	eu-battle-ship	image model of the owner	2026-11-03	Drive folder "Europe - Map Art", eu-battle-ship.jpg	the front view of the sheet
+catapult.png	eu-catapult	image model of the owner	2026-11-03	Drive folder "Europe - Map Art", eu-catapult.jpg	the front view of the sheet
+cavalry.png	eu-cavalry	image model of the owner	2026-11-03	Drive folder "Europe - Map Art", eu-cavalry.jpg	the front view of the sheet
+crossbow.png	eu-crossbow	image model of the owner	2026-11-03	Drive folder "Europe - Map Art", eu-crossbow.jpg	the front view of the sheet
+halberd.png	eu-halberd	image model of the owner	2026-11-03	Drive folder "Europe - Map Art", eu-halberd.jpg	the front view of the sheet
+pike.png	eu-pike	image model of the owner	2026-11-03	Drive folder "Europe - Map Art", eu-pike.jpg	the front view of the sheet
+ram.png	eu-ram	image model of the owner	2026-11-03	Drive folder "Europe - Map Art", eu-ram.jpg	the front view of the sheet
+sword.png	eu-sword	image model of the owner	2026-11-03	Drive folder "Europe - Map Art", eu-sword.jpg	the front view of the sheet
+tower.png	eu-tower	image model of the owner	2026-11-03	Drive folder "Europe - Map Art", eu-tower.jpg	the front view of the sheet
+tower_ship.png	eu-tower-ship	image model of the owner	2026-11-03	Drive folder "Europe - Map Art", eu-tower-ship.jpg	the front view of the sheet
+transport.png	eu-transport	image model of the owner	2026-11-03	Drive folder "Europe - Map Art", eu-transport.jpg	the front view of the sheet
+boat.png	docs/europe/ART-JOBS.tsv, eu-boat	Qwen-Image-Edit-2511 on the local server, Apache-2.0	2026-11-03	misc/local_art.py	the front view of the sheet
+wood_beast.png	docs/europe/ART-JOBS.tsv, eu-wood-beast	Qwen-Image-Edit-2511 on the local server, Apache-2.0	2026-11-03	misc/local_art.py	the front view of the sheet
