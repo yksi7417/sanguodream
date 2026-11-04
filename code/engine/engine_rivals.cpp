@@ -192,6 +192,7 @@ engine_api_unit_goal(void *opaque, u32 unit_id)
         goal.city_id = option->city_id == SIM_NO_CITY ? (u8)ENGINE_NO_CITY : option->city_id;
         goal.q       = option->target.q;
         goal.r       = option->target.r;
+        goal.kind    = option->goal;
         break;
     }
     return goal;

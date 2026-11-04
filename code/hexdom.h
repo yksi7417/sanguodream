@@ -134,6 +134,9 @@ enum platform_net_kind
     PLATFORM_NET_COPY_LINK, /* to the page. text: the invite link for the clipboard of the browser */
     PLATFORM_NET_NOTICE,    /* from the page. step: the platform_net_notice */
     PLATFORM_NET_AUTO,      /* both ways. step: 1 if the AI plays the faction of the local seat, 0 for the player */
+    PLATFORM_NET_END_GAME,  /* to the page. step: 1 ends the game or votes, 0 takes the vote back, 2 leaves the ended game */
+    PLATFORM_NET_ENDED,     /* from the page: the game ended. text: the player who ended it; empty after a vote of all players */
+    PLATFORM_NET_END_VOTES, /* from the page. step: the votes. seat: the players with a seat. host: the local player voted */
     PLATFORM_NET_KIND_COUNT
 };
 

@@ -56,6 +56,7 @@ ui_scene_mark(u32 *overlay, engine_terrain_view view, hex_coord h, u32 rgba)
 #include "ui/ui_effects.cpp"  /* the fire and the dizzy units on the map; needs ui_locate.cpp */
 #include "ui/ui_report.cpp"   /* M18: the log, the speech bubble and the values; needs ui_locate.cpp */
 #include "ui/ui_round.cpp"    /* M20: the show of the AI round; needs ui_report.cpp */
+#include "ui/ui_follow.cpp"   /* the option of the banner: the camera and the caption of each action */
 #include "ui/ui_war.cpp"      /* the walk, the strikes and the hits; needs ui_round.cpp */
 #include "ui/ui_minimap.cpp"  /* M12: the round mini map */
 #include "ui/ui_hud.cpp"      /* the HUD and the list of the game mode */
@@ -84,6 +85,7 @@ ui_init(ui_state *ui, text_catalog *text)
     ui->font_size     = HEXDOM_FONT_DEFAULT_PIXELS;
     ui->net             = {};   /* MP3: no shared game */
     ui->net.desync_step = -1;
+    ui->net.follow_seconds = UI_NET_FOLLOW_SECONDS;
     ui->officers_view = {};
     ui->cities_view   = {};
     ui->ledger_view   = {};
@@ -732,7 +734,10 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     if (hud_ready) ui_draw_feedback(ui, api);   /* M18: the speech bubble and the values over the base of a command */
     if (in_game)   ui_draw_war(ui, api);        /* the strikes and the values over the units */
     ui_draw_status_bar(ui, api);        /* M11: the terrain, the coordinates and what can stand on the hex under the mouse */
+    if (in_game) ui_draw_net_follow_caption(ui, api);   /* the officer of the action says what it does */
     ui_draw_net_banner(ui, api);        /* MP3: whose turn it is in a shared game */
+    ui_draw_net_end_confirm(ui);        /* the question before a player ends the game or votes */
+    ui_draw_net_ended(ui, api);         /* the end of a shared game: the last standings */
     ui_draw_net_chat(ui);               /* MP7: the chat of a shared game */
     ui_draw_net_invite(ui, api);        /* MP9: the invite link and the free seats */
     ui_draw_splash(ui, frame->dt_seconds);   /* the splash art: on top of everything before the title menu */

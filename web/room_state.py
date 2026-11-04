@@ -216,10 +216,19 @@ class Room:
         seat = self.player_seat(acting)
         return bool(seat and not seat.get("ai"))
 
+    def end_vote_forces(self):
+        """The factions of the players who voted to end the game. The uids stay on the server."""
+        votes = self.record.get("end_votes", [])
+        return sorted(seat["force"] for seat in self.record["seats"] if seat.get("uid") in votes)
+
+    def end_players(self):
+        """The uids of the players who must agree before a vote ends the game."""
+        return {seat["uid"] for seat in self.record["seats"] if seat.get("uid")}
+
     def public(self):
         """The room for the pages. The uids of the players stay on the server."""
-        record = {key: value for key, value in self.record.items() if key not in ("host", "deadline")}
-        record["seats"] = [{key: seat.get(key) for key in ("force", "name", "user", "ai", "auto")} for seat in self.record["seats"]]
+        record = {key: value for key, value in self.record.items() if key not in ("host", "deadline", "end_votes")}
+        record["seats"] =[{key: seat.get(key) for key in ("force", "name", "user", "ai", "auto")} for seat in self.record["seats"]]
         record["step_count"] = len(self.steps)
         return record
 

@@ -1104,6 +1104,42 @@ net.computer	電腦
 net.auto_on	由電腦代打
 net.auto_off	改為手動
 net.follow	跟隨行動
+net.follow_pause	在每個行動後暫停
+net.follow_next	下一個
+net.follow_catch_up	跳至目前
+net.follow_at	地點：%s（六角格 %d, %d）
+net.follow_near	地點：%s附近（六角格 %d, %d）
+net.follow_order	命令：%s
+net.say_moved	我率軍行進。
+net.say_sortied	我率軍出城。
+net.say_entered	我率軍入城。
+net.say_retreated	我率軍撤退。
+net.say_attacked	我軍遭到攻擊。%s
+net.order_march	行軍至六角格 %d, %d
+net.order_destroy	殲滅%s的部隊
+net.order_drive	驅趕%s的部隊
+net.order_follow	跟隨%s的部隊
+net.order_facility	摧毀六角格 %d, %d 的設施
+net.order_carry	運送物資至%s
+net.order_defend	防守%s
+net.order_free_city	佔領無主城市%s
+net.order_attack	進攻%s
+net.order_resupply	前往%s補充兵糧
+net.order_ruler	主公的命令
+net.end_game	結束遊戲
+net.end_vote	投票結束遊戲
+net.end_vote_off	收回投票
+net.end_confirm_host	要為所有玩家結束這場遊戲嗎？結束後無法繼續。
+net.end_confirm_guest	要投票結束這場遊戲嗎？所有玩家同意後遊戲才會結束。
+net.end_yes	是
+net.end_no	否
+net.ended	遊戲已結束。
+net.ended_by	%s結束了遊戲。
+net.ended_votes	所有玩家同意結束遊戲。
+net.ended_faction	勢力
+net.ended_cities	城市
+net.ended_officers	武將
+net.leave	離開
 net.ai_plays	由電腦代打中
 net.saving	正在將遊戲傳送至伺服器。
 net.saved	伺服器已保存遊戲。可從 My games 繼續。

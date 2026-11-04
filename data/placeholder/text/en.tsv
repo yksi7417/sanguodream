@@ -1106,6 +1106,42 @@ net.computer	Computer	the player of a faction of the AI, after the name of the f
 net.auto_on	AI plays for me	the button of the banner: the AI takes the faction of the player
 net.auto_off	Play by hand	the button of the banner: the player takes the faction back
 net.follow	Follow the action	the option of the banner: the camera goes to each action on the map
+net.follow_pause	Pause after an action	the banner: the label of the slider
+net.follow_next	Next	the banner: the next action at once
+net.follow_catch_up	Catch up	the banner: the camera skips the actions that wait
+net.follow_at	Location: %s (hex %d, %d)	the caption: the action is on the hex of a city
+net.follow_near	Location: near %s (hex %d, %d)	the caption: the nearest city
+net.follow_order	Order: %s	the caption: the order that the action carries out
+net.say_moved	I march with my unit.	the caption: a move
+net.say_sortied	I lead my unit out of the city.	the caption: a sortie
+net.say_entered	I take my unit into the city.	the caption: a unit enters a city
+net.say_retreated	I retreat with my unit.	the caption: a retreat
+net.say_attacked	We are under attack. %s	the caption: the ledger does not name the attacker, so the defender speaks
+net.order_march	march to hex %d, %d	the caption: a long order or a goal of the AI
+net.order_destroy	destroy the unit of %s	the caption: a long order
+net.order_drive	drive back the unit of %s	the caption: a long order
+net.order_follow	stay with the unit of %s	the caption: a long order
+net.order_facility	destroy the facility at hex %d, %d	the caption: a long order
+net.order_carry	carry the supplies to %s	the caption: a transport unit
+net.order_defend	defend %s	the caption: a goal of the AI
+net.order_free_city	take %s, a city without an owner	the caption: a goal of the AI
+net.order_attack	attack %s	the caption: a goal of the AI
+net.order_resupply	go to %s for grain	the caption: a goal of the AI
+net.order_ruler	the command of my ruler	the caption: an action without a long order or a goal
+net.end_game	End the game	the banner: the host ends a shared game
+net.end_vote	Vote to end the game	the banner: a guest votes
+net.end_vote_off	Take back my vote	the banner: a guest takes the vote back
+net.end_confirm_host	End this game for all players? You cannot start it again.	the question before the host ends the game
+net.end_confirm_guest	Vote to end this game? The game ends after each player agrees.	the question before a guest votes
+net.end_yes	Yes	the question of the end of a game
+net.end_no	No	the question of the end of a game
+net.ended	The game ended.	the panel of the end of a shared game
+net.ended_by	%s ended the game.	the panel of the end: the host ended the game
+net.ended_votes	All players agreed to end the game.	the panel of the end: each player voted
+net.ended_faction	Faction	the panel of the end: a column
+net.ended_cities	Cities	the panel of the end: a column
+net.ended_officers	Officers	the panel of the end: a column
+net.leave	Leave	the panel of the end: the page goes to the site
 net.ai_plays	the computer plays	the invite panel: after the name of a player while the AI plays the faction
 net.saving	The game goes to the server.	the banner after Save in a shared game
 net.saved	The server has the game. Open it from My games.	the banner after the server keeps a shared game

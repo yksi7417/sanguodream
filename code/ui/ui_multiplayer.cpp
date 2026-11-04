@@ -91,6 +91,7 @@ ui_net_join(ui_state *ui, engine_api *api, ui_frame_info *frame, const platform_
     api->multiplayer_begin(e, event->seat == PLATFORM_NET_NO_SEAT ? (u8)ENGINE_NO_FACTION : event->seat, event->host);
     if (snapshot) api->multiplayer_first_step(e, (u32)event->step);
     ui->net.joined        = true;
+    ui->net.ended         = false;
     ui->net.waiting       = false;
     ui->net.desync_step   = -1;
     ui->net.error[0]      = 0;
@@ -170,6 +171,20 @@ ui_net_timer(ui_state *ui, const platform_net_event *event)
     ui->net.timer_seconds = event->step < 0 ? 0.0f : (f32)event->step;
 }
 
+/* The room ended the game. The shared game of this engine stops, and the panel of the end shows. */
+internal void
+ui_net_game_ended(ui_state *ui, engine_api *api, const platform_net_event *event)
+{
+    if (api->multiplayer_info(api->engine).shared) api->multiplayer_end(api->engine);
+    snprintf(ui->net.ended_by, sizeof(ui->net.ended_by), "%s", event->text ? event->text : "");
+    ui->net.ended       = true;
+    ui->net.joined      = false;
+    ui->net.end_confirm = false;
+    ui->net.follow      = false;
+    ui->net.timer_on    = false;
+    ui->net.error[0]    = 0;
+}
+
 /* A short message in the banner: the result of a save, of a load or of a copy. */
 internal void
 ui_net_show_notice(ui_state *ui, u32 notice)
@@ -229,6 +244,12 @@ ui_net_begin_frame(ui_state *ui, engine_api *api, ui_frame_info *frame)
                 break;
             case PLATFORM_NET_NOTICE: ui_net_show_notice(ui, (u32)event.step);   break;
             case PLATFORM_NET_AUTO:   ui->net.auto_play = event.step != 0;       break;
+            case PLATFORM_NET_ENDED:  ui_net_game_ended(ui, api, &event);        break;
+            case PLATFORM_NET_END_VOTES:
+                ui->net.end_votes   = (u32)event.step;
+                ui->net.end_players = event.seat;
+                ui->net.end_voted   = event.host != 0;
+                break;
             case PLATFORM_NET_PACK:
                 if (ui_net_use_pack(ui, api, &event)) return;
                 break;
@@ -331,6 +352,12 @@ ui_net_end_game_turn_of_the_ai(ui_state *ui, engine_api *api, ui_frame_info *fra
         ui->net.no_faction_seconds = 0.0f;
         return;
     }
+    /* The caption of each action shows first, so the option of the host sets the speed of this game. */
+    if (ui->net.follow && (ui->net.follow_next < api->ledger_count(e) || ui->net.follow_wait > 0.0f))
+    {
+        ui->net.no_faction_seconds = 0.0f;
+        return;
+    }
     ui->net.no_faction_seconds += frame->dt_seconds;
     if (ui->net.no_faction_seconds < UI_NET_NO_FACTION_SECONDS) return;
     ui->net.no_faction_seconds = 0.0f;
@@ -388,6 +415,14 @@ ui_net_end_frame(ui_state *ui, engine_api *api, ui_frame_info *frame)
         choice.kind = PLATFORM_NET_AUTO;
         choice.step = ui->net.auto_want ? 1 : 0;
         ui_net_send(frame, &choice);
+    }
+    if (ui->net.end_send)
+    {
+        ui->net.end_send = false;
+        platform_net_event end = {};
+        end.kind = PLATFORM_NET_END_GAME;
+        end.step = ui->net.end_want;
+        ui_net_send(frame, &end);
     }
     if (!ui->net.joined) return;
     ui_net_end_game_turn_of_the_ai(ui, api, frame);
@@ -503,6 +538,133 @@ ui_draw_net_invite(ui_state *ui, engine_api *api)
     ImGui::End();
 }
 
+/* The question before the host ends the game, or before a guest votes. */
+internal void
+ui_draw_net_end_confirm(ui_state *ui)
+{
+    if (!ui->net.end_confirm) return;
+    ImGui::OpenPopup("###NetEndConfirm");
+    char label[96];
+    if (!ImGui::BeginPopupModal("###NetEndConfirm", 0, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar)) return;
+    ImGui::TextUnformatted(text_get(ui->text, ui->net.end_confirm_host ? "net.end_confirm_host" : "net.end_confirm_guest"));
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "net.end_yes", "net_end_yes")))
+    {
+        ui->net.end_send    = true;
+        ui->net.end_want    = 1;
+        ui->net.end_confirm = false;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "net.end_no", "net_end_no"))) ui->net.end_confirm = false;
+    if (!ui->net.end_confirm) ImGui::CloseCurrentPopup();
+    ImGui::EndPopup();
+}
+
+/* The end of a shared game: who ended it, and the factions by their cities. The only way out is
+   to leave, because the state of an ended game does not go on. */
+internal void
+ui_draw_net_ended(ui_state *ui, engine_api *api)
+{
+    if (!ui->net.ended) return;
+    ImGui::OpenPopup("###NetEnded");
+    ImVec2 display = ImGui::GetIO().DisplaySize;
+    ImGui::SetNextWindowPos(ImVec2(display.x * 0.5f, display.y * 0.5f), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    if (!ImGui::BeginPopupModal("###NetEnded", 0, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar)) return;
+    char label[96], name[UI_NET_NAME_SIZE];
+    ImGui::TextUnformatted(text_get(ui->text, "net.ended"));
+    if (ui->net.ended_by[0]) ImGui::Text(text_get(ui->text, "net.ended_by"), ui->net.ended_by);
+    else                     ImGui::TextUnformatted(text_get(ui->text, "net.ended_votes"));
+    ImGui::Separator();
+    u32 faction_count = Minimum(api->faction_count(api->engine), (u32)UI_NET_ENDED_FACTIONS);
+    u32 rows[UI_NET_ENDED_FACTIONS];
+    for (u32 index = 0; index < faction_count; ++index)
+    {
+        /* An insertion: the most cities first, then the most officers. */
+        engine_faction faction = api->faction_at(api->engine, index);
+        u32 place = index;
+        for (; place > 0; --place)
+        {
+            engine_faction above = api->faction_at(api->engine, rows[place - 1]);
+            if (above.city_count > faction.city_count || (above.city_count == faction.city_count && above.officer_count >= faction.officer_count)) break;
+            rows[place] = rows[place - 1];
+        }
+        rows[place] = index;
+    }
+    if (ImGui::BeginTable("###net_standings", 3, ImGuiTableFlags_SizingFixedFit))
+    {
+        ImGui::TableSetupColumn(text_get(ui->text, "net.ended_faction"));
+        ImGui::TableSetupColumn(text_get(ui->text, "net.ended_cities"));
+        ImGui::TableSetupColumn(text_get(ui->text, "net.ended_officers"));
+        ImGui::TableHeadersRow();
+        for (u32 row = 0; row < faction_count; ++row)
+        {
+            engine_faction faction = api->faction_at(api->engine, rows[row]);
+            if (!faction.city_count) continue;
+            ui_force_text(ui, api, faction.force_id, name, sizeof(name));
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted(name);
+            ImGui::TableNextColumn();
+            ImGui::Text("%u", (u32)faction.city_count);
+            ImGui::TableNextColumn();
+            ImGui::Text("%u", (u32)faction.officer_count);
+        }
+        ImGui::EndTable();
+    }
+    if (ImGui::Button(ui_label(label, sizeof(label), ui, "net.leave", "net_leave")))
+    {
+        ui->net.end_send = true;
+        ui->net.end_want = 2;
+    }
+    ImGui::EndPopup();
+}
+
+/* The button of the early end. The host ends the game. A guest votes and can take the vote back. */
+internal void
+ui_draw_net_end_button(ui_state *ui, engine_multiplayer_info *info)
+{
+    if (!info->host && info->local_force == ENGINE_NO_FACTION) return;
+    char line[128];
+    const char *key = info->host ? "net.end_game" : ui->net.end_voted ? "net.end_vote_off" : "net.end_vote";
+    if (ui->net.end_votes) snprintf(line, sizeof(line), "%s (%u/%u)###net_end_game", text_get(ui->text, key), ui->net.end_votes, ui->net.end_players);
+    else                   snprintf(line, sizeof(line), "%s###net_end_game", text_get(ui->text, key));
+    ImGui::SameLine();
+    if (!ImGui::SmallButton(line)) return;
+    if (!info->host && ui->net.end_voted)
+    {
+        ui->net.end_send = true;
+        ui->net.end_want = 0;
+        return;
+    }
+    ui->net.end_confirm      = true;
+    ui->net.end_confirm_host = info->host != 0;
+}
+
+/* The tools of the option "Follow the action": the pause, the next action at once, and the
+   end of a backlog. A page that follows can stay behind the game. */
+internal void
+ui_draw_net_follow_tools(ui_state *ui)
+{
+    char line[128];
+    ImGui::SameLine();
+    snprintf(line, sizeof(line), "%s###net_follow", text_get(ui->text, "net.follow"));
+    ImGui::Checkbox(line, &ui->net.follow);
+    if (!ui->net.follow) return;
+    ImGui::TextUnformatted(text_get(ui->text, "net.follow_pause"));
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(140.0f);
+    ImGui::SliderFloat("###net_follow_seconds", &ui->net.follow_seconds, UI_NET_FOLLOW_MIN_SECONDS, UI_NET_FOLLOW_MAX_SECONDS, "%.1f s", ImGuiSliderFlags_AlwaysClamp);
+    ImGui::SameLine();
+    snprintf(line, sizeof(line), "%s###net_follow_next", text_get(ui->text, "net.follow_next"));
+    if (ImGui::SmallButton(line)) ui->net.follow_wait = 0.0f;
+    ImGui::SameLine();
+    snprintf(line, sizeof(line), "%s###net_follow_catch_up", text_get(ui->text, "net.follow_catch_up"));
+    if (ImGui::SmallButton(line))
+    {
+        ui->net.follow_next = U32_MAX;   /* the update sees a ledger that got shorter, and starts with the next action */
+        ui->net.follow_wait = 0.0f;
+    }
+}
+
 /* The banner of a shared game: whose turn it is, the wait of the host, a
    desync and the last error. */
 internal void
@@ -569,9 +731,8 @@ ui_draw_net_banner(ui_state *ui, engine_api *api)
                 ui->net.auto_want = !ui->net.auto_play;
             }
         }
-        ImGui::SameLine();
-        snprintf(line, sizeof(line), "%s###net_follow", text_get(ui->text, "net.follow"));
-        ImGui::Checkbox(line, &ui->net.follow);
+        ui_draw_net_end_button(ui, &info);
+        ui_draw_net_follow_tools(ui);
     }
     if (ui->net.error[0]) ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.4f, 1.0f), "%s", ui->net.error);
     ImGui::End();

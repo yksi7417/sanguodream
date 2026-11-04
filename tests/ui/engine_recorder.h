@@ -1686,7 +1686,7 @@ internal engine_unit_goal recorder_unit_goal(void *o, u32 unit_id)
     recorder_record(r, RECORDER_UNIT_GOAL, unit_id);
     engine_unit_goal goal = {};
     goal.city_id = ENGINE_NO_CITY;
-    if (unit_id == 1 && r->unit1_rival && r->unit1_goal) { goal.known = true; goal.city_id = r->unit1_goal_city; goal.q = 1; goal.r = 3; }
+    if (unit_id == 1 && r->unit1_rival && r->unit1_goal) { goal.known = true; goal.city_id = r->unit1_goal_city; goal.q = 1; goal.r = 3; goal.kind = AI_GOAL_ATTACK_CITY; }
     return goal;
 }
 internal engine_emperor recorder_emperor(void *o)

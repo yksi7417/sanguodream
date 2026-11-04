@@ -560,6 +560,45 @@ class Rooms:
             async with room.lock:
                 await self.expire(room)
 
+    # ---- the early end of a game ----
+
+    async def vote_to_end(self, room, user, on):
+        """The host ends the game at once. Another player votes, and the game ends after
+        each player with a seat agrees. An absent player must also agree: a correspondence
+        game does not end while its players are away. Give True if the game ended."""
+        record = room.record
+        if record["state"] not in ("running", "desync"):
+            raise RoomError("the game does not run")
+        if on and user["uid"] == record["host"]:
+            await self.end_game(room, clean_text(user["name"], MAX_NAME_CHARS))
+            return True
+        if room.seat_of(user["uid"]) is None:
+            raise RoomError("no seat in this game")
+        votes = record.setdefault("end_votes", [])
+        if on and user["uid"] not in votes:
+            votes.append(user["uid"])
+        if not on and user["uid"] in votes:
+            votes.remove(user["uid"])
+        if room.end_players() <= set(votes):
+            await self.end_game(room, None)
+            return True
+        await self.save(room)
+        return False
+
+    async def end_game(self, room, by):
+        """The game ends for each page. The log, the snapshots and the invite code stay, so
+        that a member can open the last state. The voice channel can take a new room."""
+        record = room.record
+        record.update(state="ended", ended=int(time.time()), ended_by=by, deadline=None, paused=False)
+        for key in ("desync_step", "end_votes", "remaining"):
+            record.pop(key, None)
+        channel = record.pop("channel", None)
+        if channel:
+            await self.store.delete(channel_key(channel))
+        await self.flush(room)
+        await broadcast_json(room, {"type": "ended", "by": by})
+        print(f"rooms: the game {room.gid} ended", flush=True)
+
     async def start(self, room, user):
         if user["uid"] != room.record["host"]:
             raise RoomError("only the host starts the game")

@@ -691,6 +691,7 @@ struct engine_unit_goal
     b32 known;
     u8  city_id;                    /* the target city; ENGINE_NO_CITY */
     s32 q, r;                       /* the hex that the unit goes to */
+    u8  kind;                       /* sim_ai_goal: why the unit goes there */
 };
 
 struct engine_emperor

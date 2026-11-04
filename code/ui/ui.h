@@ -224,8 +224,12 @@ struct ui_table_source
 #define UI_NET_NAME_SIZE 64
 #define UI_NET_NOTICE_SECONDS 8.0f   /* how long the banner of a shared game shows a notice */
 #define UI_NET_NO_FACTION_SECONDS 5.0f   /* the host ends a game turn of the AI after this time */
-#define UI_NET_FOLLOW_SECONDS 1.0f       /* the camera stays this long on one action */
-#define UI_NET_FOLLOW_BACKLOG 32u        /* the camera skips older actions than this number of events */
+#define UI_NET_FOLLOW_SECONDS 3.0f       /* the default pause after one action */
+#define UI_NET_FOLLOW_MIN_SECONDS 0.5f   /* the limits of the slider of the pause */
+#define UI_NET_FOLLOW_MAX_SECONDS 15.0f
+#define UI_NET_ENDED_FACTIONS 64u        /* the panel of the end of a game lists at most this number of factions */
+#define UI_NET_CAPTION_WIDTH 420.0f      /* the caption of an action */
+#define UI_NET_CAPTION_TOP   220.0f      /* the caption stays under the banner */
 #define UI_NET_CHAT_LINES 32  /* MP7: the lines of the chat that the panel keeps */
 #define UI_NET_CHAT_SIZE  384 /* a name, a tab and a line of at most 300 characters of the room (web/rooms.py) */
 
@@ -753,6 +757,25 @@ struct ui_state
         bool follow;
         u32  follow_next;        /* the next event of the ledger to look at */
         f32  follow_wait;
+        f32  follow_seconds;     /* the pause after each action: the slider of the banner */
+        u32  follow_cause;       /* the command of the last caption: one command gets one caption */
+        bool follow_shown;       /* the caption shows the lines below */
+        u16  follow_speaker;
+        hex_coord follow_hex;
+        char follow_who[192];    /* the officer and the faction */
+        char follow_what[384];   /* what the officer does */
+        char follow_where[256];  /* the location */
+        char follow_order[384];  /* the order that the action carries out */
+        /* The early end of a shared game. The host ends it, or each player votes. */
+        u32  end_votes;          /* the votes of the room */
+        u32  end_players;        /* the players with a seat */
+        bool end_voted;          /* the local player voted */
+        bool end_confirm;        /* the question before the first click takes effect */
+        bool end_confirm_host;   /* the question of the host: the game ends at once */
+        bool end_send;           /* the next frame sends end_want to the page */
+        s32  end_want;           /* PLATFORM_NET_END_GAME: 1 end or vote, 0 take the vote back, 2 leave */
+        bool ended;              /* the room says that the game ended */
+        char ended_by[UI_NET_NAME_SIZE];   /* the player who ended it; empty after a vote of all players */
     } net;
 };
 

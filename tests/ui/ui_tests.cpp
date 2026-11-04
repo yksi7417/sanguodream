@@ -4962,6 +4962,209 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(v.ui.net.follow_next, 1u);
     };
 
+    /* The caption of an action: the officer, the action, the location and the order. The camera
+       stays for the pause of the viewer, and the button Next ends the pause. */
+    t = IM_REGISTER_TEST(e, "ui", "net_follow_caption_names_the_officer_the_place_and_the_order_for_the_pause");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.multiplayer.shared       = true;
+        v.recorder.multiplayer.local_force  = 1;
+        v.recorder.multiplayer.acting_force = 2;
+        v.recorder.unit1_rival     = true;
+        v.recorder.unit1_goal      = true;
+        v.recorder.unit1_goal_city = 3;
+        ctx->Yield();
+        recorder_reset(&v.recorder);
+        v.recorder.multiplayer.shared       = true;
+        v.recorder.multiplayer.local_force  = 1;
+        v.recorder.multiplayer.acting_force = 2;
+        v.recorder.unit1_rival     = true;
+        v.recorder.unit1_goal      = true;
+        v.recorder.unit1_goal_city = 3;
+        sim_event moved = {};
+        moved.kind    = SIM_EVENT_UNIT_MOVED;
+        moved.detail  = 1;
+        moved.faction = 2;
+        v.recorder.events[0]   = moved;
+        v.recorder.events[1]   = moved;
+        v.recorder.event_count = 2;
+        v.ui.net.follow         = true;
+        v.ui.net.follow_next    = 0;
+        v.ui.net.follow_wait    = 0.0f;
+        v.ui.net.follow_seconds = 5.0f;
+        ui_net_follow_update(&v.ui, &v.api, 0.1f);
+        IM_CHECK(v.ui.net.follow_shown);
+        IM_CHECK_EQ(v.ui.net.follow_next, 1u);
+        IM_CHECK_EQ(v.ui.net.follow_speaker, (u16)102);                  /* the commander of unit 1 */
+        char officer[128], city[128], expected[256];
+        ui_officer_text(&v.ui, &v.api, 102, officer, sizeof(officer));
+        ui_city_label(&v.ui, &v.api, 3, city, sizeof(city));
+        IM_CHECK(strstr(v.ui.net.follow_who, officer) != 0);
+        IM_CHECK_STR_EQ(v.ui.net.follow_what, text_get(v.ui.text, "net.say_moved"));
+        snprintf(expected, sizeof(expected), text_get(v.ui.text, "net.order_attack"), city);
+        IM_CHECK(strstr(v.ui.net.follow_order, expected) != 0);          /* the goal of the AI is the order */
+        IM_CHECK(strstr(v.ui.net.follow_where, "1, 3") != 0);
+        ctx->Yield(2);
+        IM_CHECK(ctx->WindowInfo("//###NetFollowCaption").Window != 0);
+        v.ui.net.follow_wait = 4.0f;
+        ui_net_follow_update(&v.ui, &v.api, 3.0f);
+        IM_CHECK_EQ(v.ui.net.follow_next, 1u);                           /* the pause goes on */
+        ctx->ItemClick("//###NetBanner/###net_follow_next");
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.net.follow_next, 2u);                           /* no action is lost in the wait */
+        v.ui.net.follow_next = 0;
+        v.ui.net.follow_wait = 5.0f;
+        ctx->ItemClick("//###NetBanner/###net_follow_catch_up");
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.net.follow_next, 2u);
+        /* The recorder counts the query unit_goal as a command. The caption gives no other call. */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), recorder_count(&v.recorder, RECORDER_UNIT_GOAL));
+    };
+
+    /* The screenshot of 2026-11-04: the slider showed 0.0 s, and the caption named the income of a
+       city. The default pause stays after ui_init. A calendar event is no action, even with a
+       command, and one command gets one caption. */
+    t = IM_REGISTER_TEST(e, "ui", "net_follow_has_a_default_pause_and_skips_the_calendar_and_a_second_event_of_a_command");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ctx->Yield();
+        IM_CHECK_EQ(v.ui.net.follow_seconds, UI_NET_FOLLOW_SECONDS);
+        recorder_reset(&v.recorder);
+        v.recorder.multiplayer.shared       = true;
+        v.recorder.multiplayer.local_force  = ENGINE_NO_FACTION;
+        v.recorder.multiplayer.acting_force = 2;
+        sim_event income = {};
+        income.kind    = SIM_EVENT_GOLD_INCOME;
+        income.cause   = 7;
+        income.faction = 2;
+        v.recorder.events[0]   = income;
+        v.recorder.event_count = 1;
+        v.ui.net.follow      = true;
+        v.ui.net.follow_next = 0;
+        v.ui.net.follow_wait = 0.0f;
+        v.ui.map.scroll_request = false;
+        ui_net_follow_update(&v.ui, &v.api, 0.1f);
+        IM_CHECK(!v.ui.net.follow_shown);
+        IM_CHECK(!v.ui.map.scroll_request);
+        IM_CHECK(!ui_net_follow_is_action(SIM_EVENT_WEAPONS_PRODUCED));
+        IM_CHECK(ui_net_follow_is_action(SIM_EVENT_CONSCRIPTED));
+        v.ui.net.follow_cause = 9;
+        sim_event second = {};
+        second.kind   = SIM_EVENT_CONSCRIPTED;
+        second.cause  = 9;
+        hex_coord hex = hex_make(0, 0);
+        v.recorder.events[0] = second;
+        IM_CHECK(!ui_net_follow_hex(&v.ui, &v.api, 0, &hex));
+    };
+
+    /* In a game of the AI alone, the option of the host holds the next game turn until the captions end. */
+    t = IM_REGISTER_TEST(e, "ui", "net_host_waits_for_the_captions_before_the_next_game_turn_of_the_ai");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_test_net_reset();
+        v.frame.net_send = ui_test_net_send;
+        v.frame.net_poll = ui_test_net_poll;
+        v.recorder.multiplayer.shared       = true;
+        v.recorder.multiplayer.host         = true;
+        v.recorder.multiplayer.acting_force = ENGINE_NO_FACTION;
+        v.ui.net.joined      = true;
+        v.ui.net.desync_step = -1;
+        v.ui.net.follow      = true;
+        v.ui.net.follow_seconds = UI_NET_FOLLOW_MAX_SECONDS;
+        ctx->Yield(2);
+        v.ui.net.follow_wait = 1000.0f;
+        v.ui.net.no_faction_seconds = UI_NET_NO_FACTION_SECONDS;
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_END_TURN), 0u);
+        v.ui.net.follow_wait = 0.0f;
+        v.ui.net.no_faction_seconds = UI_NET_NO_FACTION_SECONDS;
+        ctx->Yield(2);
+        IM_CHECK(recorder_count(&v.recorder, RECORDER_END_TURN) >= 1u);
+    };
+
+    /* The early end: the button asks first. A guest can take the vote back without a question. */
+    t = IM_REGISTER_TEST(e, "ui", "net_end_button_asks_first_and_a_guest_can_take_the_vote_back");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_test_net_reset();
+        v.frame.net_send = ui_test_net_send;
+        v.frame.net_poll = ui_test_net_poll;
+        v.recorder.multiplayer.shared      = true;
+        v.recorder.multiplayer.local_force = 1;
+        v.ui.net.joined = true;
+        ctx->Yield(2);
+        ctx->ItemClick("//###NetBanner/###net_end_game");
+        ctx->Yield(2);
+        IM_CHECK_EQ(g_ui_test_net.sent_count, 0u);                       /* the question comes first */
+        ctx->ItemClick("//###NetEndConfirm/###net_end_no");
+        ctx->Yield(2);
+        IM_CHECK_EQ(g_ui_test_net.sent_count, 0u);
+        ctx->ItemClick("//###NetBanner/###net_end_game");
+        ctx->Yield(2);
+        ctx->ItemClick("//###NetEndConfirm/###net_end_yes");
+        ctx->Yield(2);
+        IM_CHECK_EQ(g_ui_test_net.sent_count, 1u);
+        IM_CHECK(g_ui_test_net.sent[0].kind == PLATFORM_NET_END_GAME && g_ui_test_net.sent[0].step == 1);
+        platform_net_event votes = {};
+        votes.kind = PLATFORM_NET_END_VOTES;
+        votes.step = 1;
+        votes.seat = 2;
+        votes.host = true;
+        ui_test_net_queue(votes);
+        ctx->Yield(2);
+        IM_CHECK(v.ui.net.end_voted);
+        IM_CHECK_EQ(v.ui.net.end_players, 2u);
+        ctx->ItemClick("//###NetBanner/###net_end_game");
+        ctx->Yield(2);
+        IM_CHECK_EQ(g_ui_test_net.sent_count, 2u);
+        IM_CHECK(g_ui_test_net.sent[1].kind == PLATFORM_NET_END_GAME && g_ui_test_net.sent[1].step == 0);
+        v.recorder.multiplayer.local_force = ENGINE_NO_FACTION;
+        ctx->Yield(4);
+        IM_CHECK(!ctx->ItemExists("//###NetBanner/###net_end_game"));    /* a spectator has no button */
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* The room ends the game: the shared game of the engine stops, the panel shows, and Leave goes to the page. */
+    t = IM_REGISTER_TEST(e, "ui", "net_end_of_the_room_stops_the_shared_game_and_shows_the_panel");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_test_net_reset();
+        v.frame.net_send = ui_test_net_send;
+        v.frame.net_poll = ui_test_net_poll;
+        v.recorder.multiplayer.shared = true;
+        v.ui.net.joined = true;
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        platform_net_event ended = {};
+        ended.kind = PLATFORM_NET_ENDED;
+        ended.text = "Host";
+        ui_test_net_queue(ended);
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_MULTIPLAYER_END), 1u);
+        IM_CHECK(v.ui.net.ended && !v.ui.net.joined);
+        IM_CHECK_STR_EQ(v.ui.net.ended_by, "Host");
+        ctx->ItemClick("//###NetEnded/###net_leave");
+        ctx->Yield(2);
+        IM_CHECK_EQ(g_ui_test_net.sent_count, 1u);
+        IM_CHECK(g_ui_test_net.sent[0].kind == PLATFORM_NET_END_GAME && g_ui_test_net.sent[0].step == 2);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 1u);           /* only multiplayer_end */
+    };
+
     /* With the setting off, no screen opens. A shared game shows why: the page of another
        seat cannot resolve the duel or the debate, so it stays active on that page. */
     t = IM_REGISTER_TEST(e, "ui", "a_hidden_debate_or_duel_opens_no_dialog_while_it_stays_active");

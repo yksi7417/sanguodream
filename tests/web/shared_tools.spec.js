@@ -192,3 +192,41 @@ test("each player gives the faction to the AI, the game goes on, and the button 
   await bothAgree(host, guest);
   for (const page of [host, guest]) expect((await h.gameState(page)).net_error).toBe("");
 });
+
+test("the follow option shows captions, a guest votes, and the host ends the game for each page", async ({ browser }) => {
+  test.setTimeout(420_000);
+  const { host, guest, gid } = await startTogether(browser);
+  await bothAgree(host, guest);
+
+  // The AI plays both factions, so the actions come without a click.
+  await h.clickItem(guest, "net_auto");
+  await h.clickItem(host, "net_auto");
+  await h.clickItem(guest, "net_follow");
+  await expect.poll(async () => (await h.gameState(guest)).follow_shown, { timeout: 120_000, message: "a caption shows" }).toBe(1);
+  expect((await h.gameState(guest)).follow_order).not.toBe("");
+
+  // The vote of the guest does not end the game. The second click takes the vote back.
+  await h.clickItem(guest, "net_end_game");
+  await h.clickItem(guest, "net_end_yes");
+  await expect.poll(async () => (await h.gameState(host)).end_votes).toBe(1);
+  expect((await room(host, gid)).state).toBe("running");
+  await h.clickItem(guest, "net_end_game");
+  await expect.poll(async () => (await h.gameState(host)).end_votes).toBe(0);
+
+  // The host ends the game. Each page shows the panel, and no page has an error.
+  await h.clickItem(host, "net_end_game");
+  await h.clickItem(host, "net_end_yes");
+  for (const page of [host, guest]) {
+    await expect.poll(async () => (await h.gameState(page)).net_ended, { timeout: 60_000 }).toBe(1);
+    expect((await h.gameState(page)).shared).toBe(0);
+    expect((await h.gameState(page)).net_error).toBe("");
+  }
+  expect((await room(host, gid)).state).toBe("ended");
+
+  // The page opens the ended game again, and the panel shows after the log.
+  await host.reload();
+  await expect.poll(async () => (await h.gameState(host).catch(() => ({}))).net_ended, { timeout: 180_000 }).toBe(1);
+  // The click starts a navigation, so the wait of the helper for a frame can fail. The address proves the result.
+  await h.clickItem(host, "net_leave").catch((error) => expect(String(error)).toContain("Execution context was destroyed"));
+  await expect.poll(() => new URL(host.url()).pathname, { timeout: 60_000 }).toBe("/");
+});

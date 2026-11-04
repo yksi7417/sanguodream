@@ -84,7 +84,8 @@ async def send_presence(room):
     seats = sorted(seat["force"] for seat in room.record["seats"] if seat.get("uid") in online)
     players = [{"force": seat["force"], "user": seat["user"]} for seat in room.record["seats"] if seat.get("user")]
     auto = [seat["force"] for seat in room.record["seats"] if seat.get("auto")]
-    await broadcast_json(room, {"type": "presence", "seats": seats, "host": room.record["host"] in online, "players": players, "auto": auto})
+    await broadcast_json(room, {"type": "presence", "seats": seats, "host": room.record["host"] in online, "players": players, "auto": auto,
+                                "end_votes": room.end_vote_forces(), "end_players": len(room.end_players())})
 
 
 async def on_hello(rooms, room, peer, message):
@@ -101,6 +102,11 @@ async def on_hello(rooms, room, peer, message):
                           "host": peer.uid == room.record["host"], "room": room.public(), "from": last + 1})
     for number in range(last + 1, len(room.steps)):
         await peer.send_bytes(step_message(number, room.steps[number]))
+    if room.record["state"] == "ended":
+        # An ended game takes no step, so the build of the page does not matter.
+        await send_presence(room)
+        await peer.send_json({"type": "ended", "by": room.record.get("ended_by")})
+        return
     if not peer.build_ok:
         await peer.send_json({"type": "error", "reason": "old build"})
     else:
@@ -128,8 +134,8 @@ async def on_step(rooms, room, peer, data):
 async def on_checksum(rooms, room, peer, message):
     if not peer.welcomed:
         raise RoomError("hello first")
-    if not room.is_member(peer.uid):
-        return   # MP7: the report of a spectator counts for nothing
+    if not room.is_member(peer.uid) or room.record["state"] == "ended":
+        return   # MP7: the report of a spectator counts for nothing. A report can cross the end of the game
     result = room.report(peer.uid, message.get("step"), message.get("checksum"), message.get("acting"))
     if result:
         await rooms.save(room)
@@ -169,7 +175,17 @@ async def on_auto(rooms, room, peer, message):
     await send_presence(room)
 
 
-HANDLERS = {"hello": on_hello, "checksum": on_checksum, "chat": on_chat, "auto": on_auto}
+async def on_end_game(rooms, room, peer, message):
+    """The button of the banner: the host ends the game, and another player votes or takes the vote back."""
+    if not peer.welcomed:
+        raise RoomError("hello first")
+    if not isinstance(message.get("on"), bool):
+        raise RoomError("bad message")
+    if not await rooms.vote_to_end(room, peer.user, message["on"]):
+        await send_presence(room)
+
+
+HANDLERS = {"hello": on_hello, "checksum": on_checksum, "chat": on_chat, "auto": on_auto, "end_game": on_end_game}
 
 
 async def handle_text(rooms, room, peer, text):

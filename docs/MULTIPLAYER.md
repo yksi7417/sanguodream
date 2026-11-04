@@ -1113,9 +1113,59 @@ The banner of a shared game has these tools for a player:
   The invite panel lists each faction and its player.
 - **AI plays for me.** The AI plays the faction of the player. The next click on
   the button gives the faction back.
-- **Follow the action.** The camera goes to each move and each hostile event of
-  another faction. Each page has its own option. It is off by default. In the
-  turn of the local seat, the camera stays with the player.
+- **Follow the action.** The camera goes to each action of another faction.
+  Each page has its own option. It is off by default. In the turn of the local
+  seat, the camera stays with the player.
+- **End the game.** The host ends the game for each page. Another player votes.
+  See "The early end of a game".
+
+#### The caption of an action
+The option "Follow the action" shows a caption over the hex of each action:
+- The portrait and the name of the officer, with the faction.
+- What the officer does. A list in code/ui/ui_follow.cpp names the kinds of
+  actions, and one command gets one caption. The events of the calendar show no caption.
+- The ledger does not name the attacker of a plain attack, so the officer who
+  takes the attack speaks.
+- The location: the city on the hex, or the nearest city, and the hex.
+- The order: the long order of the unit, its transport, or the goal of the AI.
+  An action without one of these names the command of the ruler.
+
+The slider of the banner sets the pause after each action. The limits are
+0.5 s and 15 s, and the default is 3 s. The button Next ends the pause. The button
+Catch up skips the actions that wait.
+
+The sim runs an AI turn in one step, so these limits follow:
+- The caption reads the ledger after the sim made the actions. The location of a
+  unit is its hex now. If a unit moves two times in one step, two captions give
+  the last hex.
+- A pause changes no step of the game, and each page has its own pause.
+- In a game of the AI alone, the host waits for the captions of its page before
+  the next game turn. The option of the host thus sets the speed of the game.
+- The page of a guest can stay behind the game. The guest can use Catch up.
+- The page keeps the pause only until the next load of the page.
+
+#### The early end of a game
+The rules:
+- The host answers one question, and the game then ends.
+- Another player votes after one question. The next click takes the vote back.
+  The banner shows the number of votes.
+- The game ends after each player with a seat voted. An absent player also must
+  vote. Thus a guest alone cannot end a correspondence game.
+- A spectator has no button.
+- The host can also end a game in a desync.
+
+After the end:
+- The room has the state `ended`, and it takes no step, no report and no snapshot.
+- Each page shows a panel with who ended the game and the factions by their
+  cities. The only button is Leave. The page then goes to the first page of the site.
+- The log and the snapshots stay. "My games" lists the game as ended, and a
+  player can open the panel again.
+- A voice channel of Discord can take a new room.
+
+The tests:
+- Server: rooms_tests.py checks the host, the vote, the rights and the state after the end.
+- UI: ui_tests.cpp checks the question, the panel, the caption and the wait of the host.
+- Browser: shared_tools.spec.js does each step on real pages.
 
 #### The rules of the AI button
 The seat records the choice in `auto`, and `ai` says who plays now:

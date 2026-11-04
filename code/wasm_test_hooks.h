@@ -211,13 +211,14 @@ wasm_test_state(void)
     snprintf(g_test_reply, sizeof(g_test_reply),
              "{\"camera_x\":%.2f,\"camera_z\":%.2f,\"city\":%u,\"unit\":%u,\"turn\":%u,\"whose_turn\":%u,\"map_width\":%u,\"map_height\":%u,"
              "\"shared\":%d,\"local_force\":%u,\"local_acts\":%d,\"steps\":%u,\"checksum\":\"%016llx\",\"net_error\":\"%s\","
-             "\"humans\":\"%016llx\",\"timer\":%d,\"pack\":\"%s\",\"chat_lines\":%u,\"net_notice\":%u,\"atlas_layers\":%u}",
+             "\"humans\":\"%016llx\",\"timer\":%d,\"pack\":\"%s\",\"chat_lines\":%u,\"net_notice\":%u,\"atlas_layers\":%u,\"net_ended\":%d,\"end_votes\":%u,\"follow_shown\":%d,\"follow_order\":\"%s\"}",
              game->ui.scene.cam.target.x, game->ui.scene.cam.target.z, (u32)game->ui.city.selected,
              game->ui.units.selected, api->turn(api->engine), (u32)api->whose_turn(api->engine), map.width, map.height,
              shared.shared ? 1 : 0, (u32)shared.local_force, shared.local_acts ? 1 : 0, shared.step_count,
              (unsigned long long)api->state_checksum(api->engine), game->ui.net.error, (unsigned long long)humans,
              game->ui.net.timer_on ? (game->ui.net.timer_paused ? -1 : (int)game->ui.net.timer_seconds) : -2,
-             api->content_pack(api->engine).pack, game->ui.net.chat_count, game->ui.net.notice, g_wasm.renderer.atlas_layers);
+             api->content_pack(api->engine).pack, game->ui.net.chat_count, game->ui.net.notice, g_wasm.renderer.atlas_layers,
+             game->ui.net.ended ? 1 : 0, game->ui.net.end_votes, game->ui.net.follow_shown ? 1 : 0, game->ui.net.follow_order);
     return g_test_reply;
 }
 

@@ -39,7 +39,8 @@ async function showMyGames() {
      image and the seats to the game (join), then each step of the socket.
    The page shows names with textContent, never as HTML. */
 var NET = { HOST: 1, STEP: 2, CHECKSUM: 3, JOIN: 4, SEATS: 5, DESYNC: 6, ERROR: 7, TIMER: 8, PACK: 9, SNAPSHOT: 10,
-            OPEN_ROOM: 11, STATE_IMAGE: 12, CHAT: 13, ROOM_INFO: 14, TAKE_SEAT: 15, COPY_LINK: 16, NOTICE: 17, AUTO: 18 };
+            OPEN_ROOM: 11, STATE_IMAGE: 12, CHAT: 13, ROOM_INFO: 14, TAKE_SEAT: 15, COPY_LINK: 16, NOTICE: 17, AUTO: 18,
+            END_GAME: 19, ENDED: 20, END_VOTES: 21 };
 var NET_NOTICE = { SAVED: 2, SAVE_FAILED: 3, COPIED: 5, COPY_FAILED: 6 };   // platform_net_notice of code/hexdom.h
 var NET_POLL_MS = 2000;
 var RECONNECT_SECONDS = [1, 2, 4, 8, 15];   // after a lost connection; then each 15 seconds (MP4)
@@ -66,7 +67,13 @@ function netPush(kind, step, seat, host, bytes, text) {
 Module.hexdomNetSend = function (kind, step, low, high, acting, bytes, text, pack) {
   // While the page loads the good state, the old engine still runs. Its steps and reports go away.
   if (!net.joined && (kind === NET.STEP || kind === NET.CHECKSUM)) return;
-  if (kind === NET.HOST) hostRoom(bytes, text, pack).catch(function (error) { roomStatus("The room was not made: " + error); });
+  // After the end of the game, the room takes no step, no report and no snapshot.
+  if (net.ended && (kind === NET.STEP || kind === NET.CHECKSUM || kind === NET.SNAPSHOT || kind === NET.STATE_IMAGE)) return;
+  if (kind === NET.END_GAME) {
+    if (step === 2) location.href = "/";   // the ended game stays in "My games"
+    else sendJson({ type: "end_game", on: step === 1 });
+  }
+  else if (kind === NET.HOST) hostRoom(bytes, text, pack).catch(function (error) { roomStatus("The room was not made: " + error); });
   else if (kind === NET.STEP) sendStep(step, bytes);
   else if (kind === NET.SNAPSHOT) putSnapshot(step, hexChecksum(low, high), bytes, 0, acting === 1);
   else if (kind === NET.COPY_LINK) {
@@ -432,7 +439,9 @@ function connectRoom() {
     }
     var message = JSON.parse(event.data);
     if (message.type === "welcome") welcomeRoom(message);
-    else if (message.type === "presence") { net.online = message.seats; readPlayers(message.players); netPush(NET.SEATS, 0, 0, false, null, seatsText(true)); netPush(NET.AUTO, message.auto.indexOf(net.seat) >= 0 ? 1 : 0, 0, false, null, ""); }
+    else if (message.type === "presence") { net.online = message.seats; readPlayers(message.players); netPush(NET.SEATS, 0, 0, false, null, seatsText(true)); netPush(NET.AUTO, message.auto.indexOf(net.seat) >= 0 ? 1 : 0, 0, false, null, ""); netPush(NET.END_VOTES, message.end_votes.length, message.end_players, message.end_votes.indexOf(net.seat) >= 0, null, ""); }
+    else if (message.type === "ended") { net.ended = true; netPush(NET.ENDED, 0, 0, false, null, message.by || ""); }
+    else if (message.type === "error" && net.ended) return;   // a step of this page crossed the end of the game
     else if (message.type === "timer") { netPush(NET.TIMER, message.seconds === null ? -1 : message.seconds, 0, false, null, ""); markYourTurn(message.acting); }
     else if (message.type === "chat") netPush(NET.CHAT, 0, 0, false, null, message.name + "\t" + message.text);
     else if (message.type === "desync") netPush(NET.DESYNC, message.step, 0, false, null, "");
@@ -477,6 +486,7 @@ function welcomeRoom(welcome) {
   net.retries = 0;
   net.room = welcome.room;
   net.seat = welcome.seat;
+  net.ended = welcome.room.state === "ended";
   if (net.joined) {
     // A new connection: the messages that waited go to the room now.
     var outbox = net.outbox;

@@ -411,6 +411,66 @@ class RoomsTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(host.socket.binaries[-1], server_step(1, rooms.STEP_HUMAN, FORCE_GUEST, FORCE_HOST, 1))
         self.assertFalse(seat["ai"] or seat["auto"])
 
+    def last_message(self, peer, kind):
+        return next((text for text in reversed(peer.socket.texts) if text.get("type") == kind), None)
+
+    async def test_the_host_ends_the_game_at_once(self):
+        room, host, guest = await self.started_room()
+        self.assertIsNone(await self.send(room, host, {"type": "end_game", "on": True}))
+        self.assertEqual(room.record["state"], "ended")
+        self.assertIsNone(room.record["deadline"])
+        for peer in (host, guest):
+            self.assertEqual(self.last_message(peer, "ended")["by"], "Host")
+
+    async def test_a_guest_vote_ends_the_game_only_after_each_player_agrees(self):
+        room, host, guest = await self.started_room()
+        self.assertIsNone(await self.send(room, guest, {"type": "end_game", "on": True}))
+        self.assertEqual(room.record["state"], "running")
+        presence = self.last_message(host, "presence")
+        self.assertEqual((presence["end_votes"], presence["end_players"]), ([FORCE_GUEST], 2))
+        self.assertIsNone(await self.send(room, guest, {"type": "end_game", "on": False}))
+        self.assertEqual(self.last_message(host, "presence")["end_votes"], [])
+        self.assertIsNone(await self.send(room, guest, {"type": "end_game", "on": True}))
+        self.assertEqual(room.record["state"], "running")
+        room.record["host"] = OTHER["uid"]                                   # the player of the first seat is now only a guest
+        self.assertIsNone(await self.send(room, host, {"type": "end_game", "on": True}))
+        self.assertEqual(room.record["state"], "ended")
+        self.assertIsNone(self.last_message(guest, "ended")["by"])
+
+    async def test_a_person_without_a_seat_cannot_vote_and_the_vote_hides_the_uids(self):
+        room, host, guest = await self.started_room()
+        await self.rooms.watch(room, OTHER)
+        watcher = await self.connect(room, OTHER)
+        self.assertEqual(await self.send(room, watcher, {"type": "end_game", "on": True}), "no seat in this game")
+        self.assertEqual(await self.send(room, guest, {"type": "end_game", "on": "yes"}), "bad message")
+        await self.send(room, guest, {"type": "end_game", "on": True})
+        self.assertNotIn("end_votes", room.public())
+        self.assertNotIn(GUEST["uid"], json.dumps(self.last_message(host, "presence")))
+
+    async def test_an_ended_game_takes_no_step_and_no_report_and_a_new_page_learns_the_end(self):
+        room, host, guest = await self.started_room()
+        await self.send(room, host, {"type": "end_game", "on": True})
+        self.assertIsNone(await self.send(room, host, {"type": "checksum", "step": -1, "checksum": "0" * 16, "acting": FORCE_HOST}))
+        self.assertEqual(await self.send(room, host, {"type": "end_game", "on": True}), "the game does not run")
+        step = struct.pack("<II", 0, 0) + bytes([1, rooms.STEP_END_TURN, FORCE_HOST, FORCE_HOST]) + bytes(4)
+        self.assertEqual(await self.send(room, host, step), "the game does not run")
+        again = await self.connect(room, GUEST, build="old")
+        self.assertEqual(self.last_message(again, "ended")["by"], "Host")
+        self.assertEqual(again.socket.errors(), [])
+        self.assertEqual(self.last_message(again, "welcome")["room"]["state"], "ended")
+        reloaded = rooms.Rooms(self.store, clock=self.clock)
+        self.assertEqual((await reloaded.get(room.gid)).record["state"], "ended")
+
+    async def test_the_end_of_a_game_frees_its_voice_channel_and_can_stop_a_desync(self):
+        room, host, guest = await self.started_room()
+        await self.rooms.link_channel(room, "123")
+        room.record["state"] = "desync"
+        room.record["desync_step"] = 0
+        self.assertIsNone(await self.send(room, host, {"type": "end_game", "on": True}))
+        self.assertEqual(room.record["state"], "ended")
+        self.assertNotIn("desync_step", room.record)
+        self.assertIsNone(await self.rooms.room_of_channel("123"))
+
     async def test_the_button_of_the_faction_that_acts_lets_the_ai_finish_the_turn(self):
         room, host, guest = await self.started_room(acting=FORCE_GUEST)
         self.assertIsNone(await self.send(room, guest, {"type": "auto", "on": True}))
