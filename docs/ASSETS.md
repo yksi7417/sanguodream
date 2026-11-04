@@ -167,6 +167,11 @@ section 8) and put them in the Drive folder 04-Terrain. The folder is
 | Tool | misc/terrain_import.py |
 | Licence | not recorded yet |
 
+The drop paints the river olive and brown, and a wide river then looks like
+land. The tool changes the colour of the water in the 8 river tiles to blue.
+It keeps the waves, the ice and the autumn leaves. RIVER_BLUES in the tool
+gives the colours of each season. The sources do not change.
+
 To make the file again, put the sources in art-src/terrain and run:
 
     python -X utf8 -E misc\terrain_import.py art-src\terrain data\han_196\materials.jpg

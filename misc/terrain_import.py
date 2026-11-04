@@ -17,7 +17,7 @@ scale wraps at the edges, so that a tile stays seamless. It needs Pillow.
 import os
 import sys
 
-from PIL import Image
+from PIL import Image, ImageChops, ImageOps
 
 # The terrain ids of terrain.tsv, in order, as the names of the source files.
 TERRAINS = ["grass", "earth", "sand", "swamp", "poison-spring", "forest", "stream", "river", "sea", "waste",
@@ -27,9 +27,35 @@ SEASONS = ["spring", "summer", "autumn", "winter"]
 WATER = ["stream", "river", "sea", "ford", "shallows"]   # the same order as the terrain shaders
 WRAP_PIXELS = 32   # source pixels around a tile, for the filter of the scale
 
+# The drop paints the river olive and brown, and a wide river then looks like land.
+# The dark, middle and light colours of the water of a season.
+RIVER_BLUES = {
+    "spring": ((24, 62, 96), (58, 124, 168), (178, 222, 238)),
+    "summer": ((16, 50, 82), (44, 104, 148), (140, 198, 222)),
+    "autumn": ((18, 46, 74), (48, 96, 134), (150, 192, 212)),
+    "winter": ((40, 72, 100), (92, 138, 170), (248, 251, 252)),
+}
+RIVER_MIDPOINT = 110          # the grey value of the middle colour
+RIVER_CUTOFF_PERCENT = 1      # the darkest and lightest pixels that the contrast ignores
+RIVER_LEAF_HUE = 30           # below this hue (0..255) a strong colour is a leaf, not water
+RIVER_LEAF_SATURATION = 150   # above this saturation (0..255) a colour can be a leaf
 
-def tile(path, side):
+
+def blue_river(source, season):
+    """Keeps the waves of a river tile, and changes the colour of the water to blue."""
+    dark, middle, light = RIVER_BLUES[season]
+    grey = ImageOps.autocontrast(source.convert("L"), cutoff=RIVER_CUTOFF_PERCENT)
+    water = ImageOps.colorize(grey, dark, light, middle, midpoint=RIVER_MIDPOINT)
+    hue, saturation, _ = source.convert("HSV").split()
+    is_leaf = ImageChops.multiply(hue.point(lambda h: 255 if h < RIVER_LEAF_HUE else 0),
+                                  saturation.point(lambda s: 255 if s > RIVER_LEAF_SATURATION else 0))
+    return Image.composite(source, water, is_leaf)
+
+
+def tile(path, side, terrain, season):
     source = Image.open(path).convert("RGB")
+    if terrain == "river":
+        source = blue_river(source, season)
     width, height = source.size
     wrapped = Image.new("RGB", (width + 2 * WRAP_PIXELS, height + 2 * WRAP_PIXELS))
     for x in (WRAP_PIXELS - width, WRAP_PIXELS, WRAP_PIXELS + width):
@@ -42,16 +68,16 @@ def tile(path, side):
 def main(folder, out, side, quality):
     if side % 16:
         sys.exit("SIDE must be a multiple of 16")
-    names = ["terrain-%s-%s.jpg" % (name, season) for name in TERRAINS for season in SEASONS]
-    names += ["terrain-%s-%s-ripple2.jpg" % (name, season) for name in WATER for season in SEASONS]
-    missing = [name for name in names if not os.path.exists(os.path.join(folder, name))]
+    layers = [("terrain-%s-%s.jpg" % (name, season), name, season) for name in TERRAINS for season in SEASONS]
+    layers += [("terrain-%s-%s-ripple2.jpg" % (name, season), name, season) for name in WATER for season in SEASONS]
+    missing = [layer[0] for layer in layers if not os.path.exists(os.path.join(folder, layer[0]))]
     if missing:
         sys.exit("missing: " + ", ".join(missing))
-    strip = Image.new("RGB", (side, side * len(names)))
-    for index, name in enumerate(names):
-        strip.paste(tile(os.path.join(folder, name), side), (0, index * side))
+    strip = Image.new("RGB", (side, side * len(layers)))
+    for index, (file_name, terrain, season) in enumerate(layers):
+        strip.paste(tile(os.path.join(folder, file_name), side, terrain, season), (0, index * side))
     strip.save(out, "JPEG", quality=quality, optimize=True, progressive=False, subsampling=2)
-    print("%s: %u layers, %u x %u, %u bytes" % (out, len(names), strip.width, strip.height, os.path.getsize(out)))
+    print("%s: %u layers, %u x %u, %u bytes" % (out, len(layers), strip.width, strip.height, os.path.getsize(out)))
 
 
 if __name__ == "__main__":
