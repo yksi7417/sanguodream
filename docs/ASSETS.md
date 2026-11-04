@@ -172,6 +172,10 @@ land. The tool changes the colour of the water in the 8 river tiles to blue.
 It keeps the waves, the ice and the autumn leaves. RIVER_BLUES in the tool
 gives the colours of each season. The sources do not change.
 
+The drop also paints the earth brown and orange, and earth is most of the land
+of the map. The tool changes the spring and summer earth tiles to green
+(EARTH_GREENS). The autumn and winter earth tiles stay as the drop made them.
+
 To make the file again, put the sources in art-src/terrain and run:
 
     python -X utf8 -E misc\terrain_import.py art-src\terrain data\han_196\materials.jpg

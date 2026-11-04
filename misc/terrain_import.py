@@ -35,17 +35,28 @@ RIVER_BLUES = {
     "autumn": ((18, 46, 74), (48, 96, 134), (150, 192, 212)),
     "winter": ((40, 72, 100), (92, 138, 170), (248, 251, 252)),
 }
-RIVER_MIDPOINT = 110          # the grey value of the middle colour
-RIVER_CUTOFF_PERCENT = 1      # the darkest and lightest pixels that the contrast ignores
+# The drop paints the earth brown and orange. Earth is most of the land of the map, and the old flat colour is green.
+# The tool changes the spring and summer tiles. Orange autumn and snow in winter are correct for the season.
+EARTH_GREENS = {
+    "spring": ((58, 92, 42), (104, 150, 66), (176, 204, 118)),
+    "summer": ((44, 78, 36), (82, 124, 54), (150, 178, 92)),
+}
+RAMP_MIDPOINT = 110           # the grey value of the middle colour
+RAMP_CUTOFF_PERCENT = 1       # the darkest and lightest pixels that the contrast ignores
 RIVER_LEAF_HUE = 30           # below this hue (0..255) a strong colour is a leaf, not water
 RIVER_LEAF_SATURATION = 150   # above this saturation (0..255) a colour can be a leaf
 
 
+def colour_ramp(source, ramp):
+    """Keeps the light and dark of a tile, and gives it the dark, middle and light colours of the ramp."""
+    dark, middle, light = ramp
+    grey = ImageOps.autocontrast(source.convert("L"), cutoff=RAMP_CUTOFF_PERCENT)
+    return ImageOps.colorize(grey, dark, light, middle, midpoint=RAMP_MIDPOINT)
+
+
 def blue_river(source, season):
     """Keeps the waves of a river tile, and changes the colour of the water to blue."""
-    dark, middle, light = RIVER_BLUES[season]
-    grey = ImageOps.autocontrast(source.convert("L"), cutoff=RIVER_CUTOFF_PERCENT)
-    water = ImageOps.colorize(grey, dark, light, middle, midpoint=RIVER_MIDPOINT)
+    water = colour_ramp(source, RIVER_BLUES[season])
     hue, saturation, _ = source.convert("HSV").split()
     is_leaf = ImageChops.multiply(hue.point(lambda h: 255 if h < RIVER_LEAF_HUE else 0),
                                   saturation.point(lambda s: 255 if s > RIVER_LEAF_SATURATION else 0))
@@ -56,6 +67,8 @@ def tile(path, side, terrain, season):
     source = Image.open(path).convert("RGB")
     if terrain == "river":
         source = blue_river(source, season)
+    elif terrain == "earth" and season in EARTH_GREENS:
+        source = colour_ramp(source, EARTH_GREENS[season])
     width, height = source.size
     wrapped = Image.new("RGB", (width + 2 * WRAP_PIXELS, height + 2 * WRAP_PIXELS))
     for x in (WRAP_PIXELS - width, WRAP_PIXELS, WRAP_PIXELS + width):
