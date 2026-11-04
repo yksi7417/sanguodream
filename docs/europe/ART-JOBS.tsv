@@ -1,0 +1,95 @@
+name	kind	prompt
+# The art of the packs of 1200 that the local model makes. misc/local_art.py reads this file and adds the style text of each kind.
+# kind sheet: a unit model sheet for the pack. kind terrain and kind effect: pictures for review only. kind model: a 3D model for the pack.
+eu-boat	sheet	a small medieval rowing boat for a river crossing, clinker built oak hull, one short mast with a small pennant, four rowers in simple tunics with kite shields along the side
+eu-wood-beast	sheet	a medieval wheeled siege shed called a sow, a low timber frame on six wheels with a steep roof of hides and iron plates, a carved beast head at the front, soldiers push it from inside
+terrain-grass	terrain	short green-ochre meadow grass with small wild flowers
+terrain-earth	terrain	dry brown earth with faint cart ruts
+terrain-sand	terrain	pale yellow sand with ripples
+terrain-swamp	terrain	dark wet mud with reeds and small pools
+terrain-poison-spring	terrain	grey-green mud with sickly yellow-green pools and dead reeds
+terrain-forest	terrain	dense oak and beech canopy seen from above, dark green with shadows
+terrain-stream	terrain	a narrow shallow stream over pebbles
+terrain-river	terrain	slow brown-green river water with soft ripples
+terrain-sea	terrain	deep blue-grey sea water with soft wave lines
+terrain-waste	terrain	cracked dry ground with sparse dry grass and stones
+terrain-main-road	terrain	a packed earth road with wheel ruts, grass at the edges
+terrain-plank-road	terrain	wooden plank causeway on beams over dark marsh
+terrain-ford	terrain	shallow water over a gravel bar with stepping stones
+terrain-shallows	terrain	very shallow clear water over sand
+terrain-shore	terrain	wet sand and pebbles at the water edge
+terrain-cliff	terrain	grey limestone rock face with cracks and small ledges
+terrain-city-ground	terrain	irregular grey cobblestones
+terrain-port-ground	terrain	wooden quay decking and worn cobbles
+terrain-gate-ground	terrain	worn stone paving with a central gutter
+terrain-small-path	terrain	a narrow footpath through rough grass and stones
+fx-fireworks	effect	8 frames of a burst of gold and red sparks from a burning beacon: a rising spark trail, a round burst, then falling and fading sparks
+fx-flame-loop	effect	8 frames of a looping campfire-sized flame in yellow, orange and deep red painted strokes, the base of the flame on the shared baseline
+fx-big-fire	effect	8 frames of a large roaring fire, three tall tongues of flame with sparks rising, in yellow, orange and deep red painted strokes
+fx-smoke-puff	effect	8 frames of a puff of white smoke that grows from a small round cloud to a large soft cloud and fades to thin wisps
+fx-dust-cloud	effect	6 frames of a low white cloud of dust kicked up by feet and hooves, growing outward and fading, wider than tall
+fx-impact-debris	effect	6 frames of an impact burst of broken earth, wood splinters and stone chips that fly outward and fall
+fx-sparks	effect	4 frames of a small star-shaped burst of bright yellow-white sparks from clashing iron weapons, expanding and fading
+fx-water-splash	effect	6 frames of a white water splash that rises as a crown and falls back
+fx-thunderbolt	effect	4 frames of a vertical lightning bolt from the top of the frame to the baseline, brilliant white with a pale violet glow: thin, full, branching, fading
+fx-dark-vortex	effect	8 frames of a swirling vortex of dark violet ink with pale glowing streaks, a flat spiral on the ground, no symbols
+fx-calm-ripple	effect	6 frames of a soft pale blue ring of light that expands on the ground and fades, a flat ellipse
+fx-drum-rings	effect	6 frames of three concentric pale gold sound rings that expand from the centre and fade, flat on the ground
+fx-projectiles	effect	five separate small objects in one row with wide gaps: a crossbow bolt, a fire arrow with a small flame, a round trebuchet stone, a rolled parchment with a red cord, a burning torch, each flat from the side
+base_city	model	a prosperous lively medieval European walled city seen from above, a ring of low clean pale limestone walls with small round towers and one gatehouse, filled with many neat houses with white plaster walls and bright terracotta red roofs, a tall pale stone cathedral in the centre, a small market square
+base_big_city	model	a large prosperous medieval European capital city seen from above, a wide ring of clean pale limestone walls with many round towers and two gatehouses, filled with many rows of neat houses with white plaster walls and bright terracotta red roofs, a grand pale stone cathedral with twin towers, a castle and a large market square
+base_gate	model	a long straight clean pale limestone wall across a mountain pass with one large central gatehouse tower and two smaller wall towers, crenellated top, wide and low, seen from above at an angle
+base_port	model	a prosperous medieval harbour town seen from above, neat houses with white plaster walls and bright terracotta red roofs, a clean pale stone harbour tower, a timber pier on one side with a moored cog ship, a low clean sea wall
+facility_market	model	a small medieval village market, a few open stalls with cloth awnings, baskets of goods, one half-timbered shop
+facility_market_lv2	model	a medieval town market, two rows of stalls with cloth awnings and two half-timbered shops
+facility_market_lv3	model	a walled medieval market square with a stone market cross, an arched gate and a two-storey half-timbered guild hall
+facility_farm	model	a small medieval farmhouse with a thatched roof, a patch of wheat field and a stone well
+facility_farm_lv2	model	a medieval farm with a thatched barn, strips of wheat fields and a threshing floor
+facility_farm_lv3	model	a large medieval manor farm with a long tithe barn, a windmill and strips of wheat fields
+facility_barracks	model	one long low medieval timber barrack hall with a shingle roof and a small yard with weapon racks
+facility_barracks_lv2	model	two medieval barrack halls with a drill yard and a stone corner
+facility_barracks_lv3	model	a walled medieval garrison compound with three halls, stone walls and a gatehouse
+facility_smithy	model	a medieval open forge shed with a stone chimney, an anvil and a rack of swords
+facility_smithy_lv2	model	two medieval forges with stone chimneys and a storehouse
+facility_smithy_lv3	model	a medieval armourer workshop compound with three stone chimneys and racks of mail
+facility_stable	model	a medieval wooden stable with a thatched roof, a hitching rail and a water trough
+facility_stable_lv2	model	a longer medieval stable with a fenced paddock and a hay stack
+facility_stable_lv3	model	a large medieval stable yard with a stone stable block and a big fenced paddock
+facility_workshop	model	a medieval timber siege workshop shed with half-built trebuchet beams and large wheels outside
+facility_shipyard	model	a medieval slipway at the water line with a half-built cog hull and a timber crane
+facility_mint	model	a compact medieval stone mint building with a heavy iron door and barred windows
+facility_granary	model	a medieval stone tithe granary raised on staddle stones with a steep tile roof and a ladder
+facility_bronze_sparrow_tower	model	a tall royal romanesque palace tower on a high stone platform, three storeys with arched windows and a gilded weathervane on top
+facility_tally_office	model	a small medieval chancery hall in stone with a tile roof and a flag pole
+facility_personnel_office	model	a small medieval monastery scriptorium hall with an open cloister front
+facility_plot_office	model	a closed dark stone medieval house with small windows and a lantern at the door
+facility_great_market	model	a large walled medieval trade fair square with many stalls, two gates and a central belfry tower
+facility_black_market	model	a few shabby medieval timber huts and covered carts in a narrow alley
+facility_diplomacy_office	model	an elegant small romanesque hall with a carved stone portal and two ceremonial flag poles
+facility_military_office	model	a fortified small medieval stone hall with a weapon rack and a war horn on a stand at the door
+facility_drill_ground	model	a medieval fenced tilt yard of bare earth with a straw archery target and a jousting quintain
+facility_fish_market	model	medieval stalls with fish baskets and barrels beside a small timber pier
+facility_military_farm	model	medieval soldiers huts beside wheat strips, with spears stacked by the field
+facility_camp	model	a low medieval wooden palisade ring with a gate and two canvas tents
+building_fort	model	a strong medieval motte and bailey, a timber palisade ring with a corner watch platform and a wooden gate tower
+building_citadel	model	a small square stone medieval castle with four corner towers and a gatehouse
+facility_arrow_tower	model	a tall medieval timber watchtower on four legs with a covered platform and arrow slits
+building_repeating_tower	model	a heavy medieval timber tower with a roofed platform that holds a large ballista
+building_catapult_tower	model	a raised stone platform with a fixed medieval trebuchet and a pile of stones
+building_drum_tower	model	an open timber platform with a roof and a large war drum on a stand
+building_music_tower	model	an open timber platform with a roof, a frame of bronze bells and war horns on a rack
+building_stone_maze	model	eight tall rough standing stones in a ring with smaller stones between them, like a megalith circle
+building_earth_wall	model	a short straight earthen rampart segment with a wooden palisade on top
+building_stone_wall	model	a short straight medieval stone wall segment with a crenellated top
+building_fire_seed	model	a low pile of dry brushwood and small clay jars of oil, half hidden in grass
+building_fire_seed_2	model	a larger pile of dry brushwood with many clay jars of oil, half hidden in grass
+building_fire_seed_3	model	a large pile of dry brushwood with sealed black clay jars, half hidden in grass
+building_fire_ball	model	a large ball of bundled brushwood bound with rope
+building_fire_ball_2	model	a larger ball of bundled brushwood bound with rope, darker with oil stains
+building_fire_ball_3	model	a very large dark ball of bundled brushwood bound with iron bands, soaked with oil
+building_fire_ship	model	a small old medieval boat loaded with brushwood and oil jars, no crew, cut at the water line
+building_dike	model	a long earthen embankment segment with wooden stakes on its face
+building_rockfall	model	a heap of large fallen boulders below a short cliff face
+facility_scaffold	model	a small medieval timber scaffold frame of poles tied with rope and one ladder
+facility_scaffold_lv2	model	a medieval timber scaffold frame with planks and a treadwheel crane
+facility_scaffold_lv3	model	a large medieval timber scaffold around an unfinished stone wall with planks and a treadwheel crane

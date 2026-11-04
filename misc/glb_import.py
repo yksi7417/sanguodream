@@ -57,6 +57,7 @@ TEXTURE_MAX = 1024      # pixels; the larger side of the written texture
 GLB_MAGIC = b"glTF"
 CHUNK_JSON = 0x4E4F534A
 CHUNK_BIN = 0x004E4942
+WEBP_EXTENSION = "EXT_texture_webp"     # Pillow decodes these images
 
 COMPONENT_FORMATS = {5120: "b", 5121: "B", 5122: "h", 5123: "H", 5125: "I", 5126: "f"}
 COMPONENT_NORMALIZE = {5120: 127.0, 5121: 255.0, 5122: 32767.0, 5123: 65535.0}
@@ -92,6 +93,8 @@ def read_glb(path):
     if document is None:
         raise GlbError(f"{path}: the file has no JSON chunk")
     for extension in document.get("extensionsRequired", []):
+        if extension == WEBP_EXTENSION:
+            continue
         raise GlbError(f"{path}: the file needs the extension {extension}. Export it without compression or quantization.")
     return document, binary
 
@@ -253,7 +256,9 @@ def base_colour_image(document, binary, material_index):
     if texture_info is None:
         colour = tuple(int(round(max(0.0, min(1.0, value)) * 255)) for value in factor[:3])
         return Image.new("RGB", (4, 4), colour)
-    image_info = document["images"][document["textures"][texture_info["index"]]["source"]]
+    texture = document["textures"][texture_info["index"]]
+    source = texture["extensions"][WEBP_EXTENSION]["source"] if "source" not in texture else texture["source"]
+    image_info = document["images"][source]
     if "bufferView" not in image_info:
         raise GlbError("the base colour image is outside the GLB")
     data, _ = view_bytes(document, binary, image_info["bufferView"])

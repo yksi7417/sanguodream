@@ -590,7 +590,7 @@ of 1200 share one set of art.
 The art folder has the same layout as data/placeholder:
 - sprites/art/<name>.png for the units and the bases,
 - sprites/<name>.png for the placeholder pictures of the units,
-- models/<name>.hxm and models/<name>.png for the 3D models,
+- models/<name>.hxm and models/<name>.jpg or .png for the 3D models,
 - materials.jpg for the terrain and settlement.hxm for the settlement.
 
 The renderer reads each file in the art folder first. If the file is not
@@ -618,6 +618,27 @@ import the unit sheets, give the pack to art_import.py:
     python -X utf8 misc\art_import.py <folder of the sheets> data\medieval_europe
 
 Each art folder keeps its own provenance.tsv.
+
+### The models of the local server
+misc/local_art.py makes the Europe models and two unit sheets on a local server.
+docs/europe/ART-JOBS.tsv gives the prompt of each job. The script keeps its
+state in art-src/europe/generated, so it continues after a restart.
+
+| Item | Value |
+|---|---|
+| Picture | FLUX.2 klein 4B, Apache-2.0 |
+| Mesh and texture | TRELLIS.2, MIT |
+| Unit sheets | Qwen-Image-Edit-2511, Apache-2.0 |
+| Base texture | JPEG, 1024 pixels, quality 85, no colour subsampling |
+| Other textures | JPEG, 512 pixels, quality 85, no colour subsampling |
+| Size | approximately 0.86 MB for each small model |
+
+TRELLIS.2 uses nvdiffrast and nvdiffrec of NVIDIA. These tools have a separate
+licence. Read that licence before a commercial release of this art.
+
+To import the finished models again from their GLB files, run this command:
+
+    python -X utf8 -E misc\local_art.py --import-again
 
 ## Text of the content pack (data/placeholder)
 The project wrote these files. They contain no text from the original game.

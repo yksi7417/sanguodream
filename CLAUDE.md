@@ -218,6 +218,8 @@ decompilation of it.
 - misc/drive_models.py   imports the new GLBs of the shared Drive folder
                          07-3D-Models with glb_import.py; --list shows
                          the decision for each file (docs/ASSETS.md)
+- misc/local_art.py     makes the Europe models and unit sheets on the local
+                         server, from docs/europe/ART-JOBS.tsv (docs/ASSETS.md)
 - misc/subset_font.py    writes the subset of the CJK font for the web
                          build to build/web/fonts (docs/WEB.md)
 - misc/make_splash.py    makes the splash art, the icon and the favicon from
