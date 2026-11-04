@@ -415,8 +415,8 @@ ui_draw_map_menu(ui_state *ui, engine_api *api)
             ui_growth_result(ui, "hud.delegate", result);
         }
         if (ui_menu_item(ui, "topbar.info", "open_info", true))          ui_context_open(ui, api, UI_CONTEXT_INFO, x, y);
-        if (ui_menu_item(ui, "topbar.save", "open_save", true))         { ui_open_saveload(ui, api, true);  ui_context_open(ui, api, UI_CONTEXT_SAVELOAD, x, y); }
-        if (ui_menu_item(ui, "topbar.load", "open_load", true))          { ui_open_saveload(ui, api, false); ui_context_open(ui, api, UI_CONTEXT_SAVELOAD, x, y); }
+        if (ui_menu_item(ui, "topbar.save", "open_save", true))         ui_menu_open_saveload(ui, api, true, x, y);
+        if (ui_menu_item(ui, "topbar.load", "open_load", true))          ui_menu_open_saveload(ui, api, false, x, y);
     }
     ImGui::End();
 }
@@ -430,8 +430,8 @@ ui_draw_system_menu(ui_state *ui, engine_api *api)
     if (ui_begin_menu_window(ui, "###SystemMenu"))
     {
         f32 x = ui->context.x, y = ui->context.y;
-        if (ui_menu_item(ui, "topbar.save", "open_save", true))          { ui_open_saveload(ui, api, true);  ui_context_open(ui, api, UI_CONTEXT_SAVELOAD, x, y); }
-        if (ui_menu_item(ui, "topbar.load", "open_load", true))          { ui_open_saveload(ui, api, false); ui_context_open(ui, api, UI_CONTEXT_SAVELOAD, x, y); }
+        if (ui_menu_item(ui, "topbar.save", "open_save", true))          ui_menu_open_saveload(ui, api, true, x, y);
+        if (ui_menu_item(ui, "topbar.load", "open_load", true))          ui_menu_open_saveload(ui, api, false, x, y);
         if (ui_menu_item(ui, "hud.settings", "settings", true))          ui_context_open(ui, api, UI_CONTEXT_SETTINGS, x, y);
         if (ui_menu_item(ui, "hud.edit", "edit", true))                  ui_context_open(ui, api, UI_CONTEXT_EDITOR, x, y);
         if (ui_menu_item(ui, "hud.replay", "replay", true))              { ui_context_close(ui); ui->show_replay = true; }

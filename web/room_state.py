@@ -208,14 +208,17 @@ class Room:
             return True
         acting = self.record["acting"]
         if acting == NO_FACTION:
-            return self.last_author == SERVER   # the server refuses each step until a report names a faction
+            if self.last_author == SERVER:
+                return True   # the server refuses each step until a report names a faction
+            # A game of the AI alone: after its report, the host waits before the next step.
+            return self.record["host"] in self.reports.get(len(self.steps) - 1, {})
         seat = self.player_seat(acting)
         return bool(seat and not seat.get("ai"))
 
     def public(self):
         """The room for the pages. The uids of the players stay on the server."""
         record = {key: value for key, value in self.record.items() if key not in ("host", "deadline")}
-        record["seats"] = [{key: seat.get(key) for key in ("force", "name", "user", "ai")} for seat in self.record["seats"]]
+        record["seats"] = [{key: seat.get(key) for key in ("force", "name", "user", "ai", "auto")} for seat in self.record["seats"]]
         record["step_count"] = len(self.steps)
         return record
 

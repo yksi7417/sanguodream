@@ -1101,6 +1101,18 @@ net.chat_send	Send	MP7: the button that sends a line of the chat
 net.invite	Invite	MP9: the invite panel of a shared game and its button in the banner
 net.invite_link	Invite link	MP9: the label over the link in the invite panel
 net.take_seat	Take this seat	MP9: the button of a free seat in the invite panel
+net.copy	Copy	the button that copies the invite link
+net.computer	Computer	the player of a faction of the AI, after the name of the faction
+net.auto_on	AI plays for me	the button of the banner: the AI takes the faction of the player
+net.auto_off	Play by hand	the button of the banner: the player takes the faction back
+net.follow	Follow the action	the option of the banner: the camera goes to each action on the map
+net.ai_plays	the computer plays	the invite panel: after the name of a player while the AI plays the faction
+net.saving	The game goes to the server.	the banner after Save in a shared game
+net.saved	The server has the game. Open it from My games.	the banner after the server keeps a shared game
+net.save_failed	The server did not save the game.	the banner after the server refuses a snapshot
+net.load_off	A shared game loads no local save. Open it from My games.	the banner after Load in a shared game
+net.copied	The link is on the clipboard.	the banner after a copy of the invite link
+net.copy_failed	The browser refused the copy. Select the link in the page.	the banner after a copy that failed
 settings.font_size	Font size	slider, pixels
 menu.units	Units	menu item and panel: the list of the units
 units.title	Units	title of the Units panel

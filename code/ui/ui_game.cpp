@@ -56,6 +56,8 @@ ui_enter_game(ui_state *ui)
     ui->feel.loaded_game = false;   /* G3-023: the load sets it after this call */
 }
 
+internal void ui_net_show_notice(ui_state *ui, u32 notice);   /* ui_multiplayer.cpp */
+
 internal void
 ui_open_saveload(ui_state *ui, engine_api *api, bool saving)
 {
@@ -63,7 +65,8 @@ ui_open_saveload(ui_state *ui, engine_api *api, bool saving)
     {
         /* MP5: a shared game never writes a local slot, and no player loads a save into it.
            儲存 sends a snapshot of the state to the room (ui_multiplayer.cpp). */
-        ui->net.snapshot_request = saving;
+        if (saving) ui->net.snapshot_request = true;
+        else        ui_net_show_notice(ui, PLATFORM_NET_NOTICE_LOAD_OFF);
         return;
     }
     ui->show_saveload  = true;
@@ -71,6 +74,15 @@ ui_open_saveload(ui_state *ui, engine_api *api, bool saving)
     ui->game.chosen    = ENGINE_SAVE_SLOTS;
     ui->game.message[0] = 0;
     api->refresh_save_slots(api->engine);
+}
+
+/* 儲存 or 載入 of a menu of the game mode. In a shared game, no dialog opens, and the menu closes. */
+internal void
+ui_menu_open_saveload(ui_state *ui, engine_api *api, bool saving, f32 x, f32 y)
+{
+    ui_open_saveload(ui, api, saving);
+    if (ui->show_saveload) ui_context_open(ui, api, UI_CONTEXT_SAVELOAD, x, y);
+    else                   ui_context_close(ui);
 }
 
 /* ---- 標題 (F-145) -------------------------------------------------------------------- */

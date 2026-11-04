@@ -39,7 +39,8 @@ async function showMyGames() {
      image and the seats to the game (join), then each step of the socket.
    The page shows names with textContent, never as HTML. */
 var NET = { HOST: 1, STEP: 2, CHECKSUM: 3, JOIN: 4, SEATS: 5, DESYNC: 6, ERROR: 7, TIMER: 8, PACK: 9, SNAPSHOT: 10,
-            OPEN_ROOM: 11, STATE_IMAGE: 12, CHAT: 13, ROOM_INFO: 14, TAKE_SEAT: 15 };
+            OPEN_ROOM: 11, STATE_IMAGE: 12, CHAT: 13, ROOM_INFO: 14, TAKE_SEAT: 15, COPY_LINK: 16, NOTICE: 17, AUTO: 18 };
+var NET_NOTICE = { SAVED: 2, SAVE_FAILED: 3, COPIED: 5, COPY_FAILED: 6 };   // platform_net_notice of code/hexdom.h
 var NET_POLL_MS = 2000;
 var RECONNECT_SECONDS = [1, 2, 4, 8, 15];   // after a lost connection; then each 15 seconds (MP4)
 var TURN_CHOICES = { live: [120, 180, 300, 600], correspondence: [12 * 3600, 24 * 3600, 48 * 3600, 72 * 3600] };
@@ -65,10 +66,14 @@ function netPush(kind, step, seat, host, bytes, text) {
 Module.hexdomNetSend = function (kind, step, low, high, acting, bytes, text, pack) {
   if (kind === NET.HOST) hostRoom(bytes, text, pack).catch(function (error) { roomStatus("The room was not made: " + error); });
   else if (kind === NET.STEP) sendStep(step, bytes);
-  else if (kind === NET.SNAPSHOT) putSnapshot(step, hexChecksum(low, high), bytes, 0);
+  else if (kind === NET.SNAPSHOT) putSnapshot(step, hexChecksum(low, high), bytes, 0, acting === 1);
+  else if (kind === NET.COPY_LINK) {
+    copyInviteLink(text).then(function (copied) { netPush(NET.NOTICE, copied ? NET_NOTICE.COPIED : NET_NOTICE.COPY_FAILED, 0, false, null, ""); });
+  }
   else if (kind === NET.OPEN_ROOM && /^[A-Z]{6}$/.test(text)) location.href = "/r/" + text;
   else if (kind === NET.CHAT) sendJson({ type: "chat", text: text });   // MP7: the server cleans the line
   else if (kind === NET.TAKE_SEAT) takeLateSeat(step);
+  else if (kind === NET.AUTO) sendJson({ type: "auto", on: step === 1 });
   else if (kind === NET.STATE_IMAGE) {
     // MP6: the image of the state after the step of a desync, for the developer.
     fetch("api/games/" + net.gid + "/desync/" + step, { method: "PUT", body: bytes })
@@ -84,15 +89,68 @@ function hexChecksum(low, high) {
 
 // MP5: the snapshot of the end of a game turn. The report of the step goes through the
 // socket, and the server can get the snapshot first: then the page tries again.
+// After Save of the player, the banner shows the result.
 var SNAPSHOT_TRIES = 4;
-function putSnapshot(step, checksum, bytes, tries) {
+function putSnapshot(step, checksum, bytes, tries, asked) {
+  function notice(kind) { if (asked) netPush(NET.NOTICE, kind, 0, false, null, ""); }
   fetch("api/games/" + net.gid + "/snap/" + step + "?checksum=" + checksum, { method: "PUT", body: bytes })
     .then(function (response) {
-      if (response.ok) { console.log("platform: room: the snapshot of step " + step + " is on the server"); return; }
-      if (tries + 1 < SNAPSHOT_TRIES) setTimeout(function () { putSnapshot(step, checksum, bytes, tries + 1); }, 1000 * (tries + 1));
-      else console.log("platform: room: the server refused the snapshot of step " + step + " (" + response.status + ")");
+      if (response.ok) {
+        console.log("platform: room: the snapshot of step " + step + " is on the server");
+        notice(NET_NOTICE.SAVED);
+        return;
+      }
+      if (tries + 1 < SNAPSHOT_TRIES) setTimeout(function () { putSnapshot(step, checksum, bytes, tries + 1, asked); }, 1000 * (tries + 1));
+      else {
+        console.log("platform: room: the server refused the snapshot of step " + step + " (" + response.status + ")");
+        notice(NET_NOTICE.SAVE_FAILED);
+      }
     })
-    .catch(function (error) { console.log("platform: room: the snapshot did not upload: " + error); });
+    .catch(function (error) {
+      console.log("platform: room: the snapshot did not upload: " + error);
+      notice(NET_NOTICE.SAVE_FAILED);
+    });
+}
+
+// The clipboard of the browser. An older browser or a frame can refuse the first way.
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (error) {
+    console.log("platform: room: the clipboard refused the link: " + error);
+  }
+  var field = element("textarea");
+  field.value = text;
+  document.body.appendChild(field);
+  field.select();
+  var copied = false;
+  try { copied = document.execCommand("copy"); } catch (error) { copied = false; }
+  field.remove();
+  return copied;
+}
+
+// After a refused copy, the page shows the link in a field. The player can select it there.
+async function copyInviteLink(link) {
+  var copied = await copyText(link);
+  if (!copied) showLinkToCopy(link);
+  return copied;
+}
+
+function showLinkToCopy(link) {
+  var old = document.getElementById("copy-box");
+  if (old) old.remove();
+  var box = element("div", undefined, "copy-box");
+  var field = element("input", undefined, "copy-field");
+  field.readOnly = true;
+  field.value = link;
+  var close = element("button", "Close", "copy-close");
+  close.type = "button";
+  close.addEventListener("click", function () { box.remove(); });
+  box.appendChild(field);
+  box.appendChild(close);
+  document.body.appendChild(box);
+  field.select();
 }
 
 
@@ -171,11 +229,21 @@ function drawRoom() {
   panel.replaceChildren();
   panel.appendChild(element("h2", room.name));
   panel.appendChild(element("p", "Invite link: " + inviteLink(room), "room-link"));
+  var copy = element("button", net.linkCopied ? "Copied" : "Copy link", "room-copy");
+  copy.type = "button";
+  copy.addEventListener("click", function () {
+    copyInviteLink(inviteLink(room)).then(function (copied) {
+      net.linkCopied = copied;
+      drawRoom();
+      setTimeout(function () { net.linkCopied = false; drawRoom(); }, 3000);
+    });
+  });
+  panel.appendChild(copy);
   panel.appendChild(element("p", "Room code: " + room.code, "room-code"));
   if (room.state === "open" && room.you_host) panel.appendChild(roomOptions(room));
   var list = element("ul");
   room.seats.forEach(function (seat) {
-    var who = seat.user ? (seat.ai ? "the computer, while " + seat.user + " is away" : seat.user) : "the computer";
+    var who = seat.user ? (seat.ai ? (seat.auto ? "the computer, for " : "the computer, while away: ") + seat.user : seat.user) : "the computer";
     var item = element("li", seat.name + ": " + who);
     item.className = "seat";
     if (room.state === "open") {
@@ -332,7 +400,7 @@ function connectRoom() {
     }
     var message = JSON.parse(event.data);
     if (message.type === "welcome") welcomeRoom(message);
-    else if (message.type === "presence") { net.online = message.seats; readPlayers(message.players); netPush(NET.SEATS, 0, 0, false, null, seatsText(true)); }
+    else if (message.type === "presence") { net.online = message.seats; readPlayers(message.players); netPush(NET.SEATS, 0, 0, false, null, seatsText(true)); netPush(NET.AUTO, message.auto.indexOf(net.seat) >= 0 ? 1 : 0, 0, false, null, ""); }
     else if (message.type === "timer") { netPush(NET.TIMER, message.seconds === null ? -1 : message.seconds, 0, false, null, ""); markYourTurn(message.acting); }
     else if (message.type === "chat") netPush(NET.CHAT, 0, 0, false, null, message.name + "\t" + message.text);
     else if (message.type === "desync") netPush(NET.DESYNC, message.step, 0, false, null, "");

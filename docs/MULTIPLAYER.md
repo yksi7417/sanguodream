@@ -211,8 +211,9 @@ The rules of the saves:
 - A player who joins or connects again gets the last snapshot and the
   log after it. The engine loads the snapshot, applies the log and
   compares the checksum.
-- The save menu of the game writes a snapshot in a shared game. The load
-  menu is off in a shared game.
+- The save menu of the game writes a snapshot in a shared game. The banner
+  shows the result. The load menu is off in a shared game, and the banner
+  says this.
 - The local saves of a member (`saves/<uid>/`) do not change. A shared
   game never writes a local slot.
 
@@ -1065,6 +1066,48 @@ These limits stay:
 - A late player can have seen the hidden state as a spectator (Q-3, Q-19).
 - The tests use a short live game. The Discord Activity and a long game have no
   test of a late seat.
+
+### The tools of the banner
+The banner of a shared game has these tools for a player:
+- **Save.** The menus send a snapshot to the server. The banner shows the result.
+  No local dialog opens. Before this fix, the menus opened the local Load dialog.
+  A click on a slot in that dialog changed the state of one page only.
+- **Load.** The banner says that a shared game loads no local save. A player
+  continues the game from "My games".
+- **Invite and Copy.** The canvas has no access to the clipboard of the system.
+  The game sends the link to the page, and the page copies it. If the browser
+  refuses, the page shows the link in a field. The lobby also has a copy button.
+- **The name of the faction.** The banner names the faction that acts and its player.
+  The invite panel lists each faction and its player.
+- **AI plays for me.** The AI plays the faction of the player. The next click on
+  the button gives the faction back.
+- **Follow the action.** The camera goes to each move and each hostile event of
+  another faction. Each page has its own option. It is off by default. In the
+  turn of the local seat, the camera stays with the player.
+
+#### The rules of the AI button
+The seat records the choice in `auto`, and `ai` says who plays now:
+- The server waits for `no_steps_of_the_ai`, as for a late seat. Then it sends
+  STEP_HUMAN.
+- If the faction acts, the server sends STEP_AI_TURN. The AI finishes the turn.
+- A seat with `auto` stays with the AI after a new hello of its player.
+
+If each faction is a faction of the AI, the sim stops at the end of the game turn.
+No faction then acts. The host page ends the game turn after 5 seconds. These
+limits follow from this rule:
+- The game of the AI runs only while the page of the host runs. A browser slows
+  a page in a hidden tab, and the game then slows too.
+- The room has no deadline in this time. If the host leaves, the game of the AI
+  waits. A player who takes a faction back gets a step of the server, and the game
+  goes on.
+- The game of the AI has no end. The log of the room can get full after many
+  game turns.
+
+The tests:
+- Server: rooms_tests.py checks the two ways of the button and the wait for the host.
+- UI: ui_tests.cpp checks the menus, the notices, the copy, the button and the
+  camera. The test of the menus failed on the old code.
+- Browser: shared_tools.spec.js does each step on real pages.
 
 ## The check by hand
 docs/TRY-MULTIPLAYER.md gives the steps to prove a shared game by hand. It has

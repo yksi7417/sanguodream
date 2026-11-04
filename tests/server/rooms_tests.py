@@ -395,6 +395,48 @@ class RoomsTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(await self.rooms.get("../users/x"))
         self.assertIsNone(await self.rooms.get("0123456789abcdef"))
 
+    # ---- the button of the banner: the AI plays the faction of a player ----
+
+    async def test_the_button_gives_a_faction_that_waits_to_the_ai_and_the_next_click_takes_it_back(self):
+        room, host, guest = await self.started_room(acting=FORCE_HOST)
+        seat = room.seat_of(GUEST["uid"])
+        self.assertIsNone(await self.send(room, guest, {"type": "auto", "on": True}))
+        self.assertEqual(host.socket.binaries[-1], server_step(0, rooms.STEP_HUMAN, FORCE_GUEST, FORCE_HOST, 0))
+        self.assertTrue(seat["ai"] and seat["auto"])
+        self.assertEqual(seat["uid"], GUEST["uid"])
+        self.assertEqual(guest.socket.texts[-1]["auto"], [FORCE_GUEST])
+        again = await self.connect(room, GUEST, last_step=0)                 # a new page keeps the choice
+        self.assertEqual(len(room.steps), 1)
+        self.assertIsNone(await self.send(room, again, {"type": "auto", "on": False}))
+        self.assertEqual(host.socket.binaries[-1], server_step(1, rooms.STEP_HUMAN, FORCE_GUEST, FORCE_HOST, 1))
+        self.assertFalse(seat["ai"] or seat["auto"])
+
+    async def test_the_button_of_the_faction_that_acts_lets_the_ai_finish_the_turn(self):
+        room, host, guest = await self.started_room(acting=FORCE_GUEST)
+        self.assertIsNone(await self.send(room, guest, {"type": "auto", "on": True}))
+        self.assertEqual(host.socket.binaries[-1], server_step(0, rooms.STEP_AI_TURN, FORCE_GUEST, FORCE_GUEST))
+        self.assertEqual(room.record["acting"], rooms.NO_FACTION)
+        self.assertIsNone(room.record["deadline"])
+
+    async def test_a_game_of_the_ai_alone_gives_a_faction_back_only_after_the_report_of_the_host(self):
+        room, host, guest = await self.started_room(acting=FORCE_GUEST)
+        await self.send(room, guest, {"type": "auto", "on": True})
+        await self.send(room, host, {"type": "auto", "on": True})
+        self.assertTrue(room.seat_of(HOST["uid"])["ai"])
+        count = len(room.steps)
+        self.assertIsNone(await self.send(room, host, socket_step(count, rooms.NO_FACTION, command=SIM_COMMAND_END_TURN)))
+        await self.send(room, guest, {"type": "auto", "on": False})
+        self.assertEqual(len(room.steps), count + 1)                         # no step of the server yet
+        await self.report(room, host, count, rooms.NO_FACTION)
+        self.assertEqual(guest.socket.binaries[-1], server_step(count + 1, rooms.STEP_HUMAN, FORCE_GUEST, rooms.NO_FACTION, 1))
+        self.assertFalse(room.seat_of(GUEST["uid"])["ai"])
+
+    async def test_a_spectator_has_no_button(self):
+        room, host, guest = await self.started_room()
+        await self.rooms.watch(room, OTHER)
+        watcher = await self.connect(room, OTHER)
+        self.assertEqual(await self.send(room, watcher, {"type": "auto", "on": True}), "no seat in this game")
+
     # ---- MP4: the timers, the absence and the AI takeover ----
 
     async def report(self, room, peer, step, acting, checksum="1" * 16):

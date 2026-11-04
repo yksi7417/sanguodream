@@ -648,6 +648,7 @@ ui_draw(ui_state *ui, engine_api *api, ui_frame_info *frame)
     bool live = in_game && !ui->replay.viewing;
     if (live) ui_report_update(ui, api, frame->dt_seconds);   /* M18: the log and the feedback read the new events */
     if (live) ui_round_update(ui, api, frame->dt_seconds);    /* M20: the next step of the show of the AI round */
+    if (live) ui_net_follow_update(ui, api, frame->dt_seconds);   /* the option of the banner: the camera follows the action */
     if (live) ui_war_update(ui, api, frame->dt_seconds);      /* the walk, the strikes and the hits */
     if (live) ui_captive_update(ui, api);                     /* 俘虜處置: the new captures of the player */
     if (tools) ui_draw_menu_bar(ui, api, frame);

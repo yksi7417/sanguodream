@@ -804,13 +804,17 @@ ui_draw_mini_game_result(ui_state *ui)
 
 /* The duel and debate screens open when one runs, and stay open to show
    the result until the player closes them. The feel settings show_duels
-   and show_debates turn the screens on. Both are off by default. */
+   and show_debates turn the screens on. Both are off by default. With a
+   setting off, the screen never opens. A debate can stay active here: in a
+   shared game, only the page of the faction that acts can resolve it. */
 internal void
 ui_draw_mini_games(ui_state *ui, engine_api *api)
 {
     ui_resolve_mini_games(ui, api);
     if (api->duel_view(api->engine).active)     ui->show_duel = true;
     if (api->debate_view(api->engine).active)   ui->show_debate = true;
+    if (!ui->feel.show_duels)   ui->show_duel = false;
+    if (!ui->feel.show_debates) ui->show_debate = false;
     if (ui->show_duel)   ui_draw_duel(ui, api);
     if (ui->show_debate) ui_draw_debate(ui, api);
     ui_draw_mini_game_result(ui);

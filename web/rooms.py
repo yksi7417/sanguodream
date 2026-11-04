@@ -411,7 +411,12 @@ class Rooms:
         return {"type": "timer", "acting": record["acting"], "seconds": seconds, "paused": bool(record.get("paused"))}
 
     async def start_deadline(self, room):
-        """The faction that acts changed: its turn gets the full time."""
+        """The faction that acts changed: its turn gets the full time. No faction acts in a game
+        of the AI alone: the host ends the game turn, and the room has no deadline."""
+        if room.record["acting"] == NO_FACTION and any(peer.uid == room.record["host"] for peer in room.peers):
+            room.record["deadline"] = None
+            await self.save(room)
+            return
         room.record["deadline"] = self.clock() + room.record["turn_seconds"]
         room.record["paused"] = False
         room.record.pop("remaining", None)
@@ -487,11 +492,34 @@ class Rooms:
         if room.record["state"] != "running" or not room.no_steps_of_the_ai():
             return
         online = {peer.uid for peer in room.peers if peer.welcomed and peer.build_ok}
-        seats = [seat for seat in room.record["seats"] if seat.get("ai") and seat.get("uid") in online]
+        seats = [seat for seat in room.record["seats"] if seat.get("ai") and not seat.get("auto") and seat.get("uid") in online]
         for seat in seats:
             await self.server_step(room, STEP_HUMAN, seat["force"], 1)
             seat["ai"] = False
             room.record.setdefault("missed", {})[str(seat["force"])] = 0
+        if seats:
+            if room.record["acting"] == NO_FACTION and not any(peer.uid == room.record["host"] for peer in room.peers):
+                await self.server_step(room, STEP_END_TURN, NO_FACTION)   # no host ends the game turn of the AI
+            await self.flush(room)
+
+    async def hand_factions_to_ai(self, room):
+        """Each seat with the choice of its player goes to the AI (the button of the banner). If the
+        faction acts, the AI finishes its turn. The player stays in the room and watches."""
+        if room.record["state"] != "running" or not room.no_steps_of_the_ai():
+            return
+        acting = room.record["acting"]
+        seats = [seat for seat in room.record["seats"] if seat.get("auto") and seat.get("uid") and not seat.get("ai")]
+        for seat in seats:
+            if seat["force"] != acting:
+                await self.server_step(room, STEP_HUMAN, seat["force"], 0)
+                seat["ai"] = True
+        for seat in seats:
+            if seat["force"] == acting:
+                await self.server_step(room, STEP_AI_TURN, acting)
+                seat["ai"] = True
+                room.record["acting"] = NO_FACTION
+                room.record["deadline"] = None
+                await broadcast_json(room, self.timer_message(room))
         if seats:
             await self.flush(room)
 

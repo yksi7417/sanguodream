@@ -4546,9 +4546,13 @@ register_ui_tests(ImGuiTestEngine *e)
         ctx->Yield(2);
         ImGuiTestItemInfo turn = ctx->ItemInfo("//###NetBanner/###net_turn");
         IM_CHECK(turn.ID != 0 && strstr(turn.DebugLabel, "Liu") != 0);
+        char faction[UI_NET_NAME_SIZE];
+        ui_force_text(&v.ui, &v.api, 1, faction, sizeof(faction));
+        IM_CHECK(faction[0] && strstr(turn.DebugLabel, faction) != 0);   /* the faction and its player */
         v.recorder.multiplayer.acting_force = 2;                     /* the faction of the local seat */
         ctx->Yield(2);
-        IM_CHECK(strstr(ctx->ItemInfo("//###NetBanner/###net_turn").DebugLabel, "Liu") == 0);
+        turn = ctx->ItemInfo("//###NetBanner/###net_turn");
+        IM_CHECK(strstr(turn.DebugLabel, "Liu") == 0 && strstr(turn.DebugLabel, "Tester") != 0);
         IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
     };
 
@@ -4743,6 +4747,210 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(g_ui_test_net.sent_count, 1u);
         IM_CHECK(g_ui_test_net.sent[0].kind == PLATFORM_NET_SNAPSHOT && g_ui_test_net.sent[0].step == 4);
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_SAVE_GAME), 0u);
+    };
+
+    /* The menus of the game mode open no local save dialog in a shared game. Before this
+       fix, 儲存 and 載入 of a menu opened the dialog, and it could load a slot into the game. */
+    t = IM_REGISTER_TEST(e, "ui", "net_save_and_load_of_a_menu_open_no_dialog_in_a_shared_game");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_test_net_reset();
+        v.frame.net_send    = ui_test_net_send;
+        v.frame.net_poll    = ui_test_net_poll;
+        v.frame.frame_arena = &g_ui_test_net.arena;
+        v.ui.hud_mode = true;
+        v.recorder.multiplayer.shared     = true;
+        v.recorder.multiplayer.step_count = 5;
+        v.ui.net.joined = true;
+        ctx->Yield();
+        ui_context_open(&v.ui, &v.api, UI_CONTEXT_SYSTEM_MENU, 400.0f, 100.0f);
+        ctx->Yield(2);
+        ctx->ItemClick("//###SystemMenu/###open_save");
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.show_saveload);
+        IM_CHECK_EQ(g_ui_test_net.sent_count, 1u);
+        IM_CHECK(g_ui_test_net.sent[0].kind == PLATFORM_NET_SNAPSHOT);
+        ui_context_open(&v.ui, &v.api, UI_CONTEXT_SYSTEM_MENU, 400.0f, 100.0f);
+        ctx->Yield(2);
+        ctx->ItemClick("//###SystemMenu/###open_load");
+        ctx->Yield(2);
+        IM_CHECK(!v.ui.show_saveload);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_REFRESH_SAVE_SLOTS), 0u);
+    };
+
+    /* The result of a save comes from the page. A game without a step has its start image on the server. */
+    t = IM_REGISTER_TEST(e, "ui", "net_save_shows_its_result_in_the_banner");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_test_net_reset();
+        v.frame.net_send    = ui_test_net_send;
+        v.frame.net_poll    = ui_test_net_poll;
+        v.frame.frame_arena = &g_ui_test_net.arena;
+        v.recorder.multiplayer.shared = true;
+        v.ui.net.joined = true;
+        ui_open_saveload(&v.ui, &v.api, true);
+        ctx->Yield(2);
+        IM_CHECK_EQ(g_ui_test_net.sent_count, 0u);
+        IM_CHECK_EQ(v.ui.net.notice, (u32)PLATFORM_NET_NOTICE_SAVED);
+        v.recorder.multiplayer.step_count = 5;
+        ui_open_saveload(&v.ui, &v.api, true);
+        ctx->Yield(2);
+        IM_CHECK_EQ(g_ui_test_net.sent_count, 1u);
+        IM_CHECK_EQ((int)g_ui_test_net.sent[0].acting, 1);               /* the page reports this snapshot */
+        IM_CHECK_EQ(v.ui.net.notice, (u32)PLATFORM_NET_NOTICE_SAVING);
+        IM_CHECK(ctx->ItemInfo("//###NetBanner/###net_notice").ID != 0);
+        platform_net_event refused = {};
+        refused.kind = PLATFORM_NET_NOTICE;
+        refused.step = PLATFORM_NET_NOTICE_SAVE_FAILED;
+        ui_test_net_queue(refused);
+        ctx->Yield(2);
+        IM_CHECK_EQ(v.ui.net.notice, (u32)PLATFORM_NET_NOTICE_SAVE_FAILED);
+        ui_open_saveload(&v.ui, &v.api, false);
+        IM_CHECK_EQ(v.ui.net.notice, (u32)PLATFORM_NET_NOTICE_LOAD_OFF);
+    };
+
+    /* The copy button gives the link to the page. The canvas has no access to the clipboard. */
+    t = IM_REGISTER_TEST(e, "ui", "net_invite_copy_button_sends_the_link_to_the_page");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_test_net_reset();
+        v.frame.net_send = ui_test_net_send;
+        v.frame.net_poll = ui_test_net_poll;
+        v.recorder.multiplayer.shared = true;
+        v.ui.net.joined      = true;
+        v.ui.net.show_invite = true;
+        snprintf(v.ui.net.invite_link, sizeof(v.ui.net.invite_link), "https://example.test/r/ABCDEF");
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("//###NetInvite/###copy_link");
+        ctx->Yield(2);
+        IM_CHECK_EQ(g_ui_test_net.sent_count, 1u);
+        IM_CHECK(g_ui_test_net.sent[0].kind == PLATFORM_NET_COPY_LINK);
+        IM_CHECK_STR_EQ(g_ui_test_net.text, "https://example.test/r/ABCDEF");
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+    };
+
+    /* The button of the banner asks the room for the AI, and the next click asks for the player.
+       A spectator has no such button. Both have the option to follow the action. */
+    t = IM_REGISTER_TEST(e, "ui", "net_auto_button_asks_the_room_and_changes_with_its_answer");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_test_net_reset();
+        v.frame.net_send = ui_test_net_send;
+        v.frame.net_poll = ui_test_net_poll;
+        v.recorder.multiplayer.shared = true;
+        v.recorder.multiplayer.local_force = 1;
+        v.ui.net.joined = true;
+        ctx->Yield(2);
+        recorder_reset(&v.recorder);
+        ctx->ItemClick("//###NetBanner/###net_auto");
+        ctx->Yield(2);
+        IM_CHECK_EQ(g_ui_test_net.sent_count, 1u);
+        IM_CHECK(g_ui_test_net.sent[0].kind == PLATFORM_NET_AUTO && g_ui_test_net.sent[0].step == 1);
+        IM_CHECK(!v.ui.net.auto_play);                                   /* the room decides */
+        platform_net_event answer = {};
+        answer.kind = PLATFORM_NET_AUTO;
+        answer.step = 1;
+        ui_test_net_queue(answer);
+        ctx->Yield(2);
+        IM_CHECK(v.ui.net.auto_play);
+        ctx->ItemClick("//###NetBanner/###net_auto");
+        ctx->Yield(2);
+        IM_CHECK_EQ(g_ui_test_net.sent_count, 2u);
+        IM_CHECK(g_ui_test_net.sent[1].kind == PLATFORM_NET_AUTO && g_ui_test_net.sent[1].step == 0);
+        IM_CHECK_EQ(recorder_count_commands(&v.recorder), 0u);
+        v.recorder.multiplayer.local_force = ENGINE_NO_FACTION;
+        ctx->Yield(4);                                                   /* the test engine keeps a found item for some frames */
+        IM_CHECK(!ctx->ItemExists("//###NetBanner/###net_auto"));
+        IM_CHECK(ctx->ItemInfo("//###NetBanner/###net_follow").ID != 0);
+    };
+
+    /* The host ends the game turn after a pause when no faction acts. A guest does not. */
+    t = IM_REGISTER_TEST(e, "ui", "net_host_ends_the_game_turn_of_the_ai_after_a_pause");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_test_net_reset();
+        v.frame.net_send   = ui_test_net_send;
+        v.frame.net_poll   = ui_test_net_poll;
+        v.recorder.multiplayer.shared       = true;
+        v.recorder.multiplayer.acting_force = ENGINE_NO_FACTION;
+        v.ui.net.joined      = true;
+        v.ui.net.desync_step = -1;
+        ctx->Yield(2);
+        IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_END_TURN), 0u);
+        v.recorder.multiplayer.host = true;
+        v.ui.net.no_faction_seconds = UI_NET_NO_FACTION_SECONDS;
+        ctx->Yield(2);
+        IM_CHECK(recorder_count(&v.recorder, RECORDER_END_TURN) >= 1u);
+    };
+
+    /* The option of the banner: the camera goes to a move of another faction. It stays in the
+       turn of the local seat, and the option is off by default. */
+    t = IM_REGISTER_TEST(e, "ui", "net_follow_frames_a_move_only_with_the_option_and_not_in_the_local_turn");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.multiplayer.shared       = true;
+        v.recorder.multiplayer.local_force  = 1;
+        v.recorder.multiplayer.acting_force = 2;
+        ctx->Yield();
+        sim_event moved = {};
+        moved.kind    = SIM_EVENT_UNIT_MOVED;
+        moved.detail  = 1;                                               /* unit 1 of the recorder is at the hex 1, 3 */
+        moved.faction = 2;
+        v.recorder.events[0]   = moved;
+        v.recorder.event_count = 1;
+        v.ui.map.scroll_request = false;
+        ui_net_follow_update(&v.ui, &v.api, 1.0f);
+        IM_CHECK(!v.ui.map.scroll_request);                              /* the option is off */
+        v.ui.net.follow      = true;
+        v.ui.net.follow_next = 0;
+        v.recorder.multiplayer.acting_force = 1;
+        ui_net_follow_update(&v.ui, &v.api, 1.0f);
+        IM_CHECK(!v.ui.map.scroll_request);                              /* the turn of the local seat */
+        v.ui.net.follow_next = 0;
+        v.recorder.multiplayer.acting_force = 2;
+        ui_net_follow_update(&v.ui, &v.api, 1.0f);
+        IM_CHECK(v.ui.map.scroll_request);
+        IM_CHECK(v.ui.map.scroll_to.q == 1 && v.ui.map.scroll_to.r == 3);
+        IM_CHECK_EQ(v.ui.net.follow_next, 1u);
+    };
+
+    /* With the setting off, no screen opens. A shared game shows why: the page of another
+       seat cannot resolve the duel or the debate, so it stays active on that page. */
+    t = IM_REGISTER_TEST(e, "ui", "a_hidden_debate_or_duel_opens_no_dialog_while_it_stays_active");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        v.recorder.officer_count = 3;
+        v.recorder.city_count    = 2;
+        v.recorder.debate_active = true;
+        v.recorder.duel_active   = true;
+        ctx->Yield(3);
+        IM_CHECK(!v.ui.show_debate && !v.ui.show_duel);
+        v.ui.feel.show_debates = true;                                   /* the setting turns the screen on */
+        v.ui.feel.show_duels   = true;
+        ctx->Yield(2);
+        IM_CHECK(v.ui.show_debate && v.ui.show_duel);
     };
 
     /* MP6: a desync sends the image of the state to the page, for the developer.

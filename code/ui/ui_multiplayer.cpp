@@ -170,6 +170,15 @@ ui_net_timer(ui_state *ui, const platform_net_event *event)
     ui->net.timer_seconds = event->step < 0 ? 0.0f : (f32)event->step;
 }
 
+/* A short message in the banner: the result of a save, of a load or of a copy. */
+internal void
+ui_net_show_notice(ui_state *ui, u32 notice)
+{
+    if (notice >= PLATFORM_NET_NOTICE_COUNT) return;
+    ui->net.notice         = notice;
+    ui->net.notice_seconds = UI_NET_NOTICE_SECONDS;
+}
+
 /* MP6: a desync. The banner names the step, and the image of the state after
    it goes to the page. The server keeps the images for the developer. Step -1
    ends the desync: the room decided, and the game goes on. */
@@ -197,6 +206,11 @@ ui_net_begin_frame(ui_state *ui, engine_api *api, ui_frame_info *frame)
     ui->net.available = frame->net_send && frame->net_poll;
     if (!ui->net.available) return;
     if (ui->net.timer_on && !ui->net.timer_paused) ui->net.timer_seconds = Maximum(0.0f, ui->net.timer_seconds - frame->dt_seconds);
+    if (ui->net.notice)
+    {
+        ui->net.notice_seconds -= frame->dt_seconds;
+        if (ui->net.notice_seconds <= 0.0f) ui->net.notice = PLATFORM_NET_NOTICE_NONE;
+    }
     platform_net_event event;
     for (u32 count = 0; count < UI_NET_MAX_EVENTS_PER_FRAME && frame->net_poll(&event); ++count)
     {
@@ -213,6 +227,8 @@ ui_net_begin_frame(ui_state *ui, engine_api *api, ui_frame_info *frame)
                 snprintf(ui->net.invite_link, sizeof(ui->net.invite_link), "%s", event.text ? event.text : "");
                 ui->net.late_join = event.step != 0;
                 break;
+            case PLATFORM_NET_NOTICE: ui_net_show_notice(ui, (u32)event.step);   break;
+            case PLATFORM_NET_AUTO:   ui->net.auto_play = event.step != 0;       break;
             case PLATFORM_NET_PACK:
                 if (ui_net_use_pack(ui, api, &event)) return;
                 break;
@@ -267,22 +283,58 @@ ui_net_send_snapshot(ui_state *ui, engine_api *api, ui_frame_info *frame)
     b32 author  = ui->net.snapshot_author;
     b32 request = ui->net.snapshot_request;   /* 儲存 of the player: a snapshot in any turn */
     ui->net.snapshot_author  = false;
-    ui->net.snapshot_request = false;
-    if (info.outgoing || !info.step_count) return;
+    ui->net.snapshot_request = request && info.outgoing;   /* the request waits for the steps of this frame */
+    if (info.outgoing) return;
+    if (!info.step_count)
+    {
+        /* No step yet: the start image on the server is the state of the game. */
+        if (request) ui_net_show_notice(ui, PLATFORM_NET_NOTICE_SAVED);
+        return;
+    }
     if (!request && (!author || api->turn(e) == ui->net.snapshot_turn)) return;
     memory_arena *arena = frame->frame_arena;
     u32 capacity = api->start_image_size(e);
-    if (!arena || capacity > arena->size - arena->used) return;
-    u8 *image = (u8 *)arena_push_size(arena, capacity);
+    u32 size = 0;
+    u8 *image = 0;
+    if (arena && capacity <= arena->size - arena->used)
+    {
+        image = (u8 *)arena_push_size(arena, capacity);
+        size  = api->start_image(e, image, capacity);
+    }
+    if (!size)
+    {
+        if (request) ui_net_show_notice(ui, PLATFORM_NET_NOTICE_SAVE_FAILED);
+        return;
+    }
     platform_net_event snapshot = {};
     snapshot.kind     = PLATFORM_NET_SNAPSHOT;
     snapshot.step     = (s32)info.step_count - 1;
     snapshot.checksum = api->state_checksum(e);
+    snapshot.acting   = request ? 1 : 0;
     snapshot.data     = image;
-    snapshot.size     = api->start_image(e, image, capacity);
-    if (!snapshot.size) return;
+    snapshot.size     = size;
     ui_net_send(frame, &snapshot);
     ui->net.snapshot_turn = api->turn(e);
+    if (request) ui_net_show_notice(ui, PLATFORM_NET_NOTICE_SAVING);
+}
+
+/* No faction acts when each faction is a faction of the AI. The sim runs all of them in one
+   step and stops at the end of the game turn. The host then ends the game turn after a pause,
+   so that the players can watch the game. */
+internal void
+ui_net_end_game_turn_of_the_ai(ui_state *ui, engine_api *api, ui_frame_info *frame)
+{
+    void *e = api->engine;
+    engine_multiplayer_info info = api->multiplayer_info(e);
+    if (!info.shared || !info.host || info.acting_force != ENGINE_NO_FACTION || ui->net.desync_step >= 0 || api->outcome(e).kind != SIM_OUTCOME_NONE)
+    {
+        ui->net.no_faction_seconds = 0.0f;
+        return;
+    }
+    ui->net.no_faction_seconds += frame->dt_seconds;
+    if (ui->net.no_faction_seconds < UI_NET_NO_FACTION_SECONDS) return;
+    ui->net.no_faction_seconds = 0.0f;
+    api->end_turn(e);
 }
 
 internal void
@@ -320,7 +372,25 @@ ui_net_end_frame(ui_state *ui, engine_api *api, ui_frame_info *frame)
         seat.step = ui->net.take_seat_force;
         ui_net_send(frame, &seat);
     }
+    if (ui->net.copy_link)
+    {
+        /* The canvas has no access to the clipboard of the system. The page copies the link. */
+        ui->net.copy_link = false;
+        platform_net_event copy = {};
+        copy.kind = PLATFORM_NET_COPY_LINK;
+        copy.text = ui->net.invite_link;
+        ui_net_send(frame, &copy);
+    }
+    if (ui->net.auto_send)
+    {
+        ui->net.auto_send = false;
+        platform_net_event choice = {};
+        choice.kind = PLATFORM_NET_AUTO;
+        choice.step = ui->net.auto_want ? 1 : 0;
+        ui_net_send(frame, &choice);
+    }
     if (!ui->net.joined) return;
+    ui_net_end_game_turn_of_the_ai(ui, api, frame);
     u8 bytes[ENGINE_STEP_WIRE_CAPACITY];
     for (;;)
     {
@@ -383,25 +453,46 @@ ui_draw_net_chat(ui_state *ui)
     ImGui::End();
 }
 
+internal b32
+ui_net_faction_is_human(engine_api *api, u8 force)
+{
+    for (u32 index = 0; index < api->faction_count(api->engine); ++index)
+    {
+        engine_faction faction = api->faction_at(api->engine, index);
+        if (faction.force_id == force) return faction.human;
+    }
+    return false;
+}
+
 /* MP9: the invite panel of a shared game. It shows the link and the free seats. A
    person without a seat can take a free seat: the page asks the server and loads again. */
 internal void
 ui_draw_net_invite(ui_state *ui, engine_api *api)
 {
     if (!ui->net.show_invite || !ui->net.joined) return;
-    char title[128], name[UI_NET_NAME_SIZE], row[UI_NET_NAME_SIZE + 96];
+    char title[128], label[96], name[UI_NET_NAME_SIZE], row[UI_NET_NAME_SIZE * 2 + 96];
     ImGui::SetNextWindowSize(ImVec2(420, 220), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "net.invite", "NetInvite"), &ui->net.show_invite)) { ImGui::End(); return; }
     ImGui::TextUnformatted(text_get(ui->text, "net.invite_link"));
-    ImGui::SetNextItemWidth(-1.0f);
+    ImGuiStyle &style = ImGui::GetStyle();
+    ui_label(label, sizeof(label), ui, "net.copy", "copy_link");
+    ImGui::SetNextItemWidth(-(ImGui::CalcTextSize(label, 0, true).x + style.FramePadding.x * 2.0f + style.ItemSpacing.x));
     ImGui::InputText("###invite_link", ui->net.invite_link, sizeof(ui->net.invite_link), ImGuiInputTextFlags_ReadOnly);
+    ImGui::SameLine();
+    if (ImGui::Button(label) && ui->net.invite_link[0]) ui->net.copy_link = true;
     b32 can_take = ui->net.late_join && api->multiplayer_info(api->engine).local_force == ENGINE_NO_FACTION;
     for (u32 index = 0; index < ui->net.seat_count; ++index)
     {
-        if (ui->net.seat_player[index][0]) continue;
         u8 force = ui->net.seat_force[index];
         ui_force_text(ui, api, force, name, sizeof(name));
-        if (!can_take) { ImGui::TextUnformatted(name); continue; }
+        if (ui->net.seat_player[index][0] || !can_take)
+        {
+            /* The faction and its player, or the computer for a free seat. */
+            if (!ui->net.seat_player[index][0])          ImGui::Text("%s: %s", name, text_get(ui->text, "net.computer"));
+            else if (ui_net_faction_is_human(api, force)) ImGui::Text("%s: %s", name, ui->net.seat_player[index]);
+            else ImGui::Text("%s: %s (%s)", name, ui->net.seat_player[index], text_get(ui->text, "net.ai_plays"));
+            continue;
+        }
         snprintf(row, sizeof(row), "%s: %s###take_seat%u", name, text_get(ui->text, "net.take_seat"), (u32)force);
         if (ImGui::Button(row))
         {
@@ -419,22 +510,32 @@ ui_draw_net_banner(ui_state *ui, engine_api *api)
 {
     engine_multiplayer_info info = api->multiplayer_info(api->engine);
     if (!info.shared && !ui->net.waiting) return;
-    char title[128], line[192], who[UI_NET_NAME_SIZE + 96];
+    char title[128], faction[UI_NET_NAME_SIZE] = "", who[UI_NET_NAME_SIZE * 2 + 96], line[sizeof(who) + 32];
     ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x * 0.5f, 8.0f), ImGuiCond_Always, ImVec2(0.5f, 0.0f));
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings |
                              ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
     if (!ImGui::Begin(ui_label(title, sizeof(title), ui, "net.title", "NetBanner"), 0, flags)) { ImGui::End(); return; }
+    /* The faction that acts and its player: "Faction (player)". */
     const char *player = ui_net_player_of(ui, info.acting_force);
+    if (!player) player = text_get(ui->text, "net.computer");
+    if (info.acting_force != ENGINE_NO_FACTION) ui_force_text(ui, api, info.acting_force, faction, sizeof(faction));
     if (!info.shared)                 snprintf(who, sizeof(who), "%s", text_get(ui->text, "net.waiting"));
     else if (ui->net.desync_step >= 0) snprintf(who, sizeof(who), "%s %d", text_get(ui->text, "net.desync"), ui->net.desync_step);
+    else if (!faction[0])             snprintf(who, sizeof(who), "%s", text_get(ui->text, "net.computer_acts"));
     else if (info.local_force != ENGINE_NO_FACTION && info.acting_force == info.local_force)
-        snprintf(who, sizeof(who), "%s", text_get(ui->text, "net.your_turn"));
-    else if (player)                  snprintf(who, sizeof(who), "%s %s", player, text_get(ui->text, "net.acts"));
-    else                              snprintf(who, sizeof(who), "%s", text_get(ui->text, "net.computer_acts"));
+        snprintf(who, sizeof(who), "%s: %s (%s)", text_get(ui->text, "net.your_turn"), faction, player);
+    else                              snprintf(who, sizeof(who), "%s (%s) %s", faction, player, text_get(ui->text, "net.acts"));
     snprintf(line, sizeof(line), "%s###net_turn", who);
     ImGui::BeginDisabled();
     ImGui::Selectable(line, false);
-    if (info.shared && ui->net.timer_on)
+    if (ui->net.notice)
+    {
+        local_persist const char *const notice_keys[PLATFORM_NET_NOTICE_COUNT] =
+            { "", "net.saving", "net.saved", "net.save_failed", "net.load_off", "net.copied", "net.copy_failed" };
+        snprintf(line, sizeof(line), "%s###net_notice", text_get(ui->text, notice_keys[ui->net.notice]));
+        ImGui::Selectable(line, false);
+    }
+    if (info.shared && ui->net.timer_on && info.acting_force != ENGINE_NO_FACTION)
     {
         /* MP4: the time left in the faction turn, or the stop of the timer. */
         u32 seconds = (u32)ui->net.timer_seconds;
@@ -457,6 +558,20 @@ ui_draw_net_banner(ui_state *ui, engine_api *api)
         ImGui::SameLine();
         snprintf(line, sizeof(line), "%s###net_invite", text_get(ui->text, "net.invite"));
         if (ImGui::SmallButton(line)) ui->net.show_invite = !ui->net.show_invite;
+        /* The AI plays the faction of the seat. The next click gives the faction back. */
+        if (info.local_force != ENGINE_NO_FACTION)
+        {
+            ImGui::SameLine();
+            snprintf(line, sizeof(line), "%s###net_auto", text_get(ui->text, ui->net.auto_play ? "net.auto_off" : "net.auto_on"));
+            if (ImGui::SmallButton(line))
+            {
+                ui->net.auto_send = true;
+                ui->net.auto_want = !ui->net.auto_play;
+            }
+        }
+        ImGui::SameLine();
+        snprintf(line, sizeof(line), "%s###net_follow", text_get(ui->text, "net.follow"));
+        ImGui::Checkbox(line, &ui->net.follow);
     }
     if (ui->net.error[0]) ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.4f, 1.0f), "%s", ui->net.error);
     ImGui::End();

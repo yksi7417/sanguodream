@@ -1099,6 +1099,18 @@ net.chat_send	送出
 net.invite	邀請
 net.invite_link	邀請連結
 net.take_seat	加入此席位
+net.copy	複製
+net.computer	電腦
+net.auto_on	由電腦代打
+net.auto_off	改為手動
+net.follow	跟隨行動
+net.ai_plays	由電腦代打中
+net.saving	正在將遊戲傳送至伺服器。
+net.saved	伺服器已保存遊戲。可從 My games 繼續。
+net.save_failed	伺服器未能保存遊戲。
+net.load_off	連線遊戲不能載入本機存檔。請從 My games 繼續。
+net.copied	連結已複製到剪貼簿。
+net.copy_failed	瀏覽器拒絕複製。請在頁面中選取連結。
 settings.font_size	字型大小
 menu.units	部隊一覽
 units.title	部隊一覽

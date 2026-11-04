@@ -124,13 +124,30 @@ enum platform_net_kind
     PLATFORM_NET_ERROR,     /* text: the reason */
     PLATFORM_NET_TIMER,     /* MP4. acting: the faction that acts. step: the seconds left; -1 if the timer stops */
     PLATFORM_NET_PACK,      /* MP4. text: the content pack of the room. It comes before the join */
-    PLATFORM_NET_SNAPSHOT,  /* MP5, to the page. data: the image of the state after step. checksum: the state */
+    PLATFORM_NET_SNAPSHOT,  /* MP5, to the page. data: the image of the state after step. checksum: the state.
+                               acting: 1 if the player asked for it. The page then gives the result as a notice */
     PLATFORM_NET_OPEN_ROOM, /* MP5, to the page. text: the room code of the title menu */
     PLATFORM_NET_STATE_IMAGE, /* MP6, to the page. data: the image of the state after the step of a desync */
     PLATFORM_NET_CHAT,      /* MP7. To the page, text: a line of the player. From the page, text: "name<TAB>line" */
     PLATFORM_NET_ROOM_INFO, /* MP9, from the page. text: the invite link. step: 1 if a player can join after the start */
     PLATFORM_NET_TAKE_SEAT, /* MP9, to the page. step: the faction of a free seat */
+    PLATFORM_NET_COPY_LINK, /* to the page. text: the invite link for the clipboard of the browser */
+    PLATFORM_NET_NOTICE,    /* from the page. step: the platform_net_notice */
+    PLATFORM_NET_AUTO,      /* both ways. step: 1 if the AI plays the faction of the local seat, 0 for the player */
     PLATFORM_NET_KIND_COUNT
+};
+
+/* A short message in the banner of a shared game. web/shared_game.js has the same numbers. */
+enum platform_net_notice
+{
+    PLATFORM_NET_NOTICE_NONE,
+    PLATFORM_NET_NOTICE_SAVING,
+    PLATFORM_NET_NOTICE_SAVED,
+    PLATFORM_NET_NOTICE_SAVE_FAILED,
+    PLATFORM_NET_NOTICE_LOAD_OFF,
+    PLATFORM_NET_NOTICE_COPIED,
+    PLATFORM_NET_NOTICE_COPY_FAILED,
+    PLATFORM_NET_NOTICE_COUNT
 };
 
 #define PLATFORM_NET_NO_SEAT 0xFF

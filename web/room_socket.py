@@ -83,7 +83,8 @@ async def send_presence(room):
     online = {peer.uid for peer in room.peers}
     seats = sorted(seat["force"] for seat in room.record["seats"] if seat.get("uid") in online)
     players = [{"force": seat["force"], "user": seat["user"]} for seat in room.record["seats"] if seat.get("user")]
-    await broadcast_json(room, {"type": "presence", "seats": seats, "host": room.record["host"] in online, "players": players})
+    auto = [seat["force"] for seat in room.record["seats"] if seat.get("auto")]
+    await broadcast_json(room, {"type": "presence", "seats": seats, "host": room.record["host"] in online, "players": players, "auto": auto})
 
 
 async def on_hello(rooms, room, peer, message):
@@ -138,6 +139,7 @@ async def on_checksum(rooms, room, peer, message):
         await broadcast_json(room, {"type": "desync", "step": room.record["desync_step"]})
     if result in ("desync", "judge"):
         await rooms.judge(room)   # MP6: the majority or the referee decides after the last report
+    await rooms.hand_factions_to_ai(room)
     await rooms.give_factions_back(room)   # a report can name a faction with a player: the burst is over
 
 
@@ -151,7 +153,23 @@ async def on_chat(rooms, room, peer, message):
         await broadcast_json(room, dict(line, type="chat"))
 
 
-HANDLERS = {"hello": on_hello, "checksum": on_checksum, "chat": on_chat}
+async def on_auto(rooms, room, peer, message):
+    """The button of the banner: the AI plays the faction of the player, until the next click."""
+    if not peer.welcomed:
+        raise RoomError("hello first")
+    seat = room.seat_of(peer.uid)
+    if seat is None:
+        raise RoomError("no seat in this game")
+    if not isinstance(message.get("on"), bool):
+        raise RoomError("bad message")
+    seat["auto"] = message["on"]
+    await rooms.save(room)
+    await rooms.hand_factions_to_ai(room)
+    await rooms.give_factions_back(room)
+    await send_presence(room)
+
+
+HANDLERS = {"hello": on_hello, "checksum": on_checksum, "chat": on_chat, "auto": on_auto}
 
 
 async def handle_text(rooms, room, peer, text):

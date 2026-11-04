@@ -222,6 +222,10 @@ struct ui_table_source
 
 #define UI_NET_SEATS     8    /* the human seats of a shared game (docs/MULTIPLAYER.md, Q-1) */
 #define UI_NET_NAME_SIZE 64
+#define UI_NET_NOTICE_SECONDS 8.0f   /* how long the banner of a shared game shows a notice */
+#define UI_NET_NO_FACTION_SECONDS 5.0f   /* the host ends a game turn of the AI after this time */
+#define UI_NET_FOLLOW_SECONDS 1.0f       /* the camera stays this long on one action */
+#define UI_NET_FOLLOW_BACKLOG 32u        /* the camera skips older actions than this number of events */
 #define UI_NET_CHAT_LINES 32  /* MP7: the lines of the chat that the panel keeps */
 #define UI_NET_CHAT_SIZE  384 /* a name, a tab and a line of at most 300 characters of the room (web/rooms.py) */
 
@@ -737,6 +741,18 @@ struct ui_state
         bool show_invite;
         bool take_seat;          /* the next frame sends take_seat_force to the page */
         u8   take_seat_force;
+        bool copy_link;          /* the next frame sends invite_link to the page for the clipboard */
+        u32  notice;             /* platform_net_notice: the banner shows it for notice_seconds */
+        f32  notice_seconds;
+        /* The button of the banner: the AI plays the faction of the local seat, until the next click. */
+        bool auto_play;          /* the room says that the player chose the AI */
+        bool auto_send;          /* the next frame sends auto_want to the page */
+        bool auto_want;
+        f32  no_faction_seconds; /* the host: how long no faction acts. The host then ends the game turn */
+        /* The option of the banner: the camera goes to each action on the map. */
+        bool follow;
+        u32  follow_next;        /* the next event of the ledger to look at */
+        f32  follow_wait;
     } net;
 };
 

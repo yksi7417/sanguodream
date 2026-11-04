@@ -187,3 +187,56 @@ ui_round_update(ui_state *ui, engine_api *api, f32 dt_seconds)
     ui->round.playing = false;
     ui->round.force   = ENGINE_NO_FACTION;
 }
+
+/* The option of the banner of a shared game: the camera goes to each action on the map. A
+   player or a spectator can use it. In the turn of the local seat, the camera stays with the
+   player. */
+internal b32
+ui_net_follow_hex(engine_api *api, u32 index, hex_coord *out)
+{
+    sim_event event = api->ledger_at(api->engine, index);
+    if (event.kind == SIM_EVENT_UNIT_MOVED)
+    {
+        engine_unit unit = api->unit_at(api->engine, event.detail);
+        if (unit.id == ENGINE_NO_UNIT) return false;
+        *out = hex_make(unit.q, unit.r);
+        return true;
+    }
+    if (!ui_feel_hostile(event.kind)) return false;
+    engine_event_report report = api->event_report(api->engine, index);
+    if (report.subject.kind != ENGINE_SUBJECT_CITY) return false;
+    engine_city_slots site = api->city_slots(api->engine, (u8)report.subject.id);
+    if (site.city_id == ENGINE_NO_CITY) return false;
+    *out = hex_make(site.q, site.r);
+    return true;
+}
+
+internal void
+ui_net_follow_update(ui_state *ui, engine_api *api, f32 dt_seconds)
+{
+    u32 count = api->ledger_count(api->engine);
+    engine_multiplayer_info info = api->multiplayer_info(api->engine);
+    if (!ui->net.follow || !info.shared || ui->net.follow_next > count)
+    {
+        ui->net.follow_next = count;   /* the option starts with the next action, and a ledger can get shorter */
+        return;
+    }
+    ui->net.follow_wait -= dt_seconds;
+    if (ui->net.follow_wait > 0.0f) return;
+    if (info.local_force != ENGINE_NO_FACTION && info.acting_force == info.local_force)
+    {
+        ui->net.follow_next = count;
+        return;
+    }
+    if (count - ui->net.follow_next > UI_NET_FOLLOW_BACKLOG) ui->net.follow_next = count - UI_NET_FOLLOW_BACKLOG;
+    while (ui->net.follow_next < count)
+    {
+        hex_coord hex;
+        if (ui_net_follow_hex(api, ui->net.follow_next++, &hex))
+        {
+            ui_frame_hex(ui, api, hex);
+            ui->net.follow_wait = UI_NET_FOLLOW_SECONDS;
+            return;
+        }
+    }
+}
