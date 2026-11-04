@@ -619,6 +619,22 @@ text_arms_file_is_allowed(const char *path)
     return true;
 }
 
+internal b32
+text_game_pack_picture(text_catalog *catalog, const char *name, char *out, u32 out_size)
+{
+    if (!out_size) return false;
+    out[0] = 0;
+    if (!catalog || !catalog->game_pack[0] || !name) return false;
+    u64 pack_size = strlen(catalog->game_pack), name_size = strlen(name);
+    if (pack_size + 1 + name_size + 1 > out_size) return false;
+    memcpy(out, catalog->game_pack, pack_size);
+    out[pack_size] = '/';
+    memcpy(out + pack_size + 1, name, name_size + 1);
+    if (text_arms_file_is_allowed(out)) return true;
+    out[0] = 0;
+    return false;
+}
+
 internal const char *
 text_key_arms(text_catalog *catalog, const char *key)
 {

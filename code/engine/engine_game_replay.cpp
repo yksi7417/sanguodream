@@ -221,10 +221,11 @@ engine_game_replay_note_checkpoint(engine *e, u32 steps, u32 turn_before)
 
 /* Loads an image into the live sim and the ledger. The names stay: they
    are no part of the game, and a name index can load after the start.
+   If use_image_names is true and the image has names, the names of the image replace them.
    The map version stays if the cells are the same, so that the renderer
    does not build the map again for each step. */
 internal b32
-engine_game_replay_load_image(engine *e, u8 *image, u64 size)
+engine_game_replay_load_image(engine *e, u8 *image, u64 size, b32 use_image_names = false)
 {
     sim_state *sim = e->sim;
     u32 cells = sim->map.width * sim->map.height;
@@ -239,8 +240,11 @@ engine_game_replay_load_image(engine *e, u8 *image, u64 size)
     engine_save_header header;
     engine_save_status status = engine_save_read_header(e, &header, &cursor);
     if (status == ENGINE_SAVE_OK) status = engine_save_load_image(e, &header, &cursor);
-    sim->names     = *names;
-    sim->has_names = has_names;
+    if (status != ENGINE_SAVE_OK || !use_image_names || !sim->has_names)
+    {
+        sim->names     = *names;
+        sim->has_names = has_names;
+    }
     arena->used    = mark;
     u64 cells_after = engine_game_replay_hash(engine_game_replay_hash(engine_game_replay_hash(0, sim->map.cost, cells), sim->map.kind, cells), sim->map.level, cells);
     if (cells_after == cells_before) sim->map.version = map_version;

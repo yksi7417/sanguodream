@@ -431,7 +431,8 @@ struct render_terrain
 {
     u32  width;
     u32  height;
-    const u8 *kind;        /* per cell, row-major by offset: atlas tile index */
+    const u8 *kind;        /* per cell, row-major by offset: the colour of the placeholder atlas */
+    const u8 *art_kind;    /* per cell: the terrain kind, the row of materials.jpg. 0 (no pointer): kind 0 */
     const u8 *level;       /* per cell: height in steps of TERRAIN_STEP */
     u32  version;          /* bumped by the DLL when kind or level change */
     const u8 *grid;        /* M11: per cell, 1 = draw the grid outline; 0 (no pointer) = every cell */
@@ -793,6 +794,8 @@ struct render_commands
     f32    viewport_width;
     f32    viewport_height;
     render_terrain terrain;
+    f32    terrain_season;         /* calendar_season: 0 spring .. 3 winter */
+    f32    terrain_ripple;         /* 0..1: the blend of the two frames of a water tile */
     const u32 *overlay;            /* per cell RGBA8, alpha blends over the material; 0 = none */
     b32    draw_grid;              /* hex outlines on the terrain */
     render_mesh_instance *mesh_instances;

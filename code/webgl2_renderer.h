@@ -24,7 +24,7 @@
 
 #define GL_MAX_MESHES        32     /* at least RENDER_MESH_COUNT */
 #define GL_MAX_SPRITES       32     /* at least RENDER_SPRITE_COUNT */
-#define GL_ATLAS_TILES       8      /* material tiles in one row of the atlas */
+#define GL_ATLAS_TILES       8      /* the layers of the placeholder atlas */
 #define GL_ATLAS_TILE_SIZE   64     /* pixels, for the generated placeholder atlas */
 #define GL_SPRITE_SIZE       64
 #define GL_BASE_KINDS        (RENDER_SPRITE_COUNT - RENDER_SPRITE_FIRST_BASE)
@@ -74,8 +74,9 @@ struct gl_frame_constants
     f32 camera_right[4];
     f32 camera_up[4];
     f32 overlay_size[2];      /* cells wide, cells high */
-    f32 atlas_tiles;
+    f32 atlas_tiles;          /* the layers of the atlas: more than 8 is materials.jpg */
     f32 mode;                 /* 0 terrain, 1 grid lines, 2 the card of a base faces the camera */
+    f32 terrain_state[4];     /* season, ripple, unused, unused */
 };
 
 struct gl_mesh_instance
@@ -119,6 +120,7 @@ struct webgl2_renderer
     u32     overlay_width, overlay_height;
 
     GLuint        atlas_texture;
+    u32           atlas_layers;
     gl_mesh       meshes[GL_MAX_MESHES];
     u32           mesh_count;
     gl_sprite     sprites[GL_MAX_SPRITES];
@@ -140,7 +142,7 @@ struct webgl2_renderer
 "precision highp int;\n" \
 "layout(std140, row_major) uniform Frame {\n" \
 "  mat4 view_projection; vec4 light_direction; vec4 camera_right; vec4 camera_up;\n" \
-"  vec2 overlay_size; float atlas_tiles; float mode; };\n" \
+"  vec2 overlay_size; float atlas_tiles; float mode; vec4 terrain_state; };\n" \
 "vec4 to_clip(vec3 world) {\n"     /* mul(p, M) of the HLSL, then the depth from 0..1 to -1..1 */ \
 "  vec4 clip = vec4(world, 1.0) * view_projection;\n" \
 "  clip.z = clip.z * 2.0 - clip.w; return clip; }\n"
@@ -152,12 +154,15 @@ static const char gl_terrain_vs[] = GL_SHADER_HEADER
 "void main() { gl_Position = to_clip(a_position); v_normal = a_normal; v_uv = a_uv; v_cell = a_cell; v_tile = a_tile; }\n";
 
 static const char gl_terrain_fs[] = GL_SHADER_HEADER
-"uniform sampler2D u_atlas; uniform highp sampler2D u_overlay;\n"
+"uniform highp sampler2DArray u_atlas; uniform highp sampler2D u_overlay;\n"
 "in vec3 v_normal; in vec2 v_uv; in float v_cell; in float v_tile; out vec4 o_color;\n"
 "void main() {\n"
 "  if (mode > 0.5) { o_color = vec4(0.05, 0.05, 0.05, 1.0); return; }\n"
-"  vec2 uv = vec2((v_tile + fract(v_uv.x)) / atlas_tiles, fract(v_uv.y));\n"
-"  vec3 base = texture(u_atlas, uv).rgb;\n"
+"  float code = floor(v_tile + 0.5); float kind = floor(code / 256.0); float layer = code - kind * 256.0; float frame = layer;\n"
+"  if (atlas_tiles > 8.5) {\n"
+"    layer = kind * 4.0 + terrain_state.x; frame = layer;\n"
+"    if ((kind > 5.5 && kind < 8.5) || (kind > 11.5 && kind < 13.5)) frame = 80.0 + (kind < 9.0 ? kind - 6.0 : kind - 9.0) * 4.0 + terrain_state.x; }\n"
+"  vec3 base = mix(texture(u_atlas, vec3(v_uv, layer)).rgb, texture(u_atlas, vec3(v_uv, frame)).rgb, terrain_state.y);\n"
 "  int w = int(overlay_size.x); int c = int(v_cell + 0.5);\n"
 "  vec4 tint = texelFetch(u_overlay, ivec2(c % w, c / w), 0);\n"
 "  float light = 0.35 + 0.65 * clamp(dot(normalize(v_normal), -light_direction.xyz), 0.0, 1.0);\n"
@@ -318,8 +323,9 @@ gl_read_data_file(webgl2_renderer *r, const char *relative, memory_arena *arena,
     return *size_out ? (u8 *)file.contents : 0;
 }
 
-/* The placeholder material atlas: one flat colour tile per terrain kind,
-   with a faint checker so zoom is visible. Used when materials.png is absent.
+/* The placeholder material atlas: one flat colour layer per colour of
+   terrain.tsv, one below the other, with a faint checker so zoom is
+   visible. Used when materials.jpg is absent.
    Colours are ABGR in memory (RGBA8, little endian). */
 internal u32 *
 gl_placeholder_atlas(memory_arena *arena)
@@ -328,13 +334,13 @@ gl_placeholder_atlas(memory_arena *arena)
         0xFF9E5A2Eu, /* 0 water: blue  */ 0xFF4E8C5Au, /* 1 plain: green */ 0xFF2E6E3Au, /* 2 forest */
         0xFF5A7D96u, /* 3 hill: tan */    0xFF8A8A8Au, /* 4 mountain: grey */ 0xFF3A6E9Eu, /* 5 road: brown */
         0xFFC8C8C8u, /* 6 snow */          0xFF7A3A9Au  /* 7 unused */ };
-    u32 w = GL_ATLAS_TILES * GL_ATLAS_TILE_SIZE, h = GL_ATLAS_TILE_SIZE;
+    u32 w = GL_ATLAS_TILE_SIZE, h = GL_ATLAS_TILES * GL_ATLAS_TILE_SIZE;
     u32 *rgba = PushArray(arena, (u64)w * h, u32);
     for (u32 y = 0; y < h; ++y)
     {
         for (u32 x = 0; x < w; ++x)
         {
-            u32 tile = x / GL_ATLAS_TILE_SIZE;
+            u32 tile = y / GL_ATLAS_TILE_SIZE;
             u32 c = colors[tile];
             b32 dark = ((x / 8) + (y / 8)) & 1;
             if (dark)
@@ -442,16 +448,46 @@ gl_load_base_model(webgl2_renderer *r, const char *name, memory_arena *arena, gl
     if (!model->texture) gl_delete_mesh(&model->mesh);
 }
 
+/* A strip of square tiles, one below the other, as a texture array with
+   the full chain of mip levels. Returns 0 if the strip is not a whole
+   number of tiles. */
+internal GLuint
+gl_make_tile_array(const u32 *rgba, u32 side, u32 height, u32 *layers_out)
+{
+    if (!rgba || !side || height % side) return 0;
+    u32 layers = height / side;
+    GLuint texture = 0;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, texture);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+    glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA8, (GLsizei)side, (GLsizei)side, (GLsizei)layers, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+    *layers_out = layers;
+    return texture;
+}
+
 /* The material atlas: the file of the pack, or the placeholder. */
 internal void
 gl_load_atlas(webgl2_renderer *r, memory_arena *scratch)
 {
     u64 scratch_used = scratch->used;
-    r->atlas_texture = gl_load_png_texture(r, "materials.png", scratch);
+    r->atlas_texture = 0;
+    u64 size = 0;
+    u8 *file = gl_read_data_file(r, "materials.jpg", scratch, &size);
+    if (file)
+    {
+        jpeg_image image = jpeg_decode_full(file, size, scratch);
+        if (!image.error && image.rgba) r->atlas_texture = gl_make_tile_array((const u32 *)image.rgba, image.width, image.height, &r->atlas_layers);
+    }
     if (!r->atlas_texture)
     {
         u32 *atlas = gl_placeholder_atlas(scratch);
-        r->atlas_texture = gl_make_texture(atlas, GL_ATLAS_TILES * GL_ATLAS_TILE_SIZE, GL_ATLAS_TILE_SIZE, false);
+        r->atlas_texture = gl_make_tile_array(atlas, GL_ATLAS_TILE_SIZE, GL_ATLAS_TILES * GL_ATLAS_TILE_SIZE, &r->atlas_layers);
     }
     scratch->used = scratch_used;
 }
@@ -550,7 +586,7 @@ webgl2_renderer_use_pack(webgl2_renderer *r, const char *pack_dir, memory_arena 
     snprintf(r->pack_dir, sizeof(r->pack_dir), "%s", pack_dir);
     const char *new_dir = r->pack_dir;
     u32 loaded = 0;
-    if (gl_pack_changes(old_dir, new_dir, "materials.png"))
+    if (gl_pack_changes(old_dir, new_dir, "materials.jpg"))
     {
         if (r->atlas_texture) glDeleteTextures(1, &r->atlas_texture);
         gl_load_atlas(r, scratch);
@@ -853,7 +889,8 @@ webgl2_renderer_draw(webgl2_renderer *r, render_commands *rc, memory_arena *scra
     fc.camera_right[0] = view.m[0][0]; fc.camera_right[1] = view.m[1][0]; fc.camera_right[2] = view.m[2][0];
     fc.camera_up[0]    = view.m[0][1]; fc.camera_up[1]    = view.m[1][1]; fc.camera_up[2]    = view.m[2][1];
     fc.overlay_size[0] = (f32)r->overlay_width; fc.overlay_size[1] = (f32)r->overlay_height;
-    fc.atlas_tiles = (f32)GL_ATLAS_TILES;
+    fc.atlas_tiles = (f32)r->atlas_layers;
+    fc.terrain_state[0] = rc->terrain_season; fc.terrain_state[1] = rc->terrain_ripple;
     fc.mode = 0.0f;
     gl_upload_constants(r, &fc);
     glBindBufferBase(GL_UNIFORM_BUFFER, 0, r->constants);
@@ -880,7 +917,7 @@ webgl2_renderer_draw(webgl2_renderer *r, render_commands *rc, memory_arena *scra
         gl_attribute(GL_ATTRIBUTE_CELL,     1, sizeof(terrain_vertex), 32, 0);
         gl_attribute(GL_ATTRIBUTE_TILE,     1, sizeof(terrain_vertex), 36, 0);
         glUseProgram(r->terrain_program);
-        glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, r->atlas_texture);
+        glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D_ARRAY, r->atlas_texture);
         glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, r->overlay_texture);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, r->terrain_indices);
         glDrawElements(GL_TRIANGLES, (GLsizei)r->terrain_index_count, GL_UNSIGNED_INT, 0);

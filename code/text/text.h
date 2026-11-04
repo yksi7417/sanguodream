@@ -188,6 +188,10 @@ internal b32 text_pack_default_locale(text_catalog *catalog, const char *pack, c
    False, and out "", if pack is not a valid folder name. A bad art_pack
    gives the pack itself. */
 internal b32 text_pack_art(text_catalog *catalog, const char *pack, char *out, u32 out_size);
+/* The path of a PNG file in the folder of the game pack, for the data pictures of
+   the platform: "han_196/fx.png". False, and out "", if the catalog has no game
+   pack or if text_arms_file_is_allowed refuses the path. */
+internal b32 text_game_pack_picture(text_catalog *catalog, const char *name, char *out, u32 out_size);
 
 /* docs/EUROPE.md, E2: the pack of the engine. The next
    text_catalog_set_locale loads names/<locale>.tsv of that pack too. The
