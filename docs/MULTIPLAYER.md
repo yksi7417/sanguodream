@@ -204,8 +204,10 @@ holds these keys:
 The rules of the saves:
 - The server keeps the log of steps in memory. It writes a part of the log
   to the bucket at each end_turn step and at least each 30 seconds.
-- At the end of each game turn, the author of the last step sends a
-  snapshot. The server accepts it only if its checksum is the checksum
+- Only the host saves. At the end of each game turn, the host sends a
+  snapshot. The host uploads the file directly to the bucket with a signed
+  address (see "The save in the bucket"). If the host is away, no new
+  snapshot comes, and a player who joins replays more steps. The server accepts it only if its checksum is the checksum
   that all players agreed on for that step. The server keeps the last
   five snapshots.
 - A player who joins or connects again gets the last snapshot and the
@@ -788,7 +790,8 @@ MP5 is complete. These parts exist:
 - A snapshot is an image of the live game in the format of the start
   image. The checksum of the state does not include the replay record.
   Thus a snapshot gives the checksum of the live game.
-- The author of the step that ends a game turn sends a snapshot. After a
+- The first version of MP5 did this, and "The save in the bucket" replaces it.
+  The author of the step that ends a game turn sent a snapshot. After a
   step of the server, the host sends it. The page puts it on the server:
   `PUT /api/games/<gid>/snap/<step>?checksum=<checksum>`.
 - The server takes a snapshot only if a report of that step exists and
@@ -1067,10 +1070,39 @@ These limits stay:
 - The tests use a short live game. The Discord Activity and a long game have no
   test of a late seat.
 
+### The save in the bucket
+The players of a game load one file from the bucket. The bytes do not pass through
+the server. The bucket stays private, and each address has an end time of 120 seconds.
+
+The host saves in these steps:
+1. The page asks `POST /api/games/<gid>/snap/<step>/upload?checksum=<checksum>`.
+   The server checks the host and the checksum, and it gives a signed address.
+2. The page sends the file to that address with PUT.
+3. The page asks `POST /api/games/<gid>/snap/<step>/finish?checksum=<checksum>`.
+   The server checks the size of the file and records the save as the latest save.
+
+Each player loads through one address, `GET /api/games/<gid>/snap/latest`:
+- The server checks the viewer and redirects to a signed address.
+- The name of the file gives the step, for example `00000012.hxs`.
+
+The site also keeps a way through the server. The page uses it in these cases:
+- The site has no bucket. The upload route then gives the address null.
+- The page cannot reach the bucket, for example in the frame of a Discord Activity.
+  The upload uses `PUT /api/games/<gid>/snap/<step>`. The load uses
+  `GET /api/games/<gid>/snap/latest?direct=0`.
+
+These limits stay:
+- A signed address has no limit of size. The server checks the size at the last
+  step and removes a file over 16 MB.
+- The server does not read the file. A bad file of the host gives a checksum that
+  differs when a player loads it, and the check of the state finds it.
+- The steps after the save still come through the server.
+- The browser tests use a fake bucket. Only the live site tests the real bucket.
+
 ### The tools of the banner
 The banner of a shared game has these tools for a player:
-- **Save.** The menus send a snapshot to the server. The banner shows the result.
-  No local dialog opens. Before this fix, the menus opened the local Load dialog.
+- **Save.** The menus of the host put a snapshot in the bucket. The banner shows
+  the result. For a guest, the banner says that only the host saves. No local dialog opens. Before this fix, the menus opened the local Load dialog.
   A click on a slot in that dialog changed the state of one page only.
 - **Load.** The banner says that a shared game loads no local save. A player
   continues the game from "My games".

@@ -61,12 +61,14 @@ internal void ui_net_show_notice(ui_state *ui, u32 notice);   /* ui_multiplayer.
 internal void
 ui_open_saveload(ui_state *ui, engine_api *api, bool saving)
 {
-    if (api->multiplayer_info(api->engine).shared)
+    engine_multiplayer_info shared = api->multiplayer_info(api->engine);
+    if (shared.shared)
     {
         /* MP5: a shared game never writes a local slot, and no player loads a save into it.
-           儲存 sends a snapshot of the state to the room (ui_multiplayer.cpp). */
-        if (saving) ui->net.snapshot_request = true;
-        else        ui_net_show_notice(ui, PLATFORM_NET_NOTICE_LOAD_OFF);
+           儲存 of the host sends a snapshot of the state to the room (ui_multiplayer.cpp). */
+        if (!saving)           ui_net_show_notice(ui, PLATFORM_NET_NOTICE_LOAD_OFF);
+        else if (!shared.host) ui_net_show_notice(ui, PLATFORM_NET_NOTICE_HOST_SAVES);
+        else                   ui->net.snapshot_request = true;
         return;
     }
     ui->show_saveload  = true;

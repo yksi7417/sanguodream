@@ -172,6 +172,23 @@ class S3Storage:
         return self.client.generate_presigned_url("get_object", Params={"Bucket": self.bucket, "Key": key},
                                                   ExpiresIn=seconds)
 
+    def presigned_put(self, key, seconds):
+        """An address that writes one object until the end time (a save of a shared game)."""
+        return self.client.generate_presigned_url("put_object", Params={"Bucket": self.bucket, "Key": key},
+                                                  ExpiresIn=seconds)
+
+    async def size(self, key):
+        """The bytes of one object, or None if it is not there."""
+        def head():
+            try:
+                return self.client.head_object(Bucket=self.bucket, Key=key)["ContentLength"]
+            except self.client.exceptions.ClientError as error:
+                if error.response.get("Error", {}).get("Code") in ("404", "NoSuchKey", "NotFound"):
+                    return None
+                raise
+
+        return await asyncio.to_thread(head)
+
 
 def open_storage():
     """Give the S3 backend if BUCKET_NAME is set, else the folder backend."""

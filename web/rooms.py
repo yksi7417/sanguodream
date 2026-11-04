@@ -182,25 +182,53 @@ class Rooms:
         record["build"] = self.build
         await self.save(room)
 
-    async def put_snapshot(self, room, user, step, checksum, data):
-        """A snapshot: the image of the state after the step. Its checksum must be the checksum
-        of the reports of that step."""
+    def check_snapshot(self, room, user, step, checksum):
+        """Only the host saves. The checksum must be the checksum of the reports of that step."""
         if not room.is_member(user["uid"]):
             raise RoomError("no seat in this game")
+        if user["uid"] != room.record["host"]:
+            raise RoomError("only the host saves the game")
         if room.record["state"] != "running":
             raise RoomError("the game does not run")
         if not is_int(step) or not 0 <= step < len(room.steps):
             raise RoomError("no such step")
         if not isinstance(checksum, str) or not CHECKSUM.fullmatch(checksum):
             raise RoomError("bad checksum")
-        if not data or len(data) > MAX_START_IMAGE_BYTES:
-            raise RoomError("bad snapshot")
         report = room.first_report(step)
         if report is None:
             raise RoomError("no report of the step")
         if report[0] != checksum:
             raise RoomError("the checksum of the snapshot differs")
+
+    async def put_snapshot(self, room, user, step, checksum, data):
+        """A snapshot through the server: the image of the state after the step. A page uses
+        this way if it cannot reach the bucket, for example in the frame of a Discord Activity."""
+        self.check_snapshot(room, user, step, checksum)
+        if not data or len(data) > MAX_START_IMAGE_BYTES:
+            raise RoomError("bad snapshot")
         await self.store.put(snapshot_key(room.gid, step), data)
+        await self.record_snapshot(room, step, checksum)
+
+    async def snapshot_upload_url(self, room, user, step, checksum):
+        """A signed address for a direct upload of the host to the bucket, or None without a bucket."""
+        self.check_snapshot(room, user, step, checksum)
+        if not hasattr(self.store, "presigned_put"):
+            return None
+        return self.store.presigned_put(snapshot_key(room.gid, step), SNAPSHOT_URL_SECONDS)
+
+    async def finish_snapshot(self, room, user, step, checksum):
+        """The host uploaded the file. The signed address has no limit of size, so the server checks it here."""
+        self.check_snapshot(room, user, step, checksum)
+        key = snapshot_key(room.gid, step)
+        size = await self.store.size(key)
+        if not size:
+            raise RoomError("no file of the snapshot")
+        if size > MAX_START_IMAGE_BYTES:
+            await self.store.delete(key)
+            raise RoomError("bad snapshot")
+        await self.record_snapshot(room, step, checksum)
+
+    async def record_snapshot(self, room, step, checksum):
         snapshots = room.record.setdefault("snapshots", {})   # the step -> the checksum of each kept snapshot
         snapshots[str(step)] = checksum
         for old in sorted(snapshots, key=int)[:-KEEP_SNAPSHOTS]:
@@ -286,11 +314,15 @@ class Rooms:
             await broadcast_json(room, {"type": "error", "reason": "the referee agrees with no player"})
         return best
 
-    async def latest_snapshot(self, room, user):
-        """The step and the bytes of the latest snapshot, or None."""
+    async def latest_snapshot_step(self, room, user):
+        """The step of the latest snapshot, or None."""
         if not room.is_viewer(user["uid"]):
             raise RoomError("no seat in this game")
-        step = room.record.get("snapshot")
+        return room.record.get("snapshot")
+
+    async def latest_snapshot(self, room, user):
+        """The step and the bytes of the latest snapshot, or None."""
+        step = await self.latest_snapshot_step(room, user)
         if step is None:
             return None
         data = await self.store.get(snapshot_key(room.gid, step))

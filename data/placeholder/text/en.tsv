@@ -1110,6 +1110,7 @@ net.ai_plays	the computer plays	the invite panel: after the name of a player whi
 net.saving	The game goes to the server.	the banner after Save in a shared game
 net.saved	The server has the game. Open it from My games.	the banner after the server keeps a shared game
 net.save_failed	The server did not save the game.	the banner after the server refuses a snapshot
+net.host_saves	Only the host saves a shared game.	the banner after Save of a guest in a shared game
 net.load_off	A shared game loads no local save. Open it from My games.	the banner after Load in a shared game
 net.copied	The link is on the clipboard.	the banner after a copy of the invite link
 net.copy_failed	The browser refused the copy. Select the link in the page.	the banner after a copy that failed

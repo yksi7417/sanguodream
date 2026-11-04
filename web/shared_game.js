@@ -64,6 +64,8 @@ function netPush(kind, step, seat, host, bytes, text) {
 }
 
 Module.hexdomNetSend = function (kind, step, low, high, acting, bytes, text, pack) {
+  // While the page loads the good state, the old engine still runs. Its steps and reports go away.
+  if (!net.joined && (kind === NET.STEP || kind === NET.CHECKSUM)) return;
   if (kind === NET.HOST) hostRoom(bytes, text, pack).catch(function (error) { roomStatus("The room was not made: " + error); });
   else if (kind === NET.STEP) sendStep(step, bytes);
   else if (kind === NET.SNAPSHOT) putSnapshot(step, hexChecksum(low, high), bytes, 0, acting === 1);
@@ -91,9 +93,30 @@ function hexChecksum(low, high) {
 // socket, and the server can get the snapshot first: then the page tries again.
 // After Save of the player, the banner shows the result.
 var SNAPSHOT_TRIES = 4;
+
+// The host uploads the save directly to the bucket with a signed address. If the page cannot
+// reach the bucket, for example in the frame of a Discord Activity, the save goes through the server.
+async function sendSnapshot(step, checksum, bytes) {
+  var address = "api/games/" + net.gid + "/snap/" + step, query = "?checksum=" + checksum;
+  var signed = await fetch(address + "/upload" + query, { method: "POST" });
+  if (!signed.ok) return signed;   // for example no report of the step yet: the caller tries again
+  var url = (await signed.json()).url;
+  if (url) {
+    var put = await fetch(url, { method: "PUT", body: bytes }).catch(function (error) {
+      console.log("platform: room: the bucket did not take the save: " + error);
+      return null;
+    });
+    if (put && put.ok) {
+      var finished = await fetch(address + "/finish" + query, { method: "POST" });
+      if (finished.ok) return finished;
+    }
+  }
+  return fetch(address + query, { method: "PUT", body: bytes });
+}
+
 function putSnapshot(step, checksum, bytes, tries, asked) {
   function notice(kind) { if (asked) netPush(NET.NOTICE, kind, 0, false, null, ""); }
-  fetch("api/games/" + net.gid + "/snap/" + step + "?checksum=" + checksum, { method: "PUT", body: bytes })
+  sendSnapshot(step, checksum, bytes)
     .then(function (response) {
       if (response.ok) {
         console.log("platform: room: the snapshot of step " + step + " is on the server");
@@ -206,11 +229,20 @@ async function refreshRoom() {
   }
 }
 
+// The header of the server gives the step. A file of the bucket has the step in its name.
+function snapshotStepOf(response) {
+  var named = /\/(\d{8})\.hxs(\?|$)/.exec(response.url);
+  return parseInt(response.headers.get("X-Snapshot-Step") || (named ? named[1] : ""), 10);
+}
+
 // MP5: the latest snapshot and the log after it, or the start image and the whole log.
 // The hello then asks only for the steps after the snapshot.
 async function loadJoinImage() {
-  var response = await fetch("api/games/" + net.gid + "/snap/latest").catch(function () { return null; });
-  var step = response && response.ok ? parseInt(response.headers.get("X-Snapshot-Step"), 10) : NaN;
+  // With a bucket, the address redirects to the file. If the page cannot reach the bucket, the server sends the file.
+  var address = "api/games/" + net.gid + "/snap/latest";
+  var response = await fetch(address).catch(function () { return null; });
+  if (!response || (!response.ok && response.redirected)) response = await fetch(address + "?direct=0").catch(function () { return null; });
+  var step = response && response.ok ? snapshotStepOf(response) : NaN;
   if (!isNaN(step)) {
     net.image = new Uint8Array(await response.arrayBuffer());
     net.joinStep = step + 1;

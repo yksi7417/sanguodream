@@ -167,12 +167,52 @@ async def api_game_snapshot_put(request):
     return web.json_response({"snapshot": step})
 
 
-async def api_game_snapshot_latest(request):
-    """MP5: the latest snapshot. The header X-Snapshot-Step gives its step."""
+def snapshots_in_bucket(request):
+    """The CORS rule of the bucket lets the pages reach it only after the publish of the game files."""
+    return request.app[KEY_GAME_FILES].in_bucket and hasattr(request.app[KEY_ROOMS].store, "presigned_put")
+
+
+async def api_game_snapshot_upload(request):
+    """The host asks for a signed address, and then uploads the save directly to the bucket.
+    Without a bucket, the address is null, and the page uses the route of api_game_snapshot_put."""
     user = await require_member(request)
     room = await find_room(request)
+    async with room.lock:
+        try:
+            url = await request.app[KEY_ROOMS].snapshot_upload_url(room, user, int(request.match_info["step"]), request.query.get("checksum"))
+        except rooms.RoomError as error:
+            return refused(error)
+    return web.json_response({"url": url if snapshots_in_bucket(request) else None})
+
+
+async def api_game_snapshot_finish(request):
+    """The host uploaded the save to the bucket. The server records it as the latest save."""
+    user = await require_member(request)
+    room = await find_room(request)
+    step = int(request.match_info["step"])
+    async with room.lock:
+        try:
+            await request.app[KEY_ROOMS].finish_snapshot(room, user, step, request.query.get("checksum"))
+        except rooms.RoomError as error:
+            return refused(error)
+    return web.json_response({"snapshot": step})
+
+
+async def api_game_snapshot_latest(request):
+    """MP5: the latest snapshot. All players use this one address. With a bucket, the server
+    redirects to a signed address, and the name of the file gives its step. With the query
+    direct=0, or without a bucket, the server sends the bytes with the header X-Snapshot-Step."""
+    user = await require_member(request)
+    room = await find_room(request)
+    store = request.app[KEY_ROOMS]
     try:
-        latest = await request.app[KEY_ROOMS].latest_snapshot(room, user)
+        if snapshots_in_bucket(request) and request.query.get("direct") != "0":
+            step = await store.latest_snapshot_step(room, user)
+            if step is None:
+                raise web.HTTPNotFound(text="no snapshot")
+            url = store.store.presigned_get(rooms.snapshot_key(room.gid, step), rooms.SNAPSHOT_URL_SECONDS)
+            raise web.HTTPFound(url, headers={"Cache-Control": "no-store"})
+        latest = await store.latest_snapshot(room, user)
     except rooms.RoomError as error:
         return refused(error)
     if latest is None:

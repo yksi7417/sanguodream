@@ -678,7 +678,10 @@ class RoomsTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(rooms.RoomError):
             await self.rooms.put_snapshot(room, HOST, 0, "1" * 16, b"")
         self.assertIsNone(await self.rooms.latest_snapshot(room, GUEST))
-        await self.rooms.put_snapshot(room, GUEST, 0, "1" * 16, b"image")
+        with self.assertRaises(rooms.RoomError) as caught:
+            await self.rooms.put_snapshot(room, GUEST, 0, "1" * 16, b"image")   # only the host saves
+        self.assertEqual(str(caught.exception), "only the host saves the game")
+        await self.rooms.put_snapshot(room, HOST, 0, "1" * 16, b"image")
         self.assertEqual(await self.rooms.latest_snapshot(room, GUEST), (0, b"image"))
         with self.assertRaises(rooms.RoomError):
             await self.rooms.latest_snapshot(room, OTHER)
@@ -689,6 +692,59 @@ class RoomsTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(rooms.RoomError) as caught:
             await self.rooms.put_snapshot(room, HOST, 0, "1" * 16, b"image")
         self.assertEqual(str(caught.exception), "no report of the step")      # the page tries again
+
+    def bucket_links(self):
+        """The folder of the tests acts as a bucket: it gives signed addresses and sizes."""
+        self.store.presigned_put = lambda key, seconds: f"https://bucket.test/{key}?put={seconds}"
+        self.store.presigned_get = lambda key, seconds: f"https://bucket.test/{key}?get={seconds}"
+
+        async def size(key):
+            data = await self.store.get(key)
+            return None if data is None else len(data)
+        self.store.size = size
+
+    async def test_the_host_uploads_a_snapshot_to_the_bucket_and_the_server_records_it(self):
+        self.bucket_links()
+        room, host, guest = await self.started_room()
+        await self.steps_with_reports(room, host, 1)
+        key = rooms.snapshot_key(room.gid, 0)
+        self.assertEqual(await self.rooms.snapshot_upload_url(room, HOST, 0, "1" * 16), f"https://bucket.test/{key}?put=120")
+        for user, checksum, reason in ((GUEST, "1" * 16, "only the host saves the game"),
+                                       (HOST, "2" * 16, "the checksum of the snapshot differs")):
+            with self.assertRaises(rooms.RoomError) as caught:
+                await self.rooms.snapshot_upload_url(room, user, 0, checksum)
+            self.assertEqual(str(caught.exception), reason)
+        with self.assertRaises(rooms.RoomError) as caught:
+            await self.rooms.finish_snapshot(room, HOST, 0, "1" * 16)        # the upload did not arrive
+        self.assertEqual(str(caught.exception), "no file of the snapshot")
+        self.assertIsNone(room.record.get("snapshot"))
+        await self.store.put(key, b"image")                                  # the page uploads the file
+        await self.rooms.finish_snapshot(room, HOST, 0, "1" * 16)
+        self.assertEqual(room.record["snapshot"], 0)
+        self.assertEqual(await self.rooms.latest_snapshot_step(room, GUEST), 0)
+        self.assertEqual(self.store.presigned_get(key, rooms.SNAPSHOT_URL_SECONDS), f"https://bucket.test/{key}?get=120")
+
+    async def test_a_snapshot_over_the_limit_in_the_bucket_goes_away(self):
+        self.bucket_links()
+        room, host, guest = await self.started_room()
+        await self.steps_with_reports(room, host, 1)
+        key = rooms.snapshot_key(room.gid, 0)
+        await self.store.put(key, b"x" * (rooms.MAX_START_IMAGE_BYTES + 1))
+        with self.assertRaises(rooms.RoomError) as caught:
+            await self.rooms.finish_snapshot(room, HOST, 0, "1" * 16)
+        self.assertEqual(str(caught.exception), "bad snapshot")
+        self.assertIsNone(await self.store.get(key))
+        self.assertIsNone(room.record.get("snapshot"))
+
+    async def test_a_storage_without_signed_addresses_gives_no_upload_address(self):
+        room, host, guest = await self.started_room()
+        await self.steps_with_reports(room, host, 1)
+        self.assertIsNone(await self.rooms.snapshot_upload_url(room, HOST, 0, "1" * 16))
+
+    async def test_a_person_without_a_seat_gets_no_step_of_the_latest_snapshot(self):
+        room, host, guest = await self.started_room()
+        with self.assertRaises(rooms.RoomError):
+            await self.rooms.latest_snapshot_step(room, OTHER)
 
     async def test_the_server_keeps_five_snapshots(self):
         room, host, guest = await self.started_room()

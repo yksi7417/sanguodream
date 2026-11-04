@@ -4,7 +4,7 @@ const { test, expect } = require("@playwright/test");
 const h = require("./hexdom");
 const { bothAgree, startTogether, room, isHuman } = require("./together");
 
-const NOTICE_SAVED = 2, NOTICE_LOAD_OFF = 4, NOTICE_COPIED = 5;
+const NOTICE_SAVED = 2, NOTICE_LOAD_OFF = 4, NOTICE_COPIED = 5, NOTICE_HOST_SAVES = 7;
 
 async function latestSnapshot(page, gid) {
   return page.evaluate(async (id) => {
@@ -63,6 +63,91 @@ test("the save of a menu goes to the server, and the copy button copies the link
   await expect(host.locator("#copy-field")).toHaveValue(link);
   await host.click("#copy-close");
   expect((await h.gameState(host)).net_error).toBe("");
+});
+
+// The test server has no bucket. These routes act as a bucket: the upload address goes to a
+// fake host, and that host keeps the file on the server of the test through its own route.
+async function fakeBucket(page, refuseUpload) {
+  const seen = { uploads: 0, finishes: 0, serverPuts: 0 };
+  const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "PUT", "Access-Control-Allow-Headers": "*" };
+  let pending = null;
+  await page.route(/\/snap\/\d+\/upload\?/, async (route) => {
+    const step = /\/snap\/(\d+)\/upload\?(.*)$/.exec(route.request().url());
+    pending = `${new URL(page.url()).origin}/api/games/${new URL(page.url()).searchParams.get("game")}/snap/${step[1]}?${step[2]}`;
+    await route.fulfill({ json: { url: `https://bucket.test/${step[1].padStart(8, "0")}.hxs?signature=1` } });
+  });
+  await page.route("https://bucket.test/**", async (route) => {
+    if (route.request().method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
+    seen.uploads++;
+    if (refuseUpload) return route.abort();
+    const stored = await page.request.put(pending, { data: route.request().postDataBuffer() });
+    return route.fulfill({ status: stored.ok() ? 200 : 500, headers: cors });
+  });
+  await page.route(/\/snap\/\d+\/finish\?/, async (route) => {
+    seen.finishes++;
+    await route.fulfill({ json: { snapshot: 0 } });
+  });
+  page.on("request", (request) => {
+    if (request.method() === "PUT" && /\/api\/games\/.*\/snap\/\d+\?/.test(request.url())) seen.serverPuts++;
+  });
+  return seen;
+}
+
+test("the host saves directly to the bucket, a guest cannot save, and a refused upload goes through the server", async ({ browser }) => {
+  test.setTimeout(420_000);
+  const { host, guest, gid } = await startTogether(browser);
+  const before = await bothAgree(host, guest);
+  expect(await h.call(before.local_acts ? host : guest, "wasm_test_end_turn", "number", [], [])).toBeGreaterThan(0);
+  await expect.poll(async () => (await h.gameState(host)).steps).toBeGreaterThan(before.steps);
+  await bothAgree(host, guest);
+
+  // A guest: no snapshot, and the banner says why.
+  const lines = [];
+  guest.on("request", (request) => { if (/\/snap\/\d+/.test(request.url())) lines.push(request.url()); });
+  await h.clickItem(guest, "hud_system");
+  await h.clickItem(guest, "open_save");
+  await notice(guest, NOTICE_HOST_SAVES);
+  expect(lines).toEqual([]);
+  const refused = await guest.evaluate(async (id) => (await fetch(`api/games/${id}/snap/0/upload?checksum=${"0".repeat(16)}`, { method: "POST" })).status, gid);
+  expect(refused).toBeGreaterThanOrEqual(400);
+
+  // The host: the file goes to the bucket, and the page tells the server.
+  const seen = await fakeBucket(host, false);
+  await h.clickItem(host, "hud_system");
+  await h.clickItem(host, "open_save");
+  await notice(host, NOTICE_SAVED);
+  expect(seen.uploads).toBe(1);
+  expect(seen.finishes).toBe(1);
+  expect(seen.serverPuts).toBe(0);
+
+  // The bucket refuses: the save goes through the server.
+  await host.unrouteAll();
+  const refusing = await fakeBucket(host, true);
+  await h.clickItem(host, "hud_system");
+  await h.clickItem(host, "open_save");
+  await expect.poll(() => refusing.serverPuts, { message: "the save goes through the server" }).toBe(1);
+  await notice(host, NOTICE_SAVED);
+  expect(refusing.finishes).toBe(0);
+  const latest = await latestSnapshot(host, gid);
+  expect(latest).toBeGreaterThanOrEqual(0);
+
+  // A page reads the save from the bucket after a redirect. The name of the file gives the step.
+  const data = await (await host.request.get(`/api/games/${gid}/snap/latest`)).body();
+  await guest.route(/\/snap\/latest$/, (route) => route.fulfill({ status: 302, headers: { location: `https://bucket.test/${String(latest).padStart(8, "0")}.hxs?signature=1` } }));
+  await guest.route("https://bucket.test/**", (route) => route.fulfill({ body: data, headers: { "Access-Control-Allow-Origin": "*" } }));
+  await guest.reload();
+  await expect.poll(async () => { try { return (await h.gameState(guest)).shared; } catch { return -1; } }, { timeout: 120_000 }).toBe(1);
+  expect(await guest.evaluate(() => net.joinStep)).toBe(latest + 1);
+  await bothAgree(host, guest);
+
+  // The bucket cannot be reached: the page reads the save from the server.
+  await guest.unrouteAll();
+  await guest.route("https://bucket.test/**", (route) => route.abort());
+  await guest.route(/\/snap\/latest$/, (route) => route.fulfill({ status: 302, headers: { location: "https://bucket.test/00000000.hxs" } }));
+  await guest.reload();
+  await expect.poll(async () => { try { return (await h.gameState(guest)).shared; } catch { return -1; } }, { timeout: 120_000 }).toBe(1);
+  expect(await guest.evaluate(() => net.joinStep)).toBe(latest + 1);
+  await bothAgree(host, guest);
 });
 
 test("the copy button of the lobby copies the link", async ({ browser }) => {

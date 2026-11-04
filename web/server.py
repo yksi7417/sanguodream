@@ -449,6 +449,8 @@ def make_app(root):
         web.put("/api/games/{gid}/start-image", games_api.api_game_start_image_put),
         web.get("/api/games/{gid}/start-image", games_api.api_game_start_image_get),
         web.put("/api/games/{gid}/snap/{step:[0-9]{1,9}}", games_api.api_game_snapshot_put),
+        web.post("/api/games/{gid}/snap/{step:[0-9]{1,9}}/upload", games_api.api_game_snapshot_upload),
+        web.post("/api/games/{gid}/snap/{step:[0-9]{1,9}}/finish", games_api.api_game_snapshot_finish),
         web.get("/api/games/{gid}/snap/latest", games_api.api_game_snapshot_latest),
         web.put("/api/games/{gid}/desync/{step:[0-9]{1,9}}", games_api.api_game_desync_put),
         web.get("/r/{code}", games_api.invite),

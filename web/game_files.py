@@ -119,7 +119,8 @@ class GameFiles:
                 await storage.put_file(self.key(name), source, CONTENT_TYPES[name], encoding, CACHE_CONTROL)
                 print(f"game_files: {name} of build {self.build} is in the bucket "
                       f"({os.path.getsize(source)} bytes, {time.monotonic() - started:.1f} s)", flush=True)
-            await storage.set_cors([origin], ["GET", "HEAD"], ["Range"])
+            # PUT: the host uploads a save of a shared game directly to the bucket.
+            await storage.set_cors([origin], ["GET", "HEAD", "PUT"], ["Range", "Content-Type"])
             await self.remove_old_builds(storage)
         except Exception as error:   # boto3 has many kinds of errors; each one keeps the files on the server
             print(f"game_files: try {attempt}: the bucket refused the game files, the server sends them: {error}",

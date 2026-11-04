@@ -50,7 +50,7 @@ The result is `ALL PASS` at the end.
 Set-Location tests\web; npm test -- multiplayer rooms resume absence spectator token desync late_join shared_tools; Set-Location ..\..
 ```
 
-The result is `13 passed`.
+The result is `14 passed`.
 
 If a command cannot find a file, build the file first. See "The builds" at the end of this guide.
 
@@ -291,7 +291,7 @@ Fill this table. A row passes only if you saw the result yourself.
 | Row | Check | Pass or fail | Notes |
 |---|---|---|---|
 | A1 | The server tests give `ALL PASS` | | |
-| A2 | The browser tests give `13 passed` | | |
+| A2 | The browser tests give `14 passed` | | |
 | B3 | The start: same steps, same checksum | | |
 | B4 | A move shows in the other window: same checksum | | |
 | B5 | The chat reaches the other window | | |

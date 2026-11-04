@@ -4706,6 +4706,7 @@ register_ui_tests(ImGuiTestEngine *e)
         v.frame.net_send    = ui_test_net_send;
         v.frame.net_poll    = ui_test_net_poll;
         v.frame.frame_arena = &g_ui_test_net.arena;
+        v.recorder.multiplayer.host = true;
         v.recorder.multiplayer.shared = true;
         v.recorder.turn         = 3;
         v.ui.net.joined         = true;
@@ -4734,6 +4735,7 @@ register_ui_tests(ImGuiTestEngine *e)
         v.frame.net_send    = ui_test_net_send;
         v.frame.net_poll    = ui_test_net_poll;
         v.frame.frame_arena = &g_ui_test_net.arena;
+        v.recorder.multiplayer.host = true;
         v.recorder.multiplayer.shared     = true;
         v.recorder.multiplayer.step_count = 5;
         v.ui.net.joined = true;
@@ -4762,6 +4764,7 @@ register_ui_tests(ImGuiTestEngine *e)
         v.frame.net_poll    = ui_test_net_poll;
         v.frame.frame_arena = &g_ui_test_net.arena;
         v.ui.hud_mode = true;
+        v.recorder.multiplayer.host = true;
         v.recorder.multiplayer.shared     = true;
         v.recorder.multiplayer.step_count = 5;
         v.ui.net.joined = true;
@@ -4792,6 +4795,7 @@ register_ui_tests(ImGuiTestEngine *e)
         v.frame.net_send    = ui_test_net_send;
         v.frame.net_poll    = ui_test_net_poll;
         v.frame.frame_arena = &g_ui_test_net.arena;
+        v.recorder.multiplayer.host = true;
         v.recorder.multiplayer.shared = true;
         v.ui.net.joined = true;
         ui_open_saveload(&v.ui, &v.api, true);
@@ -4813,6 +4817,31 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(v.ui.net.notice, (u32)PLATFORM_NET_NOTICE_SAVE_FAILED);
         ui_open_saveload(&v.ui, &v.api, false);
         IM_CHECK_EQ(v.ui.net.notice, (u32)PLATFORM_NET_NOTICE_LOAD_OFF);
+    };
+
+    /* Only the host saves. A guest sends no snapshot, by the menu or at the end of a game turn. */
+    t = IM_REGISTER_TEST(e, "ui", "net_a_guest_sends_no_snapshot_and_the_banner_says_why");
+    t->SetVarsDataType<ui_test_vars>();
+    t->GuiFunc  = ui_test_gui;
+    t->TestFunc = [](ImGuiTestContext *ctx)
+    {
+        ui_test_vars &v = ctx->GetVars<ui_test_vars>();
+        ui_test_net_reset();
+        v.frame.net_send    = ui_test_net_send;
+        v.frame.net_poll    = ui_test_net_poll;
+        v.frame.frame_arena = &g_ui_test_net.arena;
+        v.recorder.multiplayer.shared     = true;
+        v.recorder.multiplayer.step_count = 5;
+        v.ui.net.joined = true;
+        ui_open_saveload(&v.ui, &v.api, true);
+        ctx->Yield(2);
+        IM_CHECK_EQ(g_ui_test_net.sent_count, 0u);
+        IM_CHECK_EQ(v.ui.net.notice, (u32)PLATFORM_NET_NOTICE_HOST_SAVES);
+        v.recorder.turn         = 4;
+        v.ui.net.snapshot_turn  = 3;
+        v.ui.net.snapshot_author = true;                                 /* a step of the guest ends the game turn */
+        ctx->Yield(2);
+        IM_CHECK_EQ(g_ui_test_net.sent_count, 0u);
     };
 
     /* The copy button gives the link to the page. The canvas has no access to the clipboard. */

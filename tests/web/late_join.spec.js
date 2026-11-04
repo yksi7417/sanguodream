@@ -6,11 +6,19 @@ const h = require("./hexdom");
 const { signInAs, startTogether, room, isHuman } = require("./together");
 
 async function allAgree(pages) {
-  await expect.poll(async () => {
-    const states = await Promise.all(pages.map((page) => h.gameState(page)));
-    const first = states[0];
-    return states.every((state) => state.shared && state.steps === first.steps && state.checksum === first.checksum);
-  }, { timeout: 60_000, message: "all pages have the same steps and the same checksum" }).toBe(true);
+  try {
+    await expect.poll(async () => {
+      const states = await Promise.all(pages.map((page) => h.gameState(page)));
+      const first = states[0];
+      return states.every((state) => state.shared && state.steps === first.steps && state.checksum === first.checksum);
+    }, { timeout: 60_000, message: "all pages have the same steps and the same checksum" }).toBe(true);
+  } catch (error) {
+    for (const page of pages) {
+      console.log("  state: " + JSON.stringify(await h.gameState(page)) + " room: " + JSON.stringify(await page.evaluate(() => ({
+        lastStep: net.lastStep, joinStep: net.joinStep, outbox: net.outbox.length, socket: net.socket && net.socket.readyState, seat: net.seat }))));
+    }
+    throw error;
+  }
   return h.gameState(pages[0]);
 }
 
@@ -94,6 +102,19 @@ test("a member and a spectator take free seats of a game that runs", async ({ br
   late.on("console", (message) => lines.push(message.text()));
   await late.evaluate(() => sendToRoom(new Uint8Array(8 + 40)));
   await expect.poll(() => lines.some((line) => /the page loads the good state/.test(line)), { timeout: 30_000 }).toBe(true);
+
+  // In the load, the old engine still runs. A step of that engine must not change the steps that the page asks for.
+  expect(await late.evaluate(() => {
+    const [joined, last] = [net.joined, net.lastStep];
+    net.joined = false;
+    Module.hexdomNetSend(NET.STEP, last + 50, 0, 0, 0, new Uint8Array(12), "", "");
+    const same = net.lastStep === last;
+    net.joined = joined;
+    return same;
+  })).toBe(true);
+
+  // The old engine agrees with the other pages too. Wait for the end of the load first.
+  await expect.poll(() => late.evaluate(() => net.joined && !!net.socket && net.socket.readyState === WebSocket.OPEN), { timeout: 60_000 }).toBe(true);
   await allAgree([host, guest, late, spectator]);
   await endTurnOfTheActor([host, guest, late, spectator]);
   await allAgree([host, guest, late, spectator]);

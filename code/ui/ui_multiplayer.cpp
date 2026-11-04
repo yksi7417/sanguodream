@@ -271,17 +271,17 @@ ui_net_host(ui_state *ui, engine_api *api, ui_frame_info *frame)
     ui->net.waiting = size != 0;
 }
 
-/* MP5: after the step that ends a game turn, its author sends the image of
-   the state to the page. The page puts it on the server as the snapshot of
-   that step. A page that joins later loads it and applies only the steps
-   after it. */
+/* MP5: after the step that ends a game turn, the host sends the image of the
+   state to the page. The page puts it in the bucket as the snapshot of that
+   step. A page that joins later loads it and applies only the steps after it.
+   Only the host saves. */
 internal void
 ui_net_send_snapshot(ui_state *ui, engine_api *api, ui_frame_info *frame)
 {
     void *e = api->engine;
     engine_multiplayer_info info = api->multiplayer_info(e);
-    b32 author  = ui->net.snapshot_author;
-    b32 request = ui->net.snapshot_request;   /* 儲存 of the player: a snapshot in any turn */
+    b32 author  = ui->net.snapshot_author && info.host;
+    b32 request = ui->net.snapshot_request;   /* 儲存 of the host: a snapshot in any turn */
     ui->net.snapshot_author  = false;
     ui->net.snapshot_request = request && info.outgoing;   /* the request waits for the steps of this frame */
     if (info.outgoing) return;
@@ -531,7 +531,7 @@ ui_draw_net_banner(ui_state *ui, engine_api *api)
     if (ui->net.notice)
     {
         local_persist const char *const notice_keys[PLATFORM_NET_NOTICE_COUNT] =
-            { "", "net.saving", "net.saved", "net.save_failed", "net.load_off", "net.copied", "net.copy_failed" };
+            { "", "net.saving", "net.saved", "net.save_failed", "net.load_off", "net.copied", "net.copy_failed", "net.host_saves" };
         snprintf(line, sizeof(line), "%s###net_notice", text_get(ui->text, notice_keys[ui->net.notice]));
         ImGui::Selectable(line, false);
     }

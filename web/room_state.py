@@ -48,6 +48,7 @@ ABSENT_SECONDS = 60       # a player who lost the connection has this time to co
 SERVER = "~server"        # the author of a step of the server; no uid has a "~"
 PACK = re.compile(r"[a-z0-9_]{1,63}")   # the folder of a content pack under data/
 KEEP_SNAPSHOTS = 5        # MP5: the server keeps the last five snapshots of a game
+SNAPSHOT_URL_SECONDS = 120   # a signed address of a save in the bucket stops after this time
 
 # The kinds of the steps of the engine (engine_step_kind in code/engine/engine.h).
 STEP_COMMAND, STEP_SETTINGS, STEP_HUMAN, STEP_LEDGER_CLEAR, STEP_END_TURN, STEP_AI_TURN = range(6)
