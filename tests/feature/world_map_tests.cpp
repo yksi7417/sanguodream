@@ -394,11 +394,15 @@ feature_pack_scenario_tests(test_counts *counts)
 #define FEATURE_WORLD_SAVE_SLOT  31     /* slot_32.hxs and slot_32.meta: a save of 1200 */
 #define FEATURE_WORLD_PLAIN_SLOT 30     /* slot_31.hxs: a save of the placeholder pack without its .meta file */
 
-/* The .meta file of a slot of the test save folder: the path, and its text in out ("" if there is no file). */
+/* The .meta file of a slot of the test save folder: the path, and its text in out ("" if there is no file).
+   The test platform writes relative paths under the folder of the exe, so this function reads there too.
+   Thus the test gives the same result from each start folder. */
 internal void
 feature_world_meta(u32 slot, char *path, u32 path_size, char *out, u32 out_size)
 {
-    snprintf(path, path_size, "%s/slot_%02u.meta", feature_save_folder, slot + 1);
+    char exe_dir[MAX_PATH];
+    test_exe_dir(exe_dir, MAX_PATH);
+    snprintf(path, path_size, "%s/%s/slot_%02u.meta", exe_dir, feature_save_folder, slot + 1);
     out[0] = 0;
     FILE *file = fopen(path, "rb");
     if (!file) return;
@@ -415,7 +419,9 @@ feature_pack_save_tests(test_counts *counts)
     {
         feature_world_meta(slot, path, sizeof(path), meta, sizeof(meta));
         remove(path);
-        snprintf(hxs, sizeof(hxs), "%s/slot_%02u.hxs", feature_save_folder, slot + 1);
+        char exe_dir[MAX_PATH];
+        test_exe_dir(exe_dir, MAX_PATH);
+        snprintf(hxs, sizeof(hxs), "%s/%s/slot_%02u.hxs", exe_dir, feature_save_folder, slot + 1);
         remove(hxs);
     }
 
