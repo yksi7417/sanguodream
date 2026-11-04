@@ -24,7 +24,7 @@
 
 #define WIN32_LOADER_MAX_WORKERS   4
 #define WIN32_LOADER_SLOTS         (WIN32_LOADER_MAX_WORKERS + 2)
-#define WIN32_LOADER_SLOT_SIZE     Megabytes(32)   /* the largest model needs approximately 13 MB */
+#define WIN32_LOADER_SLOT_SIZE     Megabytes(48)   /* materials.jpg needs approximately 40 MB, the largest model approximately 13 MB */
 #define WIN32_LOADER_UPLOAD_MS     8.0             /* the time of the uploads in one frame */
 
 #define WIN32_LOAD_JOB_SPLASH      0

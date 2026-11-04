@@ -7,6 +7,7 @@
    The selection (from, to) is shared with the 2D Hex map panel, so both
    views show the same picks and the same path cost. */
 
+#define UI_SCENE_RIPPLE_SPEED 0.9f   /* radians each second: the slow blend of the two frames of a water tile */
 #define UI_SCENE_ORBIT_STEP  (15.0f * RENDER_PI / 180.0f)
 #define UI_SCENE_TILT_STEP   (5.0f * RENDER_PI / 180.0f)
 #define UI_SCENE_ZOOM_STEP   1.25f
@@ -338,7 +339,10 @@ ui_scene_push(ui_state *ui, engine_api *api, ui_frame_info *frame)
     rc->draw_grid     = ui->scene.grid;
     rc->terrain.width   = view.width;
     rc->terrain.height  = view.height;
-    rc->terrain.kind    = view.tile ? view.tile : view.kind;   /* the renderer draws the atlas colour */
+    rc->terrain.kind    = view.tile ? view.tile : view.kind;   /* the colour of the placeholder atlas */
+    rc->terrain.art_kind = view.kind;                          /* the row of materials.jpg */
+    rc->terrain_season  = (f32)api->date(api->engine).season;
+    rc->terrain_ripple  = 0.5f + 0.5f * sinf((f32)ImGui::GetTime() * UI_SCENE_RIPPLE_SPEED);
     rc->terrain.level   = view.level;
     rc->terrain.version = view.version;
     /* M11: the grid only on terrain that a unit can enter; cliffs and mountains show none (ui/main-map.md). */
