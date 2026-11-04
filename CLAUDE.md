@@ -174,7 +174,8 @@ decompilation of it.
 - code/wasm_test_hooks.h the test hooks of "build_web.bat test-game" for
                          the Playwright smoke tests in tests/web
 - code/render/           render commands and camera; png.h, zip.h and
-                         jpeg.h decoders; portraits.h, the picture of an
+                         jpeg.h decoders; picture.h picks the decoder of a
+                         picture; portraits.h, the picture of an
                          officer
 - code/ecs/              sparse-set component tables
 - code/sim/              headless simulation core (rules)

@@ -20,7 +20,7 @@
 #include "render/render.h"
 #include "render/terrain_mesh.h"
 #include "render/placeholder_meshes.h"
-#include "render/png.h"
+#include "render/picture.h"
 
 #define GL_MAX_MESHES        32     /* at least RENDER_MESH_COUNT */
 #define GL_MAX_SPRITES       32     /* at least RENDER_SPRITE_COUNT */
@@ -403,7 +403,7 @@ gl_load_png_texture(webgl2_renderer *r, const char *relative, memory_arena *aren
     u64 size = 0;
     u8 *data = gl_read_data_file(r, relative, arena, &size);
     if (!data) return 0;
-    png_image image = png_decode(data, size, arena);
+    png_image image = picture_decode(data, size, arena);
     if (image.error || !image.width) return 0;
     if (aspect_out) *aspect_out = (f32)image.height / (f32)image.width;
     return gl_make_texture((const u32 *)image.rgba, image.width, image.height, mipmaps);
@@ -417,19 +417,27 @@ gl_delete_mesh(gl_mesh *mesh)
     *mesh = {};
 }
 
-/* The model of one base kind or shape: <name>.hxm and <name>.png of the
-   pack. If one of the two files is absent, the kind has no model. The GPU
-   keeps the mesh and the texture, so the scratch arena gets its bytes back. */
+/* The model of one base kind or shape: <name>.hxm and a texture of the pack,
+   <name>.jpg or <name>.png. If the mesh or the texture is absent, the kind
+   has no model. The GPU keeps the mesh and the texture, so the scratch arena
+   gets its bytes back. */
 internal void
 gl_load_base_model(webgl2_renderer *r, const char *name, memory_arena *arena, gl_base_model *model)
 {
     *model = {};
     if (!name) return;
-    char mesh_file[260], texture_file[260];
+    char mesh_file[260];
     snprintf(mesh_file, sizeof(mesh_file), "%s.hxm", name);
-    snprintf(texture_file, sizeof(texture_file), "%s.png", name);
     u64 arena_used = arena->used;
-    if (gl_load_mesh_file(r, mesh_file, arena, &model->mesh)) model->texture = gl_load_png_texture(r, texture_file, arena, 0, true);
+    if (gl_load_mesh_file(r, mesh_file, arena, &model->mesh))
+    {
+        for (u32 index = 0; index < PICTURE_MODEL_TEXTURE_EXTENSIONS && !model->texture; ++index)
+        {
+            char texture_file[260];
+            snprintf(texture_file, sizeof(texture_file), "%s.%s", name, picture_model_texture_extensions[index]);
+            model->texture = gl_load_png_texture(r, texture_file, arena, 0, true);
+        }
+    }
     arena->used = arena_used;
     if (!model->texture) gl_delete_mesh(&model->mesh);
 }
@@ -509,10 +517,16 @@ internal b32
 gl_pack_changes_model(const char *old_dir, const char *new_dir, const char *name)
 {
     if (!name) return false;
-    char mesh_file[260], texture_file[260];
+    char mesh_file[260];
     snprintf(mesh_file, sizeof(mesh_file), "%s.hxm", name);
-    snprintf(texture_file, sizeof(texture_file), "%s.png", name);
-    return gl_pack_changes(old_dir, new_dir, mesh_file) || gl_pack_changes(old_dir, new_dir, texture_file);
+    if (gl_pack_changes(old_dir, new_dir, mesh_file)) return true;
+    for (u32 index = 0; index < PICTURE_MODEL_TEXTURE_EXTENSIONS; ++index)
+    {
+        char texture_file[260];
+        snprintf(texture_file, sizeof(texture_file), "%s.%s", name, picture_model_texture_extensions[index]);
+        if (gl_pack_changes(old_dir, new_dir, texture_file)) return true;
+    }
+    return false;
 }
 
 internal void

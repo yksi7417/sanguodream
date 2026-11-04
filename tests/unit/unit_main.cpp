@@ -17,6 +17,7 @@
 #include "render/png.h"
 #include "render/zip.h"
 #include "render/jpeg.h"
+#include "render/picture.h"
 #include "render/portraits.h"
 #include "render/faces.h"
 #include "text/text.h"
@@ -36,6 +37,7 @@
 #include "png_tests.cpp"
 #include "zip_tests.cpp"
 #include "jpeg_tests.cpp"
+#include "picture_tests.cpp"
 #include "portraits_tests.cpp"
 #include "faces_tests.cpp"
 #include "text_tests.cpp"
@@ -110,6 +112,10 @@ main(void)
     test_counts jpeg = {};
     unit_jpeg_tests(&jpeg);
     failed |= test_report("unit/jpeg", &jpeg);
+
+    test_counts picture = {};
+    unit_picture_tests(&picture);
+    failed |= test_report("unit/picture", &picture);
 
     test_counts portraits = {};
     unit_portraits_tests(&portraits);

@@ -13,7 +13,7 @@
 #include "render/render.h"
 #include "render/terrain_mesh.h"
 #include "render/placeholder_meshes.h"
-#include "render/png.h"
+#include "render/picture.h"
 
 #define D3D11_MAX_MESHES        32     /* at least RENDER_MESH_COUNT */
 #define D3D11_MAX_SPRITES       32     /* at least RENDER_SPRITE_COUNT */
@@ -375,6 +375,24 @@ d3d11_read_png_file(const d3d11_renderer *r, const char *relative, memory_arena 
     return image;
 }
 
+/* Reads and decodes the texture of a model: the first file of
+   picture_model_texture_extensions that the pack has and that decodes. */
+internal png_image
+d3d11_read_model_texture(const d3d11_renderer *r, const char *name, memory_arena *arena)
+{
+    png_image image = {};
+    for (u32 index = 0; index < PICTURE_MODEL_TEXTURE_EXTENSIONS && !image.rgba; ++index)
+    {
+        char texture_file[260];
+        snprintf(texture_file, sizeof(texture_file), "%s.%s", name, picture_model_texture_extensions[index]);
+        u64 size = 0;
+        u8 *data = d3d11_read_data_file(r, texture_file, arena, &size);
+        if (data) image = picture_decode(data, size, arena);
+        if (image.error || !image.width) image = {};
+    }
+    return image;
+}
+
 /* A texture with the full chain of mip levels: the GPU makes the smaller
    levels from the picture. A model seen from far away needs them, or its
    texture shimmers when the view moves. */
@@ -422,8 +440,8 @@ d3d11_load_png_texture(d3d11_renderer *r, const char *relative, memory_arena *ar
      call, so a worker thread can do it (win32_loader.h).
    - d3d11_asset_upload makes the GPU resources from the result. Call it
      on the thread of the device context.
-   A model has two files: <name>.hxm and <name>.png. If one of the two is
-   absent, the kind has no model. */
+   A model has two files: <name>.hxm and a texture, <name>.jpg or <name>.png.
+   If one of the two is absent, the kind has no model. */
 #define D3D11_ASSET_ATLAS             0
 #define D3D11_ASSET_SETTLEMENT        1
 #define D3D11_ASSET_FIRST_SPRITE      2
@@ -473,10 +491,9 @@ d3d11_asset_prepare(const d3d11_renderer *r, u32 job, memory_arena *arena, d3d11
     }
     else if (const char *name = d3d11_asset_model_name(job))
     {
-        char mesh_file[260], texture_file[260];
+        char mesh_file[260];
         snprintf(mesh_file, sizeof(mesh_file), "%s.hxm", name);
-        snprintf(texture_file, sizeof(texture_file), "%s.png", name);
-        if (d3d11_read_mesh_file(r, mesh_file, arena, &data->mesh)) data->picture = d3d11_read_png_file(r, texture_file, arena);
+        if (d3d11_read_mesh_file(r, mesh_file, arena, &data->mesh)) data->picture = d3d11_read_model_texture(r, name, arena);
         if (!data->picture.rgba) data->mesh = {};
     }
 }
@@ -707,7 +724,7 @@ d3d11_release(IUnknown **p)
 
 /* The files of a job, relative to the data folder. Returns their count. */
 internal u32
-d3d11_asset_files(u32 job, char files[2][260])
+d3d11_asset_files(u32 job, char files[1 + PICTURE_MODEL_TEXTURE_EXTENSIONS][260])
 {
     u32 count = 0;
     if (job == D3D11_ASSET_ATLAS) snprintf(files[count++], 260, "materials.png");
@@ -721,7 +738,10 @@ d3d11_asset_files(u32 job, char files[2][260])
     else if (const char *name = d3d11_asset_model_name(job))
     {
         snprintf(files[count++], 260, "%s.hxm", name);
-        snprintf(files[count++], 260, "%s.png", name);
+        for (u32 index = 0; index < PICTURE_MODEL_TEXTURE_EXTENSIONS; ++index)
+        {
+            snprintf(files[count++], 260, "%s.%s", name, picture_model_texture_extensions[index]);
+        }
     }
     return count;
 }
@@ -731,7 +751,7 @@ internal b32
 d3d11_asset_in_pack(const char *pack_dir, u32 job)
 {
     if (!pack_dir || !pack_dir[0]) return false;
-    char files[2][260];
+    char files[1 + PICTURE_MODEL_TEXTURE_EXTENSIONS][260];
     u32 count = d3d11_asset_files(job, files);
     for (u32 index = 0; index < count; ++index)
     {
