@@ -73,7 +73,7 @@ ui_net_join(ui_state *ui, engine_api *api, ui_frame_info *frame, const platform_
        game of this engine ends first, because a shared game refuses a load. */
     if (api->multiplayer_info(e).shared) api->multiplayer_end(e);
     /* The names first: the load of a name index adds events to the ledger, and
-       the ledger is a part of the checksum. The start image then replaces the ledger. */
+       the ledger is a part of the checksum. The start image then replaces the ledger and the names. */
     ui_ensure_city_names(ui, api);
     if (!api->load_start_image(e, event->data, event->size))
     {

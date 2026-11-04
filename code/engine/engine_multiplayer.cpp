@@ -346,7 +346,8 @@ engine_api_load_start_image(void *opaque, const u8 *bytes, u32 size)
     u8 *copy = (u8 *)arena_push_size(arena, size);
     memcpy(copy, bytes, size);
     engine_game_replay_return_live(e);
-    b32 loaded = engine_game_replay_load_image(e, copy, size);
+    /* The city ids of one pack are not the ids of another pack, so the names of the host replace the names of this engine. */
+    b32 loaded = engine_game_replay_load_image(e, copy, size, true);
     arena->used = mark;
     if (loaded) engine_game_replay_reset(e);   /* the start image is the start of a new record */
     return loaded;

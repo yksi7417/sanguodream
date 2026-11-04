@@ -709,9 +709,37 @@ feature_mp_record_checksum_tests(test_counts *counts)
     engine_fixture_destroy(&f);
 }
 
+/* The play report of 2026-11-04: a guest of a game of han_196 saw 漢中 at the place
+   of 建業. The city ids of the placeholder pack are not the ids of a pack. The guest
+   must show the names of the start image, also after it loaded another name index. */
+internal void
+feature_mp_pack_names_tests(test_counts *counts)
+{
+    engine_fixture host, guest;
+    feature_world_map_init(&host, HEXDOM_DATA_ROOT "/han_196");
+    feature_world_map_init(&guest, HEXDOM_DATA_ROOT "/han_196");
+    engine_api *h = &host.api, *g = &guest.api;
+    TEST_CHECK(counts, h->load_scenario(h->engine, h->scenario_at(h->engine, 0).file).status == ENGINE_LOAD_OK, "the host loads the scenario of 196");
+    TEST_CHECK(counts, g->load_name_index(g->engine, NAME_INDEX_RELATIVE_PATH).status == ENGINE_LOAD_OK &&
+                       memcmp(g->city_name_at(g->engine, 36).name, "\xBA\x7E\xA4\xA4", 4) == 0,
+               "before the join, the guest has the name index of the placeholder pack: city 36 is 漢中");
+
+    u32 capacity = h->start_image_size(h->engine);
+    u8 *image = (u8 *)malloc(capacity);
+    u32 written = h->start_image(h->engine, image, capacity);
+    TEST_CHECK(counts, written && g->load_start_image(g->engine, image, written), "the guest loads the start image of the host");
+    free(image);
+    TEST_CHECK(counts, memcmp(g->city_name_at(g->engine, 36).name, "\xAB\xD8\xB7\x7E", 4) == 0, "after the join, city 36 of the guest is 建業");
+    TEST_CHECK(counts, memcmp(g->city_name_at(g->engine, 19).name, "\xBA\x7E\xA4\xA4", 4) == 0, "after the join, city 19 of the guest is 漢中");
+    TEST_CHECK(counts, g->state_checksum(g->engine) == h->state_checksum(h->engine), "the names do not change the checksum");
+    engine_fixture_destroy(&host);
+    engine_fixture_destroy(&guest);
+}
+
 internal void
 feature_multiplayer_tests(test_counts *counts)
 {
+    feature_mp_pack_names_tests(counts);
     feature_mp_start_image_tests(counts);
     feature_mp_lockstep_tests(counts);
     feature_mp_lock_tests(counts);
