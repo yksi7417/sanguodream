@@ -593,6 +593,13 @@ unit_text_arms_tests(test_counts *counts, memory_arena *arena)
     text_catalog_set_game_pack(&catalog, "pack");
     text_catalog_set_locale(&catalog, "en");
     TEST_CHECK(counts, text_key_arms(&catalog, "france") == 0, "a pack without arms.tsv has no arms");
+
+    char picture[64];
+    TEST_CHECK(counts, text_game_pack_picture(&catalog, "fx.png", picture, sizeof(picture)) && strcmp(picture, "pack/fx.png") == 0, "a picture is in the folder of the game pack");
+    TEST_CHECK(counts, !text_game_pack_picture(&catalog, "../fx.png", picture, sizeof(picture)) && picture[0] == 0, "a parent folder is refused");
+    TEST_CHECK(counts, !text_game_pack_picture(&catalog, "fx.png", picture, 4) && picture[0] == 0, "a path that does not fit is refused");
+    text_catalog_set_game_pack(&catalog, "");
+    TEST_CHECK(counts, !text_game_pack_picture(&catalog, "fx.png", picture, sizeof(picture)), "no game pack gives no picture");
 }
 
 internal void

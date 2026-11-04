@@ -223,6 +223,10 @@ decompilation of it.
                          a capture of the map (docs/ASSETS.md)
 - misc/web_shell.py      puts the splash art and the favicon into the page
                          of the web build; build_web.bat runs it
+- misc/terrain_import.py  makes materials.jpg of a pack, the ground tiles of
+                         each terrain and season (docs/ASSETS.md)
+- misc/fx_import.py      makes fx.png of a pack, the atlas of the effects and
+                         the icons (docs/ASSETS.md)
 - misc/make_portraits.py  makes data/civil_war/Portraits.zip, the 224 x 280
                          portraits, from the source archives (docs/ASSETS.md)
 - data/placeholder/      the content pack: text/<locale>.tsv (UI strings),

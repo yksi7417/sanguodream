@@ -17,6 +17,7 @@ of 196.
 | The abilities | The tiers of scenarios/y196/source/officers.tsv and the rubric of misc/make_tier_officers.py. |
 | The lives | lore/en.tsv. The pack wrote each life in its own words. |
 | The troops, gold and food of the cities | A design of the pack, in scenarios/y196/cities.tsv. |
+| The ground tiles and the effects | materials.jpg and fx.png. The owner made them with Gemini (docs/ASSETS.md, "Terrain tiles" and "Effects and icons"). |
 
 No number of this pack comes from the files of the original game. To change
 an officer, edit source/officers.tsv and run the two tools:

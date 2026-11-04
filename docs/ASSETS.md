@@ -152,6 +152,56 @@ absent, every officer gets a generated face (the next section).
 The unit plates, the officer lists and the officer view of the Court
 panel show the portraits.
 
+## Terrain tiles (data/han_196/materials.jpg)
+The renderers draw the top of a hex with a ground tile of the pack. The
+owner of this repository made the tiles with Gemini (docs/art/GEMINI-PROMPTS.md,
+section 8) and put them in the Drive folder 04-Terrain. The folder is
+"Three Kingdoms Animations - Map Art".
+
+| Item | Value |
+|---|---|
+| Sources | 100 JPEG files of 2048 x 2048 pixels, 305 MB. art-src/terrain holds them, out of git |
+| Result | One baseline JPEG, 256 x 25600 pixels, quality 80, 4:2:0, 1.5 MB |
+| Layers 0 to 79 | Terrain id x 4 + season: spring, summer, autumn, winter |
+| Layers 80 to 99 | The second frame of stream, river, sea, ford and shallows, 4 for each terrain |
+| Tool | misc/terrain_import.py |
+| Licence | not recorded yet |
+
+To make the file again, put the sources in art-src/terrain and run:
+
+    python -X utf8 -E misc\terrain_import.py art-src\terrain data\han_196\materials.jpg
+
+How the game uses the file:
+1. The renderer decodes the file with code/render/jpeg.h. The decoder needs
+   approximately 36 MB for a short time.
+2. The renderer makes a texture array with one layer for each tile, and
+   with mip levels. A tile of a layer wraps without a seam.
+3. The position of a hex in the world gives the position in the tile. One
+   tile crosses 3 hexes (TERRAIN_TILE_SPAN).
+4. The UI gives the season of the date to the renderer. A water hex blends
+   its two frames slowly.
+
+A pack without the file gets the flat colours of terrain.tsv. The
+minimap and the map panel always use these colours.
+
+## Effects and icons (data/han_196/fx.png)
+The UI draws the fires and the sign of confusion with the effect atlas of
+the game pack. The owner made the sheets with Gemini (docs/art/GEMINI-PROMPTS.md,
+sections 9 and 10) and put them in the Drive folder 05-Effects-and-Icons.
+
+| Item | Value |
+|---|---|
+| Sources | 13 JPEG files of 2752 x 1536 pixels. art-src/fx holds them, out of git |
+| Result | One PNG, 1024 x 1664 pixels with alpha, 1.2 MB: 13 rows, 8 cells of 128 pixels in a row |
+| Tool | misc/fx_import.py. The rows of SHEETS and of ui_fx_row in code/ui/ui_effects.cpp are the same |
+| Licence | not recorded yet |
+
+A pack without the file gets the fires and the spiral that the code draws.
+The atlas also has rows of smoke, dust, debris, sparks, splash, thunderbolt,
+vortex, ripple, drum rings and projectiles. No action of the game draws
+them yet. Their place is docs/GRAPHICS.md, section 8. The other
+icons are also not in use.
+
 ## Generated faces (code/render/faces.h)
 An officer without a picture of its name gets a face that the engine
 draws on the spot. The face is not an asset. The code makes it, so it
@@ -532,7 +582,7 @@ The art folder has the same layout as data/placeholder:
 - sprites/art/<name>.png for the units and the bases,
 - sprites/<name>.png for the placeholder pictures of the units,
 - models/<name>.hxm and models/<name>.png for the 3D models,
-- materials.png for the terrain and settlement.hxm for the settlement.
+- materials.jpg for the terrain and settlement.hxm for the settlement.
 
 The renderer reads each file in the art folder first. If the file is not
 there, it reads the file of data/placeholder. Thus a pack needs only the
