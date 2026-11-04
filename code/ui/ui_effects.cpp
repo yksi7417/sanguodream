@@ -93,6 +93,60 @@ ui_effect_pixels(m4 view_projection, v3 at)
     return sqrtf((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0));
 }
 
+/* The rows of the effect atlas of a pack: data/<pack>/fx.png, from
+   misc/fx_import.py (docs/ASSETS.md, "Effects and icons"). Today the map
+   draws the fires and the sign of confusion. The other rows wait for their
+   choreography (docs/GRAPHICS.md, section 8). */
+enum ui_fx_row
+{
+    UI_FX_BIG_FIRE, UI_FX_FLAME_LOOP, UI_FX_SMOKE_PUFF, UI_FX_DUST_CLOUD, UI_FX_IMPACT_DEBRIS, UI_FX_SPARKS, UI_FX_WATER_SPLASH,
+    UI_FX_THUNDERBOLT, UI_FX_DARK_VORTEX, UI_FX_CALM_RIPPLE, UI_FX_DRUM_RINGS, UI_FX_PROJECTILES, UI_FX_ICONS,
+    UI_FX_ROW_COUNT
+};
+#define UI_FX_COLUMNS       8
+#define UI_FX_FLAME_FRAMES  8
+#define UI_FX_FLAME_RATE    10.0f   /* frames each second */
+#define UI_FX_ICON_CONFUSION 0      /* the column of the spiral in the row of the icons */
+#define UI_FX_FIRE_SCALE    1.7f    /* the cell over the height of a flame: a figure does not fill its cell */
+
+/* The atlas of the game pack, or no texture. */
+internal platform_picture
+ui_fx_atlas(ui_state *ui)
+{
+    platform_picture none = {};
+    char file[TEXT_PACK_SIZE + 16];
+    if (!ui->data_picture || !text_game_pack_picture(ui->text, "fx.png", file, sizeof(file))) return none;
+    return ui->data_picture(file);
+}
+
+/* One looping fire of the atlas. (x, y) is its base on the screen. */
+internal void
+ui_draw_fx_fire(ImDrawList *draw, platform_picture atlas, u32 row, f32 x, f32 y, f32 pixels, f32 seed, f32 time)
+{
+    f32 size = pixels * UI_EFFECT_FLAME_HEIGHT * UI_FX_FIRE_SCALE;
+    if (size < 6.0f) return;   /* too far: a flame of a few pixels only adds noise */
+    u32 frame = (u32)(time * UI_FX_FLAME_RATE + seed) % UI_FX_FLAME_FRAMES;
+    ImVec2 uv_min((f32)frame / UI_FX_COLUMNS, (f32)row / UI_FX_ROW_COUNT);
+    ImVec2 uv_max((f32)(frame + 1) / UI_FX_COLUMNS, (f32)(row + 1) / UI_FX_ROW_COUNT);
+    draw->AddImage((ImTextureID)atlas.texture, ImVec2(x - size * 0.5f, y - size), ImVec2(x + size * 0.5f, y), uv_min, uv_max);
+}
+
+/* The badge of confusion of the atlas: it turns over the head of a unit. */
+internal void
+ui_draw_fx_dizzy(ImDrawList *draw, platform_picture atlas, f32 x, f32 y, f32 pixels, f32 time)
+{
+    f32 radius = pixels * 0.38f;
+    if (radius < 9.0f) radius = 9.0f;
+    f32 spin = -time * 3.0f;
+    f32 across = cosf(spin) * radius, down = sinf(spin) * radius;
+    f32 u0 = (f32)UI_FX_ICON_CONFUSION / UI_FX_COLUMNS, u1 = (f32)(UI_FX_ICON_CONFUSION + 1) / UI_FX_COLUMNS;
+    f32 v0 = (f32)UI_FX_ICONS / UI_FX_ROW_COUNT, v1 = (f32)(UI_FX_ICONS + 1) / UI_FX_ROW_COUNT;
+    draw->AddImageQuad((ImTextureID)atlas.texture,
+                       ImVec2(x - across + down, y - down - across), ImVec2(x + across + down, y + down - across),
+                       ImVec2(x + across - down, y + down + across), ImVec2(x - across - down, y - down + across),
+                       ImVec2(u0, v0), ImVec2(u1, v0), ImVec2(u1, v1), ImVec2(u0, v1));
+}
+
 /* One flame: a tongue that sways and flickers, orange with a yellow core.
    (x, y) is its base on the screen, height its full height in pixels. */
 internal void
@@ -159,6 +213,7 @@ ui_draw_scene_effects(ui_state *ui, engine_api *api, m4 view_projection, ImDrawL
     local_persist ui_effect effects[UI_EFFECT_CAPACITY];
     u32 count = ui_scene_effects(api, effects, UI_EFFECT_CAPACITY);
     f32 time = (f32)ImGui::GetTime();
+    platform_picture atlas = count ? ui_fx_atlas(ui) : platform_picture{};
     for (u32 index = 0; index < count; ++index)
     {
         ui_effect *effect = effects + index;
@@ -176,6 +231,13 @@ ui_draw_scene_effects(ui_state *ui, engine_api *api, m4 view_projection, ImDrawL
         if (x < -64.0f || y < -64.0f || x > io.DisplaySize.x + 64.0f || y > io.DisplaySize.y + 64.0f) continue;
         f32 pixels = ui_effect_pixels(view_projection, at);
         f32 seed = (f32)((hex.q * 7 + hex.r * 13) & 31);
+        if (atlas.texture)
+        {
+            if (effect->kind == UI_EFFECT_FIRE_HEX)       ui_draw_fx_fire(draw, atlas, UI_FX_BIG_FIRE, x, y, pixels, seed, time);
+            else if (effect->kind == UI_EFFECT_FIRE_UNIT) ui_draw_fx_fire(draw, atlas, UI_FX_FLAME_LOOP, x, y, pixels, seed, time);
+            else                                          ui_draw_fx_dizzy(draw, atlas, x, y, pixels, time);
+            continue;
+        }
         switch (effect->kind)
         {
             case UI_EFFECT_FIRE_HEX:  ui_draw_flames(draw, x, y, pixels, 5, seed, time); break;

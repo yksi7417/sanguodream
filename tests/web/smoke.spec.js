@@ -114,6 +114,20 @@ test("a new game of 1200 starts the engine again with the map of Europe", async 
   expect(rulers.length).toBeGreaterThanOrEqual(10);   // the visible rows of the list of 24 rulers
 });
 
+// docs/ASSETS.md, "Terrain tiles": the game of 196 loads the ground tiles of its pack.
+// A broken shader or a JPEG that does not decode leaves the 8 flat colours.
+test("a new game of 196 loads the ground tiles of the pack", async ({ page }) => {
+  await h.signIn(page);
+  expect((await h.gameState(page)).atlas_layers).toBe(8);
+  await h.clickItem(page, "title_new");
+  await expect.poll(() => h.windowShown(page, "Scenarios")).toBe(true);
+  await h.clickItem(page, "sc11");
+  await expect.poll(() => h.windowShown(page, "Rulers"), { timeout: 30_000 }).toBe(true);
+  const state = await h.gameState(page);
+  expect(state.pack).toBe("han_196");
+  await expect.poll(async () => (await h.gameState(page)).atlas_layers, { timeout: 30_000 }).toBe(100);
+});
+
 test("the quit button of the title asks, then signs the user out", async ({ page }) => {
   await h.signIn(page);
   page.once("dialog", (dialog) => dialog.accept());

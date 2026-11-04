@@ -8,7 +8,7 @@ unit_terrain_mesh_tests(test_counts *counts)
     u8 kind[6 * 4];
     u8 level[6 * 4];
     for (u32 i = 0; i < 24; ++i) { kind[i] = (u8)(i % 3); level[i] = (u8)(i % 2); }
-    render_terrain terrain;
+    render_terrain terrain = {};
     terrain.width = 6; terrain.height = 4; terrain.kind = kind; terrain.level = level; terrain.version = 1;
 
     terrain_mesh mesh = terrain_mesh_build(&terrain, &arena);
@@ -28,6 +28,13 @@ unit_terrain_mesh_tests(test_counts *counts)
                        near_f32(top->position.y, expected.y, 1e-5f), "top center of a cell matches hex_world_center");
     TEST_CHECK(counts, top->normal.y > 0.99f, "top normal points up");
     TEST_CHECK(counts, near_f32(top->tile, (f32)kind[7], 0.0f) && near_f32(top->cell, 7.0f, 0.0f), "vertex carries its tile and cell");
+    TEST_CHECK(counts, near_f32(top->u, expected.x / TERRAIN_TILE_SPAN, 1e-5f) && near_f32(top->v, expected.z / TERRAIN_TILE_SPAN, 1e-5f), "the top takes its tile position from the world, so a tile crosses the hexes");
+    u8 art_kind[24];
+    for (u32 cell = 0; cell < 24; ++cell) art_kind[cell] = (u8)(cell % 20);
+    terrain.art_kind = art_kind;
+    terrain_mesh art_mesh = terrain_mesh_build(&terrain, &arena);
+    terrain.art_kind = 0;
+    TEST_CHECK(counts, near_f32(art_mesh.vertices[7 * TERRAIN_VERTS_PER_CELL].tile, (f32)kind[7] + 7.0f * TERRAIN_ART_KIND_STEP, 0.0f), "the vertex holds the terrain kind above the atlas colour");
 
     /* side normals are horizontal and point away from the center */
     b32 sides_ok = true;

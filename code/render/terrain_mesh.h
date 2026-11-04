@@ -12,15 +12,17 @@
 #define TERRAIN_BEVEL_DROP  0.12f    /* how far the bevel ring sits below the top */
 #define TERRAIN_FLOOR_Y    -0.6f     /* the sides go down to here */
 #define TERRAIN_TRIS_PER_CELL  30    /* 6 top + 12 bevel + 12 sides */
+#define TERRAIN_ART_KIND_STEP  256.0f   /* the vertex field tile holds the atlas colour + this step x the terrain kind */
+#define TERRAIN_TILE_SPAN      6.0f     /* world units of one repeat of a ground tile: 3 hexes */
 #define TERRAIN_VERTS_PER_CELL 31    /* 1 center + 6 top + 6 bevel + 6*3 side corners */
 
 struct terrain_vertex
 {
     v3  position;
     v3  normal;
-    f32 u, v;         /* within the material tile */
+    f32 u, v;         /* the top: world position / TERRAIN_TILE_SPAN, so a tile crosses the hexes. A side: 0..1 */
     f32 cell;         /* cell index, read back as a float in the shader */
-    f32 tile;         /* material tile index */
+    f32 tile;         /* atlas colour + TERRAIN_ART_KIND_STEP x terrain kind */
 };
 
 struct terrain_mesh
@@ -80,17 +82,17 @@ terrain_mesh_build(render_terrain *terrain, memory_arena *arena)
         o.row = (s32)(index / terrain->width);
         hex_coord h = hex_from_offset(o);
         f32 top_y  = terrain_level_y(terrain->level[index]);
-        f32 tile   = (f32)terrain->kind[index];
+        f32 tile   = (f32)terrain->kind[index] + (terrain->art_kind ? TERRAIN_ART_KIND_STEP * (f32)terrain->art_kind[index] : 0.0f);
         f32 cellf  = (f32)index;
         v3 center  = hex_world_center(h, top_y);
         u32 base   = mesh.vertex_count;
 
         /* top: center + 6 corners at the inset radius */
-        terrain_put(&mesh, base, center, up, 0.5f, 0.5f, cellf, tile);
+        terrain_put(&mesh, base, center, up, center.x / TERRAIN_TILE_SPAN, center.z / TERRAIN_TILE_SPAN, cellf, tile);
         for (u32 k = 0; k < 6; ++k)
         {
             v3 c = terrain_corner(center, TERRAIN_TOP_INSET, k, top_y);
-            terrain_put(&mesh, base + 1 + k, c, up, 0.5f + (c.x - center.x) * 0.5f, 0.5f + (c.z - center.z) * 0.5f, cellf, tile);
+            terrain_put(&mesh, base + 1 + k, c, up, c.x / TERRAIN_TILE_SPAN, c.z / TERRAIN_TILE_SPAN, cellf, tile);
         }
         for (u32 k = 0; k < 6; ++k) terrain_tri(&mesh, base, base + 1 + k, base + 1 + (k + 1) % 6);
 
@@ -99,7 +101,7 @@ terrain_mesh_build(render_terrain *terrain, memory_arena *arena)
         {
             v3 c = terrain_corner(center, 1.0f, k, top_y - TERRAIN_BEVEL_DROP);
             v3 n = v3_normalize(v3_make(c.x - center.x, 0.7f, c.z - center.z));
-            terrain_put(&mesh, base + 7 + k, c, n, 0.5f + (c.x - center.x) * 0.5f, 0.5f + (c.z - center.z) * 0.5f, cellf, tile);
+            terrain_put(&mesh, base + 7 + k, c, n, c.x / TERRAIN_TILE_SPAN, c.z / TERRAIN_TILE_SPAN, cellf, tile);
         }
         for (u32 k = 0; k < 6; ++k)
         {

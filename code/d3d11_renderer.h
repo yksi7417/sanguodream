@@ -14,10 +14,11 @@
 #include "render/terrain_mesh.h"
 #include "render/placeholder_meshes.h"
 #include "render/png.h"
+#include "render/jpeg.h"
 
 #define D3D11_MAX_MESHES        32     /* at least RENDER_MESH_COUNT */
 #define D3D11_MAX_SPRITES       32     /* at least RENDER_SPRITE_COUNT */
-#define D3D11_ATLAS_TILES       8      /* material tiles in one row of the atlas */
+#define D3D11_ATLAS_TILES       8      /* the layers of the placeholder atlas */
 #define D3D11_ATLAS_TILE_SIZE   64     /* pixels, for the generated placeholder atlas */
 #define D3D11_SPRITE_SIZE       64
 
@@ -51,8 +52,9 @@ struct d3d11_frame_constants
     f32 camera_right[4];
     f32 camera_up[4];
     f32 overlay_size[2];      /* cells wide, cells high */
-    f32 atlas_tiles;
+    f32 atlas_tiles;          /* the layers of the atlas: more than 8 is materials.jpg */
     f32 mode;                 /* 0 terrain, 1 grid lines */
+    f32 terrain_state[4];     /* season, ripple, unused, unused */
 };
 
 typedef render_mesh_vertex d3d11_mesh_vertex;   /* the layout of placeholder_meshes.h and of the mesh files */
@@ -134,6 +136,7 @@ struct d3d11_renderer
     u32                      overlay_width, overlay_height;
 
     ID3D11ShaderResourceView *atlas_view;
+    u32                       atlas_layers;
     d3d11_mesh               meshes[D3D11_MAX_MESHES];
     u32                      mesh_count;
     d3d11_sprite             sprites[D3D11_MAX_SPRITES];
@@ -154,8 +157,8 @@ static const char d3d11_shader_source[] =
 "#pragma pack_matrix(row_major)\n"
 "cbuffer Frame : register(b0) {\n"
 "  float4x4 view_projection; float4 light_direction; float4 camera_right; float4 camera_up;\n"
-"  float2 overlay_size; float atlas_tiles; float mode; };\n"
-"Texture2D atlas : register(t0); Texture2D overlay : register(t1); Texture2D sprite : register(t2);\n"
+"  float2 overlay_size; float atlas_tiles; float mode; float4 terrain_state; };\n"
+"Texture2DArray atlas : register(t0); Texture2D overlay : register(t1); Texture2D sprite : register(t2);\n"
 "SamplerState linear_sampler : register(s0);\n"
 "\n"
 "struct TerrainIn { float3 position : POSITION; float3 normal : NORMAL; float2 uv : TEXCOORD0; float cell : TEXCOORD1; float tile : TEXCOORD2; };\n"
@@ -165,8 +168,11 @@ static const char d3d11_shader_source[] =
 "  o.normal = i.normal; o.uv = i.uv; o.cell = i.cell; o.tile = i.tile; return o; }\n"
 "float4 terrain_ps(TerrainOut i) : SV_TARGET {\n"
 "  if (mode > 0.5) return float4(0.05, 0.05, 0.05, 1.0);\n"
-"  float2 uv = float2((i.tile + frac(i.uv.x)) / atlas_tiles, frac(i.uv.y));\n"
-"  float3 base = atlas.Sample(linear_sampler, uv).rgb;\n"
+"  float code = floor(i.tile + 0.5); float kind = floor(code / 256.0); float layer = code - kind * 256.0; float frame = layer;\n"
+"  if (atlas_tiles > 8.5) {\n"
+"    layer = kind * 4.0 + terrain_state.x; frame = layer;\n"
+"    if ((kind > 5.5 && kind < 8.5) || (kind > 11.5 && kind < 13.5)) frame = 80.0 + (kind < 9.0 ? kind - 6.0 : kind - 9.0) * 4.0 + terrain_state.x; }\n"
+"  float3 base = lerp(atlas.Sample(linear_sampler, float3(i.uv, layer)).rgb, atlas.Sample(linear_sampler, float3(i.uv, frame)).rgb, terrain_state.y);\n"
 "  int w = (int)overlay_size.x; int c = (int)(i.cell + 0.5);\n"
 "  float4 tint = overlay.Load(int3(c % w, c / w, 0));\n"
 "  float light = 0.35 + 0.65 * saturate(dot(normalize(i.normal), -light_direction.xyz));\n"
@@ -279,8 +285,9 @@ d3d11_read_data_file(const d3d11_renderer *r, const char *relative, memory_arena
     return *size_out ? (u8 *)file.contents : 0;
 }
 
-/* The placeholder material atlas: one flat colour tile per terrain kind,
-   with a faint checker so zoom is visible. Used when materials.png is absent.
+/* The placeholder material atlas: one flat colour layer per colour of
+   terrain.tsv, one below the other, with a faint checker so zoom is
+   visible. Used when materials.jpg is absent.
    Colours are ABGR in memory (R8G8B8A8_UNORM, little endian). */
 internal u32 *
 d3d11_placeholder_atlas(memory_arena *arena)
@@ -289,13 +296,13 @@ d3d11_placeholder_atlas(memory_arena *arena)
         0xFF9E5A2Eu, /* 0 water: blue  */ 0xFF4E8C5Au, /* 1 plain: green */ 0xFF2E6E3Au, /* 2 forest */
         0xFF5A7D96u, /* 3 hill: tan */    0xFF8A8A8Au, /* 4 mountain: grey */ 0xFF3A6E9Eu, /* 5 road: brown */
         0xFFC8C8C8u, /* 6 snow */          0xFF7A3A9Au  /* 7 unused */ };
-    u32 w = D3D11_ATLAS_TILES * D3D11_ATLAS_TILE_SIZE, h = D3D11_ATLAS_TILE_SIZE;
+    u32 w = D3D11_ATLAS_TILE_SIZE, h = D3D11_ATLAS_TILES * D3D11_ATLAS_TILE_SIZE;
     u32 *rgba = PushArray(arena, (u64)w * h, u32);
     for (u32 y = 0; y < h; ++y)
     {
         for (u32 x = 0; x < w; ++x)
         {
-            u32 tile = x / D3D11_ATLAS_TILE_SIZE;
+            u32 tile = y / D3D11_ATLAS_TILE_SIZE;
             u32 c = colors[tile];
             b32 dark = ((x / 8) + (y / 8)) & 1;
             if (dark)
@@ -396,6 +403,35 @@ d3d11_make_mipmapped_texture(d3d11_renderer *r, const u32 *rgba, u32 width, u32 
     return view;
 }
 
+/* A strip of square tiles, one below the other, as a texture array with
+   the full chain of mip levels. A tile wraps without a seam, and the mips
+   of a tile do not mix with the next tile. Sets the layer count, or
+   returns 0 if the strip is not a whole number of tiles. */
+internal ID3D11ShaderResourceView *
+d3d11_make_tile_array(d3d11_renderer *r, const u32 *rgba, u32 side, u32 height, u32 *layers_out)
+{
+    if (!rgba || !side || height % side) return 0;
+    u32 layers = height / side;
+    D3D11_TEXTURE2D_DESC desc = {};
+    desc.Width = side; desc.Height = side; desc.MipLevels = 0; desc.ArraySize = layers;
+    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; desc.SampleDesc.Count = 1;
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+    desc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
+    ID3D11Texture2D *texture = 0;
+    if (FAILED(r->device->CreateTexture2D(&desc, 0, &texture))) return 0;
+    texture->GetDesc(&desc);
+    for (u32 layer = 0; layer < layers; ++layer)
+    {
+        r->context->UpdateSubresource(texture, D3D11CalcSubresource(0, layer, desc.MipLevels), 0, rgba + (u64)layer * side * side, side * 4, 0);
+    }
+    ID3D11ShaderResourceView *view = 0;
+    if (SUCCEEDED(r->device->CreateShaderResourceView(texture, 0, &view))) r->context->GenerateMips(view);
+    texture->Release();
+    if (view) *layers_out = layers;
+    return view;
+}
+
 /* A decoded picture as a texture. Call it on the thread of the device context. */
 internal ID3D11ShaderResourceView *
 d3d11_make_picture_texture(d3d11_renderer *r, const png_image *image, b32 mipmaps)
@@ -457,7 +493,13 @@ d3d11_asset_prepare(const d3d11_renderer *r, u32 job, memory_arena *arena, d3d11
     *data = {};
     if (job == D3D11_ASSET_ATLAS)
     {
-        data->picture = d3d11_read_png_file(r, "materials.png", arena);
+        u64 size = 0;
+        u8 *file = d3d11_read_data_file(r, "materials.jpg", arena, &size);
+        if (file)
+        {
+            jpeg_image image = jpeg_decode_full(file, size, arena);
+            if (!image.error && image.rgba) { data->picture.width = image.width; data->picture.height = image.height; data->picture.rgba = image.rgba; }
+        }
     }
     else if (job == D3D11_ASSET_SETTLEMENT)
     {
@@ -503,11 +545,11 @@ d3d11_asset_upload(d3d11_renderer *r, u32 job, const d3d11_asset_data *data, mem
     u64 scratch_used = scratch->used;
     if (job == D3D11_ASSET_ATLAS)
     {
-        r->atlas_view = d3d11_make_picture_texture(r, &data->picture, false);
+        r->atlas_view = d3d11_make_tile_array(r, (const u32 *)data->picture.rgba, data->picture.width, data->picture.height, &r->atlas_layers);
         if (!r->atlas_view)
         {
             u32 *atlas = d3d11_placeholder_atlas(scratch);
-            r->atlas_view = d3d11_make_texture(r, atlas, D3D11_ATLAS_TILES * D3D11_ATLAS_TILE_SIZE, D3D11_ATLAS_TILE_SIZE, false, 0);
+            r->atlas_view = d3d11_make_tile_array(r, atlas, D3D11_ATLAS_TILE_SIZE, D3D11_ATLAS_TILES * D3D11_ATLAS_TILE_SIZE, &r->atlas_layers);
         }
     }
     else if (job == D3D11_ASSET_SETTLEMENT)
@@ -710,7 +752,7 @@ internal u32
 d3d11_asset_files(u32 job, char files[2][260])
 {
     u32 count = 0;
-    if (job == D3D11_ASSET_ATLAS) snprintf(files[count++], 260, "materials.png");
+    if (job == D3D11_ASSET_ATLAS) snprintf(files[count++], 260, "materials.jpg");
     else if (job == D3D11_ASSET_SETTLEMENT) snprintf(files[count++], 260, "settlement.hxm");
     else if (job < D3D11_ASSET_FIRST_BASE_MODEL)
     {
@@ -918,7 +960,7 @@ internal b32
 d3d11_terrain_job_start(d3d11_renderer *r, d3d11_terrain_job *job, const render_terrain *terrain)
 {
     u64 cells = (u64)terrain->width * terrain->height;
-    u64 size = cells * (3 + TERRAIN_VERTS_PER_CELL * sizeof(terrain_vertex) + TERRAIN_TRIS_PER_CELL * 3 * 4 + 12 * 4) + Megabytes(1);
+    u64 size = cells * (4 + TERRAIN_VERTS_PER_CELL * sizeof(terrain_vertex) + TERRAIN_TRIS_PER_CELL * 3 * 4 + 12 * 4) + Megabytes(1);
     *job = {};
     job->memory = (u8 *)VirtualAlloc(0, (SIZE_T)size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     if (!job->memory) return false;
@@ -931,6 +973,12 @@ d3d11_terrain_job_start(d3d11_renderer *r, d3d11_terrain_job *job, const render_
     memcpy(level, terrain->level, (size_t)cells);
     job->input.kind  = kind;
     job->input.level = level;
+    if (terrain->art_kind)
+    {
+        u8 *art_kind = PushArray(&job->arena, cells, u8);
+        memcpy(art_kind, terrain->art_kind, (size_t)cells);
+        job->input.art_kind = art_kind;
+    }
     if (terrain->grid)
     {
         u8 *grid = PushArray(&job->arena, cells, u8);
@@ -1103,7 +1151,8 @@ d3d11_renderer_draw(d3d11_renderer *r, render_commands *rc, ID3D11RenderTargetVi
     fc.camera_right[0] = view.m[0][0]; fc.camera_right[1] = view.m[1][0]; fc.camera_right[2] = view.m[2][0];
     fc.camera_up[0]    = view.m[0][1]; fc.camera_up[1]    = view.m[1][1]; fc.camera_up[2]    = view.m[2][1];
     fc.overlay_size[0] = (f32)r->overlay_width; fc.overlay_size[1] = (f32)r->overlay_height;
-    fc.atlas_tiles = (f32)D3D11_ATLAS_TILES;
+    fc.atlas_tiles = (f32)r->atlas_layers;
+    fc.terrain_state[0] = rc->terrain_season; fc.terrain_state[1] = rc->terrain_ripple;
     fc.mode = 0.0f;
     d3d11_upload(r, r->constants, &fc, sizeof(fc), 0);
     ctx->VSSetConstantBuffers(0, 1, &r->constants);
