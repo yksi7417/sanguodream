@@ -403,7 +403,10 @@ ui_draw_start_settings(ui_state *ui, engine_api *api)
         {
             api->set_settings(e, settings);
             /* The start image holds the first faction that acts. Each faction keeps its
-               first turn, because a person can take any seat in the lobby. */
+               first turn, because a person can take any seat in the lobby. end_turn plays
+               the factions of the AI, so each faction is human for this pass. The join
+               then sets each faction from its seat. */
+            for (u32 index = 0; index < api->faction_count(e); ++index) api->set_faction_human(e, api->faction_at(e, index).force_id, true);
             for (u32 step = 0; step < 300 && api->whose_turn(e) == ENGINE_NO_FACTION; ++step) api->end_turn(e);
             ui->net.host_request = true;
         }

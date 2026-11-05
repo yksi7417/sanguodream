@@ -225,8 +225,11 @@ function openRoom(gid) {
 async function refreshRoom() {
   var response = await fetch("api/games/" + net.gid).catch(function () { return null; });
   if (!response || !response.ok) { roomStatus("The room does not load."); return; }
-  net.room = await response.json();
-  drawRoom();
+  // The poll draws the panel only after a change. A new button between the press and the release loses the click.
+  var text = await response.text();
+  net.room = JSON.parse(text);
+  if (text !== net.roomText) drawRoom();
+  net.roomText = text;
   // MP7: a member of the house without a seat watches the game after a click on "Watch".
   if (net.room.state !== "open" && !net.socket && !net.preparing && net.room.you_viewer) {
     clearInterval(net.poll);

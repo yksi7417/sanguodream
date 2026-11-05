@@ -4608,6 +4608,7 @@ register_ui_tests(ImGuiTestEngine *e)
         v.frame.frame_arena = &g_ui_test_net.arena;
         v.ui.show_start_settings = true;
         v.ui.game.rulers         = 1ull << 5;   /* the recorder has one faction, force 1, and the host did not choose it */
+        v.recorder.officer_count  = 1;          /* officer 100 rules force 1 */
         ctx->SetRef("###StartSettings");
         ctx->Yield(2);
         recorder_reset(&v.recorder);
