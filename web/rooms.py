@@ -377,6 +377,8 @@ class Rooms:
                 other.update(uid=None, user=None, ai=True)
         if seat is not None:
             seat.update(uid=user["uid"], user=clean_text(user["name"], MAX_NAME_CHARS), ai=False)
+            if user["uid"] in room.record.get("watchers", []):
+                room.record["watchers"].remove(user["uid"])
             await self.store.put(member_prefix(user["uid"]) + room.gid, b"")
         elif user["uid"] != room.record["host"]:
             await self.store.delete(member_prefix(user["uid"]) + room.gid)   # the game leaves the list of the member
@@ -418,16 +420,17 @@ class Rooms:
         if not isinstance(pause, bool) or not isinstance(spectators, bool) or not isinstance(late_join, bool):
             raise RoomError("bad option")
         room.record.update(mode=mode, turn_seconds=turn_seconds, pause_absent=pause, spectators=spectators, late_join=late_join)
+        if not spectators:
+            room.record["watchers"] = []   # the people who chose to watch in the lobby choose again
         await self.save(room)
 
     async def watch(self, room, user):
-        """MP7: a member of the house watches the game. The host decides if spectators can (Q-11)."""
+        """MP7: a member of the house watches the game. The host decides if spectators can (Q-11).
+        A person can also choose this in the lobby. The page then joins at the start."""
         if room.is_viewer(user["uid"]):
             return
         if not room.record.get("spectators", True):
             raise RoomError("the host allows no spectators")
-        if room.record["state"] == "open":
-            raise RoomError("the game did not start")
         watchers = room.record.setdefault("watchers", [])
         if len(watchers) >= MAX_WATCHERS:
             raise RoomError("the room has no place for a spectator")

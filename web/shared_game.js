@@ -34,7 +34,8 @@ async function showMyGames() {
    code/hexdom.h.
    - "Play online" in the game: the page makes the room, sends the start image and
      shows the lobby with the invite link.
-   - The lobby: each member takes a seat. The host starts the game.
+   - The lobby: each person takes a seat, changes the seat, or chooses to watch.
+     The host starts the game.
    - The start: the page opens the socket. After the welcome, it gives the start
      image and the seats to the game (join), then each step of the socket.
    The page shows names with textContent, never as HTML. */
@@ -224,8 +225,11 @@ function openRoom(gid) {
 async function refreshRoom() {
   var response = await fetch("api/games/" + net.gid).catch(function () { return null; });
   if (!response || !response.ok) { roomStatus("The room does not load."); return; }
-  net.room = await response.json();
-  drawRoom();
+  // The poll draws the panel only after a change. A new button between the press and the release loses the click.
+  var text = await response.text();
+  net.room = JSON.parse(text);
+  if (text !== net.roomText) drawRoom();
+  net.roomText = text;
   // MP7: a member of the house without a seat watches the game after a click on "Watch".
   if (net.room.state !== "open" && !net.socket && !net.preparing && net.room.you_viewer) {
     clearInterval(net.poll);
@@ -264,7 +268,7 @@ async function loadJoinImage() {
 }
 
 function drawRoom() {
-  var room = net.room, panel = roomPanel();
+  var room = net.room, panel = roomPanel(), scroll = panel.scrollTop;   // the poll draws the list again
   panel.replaceChildren();
   panel.appendChild(element("h2", room.name));
   panel.appendChild(element("p", "Invite link: " + inviteLink(room), "room-link"));
@@ -285,11 +289,13 @@ function drawRoom() {
     var who = seat.user ? (seat.ai ? (seat.auto ? "the computer, for " : "the computer, while away: ") + seat.user : seat.user) : "the computer";
     var item = element("li", seat.name + ": " + who);
     item.className = "seat";
-    if (room.state === "open") {
-      var take = element("button", seat.user ? "Leave" : "Take", "seat-" + seat.force);
+    var yours = seat.force === room.you_force;
+    if (room.state === "open" && (yours || !seat.user)) {
+      // A click on a free seat changes the seat of a person who has one.
+      var take = element("button", yours ? "Leave" : "Take", "seat-" + seat.force);
       take.type = "button";
       take.addEventListener("click", function () {
-        postJson("api/games/" + net.gid + "/seat", { force: seat.user ? null : seat.force })
+        postJson("api/games/" + net.gid + "/seat", { force: yours ? null : seat.force })
           .then(refreshRoom).catch(function (error) { roomStatus(String(error.message || error)); });
       });
       item.appendChild(take);
@@ -304,10 +310,14 @@ function drawRoom() {
     list.appendChild(item);
   });
   panel.appendChild(list);
-  if (room.state !== "open" && !room.you_viewer) {
+  if (room.state === "open" && room.you_viewer && !room.you_seat) {
+    panel.appendChild(element("p", "You will watch this game. Take a seat to play.", "room-watching"));
+  }
+  if (room.watcher_count) panel.appendChild(element("p", "Spectators: " + room.watcher_count, "room-watchers"));
+  if (!room.you_viewer) {
     if (room.spectators === false) panel.appendChild(element("p", "The host allows no spectators in this game."));
     else {
-      var watch = element("button", "Watch", "room-watch");
+      var watch = element("button", "Watch as a spectator", "room-watch");
       watch.type = "button";
       watch.addEventListener("click", function () {
         postJson("api/games/" + net.gid + "/watch", {}).then(refreshRoom)
@@ -316,7 +326,8 @@ function drawRoom() {
       panel.appendChild(watch);
     }
   }
-  if (room.state === "open") {
+  if (room.state === "open" && !room.you_host) panel.appendChild(element("p", "The host starts the game.", "room-wait"));
+  if (room.state === "open" && room.you_host) {
     var start = element("button", "Start the game", "room-start");
     start.type = "button";
     start.addEventListener("click", function () {
@@ -326,6 +337,7 @@ function drawRoom() {
   }
   panel.appendChild(element("p", "", "room-status"));
   panel.style.display = net.joined ? "none" : "block";
+  panel.scrollTop = scroll;
 }
 
 function inviteLink(room) {

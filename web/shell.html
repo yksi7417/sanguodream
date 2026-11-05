@@ -65,7 +65,8 @@
                         border-radius: 6px; background: #232731; color: #e8e8e8; font: inherit; cursor: pointer; }
   #unsupported [hidden] { display: none; }
   /* The lobby of a shared game (docs/MULTIPLAYER.md). */
-  #room { position: fixed; top: 8px; left: 8px; display: none; max-width: 360px; padding: 8px 14px;
+  #room { position: fixed; top: 8px; left: 8px; display: none; max-width: 360px; max-height: calc(100vh - 16px); overflow-y: auto;
+          box-sizing: border-box; padding: 8px 14px;
           border: 1px solid #3a3f4b; border-radius: 6px; background: rgba(35, 39, 49, 0.95); color: #e8e8e8; }
   #room h2 { font-size: 16px; margin: 4px 0 8px; }
   #room p { margin: 4px 0; word-break: break-all; }

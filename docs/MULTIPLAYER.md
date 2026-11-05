@@ -148,16 +148,21 @@ server checks the deadlines at each start and at each request.
    number of seats.
 3. The game of the host loads the scenario. It then sends the list of
    factions to the server: the force id, the name and the colour of each.
+   The list has each faction with a ruler. The rulers that the host
+   chose do not limit the list.
 4. The server makes a room. It gives the room an id, an invite link
    `https://sanguodream.fly.dev/r/<code>` and a room code of six
    letters. The code uses no letter that looks like a digit.
 5. A friend opens the link. If the friend is not a member, the sign-in
    comes first. The server then sends the friend
    back to the room. auth.new_state already keeps a return path.
-6. Each player clicks a free faction to take its seat. The host can also
-   set a seat to the AI, or remove a player from a seat.
-7. Each player clicks "Ready". The host clicks "Start" after all players
-   are ready.
+6. Each player clicks a free faction to take its seat. A click on another
+   free faction changes the seat. A person can click "Watch as a spectator"
+   if the host allows spectators. A spectator can take a free seat before
+   the start. A seat of another person has no button.
+7. The host clicks "Start the game". Only the host sees this button. The
+   start image holds the first faction that acts, so each seat keeps its
+   first turn.
 8. The server picks a random seed for the game.
 9. The game of the host makes the start image: the scenario, the seed,
    the human factions and the settings. It sends the image to the server.

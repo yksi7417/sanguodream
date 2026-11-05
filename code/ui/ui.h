@@ -220,7 +220,7 @@ struct ui_table_source
     u32              capacity;
 };
 
-#define UI_NET_SEATS     8    /* the human seats of a shared game (docs/MULTIPLAYER.md, Q-1) */
+#define UI_NET_SEATS     64   /* the seats of a shared game: one for each faction. The server allows 8 players (docs/MULTIPLAYER.md, Q-1) */
 #define UI_NET_NAME_SIZE 64
 #define UI_NET_NOTICE_SECONDS 8.0f   /* how long the banner of a shared game shows a notice */
 #define UI_NET_NO_FACTION_SECONDS 5.0f   /* the host ends a game turn of the AI after this time */

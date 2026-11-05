@@ -396,19 +396,18 @@ ui_draw_start_settings(ui_state *ui, engine_api *api)
         }
         ui_enter_game(ui);
     }
-    if (ui->net.available)   /* MP3: the page makes a room with these rulers as the seats (ui_multiplayer.cpp) */
+    if (ui->net.available)   /* MP3: the page makes a room with a seat for each ruler (ui_multiplayer.cpp) */
     {
         ImGui::SameLine();
         if (ImGui::Button(ui_label(label, sizeof(label), ui, "net.play_online", "start_online")))
         {
             api->set_settings(e, settings);
-            /* The turn passes until a chosen ruler acts, as after "OK": the start image holds it. */
-            for (u32 step = 0; step < 300; ++step)
-            {
-                u8 acting = api->whose_turn(e);
-                if (acting != ENGINE_NO_FACTION && ((ui->game.rulers >> acting) & 1)) break;
-                api->end_turn(e);
-            }
+            /* The start image holds the first faction that acts. Each faction keeps its
+               first turn, because a person can take any seat in the lobby. end_turn plays
+               the factions of the AI, so each faction is human for this pass. The join
+               then sets each faction from its seat. */
+            for (u32 index = 0; index < api->faction_count(e); ++index) api->set_faction_human(e, api->faction_at(e, index).force_id, true);
+            for (u32 step = 0; step < 300 && api->whose_turn(e) == ENGINE_NO_FACTION; ++step) api->end_turn(e);
             ui->net.host_request = true;
         }
     }
