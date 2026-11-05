@@ -12,7 +12,7 @@
    The UI calls engine_api only. Included by ui.cpp. */
 
 #define UI_NET_MAX_EVENTS_PER_FRAME 256
-#define UI_NET_SEATS_TEXT_SIZE      4096
+#define UI_NET_SEATS_TEXT_SIZE      (UI_NET_SEATS * (UI_NET_NAME_SIZE + 8))
 
 internal void
 ui_net_send(ui_frame_info *frame, const platform_net_event *event)
@@ -259,7 +259,8 @@ ui_net_begin_frame(ui_state *ui, engine_api *api, ui_frame_info *frame)
 }
 
 /* "Play online" (ui_draw_start_settings): the start image and one line for
-   each chosen ruler go to the page. The page makes the room. */
+   each ruler go to the page. The page makes the room. Each ruler is a seat,
+   so a person who joins can choose any faction of the scenario. */
 internal void
 ui_net_host(ui_state *ui, engine_api *api, ui_frame_info *frame)
 {
@@ -275,7 +276,7 @@ ui_net_host(ui_state *ui, engine_api *api, ui_frame_info *frame)
     for (u32 index = 0; index < api->faction_count(e); ++index)
     {
         u8 force = api->faction_at(e, index).force_id;
-        if (force >= 64 || !((ui->game.rulers >> force) & 1)) continue;
+        if (force >= 64 || api->force_ruler(e, force) == ENGINE_NO_OFFICER) continue;
         char name[UI_NET_NAME_SIZE];
         ui_force_text(ui, api, force, name, sizeof(name));
         used += (u32)snprintf(seats + used, UI_NET_SEATS_TEXT_SIZE - used, "%u\t%s\n", force, name);

@@ -672,6 +672,32 @@ class RoomsTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn(OTHER["uid"], room.record["watchers"])
         self.assertTrue(room.is_member(OTHER["uid"]))
 
+    async def test_a_person_changes_the_seat_in_the_lobby(self):
+        room = await self.make_room()
+        await self.rooms.take_seat(room, GUEST, FORCE_GUEST)
+        await self.rooms.take_seat(room, GUEST, FORCE_AI)
+        self.assertEqual(room.seat_of(GUEST["uid"])["force"], FORCE_AI)
+        self.assertIsNone(room.player_seat(FORCE_GUEST))
+
+    async def test_a_person_chooses_to_watch_in_the_lobby_and_can_then_take_a_seat(self):
+        room = await self.make_room()
+        await self.rooms.watch(room, OTHER)
+        self.assertTrue(room.is_viewer(OTHER["uid"]))
+        self.assertFalse(room.is_member(OTHER["uid"]))
+        self.assertEqual(room.public()["watcher_count"], 1)
+        self.assertNotIn("watchers", room.public())   # the uids stay on the server
+        await self.rooms.take_seat(room, OTHER, FORCE_AI)
+        self.assertEqual(room.record["watchers"], [])
+        self.assertEqual(room.seat_of(OTHER["uid"])["force"], FORCE_AI)
+
+    async def test_the_host_stops_the_spectators_of_the_lobby(self):
+        room = await self.make_room()
+        await self.rooms.watch(room, OTHER)
+        await self.rooms.set_options(room, HOST, {"mode": "live", "turn_seconds": 300, "pause_absent": False, "spectators": False})
+        self.assertFalse(room.is_viewer(OTHER["uid"]))
+        with self.assertRaisesRegex(rooms.RoomError, "no spectators"):
+            await self.rooms.watch(room, OTHER)
+
     async def test_an_old_room_without_the_option_keeps_the_seats(self):
         room, host, guest = await self.started_room()
         del room.record["late_join"]

@@ -4607,7 +4607,7 @@ register_ui_tests(ImGuiTestEngine *e)
         v.frame.net_poll = ui_test_net_poll;
         v.frame.frame_arena = &g_ui_test_net.arena;
         v.ui.show_start_settings = true;
-        v.ui.game.rulers         = 1ull << 1;
+        v.ui.game.rulers         = 1ull << 5;   /* the recorder has one faction, force 1, and the host did not choose it */
         ctx->SetRef("###StartSettings");
         ctx->Yield(2);
         recorder_reset(&v.recorder);
@@ -4616,7 +4616,7 @@ register_ui_tests(ImGuiTestEngine *e)
         IM_CHECK_EQ(recorder_count(&v.recorder, RECORDER_SET_SETTINGS), 1u);
         IM_CHECK_GE(recorder_count(&v.recorder, RECORDER_START_IMAGE), 1u);
         IM_CHECK(g_ui_test_net.sent_count == 1 && g_ui_test_net.sent[0].kind == PLATFORM_NET_HOST && g_ui_test_net.sent[0].size == 16);
-        IM_CHECK(strncmp(g_ui_test_net.text, "1\t", 2) == 0);         /* one line for the chosen ruler, force 1 */
+        IM_CHECK(strncmp(g_ui_test_net.text, "1\t", 2) == 0);         /* one line for each ruler: the choice of the host does not limit the seats */
         IM_CHECK_STR_EQ(g_ui_test_net.pack, "placeholder");          /* MP4: the room records the pack */
         IM_CHECK(v.ui.net.waiting);
     };

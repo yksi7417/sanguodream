@@ -227,7 +227,8 @@ class Room:
 
     def public(self):
         """The room for the pages. The uids of the players stay on the server."""
-        record = {key: value for key, value in self.record.items() if key not in ("host", "deadline", "end_votes")}
+        record = {key: value for key, value in self.record.items() if key not in ("host", "deadline", "end_votes", "watchers")}
+        record["watcher_count"] = len(self.record.get("watchers", []))
         record["seats"] =[{key: seat.get(key) for key in ("force", "name", "user", "ai", "auto")} for seat in self.record["seats"]]
         record["step_count"] = len(self.steps)
         return record
