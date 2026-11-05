@@ -88,6 +88,7 @@ MESH_RESOLUTION = 1024
 TEXTURE_VOLUME = 1024
 SMALL_MODEL_TEXTURE = 512
 JPEG_QUALITY = 85
+PAUSE_FILE = "pause_until.txt"
 MODEL_LICENCE = "Apache-2.0 (FLUX.2 klein 4B), MIT (TRELLIS.2)"
 LUMINANCE_WEIGHTS = (0.2126, 0.7152, 0.0722)
 BRIGHTNESS_PERCENTILE = 75
@@ -484,8 +485,20 @@ def do_model_job(job, state):
         time.sleep(POLL_SECONDS)
 
 
+def pause_is_active():
+    """Says if the file PAUSE_FILE names a time in the future. The task then starts nothing until that time."""
+    try:
+        with open(os.path.join(WORK, PAUSE_FILE), encoding="utf-8") as pause_file:
+            pause_end = time.mktime(time.strptime(pause_file.read().strip(), "%Y-%m-%d %H:%M"))
+    except (OSError, ValueError):
+        return False
+    return time.time() < pause_end
+
+
 def main():
     os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))    # a task can start the script from any folder
+    if pause_is_active():
+        return 0
     os.makedirs(WORK, exist_ok=True)
     os.makedirs(os.path.join(PACK, "models"), exist_ok=True)
     os.makedirs(os.path.join(PACK, "sprites", "art"), exist_ok=True)
