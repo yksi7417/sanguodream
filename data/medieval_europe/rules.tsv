@@ -31,7 +31,7 @@ conscript.enemy_percent	50	assumed	Q-153: the soldiers with an enemy within 2 he
 city.soldier_cap	100000	documented	cities-and-facilities.md, soldiers cap
 city.big_soldier_cap	150000	documented	cities-and-facilities.md, big city
 city.weapon_cap	100000	documented	cities-and-facilities.md, weapons cap of each weapon
-city.start_morale	50	assumed	Q-154: the morale of a loaded city (the save field is not decoded)
+city.start_morale	80	assumed	Q-154: the morale of a loaded city, the decision of the player of 2026-11-04
 morale.max	100	documented	city-commands.md, 訓練 (120 with 熟練兵, M4)
 train.force_percent	10	assumed	Q-154: morale for each 100 of the force sum
 train.drill_percent	150	assumed	Q-154: a drill ground gives a larger effect

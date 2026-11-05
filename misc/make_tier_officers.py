@@ -16,7 +16,7 @@ The rubric:
   region of the officer adds one step to its arm. An officer with intelligence
   S or A adds one step to siege and to crossbow. Only an officer with war S or
   leadership S can get the letter S.
-- loyalty: ruler and kin 100, core 92, new 80, guest 65, free 0.
+- loyalty: ruler and kin 100, core 99, new 98, free 0. A guest has 65, because the history gives a conflict with the ruler.
 - merit: a ruler has 15000. The others have 8000, 6000, 4000 or 2000 for the best
   tier S, A, B or lower. A free officer has 0.
 - compatibility: the province of the home of the officer gives a base on the
@@ -34,7 +34,7 @@ ABILITIES = ("leadership", "war", "intelligence", "politics", "charm")
 ARMS = ("pike", "halberd", "crossbow", "cavalry", "siege", "navy")
 APTITUDE_LETTERS = "CBAS"
 REGION_ARM = {"n": "cavalry", "w": "cavalry", "c": "pike", "s": "navy", "y": "crossbow"}
-LOYALTY = {"ruler": 100, "kin": 100, "core": 92, "new": 80, "guest": 65, "free": 0}
+LOYALTY = {"ruler": 100, "kin": 100, "core": 99, "new": 98, "guest": 65, "free": 0}
 MERIT = {"S": 8000, "A": 6000, "B": 4000}
 HOME_COMPATIBILITY = {
     "you": 8, "ji": 18, "bing": 28, "qing": 38, "yan": 48, "yu": 58, "xu": 68,

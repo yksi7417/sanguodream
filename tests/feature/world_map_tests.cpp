@@ -411,6 +411,35 @@ feature_world_meta(u32 slot, char *path, u32 path_size, char *out, u32 out_size)
     fclose(file);
 }
 
+/* The decision of the player of 2026-11-04: each city starts with morale 80. Most officers
+   start with loyalty 98 to 100. A lower value needs a conflict with the ruler in the history. */
+internal void
+feature_start_values_tests(test_counts *counts)
+{
+    const char *packs[] = { HEXDOM_DATA_ROOT "/han_196", HEXDOM_DATA_ROOT "/medieval_west", HEXDOM_DATA_ROOT "/medieval_east", HEXDOM_DATA_ROOT "/medieval_europe" };
+    for (u32 pack = 0; pack < ArrayCount(packs); ++pack)
+    {
+        engine_fixture f;
+        feature_world_map_init(&f, packs[pack]);
+        engine_api *api = &f.api;
+        void *e = api->engine;
+        TEST_CHECK(counts, api->load_scenario(e, api->scenario_at(e, 0).file).status == ENGINE_LOAD_OK, "the scenario of the pack loads");
+        b32 morale_ok = api->city_count(e) > 0;
+        for (u32 index = 0; index < api->city_count(e); ++index) morale_ok = morale_ok && api->city_at(e, index).morale == 80;
+        TEST_CHECK(counts, morale_ok, "each city of the scenario starts with morale 80");
+        u32 serving = 0, high = 0;
+        for (u32 index = 0; index < api->officer_count(e); ++index)
+        {
+            u8 loyalty = api->officer_detail(e, api->officer_at(e, index).officer_id).loyalty;
+            if (loyalty == 0) continue;   /* a free officer */
+            serving++;
+            if (loyalty >= 98) high++;
+        }
+        TEST_CHECK(counts, serving > 0 && high * 100 >= serving * 75, "at least 75 percent of the officers with a lord start with loyalty 98 or more");
+        engine_fixture_destroy(&f);
+    }
+}
+
 internal void
 feature_pack_save_tests(test_counts *counts)
 {

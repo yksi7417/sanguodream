@@ -133,6 +133,17 @@ Tests:
   chooses "Own language" and "English", checks the name of an officer with
   a key, and checks that the choice commands nothing.
 
+## The start values of the officers and the cities
+This section gives the start loyalty and the start morale of the packs. These
+values are the decision of the player of 2026-11-04.
+- Each city of a scenario starts with morale 80. A new unit takes its morale
+  from its city. The rule is city.start_morale.
+- An officer with a lord starts with loyalty 98 to 100.
+- An officer has a lower value only for a conflict with the ruler in the history.
+  In the packs of 1200, officers.tsv holds these lower values.
+- In han_196, the bond "guest" of source/officers.tsv gives loyalty 65 for such
+  a conflict.
+
 ## E4. The life of each officer
 Each of the 103 officers gets a short life of three or four sentences and
 the URL of the English Wikipedia article.
