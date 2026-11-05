@@ -8,7 +8,7 @@ misc/make_world_map.py writes these files from map/source/region.tsv and
 map/source/sites.tsv:
 - map/hexes.tsv and map/bases.tsv: the map, 372 x 213 hexes of 13.6 km;
 - cities.tsv: the 42 cities, with their specialty, slots and Big5 names;
-- bases.tsv: the 9 passes and the 36 ports, with their Big5 names.
+- bases.tsv: the 7 passes and the 32 ports, with their Big5 names. 6 ids have present = no: the map left them out (docs/MAPS.md).
 
 The pack has its own scenario in scenarios/y1200: 24 factions and 103
 historical officers in 1200. scenarios.tsv lists it. misc/make_scenario.py

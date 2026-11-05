@@ -1,48 +1,49 @@
-id	key	name_zh	kind	owner_city	durability	status	name_big5
+id	key	name_zh	kind	owner_city	durability	status	name_big5	present
 # Written by misc/make_world_map.py from map/source/sites.tsv. durability: 4000 for a pass and 2000 for a port (assumed).
 # name_big5: the Big5 bytes of name_zh in hex, for the names of the scenario (docs/MAPS.md, W2).
-42	roncevaux	隆塞斯瓦耶斯關	pass	33	4000	assumed	B6A9B6EBB4B5A5CBAD43B4B5C3F6
-43	perthus	佩爾蒂斯關	pass	5	4000	assumed	A8D8BAB8B8A6B4B5C3F6
-44	bayonne	巴約訥	port	17	2000	assumed	A4DAACF9B35B
-45	despenaperros	德斯佩尼亞佩羅斯關	pass	36	4000	assumed	BC77B4B5A8D8A5A7A8C8A8D8C3B9B4B5C3F6
-46	bremen	不來梅	port	28	2000	assumed	A4A3A8D3B1F6
-47	ceuta	休達	port	3	2000	assumed	A5F0B946
-48	nice	尼斯	port	39	2000	assumed	A5A7B4B5
-49	nantes	南特	port	31	2000	assumed	AB6EAF53
-50	taza_gap	塔紮關	pass	7	4000	assumed	B6F0B2CFC3F6
-51	denia	德尼亞	port	4	2000	assumed	BC77A5A7A8C8
-52	porto	波爾圖港	port	35	2000	assumed	AA69BAB8B9CFB4E4
-53	cadiz	加的斯港	port	3	2000	assumed	A55BAABAB4B5B4E4
-54	cartagena	卡塔赫納港	port	4	2000	assumed	A564B6F0BBAEAFC7B4E4
-55	palma	帕爾馬港	port	5	2000	assumed	A9ACBAB8B0A8B4E4
-56	tangier	丹吉爾港	port	3	2000	assumed	A4A6A64EBAB8B4E4
-57	sale	薩累港	port	7	2000	assumed	C2C4B2D6B4E4
-58	oran	奧蘭港	port	4	2000	assumed	B6F8C4F5B4E4
-59	algiers	阿爾及爾港	port	8	2000	assumed	AAFCBAB8A4CEBAB8B4E4
-60	mahdia	馬赫迪耶港	port	9	2000	assumed	B0A8BBAEAD7DAD43B4E4
-61	cagliari	卡利亞里港	port	9	2000	assumed	A564A751A8C8A8BDB4E4
-62	bastia	巴斯蒂亞港	port	39	2000	assumed	A4DAB4B5B8A6A8C8B4E4
-63	messina	墨西拿港	port	13	2000	assumed	BEA5A6E8AEB3B4E4
-64	syracuse	敘拉古港	port	13	2000	assumed	B1D4A9D4A56AB4E4
-65	civitavecchia	契維塔韋基亞港	port	11	2000	assumed	ABB4BAFBB6F0ADB3B0F2A8C8B4E4
-66	pisa	比薩港	port	39	2000	assumed	A4F1C2C4B4E4
-67	ancona	安科納港	port	11	2000	assumed	A677ACECAFC7B4E4
-68	montpellier	蒙彼利埃港	port	19	2000	assumed	BB58A9BCA751AE4AB4E4
-69	la_rochelle	拉羅謝爾港	port	31	2000	assumed	A9D4C3B9C1C2BAB8B4E4
-70	southampton	南安普敦港	port	21	2000	assumed	AB6EA677B4B6B4B0B4E4
-71	bristol	布里斯托港	port	21	2000	assumed	A5ACA8BDB4B5A6ABB4E4
-72	hamburg	漢堡港	port	28	2000	assumed	BA7EB3F9B4E4
-73	dover	多佛港	port	21	2000	assumed	A668A6F2B4E4
-74	saint_malo	聖馬洛港	port	30	2000	assumed	B874B0A8ACA5B4E4
-75	santander	桑坦德港	port	40	2000	assumed	AEE1A95ABC77B4E4
-76	a_coruna	拉科魯尼亞港	port	41	2000	assumed	A9D4ACECBE7CA5A7A8C8B4E4
-77	tarragona	塔拉戈納港	port	5	2000	assumed	B6F0A9D4A4E0AFC7B4E4
-78	almeria	阿爾梅里亞港	port	36	2000	assumed	AAFCBAB8B1F6A8BDA8C8B4E4
-79	malaga	馬拉加港	port	36	2000	assumed	B0A8A9D4A55BB4E4
-80	annaba	安納巴港	port	9	2000	assumed	A677AFC7A4DAB4E4
-81	sfax	斯法克斯港	port	9	2000	assumed	B4B5AA6BA74AB4B5B4E4
-82	trapani	特拉帕尼港	port	13	2000	assumed	AF53A9D4A9ACA5A7B4E4
-83	salerno	薩萊諾港	port	12	2000	assumed	C2C4B5DCBFD5B4E4
-84	antwerp	安特衛普港	port	24	2000	assumed	A677AF53BDC3B4B6B4E4
-85	waterford	沃特福德港	port	23	2000	assumed	A855AF53BAD6BC77B4E4
-86	rostock	羅斯托克港	port	28	2000	assumed	C3B9B4B5A6ABA74AB4E4
+# present: no for a port that the tool left out. Its city is on the water, or no shore is far from the cities.
+42	roncevaux	隆塞斯瓦耶斯關	pass	33	4000	assumed	B6A9B6EBB4B5A5CBAD43B4B5C3F6	yes
+43	perthus	佩爾蒂斯關	pass	5	4000	assumed	A8D8BAB8B8A6B4B5C3F6	yes
+44	bayonne	巴約訥	port	17	2000	assumed	A4DAACF9B35B	yes
+45	despenaperros	德斯佩尼亞佩羅斯關	pass	36	4000	assumed	BC77B4B5A8D8A5A7A8C8A8D8C3B9B4B5C3F6	yes
+46	bremen	不來梅	port	28	2000	assumed	A4A3A8D3B1F6	yes
+47	ceuta	休達	port	3	2000	assumed	A5F0B946	yes
+48	nice	尼斯	port	39	2000	assumed	A5A7B4B5	yes
+49	nantes	南特	port	31	2000	assumed	AB6EAF53	yes
+50	taza_gap	塔紮關	pass	7	4000	assumed	B6F0B2CFC3F6	yes
+51	denia	德尼亞	port	4	2000	assumed	BC77A5A7A8C8	no
+52	porto	波爾圖港	port	35	2000	assumed	AA69BAB8B9CFB4E4	yes
+53	cadiz	加的斯港	port	3	2000	assumed	A55BAABAB4B5B4E4	yes
+54	cartagena	卡塔赫納港	port	4	2000	assumed	A564B6F0BBAEAFC7B4E4	yes
+55	palma	帕爾馬港	port	5	2000	assumed	A9ACBAB8B0A8B4E4	yes
+56	tangier	丹吉爾港	port	3	2000	assumed	A4A6A64EBAB8B4E4	yes
+57	sale	薩累港	port	7	2000	assumed	C2C4B2D6B4E4	yes
+58	oran	奧蘭港	port	4	2000	assumed	B6F8C4F5B4E4	yes
+59	algiers	阿爾及爾港	port	8	2000	assumed	AAFCBAB8A4CEBAB8B4E4	yes
+60	mahdia	馬赫迪耶港	port	9	2000	assumed	B0A8BBAEAD7DAD43B4E4	yes
+61	cagliari	卡利亞里港	port	9	2000	assumed	A564A751A8C8A8BDB4E4	yes
+62	bastia	巴斯蒂亞港	port	39	2000	assumed	A4DAB4B5B8A6A8C8B4E4	yes
+63	messina	墨西拿港	port	13	2000	assumed	BEA5A6E8AEB3B4E4	yes
+64	syracuse	敘拉古港	port	13	2000	assumed	B1D4A9D4A56AB4E4	yes
+65	civitavecchia	契維塔韋基亞港	port	11	2000	assumed	ABB4BAFBB6F0ADB3B0F2A8C8B4E4	no
+66	pisa	比薩港	port	39	2000	assumed	A4F1C2C4B4E4	yes
+67	ancona	安科納港	port	11	2000	assumed	A677ACECAFC7B4E4	yes
+68	montpellier	蒙彼利埃港	port	19	2000	assumed	BB58A9BCA751AE4AB4E4	yes
+69	la_rochelle	拉羅謝爾港	port	31	2000	assumed	A9D4C3B9C1C2BAB8B4E4	yes
+70	southampton	南安普敦港	port	21	2000	assumed	AB6EA677B4B6B4B0B4E4	yes
+71	bristol	布里斯托港	port	21	2000	assumed	A5ACA8BDB4B5A6ABB4E4	yes
+72	hamburg	漢堡港	port	28	2000	assumed	BA7EB3F9B4E4	yes
+73	dover	多佛港	port	21	2000	assumed	A668A6F2B4E4	yes
+74	saint_malo	聖馬洛港	port	30	2000	assumed	B874B0A8ACA5B4E4	yes
+75	santander	桑坦德港	port	40	2000	assumed	AEE1A95ABC77B4E4	yes
+76	a_coruna	拉科魯尼亞港	port	41	2000	assumed	A9D4ACECBE7CA5A7A8C8B4E4	yes
+77	tarragona	塔拉戈納港	port	5	2000	assumed	B6F0A9D4A4E0AFC7B4E4	no
+78	almeria	阿爾梅里亞港	port	36	2000	assumed	AAFCBAB8B1F6A8BDA8C8B4E4	yes
+79	malaga	馬拉加港	port	36	2000	assumed	B0A8A9D4A55BB4E4	yes
+80	annaba	安納巴港	port	9	2000	assumed	A677AFC7A4DAB4E4	yes
+81	sfax	斯法克斯港	port	9	2000	assumed	B4B5AA6BA74AB4B5B4E4	yes
+82	trapani	特拉帕尼港	port	13	2000	assumed	AF53A9D4A9ACA5A7B4E4	no
+83	salerno	薩萊諾港	port	12	2000	assumed	C2C4B5DCBFD5B4E4	no
+84	antwerp	安特衛普港	port	24	2000	assumed	A677AF53BDC3B4B6B4E4	no
+85	waterford	沃特福德港	port	23	2000	assumed	A855AF53BAD6BC77B4E4	yes
+86	rostock	羅斯托克港	port	28	2000	assumed	C3B9B4B5A6ABA74AB4E4	yes

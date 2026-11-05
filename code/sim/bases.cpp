@@ -137,6 +137,7 @@ sim_init_bases(sim_state *sim)
     {
         base_kind *kind = sim->content.bases + index;
         sim_base_state *base = sim->bases + index;
+        if (kind->absent) continue;   /* the map has no base at this id: the base stays without exists */
         city_component *city = sim_find_city(sim, kind->owner_city);
         base->exists     = true;
         base->force      = city ? city->owner_force_id : (u8)SIM_NO_FORCE;

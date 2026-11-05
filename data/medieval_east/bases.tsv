@@ -1,48 +1,49 @@
-id	key	name_zh	kind	owner_city	durability	status	name_big5
+id	key	name_zh	kind	owner_city	durability	status	name_big5	present
 # Written by misc/make_world_map.py from map/source/sites.tsv. durability: 4000 for a pass and 2000 for a port (assumed).
 # name_big5: the Big5 bytes of name_zh in hex, for the names of the scenario (docs/MAPS.md, W2).
-42	cherson	克森尼索	port	31	2000	assumed	A74AB4CBA5A7AFC1
-43	trajan_gate	圖拉真門	pass	26	4000	assumed	B9CFA9D4AF75AAF9
-44	thermopylae	溫泉關	pass	9	4000	assumed	B7C5AC75C3F6
-45	tarsus	塔爾蘇斯	port	33	2000	assumed	B6F0BAB8C4ACB4B5
-46	tarvisio	塔爾維西奧關	pass	14	4000	assumed	B6F0BAB8BAFBA6E8B6F8C3F6
-47	sudak	蘇達克	port	31	2000	assumed	C4ACB946A74A
-48	saint_symeon	聖西蒙港	port	34	2000	assumed	B874A6E8BB58B4E4
-49	zigana	齊加納關	pass	32	4000	assumed	BBF4A55BAFC7C3F6
-50	tyre	提爾	port	40	2000	assumed	B4A3BAB8
-51	christoupolis	克里斯托波利斯	port	8	2000	assumed	A74AA8BDB4B5A6ABAA69A751B4B5
-52	mahdia	馬赫迪耶港	port	22	2000	assumed	B0A8BBAEAD7DAD43B4E4
-53	cagliari	卡利亞里港	port	0	2000	assumed	A564A751A8C8A8BDB4E4
-54	bastia	巴斯蒂亞港	port	20	2000	assumed	A4DAB4B5B8A6A8C8B4E4
-55	messina	墨西拿港	port	13	2000	assumed	BEA5A6E8AEB3B4E4
-56	syracuse	敘拉古港	port	13	2000	assumed	B1D4A9D4A56AB4E4
-57	civitavecchia	契維塔韋基亞港	port	11	2000	assumed	ABB4BAFBB6F0ADB3B0F2A8C8B4E4
-58	pisa	比薩港	port	20	2000	assumed	A4F1C2C4B4E4
-59	ancona	安科納港	port	23	2000	assumed	A677ACECAFC7B4E4
-60	ragusa	拉古薩港	port	21	2000	assumed	A9D4A56AC2C4B4E4
-61	durazzo	都拉佐港	port	21	2000	assumed	B3A3A9D4A6F5B4E4
-62	corinth	科林斯港	port	9	2000	assumed	ACECAA4CB4B5B4E4
-63	candia	坎迪亞港	port	9	2000	assumed	A7A2AD7DA8C8B4E4
-64	rhodes	羅德港	port	7	2000	assumed	C3B9BC77B4E4
-65	smyrna	士麥那港	port	9	2000	assumed	A468B3C1A8BAB4E4
-66	famagusta	法馬古斯塔港	port	41	2000	assumed	AA6BB0A8A56AB4B5B6F0B4E4
-67	damietta	杜姆亞特港	port	4	2000	assumed	A7F9A969A8C8AF53B4E4
-68	antalya	安塔利亞港	port	7	2000	assumed	A677B6F0A751A8C8B4E4
-69	varna	瓦爾納港	port	10	2000	assumed	A5CBBAB8AFC7B4E4
-70	sfax	斯法克斯港	port	22	2000	assumed	B4B5AA6BA74AB4B5B4E4
-71	trapani	特拉帕尼港	port	13	2000	assumed	AF53A9D4A9ACA5A7B4E4
-72	brindisi	布林迪西港	port	21	2000	assumed	A5ACAA4CAD7DA6E8B4E4
-73	split	斯普利特港	port	23	2000	assumed	B4B5B4B6A751AF53B4E4
-74	corfu	科孚港	port	8	2000	assumed	ACECA7B7B4E4
-75	patras	帕特雷港	port	9	2000	assumed	A9ACAF53B970B4E4
-76	negroponte	尼格羅蓬特港	port	9	2000	assumed	A5A7AEE6C3B9BDB4AF53B4E4
-77	limassol	利馬索爾港	port	41	2000	assumed	A751B0A8AFC1BAB8B4E4
-78	latakia	拉塔基亞港	port	34	2000	assumed	A9D4B6F0B0F2A8C8B4E4
-79	beirut	貝魯特港	port	39	2000	assumed	A8A9BE7CAF53B4E4
-80	jaffa	雅法港	port	5	2000	assumed	B6AEAA6BB4E4
-81	ayas	阿亞斯港	port	33	2000	assumed	AAFCA8C8B4B5B4E4
-82	sinope	錫諾普港	port	30	2000	assumed	BFFCBFD5B4B6B4E4
-83	constanta	康斯坦察港	port	10	2000	assumed	B164B4B5A95AB9EEB4E4
-84	mesembria	梅森布里亞港	port	27	2000	assumed	B1F6B4CBA5ACA8BDA8C8B4E4
-85	gallipoli	加利波利港	port	27	2000	assumed	A55BA751AA69A751B4E4
-86	derna	德爾納港	port	2	2000	assumed	BC77BAB8AFC7B4E4
+# present: no for a port that the tool left out. Its city is on the water, or no shore is far from the cities.
+42	cherson	克森尼索	port	31	2000	assumed	A74AB4CBA5A7AFC1	yes
+43	trajan_gate	圖拉真門	pass	26	4000	assumed	B9CFA9D4AF75AAF9	yes
+44	thermopylae	溫泉關	pass	9	4000	assumed	B7C5AC75C3F6	yes
+45	tarsus	塔爾蘇斯	port	33	2000	assumed	B6F0BAB8C4ACB4B5	yes
+46	tarvisio	塔爾維西奧關	pass	14	4000	assumed	B6F0BAB8BAFBA6E8B6F8C3F6	yes
+47	sudak	蘇達克	port	31	2000	assumed	C4ACB946A74A	yes
+48	saint_symeon	聖西蒙港	port	34	2000	assumed	B874A6E8BB58B4E4	no
+49	zigana	齊加納關	pass	32	4000	assumed	BBF4A55BAFC7C3F6	yes
+50	tyre	提爾	port	40	2000	assumed	B4A3BAB8	no
+51	christoupolis	克里斯托波利斯	port	8	2000	assumed	A74AA8BDB4B5A6ABAA69A751B4B5	yes
+52	mahdia	馬赫迪耶港	port	22	2000	assumed	B0A8BBAEAD7DAD43B4E4	yes
+53	cagliari	卡利亞里港	port	0	2000	assumed	A564A751A8C8A8BDB4E4	yes
+54	bastia	巴斯蒂亞港	port	20	2000	assumed	A4DAB4B5B8A6A8C8B4E4	yes
+55	messina	墨西拿港	port	13	2000	assumed	BEA5A6E8AEB3B4E4	yes
+56	syracuse	敘拉古港	port	13	2000	assumed	B1D4A9D4A56AB4E4	yes
+57	civitavecchia	契維塔韋基亞港	port	11	2000	assumed	ABB4BAFBB6F0ADB3B0F2A8C8B4E4	no
+58	pisa	比薩港	port	20	2000	assumed	A4F1C2C4B4E4	yes
+59	ancona	安科納港	port	23	2000	assumed	A677ACECAFC7B4E4	yes
+60	ragusa	拉古薩港	port	21	2000	assumed	A9D4A56AC2C4B4E4	yes
+61	durazzo	都拉佐港	port	21	2000	assumed	B3A3A9D4A6F5B4E4	yes
+62	corinth	科林斯港	port	9	2000	assumed	ACECAA4CB4B5B4E4	no
+63	candia	坎迪亞港	port	9	2000	assumed	A7A2AD7DA8C8B4E4	yes
+64	rhodes	羅德港	port	7	2000	assumed	C3B9BC77B4E4	yes
+65	smyrna	士麥那港	port	9	2000	assumed	A468B3C1A8BAB4E4	yes
+66	famagusta	法馬古斯塔港	port	41	2000	assumed	AA6BB0A8A56AB4B5B6F0B4E4	no
+67	damietta	杜姆亞特港	port	3	2000	assumed	A7F9A969A8C8AF53B4E4	yes
+68	antalya	安塔利亞港	port	7	2000	assumed	A677B6F0A751A8C8B4E4	yes
+69	varna	瓦爾納港	port	10	2000	assumed	A5CBBAB8AFC7B4E4	yes
+70	sfax	斯法克斯港	port	22	2000	assumed	B4B5AA6BA74AB4B5B4E4	yes
+71	trapani	特拉帕尼港	port	13	2000	assumed	AF53A9D4A9ACA5A7B4E4	no
+72	brindisi	布林迪西港	port	21	2000	assumed	A5ACAA4CAD7DA6E8B4E4	yes
+73	split	斯普利特港	port	23	2000	assumed	B4B5B4B6A751AF53B4E4	yes
+74	corfu	科孚港	port	8	2000	assumed	ACECA7B7B4E4	yes
+75	patras	帕特雷港	port	9	2000	assumed	A9ACAF53B970B4E4	yes
+76	negroponte	尼格羅蓬特港	port	9	2000	assumed	A5A7AEE6C3B9BDB4AF53B4E4	yes
+77	limassol	利馬索爾港	port	41	2000	assumed	A751B0A8AFC1BAB8B4E4	no
+78	latakia	拉塔基亞港	port	34	2000	assumed	A9D4B6F0B0F2A8C8B4E4	no
+79	beirut	貝魯特港	port	39	2000	assumed	A8A9BE7CAF53B4E4	yes
+80	jaffa	雅法港	port	5	2000	assumed	B6AEAA6BB4E4	yes
+81	ayas	阿亞斯港	port	33	2000	assumed	AAFCA8C8B4B5B4E4	no
+82	sinope	錫諾普港	port	30	2000	assumed	BFFCBFD5B4B6B4E4	yes
+83	constanta	康斯坦察港	port	10	2000	assumed	B164B4B5A95AB9EEB4E4	yes
+84	mesembria	梅森布里亞港	port	27	2000	assumed	B1F6B4CBA5ACA8BDA8C8B4E4	yes
+85	gallipoli	加利波利港	port	27	2000	assumed	A55BA751AA69A751B4E4	yes
+86	derna	德爾納港	port	2	2000	assumed	BC77BAB8AFC7B4E4	yes

@@ -103,11 +103,11 @@ misc/make_world_map.py reads two files of the pack and writes four files.
 | File | Who writes it | Contents |
 |---|---|---|
 | map/source/region.tsv | you | The box, the scale and the thresholds |
-| map/source/sites.tsv | you | 42 cities, 10 passes, 35 ports: name, latitude, longitude, slots, specialty |
+| map/source/sites.tsv | you | 42 cities, then 45 passes and ports: name, latitude, longitude, slots, specialty. The kind none leaves a site out and keeps its id. |
 | map/hexes.tsv | the tool | The 14 columns of formats/map-data.md for each hex |
 | map/bases.tsv | the tool | The hex of each city, pass and port |
 | cities.tsv | the tool | The specialty and the slots of each city |
-| bases.tsv | the tool | The owner and the durability of each pass and port |
+| bases.tsv | the tool | The owner and the durability of each pass and port. present = no for a site that the map left out. |
 
 The steps of the tool:
 1. Project the map. The projection is Lambert azimuthal equal-area, with
@@ -149,13 +149,14 @@ In the placeholder map, the Yellow River cuts the seven northern cities
 from the others. The Yangtze has a long land route round its upper course.
 Thus most battles at a river are at the ports and on the water.
 
-These settings of region.tsv choose the rivers. The defaults give the thin
-rivers of the first packs, so the old maps do not change:
+Each river and each stream is 3 hexes wide or wider (the player,
+2026-11-05). The tool makes a narrower width of the settings 3 hexes.
+These settings of region.tsv choose the rivers:
 
 | Setting | Default | Effect |
 |---|---|---|
 | river_widths | - | The 河 rivers by Natural Earth name, with a width in hexes. "7\|5@111\|0@105" gives 7, then 5 west of 111 E, then a minor river west of 105 E. |
-| river_minor_width | 1 | The width of the other rivers. |
+| river_minor_width | 1 | The width of the other rivers. A width below 3 becomes 3. |
 | river_minor_terrain | river | river or stream. |
 | river_banks | no | yes puts 岸 hexes along the 河 rivers. A hex next to a base, a road or a ford stays open. |
 | river_fords | yes | no keeps the roads off the 河 rivers. |
@@ -196,6 +197,7 @@ The bases follow these rules on all maps:
 |---|---|
 | Pass | The owner column of sites.tsv gives the city that the gate guards. The across column gives the city on the other side. The tool finds the route between the two cities. It puts the gate on the route, at most 12 hexes from the position of the pass, at least 8 hexes from a city and 8 hexes from another gate. Two walls of 崖 go from the gate to a large barrier: mountains, a river, the sea or the edge of the map. The walls follow the high ground. The tool takes the cheapest gap that has a purpose. See "The purpose of a gate". |
 | Port | A port must be on a sea with 2 ports or more, or on a lake or river with 3 ports or more. The tool moves a port on a closed lake to the nearest good shore, up to 30 hexes away. |
+| Port and city | A port is 10 hexes or more from the centre of each city (the player, 2026-11-05). A nearer city on the same water launches its ships itself, so the tool removes the port. Else the tool moves the port along its water to a shore 10 hexes or more from each city, up to 30 hexes away. If no such shore is near, the tool removes the port. A removed port keeps its id in bases.tsv with present = no, and the engine has no base at that id. |
 | Port height | A port hex stands 8 above the level of the lowest water next to it. On the sea, this is level 0, so the model of the port stands at the level of the sea. |
 | Water height | The sea has the height 0. Inland water has a height near the land next to it. See "The height of the water". |
 | City on the water | A city with water at 2 hexes from its centre, or open land next to water at that distance, gets port = yes in cities.tsv. It can build a shipyard and ships. Its units step onto 河 and 海 from the open land next to the city. |

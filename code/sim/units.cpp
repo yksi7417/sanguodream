@@ -440,6 +440,9 @@ sim_unit_search(sim_state *sim, u32 unit_id, memory_arena *scratch, b32 plan, he
     u32 move = values.move;
     if (type->movement != MOVEMENT_NAVY && sim_hex_is_water(sim, unit->hex) && sim_unit_has_trait(sim, unit->officers, TRAIT_MOVE_WATER)) move += sim->content.rules.move_bonus;
     u32 start = hex_map_index(&sim->map, unit->hex);
+    /* A unit that starts in its city (出征, the player, 2026-11-05) walks
+       out through the flower of that city. */
+    u8 start_city = sim_city_at(sim, unit->hex);
     best[start] = 0;
     hex_heap_push(&open, 0, start);
     while (open.count)
@@ -460,7 +463,8 @@ sim_unit_search(sim_state *sim, u32 unit_id, memory_arena *scratch, b32 plan, he
         {
             b32 free_of_zone = sim_hex_is_water(sim, here) ? water_free : values.ignores_zoc;
             if (!free_of_zone && sim_in_enemy_zone(sim, unit->force_id, here, unit_id)) continue;
-            if (sim_city_at(sim, here) != SIM_NO_CITY) continue;
+            u8 city_here = sim_city_at(sim, here);
+            if (city_here != SIM_NO_CITY && city_here != start_city) continue;
             if (sim_base_at(sim, here) != SIM_NO_BASE) continue;   /* M10: an own port or pass (assumed) */
         }
         for (u32 d = 0; d < HEX_DIRECTION_COUNT; ++d)
@@ -555,11 +559,12 @@ sim_emit_cell(sim_state *sim, sim_event_kind kind, u32 cell, s32 delta, b32 assu
 
 /* ---- 出征 and 輸送 ----------------------------------------------------------- */
 
-/* The first free hex next to the city that the class can enter. On the
-   real map the six neighbours of the centre are the city flower (M10), so
-   the search goes on to the ring of 12 hexes around the flower. */
+/* The first free hex next to the city that the class can enter: the way
+   out of the city. On the real map the six neighbours of the centre are
+   the city flower (M10), so the search goes on to the ring of 12 hexes
+   around the flower. */
 internal hex_coord
-sim_sortie_hex(sim_state *sim, u8 city_id, u8 force, movement_class movement, b32 *found)
+sim_sortie_exit(sim_state *sim, u8 city_id, u8 force, movement_class movement, b32 *found)
 {
     hex_coord center = sim_travel_base_hex(sim, city_id);   /* a city, or a port or a pass (the play report of 2026-10-23) */
     *found = false;
@@ -588,6 +593,28 @@ sim_sortie_hex(sim_state *sim, u8 city_id, u8 force, movement_class movement, b3
         }
     }
     return center;
+}
+
+/* The hex where a new unit of 出征 or 輸送 starts: in its city or its base
+   (the player, 2026-11-05). The unit then moves out of the city with its
+   first move, and it does not start on the water outside. The centre comes
+   first, then the hexes of the city flower without a unit. The unit needs
+   a way out (sim_sortie_exit). If each hex of the city has a unit, the
+   unit starts on the way out, as before. */
+internal hex_coord
+sim_sortie_hex(sim_state *sim, u8 city_id, u8 force, movement_class movement, b32 *found)
+{
+    hex_coord exit = sim_sortie_exit(sim, city_id, force, movement, found);
+    if (!*found) return exit;
+    hex_coord center = sim_travel_base_hex(sim, city_id);
+    if (sim_unit_at(sim, center) == SIM_NO_UNIT) return center;
+    u8 city_at_center = sim_city_at(sim, center);
+    for (u32 d = 0; city_at_center != SIM_NO_CITY && d < HEX_DIRECTION_COUNT; ++d)
+    {
+        hex_coord petal = hex_neighbor(center, d);
+        if (sim_city_at(sim, petal) == city_at_center && sim_unit_at(sim, petal) == SIM_NO_UNIT) return petal;
+    }
+    return exit;
 }
 
 /* The weapons that a unit of the type needs from the city: one for each
@@ -877,6 +904,32 @@ sim_unit_enter_depot(sim_state *sim, u32 unit_id, u8 location, sim_event_kind ki
 {
     if (location < SAVE_CITY_COUNT) sim_unit_enter_city(sim, unit_id, location, kind, cause, events);
     else if (location >= CONTENT_FIRST_BASE) sim_unit_enter_base(sim, unit_id, (u32)location - CONTENT_FIRST_BASE, kind, cause, events);
+}
+
+/* The player, 2026-11-05: a unit of 出征 that did not move out of its home
+   city or its home base at the end of the turn of its faction goes back
+   in. The soldiers, the stocks and the officers return. A unit in another
+   city (a transport at its destination) waits for its own entry. */
+internal void
+sim_units_return_to_depots(sim_state *sim, u8 force, u32 cause, sim_event_sink *events)
+{
+    for (u32 unit_id = 0; unit_id < sim->unit_count; ++unit_id)
+    {
+        sim_unit *unit = sim->units + unit_id;
+        if (!unit->alive || unit->force_id != force) continue;
+        u8 city_id = sim_city_at(sim, unit->hex);
+        city_component *city = city_id != SIM_NO_CITY ? sim_find_city(sim, city_id) : 0;
+        if (city && city_id == unit->home_city && city->owner_force_id == force)
+        {
+            sim_unit_enter_city(sim, unit_id, city_id, SIM_EVENT_NONE, cause, events);
+            continue;
+        }
+        u32 base = sim_base_at(sim, unit->hex);
+        if (base != SIM_NO_BASE && sim->content.bases[base].id == unit->home_city && sim->bases[base].force == force)
+        {
+            sim_unit_enter_base(sim, unit_id, base, SIM_EVENT_NONE, cause, events);
+        }
+    }
 }
 
 /* The home city of a unit for a captive or an item: the home when it is

@@ -1,5 +1,6 @@
 id	kind	key	name_zh	name_en	lat	lon	slots	specialty	owner	across
-# The sites of the map: 42 cities (id 0 to 41), 9 passes and 36 ports (42 to 86). The tool left out the Brenner Pass: no gate has a purpose there on this map (docs/MAPS.md, "The purpose of a gate").
+# The sites of the map: 42 cities (id 0 to 41), then 45 passes and ports (42 to 86). The tool left out the Brenner Pass: no gate has a purpose there on this map (docs/MAPS.md, "The purpose of a gate").
+# kind none: the map leaves the site out and keeps its id. With the rivers of 3 hexes, the gates of St Bernard and Despenaperros have no purpose (2026-11-05).
 # lat and lon: degrees, WGS84. The positions are the historic town centres. These facts are common knowledge. Wikidata (CC0) has the same values.
 # slots: the number of development slots that the tool tries to place. specialty: the specialty of cities.tsv. Passes and ports use -.
 # owner: the city id of a pass or a port. - = the nearest city.
@@ -48,8 +49,8 @@ id	kind	key	name_zh	name_en	lat	lon	slots	specialty	owner	across
 41	city	esztergom	埃斯泰爾戈姆	Esztergom	47.79	18.74	15	horse	-	-
 42	pass	roncevaux	隆塞斯瓦耶斯關	Roncevaux Pass	43.01	-1.32	-	-	1	26
 43	pass	perthus	佩爾蒂斯關	Col du Perthus	42.46	2.86	-	-	-	-
-44	pass	st_bernard	聖伯納德關	Great St Bernard Pass	45.87	7.17	-	-	-	-
-45	pass	despenaperros	德斯佩尼亞佩羅斯關	Despenaperros Pass	38.38	-3.52	-	-	-	-
+44	none	st_bernard	聖伯納德關	Great St Bernard Pass	45.87	7.17	-	-	-	-
+45	none	despenaperros	德斯佩尼亞佩羅斯關	Despenaperros Pass	38.38	-3.52	-	-	-	-
 46	port	brindisi	布林迪西	Brindisi	40.64	17.94	-	-	-	-
 47	pass	trajan_gate	圖拉真門	Gate of Trajan	42.33	23.95	-	-	-	-
 48	pass	thermopylae	溫泉關	Thermopylae	38.80	22.53	-	-	-	-

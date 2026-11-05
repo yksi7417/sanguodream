@@ -257,6 +257,8 @@ sim_recover_all_action_points(sim_state *sim, u32 cause, sim_event_sink *events)
 
 /* ---- the factions of a turn --------------------------------------------- */
 
+internal void sim_units_return_to_depots(sim_state *sim, u8 force, u32 cause, sim_event_sink *events);   /* units.cpp */
+
 /* Lets each AI faction pass, from the faction that acts now, until a human
    faction acts or every faction acted. */
 internal void
@@ -279,6 +281,7 @@ sim_run_factions_until_human(sim_state *sim, u32 cause, sim_event_sink *events)
         if (sim->settings.ai)
         {
             sim_run_ai_faction(sim, faction->force_id, cause, events);
+            sim_units_return_to_depots(sim, faction->force_id, cause, events);   /* the player, 2026-11-05 */
             turns->acting++;
             continue;
         }
@@ -321,6 +324,8 @@ sim_end_faction_turn(sim_state *sim, u32 cause, sim_event_sink *events)
     {
         /* The units with a long order do their step at 進行 (orders.cpp; manual p.24). */
         sim_run_unit_orders(sim, turns->order[turns->acting].force_id, cause, events);
+        /* The player, 2026-11-05: a unit that did not leave its city or its base goes back in. */
+        sim_units_return_to_depots(sim, turns->order[turns->acting].force_id, cause, events);
         sim_event ended = sim_event_make(sim, SIM_EVENT_FACTION_TURN_ENDED, cause);
         ended.faction = turns->order[turns->acting].force_id;
         ended.delta   = (s32)turns->acting;

@@ -571,6 +571,7 @@ struct base_kind
     u8   type;                        /* base_type */
     u8   owner_city;
     u32  durability;
+    b32  absent;                      /* present = no: the map has no base at this id (the player, 2026-11-05) */
 };
 
 enum event_check { EVENT_CHECK_QUARTER, EVENT_CHECK_MONTH, EVENT_CHECK_SEARCH, EVENT_CHECK_WAIT, EVENT_CHECK_NONE, EVENT_CHECK_COUNT };

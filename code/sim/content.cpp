@@ -1544,6 +1544,9 @@ content_load_bases(sim_content *content, tsv_table *table, u32 *bad_row)
         }
         kind.id         = (u8)id;
         kind.owner_city = (u8)city;
+        /* A pack can leave a port out and keep its id: present = no. A pack
+           without the column has each base (the player, 2026-11-05). */
+        kind.absent     = strcmp(tsv_cell(table, row, "present"), "no") == 0;
         memcpy(kind.key, key, strlen(key) + 1);
         content->bases[row] = kind;
         content->base_count = row + 1;

@@ -151,8 +151,8 @@ feature_sortie_tests(test_counts *counts)
     engine_unit unit = api->unit_at(e, unit_id);
     engine_city_slots site = api->city_slots(e, city);
     TEST_CHECK(counts, result.refusal == SIM_REFUSAL_NONE && unit.id != ENGINE_NO_UNIT && unit.force_id == force &&
-                       hex_distance(hex_make(unit.q, unit.r), hex_make(site.q, site.r)) == 1 && api->unit_at_hex(e, unit.q, unit.r) == unit_id,
-               "the unit stands on a hex next to the city");
+                       unit.q == site.q && unit.r == site.r && api->unit_at_hex(e, unit.q, unit.r) == unit_id,
+               "the unit starts on the centre of its city (the player, 2026-11-05)");
     engine_city after = api->city_at(e, city);
     TEST_CHECK(counts, unit.soldiers == 1000 && unit.gold == 500 && unit.grain == 3000 && unit.weapons == 1000 && unit.morale == api->city_economy(e, city).morale &&
                        after.troops == before.troops - 1000 && after.gold == before.gold - 500 && after.food == before.food - 3000 &&
@@ -271,7 +271,27 @@ feature_reaches(engine_api *api, u32 unit_id, hex_coord hex, u32 *cost)
     return false;
 }
 
-/* The first unit of the city setup after a sortie. */
+/* A new unit starts in its city (the player, 2026-11-05). The editor puts
+   it on the cheapest free hex of its reach outside the city, as a first
+   move does. The move of the unit stays unused. Returns false if the
+   reach has no such hex. */
+internal b32
+feature_step_out(engine_api *api, u32 unit_id)
+{
+    void *e = api->engine;
+    engine_unit unit = api->unit_at(e, unit_id);
+    engine_reach_view view = api->reachable(e, unit_id);
+    u32 best = U32_MAX;
+    for (u32 index = 1; index < view.count; ++index)
+    {
+        hex_coord cell = view.cells[index];
+        if (api->hex_at(e, cell.q, cell.r).city_id != ENGINE_NO_CITY || api->unit_at_hex(e, cell.q, cell.r) != ENGINE_NO_UNIT) continue;
+        if (best == U32_MAX || view.costs[index] < view.costs[best]) best = index;
+    }
+    return best != U32_MAX && api->set_unit_place(e, unit_id, unit.force_id, view.cells[best].q, view.cells[best].r);
+}
+
+/* The first unit of the city setup after a sortie, on a hex outside the city. */
 internal u32
 feature_sortie_unit(engine_api *api, u8 city, u32 officers_wanted, u8 unit_type = FEATURE_UNIT_PIKE)
 {
@@ -284,6 +304,7 @@ feature_sortie_unit(engine_api *api, u8 city, u32 officers_wanted, u8 unit_type 
         engine_unit unit = api->unit_at(api->engine, id);
         if (unit.id != ENGINE_NO_UNIT && unit.officers[0] == order.officers[0]) found = id;
     }
+    if (found != ENGINE_NO_UNIT) feature_step_out(api, found);
     return found;
 }
 
@@ -471,6 +492,7 @@ feature_transport_tests(test_counts *counts)
         engine_unit unit = api->unit_at(e, id);
         if (unit.id != ENGINE_NO_UNIT && unit.unit_type == FEATURE_UNIT_TRANSPORT) transport_id = id;
     }
+    feature_step_out(api, transport_id);
     engine_unit transport = api->unit_at(e, transport_id);
     TEST_CHECK(counts, transport.id != ENGINE_NO_UNIT && transport.destination == other && transport.cargo[0] == 300 &&
                        api->city_at(e, city).equipment_stocks[0] == pikes - 300,
@@ -478,6 +500,11 @@ feature_transport_tests(test_counts *counts)
 
     /* 補給: the transport unit gives to an adjacent unit of the faction. */
     u32 pike_id = feature_sortie_unit(api, city, 1);
+    for (u32 d = 0; d < HEX_DIRECTION_COUNT; ++d)
+    {
+        hex_coord beside = hex_neighbor(hex_make(transport.q, transport.r), d);
+        if (api->set_unit_place(e, pike_id, force, beside.q, beside.r)) break;
+    }
     engine_unit pike = api->unit_at(e, pike_id);
     TEST_CHECK(counts, pike.id != ENGINE_NO_UNIT && hex_distance(hex_make(pike.q, pike.r), hex_make(transport.q, transport.r)) == 1,
                "a pike unit stands next to the transport unit");
@@ -637,8 +664,10 @@ feature_base_entry_tests(test_counts *counts)
     engine_command_result sortie = api->command_sortie(e, &order);
     u32 out = feature_unit_of_commander(api, unit.officers[0]);
     engine_depot left = api->depot_at(e, base.id);
-    TEST_CHECK(counts, sortie.refusal == SIM_REFUSAL_NONE && out != ENGINE_NO_UNIT && hex_distance(feature_unit_hex(api, out), base_hex) == 1,
-               "出征 from a port or a pass: the unit stands next to the base");
+    TEST_CHECK(counts, sortie.refusal == SIM_REFUSAL_NONE && out != ENGINE_NO_UNIT && hex_equal(feature_unit_hex(api, out), base_hex),
+               "出征 from a port or a pass: the unit starts on the base (the player, 2026-11-05)");
+    TEST_CHECK(counts, out != ENGINE_NO_UNIT && feature_step_out(api, out) && hex_distance(feature_unit_hex(api, out), base_hex) >= 1,
+               "the unit moves out of the base");
     TEST_CHECK(counts, left.troops == after.troops - 600 && left.gold == after.gold - 100 && left.grain == after.grain - 1000 &&
                        left.stocks[0] == after.stocks[0] - api->unit_at(e, out).weapons,
                "the base gives the soldiers, the gold, the grain and the weapons");
