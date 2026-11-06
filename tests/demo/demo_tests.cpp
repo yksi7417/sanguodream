@@ -739,14 +739,37 @@ demo_unit_of(engine_api *api, u8 force)
     return ENGINE_NO_UNIT;
 }
 
+/* A new unit starts in its city (the player, 2026-11-05). The editor puts
+   it on the cheapest free hex of its range outside the cities, as a first
+   move does. The move of the unit stays unused. */
+internal b32
+demo_step_out(engine_api *api, u32 unit_id)
+{
+    void *e = api->engine;
+    engine_unit unit = api->unit_at(e, unit_id);
+    engine_reach_view reach = api->reachable(e, unit_id);
+    u32 best = U32_MAX;
+    for (u32 index = 1; index < reach.count; ++index)
+    {
+        hex_coord cell = reach.cells[index];
+        if (api->hex_at(e, cell.q, cell.r).city_id != ENGINE_NO_CITY || api->unit_at_hex(e, cell.q, cell.r) != ENGINE_NO_UNIT) continue;
+        if (best == U32_MAX || reach.costs[index] < reach.costs[best]) best = index;
+    }
+    return best != U32_MAX && api->set_unit_place(e, unit_id, unit.force_id, reach.cells[best].q, reach.cells[best].r);
+}
+
 /* The hex of the range that costs the most: the end of a long march. */
 internal hex_coord
 demo_far_hex(engine_api *api, u32 unit_id)
 {
-    engine_reach_view reach = api->reachable(api->engine, unit_id);
+    /* A city or a base at the end asks to enter it, so the march ends on open land. */
+    void *e = api->engine;
+    engine_reach_view reach = api->reachable(e, unit_id);
     u32 best = 0;
     for (u32 index = 1; index < reach.count; ++index)
     {
+        hex_coord cell = reach.cells[index];
+        if (api->hex_at(e, cell.q, cell.r).city_id != ENGINE_NO_CITY || api->base_at_hex(e, cell.q, cell.r) != ENGINE_NO_BASE) continue;
         if (reach.costs[index] > reach.costs[best]) best = index;
     }
     return reach.cells[best];
@@ -952,7 +975,7 @@ demo_m6_battle(ImGuiTestContext *ctx)
     ctx->ItemClick("###decide");
     ctx->Yield();
     u32 unit_id = demo_unit_of(api, player);
-    IM_CHECK(unit_id != ENGINE_NO_UNIT);
+    IM_CHECK(unit_id != ENGINE_NO_UNIT && demo_step_out(api, unit_id));
     v.ui.show_city = false;
 
     /* The scenario editor puts an enemy unit next to it (a second sortie
@@ -1152,6 +1175,7 @@ demo_m7_court(ImGuiTestContext *ctx)
     order.soldiers = 3000; order.grain = 3000;
     IM_CHECK(api->command_sortie(e, &order).refusal == SIM_REFUSAL_NONE);
     u32 unit_id = demo_unit_of(api, player);
+    IM_CHECK(unit_id != ENGINE_NO_UNIT && demo_step_out(api, unit_id));
     order = api->sortie_proposal(e, city, 1);
     order.soldiers = 3000; order.grain = 3000;
     IM_CHECK(api->command_sortie(e, &order).refusal == SIM_REFUSAL_NONE);
@@ -2913,7 +2937,7 @@ demo_m22_fit_and_finish(ImGuiTestContext *ctx)
         engine_unit unit = api->unit_at(e, id);
         if (unit.id != ENGINE_NO_UNIT && unit.force_id == player && !unit.acted) unit_id = id;
     }
-    IM_CHECK(unit_id != ENGINE_NO_UNIT);
+    IM_CHECK(unit_id != ENGINE_NO_UNIT && demo_step_out(api, unit_id));
     ctx->Yield(2);
     IM_CHECK(demo_begin_video(ctx, milestone));
     ImVec2 display = ImGui::GetIO().DisplaySize;

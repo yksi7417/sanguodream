@@ -23,7 +23,8 @@ region.tsv choose the kind and the width of each Natural Earth river:
   hexes. W2 is the width west of the longitude LON. The rivers in this list are 河 rivers.
   A width of 0 makes that part of the river a minor river.
 - river_minor_width and river_minor_terrain: the width and the terrain (river or stream)
-  of the other rivers. The defaults 1 and river keep the maps of the first packs.
+  of the other rivers. The defaults are 1 and river.
+- Each river and stream is RIVER_MIN_WIDTH (3) hexes wide or wider (the player, 2026-11-05).
 - river_banks: yes puts 岸 hexes along the 河 rivers, except next to a base or a road.
 - river_fords: no stops the roads at the 河 rivers. The default yes keeps the first packs.
 - river_shallows_every: a 淺瀨 shallows crossing after this many hexes of each 川 stream,
@@ -43,6 +44,9 @@ The bases follow these rules:
   nothing and stops. With --keep-weak-gates, it writes the map and only reports the gate.
 - A port must be on water that leads to other ports: a sea with 2 ports or more, or a lake
   or river with 3 ports or more. The tool moves a port on a closed lake to the nearest good shore.
+- A port is PORT_CITY_HEXES (10) or more from the centre of each city. A nearer city on the
+  same water launches its ships itself, so the tool removes the port. Else the port moves along
+  its water. A removed port keeps its id in bases.tsv with present = no.
 - A port stands at the level of its water. On the sea, its model stands at the level of the sea.
 - Inland water has a height near the height of the land around it. A lake takes the height of
   its lowest shore. A river falls step by step toward the sea, and it never climbs on its way
@@ -105,6 +109,8 @@ VALLEY_DETOUR = 1.5       # the tool opens a valley if the route around the clif
 VALLEY_GROUP_TRIES = 8    # the pairs of cities that the tool tries to join two land groups
 PORT_MOVE_HEXES = 30     # the largest move of a port from a closed lake to a good shore
 PORT_LAKE_PORTS = 3       # a lake or a river without the sea needs this many ports
+PORT_CITY_HEXES = 10      # no port comes nearer to the centre of a city (the player, 2026-11-05)
+RIVER_MIN_WIDTH = 3       # each river and stream is this many hexes wide or wider (the player, 2026-11-05)
 PORT_HEIGHT = 8           # a port stands this much above the level of its water (sim.h, SIM_MAP_HEIGHT_STEP is 16)
 HEIGHT_STEP = 16          # the height of one level of the renderer (sim.h, SIM_MAP_HEIGHT_STEP)
 WATER_BELOW_SHORE = 8     # inland water stands this much below the lowest land next to it
@@ -177,6 +183,8 @@ def read_sites(pack):
         if int(site["id"]) != index: sys.exit("sites.tsv: row %d has the id %s" % (index, site["id"]))
         site["id"] = index
         site["lat"], site["lon"] = float(site["lat"]), float(site["lon"])
+        # kind none: the map leaves the site out and keeps its id. bases.tsv gets a pass with present = no.
+        if site["kind"] == "none": site["removed"] = True
     cities = [s for s in sites if s["kind"] == "city"]
     if len(cities) != 42 or any(s["id"] >= 42 for s in cities):
         sys.exit("sites.tsv: the engine needs 42 cities with the ids 0 to 41")
@@ -564,6 +572,7 @@ class WorldMap:
             major = width > 0
             if not major: width, kind = s["river_minor_width"], s["river_minor_terrain"]
             else: kind = RIVER
+            width = max(width, RIVER_MIN_WIDTH)
             for centre in hex_line(a, b):
                 walked += 1
                 here = kind
@@ -636,9 +645,14 @@ class WorldMap:
             if site["kind"] == "city": continue
             owner = site["owner"]
             if owner in ("", "-"):
-                cell = self.base_cell[site["id"]]
+                cell = self.base_cell[site["id"]] if site["id"] in self.base_cell else self.site_cell(site)
                 owner = min(self.cities, key=lambda c: hex_distance(cell, self.base_cell[c["id"]]))["id"]
             site["owner_city"] = int(owner)
+        self.prune_ports()
+
+    def placed_sites(self):
+        """The sites on the map: each site except the ports that prune_ports removed."""
+        return [s for s in self.sites if not s.get("removed")]
 
     # -- the passes --
 
@@ -936,6 +950,7 @@ class WorldMap:
     def place_ports(self):
         """Each port on the shore nearest to its position. A port on a closed lake moves to water that leads to other ports."""
         ports = [s for s in self.sites if s["kind"] == "port"]
+        self.port_ground = {}   # the terrain under each port, for a port that moves or goes
         sea_bodies = self.find_water_bodies()
         def shore(cell, good=None):
             if not self.grid.contains(cell) or cell in self.reserved or self.at(cell) in WATER or self.at(cell) in (CLIFF, GATE): return False
@@ -961,16 +976,63 @@ class WorldMap:
                 cell = self.nearest(cell, lambda c: shore(c, self.good_bodies), radius=PORT_MOVE_HEXES)
                 if cell is None: sys.exit("the port %s has no free shore. Move it in sites.tsv." % site["key"])
             self.base_cell[site["id"]] = cell
+            self.port_ground[cell] = self.at(cell)
             self.put(cell, PORT)
             self.reserved.add(cell)
 
+    def port_far_from_cities(self, cell):
+        return all(hex_distance(cell, self.base_cell[c["id"]]) >= PORT_CITY_HEXES for c in self.cities)
+
+    def prune_ports(self):
+        """The player, 2026-11-05: a port must be PORT_CITY_HEXES or more from the centre of each city.
+        If a nearer city is on the same water, that city launches its ships itself, so the port goes.
+        Else the port moves along the shore, or goes if no far shore is near.
+        A port that goes keeps its id in bases.tsv with present = no."""
+        def far_shore(c, waters):
+            if not self.grid.contains(c) or c in self.reserved or self.at(c) in WATER or self.at(c) in (CLIFF, GATE): return False
+            return bool(self.bodies_next_to(c) & waters) and self.port_far_from_cities(c)
+        for site in self.sites:
+            if site["kind"] != "port": continue
+            cell = self.base_cell[site["id"]]
+            near = [c for c in self.cities if hex_distance(cell, self.base_cell[c["id"]]) < PORT_CITY_HEXES]
+            port_waters = self.bodies_next_to(cell) & self.good_bodies
+            on_water = [c for c in near if self.city_waters(c) & port_waters]
+            reason = None
+            if on_water:
+                reason = "%d hexes from %s, a city on the same water" % (hex_distance(cell, self.base_cell[on_water[0]["id"]]), on_water[0]["key"])
+            elif near:
+                moved = self.nearest(cell, lambda c: far_shore(c, port_waters), radius=PORT_MOVE_HEXES)
+                if moved is None: reason = "no shore is %d hexes or more from each city" % PORT_CITY_HEXES
+                else:
+                    self.port_report.append("port %s: moved %d hexes, away from a city" % (site["key"], hex_distance(cell, moved)))
+                    self.free_port_cell(cell)
+                    self.base_cell[site["id"]] = moved
+                    self.port_ground[moved] = self.at(moved)
+                    self.put(moved, PORT)
+                    self.reserved.add(moved)
+            if reason:
+                self.port_report.append("port %s: removed, %s" % (site["key"], reason))
+                self.free_port_cell(cell)
+                del self.base_cell[site["id"]]
+                site["removed"] = True
+
+    def free_port_cell(self, cell):
+        self.put(cell, self.port_ground.pop(cell))
+        self.reserved.discard(cell)
+
     def on_water(self, city):
         """True if water of the ports is at a distance of 2 from the centre, or next to open land at that distance."""
+        return bool(self.city_waters(city))
+
+    def city_waters(self, city):
+        """The bodies of water of the ports that the units of the city enter from the city (on_water)."""
         good = lambda c: self.grid.contains(c) and self.at(c) in WATER and int(self.water_body[c[1], c[0]]) in self.good_bodies
+        waters = set()
         for cell in ring(self.base_cell[city["id"]], 2):
-            if good(cell): return True
-            if self.grid.contains(cell) and COST.get(self.at(cell)) and any(good(n) for n in neighbours(cell)): return True
-        return False
+            if good(cell): waters.add(int(self.water_body[cell[1], cell[0]]))
+            if self.grid.contains(cell) and COST.get(self.at(cell)):
+                waters.update(int(self.water_body[n[1], n[0]]) for n in neighbours(cell) if good(n))
+        return waters
 
     # -- the roads --
 
@@ -1043,7 +1105,7 @@ class WorldMap:
         for city in self.cities:
             centre = self.base_cell[city["id"]]
             for cell in [centre] + neighbours(centre): self.base_of_cell[cell] = city["id"]
-        for site in self.sites:
+        for site in self.placed_sites():
             if site["kind"] != "city": self.base_of_cell[self.base_cell[site["id"]]] = site["id"]
         self.roads = []
         for a, b in self.road_pairs():
@@ -1052,7 +1114,7 @@ class WorldMap:
             if path and len(path) <= 2.2 * hex_distance(self.base_cell[a], self.base_cell[b]) + 6:
                 self.lay_road(path)
                 self.roads.append((a, b))
-        for site in self.sites:
+        for site in self.placed_sites():
             if site["kind"] in ("port", "pass"):
                 start, goal = self.base_cell[site["id"]], self.base_cell[site["owner_city"]]
                 path = self.find_path(start, goal)
@@ -1064,7 +1126,7 @@ class WorldMap:
         grid = self.grid
         region = np.full((grid.height, grid.width), 255, dtype=np.uint8)
         frontier = []
-        for site in self.sites:
+        for site in self.placed_sites():
             cell = self.base_cell[site["id"]]
             start = 0.0 if site["kind"] == "city" else 18.0   # a pass or a port has a small region
             for c in [cell] + (neighbours(cell) if site["kind"] == "city" else []): heapq.heappush(frontier, (start, c, site["id"]))
@@ -1080,7 +1142,7 @@ class WorldMap:
                 step = COST.get(kind, 0) or (6 if kind == RIVER else 0)
                 if step: heapq.heappush(frontier, (cost + step, nxt, owner))
         # The sea belongs to the nearest port. The other hexes (cliffs, islands) take the region of a neighbour.
-        frontier = [(0, self.base_cell[s["id"]], s["id"]) for s in self.sites if s["kind"] == "port"]
+        frontier = [(0, self.base_cell[s["id"]], s["id"]) for s in self.placed_sites() if s["kind"] == "port"]
         seen = set()
         while frontier:
             cost, cell, owner = heapq.heappop(frontier)
@@ -1102,7 +1164,7 @@ class WorldMap:
             if not changed: sys.exit("some hexes have no region")
         # The hexes of a pass or a port are always in its own region. The engine makes the side hexes of a gate cliffs
         # only in the region of the gate (F-151).
-        for site in self.sites:
+        for site in self.placed_sites():
             if site["kind"] == "city": continue
             cell = self.base_cell[site["id"]]
             for c in [cell] + [n for n in neighbours(cell) if self.grid.contains(n) and self.at(n) == GATE]:
@@ -1276,7 +1338,7 @@ class WorldMap:
 
         bases = ["id\tname\tkind\tx\ty\thex_count\tcity\tcity_name\tslots"]
         kinds = {"city": "city", "pass": "gate", "port": "port"}
-        for site in self.sites:
+        for site in self.placed_sites():
             cell = self.base_cell[site["id"]]
             owner = site["id"] if site["kind"] == "city" else site["owner_city"]
             hexes = 7 if site["kind"] == "city" else 3 if site["kind"] == "pass" else 1
@@ -1284,7 +1346,7 @@ class WorldMap:
                                                                 self.sites[owner]["name_zh"], self.slot_count.get(site["id"], 0)))
         write_lines(os.path.join(pack, "map", "bases.tsv"), bases)
 
-        port_owners = {s["owner_city"] for s in self.sites if s["kind"] == "port"}
+        port_owners = {s["owner_city"] for s in self.placed_sites() if s["kind"] == "port"}
         port_owners |= {c["id"] for c in self.cities if self.on_water(c)}
         cities = ["id\tkey\tspecialty\tslots\tport\tname_zh\tprice\tname_big5",
                   "# Written by misc/make_world_map.py from map/source/sites.tsv. slots: the slots that the tool placed on the map.",
@@ -1297,13 +1359,16 @@ class WorldMap:
                                                         "yes" if city["id"] in port_owners else "no", city["name_zh"], big5_hex(city["name_zh"], 16)))
         write_lines(os.path.join(pack, "cities.tsv"), cities)
 
-        content_bases = ["id\tkey\tname_zh\tkind\towner_city\tdurability\tstatus\tname_big5",
+        content_bases = ["id\tkey\tname_zh\tkind\towner_city\tdurability\tstatus\tname_big5\tpresent",
                          "# Written by misc/make_world_map.py from map/source/sites.tsv. durability: 4000 for a pass and 2000 for a port (assumed).",
-                         "# name_big5: the Big5 bytes of name_zh in hex, for the names of the scenario (docs/MAPS.md, W2)."]
+                         "# name_big5: the Big5 bytes of name_zh in hex, for the names of the scenario (docs/MAPS.md, W2).",
+                         "# present: no for a port that the tool left out. Its city is on the water, or no shore is far from the cities."]
         for site in self.sites:
             if site["kind"] == "city": continue
-            content_bases.append("%d\t%s\t%s\t%s\t%d\t%d\tassumed\t%s" % (site["id"], site["key"], site["name_zh"], site["kind"], site["owner_city"],
-                                                                        4000 if site["kind"] == "pass" else 2000, big5_hex(site["name_zh"], 25)))
+            kind = "pass" if site["kind"] == "none" else site["kind"]
+            content_bases.append("%d\t%s\t%s\t%s\t%d\t%d\tassumed\t%s\t%s" % (site["id"], site["key"], site["name_zh"], kind, site["owner_city"],
+                                                                            4000 if site["kind"] == "pass" else 2000, big5_hex(site["name_zh"], 25),
+                                                                            "no" if site.get("removed") else "yes"))
         write_lines(os.path.join(pack, "bases.tsv"), content_bases)
 
     def summary(self):

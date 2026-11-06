@@ -753,7 +753,7 @@ The stage e8_factions added six factions to the east map:
 The west map can add the kingdom of Navarre.
 
 ### The result of E8
-Each pack has 42 cities and 45 passes and ports. The map of 1200 has 9 passes. The west map and the east map have 4 passes each. The other gates had no purpose on those maps (docs/MAPS.md, "The purpose of a gate"). Each pack has a scenario of 1200.
+Each pack has 42 cities and 45 ids of passes and ports. The map of 1200 has 7 passes. The west map and the east map have 4 passes each. The other gates had no purpose on those maps (docs/MAPS.md, "The purpose of a gate"). Each pack has a scenario of 1200.
 
 | Map | Cities that are new | Factions | Officers |
 |---|---|---|---|

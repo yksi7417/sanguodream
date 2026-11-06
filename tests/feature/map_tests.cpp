@@ -225,21 +225,46 @@ feature_map_move_tests(test_counts *counts)
     TEST_CHECK(counts, path != HEX_NO_PATH && path >= 4 * (u32)hex_distance(hex_make(luoyang.q, luoyang.r), hex_make(changan.q, changan.r)),
                "a path leads over the real map from 洛陽 to 長安, through the passes");
 
-    /* A sortie from the city and the move range on real terrain. */
-    u32 unit_id = feature_sortie_unit(api, setup.city, 1);
+    /* A sortie from the city and the move range on real terrain. The unit
+       starts in its city and walks out (the player, 2026-11-05). */
+    engine_city_slots site = api->city_slots(e, setup.city);
+    engine_sortie_order order = feature_pike_order(api, setup.city, 1);
+    u32 unit_id = api->command_sortie(e, &order).refusal == SIM_REFUSAL_NONE ? api->unit_at_hex(e, site.q, site.r) : ENGINE_NO_UNIT;
     engine_unit unit = api->unit_at(e, unit_id);
-    engine_hex beside = api->hex_at(e, unit.q, unit.r);
-    TEST_CHECK(counts, unit_id != ENGINE_NO_UNIT && beside.city_id == ENGINE_NO_CITY && beside.on_map,
-               "a sortie puts the unit on a hex outside the city flower");
+    TEST_CHECK(counts, unit_id != ENGINE_NO_UNIT && unit.officers[0] == order.officers[0] && api->hex_at(e, unit.q, unit.r).city_id == setup.city,
+               "a sortie puts the unit on the centre of its city, not on the land or the water outside");
     engine_reach_view reach = api->reachable(e, unit_id);
     b32 reach_ok = reach.count > 1;
+    hex_coord outside = {};
+    u32 outside_cost = U32_MAX;
     for (u32 index = 1; index < reach.count && reach_ok; ++index)
     {
         engine_hex hex = api->hex_at(e, reach.cells[index].q, reach.cells[index].r);
         engine_terrain_kind kind = api->terrain_kind_at(e, hex.terrain);
-        if (reach.costs[index] > 22 || !kind.enterable || (hex.city_id != ENGINE_NO_CITY && api->city_at(e, hex.city_id).owner_force_id != force)) reach_ok = false;
+        if (reach.costs[index] > 22 || !kind.enterable || (hex.city_id != ENGINE_NO_CITY && hex.city_id != setup.city)) reach_ok = false;
+        if (hex.city_id == ENGINE_NO_CITY && reach.costs[index] < outside_cost) { outside = reach.cells[index]; outside_cost = reach.costs[index]; }
     }
-    TEST_CHECK(counts, reach_ok, "the move range of a pike unit (22) on the real map holds only hexes that it can enter");
+    TEST_CHECK(counts, reach_ok && outside_cost != U32_MAX,
+               "the move range of a pike unit (22) goes out through its city and holds only hexes that it can enter");
+
+    engine_sortie_order second_order = feature_pike_order(api, setup.city, 1);
+    TEST_CHECK(counts, api->command_sortie(e, &second_order).refusal == SIM_REFUSAL_NONE, "a second sortie of the city in the same turn runs");
+    u32 second = feature_unit_of_commander(api, second_order.officers[0]);
+    hex_coord second_hex = second != ENGINE_NO_UNIT ? feature_unit_hex(api, second) : hex_make(0, 0);
+    TEST_CHECK(counts, second != ENGINE_NO_UNIT && hex_distance(second_hex, hex_make(site.q, site.r)) == 1 &&
+                       api->hex_at(e, second_hex.q, second_hex.r).city_id == setup.city,
+               "the second unit starts on a free hex of the city flower");
+
+    TEST_CHECK(counts, api->command_move(e, unit_id, outside.q, outside.r).refusal == SIM_REFUSAL_NONE &&
+                       api->unit_at(e, unit_id).id != ENGINE_NO_UNIT && api->hex_at(e, outside.q, outside.r).city_id == ENGINE_NO_CITY &&
+                       api->unit_at_hex(e, outside.q, outside.r) == unit_id,
+               "the first move takes the unit out of the city");
+
+    u32 troops = api->city_at(e, setup.city).troops, second_soldiers = api->unit_at(e, second).soldiers;
+    feature_next_own_turn(api, force);
+    TEST_CHECK(counts, api->unit_at(e, second).id == ENGINE_NO_UNIT && api->unit_at(e, unit_id).id != ENGINE_NO_UNIT &&
+                       api->city_at(e, setup.city).troops >= troops + second_soldiers,
+               "at the end of the turn the unit that stayed in the city goes back in with its soldiers; the unit outside stays");
     engine_fixture_destroy(&setup.fixture);
 }
 

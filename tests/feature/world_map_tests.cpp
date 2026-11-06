@@ -30,6 +30,39 @@ feature_world_map_init(engine_fixture *f, const char *content_folder = FEATURE_W
     f->api.set_settings(f->api.engine, settings);
 }
 
+#define FEATURE_PORT_CITY_HEXES 10       /* no port nearer to the centre of a city (make_world_map.py, the player, 2026-11-05) */
+
+/* The ids of passes and ports that have no base on the map: present = no in bases.tsv. */
+internal u32
+feature_absent_bases(engine_api *api)
+{
+    u32 absent = 0;
+    for (u32 index = 0; index < api->base_count(api->engine); ++index)
+    {
+        if (api->base_at(api->engine, index).id == ENGINE_NO_ROW) absent++;
+    }
+    return absent;
+}
+
+/* True if each port of the map is FEATURE_PORT_CITY_HEXES or more from the centre of each city. */
+internal b32
+feature_ports_far_from_cities(engine_api *api)
+{
+    void *e = api->engine;
+    b32 all_far = true;
+    for (u32 index = 0; index < api->base_count(e); ++index)
+    {
+        engine_base base = api->base_at(e, index);
+        if (base.id == ENGINE_NO_ROW || base.type != BASE_PORT) continue;
+        for (u8 city = 0; city < SAVE_CITY_COUNT; ++city)
+        {
+            engine_city_slots site = api->city_slots(e, city);
+            if (hex_distance(hex_make(base.q, base.r), hex_make(site.q, site.r)) < FEATURE_PORT_CITY_HEXES) all_far = false;
+        }
+    }
+    return all_far;
+}
+
 /* True if each city of the save stands on its flower: the centre and its six neighbours. */
 internal b32
 feature_world_flowers(engine_api *api)
@@ -62,14 +95,17 @@ feature_world_map_tests(test_counts *counts)
                "the engine loads the content and the map of the medieval_europe pack");
     TEST_CHECK(counts, info.width * info.height > 200 * 200 && info.width * info.height <= FEATURE_WORLD_MAX_HEXES,
                "the map is larger than the 200 x 200 map and fits the budget of the terrain mesh");
-    /* The map left out the Brenner Pass: it had no purpose (docs/MAPS.md, "The purpose of a gate"). A port took its id. */
-    TEST_CHECK(counts, info.cities == 42 && info.gates == 9 && info.ports == 36 && info.city_hexes == 294 && info.port_hexes == 36,
-               "42 cities of 7 hexes, 9 gates and 36 ports: 45 passes and ports, as on the placeholder map");
-    TEST_CHECK(counts, info.gate_hexes == 9 && info.gate_side_cliffs == 18, "the two side hexes of each gate become cliff (F-151)");
+    /* The map left out the Brenner Pass: it had no purpose (docs/MAPS.md, "The purpose of a gate"). A port took its id.
+       With the rivers of 3 hexes, St Bernard and Despenaperros have no purpose. 4 ports were too near a city on the water (2026-11-05). */
+    TEST_CHECK(counts, info.cities == 42 && info.gates == 7 && info.ports == 32 && info.city_hexes == 294 && info.port_hexes == 32,
+               "42 cities of 7 hexes, 7 gates and 32 ports");
+    TEST_CHECK(counts, info.gate_hexes == 7 && info.gate_side_cliffs == 14, "the two side hexes of each gate become cliff (F-151)");
     TEST_CHECK(counts, info.slots >= 42 * 10 && info.bandit_sites > 0, "each city has development slots, and the map has bandit sites");
 
     TEST_CHECK(counts, api->load_scenario(e, api->scenario_at(e, 0).file).status == ENGINE_LOAD_OK,
                "the scenario of the pack loads with the map of the pack");
+    TEST_CHECK(counts, feature_absent_bases(api) == 6, "6 ids of the 45 passes and ports have no base: present = no in bases.tsv");
+    TEST_CHECK(counts, feature_ports_far_from_cities(api), "each port is 10 hexes or more from the centre of each city");
     TEST_CHECK(counts, feature_world_flowers(api), "each city stands on its flower and has slots on the new map");
     u8 city = feature_busiest_city(api);
     u8 force = api->city_at(e, city).owner_force_id;
@@ -95,7 +131,8 @@ struct feature_pack_spec
     u32                      factions;
     u32                      width;
     u32                      height;
-    u32                      gates;       /* the gates with a purpose; ports take the other ids of the 45 */
+    u32                      gates;       /* the gates with a purpose */
+    u32                      ports;       /* the ports; the other ids of the 45 have no base (present = no) */
     u32                      city_count;
     feature_pack_city        cities[8];
 };
@@ -139,9 +176,9 @@ feature_pack_map_tests(test_counts *counts, const feature_pack_spec *spec)
                "the engine loads the content and the map of the pack");
     TEST_CHECK(counts, info.width == spec->width && info.height == spec->height && info.width * info.height <= FEATURE_WORLD_MAX_HEXES,
                "the map has the size that make_world_map.py wrote and fits the budget of the terrain mesh");
-    TEST_CHECK(counts, info.cities == 42 && info.gates == spec->gates && info.gates + info.ports == 45 && info.city_hexes == 294 &&
+    TEST_CHECK(counts, info.cities == 42 && info.gates == spec->gates && info.ports == spec->ports && info.city_hexes == 294 &&
                        info.port_hexes == info.ports && info.gate_hexes == spec->gates,
-               "the map has 42 cities of 7 hexes and 45 passes and ports, with the gates of the pack");
+               "the map has 42 cities of 7 hexes, with the gates and the ports of the pack");
     TEST_CHECK(counts, info.slots >= 42 * 10 && info.bandit_sites > 0, "each city has development slots, and the map has bandit sites");
     u32 high_rivers = 0;
     TEST_CHECK(counts, feature_water_heights(api, &high_rivers) && high_rivers > 0,
@@ -151,6 +188,9 @@ feature_pack_map_tests(test_counts *counts, const feature_pack_spec *spec)
     TEST_CHECK(counts, scenario.kind == ENGINE_SCENARIO_PACK && scenario.available && scenario.year == spec->year && !scenario.pack[0],
                "the pack lists its own scenario first");
     TEST_CHECK(counts, api->load_scenario(e, scenario.file).status == ENGINE_LOAD_OK, "the scenario of the pack loads");
+    TEST_CHECK(counts, info.gates + info.ports + feature_absent_bases(api) == 45,
+               "the gates, the ports and the ids without a base (present = no) make the 45 ids of passes and ports");
+    TEST_CHECK(counts, feature_ports_far_from_cities(api), "each port is 10 hexes or more from the centre of each city");
     TEST_CHECK(counts, feature_world_flowers(api), "each city stands on its flower and has slots");
     TEST_CHECK(counts, api->faction_count(e) == spec->factions, "each row of forces.tsv is a faction");
 
@@ -180,13 +220,13 @@ feature_pack_map_tests_all(test_counts *counts)
 {
     static const feature_pack_spec west =
     {
-        HEXDOM_DATA_ROOT "/medieval_west", 1200, 17, 268, 282, 4, 3,
+        HEXDOM_DATA_ROOT "/medieval_west", 1200, 17, 268, 282, 4, 35, 3,
         { { 16, "paris", 0 }, { 30, "rouen", 1 }, { 32, "lille", 15 } }
     };
     /* The new factions of the east have the force ids 11 to 16: Jerusalem, Antioch, Cilicia, Cyprus, Georgia and the caliphate. */
     static const feature_pack_spec east =
     {
-        HEXDOM_DATA_ROOT "/medieval_east", 1200, 17, 366, 217, 4, 8,
+        HEXDOM_DATA_ROOT "/medieval_east", 1200, 17, 366, 217, 4, 32, 8,
         {
             { 34, "antioch", 12 }, { 35, "aleppo", 3 }, { 39, "damascus", 3 }, { 40, "acre", 11 },
             { 38, "baghdad", 16 }, { 33, "sis", 13 }, { 41, "nicosia", 14 }, { 19, "tbilisi", 15 }
@@ -195,7 +235,7 @@ feature_pack_map_tests_all(test_counts *counts)
     /* The original Three Kingdoms pack of 196: Cao Cao holds Xuchang, Lü Bu holds Xiapi, Liu Bei holds Xiaopei, and Liucheng has no owner. */
     static const feature_pack_spec han =
     {
-        HEXDOM_DATA_ROOT "/han_196", 196, 20, 280, 282, 10, 5,
+        HEXDOM_DATA_ROOT "/han_196", 196, 20, 280, 282, 10, 25, 5,
         { { 13, "xuchang", 0 }, { 33, "xiapi", 4 }, { 34, "xiaopei", 5 }, { 21, "chengdu", 12 }, { 2, "liucheng", ENGINE_NO_FACTION } }
     };
     feature_pack_map_tests(counts, &west);
