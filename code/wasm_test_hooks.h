@@ -222,6 +222,41 @@ wasm_test_state(void)
     return g_test_reply;
 }
 
+/* The play test (docs/PLAYTEST.md): the date, each faction with its cities, officers,
+   troops, gold, food and units, and the caption of "Follow the action", as JSON. */
+extern "C" EMSCRIPTEN_KEEPALIVE const char *
+wasm_test_factions(void)
+{
+    game_state *game = wasm_test_game();
+    engine_api *api  = &game->api;
+    void       *e    = api->engine;
+    engine_date date = api->date(e);
+    u32 at = (u32)snprintf(g_test_reply, sizeof(g_test_reply), "{\"year\":%u,\"month\":%u,\"day\":%u,\"turn\":%u,\"factions\":[",
+                           date.year, date.month, date.day, api->turn(e));
+    for (u32 index = 0; index < api->faction_count(e) && at < sizeof(g_test_reply) - 200; ++index)
+    {
+        engine_faction faction = api->faction_at(e, index);
+        u32 gold = 0, food = 0, units = 0, field = 0;
+        for (u32 city = 0; city < api->city_count(e); ++city)
+        {
+            engine_city info = api->city_at(e, city);
+            if (info.owner_force_id == faction.force_id) { gold += info.gold; food += info.food; }
+        }
+        for (u32 unit = 0; unit < api->unit_count(e); ++unit)
+        {
+            engine_unit info = api->unit_at(e, unit);
+            if (info.id != ENGINE_NO_UNIT && info.force_id == faction.force_id) { ++units; field += info.soldiers; }
+        }
+        at += (u32)snprintf(g_test_reply + at, sizeof(g_test_reply) - at,
+                            "%s{\"force\":%u,\"key\":\"%s\",\"human\":%d,\"cities\":%u,\"officers\":%u,\"troops\":%u,\"gold\":%u,\"food\":%u,\"units\":%u,\"field\":%u}",
+                            index ? "," : "", faction.force_id, faction.key, faction.human ? 1 : 0, faction.city_count,
+                            faction.officer_count, faction.troops, gold, food, units, field);
+    }
+    snprintf(g_test_reply + at, sizeof(g_test_reply) - at, "],\"who\":\"%.120s\",\"what\":\"%.160s\",\"where\":\"%.100s\"}",
+             game->ui.net.follow_who, game->ui.net.follow_what, game->ui.net.follow_where);
+    return g_test_reply;
+}
+
 /* MP3: the faction of the local seat ends its turn, as 進行 of the map menu
    does. The step goes to the room in the same frame (ui_multiplayer.cpp).
    The reply is the command id; 0 when the engine refused it. */

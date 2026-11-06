@@ -61,6 +61,8 @@ decompilation of it.
                              steps, the rooms and the milestones MP1-MP8
 - docs/TRY-MULTIPLAYER.md    the steps to prove a shared game by hand: the
                              tests, two local windows and the live site
+- docs/PLAYTEST.md           the record of a shared game with two players
+                             and the AI: the driver, the logs and the summary
 - docs/MAPS.md               maps from real geography: the scale, the
                              licences of the data, the tool and the plan
 - docs/EUROPE.md             the game of 1200: English names by key, the
