@@ -43,8 +43,10 @@ feature_corps_city(engine_api *api, u8 force)
     return ENGINE_NO_CITY;
 }
 
-/* Every city of the faction calm and full of soldiers: the AI then has no
-   urgent need, and a test changes one city to make one. */
+/* Every city of the faction calm and full of soldiers and grain: the AI
+   then has no urgent need, and a test changes one city to make one. The
+   grain cap of 1000000 feeds 1000000 soldiers for 40 turns, more than
+   ai.grain_turns. */
 internal void
 feature_calm_faction(engine_api *api, u8 force)
 {
@@ -53,19 +55,24 @@ feature_calm_faction(engine_api *api, u8 force)
         if (api->city_at(api->engine, city).owner_force_id != force) continue;
         api->set_city_resource(api->engine, (u8)city, SIM_RESOURCE_PUBLIC_ORDER, 0, 100);
         api->set_city_resource(api->engine, (u8)city, SIM_RESOURCE_SOLDIERS, 0, 1000000);
+        api->set_city_resource(api->engine, (u8)city, SIM_RESOURCE_GRAIN, 0, 1000000);
         api->set_city_resource(api->engine, (u8)city, SIM_RESOURCE_MORALE, 0, 100);
     }
 }
 
 /* The first proposal of the plan for the city, or 0. M15: the sorties of
    the rows defend and take_free depend on the units and free cities near
-   the city, so the city tests of M8 skip them. */
+   the city, so the city tests of M8 skip them. The transports and the
+   purchases of grain (the play test of 2026-11-06) depend on the fronts
+   and on the grain, so the tests skip them too. */
 internal engine_proposal *
 feature_first_for_city(engine_plan_view *view, u8 city)
 {
     for (u32 index = 0; index < view->count; ++index)
     {
-        if (view->items[index].city_id == city && view->items[index].kind != SIM_COMMAND_SORTIE) return view->items + index;
+        sim_command_kind kind = (sim_command_kind)view->items[index].kind;
+        if (view->items[index].city_id != city || kind == SIM_COMMAND_SORTIE || kind == SIM_COMMAND_TRANSPORT || kind == SIM_COMMAND_MERCHANT) continue;
+        return view->items + index;
     }
     return 0;
 }
@@ -132,9 +139,10 @@ feature_turn_on(engine_api *api, b32 ai, b32 events)
    stands in a city (the council and the treason event need him there);
    setup->city is the city of the ruler. Each city of the faction gets gold. */
 internal void
-feature_rivals_setup_init(feature_city_setup *setup)
+feature_rivals_setup_on(feature_city_setup *setup, b32 real_map)
 {
-    engine_fixture_init(&setup->fixture, 1, 65536);
+    if (real_map) engine_fixture_init_real(&setup->fixture, 1, 65536);
+    else          engine_fixture_init(&setup->fixture, 1, 65536);
     setup->api = &setup->fixture.api;
     engine_api *api = setup->api;
     void *e = api->engine;
@@ -155,6 +163,14 @@ feature_rivals_setup_init(feature_city_setup *setup)
     api->set_actions(e, setup->force, 255);
 }
 
+/* The placeholder map of 40 x 30 hexes. The tests of the fronts of the AI
+   use the real map (feature_rivals_setup_on). */
+internal void
+feature_rivals_setup_init(feature_city_setup *setup)
+{
+    feature_rivals_setup_on(setup, false);
+}
+
 /* ---- F-123: the AI planner ----------------------------------------------------------- */
 
 internal void
@@ -165,7 +181,8 @@ feature_ai_plan_tests(test_counts *counts)
     engine_api *api = setup.api;
     void *e = api->engine;
     u8 city = setup.city, force = setup.force;
-    TEST_CHECK(counts, api->content_status(e).priority_count == 12, "ai_priorities.tsv has the 12 rows of the planner (M15 adds defend and take_free)");
+    TEST_CHECK(counts, api->content_status(e).priority_count == 15,
+               "ai_priorities.tsv has the 15 rows of the planner (M15 adds defend and take_free; the play test of 2026-11-06 adds buy_grain, reinforce and conscript_rich)");
 
     feature_calm_faction(api, force);
     api->set_city_resource(e, city, SIM_RESOURCE_PUBLIC_ORDER, 0, 0);

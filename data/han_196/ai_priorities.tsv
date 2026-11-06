@@ -8,8 +8,11 @@ id	key	command	priority	condition	threshold	status
 4	train	train	40	morale_below	70	assumed
 5	produce	produce	35	weapons_below_troops	0	assumed
 6	reward	reward	30	loyalty_below	70	assumed
-7	sortie	sortie	25	troops_above	15000	assumed
+7	sortie	sortie	44	troops_above	15000	assumed
 8	research	research	20	technique_above	1000	assumed
 9	goodwill	diplomacy	10	gold_above	8000	assumed
 10	defend	sortie	70	enemy_near	0	assumed
 11	take_free	sortie	65	free_city_near	0	assumed
+12	buy_grain	merchant	58	grain_turns_below	12	assumed
+13	reinforce	transport	45	troops_above	15000	assumed
+14	conscript_rich	conscript	35	gold_above	10000	assumed

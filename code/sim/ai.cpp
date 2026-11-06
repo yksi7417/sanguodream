@@ -73,6 +73,16 @@ sim_ai_free_city_near(sim_state *sim, city_component *city)
     return false;
 }
 
+/* The turns that the grain of the city feeds its soldiers; U32_MAX if the
+   soldiers eat nothing. The play test of 2026-11-06 found the cause of
+   the soldiers that left the cities: no grain. */
+internal u32
+sim_ai_grain_turns(sim_state *sim, city_component *city)
+{
+    u32 per_turn = sim_city_forecast(sim, city->city_id).grain_per_turn;
+    return per_turn ? city->food / per_turn : U32_MAX;
+}
+
 /* The urgency of a condition, 0 .. ai.urgency, and whether it holds. */
 internal b32
 sim_ai_condition(sim_state *sim, city_component *city, ai_priority *row, u32 *urgency)
@@ -121,7 +131,12 @@ sim_ai_condition(sim_state *sim, city_component *city, ai_priority *row, u32 *ur
                     officer->status != OFFICER_STATUS_RULER && officer->loyalty < row->threshold) return true;
             }
             return false;
-        case AI_TROOPS_ABOVE:    return city->troops > row->threshold;
+        case AI_TROOPS_ABOVE:
+            /* The soldiers above the threshold give urgency, full at two times the threshold. A city with
+               a large army then sends it before a patrol (the play test of 2026-11-06; assumed, Q-185). */
+            if (city->troops <= row->threshold) return false;
+            *urgency = row->threshold ? scale * Minimum(city->troops - row->threshold, row->threshold) / row->threshold : scale;
+            return true;
         case AI_TECHNIQUE_ABOVE: return sim->technique_points[city->owner_force_id] >= row->threshold;
         case AI_GOLD_ABOVE:      return city->gold > row->threshold;
         case AI_ENEMY_NEAR:
@@ -130,6 +145,14 @@ sim_ai_condition(sim_state *sim, city_component *city, ai_priority *row, u32 *ur
             *urgency = scale;
             return true;
         case AI_FREE_CITY_NEAR:  return sim_ai_free_city_near(sim, city);
+        case AI_GRAIN_TURNS_BELOW:
+        {
+            /* The grain feeds the soldiers for fewer turns than the threshold (assumed, Q-185). */
+            u32 turns = sim_ai_grain_turns(sim, city);
+            if (turns >= row->threshold) return false;
+            *urgency = row->threshold ? scale * (row->threshold - turns) / row->threshold : 0;
+            return true;
+        }
         default:                 return false;
     }
 }
@@ -151,6 +174,115 @@ sim_ai_target_city(sim_state *sim, u8 force, hex_coord from, u32 max_distance)
     return best;
 }
 
+/* The unit type of an AI sortie of this many soldiers (assumed, Q-185).
+   Before the play test of 2026-11-06 the AI took only pikes, so a city with
+   no pikes sent no army. The rule:
+   1. A land type with the weapons for all the soldiers. The type with the
+      larger stock goes first.
+   2. Else the land type with the most weapons, if it arms at least
+      ai.sortie_min_soldiers.
+   3. Else a type that carries no weapon (the sword). */
+internal u8
+sim_ai_sortie_type(sim_state *sim, city_component *city, u32 soldiers, u32 *armed)
+{
+    u8 best = CONTENT_NO_UNIT_TYPE, unarmed = CONTENT_NO_UNIT_TYPE;
+    u32 best_stock = 0;
+    for (u32 index = 0; index < sim->content.unit_type_count; ++index)
+    {
+        unit_type_kind *type = sim->content.unit_types + index;
+        if (type->transport || !type->can_attack || (type->movement != MOVEMENT_FOOT && type->movement != MOVEMENT_CAVALRY)) continue;
+        if (type->weapon >= sim->content.weapon_count)
+        {
+            if (unarmed == CONTENT_NO_UNIT_TYPE) unarmed = (u8)index;
+            continue;
+        }
+        weapon_kind *weapon = sim->content.weapons + type->weapon;
+        if (weapon->max_days || weapon->stock >= CITY_EQUIPMENT_STOCK_COUNT) continue;
+        u32 stock = city->equipment_stocks[weapon->stock];
+        if (stock > best_stock) { best = (u8)index; best_stock = stock; }
+    }
+    if (best != CONTENT_NO_UNIT_TYPE && (best_stock >= soldiers || best_stock >= sim->content.rules.ai_sortie_min_soldiers))
+    {
+        *armed = Minimum(best_stock, soldiers);
+        return best;
+    }
+    *armed = soldiers;
+    return unarmed;
+}
+
+/* The enemy units within enemy.block_hexes of the city. */
+internal u32
+sim_ai_attackers(sim_state *sim, city_component *city)
+{
+    hex_coord centre = sim->sites[city->city_id].hex;
+    u32 count = 0;
+    for (u32 index = 0; index < sim->unit_count; ++index)
+    {
+        sim_unit *unit = sim->units + index;
+        if (unit->alive && sim_at_war(sim, unit->force_id, city->owner_force_id) &&
+            hex_distance(unit->hex, centre) <= (s32)sim->content.rules.enemy_block_hexes) count++;
+    }
+    return count;
+}
+
+/* The own fighting units within this many hexes of the city. */
+internal u32
+sim_ai_defenders(sim_state *sim, city_component *city, u32 hexes)
+{
+    hex_coord centre = sim->sites[city->city_id].hex;
+    u32 count = 0;
+    for (u32 index = 0; index < sim->unit_count; ++index)
+    {
+        sim_unit *unit = sim->units + index;
+        unit_type_kind *type = unit->alive ? sim_unit_type(sim, unit->unit_type) : 0;
+        if (type && !type->transport && unit->force_id == city->owner_force_id &&
+            hex_distance(unit->hex, centre) <= (s32)hexes) count++;
+    }
+    return count;
+}
+
+/* The own city on a front that is nearest to the city: a city with a
+   target city of a sortie within ai.target_hexes. SIM_NO_CITY if the city
+   is itself on a front, or if no city is. The play test of 2026-11-06
+   found 13 of 17 large armies in cities with no target. */
+internal u8
+sim_ai_front_city(sim_state *sim, city_component *city)
+{
+    sim_rules *rules = &sim->content.rules;
+    u8 force = city->owner_force_id;
+    if (sim_ai_target_city(sim, force, sim->sites[city->city_id].hex, rules->ai_target_hexes) != SIM_NO_CITY) return SIM_NO_CITY;
+    u8 best = SIM_NO_CITY;
+    s32 best_distance = 0x7FFFFFFF;
+    for (u32 index = 0; index < sim->cities.count; ++index)
+    {
+        city_component *other = sim->cities.data + index;
+        if (other == city || other->owner_force_id != force) continue;
+        hex_coord hex = sim->sites[other->city_id].hex;
+        if (sim_ai_target_city(sim, force, hex, rules->ai_target_hexes) == SIM_NO_CITY) continue;
+        s32 distance = hex_distance(hex, sim->sites[city->city_id].hex);
+        if (distance < best_distance) { best = other->city_id; best_distance = distance; }
+    }
+    return best;
+}
+
+/* The gold of a purchase of grain: the gold above ai.merchant_keep_gold,
+   and no more than the grain for ai.grain_turns turns needs. */
+internal u32
+sim_ai_grain_gold(sim_state *sim, city_component *city, sim_city_order *order)
+{
+    sim_rules *rules = &sim->content.rules;
+    if (city->gold <= rules->ai_merchant_keep_gold) return 0;
+    u32 spare = city->gold - rules->ai_merchant_keep_gold;
+    u64 wanted = (u64)sim_city_forecast(sim, city->city_id).grain_per_turn * rules->ai_grain_turns * 2;
+    if (wanted <= city->food) return 0;
+    order->amount = spare;
+    sim_check check = sim_check_city_command(sim, SIM_COMMAND_MERCHANT, order);
+    if (check.refusal != SIM_REFUSAL_NONE || !check.quantity) return 0;
+    u64 needed = wanted - city->food;
+    if (check.quantity <= needed) return spare;
+    return (u32)Maximum((u64)1, (u64)spare * needed / check.quantity);
+}
+
 /* The command of a row for the city, or kind SIM_COMMAND_NONE if none fits. */
 internal sim_command
 sim_ai_command_for(sim_state *sim, city_component *city, ai_priority *row)
@@ -164,10 +296,20 @@ sim_ai_command_for(sim_state *sim, city_component *city, ai_priority *row)
         case SIM_COMMAND_CONSCRIPT:
         case SIM_COMMAND_TRAIN:
         case SIM_COMMAND_PRODUCE:
+        case SIM_COMMAND_MERCHANT:
         {
+            /* No conscription that the grain of the city cannot feed: the soldiers leave when the grain ends (assumed, Q-185). */
+            if (kind == SIM_COMMAND_CONSCRIPT && sim_ai_grain_turns(sim, city) < sim->content.rules.ai_grain_turns) return command;
             sim_ability ability = kind == SIM_COMMAND_PATROL ? SIM_ABILITY_LEADERSHIP : kind == SIM_COMMAND_CONSCRIPT ? SIM_ABILITY_CHARM :
-                                  kind == SIM_COMMAND_TRAIN ? SIM_ABILITY_FORCE : SIM_ABILITY_INTELLECT;
+                                  kind == SIM_COMMAND_TRAIN ? SIM_ABILITY_FORCE : kind == SIM_COMMAND_MERCHANT ? SIM_ABILITY_POLITICS :
+                                  SIM_ABILITY_INTELLECT;
             sim_city_order order = sim_ai_city_order(city, sim_ai_best_officer(sim, city, ability, SIM_NO_OFFICER));
+            if (kind == SIM_COMMAND_MERCHANT)
+            {
+                /* The AI buys grain with the gold that it does not need (the play test of 2026-11-06). */
+                order.mode   = SIM_MERCHANT_BUY;
+                order.amount = sim_ai_grain_gold(sim, city, &order);                if (!order.amount) return command;
+            }
             if (kind == SIM_COMMAND_PRODUCE)
             {
                 u32 lowest = 0xFFFFFFFFu;
@@ -268,15 +410,48 @@ sim_ai_command_for(sim_state *sim, city_component *city, ai_priority *row)
             /* M15: no march on a city in the first months of the game (knowledge/ai.md: the AI armies
                arrive 5 to 6 months after the start; assumed, Q-185). Only the defence does not wait. */
             if (row->condition != AI_ENEMY_NEAR && sim_ai_months_played(sim) < rules->ai_attack_after_months) return command;
-            u8 pike = content_find_unit_type(&sim->content, "pike");
-            if (pike == CONTENT_NO_UNIT_TYPE || city->troops <= rules->ai_sortie_reserve) return command;
-            sim_sortie_order order = sim_sortie_proposal(sim, city->city_id, pike);
+            if (city->troops <= rules->ai_sortie_reserve) return command;
+            /* The row "defend" sends a unit only while the enemy units near the city outnumber its own
+               units near it. Else the sword units of one city take each command of the turn
+               (the play test of 2026-11-06; assumed, Q-185). */
+            if (row->condition == AI_ENEMY_NEAR && sim_ai_defenders(sim, city, rules->ai_defend_hexes) >= sim_ai_attackers(sim, city)) return command;
+            /* The row "take_free" sends one unit: none while an own unit stands next to the city. */
+            if (row->condition == AI_FREE_CITY_NEAR && sim_ai_defenders(sim, city, rules->enemy_block_hexes) > 0) return command;
+            u32 wanted = Minimum(rules->ai_sortie_soldiers, city->troops - rules->ai_sortie_reserve);
+            u32 armed  = 0;
+            u8 type = sim_ai_sortie_type(sim, city, wanted, &armed);
+            if (type == CONTENT_NO_UNIT_TYPE) return command;
+            sim_sortie_order order = sim_sortie_proposal(sim, city->city_id, type);
             order.officers[1] = order.officers[2] = SIM_NO_OFFICER;   /* one officer: the others stay to govern */
-            order.soldiers = Minimum(Minimum(order.soldiers, rules->ai_sortie_soldiers), city->troops - rules->ai_sortie_reserve);
-            order.grain    = Minimum(order.grain, city->food);
+            order.soldiers = Minimum(order.soldiers, armed);
+            order.grain    = Minimum(order.soldiers * rules->sortie_grain_per_soldier, city->food);   /* G2-044: the grain of the preset */
             order.gold     = 0;
             if (sim_check_sortie(sim, &order, false).refusal != SIM_REFUSAL_NONE) return command;
             command.kind   = SIM_COMMAND_SORTIE;
+            command.sortie = order;
+            return command;
+        }
+        case SIM_COMMAND_TRANSPORT:
+        {
+            /* A city with no target sends its soldiers above ai.sortie_reserve to the nearest own
+               city on a front (the play test of 2026-11-06; assumed, Q-185). */
+            sim_rules *rules = &sim->content.rules;
+            if (city->troops <= rules->ai_sortie_reserve) return command;
+            u8 front = sim_ai_front_city(sim, city);
+            u8 type = CONTENT_NO_UNIT_TYPE;
+            for (u32 index = 0; index < sim->content.unit_type_count && type == CONTENT_NO_UNIT_TYPE; ++index)
+            {
+                if (sim->content.unit_types[index].transport) type = (u8)index;
+            }
+            if (front == SIM_NO_CITY || type == CONTENT_NO_UNIT_TYPE) return command;
+            sim_sortie_order order = sim_sortie_proposal(sim, city->city_id, type);
+            order.officers[1] = order.officers[2] = SIM_NO_OFFICER;
+            order.destination = front;
+            order.soldiers    = Minimum(city->troops - rules->ai_sortie_reserve, sim_officer_soldier_cap(sim, sim_find_officer(sim, order.officers[0])));
+            order.grain       = Minimum(order.soldiers * rules->sortie_grain_per_soldier, city->food / 2);
+            order.gold        = 0;
+            if (sim_check_sortie(sim, &order, true).refusal != SIM_REFUSAL_NONE) return command;
+            command.kind   = SIM_COMMAND_TRANSPORT;
             command.sortie = order;
             return command;
         }
@@ -310,7 +485,8 @@ sim_ai_allowed(sim_command_kind kind, u32 flags)
         case SIM_COMMAND_PRODUCE:   return (flags & CORPS_FLAG_PRODUCE) != 0;
         case SIM_COMMAND_CONSCRIPT: return (flags & CORPS_FLAG_CONSCRIPT) != 0;
         case SIM_COMMAND_RECRUIT:   return (flags & CORPS_FLAG_RECRUIT) != 0;
-        case SIM_COMMAND_SORTIE:    return (flags & CORPS_FLAG_ATTACK) != 0;
+        case SIM_COMMAND_SORTIE:
+        case SIM_COMMAND_TRANSPORT: return (flags & CORPS_FLAG_ATTACK) != 0;
         case SIM_COMMAND_DEVELOP:
         case SIM_COMMAND_RESEARCH:  return (flags & CORPS_FLAG_SAVE_GOLD) == 0;
         default:                    return true;
@@ -523,8 +699,10 @@ sim_ai_unit_goals(sim_state *sim, u32 unit_id, sim_ai_choice *choices)
         }
         else if (sim_at_war(sim, unit->force_id, city->owner_force_id))
         {
-            /* E7: the target of a historical event comes before each other city at war. */
+            /* E7: the target of a historical event comes before each other city at war. A city with
+               fewer soldiers than the unit adds ai.weak_city_bonus (the play test of 2026-11-06; assumed, Q-185). */
             u32 bonus = city->city_id == history_target ? (u32)SIM_AI_DISTANCE_SCALE + 1 : 0;
+            if (city->troops < unit->soldiers) bonus += rules->ai_weak_city_bonus;
             sim_ai_keep(choices + AI_GOAL_ATTACK_CITY, city->city_id, hex, sim_ai_distance_score(bonus, distance));
         }
     }
@@ -588,6 +766,13 @@ sim_ai_units(sim_state *sim, u8 force, sim_ai_record *record, sim_event_sink *ev
     {
         sim_unit *unit = sim->units + unit_id;
         if (!unit->alive || unit->force_id != force || unit->aid_turns || !sim_unit_type(sim, unit->unit_type) || unit->acted_turn == sim->turn + 1) continue;
+        /* An AI transport marches to its city and fights nobody (the row reinforce). */
+        if (sim_unit_type(sim, unit->unit_type)->transport)
+        {
+            if (unit->destination != SIM_NO_CITY && unit->moved_turn != sim->turn + 1 &&
+                sim_ai_march(sim, unit_id, sim_travel_base_hex(sim, unit->destination), events)) issued++;
+            continue;
+        }
         sim_ai_choice choices[AI_GOAL_COUNT];
         sim_ai_unit_goals(sim, unit_id, choices);
         u32 best = AI_GOAL_COUNT;
