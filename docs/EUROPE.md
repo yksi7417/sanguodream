@@ -873,7 +873,10 @@ the tier of a ruler. The aptitudes and the skill follow the role.
 1. The research: three agents wrote one candidate table for each group of
    factions, west, central and east. docs/europe/E9-CANDIDATES.tsv joins
    the tables. Each row gives the years, the faction, the city of each
-   map, the family link, the role, the two sources and a short life.
+   map, the family link, the role, the two sources and a short life. The
+   first research of 2026-11-07 found 219 people. Nobody checked the
+   sources to the rule yet. docs/europe/E9-RESEARCH.md gives the counts,
+   the limits and the decisions.
 2. The review: the player reads the table and answers the questions
    below. A row with the confidence "low" waits for the review.
 3. The stage e9_officers adds the accepted rows to the officers.tsv of
@@ -976,7 +979,7 @@ wikipedia: 3, 4, 19, 22, 33, 35, 38, 57, 78 and 82.
 | E6 | The authorities of the church and the two caliphs | Q-E2, Q-E9 and Q-E10, answered | done, with the devout officers |
 | E7 | The story mode and the events during the game | no | done, with the rows of the sees from E6 |
 | E8 | The west map and the east map, with Antioch on the east map | no | done. The east map has 17 factions |
-| E9 | The next generation of officers for the three packs | Q-E11 to Q-E13 | research started 2026-11-07 |
+| E9 | The next generation of officers for the three packs | Q-E11 to Q-E13 | 219 candidates found 2026-11-07; the check of the sources and the review are next |
 
 ## The stage runs
 misc/run_stages.py runs the stages as headless Claude Code sessions, in
