@@ -151,6 +151,82 @@ sim_ai_target_city(sim_state *sim, u8 force, hex_coord from, u32 max_distance)
     return best;
 }
 
+/* The play run of 2026-11-07: an AI city that always took the first
+   effect that it can build filled its slots with markets. It had no barracks,
+   and it never conscripted. The city now builds toward the targets
+   ai.develop_*: the template of a delegated corps in knowledge/ai.md
+   (3 markets, 3 farms, 1 barracks, 1 smithy). */
+#define SIM_AI_DEVELOP_CHOICES 4
+
+/* The slots of the city with a facility of the effect, built or in work. */
+internal u32
+sim_ai_facilities_with(sim_state *sim, u8 city_id, facility_effect effect)
+{
+    u32 count = 0;
+    sim_city_site *site = sim->sites + city_id;
+    for (u32 slot = 0; slot < site->slot_count; ++slot)
+    {
+        u8 facility = site->slots[slot].facility;
+        if (site->slots[slot].state == SIM_SLOT_EMPTY || facility >= sim->content.facility_count) continue;
+        if (sim->content.facilities[facility].effect == effect) count++;
+    }
+    return count;
+}
+
+/* True if the grain of the city feeds the soldiers for ai.grain_turns turns. */
+internal b32
+sim_ai_grain_lasts(sim_state *sim, city_component *city, u32 soldiers)
+{
+    sim_rules *rules = &sim->content.rules;
+    u64 per_turn = rules->grain_soldiers ? soldiers / rules->grain_soldiers : 0;
+    return (u64)city->food >= per_turn * rules->ai_grain_turns;
+}
+
+/* The effects that the city builds, the first choice first. A city that
+   is short of grain builds grain first. First one
+   facility of each effect, then the effect with the largest gap to its
+   target. After the targets, the fewer of gold and grain. */
+internal u32
+sim_ai_develop_order(sim_state *sim, u8 city_id, facility_effect *order)
+{
+    sim_rules *rules = &sim->content.rules;
+    static const facility_effect effects[SIM_AI_DEVELOP_CHOICES] = { FACILITY_EFFECT_GOLD, FACILITY_EFFECT_CONSCRIPTION, FACILITY_EFFECT_GRAIN, FACILITY_EFFECT_WEAPONS };
+    u32 targets[SIM_AI_DEVELOP_CHOICES] = { rules->ai_develop_gold, rules->ai_develop_conscription, rules->ai_develop_grain, rules->ai_develop_weapons };
+    s32 gap[SIM_AI_DEVELOP_CHOICES];
+    for (u32 index = 0; index < SIM_AI_DEVELOP_CHOICES; ++index)
+    {
+        u32 have = sim_ai_facilities_with(sim, city_id, effects[index]);
+        gap[index] = (s32)targets[index] - (s32)have;
+        /* A missing effect goes before every gap. */
+        if (targets[index] && !have) gap[index] += 0x10000;
+    }
+    b32 used[SIM_AI_DEVELOP_CHOICES] = {};
+    u32 count = 0;
+    city_component *city = sim_find_city(sim, city_id);
+    if (city && !sim_ai_grain_lasts(sim, city, city->troops))
+    {
+        used[2] = true;   /* index 2 is grain */
+        order[count++] = FACILITY_EFFECT_GRAIN;
+    }
+    for (u32 pick = 0; pick < SIM_AI_DEVELOP_CHOICES; ++pick)
+    {
+        u32 best = SIM_AI_DEVELOP_CHOICES;
+        for (u32 index = 0; index < SIM_AI_DEVELOP_CHOICES; ++index)
+        {
+            if (used[index] || gap[index] <= 0) continue;
+            if (best == SIM_AI_DEVELOP_CHOICES || gap[index] > gap[best]) best = index;
+        }
+        if (best == SIM_AI_DEVELOP_CHOICES) break;
+        used[best] = true;
+        order[count++] = effects[best];
+    }
+    if (count) return count;
+    b32 grain_first = sim_ai_facilities_with(sim, city_id, FACILITY_EFFECT_GRAIN) < sim_ai_facilities_with(sim, city_id, FACILITY_EFFECT_GOLD);
+    order[count++] = grain_first ? FACILITY_EFFECT_GRAIN : FACILITY_EFFECT_GOLD;
+    order[count++] = grain_first ? FACILITY_EFFECT_GOLD : FACILITY_EFFECT_GRAIN;
+    return count;
+}
+
 /* The command of a row for the city, or kind SIM_COMMAND_NONE if none fits. */
 internal sim_command
 sim_ai_command_for(sim_state *sim, city_component *city, ai_priority *row)
@@ -182,20 +258,24 @@ sim_ai_command_for(sim_state *sim, city_component *city, ai_priority *row)
                 if (lowest == 0xFFFFFFFFu) return command;
                 order.weapon = command.city.weapon;
             }
-            if (sim_check_city_command(sim, kind, &order).refusal != SIM_REFUSAL_NONE) return command;
+            sim_check check = sim_check_city_command(sim, kind, &order);
+            if (check.refusal != SIM_REFUSAL_NONE) return command;
+            /* The play run of 2026-11-07: the AI conscripted soldiers that its grain did not feed, and they deserted. */
+            if (kind == SIM_COMMAND_CONSCRIPT && !sim_ai_grain_lasts(sim, city, city->troops + check.quantity)) return command;
             command.kind = kind;
             command.city = order;
             return command;
         }
         case SIM_COMMAND_DEVELOP:
         {
-            static const facility_effect wanted[] = { FACILITY_EFFECT_GOLD, FACILITY_EFFECT_GRAIN, FACILITY_EFFECT_CONSCRIPTION, FACILITY_EFFECT_WEAPONS };
             sim_develop_order order = {};
             order.city_id     = city->city_id;
             order.slot        = SIM_ANY_SLOT;
             order.officers[0] = sim_ai_best_officer(sim, city, SIM_ABILITY_POLITICS, SIM_NO_OFFICER);
             order.officers[1] = order.officers[2] = SIM_NO_OFFICER;
-            for (u32 want = 0; want < ArrayCount(wanted); ++want)
+            facility_effect wanted[SIM_AI_DEVELOP_CHOICES];
+            u32 wanted_count = sim_ai_develop_order(sim, city->city_id, wanted);
+            for (u32 want = 0; want < wanted_count; ++want)
             {
                 for (u32 facility = 0; facility < sim->content.facility_count; ++facility)
                 {
@@ -676,7 +756,7 @@ sim_run_ai_faction(sim_state *sim, u8 force, u32 cause, sim_event_sink *events)
     u32 budget = Maximum(1u, sim_percent_of(sim->content.rules.ai_commands, percent[Minimum((u32)sim->settings.difficulty, (u32)DIFFICULTY_COUNT - 1)]));
     sim_ai_record *record = sim_ai_record_start(sim, force);
     sim_plan first;
-    u32 issued = sim_ai_run_plan(sim, force, 0xFF, CORPS_FLAG_ALL, budget, record, &first, events);
+    u32 issued = sim_ai_run_plan(sim, force, 0xFF, CORPS_FLAG_FREE_HAND, budget, record, &first, events);
     issued += sim_ai_units(sim, force, record, events);
     sim_ai_authority(sim, force, events);   /* E6: the crown and the interdict */
     sim_ai_record_unchosen(record, &first);

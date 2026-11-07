@@ -205,7 +205,7 @@ engine_api_ai_plan(void *opaque, u8 force_id)
     sim_plan plan_memory;
     sim_plan *plan = &plan_memory;
     plan->count = 0;
-    if (force_id < SIM_FORCE_CAPACITY) sim_plan_faction(sim, force_id, SIM_NO_CITY, 0xFF, CORPS_FLAG_ALL, plan);
+    if (force_id < SIM_FORCE_CAPACITY) sim_plan_faction(sim, force_id, SIM_NO_CITY, 0xFF, CORPS_FLAG_FREE_HAND, plan);
     engine_plan_view view = engine_plan_view_of(sim, plan, SIM_REFUSAL_NONE);
     return view;
 }

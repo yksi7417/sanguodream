@@ -495,6 +495,10 @@ enum sim_corps_flag
     CORPS_FLAG_ATTACK    = 1 << 5,   /* 攻擊 */
     CORPS_FLAG_TRANSPORT = 1 << 6,   /* 輸送物資 */
     CORPS_FLAG_ALL       = 0x7F,
+    /* The planner of a faction of the computer, of the adviser and of the
+       council: all the work and no saving. The two "save" flags stop the
+       development and the research (the play run of 2026-11-07). */
+    CORPS_FLAG_FREE_HAND = CORPS_FLAG_ALL & ~(CORPS_FLAG_SAVE_GOLD | CORPS_FLAG_SAVE_GRAIN),
 };
 
 struct sim_corps_order

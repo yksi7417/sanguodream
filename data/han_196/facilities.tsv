@@ -4,11 +4,12 @@ id	key	name_zh	cost	durability	min_days	period_status	effect	value	value_status	
 # min_days: the shortest period. documented for the 10 base facilities (guide book p.23); assumed for the PK facilities (the manual gives no period).
 # effect: gold (income each month), grain (income each season), mint, granary, conscription, weapons, horses, siege, ships, technique, action_points, personnel, plot, diplomacy, military, drill, grain_by_soldiers.
 # value: gold each month or grain each season of one level-1 facility. All values are assumed (Q-021); the ratios of the PK markets are documented (manual p.29).
+# This pack: the market 75 and the farm 1125 of knowledge/city-economy.md, and the PK markets at the documented ratios. With 50 and 250 the cities fed no armies (the play run of 2026-11-07).
 # limit: none, city (one in each city), big_city (one, big city only), port_city (one, city with a port), territory (one in the whole territory).
 # adjacency_bonus: yes if an adjacent mint or granary gives 1.5 times the value (documented, cities-and-facilities.md).
 # merge: yes if the PK merge can raise the level to 2 (1.2 times) and 3 (1.5 times): market, farm, barracks, smithy, stable (documented, manual p.28).
-0	market	市場	200	500	20	documented	gold	50	assumed	none	no	yes	no	no	yes
-1	farm	農場	200	500	20	documented	grain	250	assumed	none	no	yes	no	no	yes
+0	market	市場	200	500	20	documented	gold	75	assumed	none	no	yes	no	no	yes
+1	farm	農場	200	500	20	documented	grain	1125	assumed	none	no	yes	no	no	yes
 2	barracks	兵舍	300	800	30	documented	conscription	0	none	none	no	no	no	no	yes
 3	smithy	鍛冶廠	300	800	30	documented	weapons	0	none	none	no	no	no	no	yes
 4	stable	廄舍	300	800	30	documented	horses	0	none	none	no	no	no	no	yes
@@ -20,10 +21,10 @@ id	key	name_zh	cost	durability	min_days	period_status	effect	value	value_status	
 10	tally_office	符節台	200	450	30	assumed	action_points	0	none	city	no	no	no	yes	no
 11	personnel_office	人材府	200	450	30	assumed	personnel	0	none	city	no	no	no	yes	no
 12	plot_office	計略府	200	450	30	assumed	plot	0	none	city	no	no	no	yes	no
-13	great_market	大市場	400	750	30	assumed	gold	150	assumed	big_city	no	no	no	yes	no
-14	black_market	黑市	50	200	20	assumed	gold	40	assumed	none	no	no	yes	yes	no
+13	great_market	大市場	400	750	30	assumed	gold	225	assumed	big_city	no	no	no	yes	no
+14	black_market	黑市	50	200	20	assumed	gold	60	assumed	none	no	no	yes	yes	no
 15	diplomacy_office	外交府	200	450	30	assumed	diplomacy	0	none	city	no	no	no	yes	no
 16	military_office	軍事府	200	450	30	assumed	military	0	none	city	no	no	no	yes	no
 17	drill_ground	鍊兵所	200	450	30	assumed	drill	0	none	city	no	no	no	yes	no
-18	fish_market	魚市	400	750	30	assumed	gold	100	assumed	port_city	no	no	no	yes	no
+18	fish_market	魚市	400	750	30	assumed	gold	150	assumed	port_city	no	no	no	yes	no
 19	military_farm	軍屯農	400	750	30	assumed	grain_by_soldiers	100	assumed	city	no	no	no	yes	no

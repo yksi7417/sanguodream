@@ -162,6 +162,11 @@ feature_authority_month_tests(test_counts *counts)
 {
     engine_fixture w;
     feature_authority_start(&w, FEATURE_AUTHORITY_WEST);
+    /* The AI builds and patrols, and these commands also give technique points (the play run
+       of 2026-11-07). The AI is off, so that only the rule of the seats gives points. */
+    engine_settings quiet = w.api.settings(w.api.engine);
+    quiet.ai = false;
+    w.api.set_settings(w.api.engine, quiet);
     u32 gain = feature_authority_month_gain(&w.api, FEATURE_AUTHORITY_PAPACY);
     TEST_CHECK(counts, gain >= FEATURE_AUTHORITY_TECHNIQUE, "west: the owner of Rome gains the technique points of the monthly rule");
     TEST_CHECK(counts, feature_authority_month_gain(&w.api, FEATURE_AUTHORITY_FRANCE) < FEATURE_AUTHORITY_TECHNIQUE,

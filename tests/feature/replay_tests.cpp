@@ -30,7 +30,8 @@ global_variable const feature_replay_expected feature_replay_ceilings[] =
        the date of the save and marks the units of acted leaders as acted.
        The AI factions then pick other commands, and the counts of the
        economy pairs moved (334 to 345, 177 to 186, 190 to 198, 185 to 190). */
-    { "economy-turn", 1, 353 },   /* the AI factions pick other commands (M15); the envoys travel (G2-063); the rules of the run of 2026-10-22 */
+    { "economy-turn", 1, 359 },   /* the AI factions pick other commands (M15); the envoys travel (G2-063); the rules of the run of 2026-10-22.
+                                     The play run of 2026-11-07: no open debate blocks the AI now, and it conscripts in two cities */
     /* Measured on 2026-10-20: the pairs of the driven run of 孫堅 in 長沙 (spec 7b606e1). */
     { "conscript",    2, 2 },     /* troops +650 for +1383 (Q-153), public order -5 for -8 (Q-152) */
     { "develop",      2, 3 },     /* the original gives the merit of 開發 at the end of the build (Q-220) */

@@ -165,7 +165,7 @@ sim_advice(sim_state *sim, u8 force, sim_plan *plan)
     plan->count = 0;
     officer_component *adviser = force < SIM_FORCE_CAPACITY ? sim_find_officer(sim, sim->adviser[force]) : 0;
     if (!adviser || !sim_officer_is_active(adviser) || adviser->force_id != force) return 0;
-    sim_plan_faction(sim, force, SIM_NO_CITY, 0xFF, CORPS_FLAG_ALL, plan);
+    sim_plan_faction(sim, force, SIM_NO_CITY, 0xFF, CORPS_FLAG_FREE_HAND, plan);
     u32 shown = Maximum(1u, adviser->intelligence / Maximum(sim->content.rules.advice_per_intellect, 1u));
     if (plan->count > shown) plan->count = shown;
     return plan->count;
@@ -181,7 +181,7 @@ sim_council_plan(sim_state *sim, u8 force, u8 city_id, sim_plan *plan)
     if (!city || city->owner_force_id != force) return SIM_REFUSAL_NO_CITY;
     officer_component *ruler = sim_find_officer(sim, sim_force_ruler(sim, force));
     if (!ruler || ruler->current_position != city_id) return SIM_REFUSAL_RULER_ABSENT;
-    sim_plan_faction(sim, force, city_id, 0xFF, CORPS_FLAG_ALL, plan);
+    sim_plan_faction(sim, force, city_id, 0xFF, CORPS_FLAG_FREE_HAND, plan);
     return SIM_REFUSAL_NONE;
 }
 

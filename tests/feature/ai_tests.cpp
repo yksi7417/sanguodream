@@ -224,10 +224,11 @@ feature_ai_free_city_tests(test_counts *counts)
         engine_ai_option *goal = feature_ai_option(&explain, AI_GOAL_TAKE_FREE_CITY, ENGINE_NO_UNIT, true);
         aimed |= goal && goal->city_id == target;
         engine_ai_option *take = feature_ai_key(&explain, "take_free");
-        took_out |= take && take->kind == SIM_COMMAND_SORTIE && take->city_id == home;
+        /* The play run of 2026-11-07: the AI now builds, and the officer of home can be busy. Another city of the faction can send the unit. */
+        took_out |= take && take->kind == SIM_COMMAND_SORTIE && take->city_id < SAVE_CITY_COUNT && api->city_at(e, take->city_id).owner_force_id == force;
         turns++;
     }
-    TEST_CHECK(counts, took_out, "given a free city within 30 hexes, the AI sends a unit out of its city (row take_free, priority 65)");
+    TEST_CHECK(counts, took_out, "given a free city within 30 hexes, the AI sends a unit out of one of its cities (row take_free, priority 65)");
     u8 owner = api->city_at(e, target).owner_force_id;
     sim_event captured = {};
     TEST_CHECK(counts, owner != ENGINE_NO_FACTION && owner != human && feature_find_city_event(api, target, SIM_EVENT_BASE_CAPTURED, mark, &captured),
@@ -426,6 +427,82 @@ feature_ai_grain_tests(test_counts *counts)
     engine_fixture_destroy(&setup.fixture);
 }
 
+/* ---- the play of the AI alone on a pack (the play run of 2026-11-07) ------------- */
+
+#define FEATURE_AI_PLAY_YEARS        3
+#define FEATURE_AI_PLAY_TROOP_FLOOR  100  /* the percent of the start troops that the AI keeps after the years. Farm 250: approximately 67 */
+#define FEATURE_AI_PLAY_SORTIES      20
+#define FEATURE_AI_PLAY_RUIN_LIMIT   130  /* the facilities that the disasters destroy in the years, at the most. Patrol below 70: approximately 190 */   /* the units that the AI factions send out in the years, at the least */
+
+/* The soldiers of all factions in their cities and in their units. */
+internal u64
+feature_all_troops(engine_api *api)
+{
+    u64 troops = 0;
+    for (u32 index = 0; index < api->faction_count(api->engine); ++index) troops += api->faction_at(api->engine, index).troops;
+    for (u32 index = 0; index < api->unit_count(api->engine); ++index) troops += api->unit_at(api->engine, index).soldiers;
+    return troops;
+}
+
+/* The play run of 2026-11-07 let the AI play han_196 alone for 15 years. The
+   AI built nothing and conscripted nothing, and the troops fell to almost 0.
+   The faction planner had the flag 儲存金錢 (CORPS_FLAG_ALL), so it never
+   proposed a development. A debate of an AI recruiter stayed open, and it
+   refused the commands of each later faction (SIM_REFUSAL_BUSY). */
+internal void
+feature_ai_pack_play_tests(test_counts *counts)
+{
+    engine_fixture f;
+    feature_world_map_init(&f, HEXDOM_DATA_ROOT "/han_196");
+    engine_api *api = &f.api;
+    void *e = api->engine;
+    TEST_CHECK(counts, api->load_scenario(e, api->scenario_at(e, 0).file).status == ENGINE_LOAD_OK, "the scenario of 196 loads");
+    engine_settings settings = api->settings(e);
+    settings.ai        = true;
+    settings.disasters = true;   /* the bandits destroyed the facilities of the AI in the play run */
+    api->set_settings(e, settings);
+    u8 holders[SIM_FORCE_CAPACITY] = {};
+    for (u32 index = 0; index < api->faction_count(e); ++index)
+    {
+        engine_faction faction = api->faction_at(e, index);
+        api->set_faction_human(e, faction.force_id, false);
+        if (faction.city_count && faction.force_id < SIM_FORCE_CAPACITY) holders[faction.force_id] = 1;
+    }
+    u64 start_troops = feature_all_troops(api);
+    u32 mark = api->ledger_count(e);
+    u32 start_year = api->date(e).year;
+    for (u32 guard = 0; guard < FEATURE_AI_PLAY_YEARS * 36 * 4 && api->date(e).year < start_year + FEATURE_AI_PLAY_YEARS; ++guard) api->end_turn(e);
+
+    u32 developed[SIM_FORCE_CAPACITY] = {};
+    u32 conscripted = 0, open_debates = 0, busy_turns = 0, sorties = 0, ruined = 0;
+    for (u32 index = mark; index < api->ledger_count(e); ++index)
+    {
+        sim_event event = api->ledger_at(e, index);
+        if (event.kind == SIM_EVENT_DEBATE_STARTED) open_debates++;
+        if (event.kind == SIM_EVENT_DEBATE_ENDED && open_debates) open_debates--;
+        if (event.kind == SIM_EVENT_AI_PLANNED && open_debates) busy_turns++;
+        if (event.kind == SIM_EVENT_DEVELOP_STARTED && event.faction < SIM_FORCE_CAPACITY) developed[event.faction]++;
+        if (event.kind == SIM_EVENT_CONSCRIPTED) conscripted++;
+        if (event.kind == SIM_EVENT_UNIT_SORTIED) sorties++;
+        if (event.kind == SIM_EVENT_FACILITY_DESTROYED) ruined++;
+    }
+    u32 holders_without_build = 0;
+    for (u32 force = 0; force < SIM_FORCE_CAPACITY; ++force) if (holders[force] && !developed[force]) holders_without_build++;
+    TEST_CHECK(counts, busy_turns == 0, "no AI faction starts its turn while a debate of another faction is open");
+    TEST_CHECK(counts, holders_without_build == 0, "each AI faction that holds a city starts a development in the first years");
+    TEST_CHECK(counts, conscripted > 0, "the AI factions conscript after they build barracks");
+    TEST_CHECK(counts, sorties >= FEATURE_AI_PLAY_SORTIES, "the AI factions send units out after ai.attack_after_months");
+    TEST_CHECK(counts, ruined <= FEATURE_AI_PLAY_RUIN_LIMIT,
+               "the AI patrols up to order 90, above order.bandit_threshold 80, so few bandits destroy its facilities");
+    printf("  the AI play: %u sorties, %u conscriptions, %u facilities destroyed, troops %llu of %llu\n", sorties, conscripted, ruined,
+           (unsigned long long)feature_all_troops(api), (unsigned long long)start_troops);
+    TEST_CHECK(counts, feature_all_troops(api) * 100 >= start_troops * FEATURE_AI_PLAY_TROOP_FLOOR,
+               "the AI factions keep their start troops after the years: the grain feeds them (farm 1125, knowledge/city-economy.md)");
+    if (feature_all_troops(api) * 100 < start_troops * FEATURE_AI_PLAY_TROOP_FLOOR)
+        printf("  the troops fell from %llu to %llu\n", (unsigned long long)start_troops, (unsigned long long)feature_all_troops(api));
+    engine_fixture_destroy(&f);
+}
+
 internal void
 feature_ai_tests(test_counts *counts)
 {
@@ -434,4 +511,5 @@ feature_ai_tests(test_counts *counts)
     feature_ai_march_tests(counts);
     feature_ai_defend_tests(counts);
     feature_ai_grain_tests(counts);
+    feature_ai_pack_play_tests(counts);
 }

@@ -52,9 +52,29 @@ ai_priorities.tsv for each city of the faction:
 2. The command must pass its own check. Thus no proposal costs more gold
    or points than the faction has.
 3. The score is the priority plus an urgency of up to ai.urgency. For
-   example, public order 35 under a threshold of 70 gives half the
+   example, public order 45 under a threshold of 90 gives half the
    urgency.
 4. The proposals go in the order of their scores.
+
+The faction itself, the adviser and the council use the flags
+CORPS_FLAG_FREE_HAND. These flags allow each command and save nothing.
+CORPS_FLAG_ALL also holds 儲存金錢 and 儲存兵糧, and with these flags the
+planner never develops or researches.
+
+The row develop builds toward the targets ai.develop_gold,
+ai.develop_grain, ai.develop_conscription and ai.develop_weapons:
+1. If the grain of the city feeds its soldiers for less than
+   ai.grain_turns turns, a grain facility goes first.
+2. Then the city builds one facility of each effect that it does not have.
+3. Then the city builds the effect with the largest gap to its target.
+4. After the targets, the city builds the fewer of gold and grain.
+
+The row conscript also needs the grain for ai.grain_turns turns of the
+soldiers after the conscription. Without it, the new soldiers desert.
+
+A debate of a recruit, a search or an envoy of the computer runs to its
+end without a pause. An open debate refuses the commands of each later faction
+with SIM_REFUSAL_BUSY. The test command start_debate keeps its debate open.
 
 On its turn a faction runs the best proposal, plans again, and stops after
 ai.commands commands. Then each unit attacks an adjacent enemy, or moves

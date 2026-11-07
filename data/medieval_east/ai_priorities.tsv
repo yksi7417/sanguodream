@@ -1,7 +1,8 @@
 id	key	command	priority	condition	threshold	status
 # The priority table of the AI planner (knowledge/ai.md: a small set of options each turn). One row for each kind of proposal.
 # The planner proposes a command of the row when its condition holds; a higher priority goes first; urgency adds up to 20. All numbers are assumed (Q-185).
-0	patrol	patrol	60	order_below	70	assumed
+# patrol: below 90, above order.bandit_threshold (80). Bandits start below 80 and end at 80. A patrol below 70 left them in the city, and they destroyed its facilities (the play run of 2026-11-07).
+0	patrol	patrol	60	order_below	90	assumed
 1	conscript	conscript	55	troops_below_percent	50	assumed
 2	develop	develop	50	free_slot	0	assumed
 3	recruit	recruit	45	free_officer	0	assumed

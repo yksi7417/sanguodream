@@ -58,6 +58,12 @@ spec-src/spec/experiments/gap3-answers-2026-10-23.md and in the fixtures.
 | U-001 | The 3D map draws each field building of building_at with a placeholder model of its kind, in the colour of its owner. The kinds are a camp, a tower, a stage, a wall, a ring of stones and a trap. A trap without an owner is grey. A build in progress is a scaffold with the smaller, dimmed model inside, as on a slot. The hover panel of a building gives its name, its owner and 耐久 current / maximum. | batch 8 | unit/render, feature/save_map, ui |
 | U-002 | A row of the list 設置 is grey when can_issue refuses the building on each hex next to the unit. The engine refuses a building without its technique, without the gold, or without a buildable hex. A building that the engine accepts shows on the 3D map (U-001). | batch 8 | ui |
 | U-003 | unit_at gives effective_type, the class that the unit fights with on its hex. On water a land unit fights as its ship. The list 戰法 of the unit menu follows effective_type. A unit on a 樓船 thus lists 火矢 and 猛撞, and a unit on a 鬥艦 also lists 投石. The tab 水上 of 部隊能力 in the sortie dialog lists the tactics of the ship. | batch 8 | feature/combat, ui |
+| U-005 | The planner of a computer faction, of the adviser and of the council uses CORPS_FLAG_FREE_HAND. CORPS_FLAG_ALL also holds 儲存金錢, and with it the AI never developed or researched. | batch 14 | feature/ai |
+| U-006 | A debate of a recruit, a search or an envoy of the computer runs to its end without a pause. The open debate refused the commands of each later faction with SIM_REFUSAL_BUSY, for up to five turns. | batch 14 | feature/ai |
+| U-007 | The row develop builds toward ai.develop_gold 3, ai.develop_grain 3, ai.develop_conscription 1 and ai.develop_weapons 1, the template of a delegated corps in knowledge/ai.md. The AI first builds one facility of each effect. Before, it filled each city with markets and never built a barracks, so it never conscripted. | batch 14 | feature/ai |
+| U-008 | The row patrol of ai_priorities.tsv fires below order 90, not 70. Bandits start below order.bandit_threshold 80 and end at 80. They stayed in the cities of the AI and destroyed its facilities. | batch 14 | feature/ai |
+| U-009 | The AI conscripts only when the grain of the city feeds the soldiers for ai.grain_turns 18 turns. A city with less grain builds a farm first. Before, the new soldiers deserted for want of grain. | batch 14 | feature/ai |
+| U-010 | The pack han_196 gives a market 75 gold and a farm 1125 grain, as knowledge/city-economy.md says. The PK markets keep their documented ratios. With 50 and 250, a city fed approximately 6000 soldiers, and the AI needs 15000 for a sortie. | batch 14 | feature/ai |
 
 | a unit passes through own units (2026-10-24) | A unit of the same force blocked the hex like an enemy, so it cut the range. A unit now passes through an own unit and keeps its full movement. It cannot stop on that hex. A unit of another force still blocks its hex, and its zone of control still stops the move. | batch 13 | feature/march |
 | a failed tactic still hits (2026-10-24) | A failed tactic did no damage, because the clone stopped after the failure. It is now a normal attack on the target with less damage than the tactic (combat.tactic_fail_percent 100, assumed). It has no effect and gives no technique points, and the target answers it. The log line names the tactic and says 成功 or 失敗，改為普通攻擊. The lines after it name the units that lost soldiers. | batch 12 | feature/combat, ui |
@@ -73,6 +79,9 @@ spec-src/spec/experiments/gap3-answers-2026-10-23.md and in the fixtures.
   above). The next play report decides the next batch.
 - Batch 8 closes U-001 to U-003 of spec-src/spec/ui/play-reports.md.
   U-004 waits on Q-233.
+- Batch 14 closes U-005 to U-010. A headless game of the AI alone on
+  han_196 found them (the play run of 2026-11-07). U-011 and U-012 stay
+  open: the AI misses salaries, and the war is slow.
 
 ## Questions for the observer
 

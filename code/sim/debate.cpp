@@ -189,10 +189,21 @@ sim_begin_debate(sim_state *sim, u16 officer_a, u16 officer_b, u8 purpose, sim_c
     }
     /* M9: 單挑・舌戰 not manual: the computer plays the exchanges of a human faction;
        automatic also takes the first result choice. */
-    if (force < SIM_FORCE_CAPACITY && sim->turns.human[force] && sim->settings.duel_mode != DUEL_MODE_MANUAL)
+    b32 human = force < SIM_FORCE_CAPACITY && sim->turns.human[force];
+    if (human && sim->settings.duel_mode != DUEL_MODE_MANUAL)
     {
         sim_debate_auto(sim, cause, events);
         if (sim->settings.duel_mode == DUEL_MODE_AUTO && debate->active && debate->finished) sim_debate_close(sim, 0, cause, events);
+    }
+    /* The play run of 2026-11-07: the debate of a recruit, a search or an envoy
+       of the computer runs to its end without a pause, as a duel of two computer
+       officers does. An open debate refuses the commands of the other
+       factions (SIM_REFUSAL_BUSY). The test command start_debate keeps its
+       debate open for the steps of the tests. */
+    if (!human && purpose != DEBATE_FOR_NOTHING && debate->active)
+    {
+        sim_debate_auto(sim, cause, events);
+        if (debate->active && debate->finished) sim_debate_close(sim, 0, cause, events);
     }
 }
 
