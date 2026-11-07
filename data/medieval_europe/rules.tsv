@@ -281,6 +281,7 @@ ai.salary_months	3	assumed	the months of salaries that an AI city keeps: it give
 ai.attack_troop_percent	100	assumed	the AI marches only on a city whose troops are at most this percent of the strength of the force near it: the units that its cities within ai.target_hexes can send and its units there; a target of history is exempt (U-012, the play run of 2026-11-07; Q-185)
 ai.alliance_friendliness	60	assumed	the AI asks a neighbour at war for 同盟 at this friendliness or more, if another enemy stands near it (diplomacy.md: the AI keeps an alliance while the ally is not its only neighbour; U-015; Q-185)
 ai.alliance_chance	35	assumed	the AI asks for 同盟 only with this chance in percent or more (U-015; Q-185)
+ai.alliance_min_months	12	assumed	the AI ends no alliance younger than these months (U-015; Q-185)
 lifespan.long_years	10	assumed	壽命 長: the years that an officer lives after the death year of the historical setting (game-setup-and-modes.md; Q-187)
 new_officer.max	8	documented	game-setup-and-modes.md: at most 8 new officers join one game
 new_officer.high	85	assumed	the ability of a new officer that the type marks high (guide book p.52; Q-188)

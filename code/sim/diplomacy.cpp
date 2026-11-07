@@ -87,7 +87,9 @@ sim_set_relation(sim_state *sim, u8 a, u8 b, u8 relation, u32 months, u32 cause,
     sim_emit(events, event);
 }
 
-/* Each month a ceasefire counts down; at 0 the factions fight again. */
+/* Each month a ceasefire counts down; at 0 the factions fight again. An
+   alliance counts its age up to 255 months (U-015: the AI keeps a young
+   alliance). */
 internal void
 sim_run_diplomacy_month(sim_state *sim, u32 cause, sim_event_sink *events)
 {
@@ -95,8 +97,13 @@ sim_run_diplomacy_month(sim_state *sim, u32 cause, sim_event_sink *events)
     {
         for (u32 b = a + 1; b < SIM_DIPLOMACY_FORCES; ++b)
         {
-            if (sim->diplomacy.relation[a][b] != RELATION_CEASEFIRE) continue;
             u8 months = sim->diplomacy.months[a][b];
+            if (sim->diplomacy.relation[a][b] == RELATION_ALLIANCE && months < 255)
+            {
+                sim->diplomacy.months[a][b] = sim->diplomacy.months[b][a] = (u8)(months + 1);
+                continue;
+            }
+            if (sim->diplomacy.relation[a][b] != RELATION_CEASEFIRE) continue;
             if (months > 1)
             {
                 sim->diplomacy.months[a][b] = sim->diplomacy.months[b][a] = (u8)(months - 1);

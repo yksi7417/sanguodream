@@ -13,7 +13,7 @@ of 196.
 |---|---|
 | The map | misc/make_world_map.py from NOAA ETOPO 2022 heights and Natural Earth vectors. Both are public domain. The rivers follow the widths of the placeholder map (docs/MAPS.md, "The rivers"). 30% of the land is relief cliff, and armies cross the ranges in valleys and at gates (docs/MAPS.md, "The mountains and the bases"). |
 | The 42 cities, 10 passes and 35 ports | The places of the novel Romance of the Three Kingdoms (public domain), in map/source/sites.tsv. See "The names of the places". The pack chose the list. |
-| The 20 factions and 161 officers | The history of 196, from the Records of the Three Kingdoms (public domain). |
+| The 20 factions and 193 officers | The history of 196, from the Records of the Three Kingdoms (public domain). 32 of the officers come of age after 196 and appear as free officers. |
 | The abilities | The tiers of scenarios/y196/source/officers.tsv and the rubric of misc/make_tier_officers.py. |
 | The lives | lore/en.tsv. The pack wrote each life in its own words. |
 | The troops, gold and food of the cities | A design of the pack, in scenarios/y196/cities.tsv. |

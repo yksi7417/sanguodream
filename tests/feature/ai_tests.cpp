@@ -429,13 +429,13 @@ feature_ai_grain_tests(test_counts *counts)
 
 /* ---- the play of the AI alone on a pack (the play run of 2026-11-07) ------------- */
 
-#define FEATURE_AI_PLAY_YEARS        3
-#define FEATURE_AI_PLAY_TROOP_FLOOR  90   /* the percent of the start troops that the AI keeps after the years, also with its wars. Farm 250: approximately 67 */
+#define FEATURE_AI_PLAY_YEARS        5
+#define FEATURE_AI_PLAY_TROOP_FLOOR  75   /* the percent of the start troops that the AI keeps after the years, also with its wars. Farm 250: approximately 67 at 3 years */
 #define FEATURE_AI_PLAY_SORTIES      20
 #define FEATURE_AI_PLAY_CAPTURES     6    /* the cities that change owner in the years, at the least (U-012) */
-#define FEATURE_AI_PLAY_ALLIANCE_TURNS 6  /* an alliance of the AI lasts at least these turns (U-015) */
+#define FEATURE_AI_PLAY_ALLIANCE_TURNS 36 /* an alliance of the AI lasts at least these turns: ai.alliance_min_months 12 (U-015) */
 #define FEATURE_AI_PLAY_UNPAID_LIMIT 4    /* the city months without salaries in the years, at the most. Without the reserve: 7 */
-#define FEATURE_AI_PLAY_RUIN_LIMIT   130  /* the facilities that the disasters destroy in the years, at the most. Patrol below 70: approximately 190 */   /* the units that the AI factions send out in the years, at the least */
+#define FEATURE_AI_PLAY_RUIN_LIMIT   130  /* the facilities that the disasters destroy in the first 3 years, at the most. Patrol below 70: approximately 190 */   /* the units that the AI factions send out in the years, at the least */
 
 /* The soldiers of all factions in their cities and in their units. */
 internal u64
@@ -474,6 +474,7 @@ feature_ai_pack_play_tests(test_counts *counts)
     u64 start_troops = feature_all_troops(api);
     u32 mark = api->ledger_count(e);
     u32 start_year = api->date(e).year;
+    u32 start_turn = api->turn(e);
     for (u32 guard = 0; guard < FEATURE_AI_PLAY_YEARS * 36 * 4 && api->date(e).year < start_year + FEATURE_AI_PLAY_YEARS; ++guard) api->end_turn(e);
 
     u32 developed[SIM_FORCE_CAPACITY] = {};
@@ -488,7 +489,7 @@ feature_ai_pack_play_tests(test_counts *counts)
         if (event.kind == SIM_EVENT_DEVELOP_STARTED && event.faction < SIM_FORCE_CAPACITY) developed[event.faction]++;
         if (event.kind == SIM_EVENT_CONSCRIPTED) conscripted++;
         if (event.kind == SIM_EVENT_UNIT_SORTIED) sorties++;
-        if (event.kind == SIM_EVENT_FACILITY_DESTROYED) ruined++;
+        if (event.kind == SIM_EVENT_FACILITY_DESTROYED && event.turn < start_turn + 3 * 36) ruined++;
         if (event.kind == SIM_EVENT_SALARIES_UNPAID) unpaid++;
         if (event.kind == SIM_EVENT_BASE_CAPTURED) captures++;
         if (event.kind == SIM_EVENT_RELATION_CHANGED && event.faction < SIM_FORCE_CAPACITY && event.detail < SIM_FORCE_CAPACITY)

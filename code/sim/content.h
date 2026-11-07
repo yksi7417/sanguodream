@@ -864,7 +864,7 @@ struct sim_rules
     u32 ai_grain_turns;
     u32 ai_salary_months;
     u32 ai_attack_troop_percent;
-    u32 ai_alliance_friendliness, ai_alliance_chance;   /* the AI asks for an alliance at this friendliness and chance (U-015) */  /* the most troops of a target city, in percent of the soldiers of the AI unit (U-012) */       /* the months of salaries that an AI city keeps before it spends gold (U-011) */         /* the turns of grain that an AI city keeps for its soldiers (the play run of 2026-11-07) */
+    u32 ai_alliance_friendliness, ai_alliance_chance, ai_alliance_min_months;   /* the AI asks for an alliance at this friendliness and chance (U-015) */  /* the most troops of a target city, in percent of the soldiers of the AI unit (U-012) */       /* the months of salaries that an AI city keeps before it spends gold (U-011) */         /* the turns of grain that an AI city keeps for its soldiers (the play run of 2026-11-07) */
     /* M9 */
     u32 lifespan_long_years, new_officer_max, new_officer_high, new_officer_normal, new_officer_low;
     u32 train_ap, train_turns, ability_research_ap, ability_research_gold, scenario_public_order;

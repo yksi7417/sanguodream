@@ -957,7 +957,7 @@ struct engine_diplomacy
     u32 friendliness;               /* 0 .. 100 */
     u32 level;                      /* 0 險惡 .. 4 親密 */
     u8  relation;                   /* sim_relation */
-    u32 months;                     /* a ceasefire */
+    u32 months;                     /* a ceasefire: the months left; an alliance: its age in months (U-015) */
 };
 
 struct engine_duel_side

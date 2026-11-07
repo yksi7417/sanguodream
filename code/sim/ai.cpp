@@ -384,6 +384,7 @@ sim_ai_break_order(sim_state *sim, city_component *city, sim_court_order *order)
             city_component *other = sim->cities.data + index;
             u8 owner = other->owner_force_id;
             if (owner >= SIM_DIPLOMACY_FORCES || owner == force || sim_relation(sim, force, owner) != RELATION_ALLIANCE) continue;
+            if (sim->diplomacy.months[force][owner] < sim->content.rules.ai_alliance_min_months) continue;
             if ((u32)hex_distance(sim->sites[own->city_id].hex, sim->sites[other->city_id].hex) > sim->content.rules.ai_target_hexes) continue;
             if (sim_ai_envoy_on_road(sim, force, owner, SIM_DIPLOMACY_BREAK)) return false;
             order->kind  = SIM_DIPLOMACY_BREAK;

@@ -90,7 +90,7 @@ within ai.target_hexes of one of its cities. Diplomacy follows them:
   ai.alliance_friendliness and a chance of ai.alliance_chance, if the
   ally also has another neighbour;
 - the row break ends an alliance with a near ally when the force has no
-  neighbour at war;
+  neighbour at war, and the alliance is ai.alliance_min_months old;
 - the AI sends no second envoy of one kind to one faction while the
   first is on the road.
 
