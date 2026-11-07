@@ -798,6 +798,100 @@ The notes of the result:
 data/medieval_europe stays as the prototype. Its feature test and its
 saves do not change.
 
+## E9. The next generation of officers
+This section is the plan to add the people who come of age after 1200 to
+the three packs of 1200. It starts the content work of U-013 in
+spec-src/spec/ui/play-reports.md.
+
+### The problem
+The packs list almost nobody who was born after 1180. The officers die
+over the years, and nobody takes their place. A game of the AI alone
+measured the active officers of each pack (misc driver of the play run,
+seed 1, 2026-11-07):
+
+| Pack | 1200 | 1205 | 1210 | 1215 | 1220 | 1225 | 1230 |
+|---|---|---|---|---|---|---|---|
+| medieval_west | 73 | 68 | 57 | 48 | 40 | 28 | 19 |
+| medieval_east | 58 | 56 | 49 | 36 | 28 | 19 | 15 |
+| medieval_europe | 94 | 78 | 73 | 69 | 55 | 37 | 27 |
+
+Each pack has 42 cities. After 1220 most cities have no officer. A city
+without an officer cannot patrol, and bandits destroy its facilities
+(U-014). The pack han_196 had the same gap, and 32 officers of the next
+generation closed it (batch 18).
+
+### The goal
+- Each pack of 1200 keeps 42 active officers or more after 30 years of a
+  game of the AI alone. The target is 60.
+- Each new officer is a historical person with an English Wikipedia
+  article and a second published source (see "The sources").
+- The person was born between approximately 1170 and 1225. The first
+  notable act of the person is in 1201 or later.
+- The three packs share one key for each person, as in E8.
+
+### The kinds of people
+1. The heirs and the children of the rulers of 1200, for example the
+   sons of Philip II, of al-Adil and of Kaykhusraw I.
+2. The generals, the admirals, the ministers and the regents of the next
+   generation.
+3. The churchmen: bishops, abbots, the founders and the first brothers of
+   the new orders. Most of them are devout (Q-E10).
+4. The scholars, the poets and the troubadours who served a court.
+5. The women who ruled or were regents. The setting 女武將 controls them.
+
+### How a new officer enters the game
+- An officer who appears after 1200 has the status free and the force
+  "-". The loader refuses a force for such an officer. The column appear
+  gives the year of the first notable act. The column city gives the city
+  of that act.
+- At the month start of the year of appearance, the officer stands free
+  in the city. The owner of the city can recruit the officer. The AI does
+  this with the row recruit (tutorial 20).
+- An heir or another family member also gets a row in history.tsv. The
+  row joins the officer to the faction of the family:
+  `date_from:YYYY/1;free:@heir;ruler:@parent` and
+  `join:@heir:100:MERIT`. If the family lost the city or the ruler, the
+  officer stays free, and any owner can recruit the officer.
+- The life goes in lore/en.tsv, the URL in the column wikipedia, the
+  native name in name_native and name_latin, and the column devout
+  follows Q-E10.
+
+### The abilities
+The abilities are a design of the pack, as for the officers of 1200. The
+research gives a role for each person. The stage turns the role and the
+life into five tiers, S to F. The values of the tiers are those of
+misc/make_tier_officers.py:
+
+| S | A | B | C | D | E | F |
+|---|---|---|---|---|---|---|
+| 95 | 86 | 76 | 65 | 52 | 38 | 25 |
+
+A ruler of later years keeps
+the tier of a ruler. The aptitudes and the skill follow the role.
+
+### The work
+1. The research: three agents wrote one candidate table for each group of
+   factions, west, central and east. docs/europe/E9-CANDIDATES.tsv joins
+   the tables. Each row gives the years, the faction, the city of each
+   map, the family link, the role, the two sources and a short life.
+2. The review: the player reads the table and answers the questions
+   below. A row with the confidence "low" waits for the review.
+3. The stage e9_officers adds the accepted rows to the officers.tsv of
+   each pack that has the faction. It writes the lives, the links and the
+   join rows. It runs misc/make_scenario.py for each scenario.
+4. The test: a feature test plays 30 years of each pack of 1200 with the
+   AI alone. It checks the goal above. The test fails first.
+5. The play run measures the table of "The problem" again.
+
+### The open points of E9
+- Q-E11. The heirs. Must an heir join the family by a row of history.tsv,
+  or must the heir stay free for any owner of the city? The plan proposes
+  the join row.
+- Q-E12. The last year. Must the table include people who first act
+  after 1245? The packs have no scenario after 1200.
+- Q-E13. The count. Is one officer for each city after 30 years
+  sufficient, or must the packs reach the target of 60?
+
 ## The sources
 The player likes the lectures of Dr. Roy Casagranda. The plan uses them as
 a source of ideas and of the frame of the story. The plan does not copy
@@ -882,6 +976,7 @@ wikipedia: 3, 4, 19, 22, 33, 35, 38, 57, 78 and 82.
 | E6 | The authorities of the church and the two caliphs | Q-E2, Q-E9 and Q-E10, answered | done, with the devout officers |
 | E7 | The story mode and the events during the game | no | done, with the rows of the sees from E6 |
 | E8 | The west map and the east map, with Antioch on the east map | no | done. The east map has 17 factions |
+| E9 | The next generation of officers for the three packs | Q-E11 to Q-E13 | research started 2026-11-07 |
 
 ## The stage runs
 misc/run_stages.py runs the stages as headless Claude Code sessions, in
@@ -1029,3 +1124,4 @@ merges the work of the first in its rebase.
   image. The Three Kingdoms packs have no column, so they do not change.
   The rule does not compare the church of an officer with the church of
   the seat.
+- Q-E11, Q-E12 and Q-E13 are in E9, "The open points of E9".

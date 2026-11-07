@@ -8,3 +8,4 @@ e8_maps	-	two new packs, data/placeholder/scenarios.tsv, build_web.bat, world_ma
 e8_factions	-	the six new factions of medieval_east, Tbilisi for Bologna, docs/europe/arms.tsv and ARMS.md. The work of e8_maps is on master
 e7_story	e8_factions	both edit officers.tsv of medieval_east, and the events need the owners of Acre and Antioch
 e6_church	e7_story	adds the parts of the sees to the rows of history.tsv of e7_story. Q-E2 answered on 2026-10-29
+e9_officers	-	the accepted rows of docs/europe/E9-CANDIDATES.tsv: officers.tsv, lore/en.tsv and history.tsv of the three packs of 1200. Waits for the review of the player (Q-E11 to Q-E13)
