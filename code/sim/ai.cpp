@@ -397,6 +397,37 @@ sim_ai_allowed(sim_command_kind kind, u32 flags)
     }
 }
 
+/* The gold that the command of a proposal spends from its city, by the
+   check of the command. 0 for a command without gold. */
+internal u32
+sim_ai_command_gold(sim_state *sim, sim_command *command)
+{
+    switch (command->kind)
+    {
+        case SIM_COMMAND_PATROL:
+        case SIM_COMMAND_CONSCRIPT:
+        case SIM_COMMAND_TRAIN:
+        case SIM_COMMAND_PRODUCE:   return sim_check_city_command(sim, command->kind, &command->city).gold;
+        case SIM_COMMAND_DEVELOP:   return sim_check_develop(sim, &command->develop).gold;
+        case SIM_COMMAND_RESEARCH:  return sim_check_research(sim, &command->research).gold;
+        case SIM_COMMAND_RECRUIT:
+        case SIM_COMMAND_REWARD:    return sim_check_court(sim, command->kind, &command->court).gold;
+        case SIM_COMMAND_DIPLOMACY: return sim_check_diplomacy(sim, &command->court).gold;
+        default:                    return 0;
+    }
+}
+
+/* U-011 (the play run of 2026-11-07): the AI spent its gold on facilities,
+   missed the salaries, and its officers left. A city keeps the salaries of
+   ai.salary_months months. The defence of the city does not wait. */
+internal b32
+sim_ai_keeps_salaries(sim_state *sim, city_component *city, ai_priority *row, sim_command *command)
+{
+    if (row->condition == AI_ENEMY_NEAR) return true;
+    u64 reserve = (u64)sim_city_salaries(sim, city) * sim->content.rules.ai_salary_months;
+    return (u64)city->gold >= reserve + sim_ai_command_gold(sim, command);
+}
+
 /* The proposals for the cities of a force: all of them, one city, or the
    cities of one corps. Sorted by score, the highest first. */
 internal void
@@ -419,6 +450,7 @@ sim_plan_faction(sim_state *sim, u8 force, u8 city_filter, u8 corps_filter, u32 
             if (!sim_ai_condition(sim, city, priority, &urgency)) continue;
             sim_command command = sim_ai_command_for(sim, city, priority);
             if (command.kind == SIM_COMMAND_NONE || plan->count >= SIM_PLAN_CAPACITY) continue;
+            if (!sim_ai_keeps_salaries(sim, city, priority, &command)) continue;
             sim_proposal proposal = {};
             proposal.command = command;
             proposal.score   = priority->priority + Minimum(urgency, rules->ai_urgency);

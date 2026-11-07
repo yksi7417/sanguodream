@@ -69,6 +69,9 @@ ai.develop_grain, ai.develop_conscription and ai.develop_weapons:
 3. Then the city builds the effect with the largest gap to its target.
 4. After the targets, the city builds the fewer of gold and grain.
 
+Each city keeps the salaries of ai.salary_months months. The planner
+drops a proposal that spends this gold, except the defence of the city.
+
 The row conscript also needs the grain for ai.grain_turns turns of the
 soldiers after the conscription. Without it, the new soldiers desert.
 

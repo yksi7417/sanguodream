@@ -861,7 +861,8 @@ struct sim_rules
     u32 ai_urgency, ai_sortie_soldiers, ai_sortie_reserve, ai_goodwill_gold, ai_commands, corps_ap_divisor;
     u32 ai_target_hexes, ai_free_city_bonus, ai_defend_bonus, ai_defend_hexes, ai_march_hexes, ai_grain_margin_turns, ai_resupply_score, ai_attack_after_months;   /* M15 */
     u32 ai_develop_gold, ai_develop_grain, ai_develop_conscription, ai_develop_weapons;   /* the build targets of an AI city (the play run of 2026-11-07) */
-    u32 ai_grain_turns;         /* the turns of grain that an AI city keeps for its soldiers (the play run of 2026-11-07) */
+    u32 ai_grain_turns;
+    u32 ai_salary_months;       /* the months of salaries that an AI city keeps before it spends gold (U-011) */         /* the turns of grain that an AI city keeps for its soldiers (the play run of 2026-11-07) */
     /* M9 */
     u32 lifespan_long_years, new_officer_max, new_officer_high, new_officer_normal, new_officer_low;
     u32 train_ap, train_turns, ability_research_ap, ability_research_gold, scenario_public_order;

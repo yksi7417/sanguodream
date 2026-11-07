@@ -64,6 +64,7 @@ spec-src/spec/experiments/gap3-answers-2026-10-23.md and in the fixtures.
 | U-008 | The row patrol of ai_priorities.tsv fires below order 90, not 70. Bandits start below order.bandit_threshold 80 and end at 80. They stayed in the cities of the AI and destroyed its facilities. | batch 14 | feature/ai |
 | U-009 | The AI conscripts only when the grain of the city feeds the soldiers for ai.grain_turns 18 turns. A city with less grain builds a farm first. Before, the new soldiers deserted for want of grain. | batch 14 | feature/ai |
 | U-010 | The pack han_196 gives a market 75 gold and a farm 1125 grain, as knowledge/city-economy.md says. The PK markets keep their documented ratios. With 50 and 250, a city fed approximately 6000 soldiers, and the AI needs 15000 for a sortie. | batch 14 | feature/ai |
+| U-011 | The planner of the AI keeps the salaries of ai.salary_months 3 months in each city. It drops a proposal that spends that gold. The defence of a city does not wait. The row reward has priority 52, above develop. In 15 years the unpaid city months fell from 195 to 75, and the officers that left from 78 to 29. | batch 15 | feature/ai |
 
 | a unit passes through own units (2026-10-24) | A unit of the same force blocked the hex like an enemy, so it cut the range. A unit now passes through an own unit and keeps its full movement. It cannot stop on that hex. A unit of another force still blocks its hex, and its zone of control still stops the move. | batch 13 | feature/march |
 | a failed tactic still hits (2026-10-24) | A failed tactic did no damage, because the clone stopped after the failure. It is now a normal attack on the target with less damage than the tactic (combat.tactic_fail_percent 100, assumed). It has no effect and gives no technique points, and the target answers it. The log line names the tactic and says 成功 or 失敗，改為普通攻擊. The lines after it name the units that lost soldiers. | batch 12 | feature/combat, ui |
@@ -80,8 +81,8 @@ spec-src/spec/experiments/gap3-answers-2026-10-23.md and in the fixtures.
 - Batch 8 closes U-001 to U-003 of spec-src/spec/ui/play-reports.md.
   U-004 waits on Q-233.
 - Batch 14 closes U-005 to U-010. A headless game of the AI alone on
-  han_196 found them (the play run of 2026-11-07). U-011 and U-012 stay
-  open: the AI misses salaries, and the war is slow.
+  han_196 found them (the play run of 2026-11-07). Batch 15 closes U-011.
+  U-012 stays open: the war is slow.
 
 ## Questions for the observer
 
