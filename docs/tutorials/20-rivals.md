@@ -69,6 +69,19 @@ ai.develop_grain, ai.develop_conscription and ai.develop_weapons:
 3. Then the city builds the effect with the largest gap to its target.
 4. After the targets, the city builds the fewer of gold and grain.
 
+The row sortie marches on a city that the force can beat:
+1. The strength of the force near a city is the soldiers that its cities
+   within ai.target_hexes can send, and the soldiers of its units there.
+2. The force marches on the city only if the troops of the city are at
+   most ai.attack_troop_percent of that strength.
+3. Several cities thus send units to one target. A target of history and
+   a city without an owner need no strength.
+4. The unit takes the land type with the most weapons in its city.
+
+A city with a smithy and fewer weapons than soldiers saves the gold of
+one production before it develops, researches or sends an envoy. The
+row produce goes before the row conscript.
+
 Each city keeps the salaries of ai.salary_months months. The planner
 drops a proposal that spends this gold, except the defence of the city.
 

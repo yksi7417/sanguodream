@@ -9,7 +9,7 @@ enemy.block_hexes	2	documented	calendar-and-turn.md, manual p.9
 adjacency.percent	150	documented	cities-and-facilities.md (1.5 times)
 city.gold_cap	100000	documented	manual p.25
 city.grain_cap	1000000	documented	manual p.25
-city.gold_income	100	assumed	Q-021: the initial gold income of a city
+city.gold_income	600	assumed	Q-021: the initial gold income of a city. This pack: 600, near the remainder of 590 to 680 in fixtures/city-income.tsv after the markets (U-012)
 city.grain_income	500	assumed	Q-021: the initial grain income of a city
 officer.salary	10	assumed	Q-027: the gold of one officer each month
 grain.soldiers	40	observed	calendar-and-turn.md, fixtures/grain-consumption.tsv: one grain each turn for 40 soldiers (26 cities of session 1; units use the same rate, assumed)
@@ -276,8 +276,9 @@ ai.develop_gold	3	assumed	the gold facilities (市場) that an AI city builds fi
 ai.develop_grain	3	assumed	the grain facilities (農場) that an AI city builds first (knowledge/ai.md: a delegated corps keeps 3 farms; Q-185)
 ai.develop_conscription	1	assumed	the conscription facilities (兵舍) that an AI city builds first (knowledge/ai.md: a delegated corps keeps 1 barracks; Q-185)
 ai.develop_weapons	1	assumed	the weapon facilities (鍛冶廠) that an AI city builds first (knowledge/ai.md: a delegated corps keeps 1 smithy; Q-185)
-ai.grain_turns	18	assumed	the turns of grain that an AI city keeps for its soldiers: no conscription and farms first below it (knowledge/playability.md: troops eat grain also when they do not fight; Q-185)
+ai.grain_turns	36	assumed	the turns of grain (one year) that an AI city keeps for its soldiers: no conscription and farms first below it (knowledge/playability.md: troops eat grain also when they do not fight; Q-185)
 ai.salary_months	3	assumed	the months of salaries that an AI city keeps: it gives no command that spends this gold (U-011, the play run of 2026-11-07; Q-185)
+ai.attack_troop_percent	100	assumed	the AI marches only on a city whose troops are at most this percent of the strength of the force near it: the units that its cities within ai.target_hexes can send and its units there; a target of history is exempt (U-012, the play run of 2026-11-07; Q-185)
 lifespan.long_years	10	assumed	壽命 長: the years that an officer lives after the death year of the historical setting (game-setup-and-modes.md; Q-187)
 new_officer.max	8	documented	game-setup-and-modes.md: at most 8 new officers join one game
 new_officer.high	85	assumed	the ability of a new officer that the type marks high (guide book p.52; Q-188)

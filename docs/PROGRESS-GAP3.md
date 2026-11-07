@@ -65,6 +65,7 @@ spec-src/spec/experiments/gap3-answers-2026-10-23.md and in the fixtures.
 | U-009 | The AI conscripts only when the grain of the city feeds the soldiers for ai.grain_turns 18 turns. A city with less grain builds a farm first. Before, the new soldiers deserted for want of grain. | batch 14 | feature/ai |
 | U-010 | The pack han_196 gives a market 75 gold and a farm 1125 grain, as knowledge/city-economy.md says. The PK markets keep their documented ratios. With 50 and 250, a city fed approximately 6000 soldiers, and the AI needs 15000 for a sortie. | batch 14 | feature/ai |
 | U-011 | The planner of the AI keeps the salaries of ai.salary_months 3 months in each city. It drops a proposal that spends that gold. The defence of a city does not wait. The row reward has priority 52, above develop. In 15 years the unpaid city months fell from 195 to 75, and the officers that left from 78 to 29. | batch 15 | feature/ai |
+| U-012 | The row sortie and the goals of the units march only on a city whose troops are at most ai.attack_troop_percent 100 of the strength of the force near it. That strength counts the units that its near cities can send and its units in the field. A sortie takes the land type with the most weapons. The row produce has priority 56 and the row sortie 45. A city with a smithy and too few weapons saves the gold of one production. The smithy comes before the farm. ai.grain_turns is 36. The packs han_196, medieval_west, medieval_east and medieval_europe give a city 600 gold each month. In 15 years of han_196, the captures rose from approximately 24 to 32 to 53, and the weapon productions from 2 to approximately 500. | batch 16 | unit/playable, feature/ai |
 
 | a unit passes through own units (2026-10-24) | A unit of the same force blocked the hex like an enemy, so it cut the range. A unit now passes through an own unit and keeps its full movement. It cannot stop on that hex. A unit of another force still blocks its hex, and its zone of control still stops the move. | batch 13 | feature/march |
 | a failed tactic still hits (2026-10-24) | A failed tactic did no damage, because the clone stopped after the failure. It is now a normal attack on the target with less damage than the tactic (combat.tactic_fail_percent 100, assumed). It has no effect and gives no technique points, and the target answers it. The log line names the tactic and says 成功 or 失敗，改為普通攻擊. The lines after it name the units that lost soldiers. | batch 12 | feature/combat, ui |
@@ -81,8 +82,11 @@ spec-src/spec/experiments/gap3-answers-2026-10-23.md and in the fixtures.
 - Batch 8 closes U-001 to U-003 of spec-src/spec/ui/play-reports.md.
   U-004 waits on Q-233.
 - Batch 14 closes U-005 to U-010. A headless game of the AI alone on
-  han_196 found them (the play run of 2026-11-07). Batch 15 closes U-011.
-  U-012 stays open: the war is slow.
+  han_196 found them (the play run of 2026-11-07). Batch 15 closes U-011, and batch 16 closes U-012.
+- U-013 and U-014 are open. The packs have few officers, and few of them
+  appear after the start. After 15 years, han_196 has 91 officers for
+  42 cities, and medieval_east has 37. A city without an officer cannot
+  patrol, and bandits destroy its facilities.
 
 ## Questions for the observer
 

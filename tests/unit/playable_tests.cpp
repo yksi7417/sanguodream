@@ -290,10 +290,18 @@ unit_history_target_ai_tests(test_counts *counts, memory_arena *arena)
     sim->units[0].alive = true;
     sim->units[0].force_id = 3;
     sim->units[0].hex = sim->sites[4].hex;
+    sim->units[0].soldiers = 10000;   /* U-012: the AI marches only on a city that its strength near it beats */
+    sim->content.rules.ai_attack_troop_percent = 100;
+    sim->content.rules.ai_target_hexes = 40;           /* the unit counts for the strength near each of the two cities */
     sim_ai_choice choices[AI_GOAL_COUNT];
     sim_ai_unit_goals(sim, 0, choices);
     TEST_CHECK(counts, choices[AI_GOAL_ATTACK_CITY].found && choices[AI_GOAL_ATTACK_CITY].city_id == 9,
                "without a target, the unit goes for the nearest city at war");
+    sim_find_city(sim, 9)->troops = 20000;
+    sim_ai_unit_goals(sim, 0, choices);
+    TEST_CHECK(counts, !choices[AI_GOAL_ATTACK_CITY].found || choices[AI_GOAL_ATTACK_CITY].city_id != 9,
+               "U-012: a city with more troops than the strength of the force near it is no goal of the unit");
+    sim_find_city(sim, 9)->troops = 4000;
     TEST_CHECK(counts, unit_history_fire(sim, arena, "target:@4:34:6", 3), "the target row loads");
     sim_ai_unit_goals(sim, 0, choices);
     TEST_CHECK(counts, choices[AI_GOAL_ATTACK_CITY].found && choices[AI_GOAL_ATTACK_CITY].city_id == 34,

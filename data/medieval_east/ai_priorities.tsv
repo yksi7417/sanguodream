@@ -3,14 +3,15 @@ id	key	command	priority	condition	threshold	status
 # The planner proposes a command of the row when its condition holds; a higher priority goes first; urgency adds up to 20. All numbers are assumed (Q-185).
 # patrol: below 90, above order.bandit_threshold (80). Bandits start below 80 and end at 80. A patrol below 70 left them in the city, and they destroyed its facilities (the play run of 2026-11-07).
 # reward: 52, above develop. At 30 the gold went to the facilities, and the officers left (U-011).
+# produce: 56, above conscript, while the weapons are fewer than the soldiers. sortie: 45. A soldier without a weapon cannot march (U-012).
 0	patrol	patrol	60	order_below	90	assumed
 1	conscript	conscript	55	troops_below_percent	50	assumed
 2	develop	develop	50	free_slot	0	assumed
 3	recruit	recruit	45	free_officer	0	assumed
 4	train	train	40	morale_below	70	assumed
-5	produce	produce	35	weapons_below_troops	0	assumed
+5	produce	produce	56	weapons_below_troops	0	assumed
 6	reward	reward	52	loyalty_below	70	assumed
-7	sortie	sortie	25	troops_above	15000	assumed
+7	sortie	sortie	45	troops_above	15000	assumed
 8	research	research	20	technique_above	1000	assumed
 9	goodwill	diplomacy	10	gold_above	8000	assumed
 10	defend	sortie	70	enemy_near	0	assumed

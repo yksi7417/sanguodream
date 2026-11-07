@@ -134,6 +134,66 @@ sim_ai_condition(sim_state *sim, city_component *city, ai_priority *row, u32 *ur
     }
 }
 
+/* U-012 (the play run of 2026-11-07): units of 2000 soldiers marched on
+   cities of 30000 and died on the way. The strength of a force near a
+   target: the soldiers that each own city within ai.target_hexes can send
+   (at most ai.sortie_soldiers above ai.sortie_reserve), and the soldiers
+   of its units within that distance. Several cities thus march on one
+   target, and the AI does not attack with one unit at a time
+   (knowledge/ai.md). */
+internal u64
+sim_ai_strength_near(sim_state *sim, u8 force, hex_coord target)
+{
+    sim_rules *rules = &sim->content.rules;
+    u64 strength = 0;
+    for (u32 index = 0; index < sim->cities.count; ++index)
+    {
+        city_component *city = sim->cities.data + index;
+        if (city->owner_force_id != force || city->troops <= rules->ai_sortie_reserve) continue;
+        if ((u32)hex_distance(sim->sites[city->city_id].hex, target) > rules->ai_target_hexes) continue;
+        strength += Minimum(rules->ai_sortie_soldiers, city->troops - rules->ai_sortie_reserve);
+    }
+    for (u32 unit_id = 0; unit_id < sim->unit_count; ++unit_id)
+    {
+        sim_unit *unit = sim->units + unit_id;
+        if (!unit->alive || unit->force_id != force) continue;
+        if ((u32)hex_distance(unit->hex, target) <= rules->ai_target_hexes) strength += unit->soldiers;
+    }
+    return strength;
+}
+
+/* True if the force marches on the city: its troops are at most
+   ai.attack_troop_percent of the strength of the force near it. A city
+   without an owner is always a target. */
+internal b32
+sim_ai_city_beatable(sim_state *sim, city_component *city, u8 force)
+{
+    if (city->owner_force_id == SIM_NO_FORCE) return true;
+    u64 strength = sim_ai_strength_near(sim, force, sim->sites[city->city_id].hex);
+    return (u64)city->troops * 100 <= strength * sim->content.rules.ai_attack_troop_percent;
+}
+
+/* The land unit type of a sortie: the type with the most weapons in the
+   city. Before U-012 the AI always took pikes, and a city with few pikes
+   sent a small unit. */
+internal u8
+sim_ai_sortie_type(sim_state *sim, city_component *city)
+{
+    static const char *keys[] = { "pike", "halberd", "crossbow", "cavalry" };
+    u8 best = CONTENT_NO_UNIT_TYPE;
+    u32 best_stock = 0;
+    for (u32 index = 0; index < ArrayCount(keys); ++index)
+    {
+        u8 type = content_find_unit_type(&sim->content, keys[index]);
+        if (type == CONTENT_NO_UNIT_TYPE) continue;
+        u8 weapon = sim->content.unit_types[type].weapon;
+        if (weapon >= sim->content.weapon_count) continue;
+        u32 stock = city->equipment_stocks[sim->content.weapons[weapon].stock];
+        if (best == CONTENT_NO_UNIT_TYPE || stock > best_stock) { best = type; best_stock = stock; }
+    }
+    return best;
+}
+
 /* The nearest hostile city of the force, or SIM_NO_CITY. M15: a city
    without an owner is a target too. */
 internal u8
@@ -145,6 +205,7 @@ sim_ai_target_city(sim_state *sim, u8 force, hex_coord from, u32 max_distance)
     {
         city_component *other = sim->cities.data + index;
         if (!sim_hostile(sim, force, other->owner_force_id)) continue;
+        if (!sim_ai_city_beatable(sim, other, force)) continue;
         s32 distance = hex_distance(sim->sites[other->city_id].hex, from);
         if ((u32)distance <= max_distance && distance < best_distance) { best = other->city_id; best_distance = distance; }
     }
@@ -190,8 +251,9 @@ internal u32
 sim_ai_develop_order(sim_state *sim, u8 city_id, facility_effect *order)
 {
     sim_rules *rules = &sim->content.rules;
-    static const facility_effect effects[SIM_AI_DEVELOP_CHOICES] = { FACILITY_EFFECT_GOLD, FACILITY_EFFECT_CONSCRIPTION, FACILITY_EFFECT_GRAIN, FACILITY_EFFECT_WEAPONS };
-    u32 targets[SIM_AI_DEVELOP_CHOICES] = { rules->ai_develop_gold, rules->ai_develop_conscription, rules->ai_develop_grain, rules->ai_develop_weapons };
+    /* U-012: the smithy before the farm. Without weapons the soldiers of the barracks cannot march. */
+    static const facility_effect effects[SIM_AI_DEVELOP_CHOICES] = { FACILITY_EFFECT_GOLD, FACILITY_EFFECT_CONSCRIPTION, FACILITY_EFFECT_WEAPONS, FACILITY_EFFECT_GRAIN };
+    u32 targets[SIM_AI_DEVELOP_CHOICES] = { rules->ai_develop_gold, rules->ai_develop_conscription, rules->ai_develop_weapons, rules->ai_develop_grain };
     s32 gap[SIM_AI_DEVELOP_CHOICES];
     for (u32 index = 0; index < SIM_AI_DEVELOP_CHOICES; ++index)
     {
@@ -205,7 +267,7 @@ sim_ai_develop_order(sim_state *sim, u8 city_id, facility_effect *order)
     city_component *city = sim_find_city(sim, city_id);
     if (city && !sim_ai_grain_lasts(sim, city, city->troops))
     {
-        used[2] = true;   /* index 2 is grain */
+        used[3] = true;   /* index 3 is grain */
         order[count++] = FACILITY_EFFECT_GRAIN;
     }
     for (u32 pick = 0; pick < SIM_AI_DEVELOP_CHOICES; ++pick)
@@ -348,9 +410,9 @@ sim_ai_command_for(sim_state *sim, city_component *city, ai_priority *row)
             /* M15: no march on a city in the first months of the game (knowledge/ai.md: the AI armies
                arrive 5 to 6 months after the start; assumed, Q-185). Only the defence does not wait. */
             if (row->condition != AI_ENEMY_NEAR && sim_ai_months_played(sim) < rules->ai_attack_after_months) return command;
-            u8 pike = content_find_unit_type(&sim->content, "pike");
-            if (pike == CONTENT_NO_UNIT_TYPE || city->troops <= rules->ai_sortie_reserve) return command;
-            sim_sortie_order order = sim_sortie_proposal(sim, city->city_id, pike);
+            u8 type = sim_ai_sortie_type(sim, city);
+            if (type == CONTENT_NO_UNIT_TYPE || city->troops <= rules->ai_sortie_reserve) return command;
+            sim_sortie_order order = sim_sortie_proposal(sim, city->city_id, type);
             order.officers[1] = order.officers[2] = SIM_NO_OFFICER;   /* one officer: the others stay to govern */
             order.soldiers = Minimum(Minimum(order.soldiers, rules->ai_sortie_soldiers), city->troops - rules->ai_sortie_reserve);
             order.grain    = Minimum(order.grain, city->food);
@@ -397,6 +459,20 @@ sim_ai_allowed(sim_command_kind kind, u32 flags)
     }
 }
 
+/* The lowest gold of one production of a weapon of the smithy. */
+internal u32
+sim_ai_weapon_cost(sim_state *sim)
+{
+    u32 lowest = 0;
+    for (u32 weapon = 0; weapon < sim->content.weapon_count; ++weapon)
+    {
+        weapon_kind *kind = sim->content.weapons + weapon;
+        if (kind->facility != FACILITY_EFFECT_WEAPONS || kind->max_days) continue;
+        if (!lowest || kind->cost < lowest) lowest = kind->cost;
+    }
+    return lowest;
+}
+
 /* The gold that the command of a proposal spends from its city, by the
    check of the command. 0 for a command without gold. */
 internal u32
@@ -425,6 +501,15 @@ sim_ai_keeps_salaries(sim_state *sim, city_component *city, ai_priority *row, si
 {
     if (row->condition == AI_ENEMY_NEAR) return true;
     u64 reserve = (u64)sim_city_salaries(sim, city) * sim->content.rules.ai_salary_months;
+    /* U-012: a city with a smithy and fewer weapons than soldiers saves the gold of one
+       production before it builds, researches or sends an envoy. */
+    b32 saves = command->kind == SIM_COMMAND_DEVELOP || command->kind == SIM_COMMAND_RESEARCH || command->kind == SIM_COMMAND_DIPLOMACY;
+    if (saves && sim_ai_facilities_with(sim, city->city_id, FACILITY_EFFECT_WEAPONS))
+    {
+        u32 weapons = 0;
+        for (u32 stock = 0; stock < 4; ++stock) weapons += city->equipment_stocks[stock];
+        if (weapons < city->troops) reserve += sim_ai_weapon_cost(sim);
+    }
     return (u64)city->gold >= reserve + sim_ai_command_gold(sim, command);
 }
 
@@ -637,6 +722,7 @@ sim_ai_unit_goals(sim_state *sim, u32 unit_id, sim_ai_choice *choices)
         {
             /* E7: the target of a historical event comes before each other city at war. */
             u32 bonus = city->city_id == history_target ? (u32)SIM_AI_DISTANCE_SCALE + 1 : 0;
+            if (!bonus && !sim_ai_city_beatable(sim, city, unit->force_id)) continue;
             sim_ai_keep(choices + AI_GOAL_ATTACK_CITY, city->city_id, hex, sim_ai_distance_score(bonus, distance));
         }
     }
