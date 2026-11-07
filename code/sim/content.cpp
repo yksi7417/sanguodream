@@ -472,6 +472,7 @@ global_variable content_rule_field content_rule_fields[] = {
     CONTENT_RULE("ai.develop_conscription", ai_develop_conscription), CONTENT_RULE("ai.develop_weapons", ai_develop_weapons),
     CONTENT_RULE("ai.grain_turns", ai_grain_turns), CONTENT_RULE("ai.salary_months", ai_salary_months),
     CONTENT_RULE("ai.attack_troop_percent", ai_attack_troop_percent),
+    CONTENT_RULE("ai.alliance_friendliness", ai_alliance_friendliness), CONTENT_RULE("ai.alliance_chance", ai_alliance_chance),
     CONTENT_RULE("lifespan.long_years", lifespan_long_years), CONTENT_RULE("new_officer.max", new_officer_max),
     CONTENT_RULE("new_officer.high", new_officer_high), CONTENT_RULE("new_officer.normal", new_officer_normal), CONTENT_RULE("new_officer.low", new_officer_low),
     CONTENT_RULE("train.ap", train_ap), CONTENT_RULE("train.turns", train_turns),

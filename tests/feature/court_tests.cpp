@@ -497,15 +497,28 @@ feature_diplomacy_tests(test_counts *counts, feature_city_setup *setup)
     feature_next_own_turn(api, setup->force);
     api->set_actions(e, setup->force, 255);
     api->set_technique_points(e, setup->force, 1000);
-    feature_take_officers(api, setup->city, envoys, 1);
+    u32 break_envoys = feature_take_officers(api, setup->city, envoys, 2);
     engine_court_order brk = feature_court_order(setup->city, envoys[0], ENGINE_NO_OFFICER);
     brk.force = other;
     brk.kind  = SIM_DIPLOMACY_BREAK;
     mark = api->ledger_count(e);
     result = api->command_court(e, ENGINE_COMMAND_DIPLOMACY, &brk);
+    /* U-015 (the play run of 2026-11-07): a second envoy of the same break, in the same turn. */
+    engine_court_order second_break = brk;
+    second_break.officer = envoys[1];
+    b32 second_sent = break_envoys == 2 && api->command_court(e, ENGINE_COMMAND_DIPLOMACY, &second_break).refusal == SIM_REFUSAL_NONE;
     TEST_CHECK(counts, result.refusal == SIM_REFUSAL_NONE && feature_wait_envoy(api, setup->force, mark) &&
-                       api->diplomacy(e, setup->force, other).relation == RELATION_NONE && api->technique_points(e, setup->force) == 1050,
-               "摒棄: at the arrival of the envoy the alliance ends, and the side that proposes it gains 50 technique points (tech-tree.md)");
+                       api->diplomacy(e, setup->force, other).relation == RELATION_NONE,
+               "摒棄: at the arrival of the envoy the alliance ends");
+    for (u32 turn = 0; turn < 36 && second_sent; ++turn) feature_next_own_turn(api, setup->force);
+    u32 relation_events = 0;
+    for (u32 index = mark; index < api->ledger_count(e); ++index)
+    {
+        sim_event event = api->ledger_at(e, index);
+        if (event.kind == SIM_EVENT_RELATION_CHANGED && event.faction == setup->force && event.detail == other) relation_events++;
+    }
+    TEST_CHECK(counts, second_sent && relation_events == 1 && api->technique_points(e, setup->force) == 1050,
+               "摒棄: the side that proposes it gains 50 technique points one time; the second envoy finds no alliance and does nothing (U-015)");
     api->set_actions(e, setup->force, 255);
     engine_court_order ceasefire = brk;
     ceasefire.kind   = SIM_DIPLOMACY_CEASEFIRE;

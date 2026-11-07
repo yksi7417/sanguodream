@@ -4,6 +4,7 @@ id	key	command	priority	condition	threshold	status
 # patrol: below 90, above order.bandit_threshold (80). Bandits start below 80 and end at 80. A patrol below 70 left them in the city, and they destroyed its facilities (the play run of 2026-11-07).
 # reward: 52, above develop. At 30 the gold went to the facilities, and the officers left (U-011).
 # produce: 56, above conscript, while the weapons are fewer than the soldiers. sortie: 45. A soldier without a weapon cannot march (U-012).
+# alliance: 同盟 with the friendliest neighbour at war, when another enemy stands near. break: 摒棄 with an allied neighbour when no enemy stands near (U-015).
 0	patrol	patrol	60	order_below	90	assumed
 1	conscript	conscript	55	troops_below_percent	50	assumed
 2	develop	develop	50	free_slot	0	assumed
@@ -16,3 +17,5 @@ id	key	command	priority	condition	threshold	status
 9	goodwill	diplomacy	10	gold_above	8000	assumed
 10	defend	sortie	70	enemy_near	0	assumed
 11	take_free	sortie	65	free_city_near	0	assumed
+12	alliance	diplomacy	15	gold_above	3000	assumed
+13	break	diplomacy	20	gold_above	0	assumed

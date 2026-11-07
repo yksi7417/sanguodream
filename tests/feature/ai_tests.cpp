@@ -433,6 +433,7 @@ feature_ai_grain_tests(test_counts *counts)
 #define FEATURE_AI_PLAY_TROOP_FLOOR  90   /* the percent of the start troops that the AI keeps after the years, also with its wars. Farm 250: approximately 67 */
 #define FEATURE_AI_PLAY_SORTIES      20
 #define FEATURE_AI_PLAY_CAPTURES     6    /* the cities that change owner in the years, at the least (U-012) */
+#define FEATURE_AI_PLAY_ALLIANCE_TURNS 6  /* an alliance of the AI lasts at least these turns (U-015) */
 #define FEATURE_AI_PLAY_UNPAID_LIMIT 4    /* the city months without salaries in the years, at the most. Without the reserve: 7 */
 #define FEATURE_AI_PLAY_RUIN_LIMIT   130  /* the facilities that the disasters destroy in the years, at the most. Patrol below 70: approximately 190 */   /* the units that the AI factions send out in the years, at the least */
 
@@ -476,7 +477,8 @@ feature_ai_pack_play_tests(test_counts *counts)
     for (u32 guard = 0; guard < FEATURE_AI_PLAY_YEARS * 36 * 4 && api->date(e).year < start_year + FEATURE_AI_PLAY_YEARS; ++guard) api->end_turn(e);
 
     u32 developed[SIM_FORCE_CAPACITY] = {};
-    u32 conscripted = 0, open_debates = 0, busy_turns = 0, sorties = 0, ruined = 0, unpaid = 0, captures = 0;
+    u32 conscripted = 0, open_debates = 0, busy_turns = 0, sorties = 0, ruined = 0, unpaid = 0, captures = 0, alliances = 0, short_alliances = 0;
+    u32 allied_turn[SIM_FORCE_CAPACITY][SIM_FORCE_CAPACITY] = {};
     for (u32 index = mark; index < api->ledger_count(e); ++index)
     {
         sim_event event = api->ledger_at(e, index);
@@ -489,6 +491,12 @@ feature_ai_pack_play_tests(test_counts *counts)
         if (event.kind == SIM_EVENT_FACILITY_DESTROYED) ruined++;
         if (event.kind == SIM_EVENT_SALARIES_UNPAID) unpaid++;
         if (event.kind == SIM_EVENT_BASE_CAPTURED) captures++;
+        if (event.kind == SIM_EVENT_RELATION_CHANGED && event.faction < SIM_FORCE_CAPACITY && event.detail < SIM_FORCE_CAPACITY)
+        {
+            u32 *since = &allied_turn[Minimum((u32)event.faction, event.detail)][Maximum((u32)event.faction, event.detail)];
+            if (event.delta == RELATION_ALLIANCE) { alliances++; *since = event.turn + 1; }
+            else if (event.delta == RELATION_NONE && *since && event.turn + 1 < *since + FEATURE_AI_PLAY_ALLIANCE_TURNS) short_alliances++;
+        }
     }
     u32 holders_without_build = 0;
     for (u32 force = 0; force < SIM_FORCE_CAPACITY; ++force) if (holders[force] && !developed[force]) holders_without_build++;
@@ -500,7 +508,9 @@ feature_ai_pack_play_tests(test_counts *counts)
                "the AI patrols up to order 90, above order.bandit_threshold 80, so few bandits destroy its facilities");
     TEST_CHECK(counts, unpaid <= FEATURE_AI_PLAY_UNPAID_LIMIT, "the AI keeps the salaries of ai.salary_months months before it spends gold (U-011)");
     TEST_CHECK(counts, captures >= FEATURE_AI_PLAY_CAPTURES, "the AI factions take cities: several cities march on one target (U-012)");
-    printf("  the AI play: %u captures, %u unpaid months, %u sorties, %u conscriptions, %u facilities destroyed, troops %llu of %llu\n", captures, unpaid, sorties, conscripted, ruined,
+    TEST_CHECK(counts, alliances > 0 && short_alliances == 0,
+               "the AI factions ally with a neighbour when another enemy stands near, and keep the alliance (U-015)");
+    printf("  the AI play: %u alliances, %u captures, %u unpaid months, %u sorties, %u conscriptions, %u facilities destroyed, troops %llu of %llu\n", alliances, captures, unpaid, sorties, conscripted, ruined,
            (unsigned long long)feature_all_troops(api), (unsigned long long)start_troops);
     TEST_CHECK(counts, feature_all_troops(api) * 100 >= start_troops * FEATURE_AI_PLAY_TROOP_FLOOR,
                "the AI factions keep their start troops after the years: the grain feeds them (farm 1125, knowledge/city-economy.md)");

@@ -165,7 +165,7 @@ feature_ai_plan_tests(test_counts *counts)
     engine_api *api = setup.api;
     void *e = api->engine;
     u8 city = setup.city, force = setup.force;
-    TEST_CHECK(counts, api->content_status(e).priority_count == 12, "ai_priorities.tsv has the 12 rows of the planner (M15 adds defend and take_free)");
+    TEST_CHECK(counts, api->content_status(e).priority_count == 14, "ai_priorities.tsv has the 14 rows of the planner (M15 adds defend and take_free, U-015 adds alliance and break)");
 
     feature_calm_faction(api, force);
     api->set_city_resource(e, city, SIM_RESOURCE_PUBLIC_ORDER, 0, 0);

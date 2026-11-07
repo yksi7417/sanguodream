@@ -289,6 +289,111 @@ sim_ai_develop_order(sim_state *sim, u8 city_id, facility_effect *order)
     return count;
 }
 
+/* U-015 (the play run of 2026-11-07): the AI sent 1834 envoys of goodwill
+   in 15 years and made no alliance. The factions at war that own a city
+   within ai.target_hexes of a city of the force: its neighbours. */
+internal u32
+sim_ai_neighbours(sim_state *sim, u8 force, b32 *is_neighbour)
+{
+    u32 count = 0;
+    for (u32 other = 0; other < SIM_DIPLOMACY_FORCES; ++other) is_neighbour[other] = false;
+    for (u32 mine = 0; mine < sim->cities.count; ++mine)
+    {
+        city_component *own = sim->cities.data + mine;
+        if (own->owner_force_id != force) continue;
+        for (u32 index = 0; index < sim->cities.count; ++index)
+        {
+            city_component *other = sim->cities.data + index;
+            u8 owner = other->owner_force_id;
+            if (owner >= SIM_DIPLOMACY_FORCES || is_neighbour[owner] || !sim_at_war(sim, force, owner)) continue;
+            if ((u32)hex_distance(sim->sites[own->city_id].hex, sim->sites[other->city_id].hex) > sim->content.rules.ai_target_hexes) continue;
+            is_neighbour[owner] = true;
+            count++;
+        }
+    }
+    return count;
+}
+
+/* The friendliest neighbour at war with friendliness below the bound, if
+   the force has another neighbour. An alliance with the only neighbour
+   ends the wars of the force (diplomacy.md, AI behaviour). */
+internal u8
+sim_ai_friendliest_neighbour(sim_state *sim, u8 force, u32 below)
+{
+    b32 is_neighbour[SIM_DIPLOMACY_FORCES];
+    if (sim_ai_neighbours(sim, force, is_neighbour) < 2) return SIM_NO_FORCE;
+    u8 best = SIM_NO_FORCE;
+    u32 best_friendliness = 0;
+    for (u32 other = 0; other < SIM_DIPLOMACY_FORCES; ++other)
+    {
+        if (!is_neighbour[other]) continue;
+        u32 friendliness = sim_friendliness(sim, force, (u8)other);
+        if (friendliness >= below) continue;
+        if (best == SIM_NO_FORCE || friendliness > best_friendliness) { best = (u8)other; best_friendliness = friendliness; }
+    }
+    return best;
+}
+
+/* True if an envoy of the force with this kind of diplomacy to the other
+   force is on the road. The AI sends no second envoy (U-015). */
+internal b32
+sim_ai_envoy_on_road(sim_state *sim, u8 force, u8 other, u8 kind)
+{
+    for (u32 index = 0; index < SIM_MISSION_CAPACITY; ++index)
+    {
+        sim_mission *mission = sim->missions + index;
+        if (mission->active && mission->kind == MISSION_DIPLOMACY && mission->force == force &&
+            mission->order.force == other && mission->order.kind == kind) return true;
+    }
+    return false;
+}
+
+/* The order of 同盟 with the friendliest neighbour at war, with the gold of
+   alliance.gold. False if no neighbour has the friendliness and the chance. */
+internal b32
+sim_ai_alliance_order(sim_state *sim, city_component *city, sim_court_order *order)
+{
+    sim_rules *rules = &sim->content.rules;
+    u8 ally = sim_ai_friendliest_neighbour(sim, city->owner_force_id, 101);
+    if (ally == SIM_NO_FORCE || sim_friendliness(sim, city->owner_force_id, ally) < rules->ai_alliance_friendliness) return false;
+    if (sim_ai_envoy_on_road(sim, city->owner_force_id, ally, SIM_DIPLOMACY_ALLIANCE)) return false;
+    /* The ally needs another enemy too. Else it breaks the alliance in its next turn. */
+    b32 their_neighbours[SIM_DIPLOMACY_FORCES];
+    if (sim_ai_neighbours(sim, ally, their_neighbours) < 2) return false;
+    order->kind  = SIM_DIPLOMACY_ALLIANCE;
+    order->force = ally;
+    order->gold  = rules->alliance_gold;
+    sim_check check = sim_check_diplomacy(sim, order);
+    return check.refusal == SIM_REFUSAL_NONE && check.quantity >= rules->ai_alliance_chance;
+}
+
+/* The order of 摒棄 with an allied neighbour, when the force has no
+   neighbour at war: the ally is then its only neighbour. */
+internal b32
+sim_ai_break_order(sim_state *sim, city_component *city, sim_court_order *order)
+{
+    u8 force = city->owner_force_id;
+    b32 is_neighbour[SIM_DIPLOMACY_FORCES];
+    if (sim_ai_neighbours(sim, force, is_neighbour) > 0) return false;
+    for (u32 mine = 0; mine < sim->cities.count; ++mine)
+    {
+        city_component *own = sim->cities.data + mine;
+        if (own->owner_force_id != force) continue;
+        for (u32 index = 0; index < sim->cities.count; ++index)
+        {
+            city_component *other = sim->cities.data + index;
+            u8 owner = other->owner_force_id;
+            if (owner >= SIM_DIPLOMACY_FORCES || owner == force || sim_relation(sim, force, owner) != RELATION_ALLIANCE) continue;
+            if ((u32)hex_distance(sim->sites[own->city_id].hex, sim->sites[other->city_id].hex) > sim->content.rules.ai_target_hexes) continue;
+            if (sim_ai_envoy_on_road(sim, force, owner, SIM_DIPLOMACY_BREAK)) return false;
+            order->kind  = SIM_DIPLOMACY_BREAK;
+            order->force = owner;
+            return sim_check_diplomacy(sim, order).refusal == SIM_REFUSAL_NONE;
+        }
+    }
+    return false;
+}
+
 /* The command of a row for the city, or kind SIM_COMMAND_NONE if none fits. */
 internal sim_command
 sim_ai_command_for(sim_state *sim, city_component *city, ai_priority *row)
@@ -425,6 +530,14 @@ sim_ai_command_for(sim_state *sim, city_component *city, ai_priority *row)
         case SIM_COMMAND_DIPLOMACY:
         {
             sim_court_order order = sim_ai_court_order(city, sim_ai_best_officer(sim, city, SIM_ABILITY_POLITICS, SIM_NO_OFFICER));
+            b32 alliance = strcmp(row->key, "alliance") == 0, breaks = strcmp(row->key, "break") == 0;
+            if (alliance || breaks)
+            {
+                if (alliance ? !sim_ai_alliance_order(sim, city, &order) : !sim_ai_break_order(sim, city, &order)) return command;
+                command.kind  = SIM_COMMAND_DIPLOMACY;
+                command.court = order;
+                return command;
+            }
             order.kind = SIM_DIPLOMACY_GOODWILL;
             u32 lowest = 101;
             for (u32 other = 0; other < SIM_DIPLOMACY_FORCES; ++other)
@@ -433,6 +546,10 @@ sim_ai_command_for(sim_state *sim, city_component *city, ai_priority *row)
                 u32 friendliness = sim_friendliness(sim, city->owner_force_id, (u8)other);
                 if (friendliness < lowest) { lowest = friendliness; order.force = (u8)other; }
             }
+            /* U-015: goodwill goes to the friendliest neighbour at war, a future ally, when the
+               faction has two neighbours or more. Else to the faction with the lowest friendliness. */
+            u8 neighbour = sim_ai_friendliest_neighbour(sim, city->owner_force_id, 100);
+            if (neighbour != SIM_NO_FORCE) { order.force = neighbour; lowest = 0; }
             if (lowest > 100 || sim_check_diplomacy(sim, &order).refusal != SIM_REFUSAL_NONE) return command;
             command.kind  = SIM_COMMAND_DIPLOMACY;
             command.court = order;
@@ -530,7 +647,8 @@ sim_plan_faction(sim_state *sim, u8 force, u8 city_filter, u8 corps_filter, u32 
         {
             ai_priority *priority = sim->content.priorities + row;
             if (!sim_ai_allowed((sim_command_kind)priority->command, flags)) continue;
-            if (priority->command == SIM_COMMAND_DIPLOMACY && city->gold < rules->ai_goodwill_gold) continue;
+            if (priority->command == SIM_COMMAND_DIPLOMACY && strcmp(priority->key, "alliance") != 0 && strcmp(priority->key, "break") != 0 &&
+                city->gold < rules->ai_goodwill_gold) continue;
             u32 urgency = 0;
             if (!sim_ai_condition(sim, city, priority, &urgency)) continue;
             sim_command command = sim_ai_command_for(sim, city, priority);

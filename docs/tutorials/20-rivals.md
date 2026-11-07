@@ -82,6 +82,21 @@ A city with a smithy and fewer weapons than soldiers saves the gold of
 one production before it develops, researches or sends an envoy. The
 row produce goes before the row conscript.
 
+The neighbours of a force are the factions at war that own a city
+within ai.target_hexes of one of its cities. Diplomacy follows them:
+- goodwill goes to the friendliest neighbour, if the force has two or
+  more neighbours;
+- the row alliance asks that neighbour for 同盟 at friendliness
+  ai.alliance_friendliness and a chance of ai.alliance_chance, if the
+  ally also has another neighbour;
+- the row break ends an alliance with a near ally when the force has no
+  neighbour at war;
+- the AI sends no second envoy of one kind to one faction while the
+  first is on the road.
+
+The engine checks the relation again when an envoy arrives. A break
+without an alliance and an alliance between allies do nothing.
+
 Each city keeps the salaries of ai.salary_months months. The planner
 drops a proposal that spends this gold, except the defence of the city.
 

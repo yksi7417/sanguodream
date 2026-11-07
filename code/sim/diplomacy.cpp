@@ -449,6 +449,11 @@ sim_resolve_diplomacy(sim_state *sim, sim_mission *mission, sim_event_sink *even
     sim_emit(events, arrived);
     if (!envoy || !sim_officer_is_active(envoy) || envoy->force_id != force) return;
     if (!sim_faction_exists(sim, force) || !sim_faction_exists(sim, order->force)) return;
+    /* U-015 (the play run of 2026-11-07): two envoys of one break arrived, and the second ended
+       an alliance that no longer existed. The relation of the arrival must still allow the kind. */
+    u8 relation = sim_relation(sim, force, order->force);
+    if (order->kind == SIM_DIPLOMACY_BREAK && relation != RELATION_ALLIANCE) return;
+    if ((order->kind == SIM_DIPLOMACY_ALLIANCE || order->kind == SIM_DIPLOMACY_CEASEFIRE) && relation == RELATION_ALLIANCE) return;
     if (order->kind == SIM_DIPLOMACY_EXCHANGE)
     {
         officer_component *captive = sim_find_officer(sim, order->target);
