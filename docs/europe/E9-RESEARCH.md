@@ -55,54 +55,16 @@ The roles of the 219 people:
    instead, and year_notes says so.
 
 ## The check of the sources
-CAUTION: Nobody checked a fact of the table to the rule of two sources yet.
-- The session did not get to en.wikipedia.org or britannica.com. The
-  network of the session does not allow these hosts.
+CAUTION: The first research did not read the pages. The checks of
+2026-11-09 below read Wikipedia and a second source for each row. Only
+the rows with the source_status "two sources agree" meet the rule now.
+
+The first research had these limits:
+- The session did not get to en.wikipedia.org or britannica.com.
 - The agents checked each person through the summaries of a web search.
-  A summary often quotes the article and a second source, but nobody read
-  the pages.
-- The searches of the session stopped at 200. Some facts of the last rows
-  come from the memory of the agent. The column year_notes says "from
-  memory", "estimate" or "not checked on the web in this run".
-- Some Wikipedia URLs are a guess at the title. year_notes marks them.
-
-Each row thus has the review "pending". The next step checks each row
-against the article and the second source. 32 rows have the confidence
-"low". Check them first:
-
-| The rows with the confidence low |
-|---|
-| berenguer_palou |
-| romee_villeneuve |
-| sancha_leon |
-| dulce_leon |
-| ferdinand_leon |
-| albert_orlamunde |
-| richard_filangieri |
-| marino_zeno |
-| ottaviano_querini |
-| angelo_sanudo |
-| marino_dandolo |
-| andrea_ghisi |
-| geremia_ghisi |
-| teofilo_zeno |
-| robert_esztergom |
-| denis_tomaj |
-| friar_julian |
-| premysl_moravia |
-| anna_maria_of_hungary |
-| al_muazzam_turanshah |
-| ibn_wasil |
-| ibn_sabin |
-| balian_of_beirut |
-| philip_of_armenia |
-| constantine_of_baberon |
-| philip_of_novara |
-| eustorge_of_montaigu |
-| avag_zakarian |
-| shahanshah_zakarian |
-| david_vi_narin |
-| ibn_al_alqami ibn_al_najjar |
+- The searches of the session stopped at 200. Some facts came from the
+  memory of the agent. The column year_notes says "from memory",
+  "estimate" or "not checked on the web in this run".
 
 ## The check against Wikipedia
 misc/e9_wiki_check.py reads the article of each row through the
@@ -128,6 +90,70 @@ wiki_birth, wiki_death and wiki_check into E9-CANDIDATES.tsv.
 - The search for the second source runs next. Britannica refuses the
   container, so the search uses the national biographies and the other
   reference works.
+
+## The check of the second sources
+Two agents searched a second source for each row, on 2026-11-09. They
+opened only these reference works:
+- Treccani: the Enciclopedia Italiana, the Dizionario Biografico degli
+  Italiani, the Federiciana and the Dizionario di Storia;
+- encyclopedia.com: Columbia, the New Catholic Encyclopedia, Women in
+  World History, the Encyclopedia of World Biography and other works;
+- the Deutsche Biographie: NDB, ADB and the index of persons;
+- the Catholic Encyclopedia and catholic-hierarchy.org.
+
+These sources were not usable:
+- Britannica and Iranica refuse the container.
+- dbe.rah.es sends each page to historia-hispanica.rah.es, and the
+  network does not allow that host. Most of the Iberian nobles thus
+  have no second source.
+- The copy of Setton, A History of the Crusades, at the University of
+  Wisconsin asks for a check of the browser on another host.
+
+The new columns of E9-CANDIDATES.tsv are second_url, second_work,
+second_birth, second_death, second_agrees, second_note and
+source_status. The value "partly" of second_agrees has two meanings.
+The source gives only one year, and that year agrees. Or one year
+differs by one. The column second_note tells the two cases apart.
+
+Some rows use the entry of a parent or of a spouse that names the person
+with years. The column second_work says so.
+
+| source_status | West | Central | East | All |
+|---|---|---|---|---|
+| two sources agree | 32 | 29 | 7 | 68 |
+| partly checked | 23 | 22 | 19 | 64 |
+| one source | 13 | 12 | 30 | 55 |
+| sources differ | 7 | 5 | 17 | 29 |
+| no article | 1 | 0 | 2 | 3 |
+
+The officers of each pack that appear by 1230 and live in 1230:
+
+| Pack | Rows with two sources | With the partly checked rows | All rows |
+|---|---|---|---|
+| medieval_west | 27 | 55 | 80 |
+| medieval_east | 10 | 33 | 70 |
+| medieval_europe | 35 | 71 | 112 |
+
+The east has the weakest sources. Most of the Ayyubid, Almohad, Rum and
+Georgian people have only Wikipedia.
+
+The sources differ on these years, for example:
+- Ferdinand III: born 1198 in the New Catholic Encyclopedia, 1201 in the
+  data.
+- Kinga: born 1234 in Women in World History, 1224 in the data.
+- Gonzalo de Berceo: died approximately 1252 in the Encyclopedia of World
+  Biography, 1264 in the data.
+- Marco Sanudo: born in the 1170s in the Dizionario Biografico, 1153 in
+  the data.
+- Michael II Komnenos Doukas: died 1271 in Treccani, 1268 in Wikipedia,
+  1267 in the data.
+- Philip of Novara: born approximately 1190 and died between 1261 and
+  1264 in the Dizionario Biografico, 1200 and 1270 in the data.
+- Fakhr al-Din ibn al-Shaykh: born approximately 1185 in Treccani, 1200
+  in the data.
+
+The column second_note gives each difference. The data does not change
+until two sources agree.
 
 ## The columns of E9-CANDIDATES.tsv
 | Column | Meaning |
@@ -190,10 +216,13 @@ The family links:
   of Swabia, in Bohemia.
 
 ## The next steps
-1. Allow en.wikipedia.org and www.britannica.com in the network of the
-   session, or give a session with more searches.
-2. Check each row against its two sources, the low rows first. Correct
-   the years and the URLs.
+1. Decide the rule for the review. A proposal: the stage takes the rows
+   with "two sources agree", and the rows with "partly checked" where the
+   second source agrees and gives only one year. A row with "sources differ" takes the
+   year of the two sources that agree, or waits.
+2. Find a second source for the 55 rows with one source. Most are of the
+   east. A library catalogue or a printed work can give it. Allow
+   historia-hispanica.rah.es for the Iberian nobles.
 3. The player answers Q-E11 to Q-E13 and the decisions above, and writes
    accept or reject in the column review.
 4. The stage e9_officers adds the accepted rows (misc/stages/e9_officers.md).
