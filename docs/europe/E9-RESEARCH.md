@@ -104,6 +104,31 @@ against the article and the second source. 32 rows have the confidence
 | david_vi_narin |
 | ibn_al_alqami ibn_al_najjar |
 
+## The check against Wikipedia
+misc/e9_wiki_check.py reads the article of each row through the
+MediaWiki API, on 2026-11-09. It writes the columns wiki_title,
+wiki_birth, wiki_death and wiki_check into E9-CANDIDATES.tsv.
+
+| wiki_check | Rows |
+|---|---|
+| ok | 135 |
+| no birth category | 41 |
+| no birth category; no death category | 14 |
+| no birth category; death differs | 7 |
+| birth differs | 7 |
+| death differs | 7 |
+| no death category | 3 |
+| missing | 3 |
+| birth differs; death differs | 2 |
+
+- Three articles do not exist: albert_orlamunde, shahanshah_zakarian
+  and ibn_al_alqami. The URL of premysl_moravia goes to the article of
+  his father.
+- A row with a difference keeps its years until two sources agree.
+- The search for the second source runs next. Britannica refuses the
+  container, so the search uses the national biographies and the other
+  reference works.
+
 ## The columns of E9-CANDIDATES.tsv
 | Column | Meaning |
 |---|---|
