@@ -13,6 +13,8 @@ building_fire_ball	misc/local_art.py, docs/europe/ART-JOBS.tsv	FLUX.2 klein 4B a
 building_fire_ball_2	misc/local_art.py, docs/europe/ART-JOBS.tsv	FLUX.2 klein 4B and TRELLIS.2 on the local server	2026-11-05	Apache-2.0 (FLUX.2 klein 4B), MIT (TRELLIS.2)	15286 triangles
 building_fire_ball_3	misc/local_art.py, docs/europe/ART-JOBS.tsv	FLUX.2 klein 4B and TRELLIS.2 on the local server	2026-11-05	Apache-2.0 (FLUX.2 klein 4B), MIT (TRELLIS.2)	15158 triangles
 building_fire_seed	misc/local_art.py, docs/europe/ART-JOBS.tsv	FLUX.2 klein 4B and TRELLIS.2 on the local server	2026-11-04	Apache-2.0 (FLUX.2 klein 4B), MIT (TRELLIS.2)	15552 triangles
+building_fire_seed_2	misc/local_art.py, docs/europe/ART-JOBS.tsv	FLUX.2 klein 4B and TRELLIS.2 on the local server	2026-11-10	Apache-2.0 (FLUX.2 klein 4B), MIT (TRELLIS.2)	15966 triangles
+building_fire_seed_3	misc/local_art.py, docs/europe/ART-JOBS.tsv	FLUX.2 klein 4B and TRELLIS.2 on the local server	2026-11-10	Apache-2.0 (FLUX.2 klein 4B), MIT (TRELLIS.2)	15944 triangles
 building_fire_ship	misc/local_art.py, docs/europe/ART-JOBS.tsv	FLUX.2 klein 4B and TRELLIS.2 on the local server	2026-11-05	Apache-2.0 (FLUX.2 klein 4B), MIT (TRELLIS.2)	15062 triangles
 building_fort	misc/local_art.py, docs/europe/ART-JOBS.tsv	FLUX.2 klein 4B and TRELLIS.2 on the local server	2026-11-04	Apache-2.0 (FLUX.2 klein 4B), MIT (TRELLIS.2)	15776 triangles
 building_music_tower	misc/local_art.py, docs/europe/ART-JOBS.tsv	FLUX.2 klein 4B and TRELLIS.2 on the local server	2026-11-04	Apache-2.0 (FLUX.2 klein 4B), MIT (TRELLIS.2)	15558 triangles
