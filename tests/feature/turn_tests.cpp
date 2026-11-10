@@ -247,8 +247,11 @@ feature_turn_order_sample_tests(test_counts *counts)
                        feature_officer_by_id(api, 636, &free_officer) && !free_officer.acted,
                "G2-004: an officer with the acted flag of the save has acted, the others have not");
 
-    /* The recovery: the higher of leadership and charm of the ruler (assumed, Q-019, Q-141). */
-    u32 recovery = Maximum(ruler.leadership, ruler.charm);
+    /* The recovery: the higher of leadership and charm of the ruler, plus
+       ap.city_bonus (20) for each city after the first, up to 5 cities
+       (assumed, Q-019, Q-141, U-017). */
+    u32 extra_cities = player.city_count > 1 ? Minimum((u32)player.city_count - 1, 5u) : 0;
+    u32 recovery = Maximum(ruler.leadership, ruler.charm) + 20 * extra_cities;
     u32 before_end = api->ledger_count(e);
     api->end_turn(e);
     sim_event ended = {}, recovered = {};

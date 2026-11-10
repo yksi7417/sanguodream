@@ -88,6 +88,11 @@ sim_ai_condition(sim_state *sim, city_component *city, ai_priority *row, u32 *ur
             return true;
         case AI_TROOPS_BELOW_PERCENT:
         {
+            /* U-019: the first priority of an AI corps is public order 80
+               or more (knowledge/ai.md, 「委任軍團超詳解」 8:50-9:02). The
+               AI conscripts only while the order stays at the bandit
+               threshold after the loss of one conscription. */
+            if (city->public_order < rules->order_bandit_threshold + rules->conscript_order_loss) return false;
             u32 wanted = sim_percent_of(sim_city_soldier_cap(sim, city->city_id), row->threshold);
             if (city->troops >= wanted) return false;
             *urgency = wanted ? scale * (wanted - city->troops) / wanted : 0;
@@ -878,15 +883,46 @@ sim_ai_attack(sim_state *sim, u32 unit_id, hex_coord hex, sim_event_sink *events
     return true;
 }
 
-/* Attacks the first target next to the unit; returns true after an attack. */
+/* U-018: of the targets beside a unit, the enemy unit with the fewest
+   soldiers goes first. A unit comes before a city or a building, and a
+   tie keeps the first in the order of the directions (knowledge/ai.md,
+   「軍事建物陣形蓋法」 4:06-4:10, unverified). */
+internal u32
+sim_ai_pick_target(sim_ai_target *targets, u32 count)
+{
+    u32 best = SIM_AI_NO_TARGET;
+    for (u32 index = 0; index < count; ++index)
+    {
+        sim_ai_target *target = targets + index;
+        if (best == SIM_AI_NO_TARGET) { best = index; continue; }
+        sim_ai_target *chosen = targets + best;
+        if (target->is_unit && (!chosen->is_unit || target->soldiers < chosen->soldiers)) best = index;
+    }
+    return best;
+}
+
+/* Attacks the best target next to the unit (sim_ai_pick_target); returns
+   true after an attack. */
 internal b32
 sim_ai_attack_beside(sim_state *sim, u32 unit_id, sim_event_sink *events)
 {
+    sim_ai_target targets[HEX_DIRECTION_COUNT] = {};
+    u32 count = 0;
     for (u32 d = 0; d < HEX_DIRECTION_COUNT; ++d)
     {
-        if (sim_ai_attack(sim, unit_id, hex_neighbor(sim->units[unit_id].hex, d), events)) return true;
+        hex_coord hex = hex_neighbor(sim->units[unit_id].hex, d);
+        sim_unit_order probe = {};
+        probe.unit = (u16)unit_id;
+        probe.to   = hex;
+        if (sim_check_attack(sim, &probe).refusal != SIM_REFUSAL_NONE) continue;
+        sim_ai_target *target = targets + count++;
+        target->hex = hex;
+        u32 other = sim_unit_at(sim, hex);
+        target->is_unit  = other != SIM_NO_UNIT;
+        target->soldiers = target->is_unit ? sim->units[other].soldiers : 0;
     }
-    return false;
+    u32 best = sim_ai_pick_target(targets, count);
+    return best != SIM_AI_NO_TARGET && sim_ai_attack(sim, unit_id, targets[best].hex, events);
 }
 
 /* ---- the turn of a computer faction ------------------------------------------------- */

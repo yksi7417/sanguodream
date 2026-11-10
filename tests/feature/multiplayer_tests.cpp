@@ -12,7 +12,7 @@
    node (run_tests.bat --web), so the browser and Windows agree on it. If a
    rule changes on purpose, set this value to the checksum that the test
    prints. */
-#define FEATURE_MP_RECORD_CHECKSUM 0x07f01e263cc0f95bull   /* the play run of 2026-11-07: the AI builds, and its debates end without a pause */
+#define FEATURE_MP_RECORD_CHECKSUM 0x60a0e670fabb254eull   /* U-016 to U-019 (2026-11-10): the turn order, the action points of the cities, the AI targets and the order guard of conscription */
 
 /* The pair of a shared game, and the facts of its steps. */
 struct feature_mp_pair

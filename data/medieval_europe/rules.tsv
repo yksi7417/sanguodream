@@ -57,6 +57,8 @@ research.full_ability	200	assumed	Q-161: the ability sum that gives the shortest
 research.personnel_percent	75	assumed	Q-164: the research period in a city with a personnel office (manual p.29: less time)
 research.teaching_percent	50	documented	research-techniques.md, 指導 halves the gold
 tally.action_points	10	assumed	Q-164: the action points that each tally office adds at the start of a turn
+ap.city_bonus	20	assumed	U-017, Q-141: the action points that each city after the first adds at the start of a turn (knowledge/turn-structure.md: approximately 20 for each city)
+ap.city_bonus_cities	5	assumed	U-017, Q-141: the most cities that add ap.city_bonus; from the seventh city a corps gets no more (knowledge/turn-structure.md)
 military_office.ap_percent	50	documented	cities-and-facilities.md, military office: military commands cost half the action points
 drill.ship_period_percent	75	assumed	Q-164: the ship period in a city with a drill ground (manual p.29: less time)
 game.end_year	1360	assumed	the medieval_europe pack: 160 years after the start in 1200, as 351 is 161 years after 190 in the placeholder pack (docs/MAPS.md, W2)

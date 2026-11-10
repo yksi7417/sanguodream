@@ -98,6 +98,36 @@ unit_planner_tests(test_counts *counts, memory_arena *arena)
     row.condition = AI_GOLD_ABOVE;
     row.threshold = 8000;
     TEST_CHECK(counts, sim_ai_condition(sim, &city, &row, &urgency) && urgency == 0, "gold above the threshold: the condition holds without urgency");
+
+    /* U-019: the AI keeps the public order at order.bandit_threshold or
+       more. It does not conscript when the order loss of one conscription
+       takes the order below it (knowledge/ai.md, 「委任軍團超詳解」 8:50-9:02). */
+    sim->content.rules.order_bandit_threshold = 80;
+    sim->content.rules.conscript_order_loss   = 10;
+    row.condition = AI_TROOPS_BELOW_PERCENT;
+    row.threshold = 50;
+    city.troops = 0;
+    city.public_order = 89;
+    TEST_CHECK(counts, !sim_ai_condition(sim, &city, &row, &urgency), "public order 89: a conscription takes it to 79, below 80, so no conscription");
+}
+
+/* U-018: a unit of the AI with more than one target beside it attacks
+   the enemy unit with the fewest soldiers first (knowledge/ai.md,
+   「軍事建物陣形蓋法」 4:06-4:10). A unit comes before a city or a
+   building. With no unit, the first target in the order of the
+   directions stays the choice. */
+internal void
+unit_ai_target_tests(test_counts *counts)
+{
+    sim_ai_target targets[4] = {};
+    targets[0].is_unit = false; targets[0].soldiers = 0;
+    targets[1].is_unit = true;  targets[1].soldiers = 6000;
+    targets[2].is_unit = true;  targets[2].soldiers = 1200;
+    targets[3].is_unit = true;  targets[3].soldiers = 1200;
+    TEST_CHECK(counts, sim_ai_pick_target(targets, 4) == 2, "the unit with the fewest soldiers, the first of a tie");
+    TEST_CHECK(counts, sim_ai_pick_target(targets, 2) == 1, "a unit before a building or a city");
+    TEST_CHECK(counts, sim_ai_pick_target(targets, 1) == 0, "with no unit, the first target");
+    TEST_CHECK(counts, sim_ai_pick_target(targets, 0) == SIM_AI_NO_TARGET, "no target");
 }
 
 internal void
@@ -107,4 +137,5 @@ unit_rivals_tests(test_counts *counts, memory_arena *arena)
     unit_event_table_tests(counts, arena);
     unit_priority_table_tests(counts, arena);
     unit_planner_tests(counts, arena);
+    unit_ai_target_tests(counts);
 }

@@ -128,15 +128,18 @@ sim_force_ruler(sim_state *sim, u8 force_id)
 /* ---- the turn order ----------------------------------------------------- */
 
 /* Fewer cities act first (calendar-and-turn.md, unverified). A tie goes to
-   fewer officers, then fewer troops (knowledge/turn-structure.md,
-   unverified), then the smaller force id (assumed; Q-143). */
+   fewer officers, then less gold, less grain and fewer troops, then the
+   smaller force id (knowledge/turn-structure.md, 「行動順序秘密」, unverified;
+   assumed, Q-143, U-016). */
 internal b32
-sim_faction_before(sim_faction *a, sim_faction *b)
+sim_faction_before(sim_faction_size *a, sim_faction_size *b)
 {
-    if (a->city_count != b->city_count)       return a->city_count < b->city_count;
-    if (a->officer_count != b->officer_count) return a->officer_count < b->officer_count;
-    if (a->troops != b->troops)               return a->troops < b->troops;
-    return a->force_id < b->force_id;
+    if (a->faction.city_count != b->faction.city_count)       return a->faction.city_count < b->faction.city_count;
+    if (a->faction.officer_count != b->faction.officer_count) return a->faction.officer_count < b->faction.officer_count;
+    if (a->gold != b->gold)                                   return a->gold < b->gold;
+    if (a->food != b->food)                                   return a->food < b->food;
+    if (a->faction.troops != b->faction.troops)               return a->faction.troops < b->faction.troops;
+    return a->faction.force_id < b->faction.force_id;
 }
 
 /* Builds the order of this turn: each force that owns a city, with its
@@ -146,43 +149,60 @@ internal void
 sim_compute_turn_order(sim_state *sim)
 {
     sim_turn_state *turns = &sim->turns;
-    sim_faction by_force[SIM_FORCE_CAPACITY] = {};
+    sim_faction_size by_force[SIM_FORCE_CAPACITY] = {};
     b32 owns_city[SIM_FORCE_CAPACITY] = {};
     for (u32 index = 0; index < sim->cities.count; ++index)
     {
         city_component *city = sim->cities.data + index;
         if (city->owner_force_id == SIM_NO_FORCE) continue;
-        sim_faction *faction = by_force + city->owner_force_id;
+        sim_faction_size *size = by_force + city->owner_force_id;
         owns_city[city->owner_force_id] = true;
-        faction->city_count++;
-        faction->troops += city->troops;
+        size->faction.city_count++;
+        size->gold           += city->gold;
+        size->food           += city->food;
+        size->faction.troops += city->troops;
+    }
+    /* The ports and passes count with the cities, but not in the number of
+       cities. The units on the map do not count (「行動順序秘密」 1:56-2:30,
+       4:48-5:14; U-016). */
+    for (u32 base = 0; base < CONTENT_BASE_COUNT; ++base)
+    {
+        sim_base_state *state = sim->bases + base;
+        if (!state->exists || state->force == SIM_NO_FORCE || state->force >= SIM_FORCE_CAPACITY) continue;
+        sim_faction_size *size = by_force + state->force;
+        size->gold           += sim->base_stocks[base].gold;
+        size->food           += sim->base_stocks[base].grain;
+        size->faction.troops += state->troops;
     }
     officer_component *leaders[SIM_FORCE_CAPACITY] = {};
     for (u32 index = 0; index < sim->officers.count; ++index)
     {
         officer_component *officer = sim->officers.data + index;
         if (!sim_officer_is_active(officer) || officer->force_id == SIM_NO_FORCE) continue;
-        by_force[officer->force_id].officer_count++;
+        by_force[officer->force_id].faction.officer_count++;
         officer_component **leader = leaders + officer->force_id;
         if (!*leader || sim_officer_leads_before(officer, *leader)) *leader = officer;
     }
 
-    turns->order_count = 0;
+    sim_faction_size sorted[SIM_FORCE_CAPACITY] = {};
+    u32 count = 0;
     for (u32 force = 0; force < SIM_FORCE_CAPACITY; ++force)
     {
         if (!owns_city[force]) continue;
-        sim_faction faction = by_force[force];
-        faction.force_id          = (u8)force;
-        faction.leader_officer_id = leaders[force] ? leaders[force]->officer_id : SIM_NO_OFFICER;
+        sim_faction_size size = by_force[force];
+        size.faction.force_id          = (u8)force;
+        size.faction.leader_officer_id = leaders[force] ? leaders[force]->officer_id : SIM_NO_OFFICER;
         /* insertion sort: the order has at most one entry for each force */
-        u32 place = turns->order_count++;
-        while (place > 0 && sim_faction_before(&faction, turns->order + place - 1))
+        u32 place = count++;
+        while (place > 0 && sim_faction_before(&size, sorted + place - 1))
         {
-            turns->order[place] = turns->order[place - 1];
+            sorted[place] = sorted[place - 1];
             place--;
         }
-        turns->order[place] = faction;
+        sorted[place] = size;
     }
+    turns->order_count = count;
+    for (u32 place = 0; place < count; ++place) turns->order[place] = sorted[place].faction;
     turns->acting = 0;
 }
 
@@ -220,12 +240,32 @@ sim_action_point_recovery(sim_state *sim, sim_faction *faction)
        city (manual p.29): tally.action_points for each built office in the
        cities of the faction (assumed, Q-164). */
     u32 offices = 0;
+    u32 cities  = 0;
     for (u32 index = 0; index < sim->cities.count; ++index)
     {
         city_component *city = sim->cities.data + index;
-        if (city->owner_force_id == faction->force_id) offices += sim_count_built(sim, city->city_id, FACILITY_EFFECT_ACTION_POINTS);
+        if (city->owner_force_id != faction->force_id) continue;
+        cities++;
+        offices += sim_count_built(sim, city->city_id, FACILITY_EFFECT_ACTION_POINTS);
     }
-    return recovery + offices * sim->content.rules.tally_action_points;
+    sim_rules *rules = &sim->content.rules;
+    return recovery + offices * rules->tally_action_points +
+           sim_action_point_city_bonus(cities, rules->ap_city_bonus, rules->ap_city_bonus_cities);
+}
+
+/* ASSUMED RULE (U-017, Q-141). Each city after the first adds per_city
+   action points, up to most_cities of them. A corps with one city gets
+   30 to 60, each city from the second adds approximately 20, and from the
+   seventh city the corps gets no more (knowledge/turn-structure.md,
+   「委任軍團超詳解」 0:26-0:50, unverified). Before this rule, a faction of
+   twelve cities got the action points of a faction of one city. */
+internal u32
+sim_action_point_city_bonus(u32 city_count, u32 per_city, u32 most_cities)
+{
+    if (city_count < 2) return 0;
+    u32 extra = city_count - 1;
+    if (extra > most_cities) extra = most_cities;
+    return extra * per_city;
 }
 
 internal void

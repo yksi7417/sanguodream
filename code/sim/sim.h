@@ -1057,8 +1057,17 @@ struct sim_faction
     u8  force_id;
     u16 city_count;
     u16 officer_count;
-    u32 troops;
+    u32 troops;               /* the soldiers of the cities, ports and passes */
     u16 leader_officer_id;    /* the ruler: the leader of corps 1 */
+};
+
+/* The size of a faction for the turn order only (U-016). The save holds
+   sim_faction, so the gold and the grain stay out of it. */
+struct sim_faction_size
+{
+    sim_faction faction;
+    u32         gold;         /* the gold of the cities, ports and passes */
+    u32         food;         /* the grain of the cities, ports and passes */
 };
 
 struct sim_turn_state
@@ -1418,6 +1427,17 @@ internal void               sim_start_turn(sim_state *sim, u32 cause, sim_event_
 internal void               sim_run_calendar(sim_state *sim, u32 cause, sim_event_sink *events);
 internal void               sim_compute_turn_order(sim_state *sim);
 internal u32                sim_action_point_recovery(sim_state *sim, sim_faction *faction);
+internal u32                sim_action_point_city_bonus(u32 city_count, u32 per_city, u32 most_cities);
+
+/* A target beside a unit of the AI (ai.cpp, U-018). */
+struct sim_ai_target
+{
+    hex_coord hex;
+    b32       is_unit;
+    u32       soldiers;
+};
+#define SIM_AI_NO_TARGET 0xFFFFFFFFu
+internal u32                sim_ai_pick_target(sim_ai_target *targets, u32 count);
 internal u32                sim_recover_action_points(u32 pool, u32 recovery, u32 cap);
 internal u8                 sim_whose_turn(sim_state *sim);
 internal officer_component *sim_find_officer(sim_state *sim, u16 officer_id);
@@ -1425,7 +1445,7 @@ internal city_component    *sim_find_city(sim_state *sim, u8 city_id);
 internal entity_id          sim_city_entity(sim_state *sim, u8 city_id);
 internal entity_id          sim_officer_entity(sim_state *sim, u16 officer_id);
 internal b32                sim_officer_is_active(officer_component *officer);
-internal b32                sim_faction_before(sim_faction *a, sim_faction *b);
+internal b32                sim_faction_before(sim_faction_size *a, sim_faction_size *b);
 internal b32                sim_officer_leads_before(officer_component *a, officer_component *b);
 internal u16                sim_select_leader(sim_state *sim, const u16 *officer_ids, u32 count);
 internal u16                sim_city_governor(sim_state *sim, u8 city_id);

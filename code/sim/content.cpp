@@ -320,6 +320,8 @@ global_variable content_rule_field content_rule_fields[] = {
     CONTENT_RULE("research.personnel_percent", research_personnel_percent),
     CONTENT_RULE("research.teaching_percent",  research_teaching_percent),
     CONTENT_RULE("tally.action_points",   tally_action_points),
+    CONTENT_RULE("ap.city_bonus",         ap_city_bonus),
+    CONTENT_RULE("ap.city_bonus_cities",  ap_city_bonus_cities),
     CONTENT_RULE("military_office.ap_percent", military_office_ap_percent),
     CONTENT_RULE("drill.ship_period_percent",  drill_ship_period_percent),
     CONTENT_RULE("game.end_year",         game_end_year),

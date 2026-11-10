@@ -49,18 +49,27 @@ unit_turn_tests(test_counts *counts, memory_arena *arena)
 
     /* The order: fewer cities first, then fewer officers, then fewer troops
        (knowledge/turn-structure.md, unverified), then the smaller force id (assumed). */
-    sim_faction small = {}, large = {};
-    small.force_id = 7; small.city_count = 1; small.officer_count = 30; small.troops = 90000;
-    large.force_id = 2; large.city_count = 3; large.officer_count = 5;  large.troops = 1000;
+    sim_faction_size small = {}, large = {};
+    small.faction.force_id = 7; small.faction.city_count = 1; small.faction.officer_count = 30; small.faction.troops = 90000;
+    large.faction.force_id = 2; large.faction.city_count = 3; large.faction.officer_count = 5;  large.faction.troops = 1000;
     TEST_CHECK(counts, sim_faction_before(&small, &large) && !sim_faction_before(&large, &small),
                "a faction with fewer cities acts first");
-    large.city_count = 1;
+    large.faction.city_count = 1;
     TEST_CHECK(counts, sim_faction_before(&large, &small), "with equal cities, fewer officers act first");
-    large.officer_count = 30; large.troops = 90001;
+    large.faction.officer_count = 30; large.faction.troops = 90001;
     TEST_CHECK(counts, sim_faction_before(&small, &large), "with equal cities and officers, fewer troops act first");
-    large.troops = 90000;
+    large.faction.troops = 90000;
     TEST_CHECK(counts, sim_faction_before(&large, &small) && !sim_faction_before(&small, &large),
                "with all equal, the smaller force id acts first");
+
+    /* U-016: gold, then grain, come before the troops
+       (knowledge/turn-structure.md, 「行動順序秘密」 0:26-1:54, 5:58-6:14). */
+    large.gold = 400; small.gold = 300; large.faction.troops = 1;
+    TEST_CHECK(counts, sim_faction_before(&small, &large) && !sim_faction_before(&large, &small),
+               "with equal cities and officers, less gold acts first, before the troops count");
+    large.gold = 300; large.food = 5000; small.food = 4000;
+    TEST_CHECK(counts, sim_faction_before(&small, &large), "with equal gold, less grain acts first");
+    large.food = 4000; large.faction.troops = 90000;
 
     sim_state *sim = unit_turn_sim(arena);
     sim_add_city(sim, unit_city(0, 4, 5000));
@@ -87,6 +96,44 @@ unit_turn_tests(test_counts *counts, memory_arena *arena)
        (knowledge/turn-structure.md, unverified). Assumed (Q-019, Q-141). */
     TEST_CHECK(counts, sim_action_point_recovery(sim, &turns->order[2]) == 90, "the recovery is the higher of leadership and charm");
     TEST_CHECK(counts, sim_action_point_recovery(sim, &turns->order[0]) == 75, "a leader with more charm recovers by the charm");
+
+    /* U-017: each city after the first adds action points, and from the
+       seventh city no more (knowledge/turn-structure.md, 「委任軍團超詳解」
+       0:44-0:50). Assumed amounts: ap.city_bonus, ap.city_bonus_cities. */
+    TEST_CHECK(counts, sim_action_point_city_bonus(1, 20, 5) == 0, "one city adds nothing");
+    TEST_CHECK(counts, sim_action_point_city_bonus(2, 20, 5) == 20, "the second city adds 20");
+    TEST_CHECK(counts, sim_action_point_city_bonus(6, 20, 5) == 100, "the sixth city adds the fifth bonus");
+    TEST_CHECK(counts, sim_action_point_city_bonus(12, 20, 5) == 100, "from the seventh city, no more");
+    TEST_CHECK(counts, sim_action_point_city_bonus(0, 20, 5) == 0, "no city adds nothing");
+    sim->content.rules.ap_city_bonus        = 20;
+    sim->content.rules.ap_city_bonus_cities = 5;
+    TEST_CHECK(counts, sim_action_point_recovery(sim, &turns->order[2]) == 110, "two cities: the leader and one city bonus");
+    TEST_CHECK(counts, sim_action_point_recovery(sim, &turns->order[0]) == 75, "one city: the leader alone");
+    sim->content.rules.ap_city_bonus = 0;
+
+    /* U-016: the order counts the gold and the grain of the cities and of
+       the ports and passes, and the troops of both (「行動順序秘密」
+       1:56-2:30, 4:48-5:14). */
+    {
+        sim_state *order_sim = unit_turn_sim(arena);
+        city_component rich = unit_city(0, 1, 100); rich.gold = 500; rich.food = 100;
+        city_component poor = unit_city(1, 2, 100); poor.gold = 400; poor.food = 100;
+        sim_add_city(order_sim, rich);
+        sim_add_city(order_sim, poor);
+        sim_add_officer(order_sim, unit_officer(30, 1, 0, 0, 50, 50, 50, 50, 0));
+        sim_add_officer(order_sim, unit_officer(31, 2, 0, 1, 50, 50, 50, 50, 0));
+        sim_compute_turn_order(order_sim);
+        TEST_CHECK(counts, order_sim->turns.order[0].force_id == 2, "less gold in the cities acts first");
+        order_sim->bases[0].exists = true;
+        order_sim->bases[0].force  = 2;
+        order_sim->bases[0].troops = 700;
+        order_sim->base_stocks[0].gold  = 200;
+        order_sim->base_stocks[0].grain = 50;
+        sim_compute_turn_order(order_sim);
+        TEST_CHECK(counts, order_sim->turns.order[0].force_id == 1, "the gold of a port counts with the cities");
+        TEST_CHECK(counts, order_sim->turns.order[1].troops == 800,
+                   "a faction counts the troops of its ports and passes");
+    }
 
     /* The leader rule (factions-corps-and-posts.md): ruler or viceroy first,
        then leadership, force and merit. The post is not decoded (Q-147). */

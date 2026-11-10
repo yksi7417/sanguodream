@@ -788,6 +788,8 @@ struct sim_rules
     u32 research_personnel_percent;
     u32 research_teaching_percent;
     u32 tally_action_points;
+    u32 ap_city_bonus;          /* U-017: the action points of each city after the first */
+    u32 ap_city_bonus_cities;   /* U-017: the most cities that add ap_city_bonus */
     u32 military_office_ap_percent;
     u32 drill_ship_period_percent;
     u32 game_end_year;
