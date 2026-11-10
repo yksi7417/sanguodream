@@ -1,0 +1,24 @@
+Copyright (c) 2026 Anthony Si. All rights reserved.
+
+This repository and its contents are the property of Anthony Si. The
+contents include the source code, the data, the art, the text and the
+documents.
+
+No licence is granted. You must not copy, modify, merge, publish,
+distribute, sublicense, sell or host any part of this repository, or make
+works from it, without the prior written permission of Anthony Si.
+
+You can play the game at https://sanguodream.fly.dev under the terms of
+that site.
+
+Third-party components:
+Some files come from third parties and have their own licences. These
+licences apply to those files only. The files include:
+- The libraries in third_party/, each with its licence file.
+- The fonts in data/fonts/, under the SIL Open Font License 1.1.
+- The Unicode data in data/unicode/, under the Unicode License v3.
+- The other assets that docs/ASSETS.md lists with a licence.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR
+OTHER LIABILITY ARISING FROM THE SOFTWARE OR ITS USE.
