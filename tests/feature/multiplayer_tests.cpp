@@ -12,7 +12,8 @@
    node (run_tests.bat --web), so the browser and Windows agree on it. If a
    rule changes on purpose, set this value to the checksum that the test
    prints. */
-#define FEATURE_MP_RECORD_CHECKSUM 0xc40f0c324de25a74ull
+#define FEATURE_MP_RECORD_CHECKSUM 0x7ffd8a2ba918e769ull   /* the AI of the play test of 2026-11-06 */
+#define FEATURE_MP_SAFE_SOLDIERS   200000
 
 /* The pair of a shared game, and the facts of its steps. */
 struct feature_mp_pair
@@ -392,6 +393,10 @@ feature_mp_server_steps_tests(test_counts *counts)
     b->set_settings(eb, settings);
     a->set_faction_human(ea, other_force, true);
     b->set_faction_human(eb, other_force, true);
+    /* The AI armies of the play test of 2026-11-06 take a weak city in a few turns. The faction of
+       B keeps its city, so that the server can give the faction back to its player. */
+    a->set_city_resource(ea, other_city, SIM_RESOURCE_SOLDIERS, 0, FEATURE_MP_SAFE_SOLDIERS);
+    b->set_city_resource(eb, other_city, SIM_RESOURCE_SOLDIERS, 0, FEATURE_MP_SAFE_SOLDIERS);
     a->multiplayer_begin(ea, pair.force, true);
     b->multiplayer_begin(eb, other_force, false);
     feature_mp_until_turn_of(&pair, other_force);

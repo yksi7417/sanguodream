@@ -12,6 +12,13 @@
 #define FEATURE_AI_DEAD_END_NEAR   6
 #define FEATURE_AI_DEAD_END_FAR    20
 #define FEATURE_AI_MARCH_TURNS     8
+#define FEATURE_AI_WAR_SOLDIERS    40000    /* above the rows sortie and reinforce (15000) and ai.sortie_reserve */
+#define FEATURE_AI_WAR_GRAIN       400000   /* feeds 40000 soldiers for 400 turns */
+#define FEATURE_AI_HUNGRY_SOLDIERS 20000
+#define FEATURE_AI_HUNGRY_GRAIN    1500     /* 3 turns for 20000 soldiers at grain.soldiers 40 */
+#define FEATURE_AI_TARGET_HEXES    30       /* ai.target_hexes of the placeholder pack */
+#define FEATURE_AI_WAR_DAY         11
+#define FEATURE_AI_UNIT_LIMIT 1024
 
 /* The hex of a city: the centre of its flower. */
 internal hex_coord
@@ -223,8 +230,10 @@ feature_ai_free_city_tests(test_counts *counts)
         engine_ai_explain explain = api->ai_explain(e, force);
         engine_ai_option *goal = feature_ai_option(&explain, AI_GOAL_TAKE_FREE_CITY, ENGINE_NO_UNIT, true);
         aimed |= goal && goal->city_id == target;
+        /* Any city of the faction can send the unit. A city with an own unit next to it sends none
+           (the play test of 2026-11-06: one unit for each free city). */
         engine_ai_option *take = feature_ai_key(&explain, "take_free");
-        took_out |= take && take->kind == SIM_COMMAND_SORTIE && take->city_id == home;
+        took_out |= take && take->kind == SIM_COMMAND_SORTIE && api->city_at(e, take->city_id).owner_force_id == force;
         turns++;
     }
     TEST_CHECK(counts, took_out, "given a free city within 30 hexes, the AI sends a unit out of its city (row take_free, priority 65)");
@@ -426,6 +435,214 @@ feature_ai_grain_tests(test_counts *counts)
     engine_fixture_destroy(&setup.fixture);
 }
 
+/* ---- the AI war of the play test of 2026-11-06 ---------------------------------------- */
+
+/* The sample past ai.attack_after_months, with the AI on and a fresh turn
+   of the human faction; *force and *home are an AI faction and its city.
+   The day 11 keeps the next two turns away from the grain income of day 1. */
+internal b32
+feature_ai_war_setup(feature_city_setup *setup, u8 *force, u8 *home, b32 real_map)
+{
+    feature_rivals_setup_on(setup, real_map);
+    engine_api *api = setup->api;
+    void *e = api->engine;
+    engine_date today = api->date(e);
+    u32 later = (u32)today.month - 1 + FEATURE_AI_MONTHS_LATER;
+    api->set_date(e, (u16)(today.year + later / 12), (u8)(later % 12 + 1), FEATURE_AI_WAR_DAY);
+    feature_turn_on(api, true, false);
+    feature_next_own_turn(api, setup->force);
+    *force = feature_ai_faction(api, setup->force, home);
+    return *force != ENGINE_NO_FACTION;
+}
+
+/* A city of the faction with soldiers above the rows sortie and reinforce,
+   grain, gold and the weapons in the four stocks. */
+internal void
+feature_ai_war_city(engine_api *api, u8 city, u8 force, const u32 *weapons)
+{
+    void *e = api->engine;
+    api->set_city_resource(e, city, SIM_RESOURCE_SOLDIERS, 0, FEATURE_AI_WAR_SOLDIERS);
+    api->set_city_resource(e, city, SIM_RESOURCE_GRAIN, 0, FEATURE_AI_WAR_GRAIN);
+    api->set_city_resource(e, city, SIM_RESOURCE_PUBLIC_ORDER, 0, 100);
+    api->set_city_resource(e, city, SIM_RESOURCE_MORALE, 0, 100);
+    for (u32 stock = 0; stock < 4; ++stock) api->set_city_resource(e, city, SIM_RESOURCE_WEAPONS, stock, weapons[stock]);
+    api->set_city_gold(e, city, 20000);
+    api->set_actions(e, force, 255);
+}
+
+/* The key of the type of the first unit of the faction from the city
+   that is not in the list of the units before the turn, or 0. */
+internal const char *
+feature_ai_new_unit_type(engine_api *api, u8 force, u8 city, const b32 *alive_before, engine_unit_type *type)
+{
+    for (u32 unit = 0; unit < api->unit_count(api->engine); ++unit)
+    {
+        engine_unit info = api->unit_at(api->engine, unit);
+        if (info.id == ENGINE_NO_UNIT || alive_before[unit] || info.force_id != force || info.home_city != city) continue;
+        *type = api->unit_type_at(api->engine, info.unit_type);
+        return type->key;
+    }
+    return 0;
+}
+
+internal void
+feature_ai_sortie_type_tests(test_counts *counts)
+{
+    static const u32 halberds_only[4] = { 0, FEATURE_AI_WAR_SOLDIERS, 0, 0 };
+    static const u32 no_weapons[4]    = { 0, 0, 0, 0 };
+    const u32 *cases[2] = { halberds_only, no_weapons };
+    const char *expected[2] = { "halberd", "sword" };
+    const char *labels[2] = {
+        "given halberds and no pikes, the AI sends a unit of halberds (before the play test of 2026-11-06 it sent no unit)",
+        "given no weapons at all, the AI sends a unit of swords (assumed rule ai.sortie_min_soldiers)" };
+    for (u32 index = 0; index < 2; ++index)
+    {
+        feature_city_setup setup;
+        u8 force = ENGINE_NO_FACTION, home = ENGINE_NO_CITY;
+        if (!feature_ai_war_setup(&setup, &force, &home, false)) { TEST_CHECK(counts, false, "the sample has an AI faction"); engine_fixture_destroy(&setup.fixture); return; }
+        engine_api *api = setup.api;
+        feature_ai_war_city(api, home, force, cases[index]);
+        b32 alive_before[FEATURE_AI_UNIT_LIMIT] = {};
+        for (u32 unit = 0; unit < api->unit_count(api->engine) && unit < FEATURE_AI_UNIT_LIMIT; ++unit)
+        {
+            alive_before[unit] = api->unit_at(api->engine, unit).id != ENGINE_NO_UNIT;
+        }
+        feature_next_own_turn(api, setup.force);
+        engine_unit_type type = {};
+        const char *key = feature_ai_new_unit_type(api, force, home, alive_before, &type);
+        TEST_CHECK(counts, key && strcmp(key, expected[index]) == 0, labels[index]);
+        engine_fixture_destroy(&setup.fixture);
+    }
+}
+
+internal void
+feature_ai_buy_grain_tests(test_counts *counts)
+{
+    feature_city_setup setup;
+    u8 force = ENGINE_NO_FACTION, home = ENGINE_NO_CITY;
+    if (!feature_ai_war_setup(&setup, &force, &home, false)) { TEST_CHECK(counts, false, "the sample has an AI faction"); engine_fixture_destroy(&setup.fixture); return; }
+    engine_api *api = setup.api;
+    void *e = api->engine;
+    feature_calm_faction(api, force);
+    api->set_city_resource(e, home, SIM_RESOURCE_SOLDIERS, 0, FEATURE_AI_HUNGRY_SOLDIERS);   /* below the half of the cap: 徵兵 is wanted */
+    /* Grain for 3 turns: the soldiers eat at the start of the turn, and with no grain they leave before the AI acts. */
+    api->set_city_resource(e, home, SIM_RESOURCE_GRAIN, 0, FEATURE_AI_HUNGRY_GRAIN);
+    api->set_city_gold(e, home, 20000);
+    api->set_actions(e, force, 255);
+    feature_next_own_turn(api, setup.force);
+    /* The record of the AI turn has the chosen options and the options of the first plan. */
+    engine_ai_explain explain = api->ai_explain(e, force);
+    b32 buys = false, conscripts = false;
+    for (u32 index = 0; index < explain.count; ++index)
+    {
+        engine_ai_option *option = explain.options + index;
+        if (option->goal != AI_GOAL_CITY_COMMAND || option->city_id != home) continue;
+        buys       |= option->chosen && strcmp(option->key, "buy_grain") == 0 && option->kind == SIM_COMMAND_MERCHANT;
+        conscripts |= option->kind == SIM_COMMAND_CONSCRIPT;
+    }
+    TEST_CHECK(counts, buys, "given a city with grain for 3 turns and spare gold, the AI buys grain from the merchant (row buy_grain)");
+    TEST_CHECK(counts, !conscripts, "given a city with grain for 3 turns, the AI proposes no 徵兵 there: the new soldiers leave when the grain ends (rule ai.grain_turns)");
+    TEST_CHECK(counts, api->city_at(e, home).food > FEATURE_AI_HUNGRY_GRAIN && api->city_at(e, home).gold < 20000,
+               "after its turn the city has grain, and it paid gold for it");
+    engine_fixture_destroy(&setup.fixture);
+}
+
+/* An inner city: a city A of the faction with no city of a faction at
+   war and no city without an owner within ai.target_hexes, and another
+   city B of the faction with one.
+   The test makes the faction an ally of each faction but one, so that the
+   enemy cities are those of one faction only. */
+/* The hexes from the city to the nearest city of the enemy faction or
+   without an owner. A city without an owner is a target too. */
+internal s32
+feature_ai_target_distance(engine_api *api, u8 city, u8 enemy)
+{
+    s32 nearest = 0x7FFFFFFF;
+    for (u32 target = 0; target < api->city_count(api->engine); ++target)
+    {
+        u8 owner = api->city_at(api->engine, target).owner_force_id;
+        if (owner != enemy && owner != ENGINE_NO_FACTION) continue;
+        nearest = Minimum(nearest, hex_distance(feature_city_hex(api, city), feature_city_hex(api, (u8)target)));
+    }
+    return nearest;
+}
+
+internal b32
+feature_ai_inner_city(engine_api *api, u8 force, u8 *inner, u8 *enemy_force)
+{
+    void *e = api->engine;
+    for (u32 other = 0; other < SIM_FORCE_CAPACITY; ++other)
+    {
+        if (other == force || api->force_ruler(e, (u8)other) == ENGINE_NO_OFFICER) continue;
+        b32 has_inner = false, has_front = false;
+        u8 candidate = ENGINE_NO_CITY;
+        for (u32 city = 0; city < api->city_count(e); ++city)
+        {
+            if (api->city_at(e, city).owner_force_id != force) continue;
+            s32 nearest = feature_ai_target_distance(api, (u8)city, (u8)other);
+            if (nearest > FEATURE_AI_TARGET_HEXES && candidate == ENGINE_NO_CITY) { candidate = (u8)city; has_inner = true; }
+            if (nearest <= FEATURE_AI_TARGET_HEXES) has_front = true;
+        }
+        if (!has_inner || !has_front) continue;
+        *inner = candidate;
+        *enemy_force = (u8)other;
+        return true;
+    }
+    return false;
+}
+
+internal void
+feature_ai_reinforce_tests(test_counts *counts)
+{
+    feature_city_setup setup;
+    u8 force = ENGINE_NO_FACTION, home = ENGINE_NO_CITY;
+    if (!feature_ai_war_setup(&setup, &force, &home, true)) { TEST_CHECK(counts, false, "the sample has an AI faction"); engine_fixture_destroy(&setup.fixture); return; }
+    engine_api *api = setup.api;
+    void *e = api->engine;
+    u8 inner = ENGINE_NO_CITY, enemy = ENGINE_NO_FACTION;
+    /* The first AI faction with a city far from one enemy and a city near it. */
+    b32 found = false;
+    for (u32 other = 0; other < SIM_FORCE_CAPACITY && !found; ++other)
+    {
+        if (other == setup.force || api->force_ruler(e, (u8)other) == ENGINE_NO_OFFICER) continue;
+        force = (u8)other;
+        found = feature_ai_inner_city(api, force, &inner, &enemy);
+    }
+    TEST_CHECK(counts, found, "the sample has an AI faction with a city far from the cities of one other faction, and a city near them");
+    if (!found) { engine_fixture_destroy(&setup.fixture); return; }
+    for (u32 other = 0; other < SIM_FORCE_CAPACITY; ++other)
+    {
+        if (other != force) api->set_diplomacy(e, force, (u8)other, 100, (u8)(other == enemy ? RELATION_NONE : RELATION_ALLIANCE), 0);
+    }
+    for (u32 city = 0; city < api->city_count(e); ++city)
+    {
+        if (api->city_at(e, city).owner_force_id != force) continue;
+        api->set_city_resource(e, (u8)city, SIM_RESOURCE_PUBLIC_ORDER, 0, 100);
+        api->set_city_resource(e, (u8)city, SIM_RESOURCE_MORALE, 0, 100);
+        api->set_city_resource(e, (u8)city, SIM_RESOURCE_GRAIN, 0, FEATURE_AI_WAR_GRAIN);
+    }
+    static const u32 pikes[4] = { FEATURE_AI_WAR_SOLDIERS, 0, 0, 0 };
+    feature_ai_war_city(api, inner, force, pikes);
+    feature_next_own_turn(api, setup.force);
+    engine_ai_explain explain = api->ai_explain(e, force);
+    /* The armed city, or another inner city of the faction with an army of the save, can send it. */
+    engine_ai_option *reinforce = feature_ai_key(&explain, "reinforce");
+    u8 from = reinforce ? reinforce->city_id : ENGINE_NO_CITY;
+    TEST_CHECK(counts, reinforce && reinforce->kind == SIM_COMMAND_TRANSPORT && api->city_at(e, from).owner_force_id == force &&
+                       feature_ai_target_distance(api, from, enemy) > FEATURE_AI_TARGET_HEXES,
+               "given a city with a large army and no enemy city within 30 hexes, the AI sends its soldiers out of it (row reinforce)");
+    b32 carried = false;
+    for (u32 unit = 0; unit < api->unit_count(e) && from != ENGINE_NO_CITY; ++unit)
+    {
+        engine_unit info = api->unit_at(e, unit);
+        if (info.id == ENGINE_NO_UNIT || info.force_id != force || info.home_city != from || info.destination == ENGINE_NO_CITY) continue;
+        carried = info.soldiers > 0 && api->city_at(e, info.destination).owner_force_id == force &&
+                  feature_ai_target_distance(api, info.destination, enemy) <= FEATURE_AI_TARGET_HEXES;
+    }
+    TEST_CHECK(counts, carried, "the transport carries soldiers to a city of the faction on a front: an enemy city is within 30 hexes of it");
+    engine_fixture_destroy(&setup.fixture);
+}
+
 internal void
 feature_ai_tests(test_counts *counts)
 {
@@ -434,4 +651,7 @@ feature_ai_tests(test_counts *counts)
     feature_ai_march_tests(counts);
     feature_ai_defend_tests(counts);
     feature_ai_grain_tests(counts);
+    feature_ai_sortie_type_tests(counts);
+    feature_ai_buy_grain_tests(counts);
+    feature_ai_reinforce_tests(counts);
 }
