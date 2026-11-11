@@ -634,6 +634,13 @@ demo_m4_growth(ImGuiTestContext *ctx)
     u8 player = api->whose_turn(api->engine);
     IM_CHECK(player != ENGINE_NO_FACTION);
     api->set_technique_points(api->engine, player, 3000);
+    /* A ceasefire with each other faction. The AI attacks after
+       ai.attack_after_months. An enemy unit near the city then refuses the
+       merge (SIM_REFUSAL_ENEMY_NEAR), and this walkthrough shows growth. */
+    for (u32 other = 0; other < SIM_FORCE_CAPACITY; ++other)
+    {
+        if (other != player) api->set_diplomacy(api->engine, player, (u8)other, 50, RELATION_CEASEFIRE, 12);
+    }
 
     u8 city = demo_busiest_city_of_player(api);
     IM_CHECK(city != ENGINE_NO_CITY);
