@@ -504,6 +504,35 @@ d3d11_asset_model_name(u32 job)
     return 0;
 }
 
+/* The render_model_id of a model job, or RENDER_MODEL_COUNT. */
+internal u32
+d3d11_asset_model_id(u32 job)
+{
+    if (job < D3D11_ASSET_FIRST_MESH_MODEL || job >= D3D11_ASSET_COUNT) return RENDER_MODEL_COUNT;
+    return (job - D3D11_ASSET_FIRST_MESH_MODEL) / RENDER_MODEL_LEVELS;
+}
+
+/* True if a file of the pack folder exists. An empty folder has none. */
+internal b32
+d3d11_pack_has_file(const char *pack_dir, const char *relative)
+{
+    if (!pack_dir || !pack_dir[0] || !relative) return false;
+    char path[520];
+    snprintf(path, sizeof(path), "%s/%s", pack_dir, relative);
+    return GetFileAttributesA(path) != INVALID_FILE_ATTRIBUTES;
+}
+
+/* False if the job is a unit model that the pack must not take from the
+   data folder: the pack has its own art of the class and no own model
+   (render_unit_model_allowed). Other jobs are always allowed. */
+internal b32
+d3d11_unit_model_allowed(const d3d11_renderer *r, u32 job, const char *mesh_file)
+{
+    const char *art = render_unit_model_art_file(d3d11_asset_model_id(job));
+    if (!art) return true;
+    return render_unit_model_allowed(d3d11_pack_has_file(r->pack_dir, art), d3d11_pack_has_file(r->pack_dir, mesh_file));
+}
+
 internal void
 d3d11_asset_prepare(const d3d11_renderer *r, u32 job, memory_arena *arena, d3d11_asset_data *data)
 {
@@ -534,6 +563,7 @@ d3d11_asset_prepare(const d3d11_renderer *r, u32 job, memory_arena *arena, d3d11
     {
         char mesh_file[260];
         snprintf(mesh_file, sizeof(mesh_file), "%s.hxm", name);
+        if (!d3d11_unit_model_allowed(r, job, mesh_file)) return;
         if (d3d11_read_mesh_file(r, mesh_file, arena, &data->mesh)) data->picture = d3d11_read_model_texture(r, name, arena);
         if (!data->picture.rgba) data->mesh = {};
     }
@@ -765,7 +795,7 @@ d3d11_release(IUnknown **p)
 
 /* The files of a job, relative to the data folder. Returns their count. */
 internal u32
-d3d11_asset_files(u32 job, char files[1 + PICTURE_MODEL_TEXTURE_EXTENSIONS][260])
+d3d11_asset_files(u32 job, char files[2 + PICTURE_MODEL_TEXTURE_EXTENSIONS][260])
 {
     u32 count = 0;
     if (job == D3D11_ASSET_ATLAS) snprintf(files[count++], 260, "materials.jpg");
@@ -783,6 +813,8 @@ d3d11_asset_files(u32 job, char files[1 + PICTURE_MODEL_TEXTURE_EXTENSIONS][260]
         {
             snprintf(files[count++], 260, "%s.%s", name, picture_model_texture_extensions[index]);
         }
+        /* The art of the class decides if a unit model loads (d3d11_unit_model_allowed). */
+        if (const char *art = render_unit_model_art_file(d3d11_asset_model_id(job))) snprintf(files[count++], 260, "%s", art);
     }
     return count;
 }
@@ -792,7 +824,7 @@ internal b32
 d3d11_asset_in_pack(const char *pack_dir, u32 job)
 {
     if (!pack_dir || !pack_dir[0]) return false;
-    char files[1 + PICTURE_MODEL_TEXTURE_EXTENSIONS][260];
+    char files[2 + PICTURE_MODEL_TEXTURE_EXTENSIONS][260];
     u32 count = d3d11_asset_files(job, files);
     for (u32 index = 0; index < count; ++index)
     {
@@ -1100,6 +1132,7 @@ d3d11_model_of(d3d11_renderer *r, render_mesh_instance *m, const camera *cam)
         d3d11_base_model *model = r->base_models + (m->art_sprite - RENDER_SPRITE_FIRST_BASE);
         return model->texture ? model : 0;
     }
+    if (m->mesh_id == RENDER_MESH_UNIT_FIGURE) return d3d11_level_model_of(r, m->model, 0);   /* render_place_units checked the camera */
     if (m->mesh_id >= RENDER_MESH_COUNT || !render_shape_models_on(cam)) return 0;
     d3d11_base_model *model = d3d11_level_model_of(r, m->model, m->level);
     return model ? model : d3d11_level_model_of(r, m->mesh_id, m->level);
@@ -1109,10 +1142,9 @@ d3d11_model_of(d3d11_renderer *r, render_mesh_instance *m, const camera *cam)
    that d3d11_model_of gives to that model and that is in the view. The
    model stays fixed when the view turns. */
 internal void
-d3d11_draw_model(d3d11_renderer *r, render_commands *rc, m4 view_projection, d3d11_base_model *model, memory_arena *scratch)
+d3d11_draw_model(d3d11_renderer *r, render_commands *rc, m4 view_projection, d3d11_base_model *model, d3d11_mesh_instance *batch)
 {
     if (!model->texture) return;
-    d3d11_mesh_instance *batch = PushArray(scratch, r->instance_capacity, d3d11_mesh_instance);
     u32 n = 0;
     for (u32 i = 0; i < rc->mesh_instance_count && n < r->instance_capacity; ++i)
     {
@@ -1216,10 +1248,18 @@ d3d11_renderer_draw(d3d11_renderer *r, render_commands *rc, ID3D11RenderTargetVi
         }
     }
 
+    /* The units: the figures of each class with a model, else the
+       billboard (render_place_units). A unit model loads only at level 1. */
+    b32 unit_ready[RENDER_MODEL_COUNT] = {};
+    for (u32 model_id = RENDER_MODEL_UNIT_SWORD; model_id < RENDER_MODEL_COUNT; ++model_id) unit_ready[model_id] = r->mesh_models[model_id][0].texture != 0;
+    render_place_units(rc, unit_ready);
+
+    /* One batch of instances for each draw of a mesh or a model, in turn. */
+    d3d11_mesh_instance *batch = PushArray(scratch, r->instance_capacity, d3d11_mesh_instance);
+
     /* meshes: one instanced draw per mesh id */
     for (u32 mesh_id = 0; mesh_id < r->mesh_count; ++mesh_id)
     {
-        d3d11_mesh_instance *batch = PushArray(scratch, r->instance_capacity, d3d11_mesh_instance);
         u32 n = 0;
         for (u32 i = 0; i < rc->mesh_instance_count && n < r->instance_capacity; ++i)
         {
@@ -1243,8 +1283,8 @@ d3d11_renderer_draw(d3d11_renderer *r, render_commands *rc, ID3D11RenderTargetVi
 
     /* the 3D models: one instanced draw for each base kind and each shape
        that has a model in the pack */
-    for (u32 kind = 0; kind < D3D11_BASE_KINDS; ++kind) d3d11_draw_model(r, rc, fc.view_projection, r->base_models + kind, scratch);
-    for (u32 model_index = 0; model_index < RENDER_MODEL_COUNT * RENDER_MODEL_LEVELS; ++model_index) d3d11_draw_model(r, rc, fc.view_projection, r->mesh_models[0] + model_index, scratch);
+    for (u32 kind = 0; kind < D3D11_BASE_KINDS; ++kind) d3d11_draw_model(r, rc, fc.view_projection, r->base_models + kind, batch);
+    for (u32 model_index = 0; model_index < RENDER_MODEL_COUNT * RENDER_MODEL_LEVELS; ++model_index) d3d11_draw_model(r, rc, fc.view_projection, r->mesh_models[0] + model_index, batch);
 
     /* billboards: one instanced draw per sprite id, alpha tested, drawn last.
        The quad winds counter-clockwise on the screen, so the back-face cull
@@ -1253,14 +1293,14 @@ d3d11_renderer_draw(d3d11_renderer *r, render_commands *rc, ID3D11RenderTargetVi
     ctx->RSSetState(r->rasterizer_no_cull);
     for (u32 sprite_id = 0; sprite_id < r->sprite_count; ++sprite_id)
     {
-        d3d11_billboard_instance *batch = PushArray(scratch, r->instance_capacity, d3d11_billboard_instance);
+        d3d11_billboard_instance *cards = PushArray(scratch, r->instance_capacity, d3d11_billboard_instance);
         u32 n = 0;
         for (u32 i = 0; i < rc->billboard_count && n < r->instance_capacity; ++i)
         {
             render_billboard *b = rc->billboards + i;
             if (b->sprite_id != sprite_id) continue;
-            batch[n].position[0] = b->position.x; batch[n].position[1] = b->position.y; batch[n].position[2] = b->position.z;
-            batch[n].width = b->width; batch[n].height = b->height; batch[n].tint = b->tint;
+            cards[n].position[0] = b->position.x; cards[n].position[1] = b->position.y; cards[n].position[2] = b->position.z;
+            cards[n].width = b->width; cards[n].height = b->height; cards[n].tint = b->tint;
             n++;
         }
         /* The art of a base stands in place of its mesh, on a card that faces the camera. */
@@ -1269,8 +1309,8 @@ d3d11_renderer_draw(d3d11_renderer *r, render_commands *rc, ID3D11RenderTargetVi
             render_mesh_instance *m = rc->mesh_instances + i;
             if (m->art_sprite != sprite_id || !d3d11_has_art(r, m) || d3d11_model_of(r, m, &rc->cam)) continue;
             render_billboard card = render_base_billboard(m, &rc->cam, r->sprites[sprite_id].aspect);
-            batch[n].position[0] = card.position.x; batch[n].position[1] = card.position.y; batch[n].position[2] = card.position.z;
-            batch[n].width = card.width; batch[n].height = card.height; batch[n].tint = card.tint;
+            cards[n].position[0] = card.position.x; cards[n].position[1] = card.position.y; cards[n].position[2] = card.position.z;
+            cards[n].width = card.width; cards[n].height = card.height; cards[n].tint = card.tint;
             n++;
         }
         if (!n) continue;
@@ -1280,7 +1320,7 @@ d3d11_renderer_draw(d3d11_renderer *r, render_commands *rc, ID3D11RenderTargetVi
             fc.mode = mode;
             d3d11_upload(r, r->constants, &fc, sizeof(fc), 0);
         }
-        d3d11_upload(r, r->instances, batch, n * (u32)sizeof(d3d11_billboard_instance), 0);
+        d3d11_upload(r, r->instances, cards, n * (u32)sizeof(d3d11_billboard_instance), 0);
         UINT strides[2] = { 16, sizeof(d3d11_billboard_instance) }, offsets[2] = { 0, 0 };
         ID3D11Buffer *buffers[2] = { r->billboard_quad, r->instances };
         ctx->IASetInputLayout(r->billboard_layout);

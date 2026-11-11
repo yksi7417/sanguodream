@@ -259,6 +259,11 @@ struct ui_state
         bool      frame_city;    /* a list asked to frame ui->city.selected, also when it did not change */
         bool      frame_unit;    /* a list asked to frame ui->units.selected */
         bool      headless;      /* the scene input, the labels and the frames run without a render target (the M11 ui tests) */
+        /* The direction of the 3D figures of each unit: the direction of
+           its last step. A new unit faces south (yaw 0). */
+        hex_coord unit_hex[SIM_UNIT_CAPACITY];
+        f32       unit_yaw[SIM_UNIT_CAPACITY];
+        bool      unit_seen[SIM_UNIT_CAPACITY];
     } scene;
     bool show_units;             /* M11: the Units panel, a list of the units to frame */
     bool show_settings;

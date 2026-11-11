@@ -15,7 +15,8 @@ these steps:
 4. It moves the model so that the centre of its footprint is at x = 0,
    z = 0 and its lowest point is at y = 0. It scales the model so that the
    larger side of the footprint is one unit. The scene scales the model to
-   the width of the base kind.
+   the width of the base kind. With --fit height, the height of the model
+   is one unit. A unit figure, for example unit_sword, uses this fit.
 5. It writes data/<pack>/models/<name>.hxm, the flat mesh file of the
    engine: "HXM1", the vertex count, the index count, 8 floats for each
    vertex (position, normal, uv), and the indices as u32.
@@ -25,7 +26,7 @@ these steps:
 
 Run it from the root of the repository:
 
-    python -X utf8 misc\\glb_import.py <file.glb> <name> [data\\placeholder] [--yaw DEGREES]
+    python -X utf8 misc\\glb_import.py <file.glb> <name> [data\\placeholder] [--yaw DEGREES] [--fit footprint|height]
 
 The name of a base kind is base_city, base_big_city, base_gate or
 base_port. The name of a facility shape is facility_market,
@@ -225,9 +226,14 @@ def collect_mesh(document, binary):
     return vertices, indices, material
 
 
-def place_model(vertices, yaw_degrees):
+FIT_FOOTPRINT = "footprint"   # the larger side of the footprint is one unit: bases, facilities, siege weapons, ships
+FIT_HEIGHT = "height"         # the height is one unit: a standing soldier or a banner
+
+
+def place_model(vertices, yaw_degrees, fit=FIT_FOOTPRINT):
     """Turns the model, puts its footprint on the origin and its base on
-    y = 0, and scales the larger side of the footprint to one unit."""
+    y = 0, and scales it. With FIT_FOOTPRINT, the larger side of the footprint
+    is one unit. With FIT_HEIGHT, the height is one unit."""
     angle = math.radians(yaw_degrees)
     c, s = math.cos(angle), math.sin(angle)
     turned = []
@@ -238,6 +244,12 @@ def place_model(vertices, yaw_degrees):
     side = max(high[0] - low[0], high[2] - low[2])
     if side <= 0.0:
         raise GlbError("the model has no footprint")
+    if fit == FIT_HEIGHT:
+        side = high[1] - low[1]
+        if side <= 0.0:
+            raise GlbError("the model has no height")
+    elif fit != FIT_FOOTPRINT:
+        raise GlbError("unknown fit " + fit)
     centre_x, centre_z = (low[0] + high[0]) * 0.5, (low[2] + high[2]) * 0.5
     placed = []
     for (px, py, pz), normal, uv in turned:
@@ -280,10 +292,10 @@ def write_hxm(path, vertices, indices):
         target.write(struct.pack(f"<{len(indices)}I", *indices))
 
 
-def import_model(glb_path, name, pack, yaw_degrees):
+def import_model(glb_path, name, pack, yaw_degrees, fit=FIT_FOOTPRINT):
     document, binary = read_glb(glb_path)
     vertices, indices, material = collect_mesh(document, binary)
-    vertices, size = place_model(vertices, yaw_degrees)
+    vertices, size = place_model(vertices, yaw_degrees, fit)
     image = base_colour_image(document, binary, material)
     if max(image.size) > TEXTURE_MAX:
         ratio = TEXTURE_MAX / max(image.size)
@@ -302,12 +314,17 @@ def main(arguments):
         at = arguments.index("--yaw")
         yaw = float(arguments[at + 1])
         arguments = arguments[:at] + arguments[at + 2:]
+    fit = FIT_FOOTPRINT
+    if "--fit" in arguments:
+        at = arguments.index("--fit")
+        fit = arguments[at + 1]
+        arguments = arguments[:at] + arguments[at + 2:]
     if len(arguments) < 2:
         print(__doc__)
         return 2
     pack = arguments[2] if len(arguments) > 2 else os.path.join("data", "placeholder")
     try:
-        import_model(arguments[0], arguments[1], pack, yaw)
+        import_model(arguments[0], arguments[1], pack, yaw, fit)
     except GlbError as error:
         print(f"error: {error}")
         return 1

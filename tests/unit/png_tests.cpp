@@ -167,15 +167,19 @@ unit_model_file_tests(test_counts *counts)
         if (!mesh.contents) continue;   /* a kind without a model keeps its art card or its shape */
         render_mesh_file file = {};
         b32 parsed = render_mesh_file_parse(mesh.contents, mesh.size, &file) && file.index_count % 3 == 0;
-        snprintf(path, sizeof(path), "%s/../data/placeholder/%s.png", exe_dir, names[index]);
-        test_file texture = test_read_file(path, &arena);
+        test_file texture = {};
+        for (u32 extension = 0; extension < PICTURE_MODEL_TEXTURE_EXTENSIONS && !texture.contents; ++extension)
+        {
+            snprintf(path, sizeof(path), "%s/../data/placeholder/%s.%s", exe_dir, names[index], picture_model_texture_extensions[extension]);
+            texture = test_read_file(path, &arena);
+        }
         png_image image = {};
-        if (texture.contents) image = png_decode(texture.contents, texture.size, &arena);
+        if (texture.contents) image = picture_decode(texture.contents, texture.size, &arena);
         models_read &= parsed && texture.contents != 0 && image.error == 0 && image.width > 0 && image.width <= 1024 && image.height <= 1024;
         model_count++;
     }
-    TEST_CHECK(counts, models_read && model_count == 57,
-               "the pack has the models of the four base kinds, the market, the farm, the barracks, the smithy, the stable and the scaffold at levels 1 to 3, the shipyard, the bronze sparrow tower, the granary, the tally office, the camp, the arrow tower, the drum tower, the earth wall, the stone maze, the fire seed and each kind in render_model_id, and each mesh and texture reads");
+    TEST_CHECK(counts, models_read && model_count == 57 + 14,
+               "the pack has the models of the four base kinds, the market, the farm, the barracks, the smithy, the stable and the scaffold at levels 1 to 3, the shipyard, the bronze sparrow tower, the granary, the tally office, the camp, the arrow tower, the drum tower, the earth wall, the stone maze, the fire seed, each kind in render_model_id and the 14 unit models, and each mesh and texture reads");
     test_arena_destroy(&arena);
 }
 

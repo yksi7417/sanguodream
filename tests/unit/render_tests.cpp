@@ -9,6 +9,8 @@ near_f32(f32 a, f32 b, f32 tolerance)
     return d <= tolerance;
 }
 
+internal void unit_render_unit_tests(test_counts *counts);
+
 internal void
 unit_render_tests(test_counts *counts)
 {
@@ -175,7 +177,7 @@ unit_render_tests(test_counts *counts)
             {
                 kinds_named &= render_model_files[model_id][0] != 0 && render_model_files[model_id][1] == 0;
             }
-            TEST_CHECK(counts, kinds_named && RENDER_MODEL_ROCKFALL == RENDER_MODEL_COUNT - 1,
+            TEST_CHECK(counts, kinds_named && RENDER_MODEL_UNIT_BANNER == RENDER_MODEL_COUNT - 1,
                        "each kind with its own model names one model for level 1");
         }
         TEST_CHECK(counts, render_model_files[RENDER_MESH_STALL][1] && render_model_files[RENDER_MESH_STALL][2] &&
@@ -425,5 +427,136 @@ unit_render_tests(test_counts *counts)
     file.magic[3] = '2';
     TEST_CHECK(counts, !render_mesh_file_parse((const u8 *)&file, sizeof(file), &parsed),
                "the mesh file parser refuses a file without the HXM1 tag");
+    test_arena_destroy(&arena);
+    unit_render_unit_tests(counts);
+}
+
+/* The figures of a unit (docs/GRAPHICS.md 5.1): the model of each class
+   of unit, the crowd of a soldier class, the one model of a siege weapon
+   and a ship, and the billboard when the pack has no model. */
+internal b32
+render_test_figures_in_hex(const render_mesh_instance *figures, u32 count, v3 centre)
+{
+    for (u32 index = 0; index < count; ++index)
+    {
+        f32 dx = figures[index].position.x - centre.x, dz = figures[index].position.z - centre.z;
+        if (sqrtf(dx * dx + dz * dz) > 0.8f || figures[index].position.y != centre.y) return false;
+    }
+    return true;
+}
+
+internal void
+unit_render_unit_tests(test_counts *counts)
+{
+    TEST_CHECK(counts, render_unit_model_of(RENDER_SPRITE_SWORD) == RENDER_MODEL_UNIT_SWORD &&
+                       render_unit_model_of(RENDER_SPRITE_CAVALRY) == RENDER_MODEL_UNIT_CAVALRY &&
+                       render_unit_model_of(RENDER_SPRITE_TRANSPORT) == RENDER_MODEL_UNIT_TRANSPORT &&
+                       render_unit_model_of(RENDER_SPRITE_UNIT) == RENDER_MODEL_COUNT &&
+                       render_unit_model_of(RENDER_SPRITE_BASE_CITY) == RENDER_MODEL_COUNT,
+               "each class sprite has the model of its class; the figure without a class and a base have none");
+    TEST_CHECK(counts, !strcmp(render_model_files[RENDER_MODEL_UNIT_SWORD][0], "models/unit_sword") &&
+                       !strcmp(render_model_files[RENDER_MODEL_UNIT_BATTLE_SHIP][0], "models/unit_battle_ship") &&
+                       !strcmp(render_model_files[RENDER_MODEL_UNIT_BANNER][0], "models/unit_banner"),
+               "the unit models are models/unit_<class> of the pack");
+    TEST_CHECK(counts, !strcmp(render_unit_model_art_file(RENDER_MODEL_UNIT_PIKE), "sprites/art/pike.png") &&
+                       !strcmp(render_unit_model_art_file(RENDER_MODEL_UNIT_BANNER), "sprites/art/banner.png") &&
+                       render_unit_model_art_file(RENDER_MODEL_FORT) == 0,
+               "each unit model names the art sprite of its class");
+    TEST_CHECK(counts, render_unit_model_allowed(false, false) && render_unit_model_allowed(true, true) &&
+                       render_unit_model_allowed(false, true) && !render_unit_model_allowed(true, false),
+               "a pack with its own unit art and no unit model keeps its art");
+
+    render_mesh_instance figures[64];
+    v3 centre = v3_make(3.0f, 0.5f, -2.0f);
+    render_unit sword = {};
+    sword.sprite_id = RENDER_SPRITE_SWORD; sword.position = centre; sword.yaw = 0.7f; sword.tint = 0x112233FFu; sword.seed = 7;
+    sword.soldiers = 1000;
+    u32 small = render_unit_figures(&sword, figures, ArrayCount(figures));
+    TEST_CHECK(counts, small == 4 + 1 && figures[small - 1].model == RENDER_MODEL_UNIT_BANNER && figures[0].model == RENDER_MODEL_UNIT_SWORD,
+               "1000 soldiers are 4 figures and a banner");
+    b32 alike = true;
+    for (u32 index = 0; index < small; ++index)
+    {
+        alike &= figures[index].mesh_id == RENDER_MESH_UNIT_FIGURE && figures[index].tint == sword.tint && figures[index].yaw == sword.yaw &&
+                 figures[index].art_sprite == RENDER_NO_ART && figures[index].level == 0;
+    }
+    TEST_CHECK(counts, alike && near_f32(figures[0].scale, RENDER_UNIT_FIGURE_HEIGHT, 1e-6f) && figures[small - 1].scale > figures[0].scale,
+               "each figure has the tint and the yaw of the unit; the banner is taller than a soldier");
+    sword.soldiers = 0;
+    TEST_CHECK(counts, render_unit_figures(&sword, figures, ArrayCount(figures)) == RENDER_UNIT_MIN_FIGURES + 1, "a unit without soldiers keeps the least figures");
+    sword.soldiers = 5000;
+    TEST_CHECK(counts, render_unit_figures(&sword, figures, ArrayCount(figures)) == 20 + 1, "5000 soldiers are 20 figures and a banner");
+    sword.soldiers = 1000000;
+    u32 full = render_unit_figures(&sword, figures, ArrayCount(figures));
+    TEST_CHECK(counts, full == RENDER_UNIT_MAX_FIGURES + 1 && render_test_figures_in_hex(figures, full, centre),
+               "a large unit stops at the most figures, and each figure stands inside the hex");
+    render_mesh_instance again[64];
+    render_unit_figures(&sword, again, ArrayCount(again));
+    b32 same = true;
+    for (u32 index = 0; index < full; ++index) same &= v3_length(v3_sub(again[index].position, figures[index].position)) == 0.0f;
+    sword.seed = 8;
+    render_unit_figures(&sword, again, ArrayCount(again));
+    b32 moved = false;
+    for (u32 index = 0; index < full; ++index) moved |= v3_length(v3_sub(again[index].position, figures[index].position)) > 0.0f;
+    TEST_CHECK(counts, same && moved, "the same seed gives the same figures, another seed moves them a little");
+    TEST_CHECK(counts, render_unit_figures(&sword, figures, 3) == 3, "the figures stop at the space of the buffer");
+
+    render_unit cavalry = sword;
+    cavalry.sprite_id = RENDER_SPRITE_CAVALRY;
+    u32 riders = render_unit_figures(&cavalry, figures, ArrayCount(figures));
+    TEST_CHECK(counts, riders >= RENDER_UNIT_MIN_FIGURES + 1 && riders < full && render_test_figures_in_hex(figures, riders, centre),
+               "the cavalry has fewer and larger figures, inside the hex");
+
+    render_unit ship = sword;
+    ship.sprite_id = RENDER_SPRITE_TOWER_SHIP;
+    TEST_CHECK(counts, render_unit_figures(&ship, figures, ArrayCount(figures)) == 1 && figures[0].model == RENDER_MODEL_UNIT_TOWER_SHIP &&
+                       v3_length(v3_sub(figures[0].position, centre)) == 0.0f && figures[0].scale >= 1.0f,
+               "a ship is one model at the centre of the hex");
+    render_unit ram = sword;
+    ram.sprite_id = RENDER_SPRITE_RAM;
+    TEST_CHECK(counts, render_unit_figures(&ram, figures, ArrayCount(figures)) == 1 && figures[0].model == RENDER_MODEL_UNIT_RAM,
+               "a siege weapon is one model");
+    render_unit plain = sword;
+    plain.sprite_id = RENDER_SPRITE_UNIT;
+    TEST_CHECK(counts, render_unit_figures(&plain, figures, ArrayCount(figures)) == 0, "the figure without a class has no model");
+
+    /* The platform places the units: the figures when the pack has the
+       model of the class, else the billboard of today. */
+    memory_arena arena = test_arena_create(Megabytes(4));
+    b32 ready[RENDER_MODEL_COUNT] = {};
+    render_commands *rc = render_commands_begin(&arena, 800.0f, 600.0f);
+    rc->cam = camera_default(0.0f, 0.0f);
+    render_push_unit(rc, sword.sprite_id, centre, sword.yaw, 1000, sword.tint, 1);
+    render_push_unit(rc, ship.sprite_id, centre, 0.0f, 1000, sword.tint, 2);
+    TEST_CHECK(counts, rc->unit_count == 2 && rc->mesh_instance_count == 0 && rc->billboard_count == 0, "a pushed unit waits for the platform");
+    render_place_units(rc, ready);
+    TEST_CHECK(counts, rc->mesh_instance_count == 0 && rc->billboard_count == 2 && rc->billboards[0].sprite_id == RENDER_SPRITE_SWORD &&
+                       near_f32(rc->billboards[0].width, RENDER_UNIT_SPRITE_SIZE, 1e-6f) && rc->billboards[1].sprite_id == RENDER_SPRITE_TOWER_SHIP,
+               "without a model each unit is its billboard");
+
+    rc = render_commands_begin(&arena, 800.0f, 600.0f);
+    rc->cam = camera_default(0.0f, 0.0f);
+    ready[RENDER_MODEL_UNIT_SWORD] = true;
+    render_push_unit(rc, sword.sprite_id, centre, sword.yaw, 1000, sword.tint, 1);
+    render_push_unit(rc, ship.sprite_id, centre, 0.0f, 1000, sword.tint, 2);
+    render_place_units(rc, ready);
+    TEST_CHECK(counts, rc->mesh_instance_count == 4 && rc->billboard_count == 1 && rc->billboards[0].sprite_id == RENDER_SPRITE_TOWER_SHIP,
+               "a class with a model is its figures, without the banner when the banner has no model");
+
+    rc = render_commands_begin(&arena, 800.0f, 600.0f);
+    rc->cam = camera_default(0.0f, 0.0f);
+    rc->cam.distance = RENDER_SHAPE_MODEL_MAX_DISTANCE + 10.0f;
+    render_push_unit(rc, sword.sprite_id, centre, sword.yaw, 1000, sword.tint, 1);
+    render_place_units(rc, ready);
+    TEST_CHECK(counts, rc->mesh_instance_count == 0 && rc->billboard_count == 1, "a far camera shows the billboard");
+
+    rc = render_commands_begin(&arena, 800.0f, 600.0f);
+    rc->cam = camera_default(0.0f, 0.0f);
+    rc->mesh_instance_count = RENDER_MAX_MESH_INSTANCES - 2;
+    render_push_unit(rc, sword.sprite_id, centre, sword.yaw, 1000, sword.tint, 1);
+    render_place_units(rc, ready);
+    TEST_CHECK(counts, rc->mesh_instance_count == RENDER_MAX_MESH_INSTANCES - 2 && rc->billboard_count == 1,
+               "a unit whose figures do not fit is its billboard");
+    TEST_CHECK(counts, RENDER_MAX_MESH_INSTANCES >= 16384, "the buffer holds the figures of many units");
     test_arena_destroy(&arena);
 }

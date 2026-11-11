@@ -189,6 +189,26 @@ of the faces follows the art direction of section 3: ochre, slate blue,
 pine green and plum backgrounds, lacquer black hair.
 
 ### 5.1 How a unit looks
+Today (2026-11-11): if the pack has the 3D model of the class, the unit is
+a crowd of 3D figures (render_unit_figures in code/render/render.h):
+- A soldier is 0.45 units tall, a rider 0.54 units and the banner 0.68
+  units. This is 1.5 times the scale in the table of section 3, so that a
+  unit shows at a middle zoom (the player, 2026-11-11).
+- A soldier class shows one figure for each 250 soldiers (500 for the
+  cavalry), from 4 to 20 figures (6 for the cavalry), in rows. A banner
+  stands behind the rows. The rows stay inside the hex.
+- A siege weapon is one model, 1.5 units long. A ship is one model, 1.7
+  units long.
+- The figures face the direction of the last step of the unit. A new unit
+  faces south.
+- The unit shows its billboard of 1.4 units in these cases:
+  - The camera is farther than 50 units.
+  - The pack has no model of the class.
+  - The buffer of instances is full.
+- These counts are lower than the counts below. Each figure has
+  approximately 1,500 triangles, so 80 figures for each unit cost too much.
+
+The plan for the crowd:
 - A unit is a dense crowd of small figures that fills its hex, as in the
   original (spec ui/main-map.md, "Scenes on the map"). More soldiers
   give more figures. A unit of 8000 soldiers shows approximately 60 to

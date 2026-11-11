@@ -7,7 +7,7 @@
 
 #define UI_FRAME_DISTANCE    24.0f   /* the camera distance after a frame */
 #define UI_LABEL_LIFT        1.2f    /* world units above the top of the hex */
-#define UI_UNIT_PLATE_LIFT   1.45f   /* the plate of a unit sits on the head of its sprite (UI_SCENE_UNIT_SPRITE_SIZE is 1.4; the player asked for it on 2026-10-24) */
+#define UI_UNIT_PLATE_LIFT   1.45f   /* the plate of a unit sits on the head of its sprite (RENDER_UNIT_SPRITE_SIZE is 1.4; the player asked for it on 2026-10-24) */
 #define UI_FACILITY_COUNT_CAPACITY 32
 
 /* ---- frame a city or a unit --------------------------------------------------------- */
