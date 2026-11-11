@@ -167,7 +167,28 @@ internal hex_coord ui_round_unit_hex(ui_state *ui, engine_unit *unit);   /* ui_r
 internal b32       ui_pick_allows(ui_state *ui, engine_api *api, u8 pick, u8 row, hex_coord hex);   /* ui_combat.cpp: the probe of a target */
 internal u32       ui_unit_sprite(engine_api *api, engine_unit *unit);   /* ui_war.cpp: the sprite of the class of the unit */
 
-#define UI_SCENE_UNIT_SPRITE_SIZE 1.4f   /* world units; the square picture of a unit on its hex */
+/* The direction of the figures of a unit on the hex h: the direction of
+   its last step, from the hex where the scene drew it before. A unit that
+   the scene did not see before faces south. */
+internal f32
+ui_scene_unit_yaw(ui_state *ui, u32 unit_id, hex_coord h)
+{
+    if (unit_id >= SIM_UNIT_CAPACITY) return 0.0f;
+    if (!ui->scene.unit_seen[unit_id])
+    {
+        ui->scene.unit_seen[unit_id] = true;
+        ui->scene.unit_hex[unit_id]  = h;
+        ui->scene.unit_yaw[unit_id]  = 0.0f;
+    }
+    hex_coord before = ui->scene.unit_hex[unit_id];
+    if (before.q != h.q || before.r != h.r)
+    {
+        v3 from = hex_world_center(before, 0.0f), to = hex_world_center(h, 0.0f);
+        ui->scene.unit_yaw[unit_id] = atan2f(to.x - from.x, to.z - from.z);
+        ui->scene.unit_hex[unit_id] = h;
+    }
+    return ui->scene.unit_yaw[unit_id];
+}
 
 /* The axis (0, 1 or 2: the directions d and d + 3) of the road through a
    pass, from the six neighbours of its hex: the axis with a passable hex
@@ -396,9 +417,10 @@ ui_scene_push(ui_state *ui, engine_api *api, ui_frame_info *frame)
         }
     }
 
-    /* A base on each city and a billboard on each unit, in the colour of
-       the faction. The platform draws the art of the base kind when the
-       pack has it, and the placeholder model when not (docs/ASSETS.md). */
+    /* A base on each city and each unit, in the colour of the faction. The
+       platform draws the art of the base kind when the pack has it, and the
+       placeholder model when not (docs/ASSETS.md). It draws a unit as the
+       3D figures of its class, or as its billboard (render_place_units). */
     if (!cells) return;
     for (u32 index = 0; index < api->city_count(api->engine); ++index)
     {
@@ -436,7 +458,7 @@ ui_scene_push(ui_state *ui, engine_api *api, ui_frame_info *frame)
         hex_offset o = hex_to_offset(h);
         if (o.col < 0 || o.row < 0 || (u32)o.col >= view.width || (u32)o.row >= view.height) continue;
         u32 cell = (u32)o.row * view.width + (u32)o.col;
-        render_push_billboard(rc, ui_unit_sprite(api, &unit), hex_world_center(h, terrain_level_y(view.level[cell])),
-                              UI_SCENE_UNIT_SPRITE_SIZE, UI_SCENE_UNIT_SPRITE_SIZE, ui_faction_rgba(api, unit.force_id));
+        render_push_unit(rc, ui_unit_sprite(api, &unit), hex_world_center(h, terrain_level_y(view.level[cell])), ui_scene_unit_yaw(ui, unit.id, h),
+                         unit.soldiers, ui_faction_rgba(api, unit.force_id), unit.id);
     }
 }

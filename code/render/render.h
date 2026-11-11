@@ -636,6 +636,23 @@ enum render_model_id
     RENDER_MODEL_FIRE_BALL_3,       /* 業火球 */
     RENDER_MODEL_FIRE_SHIP,         /* 火船 */
     RENDER_MODEL_ROCKFALL,          /* 落石 */
+    /* The models of the unit classes, in the order of the class sprites
+       RENDER_SPRITE_SWORD to RENDER_SPRITE_TRANSPORT (render_unit_model_of),
+       then the banner of a soldier unit (misc/unit_models.py). */
+    RENDER_MODEL_UNIT_SWORD,
+    RENDER_MODEL_UNIT_PIKE,
+    RENDER_MODEL_UNIT_HALBERD,
+    RENDER_MODEL_UNIT_CROSSBOW,
+    RENDER_MODEL_UNIT_CAVALRY,
+    RENDER_MODEL_UNIT_RAM,
+    RENDER_MODEL_UNIT_WOOD_BEAST,
+    RENDER_MODEL_UNIT_TOWER,
+    RENDER_MODEL_UNIT_CATAPULT,
+    RENDER_MODEL_UNIT_BOAT,
+    RENDER_MODEL_UNIT_TOWER_SHIP,
+    RENDER_MODEL_UNIT_BATTLE_SHIP,
+    RENDER_MODEL_UNIT_TRANSPORT,
+    RENDER_MODEL_UNIT_BANNER,
     RENDER_MODEL_COUNT
 };
 
@@ -693,6 +710,20 @@ global_variable const char *render_model_files[RENDER_MODEL_COUNT][RENDER_MODEL_
     { "models/building_fire_ball_3" },
     { "models/building_fire_ship" },
     { "models/building_rockfall" },
+    { "models/unit_sword" },
+    { "models/unit_pike" },
+    { "models/unit_halberd" },
+    { "models/unit_crossbow" },
+    { "models/unit_cavalry" },
+    { "models/unit_ram" },
+    { "models/unit_wood_beast" },
+    { "models/unit_tower" },
+    { "models/unit_catapult" },
+    { "models/unit_boat" },
+    { "models/unit_tower_ship" },
+    { "models/unit_battle_ship" },
+    { "models/unit_transport" },
+    { "models/unit_banner" },
 };
 
 /* The column of render_model_files for the level of an instance. An
@@ -784,7 +815,145 @@ render_model_in_view(m4 view_projection, const render_mesh_instance *placed)
     return true;
 }
 
-#define RENDER_MAX_MESH_INSTANCES 4096
+/* A unit on the map (docs/GRAPHICS.md 5.1). The scene pushes one for each
+   unit. The platform then places it with render_place_units: the 3D
+   figures of its class when the pack has the model, else the billboard of
+   its sprite. */
+struct render_unit
+{
+    u32 sprite_id;         /* render_sprite: the class of the unit */
+    v3  position;          /* the centre of the hex, on the ground */
+    f32 yaw;               /* the direction of the front, as render_mesh_instance.yaw */
+    u32 soldiers;
+    u32 tint;              /* the faction colour, RGBA8 */
+    u32 seed;              /* the small offsets of the figures: the same seed gives the same crowd */
+};
+
+/* An instance that is a figure of a unit. Its model is a unit model
+   (render_model_id). This id is past the placeholder shapes, so no shape
+   draws for it. */
+#define RENDER_MESH_UNIT_FIGURE RENDER_MESH_COUNT
+
+#define RENDER_MAX_UNITS            1024
+#define RENDER_UNIT_SPRITE_SIZE     1.4f     /* world units; the square billboard of a unit on its hex */
+/* The figures are 1.5 times the scale of docs/GRAPHICS.md, so that a unit
+   shows at a middle zoom (the player, 2026-11-11). */
+#define RENDER_UNIT_FIGURE_HEIGHT   0.45f    /* world units; a soldier */
+#define RENDER_UNIT_RIDER_HEIGHT    0.54f    /* world units; a rider on his horse */
+#define RENDER_UNIT_BANNER_HEIGHT   0.68f    /* world units; the banner with its pole */
+#define RENDER_UNIT_SOLDIER_SPACING 0.28f    /* world units between two soldiers in a row */
+#define RENDER_UNIT_RIDER_SPACING   0.44f
+#define RENDER_UNIT_SOLDIER_COLUMNS 5
+#define RENDER_UNIT_RIDER_COLUMNS   3
+#define RENDER_UNIT_SOLDIERS_PER_FIGURE 250
+#define RENDER_UNIT_RIDERS_PER_FIGURE   500
+#define RENDER_UNIT_MIN_FIGURES     4
+#define RENDER_UNIT_MAX_FIGURES     20       /* 4 rows of 5 soldiers: the rows stay inside the hex */
+#define RENDER_UNIT_MAX_RIDERS      6        /* 2 rows of 3 riders */
+#define RENDER_UNIT_JITTER          0.15f    /* the largest offset of a figure, as a part of the spacing */
+#define RENDER_UNIT_SIEGE_SIZE      1.5f     /* world units; the larger side of the footprint of a siege weapon */
+#define RENDER_UNIT_SHIP_SIZE       1.7f     /* world units; the length of a ship: nearly the width of the hex */
+
+/* The model of the class of a unit sprite, or RENDER_MODEL_COUNT for the
+   figure without a class and for a base. */
+internal u32
+render_unit_model_of(u32 sprite_id)
+{
+    if (sprite_id < RENDER_SPRITE_SWORD || sprite_id > RENDER_SPRITE_TRANSPORT) return RENDER_MODEL_COUNT;
+    return RENDER_MODEL_UNIT_SWORD + (sprite_id - RENDER_SPRITE_SWORD);
+}
+
+/* The art sprite of the class of a unit model, or 0. A pack that has this
+   picture but not the model keeps its picture (render_unit_model_allowed). */
+internal const char *
+render_unit_model_art_file(u32 model)
+{
+    if (model == RENDER_MODEL_UNIT_BANNER) return "sprites/art/banner.png";
+    if (model < RENDER_MODEL_UNIT_SWORD || model > RENDER_MODEL_UNIT_TRANSPORT) return 0;
+    return render_sprite_art_files[RENDER_SPRITE_SWORD + (model - RENDER_MODEL_UNIT_SWORD)];
+}
+
+/* True if the platform can load the unit model of the data folder for the
+   active pack. A pack with its own art of the class and without its own
+   model keeps the art: a Europe pack does not take the Han models. */
+internal b32
+render_unit_model_allowed(b32 pack_has_art, b32 pack_has_model)
+{
+    return pack_has_model || !pack_has_art;
+}
+
+/* A small offset from the seed and the figure, from -1 to 1. */
+internal f32
+render_unit_jitter(u32 seed, u32 figure, u32 axis)
+{
+    u32 h = seed * 0x9E3779B1u ^ (figure + 1u) * 0x85EBCA77u ^ (axis + 1u) * 0xC2B2AE3Du;
+    h ^= h >> 15; h *= 0x2C1B3C6Du; h ^= h >> 12;
+    return (f32)(h & 0xFFFFu) / 32767.5f - 1.0f;
+}
+
+/* One figure at the local point (x, z) of the unit. The front of the unit
+   is +z. The yaw turns the point as the mesh shader turns a vertex. */
+internal render_mesh_instance
+render_unit_figure(const render_unit *unit, u32 model, f32 x, f32 z, f32 scale)
+{
+    f32 c = cosf(unit->yaw), s = sinf(unit->yaw);
+    render_mesh_instance figure = {};
+    figure.mesh_id    = RENDER_MESH_UNIT_FIGURE;
+    figure.model      = model;
+    figure.position   = v3_make(unit->position.x + x * c + z * s, unit->position.y, unit->position.z - x * s + z * c);
+    figure.yaw        = unit->yaw;
+    figure.scale      = scale;
+    figure.tint       = unit->tint;
+    figure.art_sprite = RENDER_NO_ART;
+    return figure;
+}
+
+/* Writes the figures of a unit into out, at most capacity. Returns their
+   count. A siege weapon and a ship are one model at the centre of the hex.
+   A soldier class is a crowd in rows, one figure for each 250 soldiers (500
+   for the cavalry), from 4 to 20 (6 for the cavalry), and a banner behind
+   the rows. The figure without a class has no model and writes nothing. */
+internal u32
+render_unit_figures(const render_unit *unit, render_mesh_instance *out, u32 capacity)
+{
+    u32 model = render_unit_model_of(unit->sprite_id);
+    if (model == RENDER_MODEL_COUNT || capacity == 0) return 0;
+    if (model >= RENDER_MODEL_UNIT_RAM)
+    {
+        b32 ship = model >= RENDER_MODEL_UNIT_BOAT && model <= RENDER_MODEL_UNIT_BATTLE_SHIP;
+        out[0] = render_unit_figure(unit, model, 0.0f, 0.0f, ship ? RENDER_UNIT_SHIP_SIZE : RENDER_UNIT_SIEGE_SIZE);
+        return 1;
+    }
+    b32 riders = model == RENDER_MODEL_UNIT_CAVALRY;
+    u32 per_figure = riders ? RENDER_UNIT_RIDERS_PER_FIGURE : RENDER_UNIT_SOLDIERS_PER_FIGURE;
+    u32 most       = riders ? RENDER_UNIT_MAX_RIDERS : RENDER_UNIT_MAX_FIGURES;
+    u32 columns    = riders ? RENDER_UNIT_RIDER_COLUMNS : RENDER_UNIT_SOLDIER_COLUMNS;
+    f32 spacing    = riders ? RENDER_UNIT_RIDER_SPACING : RENDER_UNIT_SOLDIER_SPACING;
+    f32 height     = riders ? RENDER_UNIT_RIDER_HEIGHT : RENDER_UNIT_FIGURE_HEIGHT;
+    u32 count = (unit->soldiers + per_figure - 1) / per_figure;
+    if (count < RENDER_UNIT_MIN_FIGURES) count = RENDER_UNIT_MIN_FIGURES;
+    if (count > most) count = most;
+    u32 rows = (count + columns - 1) / columns;
+    u32 written = 0;
+    for (u32 index = 0; index < count && written < capacity; ++index)
+    {
+        u32 row = index / columns, column = index % columns;
+        u32 in_row = row + 1 < rows ? columns : count - row * columns;
+        f32 x = ((f32)column - 0.5f * (f32)(in_row - 1)) * spacing;
+        f32 z = (0.5f * (f32)(rows - 1) - (f32)row) * spacing;
+        x += render_unit_jitter(unit->seed, index, 0) * RENDER_UNIT_JITTER * spacing;
+        z += render_unit_jitter(unit->seed, index, 1) * RENDER_UNIT_JITTER * spacing;
+        out[written++] = render_unit_figure(unit, model, x, z, height);
+    }
+    if (written < capacity)
+    {
+        f32 back = -(0.5f * (f32)(rows - 1) + 1.0f) * spacing;
+        out[written++] = render_unit_figure(unit, RENDER_MODEL_UNIT_BANNER, 0.0f, back, RENDER_UNIT_BANNER_HEIGHT);
+    }
+    return written;
+}
+
+#define RENDER_MAX_MESH_INSTANCES 16384   /* the facilities, the bases and the figures of the units */
 #define RENDER_MAX_BILLBOARDS     4096
 
 struct render_commands
@@ -802,6 +971,8 @@ struct render_commands
     u32    mesh_instance_count;
     render_billboard     *billboards;
     u32    billboard_count;
+    render_unit          *units;   /* render_place_units turns them into figures or billboards */
+    u32    unit_count;
 };
 
 /* The platform makes one of these in the frame arena every frame. */
@@ -813,6 +984,7 @@ render_commands_begin(memory_arena *frame, f32 viewport_width, f32 viewport_heig
     rc->viewport_height = viewport_height;
     rc->mesh_instances  = PushArray(frame, RENDER_MAX_MESH_INSTANCES, render_mesh_instance);
     rc->billboards      = PushArray(frame, RENDER_MAX_BILLBOARDS, render_billboard);
+    rc->units           = PushArray(frame, RENDER_MAX_UNITS, render_unit);
     return rc;
 }
 
@@ -859,6 +1031,48 @@ render_push_billboard(render_commands *rc, u32 sprite_id, v3 position, f32 width
     if (rc->billboard_count >= RENDER_MAX_BILLBOARDS) return;
     render_billboard *b = rc->billboards + rc->billboard_count++;
     b->sprite_id = sprite_id; b->position = position; b->width = width; b->height = height; b->tint = tint;
+}
+
+internal void
+render_push_unit(render_commands *rc, u32 sprite_id, v3 position, f32 yaw, u32 soldiers, u32 tint, u32 seed)
+{
+    if (rc->unit_count >= RENDER_MAX_UNITS) return;
+    render_unit *unit = rc->units + rc->unit_count++;
+    unit->sprite_id = sprite_id; unit->position = position; unit->yaw = yaw;
+    unit->soldiers = soldiers; unit->tint = tint; unit->seed = seed;
+}
+
+/* The platform calls this once in each frame, before it draws. ready[model]
+   is true when the pack has the unit model. A unit whose class has a model
+   becomes its figures, if the camera is near (render_shape_models_on) and
+   the figures fit in the buffer. Each other unit becomes its billboard.
+   The banner shows only when the pack has its model. */
+internal void
+render_place_units(render_commands *rc, const b32 *ready)
+{
+    b32 models_on = render_shape_models_on(&rc->cam);
+    for (u32 index = 0; index < rc->unit_count; ++index)
+    {
+        const render_unit *unit = rc->units + index;
+        u32 model = render_unit_model_of(unit->sprite_id);
+        u32 placed = 0;
+        if (models_on && model < RENDER_MODEL_COUNT && ready[model])
+        {
+            render_mesh_instance figures[RENDER_UNIT_MAX_FIGURES + 1];
+            u32 count = render_unit_figures(unit, figures, ArrayCount(figures));
+            if (rc->mesh_instance_count + count <= RENDER_MAX_MESH_INSTANCES)
+            {
+                for (u32 figure = 0; figure < count; ++figure)
+                {
+                    if (figures[figure].model == RENDER_MODEL_UNIT_BANNER && !ready[RENDER_MODEL_UNIT_BANNER]) continue;
+                    rc->mesh_instances[rc->mesh_instance_count++] = figures[figure];
+                    placed++;
+                }
+            }
+        }
+        if (!placed) render_push_billboard(rc, unit->sprite_id, unit->position, RENDER_UNIT_SPRITE_SIZE, RENDER_UNIT_SPRITE_SIZE, unit->tint);
+    }
+    rc->unit_count = 0;   /* a second call places nothing twice */
 }
 
 #endif /* RENDER_H */

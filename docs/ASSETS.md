@@ -640,6 +640,50 @@ To import the finished models again from their GLB files, run this command:
 
     python -X utf8 -E misc\local_art.py --import-again
 
+### The unit models of the Three Kingdoms art
+misc/unit_models.py makes the 3D unit models of data/placeholder on the same
+server. The source of each model is a Gemini model sheet of the owner, MS-01
+to MS-14 in the Drive folder 01-Units. docs/units/UNIT-JOBS.tsv gives the sheet,
+the fit and the target of triangles of each class.
+
+The script does these steps for each class:
+
+1. It cuts the front view of the sheet at full size. The green becomes
+   transparent. The red faction paint stays opaque red.
+2. It sends the cut picture to TRELLIS.2 as image to 3D. No FLUX step runs.
+3. It imports the GLB into data/placeholder/models/unit_CLASS.hxm and .jpg.
+4. It brightens the texture toward the cut picture. TRELLIS.2 makes the
+   texture darker than the sheet.
+5. misc/unit_mask.py paints the red faction paint back onto the texture.
+   TRELLIS.2 changes the flat red #D01818 to brown, so the shader finds no
+   faction colour. The module turns the model until its outline matches the
+   cut picture. Then it paints each texel that the camera sees on red paint
+   to #D01818. The back of the model keeps the colours of TRELLIS.2.
+
+The 14 models are 4.3 MB. A soldier class or the banner is approximately
+150 KB. A siege weapon or a ship is approximately 450 KB. The renderer loads models/unit_CLASS of render_model_files and draws
+the crowd of docs/GRAPHICS.md 5.1. If a pack has its own art of a class
+(sprites/art/CLASS.png) but no own model of that class, the pack keeps its
+art. Thus the Europe packs keep their 2D units.
+
+TRELLIS.2 drops thin parts, for example a sword blade, the head of a
+halberd and a flat flag. If a model loses a part that the class needs, run
+the job again with a new seed.
+
+| Item | Value |
+|---|---|
+| Source picture | Gemini model sheet of the owner |
+| Mesh and texture | TRELLIS.2, MIT |
+| Soldiers and the banner | 1500 triangles, fit height, so the figure is one unit tall |
+| Siege weapons and ships | 8000 triangles, fit footprint |
+| Texture | JPEG, 512 pixels, quality 85, no colour subsampling |
+
+The NVIDIA caveat of the section before this one applies to these models too.
+The script keeps its state in art-src/units, so it continues after a restart.
+To import the finished models again from their GLB files, run this command:
+
+    python -X utf8 -E -P misc\unit_models.py --import-again
+
 ## Text of the content pack (data/placeholder)
 The project wrote these files. They contain no text from the original game.
 - text/locales.tsv, text/zh-TW.tsv and text/en.tsv: the UI strings.

@@ -1,0 +1,17 @@
+name	sheet	fit	faces
+# The 3D unit models of the Three Kingdoms art. misc/unit_models.py reads this file. Each sheet is in the Drive folder 01-Units.
+# fit height: the figure is one unit tall. fit footprint: the larger side of the footprint is one unit. faces: the target of TRELLIS.2.
+unit_sword	MS-01-sword.jpg	height	1500
+unit_pike	MS-02-pike.jpg	height	1500
+unit_halberd	MS-03-halberd.jpg	height	1500
+unit_crossbow	MS-04-crossbow.jpg	height	1500
+unit_cavalry	MS-05-cavalry.jpg	height	1500
+unit_banner	MS-06-banner.jpg	height	1500
+unit_ram	MS-07-ram.jpg	footprint	8000
+unit_wood_beast	MS-08-wood-beast.jpg	footprint	8000
+unit_tower	MS-09-tower.jpg	footprint	8000
+unit_catapult	MS-10-catapult.jpg	footprint	8000
+unit_transport	MS-11-transport.jpg	footprint	8000
+unit_boat	MS-12-boat.jpg	footprint	8000
+unit_tower_ship	MS-13-tower-ship.jpg	footprint	8000
+unit_battle_ship	MS-14-battle-ship.jpg	footprint	8000

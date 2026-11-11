@@ -56,6 +56,8 @@ The status on 2026-10-27:
   - a save, a reload of the page, and a load
   - the loss of the WebGL2 context
   - the parity test of the 3D scene against the Windows build
+- On 2026-11-11 index.data is 268 MB, with the Europe models. The 14 unit
+  models of the Three Kingdoms art add 4.3 MB of it (docs/ASSETS.md).
 - The download is approximately 100 MB (2026-10-29): index.data is 98.5 MB
   and index.wasm is 1.7 MB. The 25 3D models are 78.7 MB of it
   (docs/ASSETS.md, "Base models"):

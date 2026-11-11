@@ -565,6 +565,27 @@ gl_pack_changes_model(const char *old_dir, const char *new_dir, const char *name
     return false;
 }
 
+/* The model of a kind at a level (render_model_files). A unit model loads
+   only if the pack may take it (render_unit_model_allowed). */
+internal void
+gl_load_kind_model(webgl2_renderer *r, u32 model_id, u32 level, memory_arena *scratch)
+{
+    const char *name = render_model_files[model_id][level];
+    gl_base_model *model = r->mesh_models[model_id] + level;
+    const char *art = render_unit_model_art_file(model_id);
+    if (name && art)
+    {
+        char mesh_file[260];
+        snprintf(mesh_file, sizeof(mesh_file), "%s.hxm", name);
+        if (!render_unit_model_allowed(gl_pack_has_file(r->pack_dir, art), gl_pack_has_file(r->pack_dir, mesh_file)))
+        {
+            *model = {};
+            return;
+        }
+    }
+    gl_load_base_model(r, name, scratch, model);
+}
+
 internal void
 gl_delete_model(gl_base_model *model)
 {
@@ -619,9 +640,10 @@ webgl2_renderer_use_pack(webgl2_renderer *r, const char *pack_dir, memory_arena 
         for (u32 level = 0; level < RENDER_MODEL_LEVELS; ++level)
         {
             const char *name = render_model_files[model_id][level];
-            if (!gl_pack_changes_model(old_dir, new_dir, name)) continue;
+            const char *art  = name ? render_unit_model_art_file(model_id) : 0;   /* the art of the class decides if a unit model loads */
+            if (!gl_pack_changes_model(old_dir, new_dir, name) && !(art && gl_pack_changes(old_dir, new_dir, art))) continue;
             gl_delete_model(r->mesh_models[model_id] + level);
-            gl_load_base_model(r, name, scratch, r->mesh_models[model_id] + level);
+            gl_load_kind_model(r, model_id, level, scratch);
             loaded++;
         }
     }
@@ -677,7 +699,7 @@ webgl2_renderer_init(webgl2_renderer *r, platform_read_entire_file *read_file, c
     {
         for (u32 level = 0; level < RENDER_MODEL_LEVELS; ++level)
         {
-            gl_load_base_model(r, render_model_files[model_id][level], scratch, r->mesh_models[model_id] + level);
+            gl_load_kind_model(r, model_id, level, scratch);
         }
     }
 
@@ -820,6 +842,7 @@ gl_model_of(webgl2_renderer *r, render_mesh_instance *m, const camera *cam)
         gl_base_model *model = r->base_models + (m->art_sprite - RENDER_SPRITE_FIRST_BASE);
         return model->texture ? model : 0;
     }
+    if (m->mesh_id == RENDER_MESH_UNIT_FIGURE) return gl_level_model_of(r, m->model, 0);   /* render_place_units checked the camera */
     if (m->mesh_id >= RENDER_MESH_COUNT || !render_shape_models_on(cam)) return 0;
     gl_base_model *model = gl_level_model_of(r, m->model, m->level);
     return model ? model : gl_level_model_of(r, m->mesh_id, m->level);
@@ -829,10 +852,9 @@ gl_model_of(webgl2_renderer *r, render_mesh_instance *m, const camera *cam)
    that gl_model_of gives to that model and that is in the view. The
    model stays fixed when the view turns. The caller binds the model program. */
 internal void
-gl_draw_model(webgl2_renderer *r, render_commands *rc, m4 view_projection, gl_base_model *model, memory_arena *scratch)
+gl_draw_model(webgl2_renderer *r, render_commands *rc, m4 view_projection, gl_base_model *model, gl_mesh_instance *batch)
 {
     if (!model->texture) return;
-    gl_mesh_instance *batch = PushArray(scratch, r->instance_capacity, gl_mesh_instance);
     u32 n = 0;
     for (u32 i = 0; i < rc->mesh_instance_count && n < r->instance_capacity; ++i)
     {
@@ -933,11 +955,18 @@ webgl2_renderer_draw(webgl2_renderer *r, render_commands *rc, memory_arena *scra
         }
     }
 
+    /* The units, as in d3d11_renderer_draw (render_place_units). */
+    b32 unit_ready[RENDER_MODEL_COUNT] = {};
+    for (u32 model_id = RENDER_MODEL_UNIT_SWORD; model_id < RENDER_MODEL_COUNT; ++model_id) unit_ready[model_id] = r->mesh_models[model_id][0].texture != 0;
+    render_place_units(rc, unit_ready);
+
+    /* One batch of instances for each draw of a mesh or a model, in turn. */
+    gl_mesh_instance *batch = PushArray(scratch, r->instance_capacity, gl_mesh_instance);
+
     /* meshes: one instanced draw per mesh id */
     glUseProgram(r->mesh_program);
     for (u32 mesh_id = 0; mesh_id < r->mesh_count; ++mesh_id)
     {
-        gl_mesh_instance *batch = PushArray(scratch, r->instance_capacity, gl_mesh_instance);
         u32 n = 0;
         for (u32 i = 0; i < rc->mesh_instance_count && n < r->instance_capacity; ++i)
         {
@@ -955,8 +984,8 @@ webgl2_renderer_draw(webgl2_renderer *r, render_commands *rc, memory_arena *scra
     /* the 3D models: one instanced draw for each base kind and each shape
        that has a model in the pack */
     glUseProgram(r->model_program);
-    for (u32 kind = 0; kind < GL_BASE_KINDS; ++kind) gl_draw_model(r, rc, fc.view_projection, r->base_models + kind, scratch);
-    for (u32 model_index = 0; model_index < RENDER_MODEL_COUNT * RENDER_MODEL_LEVELS; ++model_index) gl_draw_model(r, rc, fc.view_projection, r->mesh_models[0] + model_index, scratch);
+    for (u32 kind = 0; kind < GL_BASE_KINDS; ++kind) gl_draw_model(r, rc, fc.view_projection, r->base_models + kind, batch);
+    for (u32 model_index = 0; model_index < RENDER_MODEL_COUNT * RENDER_MODEL_LEVELS; ++model_index) gl_draw_model(r, rc, fc.view_projection, r->mesh_models[0] + model_index, batch);
 
     /* billboards: one instanced draw per sprite id, alpha tested, drawn last.
        The quad winds counter-clockwise on the screen, so the back-face cull
@@ -968,14 +997,14 @@ webgl2_renderer_draw(webgl2_renderer *r, render_commands *rc, memory_arena *scra
     glUseProgram(r->billboard_program);
     for (u32 sprite_id = 0; sprite_id < r->sprite_count; ++sprite_id)
     {
-        gl_billboard_instance *batch = PushArray(scratch, r->instance_capacity, gl_billboard_instance);
+        gl_billboard_instance *cards = PushArray(scratch, r->instance_capacity, gl_billboard_instance);
         u32 n = 0;
         for (u32 i = 0; i < rc->billboard_count && n < r->instance_capacity; ++i)
         {
             render_billboard *b = rc->billboards + i;
             if (b->sprite_id != sprite_id) continue;
-            batch[n].position[0] = b->position.x; batch[n].position[1] = b->position.y; batch[n].position[2] = b->position.z;
-            batch[n].width = b->width; batch[n].height = b->height; batch[n].tint = b->tint;
+            cards[n].position[0] = b->position.x; cards[n].position[1] = b->position.y; cards[n].position[2] = b->position.z;
+            cards[n].width = b->width; cards[n].height = b->height; cards[n].tint = b->tint;
             n++;
         }
         /* The art of a base stands in place of its mesh, on a card that faces the camera. */
@@ -984,8 +1013,8 @@ webgl2_renderer_draw(webgl2_renderer *r, render_commands *rc, memory_arena *scra
             render_mesh_instance *m = rc->mesh_instances + i;
             if (m->art_sprite != sprite_id || !gl_has_art(r, m) || gl_model_of(r, m, &rc->cam)) continue;
             render_billboard card = render_base_billboard(m, &rc->cam, r->sprites[sprite_id].aspect);
-            batch[n].position[0] = card.position.x; batch[n].position[1] = card.position.y; batch[n].position[2] = card.position.z;
-            batch[n].width = card.width; batch[n].height = card.height; batch[n].tint = card.tint;
+            cards[n].position[0] = card.position.x; cards[n].position[1] = card.position.y; cards[n].position[2] = card.position.z;
+            cards[n].width = card.width; cards[n].height = card.height; cards[n].tint = card.tint;
             n++;
         }
         if (!n) continue;
@@ -1000,7 +1029,7 @@ webgl2_renderer_draw(webgl2_renderer *r, render_commands *rc, memory_arena *scra
         gl_attribute(GL_ATTRIBUTE_POSITION, 2, 16, 0, 0);
         gl_attribute(GL_ATTRIBUTE_UV,       2, 16, 8, 0);
         glBindBuffer(GL_ARRAY_BUFFER, r->instances);
-        glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)(n * sizeof(gl_billboard_instance)), batch, GL_STREAM_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)(n * sizeof(gl_billboard_instance)), cards, GL_STREAM_DRAW);
         gl_attribute(GL_ATTRIBUTE_PLACE, 3, sizeof(gl_billboard_instance), 0, 1);
         gl_attribute(GL_ATTRIBUTE_YAW,   1, sizeof(gl_billboard_instance), 12, 1);
         gl_attribute(GL_ATTRIBUTE_SCALE, 1, sizeof(gl_billboard_instance), 16, 1);
