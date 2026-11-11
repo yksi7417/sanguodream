@@ -9,6 +9,109 @@ not a rewrite.
 
 Read docs/tutorials/00-reading-order.md to follow the code.
 
+## Status on 2026-11-11
+
+This section is the summary of the project. The sections below it keep
+the full record of each milestone. The master branch has 445 commits.
+The live game is https://sanguodream.fly.dev.
+
+### Complete
+
+| Area | Items | Document |
+|---|---|---|
+| The rules | M0 to M12: turns, economy, growth, movement, combat, officers, diplomacy, events, the AI, saves and the real map | section 3 |
+| The game screens | M13 to M22: the replay of save pairs, a turn without debug panels, the AI on the map, the first hour, feedback, the city scene, the AI round, the information screens, fit and finish | section 3 |
+| The gap reports | Each row of report 2 and report 3 has its fix, or it waits on the spec | PROGRESS-GAP2.md, PROGRESS-GAP3.md |
+| The saves | Save format 3 with a member table. A change of the state keeps the old saves | PROGRESS-GAP3.md |
+| The skills | All 100 skills work as traits of the pack | SKILLS.md |
+| The replay of a game | The record, the checkpoints and the Replay panel | REPLAY.md |
+| The packs | placeholder, civil_war, han_196, medieval_europe, medieval_west and medieval_east | data/*/README.md |
+| The maps | W1 and W2: the map tool and the scenario of a pack in TSV files | MAPS.md |
+| The game of 1200 | E1 to E8: names, lives, coats of arms, the church, the story and the two maps | EUROPE.md |
+| The web build | Phase 0, the WebGL2 renderer and the saves in the browser | WEB.md |
+| The site | Sign-in with a provider or an email link, saves in the bucket, the members page, the splash and the service worker | WEB.md |
+| The shared games | MP1 to MP7 and MP9: the relay, the rooms, the lobby, the AI takeover, shared saves, the referee, the chat and a late seat | MULTIPLAYER.md |
+| The play test | A recorded match of two seats and the AI. The AI now keeps the war alive after the first year | PLAYTEST.md |
+| The art | 279 portraits, the unit sprites, the 3D models of the bases and the facilities, 57 Europe models, the arms of 24 factions, the ground tiles and the effects of han_196 | ASSETS.md |
+
+Each milestone from M1 to M22 has a tutorial and a demo walkthrough.
+The test layers are the unit tests, the feature tests, the UI tests,
+the demos, the server tests and 16 browser test files.
+
+### In progress
+
+- The 3D units. The worktree of the branch feat/3d-units has 14 unit
+  models and the renderer changes. The work has no commit yet.
+- The branch claude/sharp-mccarthy-o3bybz has 13 commits that master
+  does not have. They change the AI: it builds, conscripts within its
+  grain, makes alliances and sends several cities against one city.
+  They also add the next generation of officers to han_196, and the
+  plan E9 with 219 candidates for the packs of 1200. The AI changes
+  touch the same code as the AI war fix, so the merge needs care.
+- MP8, the Discord Activity. The code and its tests exist. The Discord
+  app, its secrets and the check in a Discord server wait for the user.
+- The art of the east map. Six factions have no coat of arms.
+- The facility health of section 5. The engine keeps the durability.
+  The display and the loss of the city are open.
+- The play report row U-004 waits on Q-233 of the spec.
+
+### Possible improvements
+
+- The AI. Its gold still grows, and the patrols take the most action
+  points (PLAYTEST.md). All its rules are assumptions (Q-185).
+- The download. The game files are approximately 100 MB, and the 3D
+  models are 78.7 MB of that. Smaller textures and meshes cut the time
+  of the first visit.
+- The web build has four open checks:
+  - a portrait on the screen
+  - a save, a reload of the page, and a load
+  - the loss of the WebGL2 context
+  - the parity of the 3D scene with Windows
+- The devices. The game needs a mouse. A touch screen has no controls.
+- The fidelity. The replay of economy-turn/001 has 334 differences.
+  The recovery of the action points (Q-019) and the city income (Q-021)
+  wait on a formula of the spec.
+- The play test driver. The guest plays only its first turns by hand,
+  and the captions of the spectator fall behind a game of the AI alone.
+- The shared games. The list of the open rooms (Q-10), a turn notice
+  outside the site (Q-6) and the rules of a room (Q-16) do not exist.
+- The scripts. Arabic, Greek and Cyrillic names show in Latin script
+  (Q-E4).
+- The sound. The game has no sound and no music.
+- The documents. Section 1 of GRAPHICS.md describes the scene of
+  October. The version in code/version.h is still 0.1.0.
+
+### Remaining from the roadmap
+
+- Track G. No G milestone has the status "done" in GRAPHICS.md. The
+  sprites, the 3D models, the walk hex by hex and the effect art exist.
+  These parts are open:
+  - a scene for each tactic (G3)
+  - the three states of damage of a base (G4)
+  - the scenes of a siege and a capture (G5)
+  - the sound keys (G6)
+- Follow-up A1, a pluggable AI. The planner is fixed code, and the rule
+  hook ai_priority does not exist.
+- Release R1, the playtest zip for Windows with a start guide. The live
+  site gives the game to players, but the zip does not exist.
+- M13. The replays do not reach the goal of zero confirmed differences,
+  and the spec has no save pair for movement.
+- M15. The statistics test against a year log of the original waits for
+  that log.
+- M16. The messages, the portraits and the music of the install wait
+  for their layouts in the spec.
+- M9 and M17. The editor and the battle mode are stubs. The tutorial
+  scenario of the title stays grey.
+- M21. Eight information screens stay grey, because the spec did not
+  observe them.
+- The maps. W3 gives a pack its own count of cities. W4 gives maps of
+  300000 hexes. W5 gives better roads and terrain. W6 gives the planned
+  games: the Thirty Years War, the American Revolution, East Asia and
+  South Asia.
+- E9, the next generation of officers for the packs of 1200.
+- The support attack without 輔佐 (SKILLS.md).
+- The open points for the analysis side in each milestone of section 3.
+
 ## 1. The layers
 
 Each layer knows only the layers below it. Tests live at the layer that they
@@ -19,11 +122,11 @@ test (see .claude/rules/testing-pyramid.md).
 | L0 Platform | code/win32_hexdom.cpp | window, GPU, input, memory block, hot reload | done |
 | L1 Base | code/base.h, code/ecs/ | types, arenas, entity ids, component tables | done |
 | L2 Space | code/sim/hex.h | hex coordinates, the cost map, shortest paths | done |
-| L3 Time | code/sim/sim.h, sim.cpp, calendar.h, turn.cpp | turns, commands in, events out, seeded PRNG; the calendar, the turn order and the action points (tutorial 13) | done for M2 |
-| L4 Domain | code/sim/ (one file per subsystem) | territory, settlements, resources, facilities, units, characters | facilities, slots and the develop command (tutorial 14); the production system, durability and the five city commands (tutorial 15); the rest next |
-| L5 Conflict | code/sim/ | movement rules, zones of control, combat, siege | later |
-| L6 Politics | code/sim/ | diplomacy, loyalty, factions, scripted events | later |
-| L7 AI | code/sim/ai_*.cpp | planning over the same commands a player uses | later |
+| L3 Time | code/sim/sim.h, sim.cpp, calendar.h, turn.cpp | turns, commands in, events out, seeded PRNG; the calendar, the turn order and the action points (tutorial 13) | done |
+| L4 Domain | code/sim/ (one file per subsystem) | territory, settlements, resources, facilities, units, characters | done (M1 to M4, tutorials 14 to 16) |
+| L5 Conflict | code/sim/ | movement rules, zones of control, combat, siege | done (M5, M6 and M10) |
+| L6 Politics | code/sim/ | diplomacy, loyalty, factions, scripted events | done (M7 and M8) |
+| L7 AI | code/sim/ai.cpp | planning over the same commands a player uses | done as one fixed planner (M8, M15, PLAYTEST.md); A1 is open |
 | L8 Front end | code/engine/, code/ui/, code/text/, code/render/, code/d3d11_renderer.h | engine_api, ImGui panels, locales and fonts (tutorial 12), and the 2.5D scene: a terrain mesh from per-cell kind and level, an orbit camera, instanced models and billboards, a pick from pixel to hex (tutorial 11) | done for L1-L3; placeholder art; text module done |
 | L9 Content | data/<pack>/ | tables that make it a particular game | text, names, facilities.tsv, cities.tsv and rules.tsv of the placeholder pack |
 

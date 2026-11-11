@@ -50,6 +50,22 @@ The game has these content packs:
 Each pack is a folder of tables in [data/](data). The engine has no
 setting of its own, so a new pack is data and not new code.
 
+## Status
+
+The status on 2026-11-11. [docs/ROADMAP.md](docs/ROADMAP.md) has the
+details in its first section.
+
+| State | Items |
+|---|---|
+| Complete | The rules and the game screens (M0 to M22) |
+| Complete | Six content packs, the map tool and the game of 1200 (E1 to E8) |
+| Complete | The web build and the site with sign-in and saves |
+| Complete | Shared games: rooms, lobby, AI takeover, shared saves, referee, chat, late seats (MP1 to MP7, MP9) |
+| Complete | The replay of a game, the 100 skills, and an AI that keeps the war alive |
+| In progress | 3D units, more AI rules and the next generation of officers, the Discord Activity (MP8), facility health |
+| To improve | The AI economy, the download of 100 MB, touch devices, the fidelity to the original, sound |
+| Remaining | The scenes of tactics, sieges and captures (track G), a pluggable AI (A1), the Windows playtest zip (R1), larger maps (W3 to W6), more games |
+
 ## Build from source
 
 This section is for developers on Windows.
